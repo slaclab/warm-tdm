@@ -1,0 +1,3 @@
+[submodule "firmware/submodules/surf"]
+	path = firmware/submodules/surf
+	url = git@github.com:slaclab/surf
