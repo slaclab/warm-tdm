@@ -17,8 +17,11 @@ source -quiet $::env(RUCKUS_DIR)/vivado_proc.tcl
 # Load submodules' code and constraints
 loadRuckusTcl $::env(TOP_DIR)/submodules/surf
 
+# Load common code
+loadRuckusTcl $::env(TOP_DIR)/common/warm_tdm
+
 # Load target's source code and constraints
-loadSource      -lib tacs -dir  "$::DIR_PATH/rtl/"
-loadSource      -lib tacs -sim_only -dir "$::DIR_PATH/sim/"
-loadConstraints -dir  "$::DIR_PATH/rtl/"
+loadSource      -lib warm_tdm -dir  "$::DIR_PATH/rtl/"
+#loadSource      -lib warm_tdm -sim_only -dir "$::DIR_PATH/sim/"
+loadConstraints -dir  "$::DIR_PATH/xdc/"
 
