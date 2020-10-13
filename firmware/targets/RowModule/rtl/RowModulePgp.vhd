@@ -15,6 +15,19 @@
 -- copied, modified, propagated, or distributed except according to the terms
 -- contained in the LICENSE.txt file.
 -------------------------------------------------------------------------------
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.std_logic_arith.all;
+use ieee.std_logic_unsigned.all;
+
+
+library surf;
+use surf.StdRtlPkg.all;
+use surf.AxiStreamPkg.all;
+use surf.SsiPkg.all;
+use surf.AxiStreamPacketizer2Pkg.all;
+
+library warm_tdm;
 
 entity RowModulePgp is
 
@@ -51,8 +64,8 @@ architecture rtl of RowModulePgp is
    signal pgpRxIn      : Pgp2bRxInType;
    signal pgpRxOut     : Pgp2bRxOutType;
    signal pgpTxMasters : AxiStreamMasterArray(3 downto 0) := (others => axiStreamMasterInit(SSI_PGP2B_CONFIG_C));
-   signal pgpTxSlaves  : AxiStreamSlaveArray(3 downto 0)  := (others => => AXI_STREAM_SLAVE_INIT_C);
-   signal pgpRxMasters : AxiStreamMasterArray(3 downto 0) := (others => axiStreamMasterInit(SSI_PGP2B_CONFIG_C));;
+   signal pgpTxSlaves  : AxiStreamSlaveArray(3 downto 0)  := (others => AXI_STREAM_SLAVE_INIT_C);
+   signal pgpRxMasters : AxiStreamMasterArray(3 downto 0) := (others => axiStreamMasterInit(SSI_PGP2B_CONFIG_C));
    signal pgpRxCtrl    : AxiStreamCtrlArray(3 downto 0)   := (others => AXI_STREAM_CTRL_UNUSED_C);
 
    signal fifoRxMasters : AxiStreamMasterArray(1 downto 0) := (others => axiStreamMasterInit(PACKETIZER2_AXIS_CFG_C));
@@ -73,7 +86,7 @@ architecture rtl of RowModulePgp is
 
    constant AXIL_XBAR_CFG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := (
       AXIL_EXT_C      => (
-         baseAddr     => X"00000000"
+         baseAddr     => X"00000000",
          addrBits     => 28,
          connectivity => X"FFFF"),
       AXIL_PGP_C      => (
@@ -101,7 +114,7 @@ begin
    REAL_PGP_GEN : if (not SIMULATION_G) generate
 
 
-      U_Pgp2bGtx7VarLatWrapper_1 : entity work.Pgp2bGtx7VarLatWrapper
+      U_Pgp2bGtx7VarLatWrapper_1 : entity surf.Pgp2bGtx7VarLatWrapper
          generic map (
             TPD_G              => TPD_G,
             CLKIN_PERIOD_G     => 6.4,
@@ -156,7 +169,7 @@ begin
             axilWriteMaster => locAxilWriteMaster(AXIL_GTX_C),   -- [in]
             axilWriteSlave  => locAxilWriteSlaves(AXIL_GTX_C));  -- [out]
 
-      U_Pgp2bAxi_1 : entity work.Pgp2bAxi
+      U_Pgp2bAxi_1 : entity surf.Pgp2bAxi
          generic map (
             TPD_G           => TPD_G,
             COMMON_TX_CLK_G => true,
@@ -234,7 +247,7 @@ begin
             axisSlave   => fifoRxSlaves(i));    -- [in]
 
 
-      U_RingRouter_1 : entity work.RingRouter
+      U_RingRouter_1 : entity warm_tdm.RingRouter
          generic map (
             TPD_G => TPD_G)
          port map (
@@ -252,7 +265,7 @@ begin
             txAppAxisMaster  => appTxAxisMasters(i),  -- [in]
             txAppAxisSlave   => appTxAxisSlaves(i));  -- [out]
 
-      U_PgpTXVcFifo_1 : entity work.PgpTXVcFifo
+      U_PgpTXVcFifo_1 : entity surf.PgpTXVcFifo
          generic map (
             TPD_G             => TPD_G,
             INT_PIPE_STAGES_G => 1,
@@ -260,7 +273,7 @@ begin
 --             VALID_THOLD_G      => VALID_THOLD_G,
 --             VALID_BURST_MODE_G => VALID_BURST_MODE_G,
             SYNTH_MODE_G      => "inferred",
-            MEMORY_TYPE_G     => "block"
+            MEMORY_TYPE_G     => "block",
             GEN_SYNC_FIFO_G   => true,
             FIFO_ADDR_WIDTH_G => 9,
             APP_AXI_CONFIG_G  => PACKETIZER2_AXIS_CFG_C,
@@ -280,7 +293,7 @@ begin
    end generate RING_ROUTER_GEN;
 
    -- VC 0 is the SRP channel
-   U_SrpV3AxiLite_1 : entity work.SrpV3AxiLite
+   U_SrpV3AxiLite_1 : entity surf.SrpV3AxiLite
       generic map (
          TPD_G               => TPD_G,
          INT_PIPE_STAGES_G   => 1,
@@ -291,7 +304,7 @@ begin
 --          TX_VALID_BURST_MODE_G => TX_VALID_BURST_MODE_G,
          SLAVE_READY_EN_G    => true,
          GEN_SYNC_FIFO_G     => true,
-         AXIL_CLK_FREQ_G     => 156.25E6
+         AXIL_CLK_FREQ_G     => 156.25E6,
          AXI_STREAM_CONFIG_G => PACKETIZER2_AXIS_CFG_C)
       port map (
          sAxisClk         => pgpClk,               -- [in]
@@ -314,7 +327,7 @@ begin
    txAppAxisMaster(1) <= axiStreamMasterInit(PACKETIZER2_AXIS_CFG_C);
    rxAppAxisSlave(1)  <= AXI_STREAM_SLAVE_FORCE_C;
 
-   U_AxiLiteCrossbar_1 : entity work.AxiLiteCrossbar
+   U_AxiLiteCrossbar_1 : entity surf.AxiLiteCrossbar
       generic map (
          TPD_G              => TPD_G,
          NUM_SLAVE_SLOTS_G  => 1,

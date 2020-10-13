@@ -70,6 +70,9 @@ architecture RingRouter of RingRouter is
    signal muxTxMaster : AxiStreamMasterType;
    signal muxTxSlave  : AxiStreamSlaveType;
 
+   signal dumpMaster : AxiStreamMasterType;
+   signal dumpSlave  : AxiStreamSlaveType := AXI_STREAM_SLAVE_FORCE_C;
+
 begin
 
    ----------------------------------------------------------------------------------------------
@@ -100,29 +103,31 @@ begin
    -- All others are passthrough and are routed back out the PGP TX
    ----------------------------------------------------------------------------------------------
    dynDest <= "0000" & address;
-   dynDump <= address & "0000";
+   dynDump <= address & "0000";         -- This catches frames that have cycled the loop without
+                                    -- finding the intended destination address
+
    U_AxiStreamDeMux_1 : entity work.AxiStreamDeMux
       generic map (
          TPD_G         => TPD_G,
          NUM_MASTERS_G => 3,
-         MODE_G        => "DYNAMIC"
+         MODE_G        => "DYNAMIC",
          PIPE_STAGES_G => 1)
       port map (
          axisClk              => axisClk,               -- [in]
          axisRst              => axisRst,               -- [in]
          dynamicRouteMasks(0) => "00001111",            -- [in]
          dynamicRouteMasks(1) => "11110000",            -- [in]
-         dynamicRouteMasks(2) => "00000000"             -- [in]
+         dynamicRouteMasks(2) => "00000000",            -- [in]
          dynamicRouteDests(0) => dynDest,               -- [in]
          dynamicRouteDests(1) => dynDump,               -- [in]
          dynamicRouteDests(2) => "00000000",            -- [in]
          sAxisMaster          => depacketizedRxMaster,  -- [in]
          sAxisSlave           => depacketizedRxSlave,   -- [out]
          mAxisMasters(0)      => passthroughMaster,     -- [out]
-         mAxisMasters(1)      => dumpMaster,  -- [out]
-         mAxisMasters(2) => appRxAxisMaster,       -- [out]
+         mAxisMasters(1)      => dumpMaster,            -- [out]
+         mAxisMasters(2)      => appRxAxisMaster,       -- [out]
          mAxisSlave(0)        => passthroughSlave,      -- [in]
-         mAxisSlave(1) => 
+         mAxisSlave(1)        => dumpSlave,             -- [in]
          mAxisSlaves(2)       => appRxAxisSlave);       -- [in]
 
 

@@ -15,12 +15,15 @@
 -- copied, modified, propagated, or distributed except according to the terms
 -- contained in the LICENSE.txt file.
 -------------------------------------------------------------------------------
+
 library ieee;
 use ieee.std_logic_1164.all;
 
-
 library surf;
 use surf.StdRtlPkg.all;
+use surf.AxiStreamPkg.all;
+
+library warm_tdm;
 
 entity RowModule is
 
@@ -353,7 +356,7 @@ begin
          axiClkRst           => axilRst,                           -- [in]
          sAxiWriteMasters(0) => locAxilWriteMasters(AXIL_DACS_C),  -- [in]
          sAxiWriteSlaves(0)  => locAxilWriteSlaves(AXIL_DACS_C),   -- [out]
-         sAxiReadMasters(0)  => locAxilReadMaster(AXIL_DACS_C)s,   -- [in]
+         sAxiReadMasters(0)  => locAxilReadMasters(AXIL_DACS_C),   -- [in]
          sAxiReadSlaves(0)   => locAxilReadSlaves(AXIL_DACS_C),    -- [out]
          mAxiWriteMasters    => dacAxilWriteMasters,               -- [out]
          mAxiWriteSlaves     => dacAxilWriteSlaves,                -- [in]
