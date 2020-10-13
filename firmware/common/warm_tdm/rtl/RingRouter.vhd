@@ -59,8 +59,6 @@ end RingRouter;
 -- Define architecture
 architecture RingRouter of RingRouter is
 
-   signal dynDest : slv(7 downto 0);
-
    signal depacketizedRxMaster : AxiStreamMasterType;
    signal depacketizedRxSlave  : AxiStreamSlaveType;
 
@@ -72,16 +70,18 @@ architecture RingRouter of RingRouter is
 
    signal dumpMaster : AxiStreamMasterType;
    signal dumpSlave  : AxiStreamSlaveType := AXI_STREAM_SLAVE_FORCE_C;
+   signal dynDest    : slv(7 downto 0);
+   signal dynDump    : slv(7 downto 0);
 
 begin
 
    ----------------------------------------------------------------------------------------------
    -- Depacketize the stream
    ----------------------------------------------------------------------------------------------
-   U_AxiStreamDepacketizer2_1 : entity work.AxiStreamDepacketizer2
+   U_AxiStreamDepacketizer2_1 : entity surf.AxiStreamDepacketizer2
       generic map (
          TPD_G                => TPD_G,
-         MEMORY_TYPE_G        => "distributed",
+         MEMORY_TYPE_G        => "bram",
          REG_EN_G             => false,
          CRC_MODE_G           => "NONE",
          TDEST_BITS_G         => 8,
@@ -92,8 +92,8 @@ begin
          axisRst     => axisRst,               -- [in]
          linkGood    => rxLinkGood,            -- [in]
          debug       => open,                  -- [out]
-         sAxisMaster => linkRxMaster,          -- [in]
-         sAxisSlave  => linkRxSlave,           -- [out]
+         sAxisMaster => rxLinkAxisMaster,      -- [in]
+         sAxisSlave  => rxLinkAxisSlave,       -- [out]
          mAxisMaster => depacketizedRxMaster,  -- [out]
          mAxisSlave  => depacketizedRxSlave);  -- [in]
 
@@ -104,9 +104,9 @@ begin
    ----------------------------------------------------------------------------------------------
    dynDest <= "0000" & address;
    dynDump <= address & "0000";         -- This catches frames that have cycled the loop without
-                                    -- finding the intended destination address
+   -- finding the intended destination address
 
-   U_AxiStreamDeMux_1 : entity work.AxiStreamDeMux
+   U_AxiStreamDeMux_1 : entity surf.AxiStreamDeMux
       generic map (
          TPD_G         => TPD_G,
          NUM_MASTERS_G => 3,
@@ -125,17 +125,17 @@ begin
          sAxisSlave           => depacketizedRxSlave,   -- [out]
          mAxisMasters(0)      => passthroughMaster,     -- [out]
          mAxisMasters(1)      => dumpMaster,            -- [out]
-         mAxisMasters(2)      => appRxAxisMaster,       -- [out]
-         mAxisSlave(0)        => passthroughSlave,      -- [in]
-         mAxisSlave(1)        => dumpSlave,             -- [in]
-         mAxisSlaves(2)       => appRxAxisSlave);       -- [in]
+         mAxisMasters(2)      => rxAppAxisMaster,       -- [out]
+         mAxisSlaves(0)       => passthroughSlave,      -- [in]
+         mAxisSlaves(1)       => dumpSlave,             -- [in]
+         mAxisSlaves(2)       => rxAppAxisSlave);       -- [in]
 
 
 
    ----------------------------------------------------------------------------------------------
    -- Multiplex the local TX frames with the passthrough frames
    ----------------------------------------------------------------------------------------------
-   U_AxiStreamMux_1 : entity work.AxiStreamMux
+   U_AxiStreamMux_1 : entity surf.AxiStreamMux
       generic map (
          TPD_G                => TPD_G,
          PIPE_STAGES_G        => 1,
@@ -151,17 +151,17 @@ begin
          axisClk         => axisClk,            -- [in]
          axisRst         => axisRst,            -- [in]
 --         rearbitrate     => rearbitrate,              -- [in]
-         sAxisMasters(0) => appTxAxisMaster,    -- [in]
+         sAxisMasters(0) => txAppAxisMaster,    -- [in]
          sAxisMasters(1) => passthroughMaster,  -- [in]
-         sAxisSlaves(0)  => appTxAxisSlave,     -- [out]
-         sAxisSlaves(1)  => passtrhoughSlave,   -- [out]            
+         sAxisSlaves(0)  => txAppAxisSlave,     -- [out]
+         sAxisSlaves(1)  => passthroughSlave,   -- [out]            
          mAxisMaster     => muxTxMaster,        -- [out]
          mAxisSlave      => muxTxSlave);        -- [in]
 
    ----------------------------------------------------------------------------------------------
    -- Packetize the multiplexed frames
    ----------------------------------------------------------------------------------------------
-   U_AxiStreamPacketizer2_1 : entity work.AxiStreamPacketizer2
+   U_AxiStreamPacketizer2_1 : entity surf.AxiStreamPacketizer2
       generic map (
          TPD_G                => TPD_G,
          MEMORY_TYPE_G        => "distributed",
@@ -172,13 +172,13 @@ begin
          INPUT_PIPE_STAGES_G  => 1,
          OUTPUT_PIPE_STAGES_G => 1)
       port map (
-         axisClk     => appClk,            -- [in]
-         axisRst     => appRst,            -- [in]
+         axisClk     => axisClk,           -- [in]
+         axisRst     => axisRst,           -- [in]
          rearbitrate => open,              -- [out] -- Check this, might want to use it
          sAxisMaster => muxTxMaster,       -- [in]
          sAxisSlave  => muxTxSlave,        -- [out]
-         mAxisMaster => linkTxAxisMaster,  -- [out]
-         mAxisSlave  => linkTxAxisSlave);  -- [in]
+         mAxisMaster => txLinkAxisMaster,  -- [out]
+         mAxisSlave  => txLinkAxisSlave);  -- [in]
 
 
 end RingRouter;

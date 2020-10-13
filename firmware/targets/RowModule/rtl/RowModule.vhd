@@ -19,24 +19,30 @@
 library ieee;
 use ieee.std_logic_1164.all;
 
+library unisim;
+use unisim.vcomponents.all;
+
 library surf;
 use surf.StdRtlPkg.all;
 use surf.AxiStreamPkg.all;
+use surf.AxiLitePkg.all;
+use surf.I2cPkg.all;
 
 library warm_tdm;
 
 entity RowModule is
 
    generic (
-      TPD_G        : time    := 1 ns;
-      SIMULATION_G : boolean := false;
-      BUILD_INFO_G : BuildInfoType);
+      TPD_G          : time     := 1 ns;
+      SIMULATION_G   : boolean  := false;
+      SIM_PORT_NUM_G : positive := 7000;
+      BUILD_INFO_G   : BuildInfoType);
 
    port (
       -- Clocks
       gtRefClk0P : in sl;
       gtRefClk0N : in sl;
-      gtRefClkP1 : in sl;
+      gtRefClk1P : in sl;
       gtRefClk1N : in sl;
 
       -- PGP Interface
@@ -58,11 +64,16 @@ entity RowModule is
 --       sfp1TxN : out sl;
 --       sfp1RxP : in  sl;
 --       sfp1RxN : in  sl;
+      -- PROM interface
+      bootCsL  : out sl;
+      bootMosi : out sl;
+      bootMiso : in  sl;
+
 
       -- DAC Interfaces
       dacCsB      : out slv(11 downto 0);
       dacSdio     : out slv(11 downto 0);
-      dacSdi2     : in  slv(11 downto 0);
+      dacSdo      : in  slv(11 downto 0);
       dacSclk     : out slv(11 downto 0);
       dacResetB   : out slv(11 downto 0) := (others => '1');
       dacTriggerB : out slv(11 downto 0) := (others => '1');
@@ -80,6 +91,8 @@ entity RowModule is
 end entity RowModule;
 
 architecture rtl of RowModule is
+
+   signal bootSck : sl;
 
    constant NUM_AXIL_MASTERS_C : integer := 6;
    constant AXIL_VERSION_C     : integer := 0;
@@ -128,13 +141,13 @@ architecture rtl of RowModule is
    signal locAxilReadMasters  : AxiLiteReadMasterArray(NUM_AXIL_MASTERS_C-1 downto 0);
    signal locAxilReadSlaves   : AxiLiteReadSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0);
 
-   constant DAC_XBAR_CFG_C : AxiLiteCrossbarMasterConfigArray(11 downto 0) := genAxiLiteConfig(12, AXIL_DACS_C, 24, 20);
-   
+   constant DAC_XBAR_CFG_C : AxiLiteCrossbarMasterConfigArray(11 downto 0) := genAxiLiteConfig(12, AXIL_XBAR_CFG_C(AXIL_DACS_C).baseAddr, 24, 20);
+
    signal dacAxilWriteMasters : AxiLiteWriteMasterArray(11 downto 0);
    signal dacAxilWriteSlaves  : AxiLiteWriteSlaveArray(11 downto 0);
    signal dacAxilReadMasters  : AxiLiteReadMasterArray(11 downto 0);
    signal dacAxilReadSlaves   : AxiLiteReadSlaveArray(11 downto 0);
-   
+
 begin
 
    -------------------------------------------------------------------------------------------------
@@ -146,8 +159,8 @@ begin
          SIMULATION_G   => SIMULATION_G,
          SIM_PORT_NUM_G => SIM_PORT_NUM_G)
       port map (
-         pgpRefClkP      => pgpRefClkP,          -- [in]
-         pgpRefClkN      => pgpRefClkN,          -- [in]
+         pgpRefClkP      => gtRefClk0P,          -- [in]
+         pgpRefClkN      => gtRefClk0N,          -- [in]
          pgpTxP          => pgpTxP,              -- [out]
          pgpTxN          => pgpTxN,              -- [out]
          pgpRxP          => pgpRxP,              -- [in]
@@ -385,7 +398,7 @@ begin
             axiWriteMaster => dacAxilWriteMasters(i),  -- [in]
             axiWriteSlave  => dacAxilWriteSlaves(i),   -- [out]
             coreSclk       => dacSclk(i),              -- [out]
-            coreSDin       => dacSdi2(i),              -- [in]
+            coreSDin       => dacSdo(i),               -- [in]
             coreSDout      => dacSdio(i),              -- [out]
             coreMCsb(0)    => dacCsB(i));              -- [out]
    end generate DAC_SPI_GEN;

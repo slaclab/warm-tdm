@@ -26,6 +26,9 @@ use surf.StdRtlPkg.all;
 use surf.AxiStreamPkg.all;
 use surf.SsiPkg.all;
 use surf.AxiStreamPacketizer2Pkg.all;
+use surf.AxiLitePkg.all;
+use surf.Gtx7CfgPkg.all;
+use surf.Pgp2bPkg.all;
 
 library warm_tdm;
 
@@ -55,6 +58,8 @@ end entity RowModulePgp;
 
 architecture rtl of RowModulePgp is
 
+   signal address : slv(3 downto 0) := "1010";
+
    constant GTX_CFG_C : Gtx7CPllCfgType := getGtx7CPllCfg(312.5E6, 3.125E9);
 
    signal pgpClk       : sl;
@@ -66,6 +71,7 @@ architecture rtl of RowModulePgp is
    signal pgpTxMasters : AxiStreamMasterArray(3 downto 0) := (others => axiStreamMasterInit(SSI_PGP2B_CONFIG_C));
    signal pgpTxSlaves  : AxiStreamSlaveArray(3 downto 0)  := (others => AXI_STREAM_SLAVE_INIT_C);
    signal pgpRxMasters : AxiStreamMasterArray(3 downto 0) := (others => axiStreamMasterInit(SSI_PGP2B_CONFIG_C));
+   signal pgpRxSlaves  : AxiStreamSlaveArray(3 downto 0)  := (others => AXI_STREAM_SLAVE_INIT_C);
    signal pgpRxCtrl    : AxiStreamCtrlArray(3 downto 0)   := (others => AXI_STREAM_CTRL_UNUSED_C);
 
    signal fifoRxMasters : AxiStreamMasterArray(1 downto 0) := (others => axiStreamMasterInit(PACKETIZER2_AXIS_CFG_C));
@@ -73,10 +79,10 @@ architecture rtl of RowModulePgp is
    signal fifoTxMasters : AxiStreamMasterArray(1 downto 0) := (others => axiStreamMasterInit(PACKETIZER2_AXIS_CFG_C));
    signal fifoTxSlaves  : AxiStreamSlaveArray(1 downto 0)  := (others => AXI_STREAM_SLAVE_INIT_C);
 
-   signal appRxMasters : AxiStreamMasterArray(1 downto 0) := (others => axiStreamMasterInit(PACKETIZER2_AXIS_CFG_C));
-   signal appRxSlaves  : AxiStreamSlaveArray(1 downto 0)  := (others => AXI_STREAM_SLAVE_INIT_C);
-   signal appTxMasters : AxiStreamMasterArray(1 downto 0) := (others => axiStreamMasterInit(PACKETIZER2_AXIS_CFG_C));
-   signal appTxSlaves  : AxiStreamSlaveArray(1 downto 0)  := (others => AXI_STREAM_SLAVE_INIT_C);
+   signal appRxAxisMasters : AxiStreamMasterArray(1 downto 0) := (others => axiStreamMasterInit(PACKETIZER2_AXIS_CFG_C));
+   signal appRxAxisSlaves  : AxiStreamSlaveArray(1 downto 0)  := (others => AXI_STREAM_SLAVE_INIT_C);
+   signal appTxAxisMasters : AxiStreamMasterArray(1 downto 0) := (others => axiStreamMasterInit(PACKETIZER2_AXIS_CFG_C));
+   signal appTxAxisSlaves  : AxiStreamSlaveArray(1 downto 0)  := (others => AXI_STREAM_SLAVE_INIT_C);
 
 
    constant NUM_AXIL_MASTERS_C : integer := 3;
@@ -90,7 +96,7 @@ architecture rtl of RowModulePgp is
          addrBits     => 28,
          connectivity => X"FFFF"),
       AXIL_PGP_C      => (
-         baseAddr     => X"A00000000",
+         baseAddr     => X"A0000000",
          addrBits     => 8,
          connectivity => X"FFFF"),
       AXIL_GTX_C      => (
@@ -127,7 +133,7 @@ begin
             CPLL_REFCLK_DIV_G  => GTX_CFG_C.CPLL_REFCLK_DIV_G,
             RXOUT_DIV_G        => GTX_CFG_C.OUT_DIV_G,
             TXOUT_DIV_G        => GTX_CFG_C.OUT_DIV_G,
-            RX_CLK25_DIV_G     => GTX_CFG_C.CLK5_DIV_G,
+            RX_CLK25_DIV_G     => GTX_CFG_C.CLK25_DIV_G,
             TX_CLK25_DIV_G     => GTX_CFG_C.CLK25_DIV_G,
 --          RX_OS_CFG_G        => RX_OS_CFG_G,
 --          RXCDR_CFG_G        => RXCDR_CFG_G,
@@ -166,7 +172,7 @@ begin
             axilRst         => pgpRst,                           -- [in]
             axilReadMaster  => locAxilReadMasters(AXIL_GTX_C),   -- [in]
             axilReadSlave   => locAxilReadSlaves(AXIL_GTX_C),    -- [out]
-            axilWriteMaster => locAxilWriteMaster(AXIL_GTX_C),   -- [in]
+            axilWriteMaster => locAxilWriteMasters(AXIL_GTX_C),  -- [in]
             axilWriteSlave  => locAxilWriteSlaves(AXIL_GTX_C));  -- [out]
 
       U_Pgp2bAxi_1 : entity surf.Pgp2bAxi
@@ -183,7 +189,7 @@ begin
             pgpTxOut        => pgpTxOut,                         -- [in]
 --         locTxIn         => locTxIn,          -- [in]
             pgpRxClk        => pgpClk,                           -- [in]
-            pgpRxClkRst     => pgpst,                            -- [in]
+            pgpRxClkRst     => pgpRst,                           -- [in]
             pgpRxIn         => pgpRxIn,                          -- [out]
             pgpRxOut        => pgpRxOut,                         -- [in]
 --         locRxIn         => locRxIn,          -- [in]
@@ -208,12 +214,12 @@ begin
                CHAN_COUNT_G  => 1,
                AXIS_CONFIG_G => PACKETIZER2_AXIS_CFG_C)
             port map (
-               axisClk     => ethClk,            -- [in]
-               axisRst     => ethRst,            -- [in]
-               sAxisMaster => pgpTxMasters(i),   -- [in]
-               sAxisSlave  => pgpTxSlaves(i),    -- [out]
-               mAxisMaster => pgpRxMasters(i),   -- [out]
-               mAxisSlave  => pgpRxbSlaves(i));  -- [in]
+               axisClk     => pgpClk,           -- [in]
+               axisRst     => pgpRst,           -- [in]
+               sAxisMaster => pgpTxMasters(i),  -- [in]
+               sAxisSlave  => pgpTxSlaves(i),   -- [out]
+               mAxisMaster => pgpRxMasters(i),  -- [out]
+               mAxisSlave  => pgpRxSlaves(i));  -- [in]
       end generate;
    end generate SIM_GEN;
 
@@ -222,7 +228,7 @@ begin
       U_PgpRXVcFifo_1 : entity surf.PgpRXVcFifo
          generic map (
             TPD_G               => TPD_G,
-            ROGUE_SIM_EN_G      => false,
+            ROGUE_SIM_EN_G      => SIMULATION_G,
             INT_PIPE_STAGES_G   => 1,
             PIPE_STAGES_G       => 1,
 --             VALID_THOLD_G       => VALID_THOLD_G,
@@ -240,7 +246,7 @@ begin
             rxlinkReady => pgpRxOut.linkReady,  -- [in]
             pgpRxMaster => pgpRxMasters(i),     -- [in]
             pgpRxCtrl   => pgpRxCtrl(i),        -- [out]
-            pgpRxSlave  => pgpRxSlave(i),       -- [out]
+            pgpRxSlave  => pgpRxSlaves(i),      -- [out]
             axisClk     => pgpClk,              -- [in]
             axisRst     => pgpRst,              -- [in]
             axisMaster  => fifoRxMasters(i),    -- [out]
@@ -324,8 +330,8 @@ begin
          mAxilReadSlave   => mAxilReadSlave);      -- [in]
 
    -- VC 1 is the data channel and is unused by the Row Module
-   txAppAxisMaster(1) <= axiStreamMasterInit(PACKETIZER2_AXIS_CFG_C);
-   rxAppAxisSlave(1)  <= AXI_STREAM_SLAVE_FORCE_C;
+   appTxAxisMasters(1) <= axiStreamMasterInit(PACKETIZER2_AXIS_CFG_C);
+   appRxAxisSlaves(1)  <= AXI_STREAM_SLAVE_FORCE_C;
 
    U_AxiLiteCrossbar_1 : entity surf.AxiLiteCrossbar
       generic map (
@@ -335,8 +341,8 @@ begin
          MASTERS_CONFIG_G   => AXIL_XBAR_CFG_C,
          DEBUG_G            => false)
       port map (
-         axiClk              => axilClk,              -- [in]
-         axiClkRst           => axilRst,              -- [in]
+         axiClk              => pgpClk,               -- [in]
+         axiClkRst           => pgpRst,               -- [in]
          sAxiWriteMasters(0) => mAxilWriteMaster,     -- [in]
          sAxiWriteSlaves(0)  => mAxilWriteSlave,      -- [out]
          sAxiReadMasters(0)  => mAxilReadMaster,      -- [in]
@@ -346,11 +352,11 @@ begin
          mAxiReadMasters     => locAxilReadMasters,   -- [out]
          mAxiReadSlaves      => locAxilReadSlaves);   -- [in]
 
-   axilClk                       <= pgpClk;
-   axilRst                       <= pgpRst;
-   axilWriteMaster               <= locAxilWriteMasters(AXI_EXT_C);
-   locAxilWriteSlaves(AXI_EXT_C) <= axilWriteSlave;
-   axilReadMaster                <= locAxilReadMasters(AXI_EXT_C);
-   locAxilReadMasters(AXI_EXT_C) <= axilReadSlave;
+   axilClk                        <= pgpClk;
+   axilRst                        <= pgpRst;
+   axilWriteMaster                <= locAxilWriteMasters(AXIL_EXT_C);
+   locAxilWriteSlaves(AXIL_EXT_C) <= axilWriteSlave;
+   axilReadMaster                 <= locAxilReadMasters(AXIL_EXT_C);
+   locAxilReadSlaves(AXIL_EXT_C)  <= axilReadSlave;
 
 end architecture rtl;

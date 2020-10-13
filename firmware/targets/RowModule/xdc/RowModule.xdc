@@ -7,15 +7,17 @@
 ## may be copied, modified, propagated, or distributed except according to 
 ## the terms contained in the LICENSE.txt file.
 ##############################################################################
-create_clock -name gtRefClk0 -period 3.200 [get_ports {gtClk0P}]
-create_clock -name gtRefClk1 -period 5.000 [get_ports {gtClk1P}]
+create_clock -name gtRefClk0 -period 3.200 [get_ports {gtRefClk0P}]
+create_clock -name gtRefClk1 -period 5.000 [get_ports {gtRefClk1P}]
+
+create_generated_clock -name axilClk [get_pins {U_RowModulePgp_1/REAL_PGP_GEN.U_Pgp2bGtx7VarLatWrapper_1/ClockManager7_Inst/MmcmGen.U_Mmcm/CLKOUT0}]
 
 # MGT Mapping
 # Clocks
-set_property PACKAGE_PIN D6 [get_ports {gtClk0P}]
-set_property PACKAGE_PIN D5 [get_ports {gtClk0N}]
-set_property PACKAGE_PIN F6 [get_ports {gtClk1P}]
-set_property PACKAGE_PIN F5 [get_ports {gtClk1N}]
+set_property PACKAGE_PIN D6 [get_ports {gtRefClk0P}]
+set_property PACKAGE_PIN D5 [get_ports {gtRefClk0N}]
+set_property PACKAGE_PIN F6 [get_ports {gtRefClk1P}]
+set_property PACKAGE_PIN F5 [get_ports {gtRefClk1N}]
 
 # PGP
 set_property PACKAGE_PIN F2 [get_ports {pgpTxP}]
@@ -65,18 +67,18 @@ set_property -dict { PACKAGE_PIN A13  IOSTANDARD LVCMOS25 } [get_ports { dacSdio
 set_property -dict { PACKAGE_PIN C14  IOSTANDARD LVCMOS25 } [get_ports { dacSdio[10] }];
 set_property -dict { PACKAGE_PIN B17  IOSTANDARD LVCMOS25 } [get_ports { dacSdio[11] }];
 
-set_property -dict { PACKAGE_PIN U21  IOSTANDARD LVCMOS25 } [get_ports { dacSdi2[0] }];
-set_property -dict { PACKAGE_PIN W22  IOSTANDARD LVCMOS25 } [get_ports { dacSdi2[1] }];
-set_property -dict { PACKAGE_PIN Y22  IOSTANDARD LVCMOS25 } [get_ports { dacSdi2[2] }];
-set_property -dict { PACKAGE_PIN AB20 IOSTANDARD LVCMOS25 } [get_ports { dacSdi2[3] }];
-set_property -dict { PACKAGE_PIN Y19  IOSTANDARD LVCMOS25 } [get_ports { dacSdi2[4] }];
-set_property -dict { PACKAGE_PIN AB16 IOSTANDARD LVCMOS25 } [get_ports { dacSdi2[5] }];
-set_property -dict { PACKAGE_PIN V17  IOSTANDARD LVCMOS25 } [get_ports { dacSdi2[6] }];
-set_property -dict { PACKAGE_PIN Y14  IOSTANDARD LVCMOS25 } [get_ports { dacSdi2[7] }];
-set_property -dict { PACKAGE_PIN G16  IOSTANDARD LVCMOS25 } [get_ports { dacSdi2[8] }];
-set_property -dict { PACKAGE_PIN A14  IOSTANDARD LVCMOS25 } [get_ports { dacSdi2[9] }];
-set_property -dict { PACKAGE_PIN C15  IOSTANDARD LVCMOS25 } [get_ports { dacSdi2[10] }];
-set_property -dict { PACKAGE_PIN A18  IOSTANDARD LVCMOS25 } [get_ports { dacSdi2[11] }];
+set_property -dict { PACKAGE_PIN U21  IOSTANDARD LVCMOS25 } [get_ports { dacSdo[0] }];
+set_property -dict { PACKAGE_PIN W22  IOSTANDARD LVCMOS25 } [get_ports { dacSdo[1] }];
+set_property -dict { PACKAGE_PIN Y22  IOSTANDARD LVCMOS25 } [get_ports { dacSdo[2] }];
+set_property -dict { PACKAGE_PIN AB20 IOSTANDARD LVCMOS25 } [get_ports { dacSdo[3] }];
+set_property -dict { PACKAGE_PIN Y19  IOSTANDARD LVCMOS25 } [get_ports { dacSdo[4] }];
+set_property -dict { PACKAGE_PIN AB16 IOSTANDARD LVCMOS25 } [get_ports { dacSdo[5] }];
+set_property -dict { PACKAGE_PIN V17  IOSTANDARD LVCMOS25 } [get_ports { dacSdo[6] }];
+set_property -dict { PACKAGE_PIN Y14  IOSTANDARD LVCMOS25 } [get_ports { dacSdo[7] }];
+set_property -dict { PACKAGE_PIN G16  IOSTANDARD LVCMOS25 } [get_ports { dacSdo[8] }];
+set_property -dict { PACKAGE_PIN A14  IOSTANDARD LVCMOS25 } [get_ports { dacSdo[9] }];
+set_property -dict { PACKAGE_PIN C15  IOSTANDARD LVCMOS25 } [get_ports { dacSdo[10] }];
+set_property -dict { PACKAGE_PIN A18  IOSTANDARD LVCMOS25 } [get_ports { dacSdo[11] }];
 
 set_property -dict { PACKAGE_PIN U22  IOSTANDARD LVCMOS25 } [get_ports { dacSclk[0] }];
 set_property -dict { PACKAGE_PIN U17  IOSTANDARD LVCMOS25 } [get_ports { dacSclk[1] }];
