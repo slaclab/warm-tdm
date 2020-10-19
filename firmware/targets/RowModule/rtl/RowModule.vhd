@@ -55,6 +55,11 @@ entity RowModule is
 --       timingRxP : in sl;
 --       timingRxN : in sl;
 
+      timingRxClkP  : in sl;
+      timingRxClkN  : in sl;
+      timingRxTrigP : in sl;
+      timingRxTrigN : in sl;
+
       -- Generic SFP interfaces
 --       sfp0TxP : out sl;
 --       sfp0TxN : out sl;
@@ -64,6 +69,7 @@ entity RowModule is
 --       sfp1TxN : out sl;
 --       sfp1RxP : in  sl;
 --       sfp1RxN : in  sl;
+
       -- PROM interface
       bootCsL  : out sl;
       bootMosi : out sl;
@@ -149,6 +155,23 @@ architecture rtl of RowModule is
    signal dacAxilReadSlaves   : AxiLiteReadSlaveArray(11 downto 0);
 
 begin
+
+   -------------------------------------------------------------------------------------------------
+   -- Timing Interface
+   -------------------------------------------------------------------------------------------------
+   U_RowModuleTiming_1 : entity warm_tdm.RowModuleTiming
+      generic map (
+         TPD_G => TPD_G)
+      port map (
+         timingRefClkP => gtRefClk1P,     -- [in]
+         timingRefClkN => gtRefClk1N,     -- [in]
+         timingRxClkP  => timingRxClkP,   -- [in]
+         timingRxClkN  => timingRxClkN,   -- [in]
+         timingRxTrigP => timingRxTrigP,  -- [in]
+         timingRxTrigN => timingRxTrigN,  -- [in]
+         dacTriggerB   => dacTriggerB,    -- [out]
+         dacClkP       => dacClkP,        -- [out]
+         dacClkN       => dacClkN);       -- [out]
 
    -------------------------------------------------------------------------------------------------
    -- PGP Interface
