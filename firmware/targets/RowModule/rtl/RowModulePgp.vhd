@@ -58,7 +58,7 @@ end entity RowModulePgp;
 
 architecture rtl of RowModulePgp is
 
-   signal address : slv(3 downto 0) := "1010";
+   signal address : slv(3 downto 0) := "1111";
 
    constant GTX_CFG_C : Gtx7CPllCfgType := getGtx7CPllCfg(312.5E6, 3.125E9);
 
@@ -68,6 +68,7 @@ architecture rtl of RowModulePgp is
    signal pgpTxOut     : Pgp2bTxOutType;
    signal pgpRxIn      : Pgp2bRxInType;
    signal pgpRxOut     : Pgp2bRxOutType;
+   signal locPgpTxIn   : Pgp2bTxInType                    := PGP2B_TX_IN_INIT_C;
    signal pgpTxMasters : AxiStreamMasterArray(3 downto 0) := (others => axiStreamMasterInit(SSI_PGP2B_CONFIG_C));
    signal pgpTxSlaves  : AxiStreamSlaveArray(3 downto 0)  := (others => AXI_STREAM_SLAVE_INIT_C);
    signal pgpRxMasters : AxiStreamMasterArray(3 downto 0) := (others => axiStreamMasterInit(SSI_PGP2B_CONFIG_C));
@@ -187,7 +188,7 @@ begin
             pgpTxClkRst     => pgpRst,                           -- [in]
             pgpTxIn         => pgpTxIn,                          -- [out]
             pgpTxOut        => pgpTxOut,                         -- [in]
---         locTxIn         => locTxIn,          -- [in]
+            locTxIn         => locPgpTxIn,                       -- [in]
             pgpRxClk        => pgpClk,                           -- [in]
             pgpRxClkRst     => pgpRst,                           -- [in]
             pgpRxIn         => pgpRxIn,                          -- [out]
@@ -252,6 +253,8 @@ begin
             axisMaster  => fifoRxMasters(i),    -- [out]
             axisSlave   => fifoRxSlaves(i));    -- [in]
 
+      address            <= pgpRxOut.remLinkData(3 downto 0) + 1;
+      locPgpTxIn.locData <= "0000" & address;
 
       U_RingRouter_1 : entity warm_tdm.RingRouter
          generic map (
