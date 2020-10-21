@@ -36,21 +36,21 @@ entity RingRouter is
       axisRst : in sl;
 
       -- Address of this instance
-      address : in slv(3 downto 0);
+      address : in slv(2 downto 0);
 
-      rxLinkGood : in sl;
-      txLinkGood : in sl;
+      linkRxGood : in sl;
+      linkTxGood : in sl;
 
-      rxLinkAxisMaster : in  AxiStreamMasterType;
-      rxLinkAxisSlave  : out AxiStreamSlaveType;
-      rxLinkAxisCtrl   : out AxiStreamCtrlType;
-      txLinkAxisMaster : out AxiStreamMasterType;
-      txLinkAxisSlave  : in  AxiStreamSlaveType;
+      linkRxAxisMaster : in  AxiStreamMasterType;
+      linkRxAxisSlave  : out AxiStreamSlaveType;
+      linkRxAxisCtrl   : out AxiStreamCtrlType;
+      linkTxAxisMaster : out AxiStreamMasterType;
+      linkTxAxisSlave  : in  AxiStreamSlaveType;
 
-      rxAppAxisMaster : out AxiStreamMasterType;
-      rxAppAxisSlave  : in  AxiStreamSlaveType;
-      txAppAxisMaster : in  AxiStreamMasterType;
-      txAppAxisSlave  : out AxiStreamSlaveType
+      appRxAxisMaster : out AxiStreamMasterType;
+      appRxAxisSlave  : in  AxiStreamSlaveType;
+      appTxAxisMaster : in  AxiStreamMasterType;
+      appTxAxisSlave  : out AxiStreamSlaveType
       );
 
 end RingRouter;
@@ -67,6 +67,8 @@ architecture RingRouter of RingRouter is
 
    signal muxTxMaster : AxiStreamMasterType;
    signal muxTxSlave  : AxiStreamSlaveType;
+
+   signal appRxAxisMasterTmp : AxiStreamMasterType;
 
    signal dumpMaster : AxiStreamMasterType;
    signal dumpSlave  : AxiStreamSlaveType := AXI_STREAM_SLAVE_FORCE_C;
@@ -90,10 +92,10 @@ begin
       port map (
          axisClk     => axisClk,               -- [in]
          axisRst     => axisRst,               -- [in]
-         linkGood    => rxLinkGood,            -- [in]
+         linkGood    => linkRxGood,            -- [in]
          debug       => open,                  -- [out]
-         sAxisMaster => rxLinkAxisMaster,      -- [in]
-         sAxisSlave  => rxLinkAxisSlave,       -- [out]
+         sAxisMaster => linkRxAxisMaster,      -- [in]
+         sAxisSlave  => linkRxAxisSlave,       -- [out]
          mAxisMaster => depacketizedRxMaster,  -- [out]
          mAxisSlave  => depacketizedRxSlave);  -- [in]
 
@@ -102,8 +104,8 @@ begin
    -- When TDEST=address the data is local
    -- All others are passthrough and are routed back out the PGP TX
    ----------------------------------------------------------------------------------------------
-   dynDest <= "0000" & address;
-   dynDump <= address & "0000";         -- This catches frames that have cycled the loop without
+   dynDest <= "00000" & address;
+   dynDump <= "0" & address & "0000";         -- This catches frames that have cycled the loop without
    -- finding the intended destination address
 
    U_AxiStreamDeMux_1 : entity surf.AxiStreamDeMux
@@ -115,20 +117,29 @@ begin
       port map (
          axisClk              => axisClk,               -- [in]
          axisRst              => axisRst,               -- [in]
-         dynamicRouteMasks(0) => "00001111",            -- [in]
-         dynamicRouteMasks(1) => "11110000",            -- [in]
+         dynamicRouteMasks(0) => "00000111",            -- [in]
+         dynamicRouteMasks(1) => "01110000",            -- [in]
          dynamicRouteMasks(2) => "00000000",            -- [in]
          dynamicRouteDests(0) => dynDest,               -- [in]
          dynamicRouteDests(1) => dynDump,               -- [in]
          dynamicRouteDests(2) => "00000000",            -- [in]
          sAxisMaster          => depacketizedRxMaster,  -- [in]
          sAxisSlave           => depacketizedRxSlave,   -- [out]
-         mAxisMasters(0)      => passthroughMaster,     -- [out]
+         mAxisMasters(0)      => appRxAxisMasterTmp,    -- [out]
          mAxisMasters(1)      => dumpMaster,            -- [out]
-         mAxisMasters(2)      => rxAppAxisMaster,       -- [out]
-         mAxisSlaves(0)       => passthroughSlave,      -- [in]
+         mAxisMasters(2)      => passthroughMaster,     -- [out]
+         mAxisSlaves(0)       => appRxAxisSlave;        -- [in]
          mAxisSlaves(1)       => dumpSlave,             -- [in]
-         mAxisSlaves(2)       => rxAppAxisSlave);       -- [in]
+         mAxisSlaves(2)       => passthroughSlave);     -- [in]
+
+   -- Swap source bits (7:4) onto dest bits(3:0)
+   SWAP_TDEST : process (appRxAxisMasterTmp) is
+      variable v : AxiStreamMasterType;
+   begin
+      v               := appRxAxisMasterTmp;
+      v.tdest         := v.tdest(3 downto 0) & v.tdest(7 downto 4);
+      appRxAxisMaster <= v;
+   end process SWAP_TDEST;
 
 
 
@@ -151,9 +162,9 @@ begin
          axisClk         => axisClk,            -- [in]
          axisRst         => axisRst,            -- [in]
 --         rearbitrate     => rearbitrate,              -- [in]
-         sAxisMasters(0) => txAppAxisMaster,    -- [in]
+         sAxisMasters(0) => appTxAxisMaster,    -- [in]
          sAxisMasters(1) => passthroughMaster,  -- [in]
-         sAxisSlaves(0)  => txAppAxisSlave,     -- [out]
+         sAxisSlaves(0)  => appTxAxisSlave,     -- [out]
          sAxisSlaves(1)  => passthroughSlave,   -- [out]            
          mAxisMaster     => muxTxMaster,        -- [out]
          mAxisSlave      => muxTxSlave);        -- [in]
@@ -177,8 +188,8 @@ begin
          rearbitrate => open,              -- [out] -- Check this, might want to use it
          sAxisMaster => muxTxMaster,       -- [in]
          sAxisSlave  => muxTxSlave,        -- [out]
-         mAxisMaster => txLinkAxisMaster,  -- [out]
-         mAxisSlave  => txLinkAxisSlave);  -- [in]
+         mAxisMaster => linkTxAxisMaster,  -- [out]
+         mAxisSlave  => linkTxAxisSlave);  -- [in]
 
 
 end RingRouter;

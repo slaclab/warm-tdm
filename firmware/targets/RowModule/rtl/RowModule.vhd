@@ -33,11 +33,15 @@ library warm_tdm;
 entity RowModule is
 
    generic (
-      TPD_G          : time     := 1 ns;
-      SIMULATION_G   : boolean  := false;
-      SIM_PORT_NUM_G : positive := 7000;
-      BUILD_INFO_G   : BuildInfoType);
-
+      TPD_G              : time             := 1 ns;
+      SIMULATION_G       : boolean          := false;
+      SIM_PGP_PORT_NUM_G : positive         := 7000;
+      SIM_ETH_PORT_NUM_G : positive         := 8000;
+      BUILD_INFO_G       : BuildInfoType;
+      RING_ADDR_0_G      : boolean          := true;
+      ETH_10G_G          : boolean          := true;
+      DHCP_G             : boolean          := false;         -- true = DHCP, false = static address
+      IP_ADDR_G          : slv(31 downto 0) := x"0A01A8C0");  -- 192.168.1.10 (before DHCP)
    port (
       -- Clocks
       gtRefClk0P : in sl;
@@ -61,10 +65,10 @@ entity RowModule is
       timingRxTrigN : in sl;
 
       -- Generic SFP interfaces
---       sfp0TxP : out sl;
---       sfp0TxN : out sl;
---       sfp0RxP : in  sl;
---       sfp0RxN : in  sl;
+      sfp0TxP : out sl;
+      sfp0TxN : out sl;
+      sfp0RxP : in  sl;
+      sfp0RxN : in  sl;
 --       sfp1TxP : out sl;
 --       sfp1TxN : out sl;
 --       sfp1RxP : in  sl;
@@ -100,13 +104,14 @@ architecture rtl of RowModule is
 
    signal bootSck : sl;
 
-   constant NUM_AXIL_MASTERS_C : integer := 6;
+   constant NUM_AXIL_MASTERS_C : integer := 7;
    constant AXIL_VERSION_C     : integer := 0;
    constant AXIL_XADC_C        : integer := 1;
    constant AXIL_PWR_C         : integer := 2;
    constant AXIL_BOOT_C        : integer := 3;
    constant AXIL_EEPROM_C      : integer := 4;
    constant AXIL_DACS_C        : integer := 5;
+   constant AXIL_COM_C         : integer := 6;
 
    constant AXIL_XBAR_CFG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := (
       AXIL_VERSION_C  => (
@@ -131,6 +136,10 @@ architecture rtl of RowModule is
          connectivity => X"FFFF"),
       AXIL_DACS_C     => (
          baseAddr     => X"01000000",
+         addrBits     => 24,
+         connectivity => X"FFFF"),
+      AXIL_COM_C      => (
+         baseAddr     => X"A0000000",
          addrBits     => 24,
          connectivity => X"FFFF"));
 
@@ -176,24 +185,43 @@ begin
    -------------------------------------------------------------------------------------------------
    -- PGP Interface
    -------------------------------------------------------------------------------------------------
-   U_RowModulePgp_1 : entity warm_tdm.RowModulePgp
+   U_RowModuleCom_1 : entity warm_tdm.RowModuleCom
       generic map (
-         TPD_G          => TPD_G,
-         SIMULATION_G   => SIMULATION_G,
-         SIM_PORT_NUM_G => SIM_PORT_NUM_G)
+         TPD_G              => TPD_G,
+         SIMULATION_G       => SIMULATION_G,
+         SIM_PGP_PORT_NUM_G => SIM_PGP_PORT_NUM_G,
+         SIM_ETH_PORT_NUM_G => SIM_ETH_PORT_NUM_G,
+         RING_ADDR_0_G      => RING_ADDR_0_G,
+         AXIL_BASE_ADDR_G   => DAC_XBAR_CFG_C(AXIL_COM_C).baseAddr,
+         ETH_10G_G          => ETH_10G_G,
+         DHCP_G             => DHCP_G,
+         IP_ADDR_G          => IP_ADDR_G)
       port map (
-         pgpRefClkP      => gtRefClk0P,          -- [in]
-         pgpRefClkN      => gtRefClk0N,          -- [in]
-         pgpTxP          => pgpTxP,              -- [out]
-         pgpTxN          => pgpTxN,              -- [out]
-         pgpRxP          => pgpRxP,              -- [in]
-         pgpRxN          => pgpRxN,              -- [in]
-         axilClk         => axilClk,             -- [out]
-         axilRst         => axilRst,             -- [out]
-         axilWriteMaster => pgpAxilWriteMaster,  -- [out]
-         axilWriteSlave  => pgpAxilWriteSlave,   -- [in]
-         axilReadMaster  => pgpAxilReadMaster,   -- [out]
-         axilReadSlave   => pgpAxilReadSlave);   -- [in]
+         gtRefClkP        => gtRefClk0P,                       -- [in]
+         gtRefClkN        => gtRefClk0N,                       -- [in]
+         pgpTxP           => pgpTxP,                           -- [out]
+         pgpTxN           => pgpTxN,                           -- [out]
+         pgpRxP           => pgpRxP,                           -- [in]
+         pgpRxN           => pgpRxN,                           -- [in]
+         ethRxP           => sfp0RxP,                          -- [in]
+         ethRxN           => sfp0RxN,                          -- [in]
+         ethTxP           => sfp0TxP,                          -- [out]
+         ethTxN           => sfp0TxN,                          -- [out]
+         axilClkOut       => axilClk,                          -- [out]
+         axilRstOut       => axilRst,                          -- [out]
+         mAxilWriteMaster => mAxilWriteMaster,                 -- [out]
+         mAxilWriteSlave  => mAxilWriteSlave,                  -- [in]
+         mAxilReadMaster  => mAxilReadMaster,                  -- [out]
+         mAxilReadSlave   => mAxilReadSlave,                   -- [in]
+         sAxilWriteMaster => locAxilWriteMasters(AXIL_COM_C),  -- [in]
+         sAxilWriteSlave  => locAxilWriteSlaves(AXIL_COM_C),   -- [out]
+         sAxilReadMaster  => locAxilReadMasters(AXIL_COM_C),   -- [in]
+         sAxilReadSlave   => locAxilReadSlaves(AXIL_COM_C),    -- [out]
+         dataTxAxisMaster => dataTxAxisMaster,                 -- [in]
+         dataTxAxisSlave  => dataTxAxisSlave,                  -- [out]
+         dataRxAxisMaster => dataRxAxisMaster,                 -- [out]
+         dataRxAxisSlave  => dataRxAxisSlave);                 -- [in]
+
 
    -------------------------------------------------------------------------------------------------
    -- Main crossbar
@@ -208,10 +236,10 @@ begin
       port map (
          axiClk              => axilClk,              -- [in]
          axiClkRst           => axilRst,              -- [in]
-         sAxiWriteMasters(0) => pgpAxilWriteMaster,   -- [in]
-         sAxiWriteSlaves(0)  => pgpAxilWriteSlave,    -- [out]
-         sAxiReadMasters(0)  => pgpAxilReadMaster,    -- [in]
-         sAxiReadSlaves(0)   => pgpAxilReadSlave,     -- [out]
+         sAxiWriteMasters(0) => mAxilWriteMaster,     -- [in]
+         sAxiWriteSlaves(0)  => mAxilWriteSlave,      -- [out]
+         sAxiReadMasters(0)  => mAxilReadMaster,      -- [in]
+         sAxiReadSlaves(0)   => mAxilReadSlave,       -- [out]
          mAxiWriteMasters    => locAxilWriteMasters,  -- [out]
          mAxiWriteSlaves     => locAxilWriteSlaves,   -- [in]
          mAxiReadMasters     => locAxilReadMasters,   -- [out]
