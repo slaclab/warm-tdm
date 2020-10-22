@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- Title      :  RowModuleEth
+-- Title      :  EthCore
 -------------------------------------------------------------------------------
 -- Company    : SLAC National Accelerator Laboratory
 -------------------------------------------------------------------------------
@@ -31,7 +31,7 @@ use surf.EthMacPkg.all;
 library unisim;
 use unisim.vcomponents.all;
 
-entity RowModuleEth is
+entity EthCore is
    generic (
       TPD_G            : time             := 1 ns;
       ETH_10G_G        : boolean          := false;
@@ -76,9 +76,9 @@ entity RowModuleEth is
       remoteTxAxisMasters : in  AxiStreamMasterArray(3 downto 0);
       remoteTxAxisSlaves  : out AxiStreamSlaveArray(3 downto 0));
 
-end RowModuleEth;
+end EthCore;
 
-architecture mapping of RowModuleEth is
+architecture rtl of EthCore is
 
    constant ETH_CLK_FREQ_C : real := ite(ETH_10G_G, 156.25E+6, 125.00E+6);
 
@@ -650,4 +650,4 @@ begin
 
 
 
-end mapping;
+end rtl;

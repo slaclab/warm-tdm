@@ -39,8 +39,8 @@ entity RowModule is
       SIM_PGP_PORT_NUM_G : positive         := 7000;
       SIM_ETH_PORT_NUM_G : positive         := 8000;
       BUILD_INFO_G       : BuildInfoType;
-      RING_ADDR_0_G      : boolean          := true;
-      ETH_10G_G          : boolean          := true;
+      RING_ADDR_0_G      : boolean          := false;
+      ETH_10G_G          : boolean          := false;
       DHCP_G             : boolean          := false;         -- true = DHCP, false = static address
       IP_ADDR_G          : slv(31 downto 0) := x"0A01A8C0");  -- 192.168.1.10 (before DHCP)
    port (
@@ -187,7 +187,7 @@ begin
    -------------------------------------------------------------------------------------------------
    -- Timing Interface
    -------------------------------------------------------------------------------------------------
-   U_RowModuleTiming_1 : entity warm_tdm.RowModuleTiming
+   U_TimingRx_1 : entity warm_tdm.TimingRx
       generic map (
          TPD_G => TPD_G)
       port map (
@@ -202,9 +202,9 @@ begin
          dacClkN       => dacClkN);       -- [out]
 
    -------------------------------------------------------------------------------------------------
-   -- PGP Interface
+   -- Communications Interfaces
    -------------------------------------------------------------------------------------------------
-   U_RowModuleCom_1 : entity warm_tdm.RowModuleCom
+   U_ComCore_1 : entity warm_tdm.ComCore
       generic map (
          TPD_G              => TPD_G,
          SIMULATION_G       => SIMULATION_G,

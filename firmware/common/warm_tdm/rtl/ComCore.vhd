@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- Title      : RowModuleCom
+-- Title      : ComCore
 -------------------------------------------------------------------------------
 -- Company    : SLAC National Accelerator Laboratory
 -- Platform   : 
@@ -35,7 +35,7 @@ use unisim.vcomponents.all;
 
 library warm_tdm;
 
-entity RowModuleCom is
+entity ComCore is
 
    generic (
       TPD_G              : time             := 1 ns;
@@ -85,9 +85,9 @@ entity RowModuleCom is
       dataRxAxisSlave  : in  AxiStreamSlaveType);
 
 
-end entity RowModuleCom;
+end entity ComCore;
 
-architecture rtl of RowModuleCom is
+architecture rtl of ComCore is
 
    constant AXIL_PGP_C : integer := 0;
    constant AXIL_ETH_C : integer := 1;
@@ -160,7 +160,7 @@ begin
    -----------------
    -- PGP Interface
    -----------------
-   U_RowModulePgp_1 : entity warm_tdm.RowModulePgp
+   U_PgpCore_1 : entity warm_tdm.PgpCore
       generic map (
          TPD_G            => TPD_G,
          SIMULATION_G     => SIMULATION_G,
@@ -196,7 +196,7 @@ begin
    ---------------------
    -- Ethernet Interface
    ---------------------
-   U_RowModuleEth_1 : entity warm_tdm.RowModuleEth
+   U_EthCore_1 : entity warm_tdm.EthCore
       generic map (
          TPD_G            => TPD_G,
          ETH_10G_G        => ETH_10G_G,

@@ -32,7 +32,7 @@ use surf.I2cPkg.all;
 
 library warm_tdm;
 
-entity RowModuleTiming is
+entity TimingRx is
 
    generic (
       TPD_G : time := 1 ns);
@@ -50,9 +50,9 @@ entity RowModuleTiming is
       dacClkP     : out slv(11 downto 0);
       dacClkN     : out slv(11 downto 0));
 
-end entity RowModuleTiming;
+end entity TimingRx;
 
-architecture rtl of RowModuleTiming is
+architecture rtl of TimingRx is
 
    constant DAC_CLK_DIV_C : integer         := 99;
    constant ALIGN_CODE_C  : slv(9 downto 0) := "0101001010";

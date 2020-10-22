@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- Title      : Row Module PGP
+-- Title      : PGP Ring Interface for Warm TDM
 -------------------------------------------------------------------------------
 -- Company    : SLAC National Accelerator Laboratory
 -- Platform   : 
@@ -32,7 +32,7 @@ use surf.Pgp2bPkg.all;
 
 library warm_tdm;
 
-entity RowModulePgp is
+entity PgpCore is
 
    generic (
       TPD_G            : time             := 1 ns;
@@ -74,9 +74,9 @@ entity RowModulePgp is
       dataRxAxisMaster : out AxiStreamMasterType;
       dataRxAxisSlave  : in  AxiStreamSlaveType);
 
-end entity RowModulePgp;
+end entity PgpCore;
 
-architecture rtl of RowModulePgp is
+architecture rtl of PgpCore is
 
    signal address : slv(2 downto 0) := "111";
 
