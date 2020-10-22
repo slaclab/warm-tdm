@@ -30,6 +30,9 @@ use surf.AxiLitePkg.all;
 use surf.Gtx7CfgPkg.all;
 use surf.Pgp2bPkg.all;
 
+library unisim;
+use unisim.vcomponents.all;
+
 library warm_tdm;
 
 entity RowModuleCom is
@@ -86,29 +89,40 @@ end entity RowModuleCom;
 
 architecture rtl of RowModuleCom is
 
+   constant AXIL_PGP_C : integer := 0;
+   constant AXIL_ETH_C : integer := 1;
+
+   signal gtRefClkDiv2 : sl;
+   signal refClkG      : sl;
+
    signal axilClk : sl;
    signal axilRst : sl;
 
-   signal mAxilWriteMasters : AxiLiteWriteMasterArray(1 downto 0);
-   signal mAxilWriteSlaves  : AxiLiteWriteSlaveArray(1 downto 0);
-   signal mAxilReadMasters  : AxiLiteReadMasterArray(1 downto 0);
-   signal mAxilReadSlaves   : AxiLiteReadSlaveArray(1 downto 0);
+   signal mLocAxilWriteMasters : AxiLiteWriteMasterArray(1 downto 0);
+   signal mLocAxilWriteSlaves  : AxiLiteWriteSlaveArray(1 downto 0);
+   signal mLocAxilReadMasters  : AxiLiteReadMasterArray(1 downto 0);
+   signal mLocAxilReadSlaves   : AxiLiteReadSlaveArray(1 downto 0);
 
-   signal sAxilWriteMasters : AxiLiteWriteMasterArray(1 downto 0);
-   signal sAxilWriteSlaves  : AxiLiteWriteSlaveArray(1 downto 0);
-   signal sAxilReadMasters  : AxiLiteReadMasterArray(1 downto 0);
-   signal sAxilReadSlaves   : AxiLiteReadSlaveArray(1 downto 0);
+   signal sLocAxilWriteMasters : AxiLiteWriteMasterArray(1 downto 0);
+   signal sLocAxilWriteSlaves  : AxiLiteWriteSlaveArray(1 downto 0);
+   signal sLocAxilReadMasters  : AxiLiteReadMasterArray(1 downto 0);
+   signal sLocAxilReadSlaves   : AxiLiteReadSlaveArray(1 downto 0);
+
+   signal ethRemoteRxAxisMasters : AxiStreamMasterArray(3 downto 0);
+   signal ethRemoteRxAxisSlaves  : AxiStreamSlaveArray(3 downto 0);
+   signal ethRemoteTxAxisMasters : AxiStreamMasterArray(3 downto 0);
+   signal ethRemoteTxAxisSlaves  : AxiStreamSlaveArray(3 downto 0);
 
    signal ethDataRxAxisMaster : AxiStreamMasterType;
    signal ethDataRxAxisSlave  : AxiStreamSlaveType;
    signal ethDataTxAxisMaster : AxiStreamMasterType;
    signal ethDataTxAxisSlave  : AxiStreamSlaveType;
 
+
    signal pgpDataRxAxisMaster : AxiStreamMasterType;
    signal pgpDataRxAxisSlave  : AxiStreamSlaveType;
    signal pgpDataTxAxisMaster : AxiStreamMasterType;
    signal pgpDataTxAxisSlave  : AxiStreamSlaveType;
-
 
 begin
 
@@ -130,18 +144,18 @@ begin
    U_BUFG : BUFG
       port map (
          I => gtRefClkDiv2,
-         O => refClk);
+         O => refClkG);
 
    -----------------
    -- Power Up Reset
    -----------------
-   U_PwrUpRst : entity surf.PwrUpRst
-      generic map (
-         TPD_G         => TPD_G,
-         SIM_SPEEDUP_G => SIMULATION_G)
-      port map (
-         clk    => refClk,
-         rstOut => refRst);
+--    U_PwrUpRst : entity surf.PwrUpRst
+--       generic map (
+--          TPD_G         => TPD_G,
+--          SIM_SPEEDUP_G => SIMULATION_G)
+--       port map (
+--          clk    => refClk,
+--          rstOut => refRst);
 
    -----------------
    -- PGP Interface
@@ -155,6 +169,7 @@ begin
          AXIL_BASE_ADDR_G => AXIL_BASE_ADDR_G)
       port map (
          gtRefClk         => gtRefClkDiv2,                      -- [in]
+         gtRefClkG        => refClkG,                           -- [in]
          pgpTxP           => pgpTxP,                            -- [out]
          pgpTxN           => pgpTxN,                            -- [out]
          pgpRxP           => pgpRxP,                            -- [in]
@@ -193,6 +208,7 @@ begin
       port map (
          extRst              => '0',                               -- [in]
          refClk              => gtRefClkDiv2,                      -- [in]
+         refClkG             => refClkG,                           -- [in]
          gtRxP               => ethRxP,                            -- [in]
          gtRxN               => ethRxN,                            -- [in]
          gtTxP               => ethTxP,                            -- [out]
@@ -209,8 +225,8 @@ begin
          sAxilReadSlave      => sLocAxilReadSlaves(AXIL_ETH_C),    -- [out]
          sAxilWriteMaster    => sLocAxilWriteMasters(AXIL_ETH_C),  -- [in]
          sAxilWriteSlave     => sLocAxilWriteSlaves(AXIL_ETH_C),   -- [out]
-         axisClk             => axisClk,                           -- [in]
-         axisRst             => axisRst,                           -- [in]
+         axisClk             => axilClk,                           -- [in]
+         axisRst             => axilRst,                           -- [in]
          localRxAxisMaster   => ethDataRxAxisMaster,               -- [out]
          localRxAxisSlave    => ethDataRxAxisSlave,                -- [in]
          localTxAxisMaster   => ethDataTxAxisMaster,               -- [in]
@@ -248,26 +264,26 @@ begin
          NUM_MASTER_SLOTS_G => 1,
          MASTERS_CONFIG_G   => (
             0               => (
-               baseAddr     => "00000000",
-               addrBits     => 32,
+               baseAddr     => X"00000000",
+               addrBits     => 31,
                connectivity => X"FFFF")),
          DEBUG_G            => false)
       port map (
-         axiClk           => axilClk,               -- [in]
-         axiClkRst        => axilRst,               -- [in]
-         sAxiWriteMasters => mLocAxilWriteMasters,  -- [in]
-         sAxiWriteSlaves  => mLocAxilWriteSlaves,   -- [out]
-         sAxiReadMasters  => mLocAxilReadMasters,   -- [in]
-         sAxiReadSlaves   => mLocAxilReadSlaves,    -- [out]
-         mAxiWriteMasters => mAxiWriteMasters,      -- [out]
-         mAxiWriteSlaves  => mAxiWriteSlaves,       -- [in]
-         mAxiReadMasters  => mAxiReadMasters,       -- [out]
-         mAxiReadSlaves   => mAxiReadSlaves);       -- [in]
+         axiClk              => axilClk,               -- [in]
+         axiClkRst           => axilRst,               -- [in]
+         sAxiWriteMasters    => mLocAxilWriteMasters,  -- [in]
+         sAxiWriteSlaves     => mLocAxilWriteSlaves,   -- [out]
+         sAxiReadMasters     => mLocAxilReadMasters,   -- [in]
+         sAxiReadSlaves      => mLocAxilReadSlaves,    -- [out]
+         mAxiWriteMasters(0) => mAxilWriteMaster,      -- [out]
+         mAxiWriteSlaves(0)  => mAxilWriteSlave,       -- [in]
+         mAxiReadMasters(0)  => mAxilReadMaster,       -- [out]
+         mAxiReadSlaves(0)   => mAxilReadSlave);       -- [in]
 
    --------------------------------
    -- Fanout the bus from top level
    --------------------------------
-   U_AxiLiteCrossbar_MUX : entity surf.AxiLiteCrossbar
+   U_AxiLiteCrossbar_FANOUT : entity surf.AxiLiteCrossbar
       generic map (
          TPD_G              => TPD_G,
          NUM_SLAVE_SLOTS_G  => 1,
@@ -283,16 +299,16 @@ begin
                connectivity => X"FFFF")),
          DEBUG_G            => false)
       port map (
-         axiClk           => axilClk,              -- [in]
-         axiClkRst        => axilRst,              -- [in]
-         sAxiWriteMasters => sAxilWriteMasters,    -- [in]
-         sAxiWriteSlaves  => sAxilWriteSlaves,     -- [out]
-         sAxiReadMasters  => sAxilReadMasters,     -- [in]
-         sAxiReadSlaves   => sAxilReadSlaves,      -- [out]
-         mAxiWriteMasters => sLocAxiWriteMasters,  -- [out]
-         mAxiWriteSlaves  => sLocAxiWriteSlaves,   -- [in]
-         mAxiReadMasters  => sLocAxiReadMasters,   -- [out]
-         mAxiReadSlaves   => sLocAxiReadSlaves);   -- [in]
+         axiClk              => axilClk,               -- [in]
+         axiClkRst           => axilRst,               -- [in]
+         sAxiWriteMasters(0) => sAxilWriteMaster,      -- [in]
+         sAxiWriteSlaves(0)  => sAxilWriteSlave,       -- [out]
+         sAxiReadMasters(0)  => sAxilReadMaster,       -- [in]
+         sAxiReadSlaves(0)   => sAxilReadSlave,        -- [out]
+         mAxiWriteMasters    => sLocAxilWriteMasters,  -- [out]
+         mAxiWriteSlaves     => sLocAxilWriteSlaves,   -- [in]
+         mAxiReadMasters     => sLocAxilReadMasters,   -- [out]
+         mAxiReadSlaves      => sLocAxilReadSlaves);   -- [in]
 
 
 end rtl;

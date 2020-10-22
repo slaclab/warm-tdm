@@ -43,11 +43,12 @@ entity RowModulePgp is
 
    port (
       -- GT Ports and clock
-      gtRefClk : in  sl;
-      pgpTxP   : out sl;
-      pgpTxN   : out sl;
-      pgpRxP   : in  sl;
-      pgpRxN   : in  sl;
+      gtRefClk  : in  sl;
+      gtRefClkG : in  sl;
+      pgpTxP    : out sl;
+      pgpTxN    : out sl;
+      pgpRxP    : in  sl;
+      pgpRxN    : in  sl;
 
       -- Main clock and reset 
       axiClk           : out sl;
@@ -152,6 +153,7 @@ begin
       U_Pgp2bGtx7VarLatWrapper_1 : entity surf.Pgp2bGtx7VarLatWrapper
          generic map (
             TPD_G              => TPD_G,
+            USE_REFCLK_G       => true,
             CLKIN_PERIOD_G     => 6.4,
             DIVCLK_DIVIDE_G    => 1,
             CLKFBOUT_MULT_F_G  => 6.4,
@@ -191,6 +193,7 @@ begin
 --             gtClkP          => pgpRefClkP,                       -- [in]
 --             gtClkN          => pgpRefClkN,                       -- [in]
             gtRefClk        => gtRefClk,                         -- [in]
+            gtRefClkG       => gtRefClkG,                        -- [in]
             gtTxP           => pgpTxP,                           -- [out]
             gtTxN           => pgpTxN,                           -- [out]
             gtRxP           => pgpRxP,                           -- [in]
@@ -335,7 +338,7 @@ begin
    -- Mux Ethernet streams in to local PGP streams
    -------------------------------------------------------------------------------------------------
    ETH_STREAM_MUX : for i in 3 downto 0 generate
-      U_AxiStreamDeMux_1 : entity work.AxiStreamDeMux
+      U_AxiStreamDeMux_1 : entity surf.AxiStreamDeMux
          generic map (
             TPD_G          => TPD_G,
             NUM_MASTERS_G  => 2,
@@ -354,15 +357,15 @@ begin
             mAxisSlaves(0)  => appLocalRxAxisSlaves(i),   -- [in]
             mAxisSlaves(1)  => ethTxAxisSlaves(i));       -- [in]      
 
-      U_AxiStreamMux_1 : entity work.AxiStreamMux
+      U_AxiStreamMux_1 : entity surf.AxiStreamMux
          generic map (
             TPD_G                => TPD_G,
             PIPE_STAGES_G        => 1,
             NUM_SLAVES_G         => 2,
             MODE_G               => "ROUTED",
-            TDEST_ROUTES_G       => (,
-                               0 => "----0---",
-                               1 => "----1---"),
+            TDEST_ROUTES_G       => (
+               0                 => "----0---",
+               1                 => "----1---"),
             ILEAVE_EN_G          => true,                 -- 
             ILEAVE_ON_NOTVALID_G => true,
             ILEAVE_REARB_G       => 31,                   -- Check this
@@ -382,8 +385,8 @@ begin
    ------------------------------------
    -- VC0 - SRP
    ------------------------------------
-   axilClk <= pgpClk;
-   axilRst <= pgpRst;
+   axiClk <= pgpClk;
+   axiRst <= pgpRst;
    U_SrpV3AxiLite_1 : entity surf.SrpV3AxiLite
       generic map (
          TPD_G               => TPD_G,

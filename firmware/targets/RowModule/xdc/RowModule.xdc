@@ -11,10 +11,21 @@ create_clock -name gtRefClk0 -period 3.200 [get_ports {gtRefClk0P}]
 create_clock -name gtRefClk1 -period 4.000 [get_ports {gtRefClk1P}]
 create_clock -name timingRxClk -period 10.000 [get_ports {timingRxClkP}]
 
-create_generated_clock -name axilClk [get_pins {U_RowModulePgp_1/REAL_PGP_GEN.U_Pgp2bGtx7VarLatWrapper_1/ClockManager7_Inst/MmcmGen.U_Mmcm/CLKOUT0}]
+create_generated_clock -name gtRefClk0Div2 [get_pins {U_RowModuleCom_1/U_IBUFDS_GTE2/ODIV2}]
+
+create_generated_clock -name axilClk [get_pins {U_RowModuleCom_1/U_RowModulePgp_1/REAL_PGP_GEN.U_Pgp2bGtx7VarLatWrapper_1/ClockManager7_Inst/MmcmGen.U_Mmcm/CLKOUT0}]
+
 create_generated_clock -name idelayClk [get_pins {U_RowModuleTiming_1/U_MMCM/MmcmGen.U_Mmcm/CLKOUT0}]
 
 create_generated_clock -name dacClk -divide_by 200 -source [get_ports {timingRxClkP}] [get_pins {U_RowModuleTiming_1/DAC_CLK_BUFG/O}]
+
+set ethRxClk {U_RowModuleCom_1/U_RowModuleEth_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/U_TenGigEthGtx7Core/U0/gt0_gtwizard_10gbaser_multi_gt_i/gt0_gtwizard_10gbaser_i/gtxe2_i/RXOUTCLK}
+set ethTxClk {U_RowModuleCom_1/U_RowModuleEth_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/U_TenGigEthGtx7Core/U0/gt0_gtwizard_10gbaser_multi_gt_i/gt0_gtwizard_10gbaser_i/gtxe2_i/TXOUTCLK}
+
+set_clock_groups -asynchronous \
+    -group [get_clocks {gtRefClk0Div2}] \
+    -group [get_clocks ${ethTxClk}] \
+    -group [get_clocks ${ethRxClk}]
 
 set_clock_groups -asynchronous \
     -group [get_clocks -include_generated_clocks gtRefClk0] \
@@ -23,7 +34,12 @@ set_clock_groups -asynchronous \
 
 set_clock_groups -asynchronous \
     -group [get_clocks -include_generated_clocks axilClk] \
-    -group [get_clocks -include_generated_clocks timingRxClk] \
+    -group [get_clocks -include_generated_clocks timingRxClk] 
+
+set_clock_groups -asynchronous \
+    -group [get_clocks axilClk] \
+    -group [get_clocks gtRefClk0Div2] 
+
 
 # MGT Mapping
 # Clocks

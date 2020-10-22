@@ -27,6 +27,7 @@ use surf.StdRtlPkg.all;
 use surf.AxiStreamPkg.all;
 use surf.AxiLitePkg.all;
 use surf.I2cPkg.all;
+use surf.SsiPkg.all;
 
 library warm_tdm;
 
@@ -102,16 +103,20 @@ end entity RowModule;
 
 architecture rtl of RowModule is
 
+   constant AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(8);  -- Maybe packetizer config?
+
    signal bootSck : sl;
 
-   constant NUM_AXIL_MASTERS_C : integer := 7;
+   constant NUM_AXIL_MASTERS_C : integer := 9;
    constant AXIL_VERSION_C     : integer := 0;
    constant AXIL_XADC_C        : integer := 1;
    constant AXIL_PWR_C         : integer := 2;
    constant AXIL_BOOT_C        : integer := 3;
    constant AXIL_EEPROM_C      : integer := 4;
-   constant AXIL_DACS_C        : integer := 5;
-   constant AXIL_COM_C         : integer := 6;
+   constant AXIL_PRBS_RX_C     : integer := 5;
+   constant AXIL_PRBS_TX_C     : integer := 6;
+   constant AXIL_DACS_C        : integer := 7;
+   constant AXIL_COM_C         : integer := 8;
 
    constant AXIL_XBAR_CFG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := (
       AXIL_VERSION_C  => (
@@ -134,6 +139,14 @@ architecture rtl of RowModule is
          baseAddr     => X"00400000",
          addrBits     => 16,
          connectivity => X"FFFF"),
+      AXIL_PRBS_RX_C  => (
+         baseAddr     => X"00500000",
+         addrBits     => 12,
+         connectivity => X"FFFF"),
+      AXIL_PRBS_TX_C  => (
+         baseAddr     => X"00501000",
+         addrBits     => 8,
+         connectivity => X"FFFF"),
       AXIL_DACS_C     => (
          baseAddr     => X"01000000",
          addrBits     => 24,
@@ -146,10 +159,10 @@ architecture rtl of RowModule is
    signal axilClk : sl;
    signal axilRst : sl;
 
-   signal pgpAxilWriteMaster : AxiLiteWriteMasterType;
-   signal pgpAxilWriteSlave  : AxiLiteWriteSlaveType;
-   signal pgpAxilReadMaster  : AxiLiteReadMasterType;
-   signal pgpAxilReadSlave   : AxiLiteReadSlaveType;
+   signal srpAxilWriteMaster : AxiLiteWriteMasterType;
+   signal srpAxilWriteSlave  : AxiLiteWriteSlaveType;
+   signal srpAxilReadMaster  : AxiLiteReadMasterType;
+   signal srpAxilReadSlave   : AxiLiteReadSlaveType;
 
    signal locAxilWriteMasters : AxiLiteWriteMasterArray(NUM_AXIL_MASTERS_C-1 downto 0);
    signal locAxilWriteSlaves  : AxiLiteWriteSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0);
@@ -162,6 +175,12 @@ architecture rtl of RowModule is
    signal dacAxilWriteSlaves  : AxiLiteWriteSlaveArray(11 downto 0);
    signal dacAxilReadMasters  : AxiLiteReadMasterArray(11 downto 0);
    signal dacAxilReadSlaves   : AxiLiteReadSlaveArray(11 downto 0);
+
+   signal dataTxAxisMaster : AxiStreamMasterType;
+   signal dataTxAxisSlave  : AxiStreamSlaveType;
+   signal dataRxAxisMaster : AxiStreamMasterType;
+   signal dataRxAxisSlave  : AxiStreamSlaveType;
+
 
 begin
 
@@ -209,10 +228,10 @@ begin
          ethTxN           => sfp0TxN,                          -- [out]
          axilClkOut       => axilClk,                          -- [out]
          axilRstOut       => axilRst,                          -- [out]
-         mAxilWriteMaster => mAxilWriteMaster,                 -- [out]
-         mAxilWriteSlave  => mAxilWriteSlave,                  -- [in]
-         mAxilReadMaster  => mAxilReadMaster,                  -- [out]
-         mAxilReadSlave   => mAxilReadSlave,                   -- [in]
+         mAxilWriteMaster => srpAxilWriteMaster,               -- [out]
+         mAxilWriteSlave  => srpAxilWriteSlave,                -- [in]
+         mAxilReadMaster  => srpAxilReadMaster,                -- [out]
+         mAxilReadSlave   => srpAxilReadSlave,                 -- [in]
          sAxilWriteMaster => locAxilWriteMasters(AXIL_COM_C),  -- [in]
          sAxilWriteSlave  => locAxilWriteSlaves(AXIL_COM_C),   -- [out]
          sAxilReadMaster  => locAxilReadMasters(AXIL_COM_C),   -- [in]
@@ -236,10 +255,10 @@ begin
       port map (
          axiClk              => axilClk,              -- [in]
          axiClkRst           => axilRst,              -- [in]
-         sAxiWriteMasters(0) => mAxilWriteMaster,     -- [in]
-         sAxiWriteSlaves(0)  => mAxilWriteSlave,      -- [out]
-         sAxiReadMasters(0)  => mAxilReadMaster,      -- [in]
-         sAxiReadSlaves(0)   => mAxilReadSlave,       -- [out]
+         sAxiWriteMasters(0) => srpAxilWriteMaster,   -- [in]
+         sAxiWriteSlaves(0)  => srpAxilWriteSlave,    -- [out]
+         sAxiReadMasters(0)  => srpAxilReadMaster,    -- [in]
+         sAxiReadSlaves(0)   => srpAxilReadSlave,     -- [out]
          mAxiWriteMasters    => locAxilWriteMasters,  -- [out]
          mAxiWriteSlaves     => locAxilWriteSlaves,   -- [in]
          mAxiReadMasters     => locAxilReadMasters,   -- [out]
@@ -453,6 +472,50 @@ begin
             coreSDout      => dacSdio(i),              -- [out]
             coreMCsb(0)    => dacCsB(i));              -- [out]
    end generate DAC_SPI_GEN;
+
+   U_SsiPrbsRx_1 : entity surf.SsiPrbsRx
+      generic map (
+         TPD_G                     => TPD_G,
+         STATUS_CNT_WIDTH_G        => 32,
+         SLAVE_READY_EN_G          => true,
+         GEN_SYNC_FIFO_G           => true,
+         SYNTH_MODE_G              => "inferred",
+--          MEMORY_TYPE_G             => MEMORY_TYPE_G,
+         SLAVE_AXI_STREAM_CONFIG_G => AXIS_CONFIG_C,
+         SLAVE_AXI_PIPE_STAGES_G   => 1)
+      port map (
+         sAxisClk       => axilClk,                              -- [in]
+         sAxisRst       => axilRst,                              -- [in]
+         sAxisMaster    => dataRxAxisMaster,                     -- [in]
+         sAxisSlave     => dataRxAxisSlave,                      -- [out]
+         axiClk         => axilClk,                              -- [in]
+         axiRst         => axilRst,                              -- [in]
+         axiReadMaster  => locAxilReadMasters(AXIL_PRBS_RX_C),   -- [in]
+         axiReadSlave   => locAxilReadSlaves(AXIL_PRBS_RX_C),    -- [out]
+         axiWriteMaster => locAxilWriteMasters(AXIL_PRBS_RX_C),  -- [in]
+         axiWriteSlave  => locAxilWriteSlaves(AXIL_PRBS_RX_C));  -- [out]
+
+   U_SsiPrbsTx_1 : entity surf.SsiPrbsTx
+      generic map (
+         TPD_G                      => TPD_G,
+--          MEMORY_TYPE_G              => MEMORY_TYPE_G,
+         GEN_SYNC_FIFO_G            => true,
+         SYNTH_MODE_G               => "inferred",
+         MASTER_AXI_STREAM_CONFIG_G => AXIS_CONFIG_C,
+         MASTER_AXI_PIPE_STAGES_G   => 1)
+      port map (
+         mAxisClk        => axilClk,                              -- [in]
+         mAxisRst        => axilRst,                              -- [in]
+         mAxisMaster     => dataTxAxisMaster,                     -- [out]
+         mAxisSlave      => dataTxAxisSlave,                      -- [in]
+         locClk          => axilClk,                              -- [in]
+         locRst          => axilRst,                              -- [in]
+         axilReadMaster  => locAxilReadMasters(AXIL_PRBS_TX_C),   -- [in]
+         axilReadSlave   => locAxilReadSlaves(AXIL_PRBS_TX_C),    -- [out]
+         axilWriteMaster => locAxilWriteMasters(AXIL_PRBS_TX_C),  -- [in]
+         axilWriteSlave  => locAxilWriteSlaves(AXIL_PRBS_TX_C));  -- [out]
+
+
 
 
 end architecture rtl;

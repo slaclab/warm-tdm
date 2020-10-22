@@ -28,10 +28,6 @@ use surf.AxiStreamPkg.all;
 use surf.SsiPkg.all;
 use surf.EthMacPkg.all;
 
-
-library kpix;
-use kpix.KpixPkg.all;
-
 library unisim;
 use unisim.vcomponents.all;
 
@@ -47,7 +43,8 @@ entity RowModuleEth is
    port (
       extRst            : in  sl                    := '0';
       -- GT ports and clock
-      refClk            : in  sl;                           -- GT Ref Clock 156.25 MHz 
+      refClk            : in  sl;                           -- GT Ref Clock 156.25 MHz
+      refClkG : in sl;
       gtRxP             : in  sl;
       gtRxN             : in  sl;
       gtTxP             : out sl;
@@ -93,7 +90,7 @@ architecture mapping of RowModuleEth is
    constant RSSI_AXIS_CONFIG_C : AxiStreamConfigArray(RSSI_SIZE_C-1 downto 0) := (others => AXIS_CONFIG_C);
 
    constant DEST_SRP_C        : integer := 0;
-   constant DEST_LOC_DATA_C   : integer := 1;
+   constant DEST_DATA_C       : integer := 1;
    constant DEST_PRBS_C       : integer := 2;
    constant DEST_LOOPBACK_C   : integer := 3;
    constant DEST_REMOTE_VC0_C : integer := 4;  -- SRP
@@ -142,7 +139,6 @@ architecture mapping of RowModuleEth is
          connectivity => X"FFFF"));
 
 
-   signal refClkG    : sl;
    signal refRst     : sl;
    signal ethClk     : sl;
    signal ethRst     : sl;
@@ -171,6 +167,11 @@ architecture mapping of RowModuleEth is
    signal locAxilReadSlaves   : AxiLiteReadSlaveArray(AXIL_NUM_C-1 downto 0)  := (others => AXI_LITE_READ_SLAVE_EMPTY_DECERR_C);
    signal locAxilWriteMasters : AxiLiteWriteMasterArray(AXIL_NUM_C-1 downto 0);
    signal locAxilWriteSlaves  : AxiLiteWriteSlaveArray(AXIL_NUM_C-1 downto 0) := (others => AXI_LITE_WRITE_SLAVE_EMPTY_DECERR_C);
+
+   signal qplllock      : sl;
+   signal qplloutclk    : sl;
+   signal qplloutrefclk : sl;
+   signal qpllReset     : sl;
 
 
 begin
@@ -213,11 +214,6 @@ begin
    REAL_ETH_GEN : if (not SIMULATION_G) generate
 
       GIG_ETH_GEN : if (not ETH_10G_G) generate
-
-         CLK156_BUFG : BUFG
-            port map (
-               I => refClk,
-               O => refClkG);
 
          PwrUpRst_Inst : entity surf.PwrUpRst
             generic map (
@@ -295,10 +291,7 @@ begin
       end generate GIG_ETH_GEN;
 
       TEN_GIG_ETH_GEN : if (ETH_10G_G) generate
-         CLK156_BUFG : BUFG
-            port map (
-               I => refClk,
-               O => ethClk);
+         ethClk <= refClkG;
 
          PwrUpRst_Inst : entity surf.PwrUpRst
             generic map (
@@ -314,7 +307,7 @@ begin
                SIM_RESET_SPEEDUP_G => "TRUE",        --Does not affect hardware
                SIM_VERSION_G       => "4.0",
                QPLL_CFG_G          => x"0680181",
-               QPLL_REFCLK_SEL_G   => QPLL_REFCLK_SEL_C,
+               QPLL_REFCLK_SEL_G   => "001",
                QPLL_FBDIV_G        => "0101000000",  -- 64B/66B Encoding
                QPLL_FBDIV_RATIO_G  => '0',           -- 64B/66B Encoding
                QPLL_REFCLK_DIV_G   => 1)
@@ -328,7 +321,7 @@ begin
                qPllPowerDown  => '0',
                qPllReset      => qpllReset);
 
-         U_TenGigEthGtx7_1 : entity work.TenGigEthGtx7
+         U_TenGigEthGtx7_1 : entity surf.TenGigEthGtx7
             generic map (
                TPD_G         => TPD_G,
                PAUSE_EN_G    => true,
@@ -363,7 +356,7 @@ begin
                qplllock           => qpllLock,                         -- [in]
                qplloutclk         => qpllOutClk,                       -- [in]
                qplloutrefclk      => qpllOutRefClk,                    -- [in]
-               qpllRst            => qpllRst,                          -- [out]
+               qpllRst            => qpllReset,                        -- [out]
                gtTxP              => gtTxP,                            -- [out]
                gtTxN              => gtTxN,                            -- [out]
                gtRxP              => gtRxP,                            -- [in]
@@ -519,7 +512,7 @@ begin
          PIPE_STAGES_G       => 1,
          SLAVE_READY_EN_G    => false,
          VALID_THOLD_G       => 1,
-         VALID_BURST_MODE_G  => false,
+         VALID_BURST_MODE_G  => true,
          SYNTH_MODE_G        => "inferred",
          MEMORY_TYPE_G       => "block",
          GEN_SYNC_FIFO_G     => false,
@@ -529,15 +522,15 @@ begin
          SLAVE_AXI_CONFIG_G  => AXIS_CONFIG_C,
          MASTER_AXI_CONFIG_G => AXIS_CONFIG_C)
       port map (
-         sAxisClk    => axisClk,                           -- [in]
-         sAxisRst    => axisRst,                           -- [in]
-         sAxisMaster => localTxAxisMaster,                 -- [in]
-         sAxisSlave  => localTxAxisSlave,                  -- [out]
-         sAxisCtrl   => localTxAxisCtrl,                   -- [out]
-         mAxisClk    => ethClk,                            -- [in]
-         mAxisRst    => ethRst,                            -- [in]
-         mAxisMaster => rssiIbMasters(DEST_LOCAL_DATA_C),  -- [out]
-         mAxisSlave  => rssiIbSlaves(DEST_LOCAL_DATA_C));  -- [in]
+         sAxisClk    => axisClk,                     -- [in]
+         sAxisRst    => axisRst,                     -- [in]
+         sAxisMaster => localTxAxisMaster,           -- [in]
+         sAxisSlave  => localTxAxisSlave,            -- [out]
+--         sAxisCtrl   => localTxAxisCtrl,                   -- [out]
+         mAxisClk    => ethClk,                      -- [in]
+         mAxisRst    => ethRst,                      -- [in]
+         mAxisMaster => rssiIbMasters(DEST_DATA_C),  -- [out]
+         mAxisSlave  => rssiIbSlaves(DEST_DATA_C));  -- [in]
 
    U_AxiStreamFifoV2_LOC_RX : entity surf.AxiStreamFifoV2
       generic map (
@@ -556,15 +549,14 @@ begin
          SLAVE_AXI_CONFIG_G  => AXIS_CONFIG_C,
          MASTER_AXI_CONFIG_G => AXIS_CONFIG_C)
       port map (
-         sAxisClk    => ethClk,                            -- [in]
-         sAxisRst    => ethRst,                            -- [in]
-         sAxisMaster => rssiObMasters(DEST_LOCAL_DATA_C),  -- [in]
-         sAxisSlave  => rssiObSlaves(DEST_LOCAL_DATA_C),   -- [out]
-         mAxisClk    => axisClk,                           -- [in]
-         mAxisRst    => axisRst,                           -- [in]
-         mAxisMaster => localRxAxisMaster,                 -- [out]
-         mAxisSlave  => localRxAxisSlave));                -- [in]
-
+         sAxisClk    => ethClk,                      -- [in]
+         sAxisRst    => ethRst,                      -- [in]
+         sAxisMaster => rssiObMasters(DEST_DATA_C),  -- [in]
+         sAxisSlave  => rssiObSlaves(DEST_DATA_C),   -- [out]
+         mAxisClk    => axisClk,                     -- [in]
+         mAxisRst    => axisRst,                     -- [in]
+         mAxisMaster => localRxAxisMaster,           -- [out]
+         mAxisSlave  => localRxAxisSlave);           -- [in]
 
 
    -----------------------------------

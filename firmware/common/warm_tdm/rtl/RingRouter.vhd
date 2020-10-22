@@ -128,7 +128,7 @@ begin
          mAxisMasters(0)      => appRxAxisMasterTmp,    -- [out]
          mAxisMasters(1)      => dumpMaster,            -- [out]
          mAxisMasters(2)      => passthroughMaster,     -- [out]
-         mAxisSlaves(0)       => appRxAxisSlave;        -- [in]
+         mAxisSlaves(0)       => appRxAxisSlave,        -- [in]
          mAxisSlaves(1)       => dumpSlave,             -- [in]
          mAxisSlaves(2)       => passthroughSlave);     -- [in]
 
@@ -193,4 +193,3 @@ begin
 
 
 end RingRouter;
-
