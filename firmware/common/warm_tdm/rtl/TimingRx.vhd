@@ -31,11 +31,16 @@ use surf.AxiLitePkg.all;
 use surf.I2cPkg.all;
 
 library warm_tdm;
+use warm_tdm.TimingPkg.all;
 
 entity TimingRx is
 
    generic (
-      TPD_G : time := 1 ns);
+      TPD_G             : time            := 1 ns;
+      IODELAY_GROUP_G   : string          := "DEFAULT_GROUP";
+      IDELAYCTRL_FREQ_G : real            := 200.0;
+      DEFAULT_DELAY_G   : slv(4 downto 0) := (others => '0')
+      );
 
    port (
       timingRefClkP : in sl;
@@ -43,36 +48,41 @@ entity TimingRx is
 
       timingRxClkP  : in sl;
       timingRxClkN  : in sl;
-      timingRxTrigP : in sl;
-      timingRxTrigN : in sl;
+      timingRxDataP : in sl;
+      timingRxDataN : in sl;
 
-      dacTriggerB : out slv(11 downto 0);
-      dacClkP     : out slv(11 downto 0);
-      dacClkN     : out slv(11 downto 0));
+      timingClkOut : out sl;
+      timingRstOut : out sl;
+      timingData   : out LocalTimingType);
 
 end entity TimingRx;
 
 architecture rtl of TimingRx is
 
-   constant DAC_CLK_DIV_C : integer         := 99;
-   constant ALIGN_CODE_C  : slv(9 downto 0) := "0101001010";
-   constant START_CODE_C  : slv(9 downto 0) := "1010110101";
+   signal bitClk    : sl;
+   signal bitClkInv : sl;
+   signal wordClk   : sl;
+   signal wordRst   : sl;
 
    type RegType is record
-      shiftReg       : slv(9 downto 0);
-      dacClkDivCount : slv(7 downto 0);
-      dacClk         : sl;
-      dacTriggerB    : sl;
+      slip       : sl;
+      timingData : LocalTimingType;
+
    end record RegType;
 
    constant REG_INIT_C : RegType := (
-      shiftReg       => (others => '0'),
-      dacClkDivCount => (others => '0'),
-      dacClk         => '0',
-      dacTriggerB    => '1');
+      slip       => '0',
+      timingData => LOCAL_TIMING_INIT_C);
 
    signal r   : RegType := REG_INIT_C;
    signal rin : RegType;
+
+   signal timingRxCodeWord : slv(9 downto 0);
+   signal timingRxValid    : sl;
+   signal timingRxData     : slv(7 downto 0);
+   signal timingRxDataK    : sl;
+   signal codeErr          : sl;
+   signal dispErr          : sl;
 
    signal timingRefClk  : sl;
    signal timingRefClkG : sl;
@@ -80,19 +90,14 @@ architecture rtl of TimingRx is
    signal idelayClk : sl;
    signal idelayRst : sl;
 
-   signal timingTrigDly : sl;
-   signal timingClk     : sl;
-   signal timingTrig    : sl;
-
-   signal dacClk : sl;
-
    attribute IODELAY_GROUP                 : string;
-   attribute IODELAY_GROUP of IDELAYCTRL_0 : label is "IDELAYCTRL0";
-   attribute IODELAY_GROUP of U_DELAY      : label is "IDELAYCTRL0";
-
+   attribute IODELAY_GROUP of IDELAYCTRL_0 : label is IODELAY_GROUP_G;
 
 begin
 
+   -------------------------------------------------------------------------------------------------
+   -- USE Timing Refclk to create 200 MHz IODELAY CLK
+   -------------------------------------------------------------------------------------------------
    U_IBUFDS_GTE2 : IBUFDS_GTE2
       port map (
          I     => timingRefClkP,
@@ -106,7 +111,7 @@ begin
          I => timingRefClk,
          O => timingRefClkG);
 
-   U_MMCM : entity surf.ClockManager7
+   U_MMCM_IDELAY : entity surf.ClockManager7
       generic map(
          TPD_G              => TPD_G,
          TYPE_G             => "MMCM",
@@ -128,114 +133,118 @@ begin
          locked    => open);
 
 
+   -------------
+   -- IDELAYCTRL
+   -------------
    IDELAYCTRL_0 : IDELAYCTRL
       port map (
          RDY    => open,
          REFCLK => idelayClk,
          RST    => idelayRst);
 
-
-   TIMING_RX_CLK_BUFF : IBUFGDS
-      port map (
-         i  => timingRxClkP,
-         ib => timingRxClkN,
-         o  => timingClk);
-
-
-   TIMING_RX_TRIG_BUFF : IBUFGDS
-      port map (
-         i  => timingRxTrigP,
-         ib => timingRxTrigN,
-         o  => timingTrig);
-
-   U_DELAY : IDELAYE2
+   -------------------------------------------------------------------------------------------------
+   -- Create serial clock for deserializer
+   -------------------------------------------------------------------------------------------------
+   U_TimingMmcm_1 : entity warm_tdm.TimingMmcm
       generic map (
-         DELAY_SRC             => "IDATAIN",
-         HIGH_PERFORMANCE_MODE => "TRUE",
-         IDELAY_TYPE           => "FIXED",  --"VAR_LOAD",
-         IDELAY_VALUE          => 15,       -- Here
-         REFCLK_FREQUENCY      => 200.0,
-         SIGNAL_PATTERN        => "DATA"
-         )
+         TPD_G => TPD_G)
       port map (
-         C           => '0',
-         REGRST      => '0',
-         LD          => '0',                --r.set,
-         CE          => '0',
-         INC         => '1',
-         CINVCTRL    => '0',
-         CNTVALUEIN  => (others => '0'),    --r.delay,
-         IDATAIN     => timingTrig,
-         DATAIN      => '0',
-         LDPIPEEN    => '0',
-         DATAOUT     => timingTrigDly,
-         CNTVALUEOUT => open);
+         timingRxClkP => timingRxClkP,  -- [in]
+         timingRxClkN => timingRxClkN,  -- [in]
+         bitClk       => bitClk,        -- [out]
+         bitClkInv    => bitClkInv,     -- [out]
+         wordClk      => wordClk,       -- [out]
+         wordRst      => wordRst);      -- [out]
 
-   comb : process (r, timingTrigDly) is
+   -------------------------------------------------------------------------------------------------
+   -- Deserialize the incomming data
+   -------------------------------------------------------------------------------------------------
+   U_TimingDeserializer_1 : entity warm_tdm.TimingDeserializer
+      generic map (
+         TPD_G             => TPD_G,
+         IODELAY_GROUP_G   => IODELAY_GROUP_G,
+         IDELAYCTRL_FREQ_G => IDELAYCTRL_FREQ_G)
+      port map (
+         bitClk        => bitClk,            -- [in]
+         bitClkInv     => bitClkInv,         -- [in]
+         timingRxDataP => timingRxDataP,     -- [in]
+         timingRxDataN => timingRxDataN,     -- [in]
+         wordClk       => wordClk,           -- [in]
+         wordRst       => wordRst,           -- [in]
+         dataOut       => timingRxCodeWord,  -- [out]
+         slip          => r.slip);           -- [in]
+
+   timingClkOut <= wordClk;
+   timingRstOut <= wordRst;
+
+   -------------------------------------------------------------------------------------------------
+   -- 8B10B decode
+   -------------------------------------------------------------------------------------------------
+   U_Decoder8b10b_1 : entity surf.Decoder8b10b
+      generic map (
+         TPD_G       => TPD_G,
+         NUM_BYTES_G => 1)
+      port map (
+         clk         => wordClk,           -- [in]
+         rst         => wordRst,           -- [in]
+         dataIn      => timingRxCodeWord,  -- [in]
+         dataOut     => timingRxData,      -- [out]
+         dataKOut(0) => timingRxDataK,     -- [out]
+         validOut    => timingRxValid,     -- [out]
+         codeErr(0)  => codeErr,           -- [out]
+         dispErr(0)  => dispErr);          -- [out]
+
+   comb : process (r, timingRxData, timingRxDataK, timingRxValid, wordRst) is
       variable v : RegType;
    begin
       v := r;
 
-      -- Shift trigger data in
-      v.shiftReg := r. shiftReg(8 downto 0) & timingTrigDly;
-
-      -- Count every clock
-      v.dacClkDivCount := r.dacClkDivCount + 1;
-      if (r.dacClkDivCount = DAC_CLK_DIV_C) then
-         -- Restart counter
-         v.dacClkDivCount := (others => '0');
-
-         -- Toggle clock
-         v.dacClk := not r.dacClk;
-
-         -- Reset trigger
-         if (r.dacClk = '1') then
-            v.dacTriggerB := '1';
-         end if;
+      if (v.timingData.running = '1') then
+         v.timingData.runTime := r.timingData.runTime + 1;
+         v.timingData.rowTime := r.timingData.rowTime + 1;
       end if;
 
-      -- Reset clock upon align code
-      if (r.shiftReg = ALIGN_CODE_C) then
-         v.dacClkDivCount := (others => '0');
-         v.dacClk         := '0';
+      v.timingData.startRun  := '0';
+      v.timingData.endRun    := '0';
+      v.timingData.rowStrobe := '0';
+
+      if (timingRxValid = '1' and timingRxDataK = '1') then
+         case timingRxData is
+            when START_RUN_C =>
+               v.timingData.startRun := '1';
+               v.timingData.runTime  := (others => '0');
+               v.timingData.running  := '1';
+            when END_RUN_C =>
+               v.timingData.endRun  := '1';
+               v.timingData.running := '0';
+            when FIRST_ROW_C =>
+               v.timingData.rowStrobe := '1';
+               v.timingData.rowNum    := (others => '0');
+               v.timingData.rowTime   := (others => '0');
+            when ROW_STROBE_C =>
+               v.timingData.rowStrobe := '1';
+               v.timingData.rowNum    := r.timingData.rowNum + 1;
+               v.timingData.rowTime   := (others => '0');
+            when others => null;
+         end case;
       end if;
 
-      -- Send trigger upon start code
-      if (r.shiftReg = START_CODE_C) then
-         v.dacTriggerB := '0';
+      if (wordRst = '1') then
+         v := REG_INIT_C;
       end if;
 
       rin <= v;
 
-      for i in 11 downto 0 loop
-         dacTriggerB(i) <= r.dacTriggerB;
-      end loop;
-
+      timingData <= r.timingData;
 
    end process comb;
 
-   DAC_CLK_BUFG : BUFG
-      port map (
-         i => r.dacClk,
-         o => dacClk);
-
-   DAC_CLK_OUT_BUFF_GEN : for i in 11 downto 0 generate
-      U_ClkOutBufDiff_1 : entity surf.ClkOutBufDiff
-         generic map (
-            TPD_G        => TPD_G,
-            XIL_DEVICE_G => "7SERIES")
-         port map (
-            clkIn   => dacClk,          -- [in]
-            clkOutP => dacClkP(i),      -- [out]
-            clkOutN => dacClkN(i));     -- [out]
-
-   end generate DAC_CLK_OUT_BUFF_GEN;
-
-   seq : process (timingClk) is
+   seq : process (wordClk) is
    begin
-      if (rising_edge(timingClk)) then
+      if (rising_edge(wordClk)) then
          r <= rin after TPD_G;
       end if;
    end process seq;
+
 
 end architecture rtl;

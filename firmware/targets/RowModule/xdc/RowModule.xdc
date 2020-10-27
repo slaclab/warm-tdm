@@ -9,18 +9,18 @@
 ##############################################################################
 create_clock -name gtRefClk0 -period 3.200 [get_ports {gtRefClk0P}]
 create_clock -name gtRefClk1 -period 4.000 [get_ports {gtRefClk1P}]
-create_clock -name timingRxClk -period 10.000 [get_ports {timingRxClkP}]
+create_clock -name timingRxClk -period 8.000 [get_ports {timingRxClkP}]
 
-create_generated_clock -name gtRefClk0Div2 [get_pins {U_RowModuleCom_1/U_IBUFDS_GTE2/ODIV2}]
+create_generated_clock -name gtRefClk0Div2 [get_pins {U_ComCore_1/U_IBUFDS_GTE2/ODIV2}]
 
-create_generated_clock -name axilClk [get_pins {U_RowModuleCom_1/U_RowModulePgp_1/REAL_PGP_GEN.U_Pgp2bGtx7VarLatWrapper_1/ClockManager7_Inst/MmcmGen.U_Mmcm/CLKOUT0}]
+create_generated_clock -name axilClk [get_pins {U_ComCore_1/U_PgpCore_1/REAL_PGP_GEN.U_Pgp2bGtx7VarLatWrapper_1/ClockManager7_Inst/MmcmGen.U_Mmcm/CLKOUT0}]
 
-create_generated_clock -name idelayClk [get_pins {U_RowModuleTiming_1/U_MMCM/MmcmGen.U_Mmcm/CLKOUT0}]
+create_generated_clock -name idelayClk [get_pins {U_TimingRx_1/U_MMCM/MmcmGen.U_Mmcm/CLKOUT0}]
 
-create_generated_clock -name dacClk -divide_by 200 -source [get_ports {timingRxClkP}] [get_pins {U_RowModuleTiming_1/DAC_CLK_BUFG/O}]
+create_generated_clock -name dacClk -divide_by 200 -source [get_ports {timingRxClkP}] [get_pins {U_TimingRx_1/DAC_CLK_BUFG/O}]
 
-set ethRxClk {U_RowModuleCom_1/U_RowModuleEth_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/U_TenGigEthGtx7Core/U0/gt0_gtwizard_10gbaser_multi_gt_i/gt0_gtwizard_10gbaser_i/gtxe2_i/RXOUTCLK}
-set ethTxClk {U_RowModuleCom_1/U_RowModuleEth_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/U_TenGigEthGtx7Core/U0/gt0_gtwizard_10gbaser_multi_gt_i/gt0_gtwizard_10gbaser_i/gtxe2_i/TXOUTCLK}
+set ethRxClk {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/U_TenGigEthGtx7Core/U0/gt0_gtwizard_10gbaser_multi_gt_i/gt0_gtwizard_10gbaser_i/gtxe2_i/RXOUTCLK}
+set ethTxClk {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/U_TenGigEthGtx7Core/U0/gt0_gtwizard_10gbaser_multi_gt_i/gt0_gtwizard_10gbaser_i/gtxe2_i/TXOUTCLK}
 
 set_clock_groups -asynchronous \
     -group [get_clocks {gtRefClk0Div2}] \
