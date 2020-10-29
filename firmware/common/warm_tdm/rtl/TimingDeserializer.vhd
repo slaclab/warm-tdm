@@ -41,7 +41,7 @@ entity TimingDeserializer is
       wordClk : in sl;
       wordRst : in sl;
 
-      dataOut : out slv(10 downto 0);
+      dataOut : out slv(9 downto 0);
       slip    : in  sl);
 
 end entity TimingDeserializer;

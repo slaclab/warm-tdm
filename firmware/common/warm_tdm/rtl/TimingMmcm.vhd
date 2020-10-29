@@ -30,37 +30,28 @@ entity TimingMmcm is
       TPD_G : time := 1 ns);
 
    port (
-      timingRxClkP : in  sl;
-      timingRxClkN : in  sl;
-      bitClk       : out sl;
-      bitClkInv    : out sl;
-      wordClk      : out sl;
-      wordRst      : out sl);
+      timingRxClk : in  sl;
+      timingRxRst : in  sl;
+      bitClk      : out sl;
+      bitClkInv   : out sl;
+      wordClk     : out sl;
+      wordRst     : out sl);
 
 end entity TimingMmcm;
 
 architecture rtl of TimingMmcm is
 
-   signal timingRxClk : sl;
-   signal bitClkLoc   : sl;
-   signal bitClkRaw   : sl;
-   signal wordClkLoc  : sl;
-   signal wordClkRaw  : sl;
-   signal fbClkRaw    : sl;
-   signal fbClk       : sl;
-   signal locked      : sl;
+   signal bitClkLoc  : sl;
+   signal bitClkRaw  : sl;
+   signal wordClkLoc : sl;
+   signal wordClkRaw : sl;
+   signal fbClkRaw   : sl;
+   signal fbClk      : sl;
+   signal locked     : sl;
 
 
 begin
 
-   -------------------------
-   -- 125 Mhz Timing clock
-   -------------------------
-   TIMING_RX_CLK_BUFF : IBUFGDS
-      port map (
-         i  => timingRxClkP,
-         ib => timingRxClkN,
-         o  => timingRxClk);
 
    -------------------------------------------------------------------------------------------------
    -- Use MMCM to create DDR Bit clock
@@ -86,7 +77,7 @@ begin
          PSEN     => '0',
          PSINCDEC => '0',
          PWRDWN   => '0',
-         RST      => '0',
+         RST      => timingRxRst,
          CLKIN1   => timingRxClk,
          CLKIN2   => '0',
          CLKINSEL => '1',

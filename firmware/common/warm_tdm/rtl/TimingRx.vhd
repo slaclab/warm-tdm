@@ -59,10 +59,12 @@ end entity TimingRx;
 
 architecture rtl of TimingRx is
 
-   signal bitClk    : sl;
-   signal bitClkInv : sl;
-   signal wordClk   : sl;
-   signal wordRst   : sl;
+   signal timingRxClk : sl;
+   signal timingRxRst : sl;
+   signal bitClk      : sl;
+   signal bitClkInv   : sl;
+   signal wordClk     : sl;
+   signal wordRst     : sl;
 
    type RegType is record
       slip       : sl;
@@ -142,6 +144,29 @@ begin
          REFCLK => idelayClk,
          RST    => idelayRst);
 
+   -------------------------
+   -- 125 Mhz Timing clock
+   -------------------------
+   TIMING_RX_CLK_BUFF : IBUFGDS
+      port map (
+         i  => timingRxClkP,
+         ib => timingRxClkN,
+         o  => timingRxClk);
+
+   U_PwrUpRst_1 : entity surf.PwrUpRst
+      generic map (
+         TPD_G => TPD_G)
+--         SIM_SPEEDUP_G  => SIMULATION_G,
+--         DURATION_G     => DURATION_G)
+      port map (
+         arst   => '0',                -- [in]
+         clk    => timingRxClk,         -- [in]
+         rstOut => timingRxRst);        -- [out]
+
+   timingClkOut <= timingRxClk;
+   timingRstOut <= timingRxRst;
+
+
    -------------------------------------------------------------------------------------------------
    -- Create serial clock for deserializer
    -------------------------------------------------------------------------------------------------
@@ -149,12 +174,12 @@ begin
       generic map (
          TPD_G => TPD_G)
       port map (
-         timingRxClkP => timingRxClkP,  -- [in]
-         timingRxClkN => timingRxClkN,  -- [in]
-         bitClk       => bitClk,        -- [out]
-         bitClkInv    => bitClkInv,     -- [out]
-         wordClk      => wordClk,       -- [out]
-         wordRst      => wordRst);      -- [out]
+         timingRxClk => timingRxClk,    -- [in]
+         timingRxRst => timingRxRst,    -- [in]
+         bitClk      => bitClk,         -- [out]
+         bitClkInv   => bitClkInv,      -- [out]
+         wordClk     => wordClk,        -- [out]
+         wordRst     => wordRst);       -- [out]
 
    -------------------------------------------------------------------------------------------------
    -- Deserialize the incomming data
@@ -174,8 +199,6 @@ begin
          dataOut       => timingRxCodeWord,  -- [out]
          slip          => r.slip);           -- [in]
 
-   timingClkOut <= wordClk;
-   timingRstOut <= wordRst;
 
    -------------------------------------------------------------------------------------------------
    -- 8B10B decode
@@ -194,7 +217,12 @@ begin
          codeErr(0)  => codeErr,           -- [out]
          dispErr(0)  => dispErr);          -- [out]
 
-   comb : process (r, timingRxData, timingRxDataK, timingRxValid, wordRst) is
+
+   -------------------------------------------------------------------------------------------------
+   -- Transition to timingRxClk here from wordClk
+   -- Is this ok?
+   -------------------------------------------------------------------------------------------------
+   comb : process (r, timingRxData, timingRxDataK, timingRxValid, timingRxRst) is
       variable v : RegType;
    begin
       v := r;
@@ -229,7 +257,7 @@ begin
          end case;
       end if;
 
-      if (wordRst = '1') then
+      if (timingRxRst = '1') then
          v := REG_INIT_C;
       end if;
 
@@ -239,9 +267,9 @@ begin
 
    end process comb;
 
-   seq : process (wordClk) is
+   seq : process (timingRxClk) is
    begin
-      if (rising_edge(wordClk)) then
+      if (rising_edge(timingRxClk)) then
          r <= rin after TPD_G;
       end if;
    end process seq;

@@ -17,8 +17,7 @@
 -------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.std_logic_arith.all;
-use ieee.std_logic_unsigned.all;
+use ieee.numeric_std.all;
 
 library unisim;
 use unisim.vcomponents.all;
@@ -36,7 +35,8 @@ use warm_tdm.TimingPkg.all;
 entity DataPath is
 
    generic (
-      TPD_G : time := 1 ns);
+      TPD_G : time := 1 ns;
+      IODELAY_GROUP_G   : string          := "DEFAULT_GROUP");
 
    port (
       -- ADC Serial Interface
@@ -45,7 +45,7 @@ entity DataPath is
       -- Timing interface
       timingClk125 : in sl;
       timingRst125 : in sl;
-      timingData     : in LocalTimingType;
+      timingData   : in LocalTimingType;
 
       -- Formatted data
       axisClk    : in  sl;
@@ -67,9 +67,20 @@ end entity DataPath;
 
 architecture rtl of DataPath is
 
+   constant INT_AXIS_CONFIG_C : AxiStreamConfigType := (
+      TSTRB_EN_C    => false,
+      TDATA_BYTES_C => 16,
+      TDEST_BITS_C  => 0,
+      TID_BITS_C    => 0,
+      TKEEP_MODE_C  => TKEEP_FIXED_C,
+      TUSER_BITS_C  => 0,
+      TUSER_MODE_C  => TUSER_NORMAL_C);
+
    type RegType is record
       firstSample : slv(7 downto 0);
       lastSample  : slv(7 downto 0);
+      windowStart : slv7Array(7 downto 0);
+      windowEnd   : slv7Array(7 downto 0);
       inWindow    : slv(7 downto 0);
       average     : slv32Array(7 downto 0);
       axisMaster  : AxiStreamMasterType;
@@ -78,9 +89,11 @@ architecture rtl of DataPath is
    constant REG_INIT_C : RegType := (
       firstSample => (others => '0'),
       lastSample  => (others => '0'),
+      windowStart => (others => toSlv(150, 7)),
+      windowEnd   => (others => toSlv(250, 7)),
       inWindow    => (others => '0'),
       average     => (others => (others => '0')),
-      axisMaster  => AXI_STREAM_MASTER_INIT_C);
+      axisMaster  => axiStreamMasterInit(INT_AXIS_CONFIG_C));
 
    signal r   : RegType := REG_INIT_C;
    signal rin : RegType;
@@ -90,15 +103,15 @@ architecture rtl of DataPath is
 
    signal fifoAxisSlave : AxiStreamSlaveType;
 
+
 begin
 
    U_Ad9681Readout_1 : entity surf.Ad9681Readout
       generic map (
-         TPD_G             => TPD_G,
-         IODELAY_GROUP_G   => IODELAY_GROUP_G,
-         IDELAYCTRL_FREQ_G => IDELAYCTRL_FREQ_G,
-         DEFAULT_DELAY_G   => DEFAULT_DELAY_G,
-         ADC_INVERT_CH_G   => "00000000")
+         TPD_G           => TPD_G,
+         IODELAY_GROUP_G => IODELAY_GROUP_G)
+--         IDELAYCTRL_FREQ_G => 200.0,
+--         DEFAULT_DELAY_G   => DEFAULT_DELAY_G
       port map (
          axilClk         => axilClk,          -- [in]
          axilRst         => axilRst,          -- [in]
@@ -122,7 +135,7 @@ begin
             mDataAxisMaster => filteredAdcStreams(i));  -- [out]
    end generate FIR_FILTER_GEN;
 
-   comb : process (fifoAxisSlave, filteredAdcStreams, r, timingData) is
+   comb : process (axisSlave, filteredAdcStreams, r, timingData, timingRst125) is
       variable v : RegType;
    begin
       v := r;
@@ -135,7 +148,7 @@ begin
             v.inWindow(i)    := '1';
             v.firstSample(i) := '1';
          elsif (timingData.rowTime = r.windowEnd(i)) then
-            v.inWindow      := '0';
+            v.inWindow(i)   := '0';
             v.lastSample(i) := '1';
          end if;
 
@@ -146,9 +159,9 @@ begin
          -- Add a small fraction of the current sample
          if (filteredAdcStreams(i).tValid = '1' and r.inWindow(i) = '1') then
             if (r.firstSample(i) = '1') then
-               v.average(i) := shift_left(signed(filteredAdcStreams(i).tData(15 downto 0)), 16);
+               v.average(i) := slv(shift_left(signed(filteredAdcStreams(i).tData(15 downto 0)), 16));
             else
-               v.average(i) := r.average(i) - shift_right(r.average(i), 7) + shift_left(signed(filteredAdcStreams(i).tdata(15 downto 0)), 16-7);
+               v.average(i) := slv(signed(r.average(i)) - shift_right(signed(r.average(i)), 7) + shift_left(signed(filteredAdcStreams(i).tdata(15 downto 0)), 16-7));
             end if;
          end if;
 
@@ -170,7 +183,7 @@ begin
          end loop;
       end if;
 
-      if (dataRst) then
+      if (timingRst125 = '1') then
          v := REG_INIT_C;
       end if;
 
@@ -180,12 +193,12 @@ begin
 
    seq : process (timingClk125) is
    begin
-      if (rising_edge(timningClk125)) then
+      if (rising_edge(timingClk125)) then
          r <= rin after TPD_G;
       end if;
    end process seq;
 
-   U_AxiStreamFifoV2_1 : entity work.AxiStreamFifoV2
+   U_AxiStreamFifoV2_1 : entity surf.AxiStreamFifoV2
       generic map (
          TPD_G               => TPD_G,
          INT_PIPE_STAGES_G   => 1,
