@@ -7,14 +7,21 @@
 ## may be copied, modified, propagated, or distributed except according to 
 ## the terms contained in the LICENSE.txt file.
 ##############################################################################
-# Load RUCKUS library
+############################
+# DO NOT EDIT THE CODE BELOW
+############################
+
+# Load RUCKUS environment and library
 source -quiet $::env(RUCKUS_DIR)/vivado_proc.tcl
 
-# Load Source Code
-loadSource -lib warm_tdm -dir "$::DIR_PATH/rtl"
+# Load submodules' code and constraints
+loadRuckusTcl $::env(TOP_DIR)/submodules/surf
 
-# Load Ip Core
-#loadIpCore -path "$::DIR_PATH/ip/FirFilter/FirFilter.xci"
+# Load common code
+loadRuckusTcl $::env(TOP_DIR)/common/warm_tdm
 
-# Load Simulation
-#loadSource -sim_only -dir "$::DIR_PATH/sim"
+# Load target's source code and constraints
+loadSource      -lib warm_tdm -dir  "$::DIR_PATH/rtl/"
+#loadSource      -lib warm_tdm -sim_only -dir "$::DIR_PATH/sim/"
+loadConstraints -dir  "$::DIR_PATH/xdc/"
+

@@ -92,8 +92,9 @@ architecture rtl of ComCore is
    constant AXIL_PGP_C : integer := 0;
    constant AXIL_ETH_C : integer := 1;
 
-   signal gtRefClkDiv2 : sl;
-   signal refClkG      : sl;
+   signal gtRefClk      : sl;
+   signal gtRefClkDiv2  : sl;
+   signal gtRefClkDiv2G : sl;
 
    signal axilClk : sl;
    signal axilRst : sl;
@@ -139,12 +140,12 @@ begin
          IB    => gtRefClkN,
          CEB   => '0',
          ODIV2 => gtRefClkDiv2,
-         O     => open);
+         O     => gtRefClk);
 
    U_BUFG : BUFG
       port map (
          I => gtRefClkDiv2,
-         O => refClkG);
+         O => gtRefClkDiv2G);
 
    -----------------
    -- Power Up Reset
@@ -168,8 +169,8 @@ begin
          RING_ADDR_0_G    => RING_ADDR_0_G,
          AXIL_BASE_ADDR_G => AXIL_BASE_ADDR_G)
       port map (
-         gtRefClk         => gtRefClkDiv2,                      -- [in]
-         gtRefClkG        => refClkG,                           -- [in]
+         gtRefClk         => gtRefClk,                          -- [in]
+         gtRefClkG        => gtRefClkDiv2G,                     -- [in]
          pgpTxP           => pgpTxP,                            -- [out]
          pgpTxN           => pgpTxN,                            -- [out]
          pgpRxP           => pgpRxP,                            -- [in]
@@ -208,7 +209,7 @@ begin
       port map (
          extRst              => '0',                               -- [in]
          refClk              => gtRefClkDiv2,                      -- [in]
-         refClkG             => refClkG,                           -- [in]
+         refClkG             => gtRefClkDiv2G,                     -- [in]
          gtRxP               => ethRxP,                            -- [in]
          gtRxN               => ethRxN,                            -- [in]
          gtTxP               => ethTxP,                            -- [out]

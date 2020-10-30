@@ -35,8 +35,9 @@ use warm_tdm.TimingPkg.all;
 entity DataPath is
 
    generic (
-      TPD_G : time := 1 ns;
-      IODELAY_GROUP_G   : string          := "DEFAULT_GROUP");
+      TPD_G            : time             := 1 ns;
+      AXIL_BASE_ADDR_G : slv(31 downto 0) := (others => '0');
+      IODELAY_GROUP_G  : string           := "DEFAULT_GROUP");
 
    port (
       -- ADC Serial Interface
@@ -98,14 +99,51 @@ architecture rtl of DataPath is
    signal r   : RegType := REG_INIT_C;
    signal rin : RegType;
 
-   signal adcStreams         : AxiStreamMasterArray(7 downto 0);
-   signal filteredAdcStreams : AxiStreamMasterArray(7 downto 0);
+   constant FILTER_COEFFICIENTS_C : IntegerArray(0 to 20) := (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21);
+   signal adcStreams         : AxiStreamMasterArray(7 downto 0) := (others => axiStreamMasterInit(AD9681_AXIS_CFG_G));
+   signal filteredAdcStreams : AxiStreamMasterArray(7 downto 0) := (others => axiStreamMasterInit(AD9681_AXIS_CFG_G));
 
    signal fifoAxisSlave : AxiStreamSlaveType;
 
 
+   constant NUM_AXIL_MASTERS_C : integer := 9;
+
+   constant XBAR_COFNIG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_MASTERS_C, AXIL_BASE_ADDR_G, 12, 8);
+
+   signal locAxilWriteMasters : AxiLiteWriteMasterArray(NUM_AXIL_MASTERS_C-1 downto 0);
+   signal locAxilWriteSlaves  : AxiLiteWriteSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0);
+   signal locAxilReadMasters  : AxiLiteReadMasterArray(NUM_AXIL_MASTERS_C-1 downto 0);
+   signal locAxilReadSlaves   : AxiLiteReadSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0);
+
+
 begin
 
+   -------------------------------------------------------------------------------------------------
+   -- AXIL Crossbar
+   -------------------------------------------------------------------------------------------------
+   U_AxiLiteCrossbar_1 : entity surf.AxiLiteCrossbar
+      generic map (
+         TPD_G              => TPD_G,
+         NUM_SLAVE_SLOTS_G  => 1,
+         NUM_MASTER_SLOTS_G => NUM_AXIL_MASTERS_C,
+         MASTERS_CONFIG_G   => XBAR_COFNIG_C,
+         DEBUG_G            => false)
+      port map (
+         axiClk              => axilClk,              -- [in]
+         axiClkRst           => axilRst,              -- [in]
+         sAxiWriteMasters(0) => axilWriteMaster,      -- [in]
+         sAxiWriteSlaves(0)  => axilWriteSlave,       -- [out]
+         sAxiReadMasters(0)  => axilReadMaster,       -- [in]
+         sAxiReadSlaves(0)   => axilReadSlave,        -- [out]
+         mAxiWriteMasters    => locAxilWriteMasters,  -- [out]
+         mAxiWriteSlaves     => locAxilWriteSlaves,   -- [in]
+         mAxiReadMasters     => locAxilReadMasters,   -- [out]
+         mAxiReadSlaves      => locAxilReadSlaves);   -- [in]
+
+
+   -------------------------------------------------------------------------------------------------
+   -- ADC Deserializers
+   -------------------------------------------------------------------------------------------------
    U_Ad9681Readout_1 : entity surf.Ad9681Readout
       generic map (
          TPD_G           => TPD_G,
@@ -113,29 +151,50 @@ begin
 --         IDELAYCTRL_FREQ_G => 200.0,
 --         DEFAULT_DELAY_G   => DEFAULT_DELAY_G
       port map (
-         axilClk         => axilClk,          -- [in]
-         axilRst         => axilRst,          -- [in]
-         axilWriteMaster => axilWriteMaster,  -- [in]
-         axilWriteSlave  => axilWriteSlave,   -- [out]
-         axilReadMaster  => axilReadMaster,   -- [in]
-         axilReadSlave   => axilReadSlave,    -- [out]
-         adcClkRst       => '0',              -- [in]
-         adcSerial       => adc,              -- [in]
-         adcStreamClk    => timingClk125,     -- [in]
-         adcStreams      => adcStreams);      -- [out]
+         axilClk         => axilClk,                 -- [in]
+         axilRst         => axilRst,                 -- [in]
+         axilWriteMaster => locAxilWriteMasters(0),  -- [in]
+         axilWriteSlave  => locAxilWriteSlaves(0),   -- [out]
+         axilReadMaster  => locAxilReadMasters(0),   -- [in]
+         axilReadSlave   => locAxilReadSlaves(0),    -- [out]
+         adcClkRst       => '0',                     -- [in]
+         adcSerial       => adc,                     -- [in]
+         adcStreamClk    => timingClk125,            -- [in]
+         adcStreams      => adcStreams);             -- [out]
 
    FIR_FILTER_GEN : for i in 7 downto 0 generate
-      U_FirFilterWrapper_1 : entity warm_tdm.FirFilterWrapper
+      U_FirFilterSingleChannel_1 : entity surf.FirFilterSingleChannel
          generic map (
-            TPD_G => TPD_G)
+            TPD_G          => TPD_G,
+            PIPE_STAGES_G  => 0,
+            COMMON_CLK_G   => false,
+            TAP_SIZE_G     => 21,
+            WIDTH_G        => 16,
+            COEFFICIENTS_G => FILTER_COEFFICIENTS_C)
          port map (
-            dataClk         => timingClk125,            -- [in]
-            dataRst         => timingRst125,            -- [in]
-            sDataAxisMaster => adcStreams(i),           -- [in]
-            mDataAxisMaster => filteredAdcStreams(i));  -- [out]
+            clk             => timingClk125,                              -- [in]
+            rst             => timingRst125,                              -- [in]
+            ibValid         => adcStreams(i).tvalid,                      -- [in]
+            din             => adcStreams(i).tData(15 downto 0),          -- [in]
+            obValid         => filteredAdcStreams(i).tvalid,              -- [out]
+            dout            => filteredAdcStreams(i).tData(15 downto 0),  -- [out]
+            axilClk         => axilClk,                                   -- [in]
+            axilRst         => axilRst,                                   -- [in]
+            axilReadMaster  => locAxilReadMasters(i+1),                   -- [in]
+            axilReadSlave   => locAxilReadSlaves(i+1),                    -- [out]
+            axilWriteMaster => locAxilWriteMasters(i+1),                  -- [in]
+            axilWriteSlave  => locAxilWriteSlaves(i+1));                  -- [out]
+--       U_FirFilterWrapper_1 : entity warm_tdm.FirFilterWrapper
+--          generic map (
+--             TPD_G => TPD_G)
+--          port map (
+--             dataClk         => timingClk125,                              -- [in]
+--             dataRst         => timingRst125,                              -- [in]
+--             sDataAxisMaster => adcStreams(i),                             -- [in]
+--             mDataAxisMaster => filteredAdcStreams(i));                    -- [out]
    end generate FIR_FILTER_GEN;
 
-   comb : process (axisSlave, filteredAdcStreams, r, timingData, timingRst125) is
+   comb : process (fifoAxisSlave, filteredAdcStreams, r, timingData, timingRst125) is
       variable v : RegType;
    begin
       v := r;
@@ -169,7 +228,7 @@ begin
 
       -- When all channels are done
       -- Output a wide word
-      if (axisSlave.tReady = '1') then
+      if (fifoAxisSlave.tReady = '1') then
          v.axisMaster.tValid := '0';
       end if;
 

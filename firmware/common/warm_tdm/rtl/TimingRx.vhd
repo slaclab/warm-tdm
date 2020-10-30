@@ -36,11 +36,11 @@ use warm_tdm.TimingPkg.all;
 entity TimingRx is
 
    generic (
-      TPD_G             : time            := 1 ns;
-      IODELAY_GROUP_G   : string          := "DEFAULT_GROUP";
-      IDELAYCTRL_FREQ_G : real            := 200.0;
-      DEFAULT_DELAY_G   : slv(4 downto 0) := (others => '0')
-      );
+      TPD_G             : time                  := 1 ns;
+      SIMULATION_G      : boolean               := false;
+      IODELAY_GROUP_G   : string                := "DEFAULT_GROUP";
+      IDELAYCTRL_FREQ_G : real                  := 200.0;
+      DEFAULT_DELAY_G   : integer range 0 to 31 := 0);
 
    port (
       timingRefClkP : in sl;
@@ -53,7 +53,14 @@ entity TimingRx is
 
       timingClkOut : out sl;
       timingRstOut : out sl;
-      timingData   : out LocalTimingType);
+      timingData   : out LocalTimingType;
+
+      axilClk         : in  sl;
+      axilRst         : in  sl;
+      axilWriteMaster : in  AxiLiteWriteMasterType;
+      axilWriteSlave  : out AxiLiteWriteSlaveType := AXI_LITE_WRITE_SLAVE_EMPTY_DECERR_C;
+      axilReadMaster  : in  AxiLiteReadMasterType;
+      axilReadSlave   : out AxiLiteReadSlaveType  := AXI_LITE_READ_SLAVE_EMPTY_DECERR_C);
 
 end entity TimingRx;
 
@@ -94,6 +101,28 @@ architecture rtl of TimingRx is
 
    attribute IODELAY_GROUP                 : string;
    attribute IODELAY_GROUP of IDELAYCTRL_0 : label is IODELAY_GROUP_G;
+
+   -------------------------------------------------------------------------------------------------
+   -- AXI Lite
+   -------------------------------------------------------------------------------------------------
+   type AxilRegType is record
+      delay          : slv(4 downto 0);
+      set            : sl;
+      axilWriteSlave : AxiStreamSlaveType;
+      axilReadSlave  : AxiStreamSlaveType;
+   end record AxilRegType;
+
+   constant AXIL_REG_INIT_C : AxilRegType := (
+      delay          => DEFAULT_DELAY_G,
+      set            => '0',
+      axilWriteSlave => AXI_LITE_WRITE_SLAVE_INIT_C,
+      axilReadSlave  => AXI_LITE_READ_SLAVE_INIT_C);
+
+   signal axilR   : AxilRegType := AXIL_REG_INIT_C;
+   signal axilRin : AxilRegType;
+
+   signal curDelay : slv(4 downto 0);
+
 
 begin
 
@@ -159,7 +188,7 @@ begin
 --         SIM_SPEEDUP_G  => SIMULATION_G,
 --         DURATION_G     => DURATION_G)
       port map (
-         arst   => '0',                -- [in]
+         arst   => '0',                 -- [in]
          clk    => timingRxClk,         -- [in]
          rstOut => timingRxRst);        -- [out]
 
@@ -197,8 +226,11 @@ begin
          wordClk       => wordClk,           -- [in]
          wordRst       => wordRst,           -- [in]
          dataOut       => timingRxCodeWord,  -- [out]
-         slip          => r.slip);           -- [in]
-
+         slip          => r.slip,            -- [in]
+         sysClk        => axilClk,           -- [in]
+         curDelay      => curDelay,          -- [out]
+         setDelay      => r.delay,           -- [in]
+         setValid      => r.set);            -- [in]
 
    -------------------------------------------------------------------------------------------------
    -- 8B10B decode
@@ -216,6 +248,80 @@ begin
          validOut    => timingRxValid,     -- [out]
          codeErr(0)  => codeErr,           -- [out]
          dispErr(0)  => dispErr);          -- [out]
+
+   -------------------------------------------------------------------------------------------------
+   -- Aligner
+   -------------------------------------------------------------------------------------------------
+   U_SelectIoRxGearboxAligner_1 : entity surf.SelectIoRxGearboxAligner
+      generic map (
+         TPD_G        => TPD_G,
+         CODE_TYPE_G  => "LINE_CODE",
+         SIMULATION_G => SIMULATION_G)
+      port map (
+         clk             => wordClk,          -- [in]
+         rst             => wordRst,          -- [in]
+         lineCodeValid   => timingRxValid,    -- [in]
+         lineCodeErr     => codeErr,          -- [in]
+         lineCodeDispErr => dispErr,          -- [in]
+         linkOutOfSync   => '0',              -- [in]
+         rxHeaderValid   => '0',              -- [in]
+         rxHeader        => (others => '0'),  -- [in]
+         bitSlip         => slip,             -- [out]
+         dlyLoad         => dlyLoad,          -- [out]
+         dlyCfg          => dlyCfg,           -- [out]
+         enUsrDlyCfg     => enUsrDlyCfg,      -- [in]
+         usrDlyCfg       => usrDlyCfg,        -- [in]
+         bypFirstBerDet  => '1',              -- [in]
+         minEyeWidth     => slv(8, 8),        -- [in]
+--         lockingCntCfg   => lockingCntCfg,    -- [in]
+         errorDet        => errorDet,         -- [out]
+         locked          => locked);          -- [out]
+
+   SynchronizerOneShotCnt_1 : entity surf.SynchronizerOneShotCnt
+      generic map (
+         TPD_G          => TPD_G,
+         IN_POLARITY_G  => '0',
+         OUT_POLARITY_G => '0',
+         CNT_RST_EDGE_G => true,
+         CNT_WIDTH_G    => 16)
+      port map (
+         dataIn     => adcR(i).locked,
+         rollOverEn => '0',
+         cntRst     => axilR.lockedCountRst,
+         dataOut    => open,
+         cntOut     => lockedFallCount(i),
+         wrClk      => adcBitClkR(i),
+         wrRst      => '0',
+         rdClk      => axilClk,
+         rdRst      => axilRst);
+
+   Synchronizer_1 : entity surf.Synchronizer
+      generic map (
+         TPD_G    => TPD_G,
+         STAGES_G => 2)
+      port map (
+         clk     => axilClk,
+         rst     => axilRst,
+         dataIn  => adcR(i).locked,
+         dataOut => lockedSync(i));
+
+
+   U_DataFifoDebug : entity surf.SynchronizerFifo
+      generic map (
+         TPD_G         => TPD_G,
+         MEMORY_TYPE_G => "distributed",
+         DATA_WIDTH_G  => 10,
+         ADDR_WIDTH_G  => 4,
+         INIT_G        => "0")
+      port map (
+         rst    => wordRst,
+         wr_clk => wordClk,
+         wr_en  => '1',                 --Always write data,
+         din    => timingRxCodeWord,
+         rd_clk => axilClk,
+         rd_en  => debugDataValid,
+         valid  => debugDataValid,
+         dout   => debugDataOut);
 
 
    -------------------------------------------------------------------------------------------------
@@ -274,5 +380,66 @@ begin
       end if;
    end process seq;
 
+   -------------------------------------------------------------------------------------------------
+   -- AXI-Lite interface
+   -------------------------------------------------------------------------------------------------
+   axilComb : process (axilR, axilReadMaster, axilRst, axilWriteMaster, debugDataValid,
+                       lockedFallCount, lockedSync) is
+      variable v      : AxilRegType;
+      variable axilEp : AxiLiteEndpointType;
+   begin
+      v := axilR;
+
+      v.set := '0';
+
+      v.curDelay := curDelay;
+
+      -- Store last two samples read from ADC
+      if (debugDataValid = '1') then
+         v.readoutDebug0 := debugDataOut;
+         v.readoutDebug1 := axilR.readoutDebug0;
+         v.readoutDebug2 := axilR.readoutDebug1;
+      end if;
+
+      axiSlaveWaitTxn(axilEp, axilWriteMaster, axilReadMaster, v.axilWriteSlave, v.axilReadSlave);
+
+      -- Up to 8 delay registers
+      -- Write delay values to IDELAY primatives
+      -- All writes go to same r.delay register,
+      -- dataDelaySet(ch) or frameDelaySet enables the primative write
+      axiSlaveRegister(axilEp, X"00", 0, v.delay);
+      axiSlaveRegister(axilEp, X"00", 5, v.set, '1');
+      axiSlaveRegisterR(axilEp, X"00", 0, axilR.curDelay);
+
+      -- Debug output to see how many times the shift has needed a relock
+      axiSlaveRegisterR(axilEp, X"10", 0, lockedFallCount(0));
+      axiSlaveRegisterR(axilEp, X"10", 16, lockedSync(0));
+      axiSlaveRegisterR(axilEp, X"14", 0, lockedFallCount(1));
+      axiSlaveRegisterR(axilEp, X"14", 16, lockedSync(1));
+
+      axiSlaveRegister(axilEp, X"1C", 0, v.lockedCountRst);
+
+      axiSlaveRegisterR(axilEp, X"20", 0, axilR.readoutDebug0);
+      axiSlaveRegisterR(axilEp, X"20", 10, axilR.readoutDebug1);
+      axiSlaveRegisterR(axilEp, X"20", 20, axilR.readoutDebug2);
+
+      axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
+
+      if (axilRst = '1') then
+         v := AXIL_REG_INIT_C;
+      end if;
+
+      axilRin        <= v;
+      axilWriteSlave <= axilR.axilWriteSlave;
+      axilReadSlave  <= axilR.axilReadSlave;
+
+   end process;
+
+   axilSeq : process (axilClk) is
+   begin
+      if (rising_edge(axilClk)) then
+         axilR <= axilRin after TPD_G;
+      end if;
+   end process axilSeq;
 
 end architecture rtl;

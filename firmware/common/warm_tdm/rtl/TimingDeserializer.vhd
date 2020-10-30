@@ -27,9 +27,10 @@ use surf.StdRtlPkg.all;
 entity TimingDeserializer is
 
    generic (
-      TPD_G             : time   := 1 ns;
-      IODELAY_GROUP_G   : string := "DEFAULT_GROUP";
-      IDELAYCTRL_FREQ_G : real   := 200.0);
+      TPD_G             : time                  := 1 ns;
+      IODELAY_GROUP_G   : string                := "DEFAULT_GROUP";
+      DEFAULT_DELAY_G   : integer range 0 to 31 := 0;
+      IDELAYCTRL_FREQ_G : real                  := 200.0);
 
    port (
       rst           : in sl := '0';
@@ -38,11 +39,15 @@ entity TimingDeserializer is
       timingRxDataP : in sl;
       timingRxDataN : in sl;
 
-      wordClk : in sl;
-      wordRst : in sl;
-
+      wordClk : in  sl;
+      wordRst : in  sl;
       dataOut : out slv(9 downto 0);
-      slip    : in  sl);
+      slip    : in  sl;
+
+      sysClk   : in  sl;
+      curDelay : out slv(4 downto 0);
+      setDelay : in  slv(4 downto 0);
+      setValid : in  sl);
 
 end entity TimingDeserializer;
 
@@ -57,7 +62,9 @@ architecture rtl of TimingDeserializer is
    attribute IODELAY_GROUP            : string;
    attribute IODELAY_GROUP of U_DELAY : label is IODELAY_GROUP_G;
 
+
 begin
+
 
 
    TIMING_RX_TRIG_BUFF : IBUFDS
@@ -70,24 +77,24 @@ begin
       generic map (
          DELAY_SRC             => "IDATAIN",
          HIGH_PERFORMANCE_MODE => "TRUE",
-         IDELAY_TYPE           => "FIXED",  --"VAR_LOAD",
-         IDELAY_VALUE          => 15,       -- Here
+         IDELAY_TYPE           => "VAR_LOAD",
+         IDELAY_VALUE          => DEFAULT_DELAY_G,  -- Here
          REFCLK_FREQUENCY      => 200.0,
          SIGNAL_PATTERN        => "DATA"
          )
       port map (
-         C           => '0',
+         C           => sysClk,
          REGRST      => '0',
-         LD          => '0',                --r.set,
+         LD          => setValid,
          CE          => '0',
          INC         => '1',
          CINVCTRL    => '0',
-         CNTVALUEIN  => (others => '0'),    --r.delay,
+         CNTVALUEIN  => setDelay,
          IDATAIN     => timingRxData,
          DATAIN      => '0',
          LDPIPEEN    => '0',
          DATAOUT     => timingRxDataDly,
-         CNTVALUEOUT => open);
+         CNTVALUEOUT => curDelay);
 
    U_ISERDES_MASTER : ISERDESE2
       generic map (
