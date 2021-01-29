@@ -56,7 +56,10 @@ entity WarmTdmCommon is
 
       -- Power Monitor I2C
       pwrScl : inout sl;
-      pwrSda : inout sl);
+      pwrSda : inout sl;
+
+      vAuxP : in slv(3 downto 0);
+      vAuxN : in slv(3 downto 0));
 
 end entity WarmTdmCommon;
 
@@ -148,6 +151,7 @@ begin
    -------------------------------------------------------------------------------------------------
    -- XADC
    -------------------------------------------------------------------------------------------------
+
    U_XadcSimpleCore_1 : entity surf.XadcSimpleCore
       generic map (
          TPD_G                    => TPD_G,
@@ -177,18 +181,30 @@ begin
          SEQ_VCCINT_SEL_EN_G      => true,
          SEQ_VCCAUX_SEL_EN_G      => true,
          SEQ_VCCBRAM_SEL_EN_G     => true,
-         SEQ_VAUX_SEL_EN_G        => (others => false))        -- All AUX voltages on
+         SEQ_VAUX_SEL_EN_G        => toBooleanArray("0000001100000011"))
       port map (
-         axilClk         => axilClk,                           -- [in]
-         axilRst         => axilRst,                           -- [in]
-         axilReadMaster  => locAxilReadMasters(AXIL_XADC_C),   -- [in]
-         axilReadSlave   => locAxilReadSlaves(AXIL_XADC_C),    -- [out]
-         axilWriteMaster => locAxilWriteMasters(AXIL_XADC_C),  -- [in]
-         axilWriteSlave  => locAxilWriteSlaves(AXIL_XADC_C),   -- [out]
-         xadcClk         => axilClk,                           -- [in]
-         xadcRst         => axilClk,                           -- [in]
-         alm             => open,                              -- [out]
-         ot              => open);                             -- [out]
+         axilClk             => axilClk,                           -- [in]
+         axilRst             => axilRst,                           -- [in]
+         axilReadMaster      => locAxilReadMasters(AXIL_XADC_C),   -- [in]
+         axilReadSlave       => locAxilReadSlaves(AXIL_XADC_C),    -- [out]
+         axilWriteMaster     => locAxilWriteMasters(AXIL_XADC_C),  -- [in]
+         axilWriteSlave      => locAxilWriteSlaves(AXIL_XADC_C),   -- [out]
+         xadcClk             => axilClk,                           -- [in]
+         xadcRst             => axilClk,                           -- [in]
+         vAuxP(0)            => vAuxP(0),
+         vAuxP(1)            => vAuxP(2),
+         vAuxP(7 downto 2)   => "000000",
+         vAuxP(8)            => vAuxP(1),
+         vAuxP(9)            => vAuxP(3),
+         vAuxP(15 downto 10) => "000000",
+         vAuxN(0)            => vAuxN(0),
+         vAuxN(1)            => vAuxN(2),
+         vAuxN(7 downto 2)   => "000000",
+         vAuxN(8)            => vAuxN(1),
+         vAuxN(9)            => vAuxN(3),
+         vAuxN(15 downto 10) => "000000",
+         alm                 => open,                              -- [out]
+         ot                  => open);                             -- [out]
 
    ----------------------
    -- AXI-Lite: Boot Prom
