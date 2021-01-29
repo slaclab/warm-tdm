@@ -196,6 +196,9 @@ begin
 
    comb : process (fifoAxisSlave, filteredAdcStreams, r, timingData, timingRst125) is
       variable v : RegType;
+      variable average : signed(31 downto 0);
+      variable sample : signed(15 downto 0);
+      variable avgDiv : signed(31 downto 0);
    begin
       v := r;
 
@@ -218,9 +221,15 @@ begin
          -- Add a small fraction of the current sample
          if (filteredAdcStreams(i).tValid = '1' and r.inWindow(i) = '1') then
             if (r.firstSample(i) = '1') then
-               v.average(i) := slv(shift_left(signed(filteredAdcStreams(i).tData(15 downto 0)), 16));
+               v.average(i) := filteredAdcStreams(i).tData(15 downto 0) & X"0000";
             else
-               v.average(i) := slv(signed(r.average(i)) - shift_right(signed(r.average(i)), 7) + shift_left(signed(filteredAdcStreams(i).tdata(15 downto 0)), 16-7));
+               average := signed(r.average(i));
+               avgDiv := shift_right(average, 7);
+               sample := signed(filteredAdcStreams(i).tData(15 downto 0));
+               sample := shift_left(sample, 16-7);
+               average := average - avgDiv + sample;
+               v.average(i) := slv(average);
+--               v.average(i) := slv(signed(r.average(i)) - shift_right(signed(r.average(i)), 7) + shift_left(signed(resize(filteredAdcStreams(i).tdata(15 downto 0), 32)), 16-7));
             end if;
          end if;
 
