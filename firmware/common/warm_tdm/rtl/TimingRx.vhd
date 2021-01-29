@@ -73,18 +73,14 @@ architecture rtl of TimingRx is
    signal wordClk     : sl;
    signal wordRst     : sl;
 
-   type RegType is record
-      slip       : sl;
-      timingData : LocalTimingType;
+   signal slip : sl;
 
-   end record RegType;
-
-   constant REG_INIT_C : RegType := (
-      slip       => '0',
-      timingData => LOCAL_TIMING_INIT_C);
-
-   signal r   : RegType := REG_INIT_C;
-   signal rin : RegType;
+   signal dlyLoad     : sl;
+   signal dlyCfg      : slv(8 downto 0);
+   signal enUsrDlyCfg : sl;
+   signal usrDlyCfg   : slv(8 downto 0) := (others => '0');
+   signal errorDet    : sl;
+   signal locked      : sl;
 
    signal timingRxCodeWord : slv(9 downto 0);
    signal timingRxValid    : sl;
@@ -99,6 +95,17 @@ architecture rtl of TimingRx is
    signal idelayClk : sl;
    signal idelayRst : sl;
 
+   type RegType is record
+      timingData : LocalTimingType;
+   end record RegType;
+
+   constant REG_INIT_C : RegType := (
+      timingData => LOCAL_TIMING_INIT_C);
+
+   signal r   : RegType := REG_INIT_C;
+   signal rin : RegType;
+
+
    attribute IODELAY_GROUP                 : string;
    attribute IODELAY_GROUP of IDELAYCTRL_0 : label is IODELAY_GROUP_G;
 
@@ -108,21 +115,33 @@ architecture rtl of TimingRx is
    type AxilRegType is record
       delay          : slv(4 downto 0);
       set            : sl;
-      axilWriteSlave : AxiStreamSlaveType;
-      axilReadSlave  : AxiStreamSlaveType;
+      lockedCountRst : sl;
+      readoutDebug0  : slv(9 downto 0);
+      readoutDebug1  : slv(9 downto 0);
+      readoutDebug2  : slv(9 downto 0);
+      axilWriteSlave : AxiLiteWriteSlaveType;
+      axilReadSlave  : AxiLiteReadSlaveType;
    end record AxilRegType;
 
    constant AXIL_REG_INIT_C : AxilRegType := (
-      delay          => DEFAULT_DELAY_G,
+      delay          => toSlv(DEFAULT_DELAY_G, 5),
       set            => '0',
+      lockedCountRst => '0',
+      readoutDebug0  => (others => '0'),
+      readoutDebug1  => (others => '0'),
+      readoutDebug2  => (others => '0'),
       axilWriteSlave => AXI_LITE_WRITE_SLAVE_INIT_C,
       axilReadSlave  => AXI_LITE_READ_SLAVE_INIT_C);
 
    signal axilR   : AxilRegType := AXIL_REG_INIT_C;
    signal axilRin : AxilRegType;
 
-   signal curDelay : slv(4 downto 0);
-
+   signal curDelay        : slv(4 downto 0);
+   signal lockedFallCount : slv(15 downto 0);
+   signal errorDetCount   : slv(15 downto 0);
+   signal lockedSync      : sl;
+   signal debugDataValid  : sl;
+   signal debugDataOut    : slv(9 downto 0);
 
 begin
 
@@ -206,31 +225,34 @@ begin
          timingRxClk => timingRxClk,    -- [in]
          timingRxRst => timingRxRst,    -- [in]
          bitClk      => bitClk,         -- [out]
-         bitClkInv   => bitClkInv,      -- [out]
          wordClk     => wordClk,        -- [out]
          wordRst     => wordRst);       -- [out]
 
    -------------------------------------------------------------------------------------------------
    -- Deserialize the incomming data
    -------------------------------------------------------------------------------------------------
+   bitClkInv <= not bitClk;
+
    U_TimingDeserializer_1 : entity warm_tdm.TimingDeserializer
       generic map (
          TPD_G             => TPD_G,
          IODELAY_GROUP_G   => IODELAY_GROUP_G,
+         DEFAULT_DELAY_G   => DEFAULT_DELAY_G,
          IDELAYCTRL_FREQ_G => IDELAYCTRL_FREQ_G)
       port map (
-         bitClk        => bitClk,            -- [in]
-         bitClkInv     => bitClkInv,         -- [in]
-         timingRxDataP => timingRxDataP,     -- [in]
-         timingRxDataN => timingRxDataN,     -- [in]
-         wordClk       => wordClk,           -- [in]
-         wordRst       => wordRst,           -- [in]
-         dataOut       => timingRxCodeWord,  -- [out]
-         slip          => r.slip,            -- [in]
-         sysClk        => axilClk,           -- [in]
-         curDelay      => curDelay,          -- [out]
-         setDelay      => r.delay,           -- [in]
-         setValid      => r.set);            -- [in]
+         rst           => '0',                 -- [in]
+         bitClk        => bitClk,              -- [in]
+         bitClkInv     => bitClkInv,           -- [in]
+         timingRxDataP => timingRxDataP,       -- [in]
+         timingRxDataN => timingRxDataN,       -- [in]
+         wordClk       => wordClk,             -- [in]
+         wordRst       => wordRst,             -- [in]
+         dataOut       => timingRxCodeWord,    -- [out]
+         slip          => slip,                -- [in]
+         sysClk        => wordClk,             -- [in]
+         curDelay      => open,                -- [out]
+         setDelay      => dlyCfg(8 downto 4),  -- [in]
+         setValid      => dlyLoad);            -- [in]
 
    -------------------------------------------------------------------------------------------------
    -- 8B10B decode
@@ -272,10 +294,43 @@ begin
          enUsrDlyCfg     => enUsrDlyCfg,      -- [in]
          usrDlyCfg       => usrDlyCfg,        -- [in]
          bypFirstBerDet  => '1',              -- [in]
-         minEyeWidth     => slv(8, 8),        -- [in]
+         minEyeWidth     => toSlv(8, 8),      -- [in]
 --         lockingCntCfg   => lockingCntCfg,    -- [in]
          errorDet        => errorDet,         -- [out]
          locked          => locked);          -- [out]
+
+   Synchronizer_1 : entity surf.Synchronizer
+      generic map (
+         TPD_G    => TPD_G,
+         STAGES_G => 3)
+      port map (
+         clk     => wordClk,
+         rst     => wordRst,
+         dataIn  => axilR.set,
+         dataOut => enUsrDlyCfg);
+
+   U_SynchronizerVector_1 : entity surf.SynchronizerVector
+      generic map (
+         TPD_G    => TPD_G,
+         STAGES_G => 2,
+         WIDTH_G  => 5)
+      port map (
+         clk     => wordClk,                 -- [in]
+         rst     => wordRst,                 -- [in]
+         dataIn  => axilR.delay,             -- [in]
+         dataOut => usrDlyCfg(8 downto 4));  -- [out]
+
+   U_SynchronizerVector_2 : entity surf.SynchronizerVector
+      generic map (
+         TPD_G    => TPD_G,
+         STAGES_G => 2,
+         WIDTH_G  => 5)
+      port map (
+         clk     => wordClk,             -- [in]
+         rst     => wordRst,             -- [in]
+         dataIn  => dlyCfg(8 downto 4),  -- [in]
+         dataOut => curDelay);           -- [out]
+
 
    SynchronizerOneShotCnt_1 : entity surf.SynchronizerOneShotCnt
       generic map (
@@ -285,25 +340,44 @@ begin
          CNT_RST_EDGE_G => true,
          CNT_WIDTH_G    => 16)
       port map (
-         dataIn     => adcR(i).locked,
+         dataIn     => locked,
          rollOverEn => '0',
          cntRst     => axilR.lockedCountRst,
          dataOut    => open,
-         cntOut     => lockedFallCount(i),
-         wrClk      => adcBitClkR(i),
+         cntOut     => lockedFallCount,
+         wrClk      => wordClk,
          wrRst      => '0',
          rdClk      => axilClk,
          rdRst      => axilRst);
 
-   Synchronizer_1 : entity surf.Synchronizer
+   SynchronizerOneShotCnt_2 : entity surf.SynchronizerOneShotCnt
+      generic map (
+         TPD_G          => TPD_G,
+         IN_POLARITY_G  => '1',
+         OUT_POLARITY_G => '1',
+         CNT_RST_EDGE_G => true,
+         CNT_WIDTH_G    => 16)
+      port map (
+         dataIn     => errorDet,
+         rollOverEn => '0',
+         cntRst     => axilR.lockedCountRst,
+         dataOut    => open,
+         cntOut     => errorDetCount,
+         wrClk      => wordClk,
+         wrRst      => '0',
+         rdClk      => axilClk,
+         rdRst      => axilRst);
+
+
+   Synchronizer_2 : entity surf.Synchronizer
       generic map (
          TPD_G    => TPD_G,
          STAGES_G => 2)
       port map (
          clk     => axilClk,
          rst     => axilRst,
-         dataIn  => adcR(i).locked,
-         dataOut => lockedSync(i));
+         dataIn  => locked,
+         dataOut => lockedSync);
 
 
    U_DataFifoDebug : entity surf.SynchronizerFifo
@@ -328,7 +402,7 @@ begin
    -- Transition to timingRxClk here from wordClk
    -- Is this ok?
    -------------------------------------------------------------------------------------------------
-   comb : process (r, timingRxData, timingRxDataK, timingRxValid, timingRxRst) is
+   comb : process (r, timingRxData, timingRxDataK, timingRxRst, timingRxValid) is
       variable v : RegType;
    begin
       v := r;
@@ -383,8 +457,8 @@ begin
    -------------------------------------------------------------------------------------------------
    -- AXI-Lite interface
    -------------------------------------------------------------------------------------------------
-   axilComb : process (axilR, axilReadMaster, axilRst, axilWriteMaster, debugDataValid,
-                       lockedFallCount, lockedSync) is
+   axilComb : process (axilR, axilReadMaster, axilRst, axilWriteMaster, curDelay, debugDataOut,
+                       debugDataValid, errorDetCount, lockedFallCount, lockedSync) is
       variable v      : AxilRegType;
       variable axilEp : AxiLiteEndpointType;
    begin
@@ -392,7 +466,7 @@ begin
 
       v.set := '0';
 
-      v.curDelay := curDelay;
+      --v.curDelay := curDelay;
 
       -- Store last two samples read from ADC
       if (debugDataValid = '1') then
@@ -409,13 +483,12 @@ begin
       -- dataDelaySet(ch) or frameDelaySet enables the primative write
       axiSlaveRegister(axilEp, X"00", 0, v.delay);
       axiSlaveRegister(axilEp, X"00", 5, v.set, '1');
-      axiSlaveRegisterR(axilEp, X"00", 0, axilR.curDelay);
+      axiSlaveRegisterR(axilEp, X"00", 0, curDelay);
 
       -- Debug output to see how many times the shift has needed a relock
-      axiSlaveRegisterR(axilEp, X"10", 0, lockedFallCount(0));
-      axiSlaveRegisterR(axilEp, X"10", 16, lockedSync(0));
-      axiSlaveRegisterR(axilEp, X"14", 0, lockedFallCount(1));
-      axiSlaveRegisterR(axilEp, X"14", 16, lockedSync(1));
+      axiSlaveRegisterR(axilEp, X"10", 0, lockedFallCount);
+      axiSlaveRegisterR(axilEp, X"10", 16, lockedSync);
+      axiSlaveRegisterR(axilEp, X"14", 0, errorDetCount);
 
       axiSlaveRegister(axilEp, X"1C", 0, v.lockedCountRst);
 
