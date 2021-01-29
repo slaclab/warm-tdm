@@ -39,12 +39,11 @@ entity FastDacDriver is
 
       timingData : in LocalTimingType;
 
-      dacDb    : out slv14Array(3 downto 0);
-      dacWrt   : out sl;
-      dacClk   : out sl;
-      dacSel   : out sl;
-      dacReset : out sl := '0';
-      dacSleep : out sl := '0';
+      dacDb    : out slv(13 downto 0);
+      dacWrt   : out slv(3 downto 0);
+      dacClk   : out slv(3 downto 0);
+      dacSel   : out slv(3 downto 0);
+      dacReset : out slv(3 downto 0) := (others => '0');
 
       axilClk         : in  sl;
       axilRst         : in  sl;
@@ -64,22 +63,33 @@ architecture rtl of FastDacDriver is
    signal locAxilReadMasters  : AxiLiteReadMasterArray(7 downto 0);
    signal locAxilReadSlaves   : AxiLiteReadSlaveArray(7 downto 0);
 
-   type StateType is (WAIT_ROW_STROBE_S, DATA_0_S, WRITE_0_S, DATA_1_S, WRITE_1_S);
+   type StateType is (
+      WAIT_ROW_STROBE_S,
+      DATA_0_S,
+      WRITE_0_S,
+      WRITE_FALL_S,
+      DATA_1_S,
+      WRITE_1_S,
+      CLK_0_RISE_S,
+      CLK_0_FALL_S,
+      CLK_1_RISE_S);
 
    type RegType is record
       state  : StateType;
-      dacDb  : slv14Array(3 downto 0);
-      dacWrt : sl;
-      dacClk : sl;
-      dacSel : sl;
+      dacNum : integer range 0 to 3;
+      dacDb  : slv(13 downto 0);
+      dacWrt : slv(3 downto 0);
+      dacClk : slv(3 downto 0);
+      dacSel : slv(3 downto 0);
    end record RegType;
 
    constant REG_INIT_C : RegType := (
       state  => WAIT_ROW_STROBE_S,
-      dacDb  => (others => (others => '0')),
-      dacWrt => '0',
-      dacClk => '0',
-      dacSel => '0');
+      dacNum => 0,
+      dacDb  => (others => '0'),
+      dacWrt => (others => '0'),
+      dacClk => (others => '0'),
+      dacSel => (others => '0'));
 
    signal r   : RegType := REG_INIT_C;
    signal rin : RegType;
@@ -131,9 +141,9 @@ begin
 --          en             => en,              -- [in]
 --          we             => we,              -- [in]
             rst            => timingRst125,            -- [in]
-            addr           => timingData.rowNum,                  -- [in]
+            addr           => timingData.rowNum,       -- [in]
 --         din            => din,             -- [in]
-            dout           => ramDout(i));                 -- [out]
+            dout           => ramDout(i));             -- [out]
    end generate GEN_AXIL_RAM;
 
 
@@ -142,32 +152,59 @@ begin
    begin
       v := r;
 
-      v.dacWrt := '0';
-      v.dacClk := '0';
+      v.dacWrt := (others => '0');
+      v.dacClk := (others => '0');
+--      v.dacSel := (others => '0');
+
       case r.state is
          when WAIT_ROW_STROBE_S =>
+            v.dacNum := 0;
             if (timingData.rowStrobe = '1') then
                v.state := DATA_0_S;
             end if;
+
          when DATA_0_S =>
-            v.dacSel := '0';
-            for i in 3 downto 0 loop
-               v.dacDb(i) := ramDout(i*2)(13 downto 0);
-            end loop;
+            v.dacSel := (others => '0');
+            v.dacDb := ramDout(r.dacNum*2)(13 downto 0);
             v.state := WRITE_0_S;
+
          when WRITE_0_S =>
-            v.dacWrt := '1';
-            v.state  := DATA_1_S;
+            v.dacWrt(r.dacNum) := '1';
+            v.state            := WRITE_FALL_S;
+
+         when WRITE_FALL_S =>
+            -- Wait 1 cycle for write strobe to fall back to 0
+            -- Might not be necessary but doesn't hurt
+            v.state := DATA_1_S;
+
          when DATA_1_S =>
-            v.dacSel := '1';
-            for i in 3 downto 0 loop
-               v.dacDb(i) := ramDout(i*2+1)(13 downto 0);
-            end loop;
-            v.state := WRITE_1_S;
+            v.dacSel := (others => '1');
+            v.dacDb  := ramDout(r.dacNum*2+1)(13 downto 0);
+            v.state  := WRITE_1_S;
+
          when WRITE_1_S =>
-            v.dacWrt := '1';
-            v.dacClk := '1';
-            v.state  := WAIT_ROW_STROBE_S;
+            v.dacWrt(r.dacNum) := '1';
+            if (r.dacNum = 3) then
+               v.state := CLK_0_RISE_S;
+            else
+               v.dacNum := r.dacNum + 1;
+               v.state  := DATA_0_S;
+            end if;
+
+
+         when CLK_0_RISE_S =>
+            v.dacClk := (others => '1');
+            v.state := CLK_0_FALL_S;
+
+         when CLK_0_FALL_S =>
+            v.dacClk := (others => '0');
+            v.state := CLK_1_RISE_S;
+            
+         when CLK_1_RISE_S =>
+            v.dacClk := (others => '1');
+            v.state := WAIT_ROW_STROBE_S;
+            
+
          when others => null;
       end case;
 
