@@ -44,7 +44,7 @@ entity EthCore is
       extRst            : in  sl                    := '0';
       -- GT ports and clock
       refClk            : in  sl;                           -- GT Ref Clock 156.25 MHz
-      refClkG : in sl;
+      refClkG           : in  sl;
       gtRxP             : in  sl;
       gtRxN             : in  sl;
       gtTxP             : out sl;
@@ -567,7 +567,7 @@ begin
          TPD_G                     => TPD_G,
          STATUS_CNT_WIDTH_G        => 32,
          SLAVE_READY_EN_G          => true,
-         GEN_SYNC_FIFO_G           => true,
+         GEN_SYNC_FIFO_G           => false,
          SYNTH_MODE_G              => "inferred",
 --          MEMORY_TYPE_G             => MEMORY_TYPE_G,
          SLAVE_AXI_STREAM_CONFIG_G => AXIS_CONFIG_C,
@@ -578,8 +578,8 @@ begin
          sAxisMaster    => rssiObMasters(DEST_PRBS_C),           -- [in]
          sAxisSlave     => rssiObSlaves(DEST_PRBS_C),            -- [out]
 --         sAxisCtrl       => sAxisCtrl,        -- [out]
-         axiClk         => ethClk,                               -- [in]
-         axiRst         => ethRst,                               -- [in]
+         axiClk         => axilClk,                              -- [in]
+         axiRst         => axilRst,                              -- [in]
          axiReadMaster  => locAxilReadMasters(AXIL_PRBS_RX_C),   -- [in]
          axiReadSlave   => locAxilReadSlaves(AXIL_PRBS_RX_C),    -- [out]
          axiWriteMaster => locAxilWriteMasters(AXIL_PRBS_RX_C),  -- [in]
@@ -589,7 +589,7 @@ begin
       generic map (
          TPD_G                      => TPD_G,
 --          MEMORY_TYPE_G              => MEMORY_TYPE_G,
-         GEN_SYNC_FIFO_G            => true,
+         GEN_SYNC_FIFO_G            => false,
          SYNTH_MODE_G               => "inferred",
          MASTER_AXI_STREAM_CONFIG_G => AXIS_CONFIG_C,
          MASTER_AXI_PIPE_STAGES_G   => 1)
@@ -598,8 +598,8 @@ begin
          mAxisRst        => ethRst,                               -- [in]
          mAxisMaster     => rssiIbMasters(DEST_PRBS_C),           -- [out]
          mAxisSlave      => rssiIbSlaves(DEST_PRBS_C),            -- [in]
-         locClk          => ethClk,                               -- [in]
-         locRst          => ethRst,                               -- [in]
+         locClk          => axilClk,                              -- [in]
+         locRst          => axilRst,                              -- [in]
 --          trig            => trig,             -- [in]
 --          packetLength    => packetLength,     -- [in]
 --          forceEofe       => forceEofe,        -- [in]
