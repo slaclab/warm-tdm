@@ -33,7 +33,6 @@ entity TimingMmcm is
       timingRxClk : in  sl;
       timingRxRst : in  sl;
       bitClk      : out sl;
-      bitClkInv   : out sl;
       wordClk     : out sl;
       wordRst     : out sl);
 
@@ -93,8 +92,6 @@ begin
          o => bitClkLoc);
 
    bitClk    <= bitClkLoc;
-   bitClkInv <= not bitClkLoc;
-
 
    WORD_CLK_BUFR : BUFR
       port map (
