@@ -42,8 +42,8 @@ entity ColumnModule is
       SIM_PGP_PORT_NUM_G : positive         := 7000;
       SIM_ETH_PORT_NUM_G : positive         := 8000;
       BUILD_INFO_G       : BuildInfoType;
-      RING_ADDR_0_G      : boolean          := false;
-      ETH_10G_G          : boolean          := false;
+      RING_ADDR_0_G      : boolean          := true;
+      ETH_10G_G          : boolean          := true;
       DHCP_G             : boolean          := false;         -- true = DHCP, false = static address
       IP_ADDR_G          : slv(31 downto 0) := x"0A01A8C0");  -- 192.168.1.10 (before DHCP)
    port (
@@ -59,10 +59,19 @@ entity ColumnModule is
       pgpRxP : in  sl;
       pgpRxN : in  sl;
 
-      -- Timing Interface
+      -- Timing Interface Crossbars
+      xbarDataSel : out slv(1 downto 0) := "00";
+      xbarClkSel  : out slv(1 downto 0) := "00";
+      xbarMgtSel  : out slv(1 downto 0) := "00";
+
+      -- MGT Timing
 --       timingRxP : in sl;
 --       timingRxN : in sl;
-      timingModeSel : out slv(1 downto 0);
+--       timingTxP : out sl;
+--       timingTxN : out sl;
+
+
+      -- SelectIO Timing
       timingRxClkP  : in  sl;
       timingRxClkN  : in  sl;
       timingRxDataP : in  sl;
@@ -96,37 +105,49 @@ entity ColumnModule is
       pwrSda : inout sl;
 
       -- Status LEDs
-      leds : out slv(3 downto 0);
+      leds : out slv(7 downto 0);
 
-      -- DAC Interfaces - 3.3V
-      sq1BiasDb    : out slv14Array(3 downto 0);
-      sq1BiasWrt   : out sl;
-      sq1BiasClk   : out sl;
-      sq1BiasSel   : out sl;
-      sq1BiasReset : out sl;
-      sq1BiasSleep : out sl;
+      -- XADC
+      vAuxP : in slv(3 downto 0);
+      vAuxN : in slv(3 downto 0);
 
-      sq1FbDb    : out slv14Array(3 downto 0);
-      sq1FbWrt   : out sl;
-      sq1FbClk   : out sl;
-      sq1FbSel   : out sl;
-      sq1FbReset : out sl;
-      sq1FbSleep : out sl;
+      -- Fast DAC Interfaces - 3.3V
+      sq1BiasDb    : out slv(13 downto 0);
+      sq1BiasWrt   : out slv(3 downto 0);
+      sq1BiasClk   : out slv(3 downto 0);
+      sq1BiasSel   : out slv(3 downto 0);
+      sq1BiasReset : out slv(3 downto 0);
 
-      saFbDb    : out slv14Array(3 downto 0);
-      saFbWrt   : out sl;
-      saFbClk   : out sl;
-      saFbSel   : out sl;
-      saFbReset : out sl;
-      saFbSleep : out sl;
+      sq1FbDb    : out slv(13 downto 0);
+      sq1FbWrt   : out slv(3 downto 0);
+      sq1FbClk   : out slv(3 downto 0);
+      sq1FbSel   : out slv(3 downto 0);
+      sq1FbReset : out slv(3 downto 0);
 
-      -- TES and SA Bias DAC - 3.3V
-      ad5679Mosi   : out sl;
-      ad5679Miso   : in  sl;
-      ad5679Sclk   : out sl;
-      ad5679SyncB  : out sl;
-      ad5679LdacB  : out sl;
-      ad5679ResetB : out sl;
+      saFbDb    : out slv(13 downto 0);
+      saFbWrt   : out slv(3 downto 0);
+      saFbClk   : out slv(3 downto 0);
+      saFbSel   : out slv(3 downto 0);
+      saFbReset : out slv(3 downto 0);
+
+      -- SA Bias DAC - 1.8V
+      saDacMosi   : out sl;
+      saDacMiso   : in  sl;
+      saDacSclk   : out sl;
+      saDacSyncB  : out sl;
+      saDacLdacB  : out sl := '1';
+      saDacResetB : out sl := '1';
+
+      -- TES Bias DAC - 1.8V
+      tesDacMosi   : out sl;
+      tesDacMiso   : in  sl;
+      tesDacSclk   : out sl;
+      tesDacSyncB  : out sl;
+      tesDacLdacB  : out sl := '1';
+      tesDacResetB : out sl := '1';
+
+      -- TES Delatch
+      tesDelatch : out slv(7 downto 0) := (others => '0');
 
       -- ADC Data - LVDS
       adcFClkP : in  slv(1 downto 0);
@@ -141,11 +162,8 @@ entity ColumnModule is
       -- ADC Config - 1.8V
       adcSclk : out   sl;
       adcSdio : inout sl;
-      adcCsb1 : out   sl;
-      adcCsb2 : out   sl;
-      adcSync : out   sl;
-      adcPdwn : out   sl
-
+      adcCsb  : out   sl;
+      adcSync : out   sl
 
       );
 
@@ -155,39 +173,54 @@ architecture rtl of ColumnModule is
 
    constant AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(8);  -- Maybe packetizer config?
 
-   constant NUM_AXIL_MASTERS_C  : integer := 7;
+   constant NUM_AXIL_MASTERS_C  : integer := 10;
    constant AXIL_COMMON_C       : integer := 0;
-   constant AXIL_ADC_CONFIG_C   : integer := 1;
-   constant AXIL_DATA_PATH_C    : integer := 2;
-   constant AXIL_SQ1_BIAS_DAC_C : integer := 3;
-   constant AXIL_SQ1_FB_DAC_C   : integer := 4;
-   constant AXIL_SA_FB_DAC_C    : integer := 5;
-   constant AXIL_COM_C          : integer := 6;
+   constant AXIL_TIMING_RX_C    : integer := 1;
+   constant AXIL_ADC_CONFIG_C   : integer := 2;
+   constant AXIL_DATA_PATH_C    : integer := 3;
+   constant AXIL_SQ1_BIAS_DAC_C : integer := 4;
+   constant AXIL_SQ1_FB_DAC_C   : integer := 5;
+   constant AXIL_SA_FB_DAC_C    : integer := 6;
+   constant AXIL_SA_BIAS_DAC_C  : integer := 7;
+   constant AXIL_TES_BIAS_DAC_C : integer := 8;
+   constant AXIL_COM_C          : integer := 9;
 
    constant AXIL_XBAR_CFG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := (
       AXIL_COMMON_C       => (
          baseAddr         => X"00000000",
          addrBits         => 20,
          connectivity     => X"FFFF"),
-      AXIL_ADC_CONFIG_C   => (
+      AXIL_TIMING_RX_C    => (
          baseAddr         => X"00100000",
          addrBits         => 16,
          connectivity     => X"FFFF"),
-      AXIL_DATA_PATH_C    => (
+      AXIL_ADC_CONFIG_C   => (
          baseAddr         => X"00200000",
          addrBits         => 16,
          connectivity     => X"FFFF"),
-      AXIL_SQ1_BIAS_DAC_C => (
+      AXIL_DATA_PATH_C    => (
          baseAddr         => X"00300000",
-         addrBits         => 20,
+         addrBits         => 16,
          connectivity     => X"FFFF"),
-      AXIL_SQ1_FB_DAC_C   => (
+      AXIL_SQ1_BIAS_DAC_C => (
          baseAddr         => X"00400000",
          addrBits         => 20,
          connectivity     => X"FFFF"),
-      AXIL_SA_FB_DAC_C    => (
+      AXIL_SQ1_FB_DAC_C   => (
          baseAddr         => X"00500000",
          addrBits         => 20,
+         connectivity     => X"FFFF"),
+      AXIL_SA_FB_DAC_C    => (
+         baseAddr         => X"00600000",
+         addrBits         => 20,
+         connectivity     => X"FFFF"),
+      AXIL_SA_BIAS_DAC_C  => (
+         baseAddr         => X"00700000",
+         addrBits         => 12,
+         connectivity     => X"FFFF"),
+      AXIL_TES_BIAS_DAC_C => (
+         baseAddr         => X"00701000",
+         addrBits         => 12,
          connectivity     => X"FFFF"),
       AXIL_COM_C          => (
          baseAddr         => X"A0000000",
@@ -220,9 +253,6 @@ architecture rtl of ColumnModule is
 
    signal adc : Ad9681SerialType;
 
-   signal adcCsb : sl;
-
-
 begin
 
    -------------------------------------------------------------------------------------------------
@@ -231,19 +261,25 @@ begin
    U_TimingRx_1 : entity warm_tdm.TimingRx
       generic map (
          TPD_G             => TPD_G,
+         SIMULATION_G      => SIMULATION_G,
          IODELAY_GROUP_G   => "IODELAY0",
          IDELAYCTRL_FREQ_G => 200.0)
       port map (
-         timingRefClkP => gtRefClk1P,     -- [in]
-         timingRefClkN => gtRefClk1N,     -- [in]
-         timingRxClkP  => timingRxClkP,   -- [in]
-         timingRxClkN  => timingRxClkN,   -- [in]
-         timingRxDataP => timingRxDataP,  -- [in]
-         timingRxDataN => timingRxDataN,  -- [in]
-         timingClkOut  => timingClk125,   -- [out]
-         timingRstOut  => timingRst125,   -- [out]
-         timingData    => timingData);    -- [out]
-
+         timingRefClkP   => gtRefClk1P,                             -- [in]
+         timingRefClkN   => gtRefClk1N,                             -- [in]
+         timingRxClkP    => timingRxClkP,                           -- [in]
+         timingRxClkN    => timingRxClkN,                           -- [in]
+         timingRxDataP   => timingRxDataP,                          -- [in]
+         timingRxDataN   => timingRxDataN,                          -- [in]
+         timingClkOut    => timingClk125,                           -- [out]
+         timingRstOut    => timingRst125,                           -- [out]
+         timingData      => timingData,                             -- [out]
+         axilClk         => axilClk,                                -- [in]
+         axilRst         => axilRst,                                -- [in]
+         axilWriteMaster => locAxilWriteMasters(AXIL_TIMING_RX_C),  -- [in]
+         axilWriteSlave  => locAxilWriteSlaves(AXIL_TIMING_RX_C),   -- [out]
+         axilReadMaster  => locAxilReadMasters(AXIL_TIMING_RX_C),   -- [in]
+         axilReadSlave   => locAxilReadSlaves(AXIL_TIMING_RX_C));
    -------------------------------------------------------------------------------------------------
    -- Communications Interfaces
    -------------------------------------------------------------------------------------------------
@@ -259,30 +295,30 @@ begin
          DHCP_G             => DHCP_G,
          IP_ADDR_G          => IP_ADDR_G)
       port map (
-         gtRefClkP        => gtRefClk0P,                       -- [in]
-         gtRefClkN        => gtRefClk0N,                       -- [in]
-         pgpTxP           => pgpTxP,                           -- [out]
-         pgpTxN           => pgpTxN,                           -- [out]
-         pgpRxP           => pgpRxP,                           -- [in]
-         pgpRxN           => pgpRxN,                           -- [in]
-         ethRxP           => sfp0RxP,                          -- [in]
-         ethRxN           => sfp0RxN,                          -- [in]
-         ethTxP           => sfp0TxP,                          -- [out]
-         ethTxN           => sfp0TxN,                          -- [out]
-         axilClkOut       => axilClk,                          -- [out]
-         axilRstOut       => axilRst,                          -- [out]
-         mAxilWriteMaster => srpAxilWriteMaster,               -- [out]
-         mAxilWriteSlave  => srpAxilWriteSlave,                -- [in]
-         mAxilReadMaster  => srpAxilReadMaster,                -- [out]
-         mAxilReadSlave   => srpAxilReadSlave,                 -- [in]
-         sAxilWriteMaster => locAxilWriteMasters(AXIL_COM_C),  -- [in]
-         sAxilWriteSlave  => locAxilWriteSlaves(AXIL_COM_C),   -- [out]
-         sAxilReadMaster  => locAxilReadMasters(AXIL_COM_C),   -- [in]
-         sAxilReadSlave   => locAxilReadSlaves(AXIL_COM_C),    -- [out]
-         dataTxAxisMaster => dataTxAxisMaster,                 -- [in]
-         dataTxAxisSlave  => dataTxAxisSlave,                  -- [out]
-         dataRxAxisMaster => dataRxAxisMaster,                 -- [out]
-         dataRxAxisSlave  => dataRxAxisSlave);                 -- [in]
+         gtRefClkP        => gtRefClk0P,                            -- [in]
+         gtRefClkN        => gtRefClk0N,                            -- [in]
+         pgpTxP           => pgpTxP,                                -- [out]
+         pgpTxN           => pgpTxN,                                -- [out]
+         pgpRxP           => pgpRxP,                                -- [in]
+         pgpRxN           => pgpRxN,                                -- [in]
+         ethRxP           => sfp0RxP,                               -- [in]
+         ethRxN           => sfp0RxN,                               -- [in]
+         ethTxP           => sfp0TxP,                               -- [out]
+         ethTxN           => sfp0TxN,                               -- [out]
+         axilClkOut       => axilClk,                               -- [out]
+         axilRstOut       => axilRst,                               -- [out]
+         mAxilWriteMaster => srpAxilWriteMaster,                    -- [out]
+         mAxilWriteSlave  => srpAxilWriteSlave,                     -- [in]
+         mAxilReadMaster  => srpAxilReadMaster,                     -- [out]
+         mAxilReadSlave   => srpAxilReadSlave,                      -- [in]
+         sAxilWriteMaster => locAxilWriteMasters(AXIL_COM_C),       -- [in]
+         sAxilWriteSlave  => locAxilWriteSlaves(AXIL_COM_C),        -- [out]
+         sAxilReadMaster  => locAxilReadMasters(AXIL_COM_C),        -- [in]
+         sAxilReadSlave   => locAxilReadSlaves(AXIL_COM_C),         -- [out]
+         dataTxAxisMaster => dataTxAxisMaster,                      -- [in]
+         dataTxAxisSlave  => dataTxAxisSlave,                       -- [out]
+         dataRxAxisMaster => dataRxAxisMaster,                      -- [out]
+         dataRxAxisSlave  => dataRxAxisSlave);                      -- [in]
 
 
    -------------------------------------------------------------------------------------------------
@@ -329,7 +365,64 @@ begin
          promScl         => promScl,                             -- [inout]
          promSda         => promSda,                             -- [inout]
          pwrScl          => pwrScl,                              -- [inout]
-         pwrSda          => pwrSda);                             -- [inout]
+         pwrSda          => pwrSda,                              -- [inout]
+         vAuxP           => vAuxP,                               -- [in]
+         vAuxN           => vAuxN);                              -- [in]
+
+
+   -------------------------------------------------------------------------------------------------
+   -- SA Bias
+   -------------------------------------------------------------------------------------------------
+   U_SA_BIAS_SPI : entity surf.AxiSpiMaster
+      generic map (
+         TPD_G             => TPD_G,
+         ADDRESS_SIZE_G    => 8,
+         DATA_SIZE_G       => 16,
+         MODE_G            => "WO",
+         SHADOW_EN_G       => false,
+         CPHA_G            => '1',
+         CPOL_G            => '1',
+         CLK_PERIOD_G      => 156.25E+6,
+         SPI_SCLK_PERIOD_G => 100.0E-6,
+         SPI_NUM_CHIPS_G   => 1)
+      port map (
+         axiClk         => axilClk,                                  -- [in]
+         axiRst         => axilRst,                                  -- [in]
+         axiReadMaster  => locAxilReadMasters(AXIL_SA_BIAS_DAC_C),   -- [in]
+         axiReadSlave   => locAxilReadSlaves(AXIL_SA_BIAS_DAC_C),    -- [out]
+         axiWriteMaster => locAxilWriteMasters(AXIL_SA_BIAS_DAC_C),  -- [in]
+         axiWriteSlave  => locAxilWriteSlaves(AXIL_SA_BIAS_DAC_C),   -- [out]
+         coreSclk       => saDacSclk,                                -- [out]
+         coreSDin       => saDacMiso,                                -- [in]
+         coreSDout      => saDacMosi,                                -- [out]
+         coreMCsb(0)    => saDacSyncB);                              -- [out]
+
+   -------------------------------------------------------------------------------------------------
+   -- TES Bias
+   -------------------------------------------------------------------------------------------------
+   U_TES_BIAS_SPI : entity surf.AxiSpiMaster
+      generic map (
+         TPD_G             => TPD_G,
+         ADDRESS_SIZE_G    => 8,
+         DATA_SIZE_G       => 16,
+         MODE_G            => "WO",
+         SHADOW_EN_G       => false,
+         CPHA_G            => '1',
+         CPOL_G            => '1',
+         CLK_PERIOD_G      => 156.25E+6,
+         SPI_SCLK_PERIOD_G => 100.0E-6,
+         SPI_NUM_CHIPS_G   => 1)
+      port map (
+         axiClk         => axilClk,                                   -- [in]
+         axiRst         => axilRst,                                   -- [in]
+         axiReadMaster  => locAxilReadMasters(AXIL_TES_BIAS_DAC_C),   -- [in]
+         axiReadSlave   => locAxilReadSlaves(AXIL_TES_BIAS_DAC_C),    -- [out]
+         axiWriteMaster => locAxilWriteMasters(AXIL_TES_BIAS_DAC_C),  -- [in]
+         axiWriteSlave  => locAxilWriteSlaves(AXIL_TES_BIAS_DAC_C),   -- [out]
+         coreSclk       => tesDacSclk,                                -- [out]
+         coreSDin       => tesDacMiso,                                -- [in]
+         coreSDout      => tesDacMosi,                                -- [out]
+         coreMCsb(0)    => tesDacSyncB);                              -- [out]
 
 
    -------------------------------------------------------------------------------------------------
@@ -348,13 +441,11 @@ begin
          axilReadSlave   => locAxilReadSlaves(AXIL_ADC_CONFIG_C),    -- [out]
          axilWriteMaster => locAxilWriteMasters(AXIL_ADC_CONFIG_C),  -- [in]
          axilWriteSlave  => locAxilWriteSlaves(AXIL_ADC_CONFIG_C),   -- [out]
-         adcPdwn(0)      => adcPdwn,                                 -- [out]
+--         adcPdwn(0)      => adcPdwn,                                 -- [out]
          adcSclk         => adcSclk,                                 -- [out]
          adcSdio         => adcSdio,                                 -- [inout]
          adcCsb(0)       => adcCsb);                                 -- [out]
 
-   adcCsb1 <= adcCsb;
-   adcCsb2 <= adcCsb;
 
    -------------------------------------------------------------------------------------------------
    -- ADC Data Path
@@ -363,8 +454,8 @@ begin
    adc.fClkN <= adcFClkN;
    adc.dClkP <= adcDClkP;
    adc.dClkN <= adcDClkN;
-   adc.chP <= adcChP;
-   adc.chN <= adcChN;
+   adc.chP   <= adcChP;
+   adc.chN   <= adcChN;
 
    U_ClkOutBufDiff_1 : entity surf.ClkOutBufDiff
       generic map (
@@ -382,7 +473,7 @@ begin
          clkOutP => timingTxClkP,       -- [out]
          clkOutN => timingTxClkN);      -- [out]
 
-   
+
    U_ClkOutBufDiff_2 : entity surf.ClkOutBufDiff
       generic map (
          TPD_G => TPD_G)
@@ -395,9 +486,9 @@ begin
 
    U_DataPath_1 : entity warm_tdm.DataPath
       generic map (
-         TPD_G           => TPD_G,
+         TPD_G            => TPD_G,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_DATA_PATH_C).baseAddr,
-         IODELAY_GROUP_G => "IODELAY0")
+         IODELAY_GROUP_G  => "IODELAY0")
       port map (
          adc             => adc,                                    -- [in]
          timingClk125    => timingClk125,                           -- [in]
@@ -430,7 +521,6 @@ begin
          dacClk          => sq1BiasClk,                                -- [out]
          dacSel          => sq1BiasSel,                                -- [out]
          dacReset        => sq1BiasReset,                              -- [out]
-         dacSleep        => sq1BiasSleep,                              -- [out]
          axilClk         => axilClk,                                   -- [in]
          axilRst         => axilRst,                                   -- [in]
          axilWriteMaster => locAxilWriteMasters(AXIL_SQ1_BIAS_DAC_C),  -- [in]
@@ -451,7 +541,6 @@ begin
          dacClk          => sq1FbClk,                                -- [out]
          dacSel          => sq1FbSel,                                -- [out]
          dacReset        => sq1FbReset,                              -- [out]
-         dacSleep        => sq1FbSleep,                              -- [out]
          axilClk         => axilClk,                                 -- [in]
          axilRst         => axilRst,                                 -- [in]
          axilWriteMaster => locAxilWriteMasters(AXIL_SQ1_FB_DAC_C),  -- [in]
@@ -472,7 +561,6 @@ begin
          dacClk          => saFbClk,                                -- [out]
          dacSel          => saFbSel,                                -- [out]
          dacReset        => saFbReset,                              -- [out]
-         dacSleep        => saFbSleep,                              -- [out]
          axilClk         => axilClk,                                -- [in]
          axilRst         => axilRst,                                -- [in]
          axilWriteMaster => locAxilWriteMasters(AXIL_SA_FB_DAC_C),  -- [in]
