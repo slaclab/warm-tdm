@@ -15,9 +15,12 @@ create_generated_clock -name gtRefClk0Div2 [get_pins {U_ComCore_1/U_IBUFDS_GTE2/
 
 create_generated_clock -name axilClk [get_pins {U_ComCore_1/U_PgpCore_1/REAL_PGP_GEN.U_Pgp2bGtx7VarLatWrapper_1/ClockManager7_Inst/MmcmGen.U_Mmcm/CLKOUT0}]
 
-create_generated_clock -name idelayClk [get_pins {U_TimingRx_1/U_MMCM/MmcmGen.U_Mmcm/CLKOUT0}]
+create_generated_clock -name dnaDivClk [get_pins U_WarmTdmCommon_1/U_AxiVersion_1/GEN_DEVICE_DNA.DeviceDna_1/GEN_7SERIES.DeviceDna7Series_Inst/BUFR_Inst/O]
+create_generated_clock -name icapClk [get_pins U_WarmTdmCommon_1/U_AxiVersion_1/GEN_ICAP.Iprog_1/GEN_7SERIES.Iprog7Series_Inst/DIVCLK_GEN.BUFR_ICPAPE2/O]
 
-create_generated_clock -name dacClk -divide_by 200 -source [get_ports {timingRxClkP}] [get_pins {U_TimingRx_1/DAC_CLK_BUFG/O}]
+#create_generated_clock -name dacClk -divide_by 200 -source [get_ports {timingRxClkP}] [get_pins {U_TimingRx_1/DAC_CLK_BUFG/O}]
+
+create_generated_clock -name idelayClk [get_pins {U_TimingRx_1/U_MMCM_IDELAY/MmcmGen.U_Mmcm/CLKOUT0}]
 
 set ethRxClk {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/U_TenGigEthGtx7Core/U0/gt0_gtwizard_10gbaser_multi_gt_i/gt0_gtwizard_10gbaser_i/gtxe2_i/RXOUTCLK}
 set ethTxClk {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/U_TenGigEthGtx7Core/U0/gt0_gtwizard_10gbaser_multi_gt_i/gt0_gtwizard_10gbaser_i/gtxe2_i/TXOUTCLK}
@@ -38,7 +41,15 @@ set_clock_groups -asynchronous \
 
 set_clock_groups -asynchronous \
     -group [get_clocks axilClk] \
-    -group [get_clocks gtRefClk0Div2] 
+    -group [get_clocks gtRefClk0Div2]
+
+set_clock_groups -asynchronous \
+    -group [get_clocks axilClk] \
+    -group [get_clocks -include_generated_clocks dnaDivClk] \
+    -group [get_clocks icapClk]
+
+
+
 
 
 # MGT Mapping
@@ -59,12 +70,12 @@ set_property PACKAGE_PIN G3 [get_ports {pgpRxN}]
 #set_property PACKAGE_PIN E3 [get_ports {timingRxN}]
 set_property -dict { PACKAGE_PIN E11  IOSTANDARD LVDS_25 } [get_ports { timingRxClkP }];
 set_property -dict { PACKAGE_PIN D11  IOSTANDARD LVDS_25 } [get_ports { timingRxClkN }];
-set_property -dict { PACKAGE_PIN G11  IOSTANDARD LVDS_25 } [get_ports { timingRxTrigP }];
-set_property -dict { PACKAGE_PIN G10  IOSTANDARD LVDS_25 } [get_ports { timingRxTrigN }];
+set_property -dict { PACKAGE_PIN G11  IOSTANDARD LVDS_25 } [get_ports { timingRxDataP }];
+set_property -dict { PACKAGE_PIN G10  IOSTANDARD LVDS_25 } [get_ports { timingRxDataN }];
 # set_property -dict { PACKAGE_PIN H12  IOSTANDARD LVDS_25 } [get_ports { timingTxClkP }];
 # set_property -dict { PACKAGE_PIN G12  IOSTANDARD LVDS_25 } [get_ports { timingTxClkN }];
-# set_property -dict { PACKAGE_PIN F9   IOSTANDARD LVDS_25 } [get_ports { timingTxTrigP }];
-# set_property -dict { PACKAGE_PIN E9   IOSTANDARD LVDS_25 } [get_ports { timingTxTrigN }];
+# set_property -dict { PACKAGE_PIN F9   IOSTANDARD LVDS_25 } [get_ports { timingTxDataP }];
+# set_property -dict { PACKAGE_PIN E9   IOSTANDARD LVDS_25 } [get_ports { timingTxDataN }];
 
 
 # SFP
@@ -87,10 +98,10 @@ set_property -dict { PACKAGE_PIN W19  IOSTANDARD LVCMOS25 } [get_ports { dacCsB[
 set_property -dict { PACKAGE_PIN AB18 IOSTANDARD LVCMOS25 } [get_ports { dacCsB[5] }];
 set_property -dict { PACKAGE_PIN AA15 IOSTANDARD LVCMOS25 } [get_ports { dacCsB[6] }];
 set_property -dict { PACKAGE_PIN Y16  IOSTANDARD LVCMOS25 } [get_ports { dacCsB[7] }];
-set_property -dict { PACKAGE_PIN D12  IOSTANDARD LVCMOS25 } [get_ports { dacCsB[8] }];
-set_property -dict { PACKAGE_PIN F16  IOSTANDARD LVCMOS25 } [get_ports { dacCsB[9] }];
-set_property -dict { PACKAGE_PIN D14  IOSTANDARD LVCMOS25 } [get_ports { dacCsB[10] }];
-set_property -dict { PACKAGE_PIN A15  IOSTANDARD LVCMOS25 } [get_ports { dacCsB[11] }];
+set_property -dict { PACKAGE_PIN C14  IOSTANDARD LVCMOS25 } [get_ports { dacCsB[8] }];
+set_property -dict { PACKAGE_PIN B17  IOSTANDARD LVCMOS25 } [get_ports { dacCsB[9] }];
+set_property -dict { PACKAGE_PIN E17  IOSTANDARD LVCMOS25 } [get_ports { dacCsB[10] }];
+set_property -dict { PACKAGE_PIN J16  IOSTANDARD LVCMOS25 } [get_ports { dacCsB[11] }];
 
 set_property -dict { PACKAGE_PIN T21  IOSTANDARD LVCMOS25 } [get_ports { dacSdio[0] }];
 set_property -dict { PACKAGE_PIN W21  IOSTANDARD LVCMOS25 } [get_ports { dacSdio[1] }];
@@ -100,10 +111,10 @@ set_property -dict { PACKAGE_PIN Y18  IOSTANDARD LVCMOS25 } [get_ports { dacSdio
 set_property -dict { PACKAGE_PIN AB15 IOSTANDARD LVCMOS25 } [get_ports { dacSdio[5] }];
 set_property -dict { PACKAGE_PIN U16  IOSTANDARD LVCMOS25 } [get_ports { dacSdio[6] }];
 set_property -dict { PACKAGE_PIN W14  IOSTANDARD LVCMOS25 } [get_ports { dacSdio[7] }];
-set_property -dict { PACKAGE_PIN G15  IOSTANDARD LVCMOS25 } [get_ports { dacSdio[8] }];
-set_property -dict { PACKAGE_PIN A13  IOSTANDARD LVCMOS25 } [get_ports { dacSdio[9] }];
-set_property -dict { PACKAGE_PIN C14  IOSTANDARD LVCMOS25 } [get_ports { dacSdio[10] }];
-set_property -dict { PACKAGE_PIN B17  IOSTANDARD LVCMOS25 } [get_ports { dacSdio[11] }];
+set_property -dict { PACKAGE_PIN C15  IOSTANDARD LVCMOS25 } [get_ports { dacSdio[8] }];
+set_property -dict { PACKAGE_PIN A18  IOSTANDARD LVCMOS25 } [get_ports { dacSdio[9] }];
+set_property -dict { PACKAGE_PIN E18  IOSTANDARD LVCMOS25 } [get_ports { dacSdio[10] }];
+set_property -dict { PACKAGE_PIN J17  IOSTANDARD LVCMOS25 } [get_ports { dacSdio[11] }];
 
 set_property -dict { PACKAGE_PIN U21  IOSTANDARD LVCMOS25 } [get_ports { dacSdo[0] }];
 set_property -dict { PACKAGE_PIN W22  IOSTANDARD LVCMOS25 } [get_ports { dacSdo[1] }];
@@ -113,10 +124,10 @@ set_property -dict { PACKAGE_PIN Y19  IOSTANDARD LVCMOS25 } [get_ports { dacSdo[
 set_property -dict { PACKAGE_PIN AB16 IOSTANDARD LVCMOS25 } [get_ports { dacSdo[5] }];
 set_property -dict { PACKAGE_PIN V17  IOSTANDARD LVCMOS25 } [get_ports { dacSdo[6] }];
 set_property -dict { PACKAGE_PIN Y14  IOSTANDARD LVCMOS25 } [get_ports { dacSdo[7] }];
-set_property -dict { PACKAGE_PIN G16  IOSTANDARD LVCMOS25 } [get_ports { dacSdo[8] }];
-set_property -dict { PACKAGE_PIN A14  IOSTANDARD LVCMOS25 } [get_ports { dacSdo[9] }];
-set_property -dict { PACKAGE_PIN C15  IOSTANDARD LVCMOS25 } [get_ports { dacSdo[10] }];
-set_property -dict { PACKAGE_PIN A18  IOSTANDARD LVCMOS25 } [get_ports { dacSdo[11] }];
+set_property -dict { PACKAGE_PIN B16  IOSTANDARD LVCMOS25 } [get_ports { dacSdo[8] }];
+set_property -dict { PACKAGE_PIN D15  IOSTANDARD LVCMOS25 } [get_ports { dacSdo[9] }];
+set_property -dict { PACKAGE_PIN E16  IOSTANDARD LVCMOS25 } [get_ports { dacSdo[10] }];
+set_property -dict { PACKAGE_PIN F18  IOSTANDARD LVCMOS25 } [get_ports { dacSdo[11] }];
 
 set_property -dict { PACKAGE_PIN U22  IOSTANDARD LVCMOS25 } [get_ports { dacSclk[0] }];
 set_property -dict { PACKAGE_PIN U17  IOSTANDARD LVCMOS25 } [get_ports { dacSclk[1] }];
@@ -126,10 +137,10 @@ set_property -dict { PACKAGE_PIN W17  IOSTANDARD LVCMOS25 } [get_ports { dacSclk
 set_property -dict { PACKAGE_PIN AA16 IOSTANDARD LVCMOS25 } [get_ports { dacSclk[5] }];
 set_property -dict { PACKAGE_PIN R16  IOSTANDARD LVCMOS25 } [get_ports { dacSclk[6] }];
 set_property -dict { PACKAGE_PIN V15  IOSTANDARD LVCMOS25 } [get_ports { dacSclk[7] }];
-set_property -dict { PACKAGE_PIN C12  IOSTANDARD LVCMOS25 } [get_ports { dacSclk[8] }];
-set_property -dict { PACKAGE_PIN C13  IOSTANDARD LVCMOS25 } [get_ports { dacSclk[9] }];
-set_property -dict { PACKAGE_PIN B16  IOSTANDARD LVCMOS25 } [get_ports { dacSclk[10] }];
-set_property -dict { PACKAGE_PIN D15  IOSTANDARD LVCMOS25 } [get_ports { dacSclk[11] }];
+set_property -dict { PACKAGE_PIN A16  IOSTANDARD LVCMOS25 } [get_ports { dacSclk[8] }];
+set_property -dict { PACKAGE_PIN D16  IOSTANDARD LVCMOS25 } [get_ports { dacSclk[9] }];
+set_property -dict { PACKAGE_PIN D17  IOSTANDARD LVCMOS25 } [get_ports { dacSclk[10] }];
+set_property -dict { PACKAGE_PIN E19  IOSTANDARD LVCMOS25 } [get_ports { dacSclk[11] }];
 
 set_property -dict { PACKAGE_PIN V22  IOSTANDARD LVCMOS25 } [get_ports { dacResetB[0] }];
 set_property -dict { PACKAGE_PIN V18  IOSTANDARD LVCMOS25 } [get_ports { dacResetB[1] }];
@@ -139,10 +150,10 @@ set_property -dict { PACKAGE_PIN Y17  IOSTANDARD LVCMOS25 } [get_ports { dacRese
 set_property -dict { PACKAGE_PIN AB17 IOSTANDARD LVCMOS25 } [get_ports { dacResetB[5] }];
 set_property -dict { PACKAGE_PIN T16  IOSTANDARD LVCMOS25 } [get_ports { dacResetB[6] }];
 set_property -dict { PACKAGE_PIN W15  IOSTANDARD LVCMOS25 } [get_ports { dacResetB[7] }];
-set_property -dict { PACKAGE_PIN B12  IOSTANDARD LVCMOS25 } [get_ports { dacResetB[8] }];
-set_property -dict { PACKAGE_PIN B13  IOSTANDARD LVCMOS25 } [get_ports { dacResetB[9] }];
-set_property -dict { PACKAGE_PIN A16  IOSTANDARD LVCMOS25 } [get_ports { dacResetB[10] }];
-set_property -dict { PACKAGE_PIN D16  IOSTANDARD LVCMOS25 } [get_ports { dacResetB[11] }];
+set_property -dict { PACKAGE_PIN B15  IOSTANDARD LVCMOS25 } [get_ports { dacResetB[8] }];
+set_property -dict { PACKAGE_PIN C17  IOSTANDARD LVCMOS25 } [get_ports { dacResetB[9] }];
+set_property -dict { PACKAGE_PIN H17  IOSTANDARD LVCMOS25 } [get_ports { dacResetB[10] }];
+set_property -dict { PACKAGE_PIN D19  IOSTANDARD LVCMOS25 } [get_ports { dacResetB[11] }];
 
 set_property -dict { PACKAGE_PIN T18  IOSTANDARD LVCMOS25 } [get_ports { dacTriggerB[0] }];
 set_property -dict { PACKAGE_PIN T20  IOSTANDARD LVCMOS25 } [get_ports { dacTriggerB[1] }];
@@ -152,10 +163,10 @@ set_property -dict { PACKAGE_PIN AA18 IOSTANDARD LVCMOS25 } [get_ports { dacTrig
 set_property -dict { PACKAGE_PIN AA14 IOSTANDARD LVCMOS25 } [get_ports { dacTriggerB[5] }];
 set_property -dict { PACKAGE_PIN W16  IOSTANDARD LVCMOS25 } [get_ports { dacTriggerB[6] }];
 set_property -dict { PACKAGE_PIN T15  IOSTANDARD LVCMOS25 } [get_ports { dacTriggerB[7] }];
-set_property -dict { PACKAGE_PIN F15  IOSTANDARD LVCMOS25 } [get_ports { dacTriggerB[8] }];
-set_property -dict { PACKAGE_PIN E14  IOSTANDARD LVCMOS25 } [get_ports { dacTriggerB[9] }];
-set_property -dict { PACKAGE_PIN B15  IOSTANDARD LVCMOS25 } [get_ports { dacTriggerB[10] }];
-set_property -dict { PACKAGE_PIN C17  IOSTANDARD LVCMOS25 } [get_ports { dacTriggerB[11] }];
+set_property -dict { PACKAGE_PIN A15  IOSTANDARD LVCMOS25 } [get_ports { dacTriggerB[8] }];
+set_property -dict { PACKAGE_PIN C18  IOSTANDARD LVCMOS25 } [get_ports { dacTriggerB[9] }];
+set_property -dict { PACKAGE_PIN G17  IOSTANDARD LVCMOS25 } [get_ports { dacTriggerB[10] }];
+set_property -dict { PACKAGE_PIN D20  IOSTANDARD LVCMOS25 } [get_ports { dacTriggerB[11] }];
 
 set_property -dict { PACKAGE_PIN D10  IOSTANDARD LVDS_25 } [get_ports { dacClkP[0] }];
 set_property -dict { PACKAGE_PIN C10  IOSTANDARD LVDS_25 } [get_ports { dacClkN[0] }];
@@ -202,6 +213,17 @@ set_property -dict { PACKAGE_PIN H20 IOSTANDARD LVCMOS33 } [get_ports { promSda 
 # Power Monitoring
 set_property -dict { PACKAGE_PIN E22 IOSTANDARD LVCMOS33 } [get_ports { pwrScl }];
 set_property -dict { PACKAGE_PIN H22 IOSTANDARD LVCMOS33 } [get_ports { pwrSda }];
+
+## Thermistors
+set_property -dict { PACKAGE_PIN G15 IOSTANDARD LVCMOS25 } [get_ports { vAuxP[0] }];
+set_property -dict { PACKAGE_PIN C12 IOSTANDARD LVCMOS25 } [get_ports { vAuxP[1] }];
+set_property -dict { PACKAGE_PIN F15 IOSTANDARD LVCMOS25 } [get_ports { vAuxP[2] }];
+set_property -dict { PACKAGE_PIN A13 IOSTANDARD LVCMOS25 } [get_ports { vAuxP[3] }];
+set_property -dict { PACKAGE_PIN G16 IOSTANDARD LVCMOS25 } [get_ports { vAuxN[0] }];
+set_property -dict { PACKAGE_PIN B12 IOSTANDARD LVCMOS25 } [get_ports { vAuxN[1] }];
+set_property -dict { PACKAGE_PIN F16 IOSTANDARD LVCMOS25 } [get_ports { vAuxN[2] }];
+set_property -dict { PACKAGE_PIN A14 IOSTANDARD LVCMOS25 } [get_ports { vAuxN[3] }];
+
 
 
 
