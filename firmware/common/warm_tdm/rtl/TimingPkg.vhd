@@ -37,13 +37,13 @@ package TimingPkg is
    constant ROW_STROBE_C : slv(7 downto 0) := "00111110";  -- K28.3
 
    type LocalTimingType is record
-      startRun  : sl;
-      endRun    : sl;
-      running   : sl;
-      runTime   : slv(63 downto 0);
-      rowStrobe : sl;
-      rowNum    : slv(5 downto 0);
-      rowTime   : slv(6 downto 0);
+      startRun  : sl;                   -- Strobed at start of run
+      endRun    : sl;                   -- Strobed at end of run
+      running   : sl;                   -- Set high during run
+      runTime   : slv(63 downto 0);     -- TimingClk counts since start of run
+      rowStrobe : sl;                   -- Moving to new row
+      rowNum    : slv(5 downto 0);      -- Current row number
+      rowTime   : slv(6 downto 0);      -- timingClk counts since last row strobe
    end record LocalTimingType;
 
    constant LOCAL_TIMING_INIT_C : LocalTimingType := (
