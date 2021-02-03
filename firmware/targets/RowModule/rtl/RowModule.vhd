@@ -237,7 +237,7 @@ begin
          SIM_PGP_PORT_NUM_G => SIM_PGP_PORT_NUM_G,
          SIM_ETH_PORT_NUM_G => SIM_ETH_PORT_NUM_G,
          RING_ADDR_0_G      => RING_ADDR_0_G,
-         AXIL_BASE_ADDR_G   => DAC_XBAR_CFG_C(AXIL_COM_C).baseAddr,
+         AXIL_BASE_ADDR_G   => AXIL_XBAR_CFG_C(AXIL_COM_C).baseAddr,
          ETH_10G_G          => ETH_10G_G,
          DHCP_G             => DHCP_G,
          IP_ADDR_G          => IP_ADDR_G)
