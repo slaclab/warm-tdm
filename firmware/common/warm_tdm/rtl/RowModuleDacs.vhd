@@ -26,7 +26,7 @@ use surf.StdRtlPkg.all;
 use surf.AxiLitePkg.all;
 
 library warm_tdm;
-use warm_tdm.TimingRxPkg.all;
+use warm_tdm.TimingPkg.all;
 
 entity RowModuleDacs is
 
