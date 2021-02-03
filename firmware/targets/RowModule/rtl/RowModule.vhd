@@ -177,13 +177,6 @@ architecture rtl of RowModule is
    signal timingRst125 : sl;
    signal timingData   : LocalTimingType;
 
-   -- DAC SPI AXIL
-   constant DAC_XBAR_CFG_C : AxiLiteCrossbarMasterConfigArray(11 downto 0) := genAxiLiteConfig(12, AXIL_XBAR_CFG_C(AXIL_DACS_C).baseAddr, 24, 20);
-
-   signal dacAxilWriteMasters : AxiLiteWriteMasterArray(11 downto 0);
-   signal dacAxilWriteSlaves  : AxiLiteWriteSlaveArray(11 downto 0);
-   signal dacAxilReadMasters  : AxiLiteReadMasterArray(11 downto 0);
-   signal dacAxilReadSlaves   : AxiLiteReadSlaveArray(11 downto 0);
 
    -- Debug streams
    signal dataTxAxisMaster : AxiStreamMasterType;
@@ -323,63 +316,28 @@ begin
          vAuxN           => vAuxN);                              -- [in]
 
 
-
-   -------------------------------------------------------------------------------------------------
-   -- DAC Config Crossbar
-   -------------------------------------------------------------------------------------------------
-   U_AxiLiteCrossbar_DACs : entity surf.AxiLiteCrossbar
+   U_RowModuleDacs_1: entity warm_tdm.RowModuleDacs
       generic map (
-         TPD_G              => TPD_G,
-         NUM_SLAVE_SLOTS_G  => 1,
-         NUM_MASTER_SLOTS_G => 12,
-         MASTERS_CONFIG_G   => DAC_XBAR_CFG_C,
-         DEBUG_G            => false)
+         TPD_G            => TPD_G,
+         AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_DACS_C).baseAddr)
       port map (
-         axiClk              => axilClk,                           -- [in]
-         axiClkRst           => axilRst,                           -- [in]
-         sAxiWriteMasters(0) => locAxilWriteMasters(AXIL_DACS_C),  -- [in]
-         sAxiWriteSlaves(0)  => locAxilWriteSlaves(AXIL_DACS_C),   -- [out]
-         sAxiReadMasters(0)  => locAxilReadMasters(AXIL_DACS_C),   -- [in]
-         sAxiReadSlaves(0)   => locAxilReadSlaves(AXIL_DACS_C),    -- [out]
-         mAxiWriteMasters    => dacAxilWriteMasters,               -- [out]
-         mAxiWriteSlaves     => dacAxilWriteSlaves,                -- [in]
-         mAxiReadMasters     => dacAxilReadMasters,                -- [out]
-         mAxiReadSlaves      => dacAxilReadSlaves);                -- [in]
-
-   -- DAC Config interfaces
-   DAC_SPI_GEN : for i in 11 downto 0 generate
-      U_AxiSpiMaster_1 : entity surf.AxiSpiMaster
-         generic map (
-            TPD_G             => TPD_G,
-            ADDRESS_SIZE_G    => 16,
-            DATA_SIZE_G       => 16,
-            MODE_G            => "RW",
-            SHADOW_EN_G       => false,
-            CPHA_G            => '1',
-            CPOL_G            => '1',
-            CLK_PERIOD_G      => 156.25E+6,
-            SPI_SCLK_PERIOD_G => 100.0E-6,
-            SPI_NUM_CHIPS_G   => 1)
-         port map (
-            axiClk         => axilClk,                 -- [in]
-            axiRst         => axilRst,                 -- [in]
-            axiReadMaster  => dacAxilReadMasters(i),   -- [in]
-            axiReadSlave   => dacAxilReadSlaves(i),    -- [out]
-            axiWriteMaster => dacAxilWriteMasters(i),  -- [in]
-            axiWriteSlave  => dacAxilWriteSlaves(i),   -- [out]
-            coreSclk       => dacSclk(i),              -- [out]
-            coreSDin       => dacSdo(i),               -- [in]
-            coreSDout      => dacSdio(i),              -- [out]
-            coreMCsb(0)    => dacCsB(i));              -- [out]
-
-      U_ClkOutBufDiff_1 : entity surf.ClkOutBufDiff
-         generic map (
-            TPD_G => TPD_G)
-         port map (
-            clkIn   => timingData.rowStrobe,  -- [in]
-            clkOutP => dacClkP(i),            -- [out]
-            clkOutN => dacClkN(i));           -- [out]
-   end generate DAC_SPI_GEN;
+         axilClk         => axilClk,          -- [in]
+         axilRst         => axilRst,          -- [in]
+         axilWriteMaster => locAxilWriteMasters(AXIL_DACS_C),  -- [in]
+         axilWriteSlave  => locAxilWriteSlaves(AXIL_DACS_C),   -- [out]
+         axilReadMaster  => locAxilReadMasters(AXIL_DACS_C),   -- [in]
+         axilReadSlave   => locAxilReadSlaves(AXIL_DACS_C),    -- [out]
+         timingClk125    => timingClk125,     -- [in]
+         timingRst125    => timingRst125,     -- [in]
+         timingData      => timingData,       -- [in]
+         dacCsB          => dacCsB,           -- [out]
+         dacSdio         => dacSdio,          -- [out]
+         dacSdo          => dacSdo,           -- [in]
+         dacSclk         => dacSclk,          -- [out]
+         dacResetB       => dacResetB,        -- [out]
+         dacTriggerB     => dacTriggerB,      -- [out]
+         dacClkP         => dacClkP,          -- [out]
+         dacClkN         => dacClkN);         -- [out]
 
 
 
