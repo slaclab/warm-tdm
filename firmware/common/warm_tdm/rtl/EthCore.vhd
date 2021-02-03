@@ -1,4 +1,4 @@
--------------------------------------------------------------------------------
+------------------------------------------------------------------------------
 -- Title      :  EthCore
 -------------------------------------------------------------------------------
 -- Company    : SLAC National Accelerator Laboratory
@@ -162,6 +162,12 @@ architecture rtl of EthCore is
    signal rssiIbSlaves  : AxiStreamSlaveArray(RSSI_SIZE_C-1 downto 0);
    signal rssiObMasters : AxiStreamMasterArray(RSSI_SIZE_C-1 downto 0);
    signal rssiObSlaves  : AxiStreamSlaveArray(RSSI_SIZE_C-1 downto 0);
+
+   signal rogueIbMaster : AxiStreamMasterType := AXI_STREAM_MASTER_INIT_C;
+   signal rogueIbSlave  : AxiStreamSlaveType  := AXI_STREAM_SLAVE_INIT_C;
+   signal rogueObMaster : AxiStreamMasterType := AXI_STREAM_MASTER_INIT_C;
+   signal rogueObSlave  : AxiStreamSlaveType  := AXI_STREAM_SLAVE_INIT_C;
+
 
    signal locAxilReadMasters  : AxiLiteReadMasterArray(AXIL_NUM_C-1 downto 0);
    signal locAxilReadSlaves   : AxiLiteReadSlaveArray(AXIL_NUM_C-1 downto 0)  := (others => AXI_LITE_READ_SLAVE_EMPTY_DECERR_C);
@@ -454,22 +460,50 @@ begin
    end generate REAL_ETH_GEN;
 
    SIM_GEN : if (SIMULATION_G) generate
-      DESTS : for i in 1 downto 0 generate
-         U_RogueTcpStreamWrap_1 : entity surf.RogueTcpStreamWrap
-            generic map (
-               TPD_G         => TPD_G,
-               PORT_NUM_G    => SIM_PORT_NUM_G + i*2,
-               SSI_EN_G      => true,
-               CHAN_COUNT_G  => 1,
-               AXIS_CONFIG_G => AXIS_CONFIG_C)
-            port map (
-               axisClk     => ethClk,            -- [in]
-               axisRst     => ethRst,            -- [in]
-               sAxisMaster => rssiIbMasters(i),  -- [in]
-               sAxisSlave  => rssiIbSlaves(i),   -- [out]
-               mAxisMaster => rssiObMasters(i),  -- [out]
-               mAxisSlave  => rssiObSlaves(i));  -- [in]
-      end generate;
+      U_RogueTcpStreamWrap_1 : entity surf.RogueTcpStreamWrap
+         generic map (
+            TPD_G         => TPD_G,
+            PORT_NUM_G    => SIM_PORT_NUM_G,
+            SSI_EN_G      => true,
+            CHAN_COUNT_G  => 256,          -- Could maybe be 64?
+            AXIS_CONFIG_G => AXIS_CONFIG_C)
+         port map (
+            axisClk     => ethClk,         -- [in]
+            axisRst     => ethRst,         -- [in]
+            sAxisMaster => rogueIbMaster,  -- [in]
+            sAxisSlave  => rogueIbSlave,   -- [out]
+            mAxisMaster => rogueObMaster,  -- [out]
+            mAxisSlave  => rogueObSlave);  -- [in]
+
+      U_AxiStreamDeMux_1 : entity surf.AxiStreamDeMux
+         generic map (
+            TPD_G          => TPD_G,
+            NUM_MASTERS_G  => RSSI_ROUTES_C'length,
+            MODE_G         => "ROUTED",
+            TDEST_ROUTES_G => RSSI_ROUTES_C)
+         port map (
+            axisClk      => ethClk,         -- [in]
+            axisRst      => ethRst,         -- [in]
+            sAxisMaster  => rogueObMaster,  -- [in]
+            sAxisSlave   => rogueObSlave,   -- [out]
+            mAxisMasters => rssiObMasters,  -- [out]
+            mAxisSlaves  => rssiObSlaves);  -- [in]
+
+      U_AxiStreamMux_1 : entity surf.AxiStreamMux
+         generic map (
+            TPD_G          => TPD_G,
+            NUM_SLAVES_G   => RSSI_ROUTES_C'length,
+            MODE_G         => "ROUTED",
+            TDEST_ROUTES_G => RSSI_ROUTES_C,
+            ILEAVE_EN_G    => false)
+         port map (
+            axisClk      => ethClk,         -- [in]
+            axisRst      => ethRst,         -- [in]
+            sAxisMasters => rssiIbMasters,  -- [in]
+            sAxisSlaves  => rssiIbSlaves,   -- [out]
+            mAxisMaster  => rogueIbMaster,  -- [out]
+            mAxisSlave   => rogueIbSlave);  -- [in]
+
    end generate SIM_GEN;
 
    ---------------------------------------
