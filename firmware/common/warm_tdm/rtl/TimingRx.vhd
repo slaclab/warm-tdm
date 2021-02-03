@@ -75,12 +75,13 @@ architecture rtl of TimingRx is
 
    signal slip : sl;
 
-   signal dlyLoad     : sl;
-   signal dlyCfg      : slv(8 downto 0);
-   signal enUsrDlyCfg : sl;
-   signal usrDlyCfg   : slv(8 downto 0) := (others => '0');
-   signal errorDet    : sl;
-   signal locked      : sl;
+   signal dlyLoad        : sl;
+   signal dlyCfg         : slv(8 downto 0);
+   signal enUsrDlyCfg    : sl;
+   signal usrDlyCfg      : slv(8 downto 0) := (others => '0');
+   signal errorDet       : sl;
+   signal locked         : sl;
+   signal realignGearbox : sl;
 
    signal timingRxCodeWord : slv(9 downto 0);
    signal timingRxValid    : sl;
@@ -113,6 +114,7 @@ architecture rtl of TimingRx is
    -- AXI Lite
    -------------------------------------------------------------------------------------------------
    type AxilRegType is record
+      realignGearbox : sl;
       delay          : slv(4 downto 0);
       set            : sl;
       lockedCountRst : sl;
@@ -124,6 +126,7 @@ architecture rtl of TimingRx is
    end record AxilRegType;
 
    constant AXIL_REG_INIT_C : AxilRegType := (
+      realignGearbox => '0',
       delay          => toSlv(DEFAULT_DELAY_G, 5),
       set            => '0',
       lockedCountRst => '0',
@@ -285,7 +288,7 @@ begin
          lineCodeValid   => timingRxValid,    -- [in]
          lineCodeErr     => codeErr,          -- [in]
          lineCodeDispErr => dispErr,          -- [in]
-         linkOutOfSync   => '0',              -- [in]
+         linkOutOfSync   => realignGearbox,   -- [in]
          rxHeaderValid   => '0',              -- [in]
          rxHeader        => (others => '0'),  -- [in]
          bitSlip         => slip,             -- [out]
@@ -308,6 +311,17 @@ begin
          rst     => wordRst,
          dataIn  => axilR.set,
          dataOut => enUsrDlyCfg);
+
+   Synchronizer_2 : entity surf.Synchronizer
+      generic map (
+         TPD_G    => TPD_G,
+         STAGES_G => 3)
+      port map (
+         clk     => wordClk,
+         rst     => wordRst,
+         dataIn  => axilR.realignGearbox,
+         dataOut => realignGearbox);
+
 
    U_SynchronizerVector_1 : entity surf.SynchronizerVector
       generic map (
@@ -369,7 +383,7 @@ begin
          rdRst      => axilRst);
 
 
-   Synchronizer_2 : entity surf.Synchronizer
+   Synchronizer_3 : entity surf.Synchronizer
       generic map (
          TPD_G    => TPD_G,
          STAGES_G => 2)
@@ -483,7 +497,9 @@ begin
       -- dataDelaySet(ch) or frameDelaySet enables the primative write
       axiSlaveRegister(axilEp, X"00", 0, v.delay);
       axiSlaveRegister(axilEp, X"00", 5, v.set, '1');
-      axiSlaveRegisterR(axilEp, X"00", 0, curDelay);
+      axiSlaveRegisterR(axilEp, X"00", 8, curDelay);
+
+      axiSlaveRegister(axilEp, X"04", 0, v.realignGearbox);
 
       -- Debug output to see how many times the shift has needed a relock
       axiSlaveRegisterR(axilEp, X"10", 0, lockedFallCount);
