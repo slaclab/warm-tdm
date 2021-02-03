@@ -78,11 +78,11 @@ architecture rtl of WarmTdmCommon is
          addrBits     => 12,
          connectivity => X"FFFF"),
       AXIL_XADC_C     => (
-         baseAddr     => AXIL_BASE_ADDR_G + X"0001000",
+         baseAddr     => AXIL_BASE_ADDR_G + X"00001000",
          addrBits     => 12,
          connectivity => X"FFFF"),
       AXIL_BOOT_C     => (
-         baseAddr     => AXIL_BASE_ADDR_G + X"0002000",
+         baseAddr     => AXIL_BASE_ADDR_G + X"00002000",
          addrBits     => 12,
          connectivity => X"FFFF"),
       AXIL_PWR_C      => (
