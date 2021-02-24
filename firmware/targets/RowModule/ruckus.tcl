@@ -22,6 +22,6 @@ loadRuckusTcl $::env(TOP_DIR)/common/warm_tdm
 
 # Load target's source code and constraints
 loadSource      -lib warm_tdm -dir  "$::DIR_PATH/rtl/"
-#loadSource      -lib warm_tdm -sim_only -dir "$::DIR_PATH/sim/"
+loadSource      -lib warm_tdm -sim_only -dir "$::DIR_PATH/sim/"
 loadConstraints -dir  "$::DIR_PATH/xdc/"
 
