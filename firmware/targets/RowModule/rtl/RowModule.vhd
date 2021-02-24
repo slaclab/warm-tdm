@@ -143,11 +143,11 @@ architecture rtl of RowModule is
          addrBits      => 16,
          connectivity  => X"FFFF"),
       AXIL_PRBS_RX_C   => (
-         baseAddr      => X"00100000",
+         baseAddr      => X"00200000",
          addrBits      => 12,
          connectivity  => X"FFFF"),
       AXIL_PRBS_TX_C   => (
-         baseAddr      => X"00101000",
+         baseAddr      => X"00201000",
          addrBits      => 8,
          connectivity  => X"FFFF"),
       AXIL_DACS_C      => (
