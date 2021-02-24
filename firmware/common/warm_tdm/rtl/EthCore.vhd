@@ -34,6 +34,7 @@ use unisim.vcomponents.all;
 entity EthCore is
    generic (
       TPD_G            : time             := 1 ns;
+      RING_ADDR_0_G    : boolean          := false;
       ETH_10G_G        : boolean          := false;
       SIMULATION_G     : boolean          := false;
       SIM_PORT_NUM_G   : integer          := 9000;
@@ -86,8 +87,8 @@ architecture rtl of EthCore is
    constant SERVER_PORTS_C : PositiveArray(0 downto 0) := (0 => 8192);
 
    constant RSSI_SIZE_C        : positive                                     := 8;
-   constant AXIS_CONFIG_C      : AxiStreamConfigType                          := ssiAxiStreamConfig(8);
-   constant RSSI_AXIS_CONFIG_C : AxiStreamConfigArray(RSSI_SIZE_C-1 downto 0) := (others => AXIS_CONFIG_C);
+   constant AXIS_CONFIG_C      : AxiStreamConfigType                          := ssiAxiStreamConfig(dataBytes => 8, tDestBits => 8);
+   constant RSSI_AXIS_CONFIG_C : AxiStreamConfigArray(RSSI_SIZE_C-1 downto 0) := (others                      => AXIS_CONFIG_C);
 
    constant DEST_SRP_C        : integer := 0;
    constant DEST_DATA_C       : integer := 1;
@@ -459,13 +460,24 @@ begin
 
    end generate REAL_ETH_GEN;
 
-   SIM_GEN : if (SIMULATION_G) generate
+   SIM_GEN : if (SIMULATION_G and RING_ADDR_0_G) generate
+      ethClk <= refClkG;
+
+      PwrUpRst_Inst : entity surf.PwrUpRst
+         generic map (
+            TPD_G         => TPD_G,
+            SIM_SPEEDUP_G => true)
+         port map (
+            arst   => extRst,
+            clk    => ethClk,
+            rstOut => ethRst);
+
       U_RogueTcpStreamWrap_1 : entity surf.RogueTcpStreamWrap
          generic map (
             TPD_G         => TPD_G,
             PORT_NUM_G    => SIM_PORT_NUM_G,
             SSI_EN_G      => true,
-            CHAN_COUNT_G  => 256,          -- Could maybe be 64?
+            CHAN_MASK_G   => "00110011",
             AXIS_CONFIG_G => AXIS_CONFIG_C)
          port map (
             axisClk     => ethClk,         -- [in]

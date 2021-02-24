@@ -78,6 +78,8 @@ end entity PgpCore;
 
 architecture rtl of PgpCore is
 
+   constant AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 8, tDestBits => 8);
+
    signal address : slv(2 downto 0) := "111";
 
    constant GTX_CFG_C : Gtx7CPllCfgType := getGtx7CPllCfg(312.5E6, 3.125E9);
@@ -94,6 +96,8 @@ architecture rtl of PgpCore is
    signal pgpRxMasters : AxiStreamMasterArray(3 downto 0) := (others => axiStreamMasterInit(SSI_PGP2B_CONFIG_C));
    signal pgpRxSlaves  : AxiStreamSlaveArray(3 downto 0)  := (others => AXI_STREAM_SLAVE_INIT_C);
    signal pgpRxCtrl    : AxiStreamCtrlArray(3 downto 0)   := (others => AXI_STREAM_CTRL_UNUSED_C);
+   signal toggle       : sl;
+   signal locData      : slv(7 downto 0);
 
    signal fifoRxMasters : AxiStreamMasterArray(3 downto 0) := (others => axiStreamMasterInit(PACKETIZER2_AXIS_CFG_C));
    signal fifoRxSlaves  : AxiStreamSlaveArray(3 downto 0)  := (others => AXI_STREAM_SLAVE_INIT_C);
@@ -148,8 +152,6 @@ architecture rtl of PgpCore is
 begin
 
    REAL_PGP_GEN : if (not SIMULATION_G) generate
-
-
       U_Pgp2bGtx7VarLatWrapper_1 : entity surf.Pgp2bGtx7VarLatWrapper
          generic map (
             TPD_G              => TPD_G,
@@ -193,7 +195,7 @@ begin
 --             gtClkP          => pgpRefClkP,                       -- [in]
 --             gtClkN          => pgpRefClkN,                       -- [in]
             gtRefClk        => gtRefClk,                         -- [in]
-            gtRefClkG       => gtRefClkG,                        -- [in]
+            gtRefClkBufg    => gtRefClkG,                        -- [in]
             gtTxP           => pgpTxP,                           -- [out]
             gtTxN           => pgpTxN,                           -- [out]
             gtRxP           => pgpRxP,                           -- [in]
@@ -207,54 +209,90 @@ begin
             axilReadSlave   => locAxilReadSlaves(AXIL_GTX_C),    -- [out]
             axilWriteMaster => locAxilWriteMasters(AXIL_GTX_C),  -- [in]
             axilWriteSlave  => locAxilWriteSlaves(AXIL_GTX_C));  -- [out]
-
-      U_Pgp2bAxi_1 : entity surf.Pgp2bAxi
-         generic map (
-            TPD_G           => TPD_G,
-            COMMON_TX_CLK_G => true,
-            COMMON_RX_CLK_G => true,
-            WRITE_EN_G      => false,
-            AXI_CLK_FREQ_G  => 156.26E6)
-         port map (
-            pgpTxClk        => pgpClk,                           -- [in]
-            pgpTxClkRst     => pgpRst,                           -- [in]
-            pgpTxIn         => pgpTxIn,                          -- [out]
-            pgpTxOut        => pgpTxOut,                         -- [in]
-            locTxIn         => locPgpTxIn,                       -- [in]
-            pgpRxClk        => pgpClk,                           -- [in]
-            pgpRxClkRst     => pgpRst,                           -- [in]
-            pgpRxIn         => pgpRxIn,                          -- [out]
-            pgpRxOut        => pgpRxOut,                         -- [in]
---         locRxIn         => locRxIn,          -- [in]
---          statusWord      => statusWord,       -- [out]
---          statusSend      => statusSend,       -- [out]
-            axilClk         => pgpClk,                           -- [in]
-            axilRst         => pgpRst,                           -- [in]
-            axilReadMaster  => locAxilReadMasters(AXIL_PGP_C),   -- [in]
-            axilReadSlave   => locAxilReadSlaves(AXIL_PGP_C),    -- [out]
-            axilWriteMaster => locAxilWriteMasters(AXIL_PGP_C),  -- [in]
-            axilWriteSlave  => locAxilWriteSlaves(AXIL_PGP_C));  -- [out]
-
    end generate REAL_PGP_GEN;
 
    SIM_GEN : if (SIMULATION_G) generate
-      DESTS : for i in 1 downto 0 generate
-         U_RogueTcpStreamWrap_1 : entity surf.RogueTcpStreamWrap
-            generic map (
-               TPD_G         => TPD_G,
-               PORT_NUM_G    => SIM_PORT_NUM_G + i*2,
-               SSI_EN_G      => true,
-               CHAN_COUNT_G  => 1,
-               AXIS_CONFIG_G => PACKETIZER2_AXIS_CFG_C)
-            port map (
-               axisClk     => pgpClk,           -- [in]
-               axisRst     => pgpRst,           -- [in]
-               sAxisMaster => pgpTxMasters(i),  -- [in]
-               sAxisSlave  => pgpTxSlaves(i),   -- [out]
-               mAxisMaster => pgpRxMasters(i),  -- [out]
-               mAxisSlave  => pgpRxSlaves(i));  -- [in]
-      end generate;
+      ClockManager7_Inst : entity surf.ClockManager7
+         generic map(
+            TPD_G              => TPD_G,
+            TYPE_G             => "MMCM",
+            INPUT_BUFG_G       => false,
+            FB_BUFG_G          => true,
+            RST_IN_POLARITY_G  => '1',
+            NUM_CLOCKS_G       => 1,
+            -- MMCM attributes
+            BANDWIDTH_G        => "OPTIMIZED",
+            CLKIN_PERIOD_G     => 6.4,
+            DIVCLK_DIVIDE_G    => 1,
+            CLKFBOUT_MULT_F_G  => 6.375,
+            CLKOUT0_DIVIDE_F_G => 6.375)
+         port map(
+            clkIn     => gtRefClkG,
+            rstIn     => '0',
+            clkOut(0) => pgpClk,
+            rstOut(0) => pgpRst);
+
+      U_ClockDivider_1 : entity surf.ClockDivider
+         generic map (
+            TPD_G         => TPD_G,
+            COUNT_WIDTH_G => 8)
+         port map (
+            clk        => pgpClk,           -- [in]
+            rst        => pgpRst,           -- [in]
+            highCount  => (others => '1'),  -- [in]
+            lowCount   => (others => '1'),  -- [in]
+            delayCount => (others => '0'),  -- [in]
+            divClk     => toggle,           -- [out]
+            preRise    => open,             -- [out]
+            preFall    => open);            -- [out]
+
+      U_RoguePgp2bSim_1 : entity surf.RoguePgp2bSim
+         generic map (
+            TPD_G         => TPD_G,
+            PORT_NUM_G    => SIM_PORT_NUM_G,
+            NUM_VC_G      => 4,
+            EN_SIDEBAND_G => true)
+         port map (
+            pgpClk       => pgpClk,        -- [in]
+            pgpClkRst    => pgpRst,        -- [in]
+            pgpRxIn      => pgpRxIn,       -- [in]
+            pgpRxOut     => pgpRxOut,      -- [out]
+            pgpTxIn      => pgpTxIn,       -- [in]
+            pgpTxOut     => pgpTxOut,      -- [out]
+            pgpTxMasters => pgpTxMasters,  -- [in]
+            pgpTxSlaves  => pgpTxSlaves,   -- [out]
+            pgpRxMasters => pgpRxMasters,  -- [out]
+            pgpRxSlaves  => pgpRxSlaves);  -- [in]
+
    end generate SIM_GEN;
+
+   U_Pgp2bAxi_1 : entity surf.Pgp2bAxi
+      generic map (
+         TPD_G           => TPD_G,
+         COMMON_TX_CLK_G => true,
+         COMMON_RX_CLK_G => true,
+         WRITE_EN_G      => false,
+         AXI_CLK_FREQ_G  => 156.26E6)
+      port map (
+         pgpTxClk        => pgpClk,                           -- [in]
+         pgpTxClkRst     => pgpRst,                           -- [in]
+         pgpTxIn         => pgpTxIn,                          -- [out]
+         pgpTxOut        => pgpTxOut,                         -- [in]
+         locTxIn         => locPgpTxIn,                       -- [in]
+         pgpRxClk        => pgpClk,                           -- [in]
+         pgpRxClkRst     => pgpRst,                           -- [in]
+         pgpRxIn         => pgpRxIn,                          -- [out]
+         pgpRxOut        => pgpRxOut,                         -- [in]
+--         locRxIn         => locRxIn,          -- [in]
+--          statusWord      => statusWord,       -- [out]
+--          statusSend      => statusSend,       -- [out]
+         axilClk         => pgpClk,                           -- [in]
+         axilRst         => pgpRst,                           -- [in]
+         axilReadMaster  => locAxilReadMasters(AXIL_PGP_C),   -- [in]
+         axilReadSlave   => locAxilReadSlaves(AXIL_PGP_C),    -- [out]
+         axilWriteMaster => locAxilWriteMasters(AXIL_PGP_C),  -- [in]
+         axilWriteSlave  => locAxilWriteSlaves(AXIL_PGP_C));  -- [out]
+
 
    RING_ROUTER_GEN : for i in 3 downto 0 generate
       -- buffers
@@ -272,7 +310,7 @@ begin
             FIFO_ADDR_WIDTH_G   => 9,
             FIFO_PAUSE_THRESH_G => 256,
             PHY_AXI_CONFIG_G    => SSI_PGP2B_CONFIG_C,
-            APP_AXI_CONFIG_G    => PACKETIZER2_AXIS_CFG_C)
+            APP_AXI_CONFIG_G    => AXIS_CONFIG_C)
          port map (
             pgpClk      => pgpClk,              -- [in]
             pgpRst      => pgpRst,              -- [in]
@@ -285,8 +323,21 @@ begin
             axisMaster  => fifoRxMasters(i),    -- [out]
             axisSlave   => fifoRxSlaves(i));    -- [in]
 
-      address            <= ite(RING_ADDR_0_G, "000", pgpRxOut.remLinkData(2 downto 0) + 1);
+      address <= ite(RING_ADDR_0_G, "000", pgpRxOut.remLinkData(2 downto 0) + 1);
+
       locPgpTxIn.locData <= "00000" & address;
+--       U_SlvDelay_1 : entity surf.SlvDelay
+--          generic map (
+--             TPD_G        => TPD_G,
+--             SRL_EN_G     => false,
+--             DELAY_G      => 10,
+--             REG_OUTPUT_G => true,
+--             WIDTH_G      => 8)
+--          port map (
+--             clk  => pgpClk,               -- [in]
+--             rst  => pgpRst,               -- [in]
+--             din  => locData,              -- [in]
+--             dout => locPgpTxIn.locData);  -- [out]
 
       U_RingRouter_1 : entity warm_tdm.RingRouter
          generic map (
@@ -317,7 +368,7 @@ begin
             MEMORY_TYPE_G     => "block",
             GEN_SYNC_FIFO_G   => true,
             FIFO_ADDR_WIDTH_G => 9,
-            APP_AXI_CONFIG_G  => PACKETIZER2_AXIS_CFG_C,
+            APP_AXI_CONFIG_G  => AXIS_CONFIG_C,
             PHY_AXI_CONFIG_G  => SSI_PGP2B_CONFIG_C)
          port map (
             axisClk     => pgpClk,              -- [in]
@@ -344,8 +395,8 @@ begin
             NUM_MASTERS_G  => 2,
             MODE_G         => "ROUTED",
             TDEST_ROUTES_G => (
-               0           => "----0---",
-               1           => "----1---"),
+               0           => "0-------",
+               1           => "1-------"),
             PIPE_STAGES_G  => 1)
          port map (
             axisClk         => pgpClk,                    -- [in]
@@ -364,8 +415,8 @@ begin
             NUM_SLAVES_G         => 2,
             MODE_G               => "ROUTED",
             TDEST_ROUTES_G       => (
-               0                 => "----0---",
-               1                 => "----1---"),
+               0                 => "0-------",
+               1                 => "1-------"),
             ILEAVE_EN_G          => true,                 -- 
             ILEAVE_ON_NOTVALID_G => true,
             ILEAVE_REARB_G       => 31,                   -- Check this
@@ -399,7 +450,7 @@ begin
          SLAVE_READY_EN_G    => true,
          GEN_SYNC_FIFO_G     => true,
          AXIL_CLK_FREQ_G     => 156.25E6,
-         AXI_STREAM_CONFIG_G => PACKETIZER2_AXIS_CFG_C)
+         AXI_STREAM_CONFIG_G => AXIS_CONFIG_C)
       port map (
          sAxisClk         => pgpClk,                           -- [in]
          sAxisRst         => pgpRst,                           -- [in]
@@ -457,7 +508,7 @@ begin
          GEN_SYNC_FIFO_G           => true,
          SYNTH_MODE_G              => "inferred",
 --          MEMORY_TYPE_G             => MEMORY_TYPE_G,
-         SLAVE_AXI_STREAM_CONFIG_G => PACKETIZER2_AXIS_CFG_C,
+         SLAVE_AXI_STREAM_CONFIG_G => AXIS_CONFIG_C,
          SLAVE_AXI_PIPE_STAGES_G   => 1)
       port map (
          sAxisClk       => pgpClk,                               -- [in]
@@ -478,7 +529,7 @@ begin
 --          MEMORY_TYPE_G              => MEMORY_TYPE_G,
          GEN_SYNC_FIFO_G            => true,
          SYNTH_MODE_G               => "inferred",
-         MASTER_AXI_STREAM_CONFIG_G => PACKETIZER2_AXIS_CFG_C,
+         MASTER_AXI_STREAM_CONFIG_G => AXIS_CONFIG_C,
          MASTER_AXI_PIPE_STAGES_G   => 1)
       port map (
          mAxisClk        => pgpClk,                               -- [in]
@@ -515,8 +566,8 @@ begin
          FIFO_ADDR_WIDTH_G   => 9,
          FIFO_FIXED_THRESH_G => true,
 --         FIFO_PAUSE_THRESH_G => 2**12-32,
-         SLAVE_AXI_CONFIG_G  => PACKETIZER2_AXIS_CFG_C,
-         MASTER_AXI_CONFIG_G => PACKETIZER2_AXIS_CFG_C)
+         SLAVE_AXI_CONFIG_G  => AXIS_CONFIG_C,
+         MASTER_AXI_CONFIG_G => AXIS_CONFIG_C)
       port map (
          sAxisClk    => pgpClk,                                -- [in]
          sAxisRst    => pgpRst,                                -- [in]

@@ -200,10 +200,11 @@ begin
    U_EthCore_1 : entity warm_tdm.EthCore
       generic map (
          TPD_G            => TPD_G,
+         RING_ADDR_0_G    => RING_ADDR_0_G,
          ETH_10G_G        => ETH_10G_G,
          SIMULATION_G     => SIMULATION_G,
          SIM_PORT_NUM_G   => SIM_ETH_PORT_NUM_G,
-         AXIL_BASE_ADDR_G => AXIL_BASE_ADDR_G,
+         AXIL_BASE_ADDR_G => AXIL_BASE_ADDR_G + X"00100000",
          DHCP_G           => DHCP_G,
          IP_ADDR_G        => IP_ADDR_G)
       port map (
@@ -265,8 +266,8 @@ begin
          NUM_MASTER_SLOTS_G => 1,
          MASTERS_CONFIG_G   => (
             0               => (
-               baseAddr     => X"00000000",
-               addrBits     => 31,
+               baseAddr     => (others => '0'),
+               addrBits     => 32,
                connectivity => X"FFFF")),
          DEBUG_G            => false)
       port map (
