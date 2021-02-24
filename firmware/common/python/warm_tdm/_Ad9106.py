@@ -5,75 +5,75 @@ class Ad9106(pr.Device):
         super().__init__(**kwargs)
 
         # Register Offsets
-        SPICONFIG = 0x00
-        POWERCONFIG = 0x01
-        CLOCKCONFIG = 0x02
-        REFADJ = 0x03
-        DAC4AGAIN = 0x04
-        DAC3AGAIN = 0x05
-        DAC2AGAIN = 0x06
-        DAC1AGAIN = 0x07
-        DACxRANGE = 0x08
-        DAC4RSET = 0x09
-        DAC3RSET = 0x0A
-        DAC2RSET = 0x0B
-        DAC1RSET = 0x0C
-        CALCONFIG = 0x0D
-        COMPOFFSET = 0x0E
-        RAMUPDATE = 0x1D
-        PAT_STATUS = 0x1E
-        PAT_TYPE = 0x1F
-        PATTERN_DLY = 0x20
-        DAC4DOF = 0x22
-        DAC3DOF = 0x23
-        DAC2DOF = 0x24
-        DAC1DOF = 0x25
-        WAV4_3CONFIG = 0x26
-        WAV2_1CONFIG = 0x27
-        PAT_TIMEBASE = 0x28
-        PAT_PERIOD = 0x29
-        DAC4_3PATx = 0x2A
-        DAC2_1PATx = 0x2B
-        DOUT_START_DLY = 0x2C
-        DOUT_CONFIG = 0x2D
-        DAC4_CST = 0x2E
-        DAC3_CST = 0x2F
-        DAC2_CST = 0x30
-        DAC1_CST = 0x31
-        DAC4_DGAIN = 0x32
-        DAC3_DGAIN = 0x33
-        DAC2_DGAIN = 0x34
-        DAC1_DGAIN = 0x35
-        SAW4_3CONFIG = 0x36
-        SAW2_1CONFIG = 0x37
-        DDS_TW32 = 0x3E
-        DDS_TW1 = 0x3F
-        DDS4_PW = 0x40
-        DDS3_PW = 0x41
-        DDS2_PW = 0x42
-        DDS1_PW = 0x43
-        TRIG_TW_SEL = 0x44
-        DDSx_CONFIG = 0x45
-        TW_RAM_CONFIG = 0x47
-        START_DLY4 = 0x50
-        START_ADDR4 = 0x51
-        STOP_ADDR4 = 0x52
-        DDS_CYC4 = 0x53
-        START_DLY3 = 0x54
-        START_ADDR3 = 0x55
-        STOP_ADDR3 = 0x56
-        DDS_CYC3 = 0x57
-        START_DLY2 = 0x58
-        START_ADDR2 = 0x59
-        STOP_ADDR2 = 0x5A
-        DDS_CYC2 = 0x5B
-        START_DLY1 = 0x5C
-        START_ADDR1 = 0x5D
-        STOP_ADDR1 = 0x5E
-        DDS_CYC1 = 0x5F
-        CFG_ERROR = 0x60
+        SPICONFIG = 0x00 *4
+        POWERCONFIG = 0x01*4
+        CLOCKCONFIG = 0x02*4
+        REFADJ = 0x03*4
+        DAC4AGAIN = 0x04*4
+        DAC3AGAIN = 0x05*4
+        DAC2AGAIN = 0x06*4
+        DAC1AGAIN = 0x07*4
+        DACxRANGE = 0x08*4
+        DAC4RSET = 0x09*4
+        DAC3RSET = 0x0A*4
+        DAC2RSET = 0x0B*4
+        DAC1RSET = 0x0C*4
+        CALCONFIG = 0x0D*4
+        COMPOFFSET = 0x0E*4
+        RAMUPDATE = 0x1D*4
+        PAT_STATUS = 0x1E*4
+        PAT_TYPE = 0x1F*4
+        PATTERN_DLY = 0x20*4
+        DAC4DOF = 0x22*4
+        DAC3DOF = 0x23*4
+        DAC2DOF = 0x24*4
+        DAC1DOF = 0x25*4
+        WAV4_3CONFIG = 0x26*4
+        WAV2_1CONFIG = 0x27*4
+        PAT_TIMEBASE = 0x28*4
+        PAT_PERIOD = 0x29*4
+        DAC4_3PATx = 0x2A*4
+        DAC2_1PATx = 0x2B*4
+        DOUT_START_DLY = 0x2C*4
+        DOUT_CONFIG = 0x2D*4
+        DAC4_CST = 0x2E*4
+        DAC3_CST = 0x2F*4
+        DAC2_CST = 0x30*4
+        DAC1_CST = 0x31*4
+        DAC4_DGAIN = 0x32*4
+        DAC3_DGAIN = 0x33*4
+        DAC2_DGAIN = 0x34*4
+        DAC1_DGAIN = 0x35*4
+        SAW4_3CONFIG = 0x36*4
+        SAW2_1CONFIG = 0x37*4
+        DDS_TW32 = 0x3E*4
+        DDS_TW1 = 0x3F*4
+        DDS4_PW = 0x40*4
+        DDS3_PW = 0x41*4
+        DDS2_PW = 0x42*4
+        DDS1_PW = 0x43*4
+        TRIG_TW_SEL = 0x44*4
+        DDSx_CONFIG = 0x45*4
+        TW_RAM_CONFIG = 0x47*4
+        START_DLY4 = 0x50*4
+        START_ADDR4 = 0x51*4
+        STOP_ADDR4 = 0x52*4
+        DDS_CYC4 = 0x53*4
+        START_DLY3 = 0x54*4
+        START_ADDR3 = 0x55*4
+        STOP_ADDR3 = 0x56*4
+        DDS_CYC3 = 0x57*4
+        START_DLY2 = 0x58*4
+        START_ADDR2 = 0x59*4
+        STOP_ADDR2 = 0x5A*4
+        DDS_CYC2 = 0x5B*4
+        START_DLY1 = 0x5C*4
+        START_ADDR1 = 0x5D*4
+        STOP_ADDR1 = 0x5E*4
+        DDS_CYC1 = 0x5F*4
+        CFG_ERROR = 0x60*4
 
-        SRAM_DATA = 0x6000
+        SRAM_DATA = 0x6000*4
 
         # SPICONFIG
         self.add(pr.RemoteVariable(
@@ -101,8 +101,7 @@ class Ad9106(pr.Device):
 
         self.add(pr.RemoteCommand(
             name = 'RESET',
-            description = 'Executes software reset of SPI and controllers, reloads default register values, except for Register 0x00. '
-            mode = 'RW',
+            description = 'Executes software reset of SPI and controllers, reloads default register values, except for Register 0x00. ',
             offset = SPICONFIG,
             bitSize = 1,
             bitOffset = 13,
@@ -111,7 +110,7 @@ class Ad9106(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'DOUBLESPI',
-            description = '0 - SPI port has only one data line and can be used as a 3-wire or 4-wire interface. 1 - The SPI port has two data lines'
+            description = '0 - SPI port has only one data line and can be used as a 3-wire or 4-wire interface. 1 - The SPI port has two data lines',
             mode = 'RW',
             offset = SPICONFIG,
             bitSize = 1,
@@ -126,12 +125,12 @@ class Ad9106(pr.Device):
             bitOffset = 11,
             base = pr.UInt,
             enum = {
-                0: 'Single'
+                0: 'Single',
                 1: 'Two-time'}))
 
         self.add(pr.RemoteVariable(
             name = 'DOUT_EN',
-            description = 'Enable DOUT signal on SDO/SDI2/DOUT pin'
+            description = 'Enable DOUT signal on SDO/SDI2/DOUT pin',
             mode = 'RW',
             offset = SPICONFIG,
             bitSize = 1,
@@ -350,7 +349,7 @@ class Ad9106(pr.Device):
             mode = 'RW',
             offset = CLOCKCONFIG,
             bitSize = 1,
-            bitOffset = 2,
+            bitOffset = 1,
             base = pr.Bool))
 
         self.add(pr.RemoteVariable(
@@ -659,7 +658,6 @@ class Ad9106(pr.Device):
         self.add(pr.RemoteCommand(
             name = 'CAL_RESET',
             description = 'Pulse this bit high and low to reset the calibration results',
-            mode = 'RW',
             offset = CALCONFIG,
             bitSize = 1,
             bitOffset = 8,
@@ -733,7 +731,6 @@ class Ad9106(pr.Device):
         self.add(pr.RemoteCommand(
             name = 'START_CAL',
             description = 'Start a calibration cycle',
-            mode = 'RW',
             offset = COMPOFFSET,
             bitSize = 1,
             bitOffset = 0,
@@ -743,7 +740,6 @@ class Ad9106(pr.Device):
         self.add(pr.RemoteCommand(
             name = 'RAMUPDATE',
             description = 'Update all SPI settings with new configuration',
-            mode = 'RW',
             offset = RAMUPDATE,
             bitSize = 1,
             bitOffset = 0,
@@ -767,7 +763,7 @@ class Ad9106(pr.Device):
             offset = PAT_STATUS,
             bitSize = 1,
             bitOffset = 2,
-            base = pr.Boolean))
+            base = pr.Bool))
         
         self.add(pr.RemoteVariable(
             name = 'PATTERN',
@@ -884,7 +880,7 @@ class Ad9106(pr.Device):
             mode = 'RW',
             offset = WAV4_3CONFIG,
             bitSize = 2,
-            bitOffset = 12,
+            bitOffset = 4,
             base = pr.UInt,
             enum = {
                 0: 'Constant',
@@ -898,7 +894,7 @@ class Ad9106(pr.Device):
             mode = 'RW',
             offset = WAV4_3CONFIG,
             bitSize = 2,
-            bitOffset = 8,
+            bitOffset = 0,
             base = pr.UInt,
             enum = {
                 0: 'RAM',
@@ -941,7 +937,7 @@ class Ad9106(pr.Device):
             mode = 'RW',
             offset = WAV2_1CONFIG,
             bitSize = 2,
-            bitOffset = 12,
+            bitOffset = 4,
             base = pr.UInt,
             enum = {
                 0: 'Constant',
@@ -955,7 +951,7 @@ class Ad9106(pr.Device):
             mode = 'RW',
             offset = WAV2_1CONFIG,
             bitSize = 2,
-            bitOffset = 8,
+            bitOffset = 0,
             base = pr.UInt,
             enum = {
                 0: 'RAM',
@@ -997,7 +993,7 @@ class Ad9106(pr.Device):
             offset = WAV2_1CONFIG,
             bitSize = 1,
             bitOffset = 2,
-            base = pr.Boolean))
+            base = pr.Bool))
 
         # PAT_TIMEBASE
         self.add(pr.RemoteVariable(
@@ -1092,7 +1088,6 @@ class Ad9106(pr.Device):
             name = 'DOUT_START',
             description = 'Time between trigger low and DOUT signal high in number of DAC clock cycles. Minimum=3, Maximum=65535, Increment=1',
             mode = 'RW',
-            value = 0x1,            
             offset = DOUT_START_DLY,
             bitSize = 16,
             bitOffset = 0,
@@ -1662,7 +1657,6 @@ class Ad9106(pr.Device):
         self.add(pr.RemoteCommand(
             name = 'ERROR_CLEAR',
             description = 'Clears all errors',
-            mode = 'WO',
             offset = CFG_ERROR,
             bitSize = 1,
             bitOffset = 15,

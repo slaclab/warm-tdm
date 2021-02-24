@@ -14,15 +14,13 @@ class WarmTdmRoot(pyrogue.Root):
             self,
             hwEmu=False,
             sim=False,
-            simEthPort= 7000
             ethDebug=False,
             ip='192.168.2.10',
             
             stack = [
                 {'cls': warm_tdm.RowModule,
-                 'simPgpPort' : 8000},
-                {'cls': warm_tdm.RowModule,
-                 'simPgpPort' : 8100}]
+                 'simEthPort' : 10000 + (1000*i),
+                 'simPgpPort' : 7000 + (20 *i)} for i in range(4)],
 
             **kwargs):
 
@@ -34,42 +32,65 @@ class WarmTdmRoot(pyrogue.Root):
 
         pgpRing = []
 
+        ethPort = stack[0]['simEthPort']
+
         # Instantiate and link each board in the stack
         for index, board in enumerate(stack):
             # Create streams to each board
-            srpStream = rogue.interfaces.stream.TcpClient('localhost', simEthPort + (0x00 | index))
-            dataStream = rogue.interfaces.stream.TcpClient('localhost', simEthPort + (0x01 | index))
-            prbsStream = rogue.interfaces.stream.TcpClient('localhost', simEthPort + (0x02 | index))
-            loopbackStream = rogue.interfaces.stream.TcpClient('localhost', simEthPort + (0x03 | index))
+            srpStream = rogue.interfaces.stream.TcpClient('localhost', ethPort + (0x00 <<4 | index)*2)
+#            dataStream = rogue.interfaces.stream.TcpClient('localhost', ethPort + (0x01 <<4 | index)*2)
+#            prbsStream = rogue.interfaces.stream.TcpClient('localhost', ethPort + (0x02 <<4 | index)*2)
+#            loopbackStream = rogue.interfaces.stream.TcpClient('localhost', ethPort + (0x03 <<4 | index)*2)
 
-            addInterfaces(srpStream, dataStream, prbsStream, loopbackStream)
+            self.addInterface(srpStream)
+#             self.addInterface(dataStream)
+#             self.addInterface(prbsStream)
+#             self.addInterface(loopbackStream)
 
             # Create SRP and link to SRP stream
             srp = rogue.protocols.srp.SrpV3()
             srp == srpStream
 
             # Instantiate the board Device tree and link it to the SRP
-            board['cls'](name=f'Board[{index}]', memBase=srp)            
+            self.add(board['cls'](name=f'Board[{index}]', memBase=srp))
 
             # Link the data stream to the DataWriter
-            dataStream >> self.DataWriter.getChannel(index)
+#            dataStream >> self.DataWriter.getChannel(index)
 
             # PRBS modules
-            self.add(pyrogue.utilities.prbs.PrbsTx(name=f'PrbsTx[{index}]', stream=prbsStream))
-            self.add(pyrogue.utilities.prbs.PrbsRx(name=f'PrbsRx[{index}]', stream=prbsStream))
+#             self.add(pyrogue.utilities.prbs.PrbsTx(name=f'PrbsTx[{index}]', stream=prbsStream))
+#             self.add(pyrogue.utilities.prbs.PrbsRx(name=f'PrbsRx[{index}]', stream=prbsStream))
 
             # Loopback
-            self.add(pyrogue.utilities.prbs.PrbsTx(name=f'LoopbackTx[{index}]', stream=loopbackStream))
-            self.add(pyrogue.utilities.prbs.PrbsRx(name=f'LoopbackRx[{index}]', stream=loopbackStream))
+#            self.add(pyrogue.utilities.prbs.PrbsTx(name=f'LoopbackTx[{index}]', stream=loopbackStream))
+#            self.add(pyrogue.utilities.prbs.PrbsRx(name=f'LoopbackRx[{index}]', stream=loopbackStream))
 
             # Connect to simulated PGP ring
-            pgp = rogue.interfaces.stream.TcpClient('localhost', board['simPgpPort'])
-            pgpRing.append(pgp)
-            self.addInterface(pgp)
-
-            if index /= 0:
-                pgpRing[index-1] >> pgpRing[index]
-
-            if index == len(stack):
-                pgpRing[index] >> pgpRing[0]
+            pgp = pyrogue.interfaces.simulation.Pgp2bSim(vcCount=4, host='localhost', port=board['simPgpPort'])
             
+            pgpRing.append(pgp)
+            self.addInterface(pgp) # Should modify Pgp2bSim to stop the TcpClients on _stop
+
+        pgpRing[0].vc[0] >> pgpRing[1].vc[0] >> pgpRing[2].vc[0] >> pgpRing[3].vc[0] >> pgpRing[0].vc[0]
+        pgpRing[0].sb.setRecvCb(pgpRing[1].sb.send)
+        pgpRing[1].sb.setRecvCb(pgpRing[2].sb.send)
+        pgpRing[2].sb.setRecvCb(pgpRing[3].sb.send)
+        pgpRing[3].sb.setRecvCb(pgpRing[0].sb.send)
+        #pgpRing[0].sb.send(0, 0)
+            
+#             if index != 0:
+#                 for ch in range(4):
+#                     pgpRing[0].vc[ch] >> pgpRing[1].vc[ch] 
+#                     pgpRing[index-1].vc[ch] >> pgpRing[index].vc[ch]
+
+#                 print(f'Linking index {index-1} to index {index}')                    
+#                 pgpRing[index-1].sb.setRecvCb(pgpRing[index].sb.send)
+                    
+
+#             if index == len(stack)-1:
+#                 for vc in range(4):
+#                     pgpRing[index].vc[ch] >> pgpRing[0].vc[ch]
+
+#                 print(f'Linking index {index} to index 0')
+#                 pgpRing[index].sb.setRecvCb(pgpRing[0].sb.send)
+                    

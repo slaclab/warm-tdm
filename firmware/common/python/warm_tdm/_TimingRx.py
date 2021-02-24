@@ -17,7 +17,7 @@ class TimingRx(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'AlignerDelay',
-            mode = 'RO'
+            mode = 'RO',
             offset = 0x00,
             bitOffset = 8,
             bitSize = 5,
@@ -32,7 +32,7 @@ class TimingRx(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'LockedFallCount',
-            mode = 'RO'
+            mode = 'RO',
             offset = 0x10,
             bitOffset = 0,
             bitSize = 16,
@@ -40,7 +40,7 @@ class TimingRx(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'LockedSync',
-            mode = 'RO'
+            mode = 'RO',
             offset = 0x10,
             bitOffset = 16,
             bitSize = 1,
@@ -48,38 +48,37 @@ class TimingRx(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'ErrorDetCount',
-            mode = 'RO'
+            mode = 'RO',
             offset = 0x14,
             bitOffset = 0,
             bitSize = 16,
             disp = '{:d}'))
 
         self.add(pr.RemoteCommand(
-            name = 'ResetErrorCounts'
-            mode = 'RW',
+            name = 'ResetErrorCounts',
             offset = 0x1C,
             bitOffset = 0,
-            bitSize = 1
+            bitSize = 1,
             function = pr.RemoteCommand.toggle))
             
         self.add(pr.RemoteVariable(
             name = 'ReadoutDebug0',
-            mode = 'RO'
+            mode = 'RO',
             offset = 0x20,
             bitOffset = 0,
             bitSize = 10))
 
         self.add(pr.RemoteVariable(
             name = 'ReadoutDebug1',
-            mode = 'RO'
+            mode = 'RO',
             offset = 0x20,
-            bitOffset = 0,
+            bitOffset = 10,
             bitSize = 10))
 
         self.add(pr.RemoteVariable(
             name = 'ReadoutDebug2',
-            mode = 'RO'
+            mode = 'RO',
             offset = 0x20,
-            bitOffset = 0,
+            bitOffset = 20,
             bitSize = 10))
         

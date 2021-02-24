@@ -1,6 +1,7 @@
 import pyrogue as pr
 
-import surf.ssi
+import surf
+import surf.protocols.ssi
 
 import warm_tdm
 
@@ -15,13 +16,14 @@ class RowModule(pr.Device):
             offset = 0x00100000))
 
         self.add(warm_tdm.RowModuleDacs(
-            offset = 0x01000000))
+            offset = 0x01000000,
+            enabled = False))
 
         self.add(warm_tdm.ComCore(
             offset = 0xA0000000))
 
-        self.add(surf.ssi.SsiPrbsRx(
-            offset = 0x00100000))
+        self.add(surf.protocols.ssi.SsiPrbsRx(
+            offset = 0x00200000))
         
-        self.add(surf.ssi.SsiPrbsTx(
-            offset = 0x00101000))
+        self.add(surf.protocols.ssi.SsiPrbsTx(
+            offset = 0x00201000))

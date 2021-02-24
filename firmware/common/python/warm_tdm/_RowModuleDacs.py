@@ -8,4 +8,5 @@ class RowModuleDacs(pr.Device):
 
         for i in range(12):
             self.add(warm_tdm.Ad9106(
+                name = f'Ad9106[{i}]',
                 offset = i * 0x100000))
