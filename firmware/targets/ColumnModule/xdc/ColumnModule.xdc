@@ -21,23 +21,23 @@ create_generated_clock -name dnaDivClk [get_pins U_WarmTdmCommon_1/U_AxiVersion_
 create_generated_clock -name icapClk [get_pins U_WarmTdmCommon_1/U_AxiVersion_1/GEN_ICAP.Iprog_1/GEN_7SERIES.Iprog7Series_Inst/DIVCLK_GEN.BUFR_ICPAPE2/O]
 
 
-#create_generated_clock -name ethClk [get_pins {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.GIG_ETH_GEN.U_MMCM/MmcmGen.U_Mmcm/CLKOUT0}]
-#create_generated_clock -name ethClkDiv2 [get_pins {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.GIG_ETH_GEN.U_MMCM/MmcmGen.U_Mmcm/CLKOUT1}]
+create_generated_clock -name ethClk [get_pins {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.GIG_ETH_GEN.U_MMCM/MmcmGen.U_Mmcm/CLKOUT0}]
+create_generated_clock -name ethClkDiv2 [get_pins {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.GIG_ETH_GEN.U_MMCM/MmcmGen.U_Mmcm/CLKOUT1}]
 
 #create_generated_clock -name ethClk [get_pins {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_MMCM/MmcmGen.U_Mmcm/CLKOUT0}]
 #create_generated_clock -name ethClkDiv2 [get_pins {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_MMCM/MmcmGen.U_Mmcm/CLKOUT1}]
 
 
-create_generated_clock -name idelayClk [get_pins {U_TimingRx_1/U_MMCM_IDELAY/MmcmGen.U_Mmcm/CLKOUT0}]
+create_generated_clock -name idelayClk [get_pins {U_Timing_1/U_MMCM_IDELAY/MmcmGen.U_Mmcm/CLKOUT1}]
 
 
-set ethRxClk {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/U_TenGigEthGtx7Core/U0/gt0_gtwizard_10gbaser_multi_gt_i/gt0_gtwizard_10gbaser_i/gtxe2_i/RXOUTCLK}
-set ethTxClk {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/U_TenGigEthGtx7Core/U0/gt0_gtwizard_10gbaser_multi_gt_i/gt0_gtwizard_10gbaser_i/gtxe2_i/TXOUTCLK}
+#set ethRxClk {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/U_TenGigEthGtx7Core/U0/gt0_gtwizard_10gbaser_multi_gt_i/gt0_gtwizard_10gbaser_i/gtxe2_i/RXOUTCLK}
+#set ethTxClk {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/U_TenGigEthGtx7Core/U0/gt0_gtwizard_10gbaser_multi_gt_i/gt0_gtwizard_10gbaser_i/gtxe2_i/TXOUTCLK}
 
-set_clock_groups -asynchronous \
-    -group [get_clocks {gtRefClk0Div2}] \
-    -group [get_clocks ${ethTxClk}] \
-    -group [get_clocks ${ethRxClk}]
+#set_clock_groups -asynchronous \
+#    -group [get_clocks {gtRefClk0Div2}] \
+#    -group [get_clocks ${ethTxClk}] \
+#    -group [get_clocks ${ethRxClk}]
 
 set_clock_groups -asynchronous \
     -group [get_clocks -include_generated_clocks gtRefClk0] \
@@ -52,9 +52,9 @@ set_clock_groups -asynchronous \
     -group [get_clocks axilClk] \
     -group [get_clocks gtRefClk0Div2]
 
-# set_clock_groups -asynchronous \
-#     -group [get_clocks axilClk] \
-    #     -group [get_clocks ethClk] \
+ set_clock_groups -asynchronous \
+     -group [get_clocks axilClk] \
+     -group [get_clocks ethClk] \
 
 set_clock_groups -asynchronous \
     -group [get_clocks axilClk] \
@@ -315,6 +315,24 @@ set_property -dict { PACKAGE_PIN T17  IOSTANDARD LVCMOS33 } [get_ports { tesDela
 set_property -dict { PACKAGE_PIN R18  IOSTANDARD LVCMOS33 } [get_ports { tesDelatch[5] }];
 set_property -dict { PACKAGE_PIN P18  IOSTANDARD LVCMOS33 } [get_ports { tesDelatch[6] }];
 set_property -dict { PACKAGE_PIN U16  IOSTANDARD LVCMOS33 } [get_ports { tesDelatch[7] }];
+
+# ASIC Interface
+# set_property -dict { PACKAGE_PIN U2 IOSTANDARD LVCMOS18 } [get_ports { asicDacSclk }];
+# set_property -dict { PACKAGE_PIN U1 IOSTANDARD LVCMOS18 } [get_ports { asicDacMosi }];
+# set_property -dict { PACKAGE_PIN W6 IOSTANDARD LVCMOS18 } [get_ports { asicDacMiso }];
+# set_property -dict { PACKAGE_PIN W5 IOSTANDARD LVCMOS18 } [get_ports { asicDacSyncB }];
+# set_property -dict { PACKAGE_PIN V3 IOSTANDARD LVCMOS18 } [get_ports { asicDacLdacB }];
+# set_property -dict { PACKAGE_PIN W3 IOSTANDARD LVCMOS18 } [get_ports { asicDacResetB }];
+
+# set_property -dict { PACKAGE_PIN V4 IOSTANDARD LVDS } [get_ports { asicResetP }];
+# set_property -dict { PACKAGE_PIN W4 IOSTANDARD LVDS } [get_ports { asicResetN }];
+# set_property -dict { PACKAGE_PIN Y3 IOSTANDARD LVDS } [get_ports { asicCarryInP }];
+# set_property -dict { PACKAGE_PIN Y2 IOSTANDARD LVDS } [get_ports { asicCarryInN }];
+# set_property -dict { PACKAGE_PIN V2 IOSTANDARD LVDS } [get_ports { asicClkP }];
+# set_property -dict { PACKAGE_PIN V1 IOSTANDARD LVDS } [get_ports { asicClkN }];
+# set_property -dict { PACKAGE_PIN AB1 IOSTANDARD LVDS DIFF_TERM true} [get_ports { asicFbP }];
+# set_property -dict { PACKAGE_PIN AC1 IOSTANDARD LVDS DIFF_TERM true} [get_ports { asicFbN }];
+
 
 
 # Boot Memory Port Mapping

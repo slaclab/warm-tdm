@@ -20,15 +20,20 @@ create_generated_clock -name icapClk [get_pins U_WarmTdmCommon_1/U_AxiVersion_1/
 
 #create_generated_clock -name dacClk -divide_by 200 -source [get_ports {timingRxClkP}] [get_pins {U_TimingRx_1/DAC_CLK_BUFG/O}]
 
-create_generated_clock -name idelayClk [get_pins {U_TimingRx_1/U_MMCM_IDELAY/MmcmGen.U_Mmcm/CLKOUT0}]
 
-set ethRxClk {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/U_TenGigEthGtx7Core/U0/gt0_gtwizard_10gbaser_multi_gt_i/gt0_gtwizard_10gbaser_i/gtxe2_i/RXOUTCLK}
-set ethTxClk {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/U_TenGigEthGtx7Core/U0/gt0_gtwizard_10gbaser_multi_gt_i/gt0_gtwizard_10gbaser_i/gtxe2_i/TXOUTCLK}
+create_generated_clock -name ethClk [get_pins {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.GIG_ETH_GEN.U_MMCM/MmcmGen.U_Mmcm/CLKOUT0}]
+create_generated_clock -name ethClkDiv2 [get_pins {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.GIG_ETH_GEN.U_MMCM/MmcmGen.U_Mmcm/CLKOUT1}]
 
-set_clock_groups -asynchronous \
-    -group [get_clocks {gtRefClk0Div2}] \
-    -group [get_clocks ${ethTxClk}] \
-    -group [get_clocks ${ethRxClk}]
+
+create_generated_clock -name idelayClk [get_pins {U_Timing_1/U_MMCM_IDELAY/MmcmGen.U_Mmcm/CLKOUT1}]
+
+#set ethRxClk {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/U_TenGigEthGtx7Core/U0/gt0_gtwizard_10gbaser_multi_gt_i/gt0_gtwizard_10gbaser_i/gtxe2_i/RXOUTCLK}
+#set ethTxClk {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/U_TenGigEthGtx7Core/U0/gt0_gtwizard_10gbaser_multi_gt_i/gt0_gtwizard_10gbaser_i/gtxe2_i/TXOUTCLK}
+
+#set_clock_groups -asynchronous \
+#    -group [get_clocks {gtRefClk0Div2}] \
+#    -group [get_clocks ${ethTxClk}] \
+#    -group [get_clocks ${ethRxClk}]
 
 set_clock_groups -asynchronous \
     -group [get_clocks -include_generated_clocks gtRefClk0] \
@@ -48,8 +53,9 @@ set_clock_groups -asynchronous \
     -group [get_clocks -include_generated_clocks dnaDivClk] \
     -group [get_clocks icapClk]
 
-
-
+ set_clock_groups -asynchronous \
+     -group [get_clocks axilClk] \
+     -group [get_clocks ethClk] \
 
 
 # MGT Mapping
@@ -72,17 +78,17 @@ set_property -dict { PACKAGE_PIN E11  IOSTANDARD LVDS_25 } [get_ports { timingRx
 set_property -dict { PACKAGE_PIN D11  IOSTANDARD LVDS_25 } [get_ports { timingRxClkN }];
 set_property -dict { PACKAGE_PIN G11  IOSTANDARD LVDS_25 } [get_ports { timingRxDataP }];
 set_property -dict { PACKAGE_PIN G10  IOSTANDARD LVDS_25 } [get_ports { timingRxDataN }];
-# set_property -dict { PACKAGE_PIN H12  IOSTANDARD LVDS_25 } [get_ports { timingTxClkP }];
-# set_property -dict { PACKAGE_PIN G12  IOSTANDARD LVDS_25 } [get_ports { timingTxClkN }];
-# set_property -dict { PACKAGE_PIN F9   IOSTANDARD LVDS_25 } [get_ports { timingTxDataP }];
-# set_property -dict { PACKAGE_PIN E9   IOSTANDARD LVDS_25 } [get_ports { timingTxDataN }];
+set_property -dict { PACKAGE_PIN H12  IOSTANDARD LVDS_25 } [get_ports { timingTxClkP }];
+set_property -dict { PACKAGE_PIN G12  IOSTANDARD LVDS_25 } [get_ports { timingTxClkN }];
+set_property -dict { PACKAGE_PIN F9   IOSTANDARD LVDS_25 } [get_ports { timingTxDataP }];
+set_property -dict { PACKAGE_PIN E9   IOSTANDARD LVDS_25 } [get_ports { timingTxDataN }];
 
 
 # SFP
-# set_property PACKAGE_PIN B2 [get_ports {sfp0TxP}]
-# set_property PACKAGE_PIN B1 [get_ports {sfp0TxN}]
-# set_property PACKAGE_PIN C4 [get_ports {sfp0RxP}]
-# set_property PACKAGE_PIN C3 [get_ports {sfp0RxN}]
+set_property PACKAGE_PIN B2 [get_ports {sfp0TxP}]
+set_property PACKAGE_PIN B1 [get_ports {sfp0TxN}]
+set_property PACKAGE_PIN C4 [get_ports {sfp0RxP}]
+set_property PACKAGE_PIN C3 [get_ports {sfp0RxN}]
 # set_property PACKAGE_PIN A4 [get_ports {sfp1TxP}]
 # set_property PACKAGE_PIN A3 [get_ports {sfp1TxN}]
 # set_property PACKAGE_PIN B6 [get_ports {sfp1RxP}]

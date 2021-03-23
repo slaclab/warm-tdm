@@ -37,15 +37,16 @@ use warm_tdm.TimingPkg.all;
 entity ColumnModule is
 
    generic (
-      TPD_G              : time             := 1 ns;
-      SIMULATION_G       : boolean          := false;
-      SIM_PGP_PORT_NUM_G : positive         := 7000;
-      SIM_ETH_PORT_NUM_G : positive         := 8000;
-      BUILD_INFO_G       : BuildInfoType;
-      RING_ADDR_0_G      : boolean          := true;
-      ETH_10G_G          : boolean          := true;
-      DHCP_G             : boolean          := false;         -- true = DHCP, false = static address
-      IP_ADDR_G          : slv(31 downto 0) := x"0A01A8C0");  -- 192.168.1.10 (before DHCP)
+      TPD_G                   : time             := 1 ns;
+      SIMULATION_G            : boolean          := false;
+      SIM_PGP_PORT_NUM_G      : positive         := 7000;
+      SIM_ETH_SRP_PORT_NUM_G  : positive         := 8000;
+      SIM_ETH_DATA_PORT_NUM_G : positive         := 9000;
+      BUILD_INFO_G            : BuildInfoType;
+      RING_ADDR_0_G           : boolean          := true;
+      ETH_10G_G               : boolean          := false;
+      DHCP_G                  : boolean          := true;  -- true = DHCP, false = static address
+      IP_ADDR_G               : slv(31 downto 0) := x"0A01A8C0");  -- 192.168.1.10 (before DHCP)
    port (
       -- Clocks
       gtRefClk0P : in sl;
@@ -175,7 +176,7 @@ architecture rtl of ColumnModule is
 
    constant NUM_AXIL_MASTERS_C  : integer := 10;
    constant AXIL_COMMON_C       : integer := 0;
-   constant AXIL_TIMING_RX_C    : integer := 1;
+   constant AXIL_TIMING_C       : integer := 1;
    constant AXIL_ADC_CONFIG_C   : integer := 2;
    constant AXIL_DATA_PATH_C    : integer := 3;
    constant AXIL_SQ1_BIAS_DAC_C : integer := 4;
@@ -190,7 +191,7 @@ architecture rtl of ColumnModule is
          baseAddr         => X"00000000",
          addrBits         => 20,
          connectivity     => X"FFFF"),
-      AXIL_TIMING_RX_C    => (
+      AXIL_TIMING_C       => (
          baseAddr         => X"00100000",
          addrBits         => 16,
          connectivity     => X"FFFF"),
@@ -258,67 +259,96 @@ begin
    -------------------------------------------------------------------------------------------------
    -- Timing Interface
    -------------------------------------------------------------------------------------------------
-   U_TimingRx_1 : entity warm_tdm.TimingRx
+   U_Timing_1 : entity warm_tdm.Timing
       generic map (
          TPD_G             => TPD_G,
          SIMULATION_G      => SIMULATION_G,
+         AXIL_BASE_ADDR_G  => AXIL_XBAR_CFG_C(AXIL_TIMING_C).baseAddr,
          IODELAY_GROUP_G   => "IODELAY0",
          IDELAYCTRL_FREQ_G => 200.0)
       port map (
-         timingRefClkP   => gtRefClk1P,                             -- [in]
-         timingRefClkN   => gtRefClk1N,                             -- [in]
-         timingRxClkP    => timingRxClkP,                           -- [in]
-         timingRxClkN    => timingRxClkN,                           -- [in]
-         timingRxDataP   => timingRxDataP,                          -- [in]
-         timingRxDataN   => timingRxDataN,                          -- [in]
-         timingClkOut    => timingClk125,                           -- [out]
-         timingRstOut    => timingRst125,                           -- [out]
-         timingData      => timingData,                             -- [out]
-         axilClk         => axilClk,                                -- [in]
-         axilRst         => axilRst,                                -- [in]
-         axilWriteMaster => locAxilWriteMasters(AXIL_TIMING_RX_C),  -- [in]
-         axilWriteSlave  => locAxilWriteSlaves(AXIL_TIMING_RX_C),   -- [out]
-         axilReadMaster  => locAxilReadMasters(AXIL_TIMING_RX_C),   -- [in]
-         axilReadSlave   => locAxilReadSlaves(AXIL_TIMING_RX_C));
+         timingRefClkP   => gtRefClk1P,                          -- [in]
+         timingRefClkN   => gtRefClk1N,                          -- [in]
+         timingRxClkP    => timingRxClkP,                        -- [in]
+         timingRxClkN    => timingRxClkN,                        -- [in]
+         timingRxDataP   => timingRxDataP,                       -- [in]
+         timingRxDataN   => timingRxDataN,                       -- [in]
+         timingClkOut    => timingClk125,                        -- [out]
+         timingRstOut    => timingRst125,                        -- [out]
+         timingDataOut   => timingData,                          -- [out]
+         timingTxClkP    => timingTxClkP,                        -- [out]
+         timingTxClkN    => timingTxClkN,                        -- [out]
+         timingTxDataP   => timingTxDataP,                       -- [out]
+         timingTxDataN   => timingTxDataN,                       -- [out]
+         axilClk         => axilClk,                             -- [in]
+         axilRst         => axilRst,                             -- [in]
+         axilWriteMaster => locAxilWriteMasters(AXIL_TIMING_C),  -- [in]
+         axilWriteSlave  => locAxilWriteSlaves(AXIL_TIMING_C),   -- [out]
+         axilReadMaster  => locAxilReadMasters(AXIL_TIMING_C),   -- [in]
+         axilReadSlave   => locAxilReadSlaves(AXIL_TIMING_C));   -- [out]
+
+--    U_TimingRx_1 : entity warm_tdm.TimingRx
+--       generic map (
+--          TPD_G             => TPD_G,
+--          SIMULATION_G      => SIMULATION_G,
+--          IODELAY_GROUP_G   => "IODELAY0",
+--          IDELAYCTRL_FREQ_G => 200.0)
+--       port map (
+--          timingRefClkP   => gtRefClk1P,                             -- [in]
+--          timingRefClkN   => gtRefClk1N,                             -- [in]
+--          timingRxClkP    => timingRxClkP,                           -- [in]
+--          timingRxClkN    => timingRxClkN,                           -- [in]
+--          timingRxDataP   => timingRxDataP,                          -- [in]
+--          timingRxDataN   => timingRxDataN,                          -- [in]
+--          timingClkOut    => timingClk125,                           -- [out]
+--          timingRstOut    => timingRst125,                           -- [out]
+--          timingData      => timingData,                             -- [out]
+--          axilClk         => axilClk,                                -- [in]
+--          axilRst         => axilRst,                                -- [in]
+--          axilWriteMaster => locAxilWriteMasters(AXIL_TIMING_RX_C),  -- [in]
+--          axilWriteSlave  => locAxilWriteSlaves(AXIL_TIMING_RX_C),   -- [out]
+--          axilReadMaster  => locAxilReadMasters(AXIL_TIMING_RX_C),   -- [in]
+--          axilReadSlave   => locAxilReadSlaves(AXIL_TIMING_RX_C));
    -------------------------------------------------------------------------------------------------
    -- Communications Interfaces
    -------------------------------------------------------------------------------------------------
    U_ComCore_1 : entity warm_tdm.ComCore
       generic map (
-         TPD_G              => TPD_G,
-         SIMULATION_G       => SIMULATION_G,
-         SIM_PGP_PORT_NUM_G => SIM_PGP_PORT_NUM_G,
-         SIM_ETH_PORT_NUM_G => SIM_ETH_PORT_NUM_G,
-         RING_ADDR_0_G      => RING_ADDR_0_G,
-         AXIL_BASE_ADDR_G   => AXIL_XBAR_CFG_C(AXIL_COM_C).baseAddr,
-         ETH_10G_G          => ETH_10G_G,
-         DHCP_G             => DHCP_G,
-         IP_ADDR_G          => IP_ADDR_G)
+         TPD_G                   => TPD_G,
+         SIMULATION_G            => SIMULATION_G,
+         SIM_PGP_PORT_NUM_G      => SIM_PGP_PORT_NUM_G,
+         SIM_ETH_SRP_PORT_NUM_G  => SIM_ETH_SRP_PORT_NUM_G,
+         SIM_ETH_DATA_PORT_NUM_G => SIM_ETH_DATA_PORT_NUM_G,
+         RING_ADDR_0_G           => RING_ADDR_0_G,
+         AXIL_BASE_ADDR_G        => AXIL_XBAR_CFG_C(AXIL_COM_C).baseAddr,
+         ETH_10G_G               => ETH_10G_G,
+         DHCP_G                  => DHCP_G,
+         IP_ADDR_G               => IP_ADDR_G)
       port map (
-         gtRefClkP        => gtRefClk0P,                            -- [in]
-         gtRefClkN        => gtRefClk0N,                            -- [in]
-         pgpTxP           => pgpTxP,                                -- [out]
-         pgpTxN           => pgpTxN,                                -- [out]
-         pgpRxP           => pgpRxP,                                -- [in]
-         pgpRxN           => pgpRxN,                                -- [in]
-         ethRxP           => sfp0RxP,                               -- [in]
-         ethRxN           => sfp0RxN,                               -- [in]
-         ethTxP           => sfp0TxP,                               -- [out]
-         ethTxN           => sfp0TxN,                               -- [out]
-         axilClkOut       => axilClk,                               -- [out]
-         axilRstOut       => axilRst,                               -- [out]
-         mAxilWriteMaster => srpAxilWriteMaster,                    -- [out]
-         mAxilWriteSlave  => srpAxilWriteSlave,                     -- [in]
-         mAxilReadMaster  => srpAxilReadMaster,                     -- [out]
-         mAxilReadSlave   => srpAxilReadSlave,                      -- [in]
-         sAxilWriteMaster => locAxilWriteMasters(AXIL_COM_C),       -- [in]
-         sAxilWriteSlave  => locAxilWriteSlaves(AXIL_COM_C),        -- [out]
-         sAxilReadMaster  => locAxilReadMasters(AXIL_COM_C),        -- [in]
-         sAxilReadSlave   => locAxilReadSlaves(AXIL_COM_C),         -- [out]
-         dataTxAxisMaster => dataTxAxisMaster,                      -- [in]
-         dataTxAxisSlave  => dataTxAxisSlave,                       -- [out]
-         dataRxAxisMaster => dataRxAxisMaster,                      -- [out]
-         dataRxAxisSlave  => dataRxAxisSlave);                      -- [in]
+         gtRefClkP        => gtRefClk0P,                       -- [in]
+         gtRefClkN        => gtRefClk0N,                       -- [in]
+         pgpTxP           => pgpTxP,                           -- [out]
+         pgpTxN           => pgpTxN,                           -- [out]
+         pgpRxP           => pgpRxP,                           -- [in]
+         pgpRxN           => pgpRxN,                           -- [in]
+         ethRxP           => sfp0RxP,                          -- [in]
+         ethRxN           => sfp0RxN,                          -- [in]
+         ethTxP           => sfp0TxP,                          -- [out]
+         ethTxN           => sfp0TxN,                          -- [out]
+         axilClkOut       => axilClk,                          -- [out]
+         axilRstOut       => axilRst,                          -- [out]
+         mAxilWriteMaster => srpAxilWriteMaster,               -- [out]
+         mAxilWriteSlave  => srpAxilWriteSlave,                -- [in]
+         mAxilReadMaster  => srpAxilReadMaster,                -- [out]
+         mAxilReadSlave   => srpAxilReadSlave,                 -- [in]
+         sAxilWriteMaster => locAxilWriteMasters(AXIL_COM_C),  -- [in]
+         sAxilWriteSlave  => locAxilWriteSlaves(AXIL_COM_C),   -- [out]
+         sAxilReadMaster  => locAxilReadMasters(AXIL_COM_C),   -- [in]
+         sAxilReadSlave   => locAxilReadSlaves(AXIL_COM_C),    -- [out]
+         dataTxAxisMaster => dataTxAxisMaster,                 -- [in]
+         dataTxAxisSlave  => dataTxAxisSlave,                  -- [out]
+         dataRxAxisMaster => dataRxAxisMaster,                 -- [out]
+         dataRxAxisSlave  => dataRxAxisSlave);                 -- [in]
 
 
    -------------------------------------------------------------------------------------------------
@@ -464,24 +494,6 @@ begin
          clkIn   => timingClk125,       -- [in]
          clkOutP => adcClkP,            -- [out]
          clkOutN => adcClkN);           -- [out]
-
-   U_ClkOutBufDiff_3 : entity surf.ClkOutBufDiff
-      generic map (
-         TPD_G => TPD_G)
-      port map (
-         clkIn   => timingClk125,       -- [in]
-         clkOutP => timingTxClkP,       -- [out]
-         clkOutN => timingTxClkN);      -- [out]
-
-
-   U_ClkOutBufDiff_2 : entity surf.ClkOutBufDiff
-      generic map (
-         TPD_G => TPD_G)
-      port map (
-         clkIn   => '0',                -- [in]
-         clkOutP => timingTxDataP,      -- [out]
-         clkOutN => timingTxDataN);     -- [out]
-
 
 
    U_DataPath_1 : entity warm_tdm.DataPath
