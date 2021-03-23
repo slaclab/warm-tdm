@@ -88,7 +88,7 @@ begin
          CRC_MODE_G           => "NONE",
          TDEST_BITS_G         => 8,
          INPUT_PIPE_STAGES_G  => 0,
-         OUTPUT_PIPE_STAGES_G => 1)
+         OUTPUT_PIPE_STAGES_G => 0)
       port map (
          axisClk     => axisClk,               -- [in]
          axisRst     => axisRst,               -- [in]
@@ -113,7 +113,7 @@ begin
          TPD_G         => TPD_G,
          NUM_MASTERS_G => 3,
          MODE_G        => "DYNAMIC",
-         PIPE_STAGES_G => 1)
+         PIPE_STAGES_G => 0)
       port map (
          axisClk              => axisClk,               -- [in]
          axisRst              => axisRst,               -- [in]
@@ -149,7 +149,7 @@ begin
    U_AxiStreamMux_1 : entity surf.AxiStreamMux
       generic map (
          TPD_G                => TPD_G,
-         PIPE_STAGES_G        => 1,
+         PIPE_STAGES_G        => 0,
          NUM_SLAVES_G         => 2,
          MODE_G               => "PASSTHROUGH",
          TID_MODE_G           => "PASSTHROUGH",
@@ -180,8 +180,8 @@ begin
          CRC_MODE_G           => "NONE",
          MAX_PACKET_BYTES_G   => 1024,     -- Check this
          TDEST_BITS_G         => 8,
-         INPUT_PIPE_STAGES_G  => 1,
-         OUTPUT_PIPE_STAGES_G => 1)
+         INPUT_PIPE_STAGES_G  => 0,
+         OUTPUT_PIPE_STAGES_G => 0)
       port map (
          axisClk     => axisClk,           -- [in]
          axisRst     => axisRst,           -- [in]
