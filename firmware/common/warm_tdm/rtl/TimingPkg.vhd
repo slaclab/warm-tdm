@@ -31,28 +31,31 @@ package TimingPkg is
 
    constant K_28_5_C : slv(9 downto 0) := "0101111100";
 
+   constant IDLE_C       : slv(7 downto 0) := "10111100";  -- K28.5, 0xBC
    constant START_RUN_C  : slv(7 downto 0) := "00111000";  -- K28.0
    constant END_RUN_C    : slv(7 downto 0) := "00111100";  -- K28.1
    constant FIRST_ROW_C  : slv(7 downto 0) := "00111010";  -- K28.2
    constant ROW_STROBE_C : slv(7 downto 0) := "00111110";  -- K28.3
 
    type LocalTimingType is record
-      startRun  : sl;                   -- Strobed at start of run
-      endRun    : sl;                   -- Strobed at end of run
-      running   : sl;                   -- Set high during run
-      runTime   : slv(63 downto 0);     -- TimingClk counts since start of run
-      rowStrobe : sl;                   -- Moving to new row
-      rowNum    : slv(5 downto 0);      -- Current row number
-      rowTime   : slv(6 downto 0);      -- timingClk counts since last row strobe
+      startRun     : sl;                -- Strobed at start of run
+      endRun       : sl;                -- Strobed at end of run
+      running      : sl;                -- Set high during run
+      runTime      : slv(63 downto 0);  -- TimingClk counts since start of run
+      rowStrobe    : sl;                -- Moving to new row
+      rowNum       : slv(15 downto 0);  -- Current row number
+      rowTime      : slv(15 downto 0);  -- timingClk counts since last row strobe
+      readoutCount : slv(63 downto 0);  -- Number of full loops through all rows
    end record LocalTimingType;
 
    constant LOCAL_TIMING_INIT_C : LocalTimingType := (
-      startRun  => '0',
-      endRun    => '0',
-      running   => '0',
-      runTime   => (others => '0'),
-      rowStrobe => '0',
-      rowNum    => (others => '0'),
-      rowTime   => (others => '0'));
+      startRun     => '0',
+      endRun       => '0',
+      running      => '0',
+      runTime      => (others => '0'),
+      rowStrobe    => '0',
+      rowNum       => (others => '0'),
+      rowTime      => (others => '0'),
+      readoutCount => (others => '0'));
 
 end package TimingPkg;

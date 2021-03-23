@@ -28,7 +28,6 @@ library surf;
 use surf.StdRtlPkg.all;
 use surf.AxiStreamPkg.all;
 use surf.AxiLitePkg.all;
-use surf.I2cPkg.all;
 
 library warm_tdm;
 use warm_tdm.TimingPkg.all;
@@ -43,17 +42,14 @@ entity TimingRx is
       DEFAULT_DELAY_G   : integer range 0 to 31 := 0);
 
    port (
-      timingRefClkP : in sl;
-      timingRefClkN : in sl;
-
       timingRxClkP  : in sl;
       timingRxClkN  : in sl;
       timingRxDataP : in sl;
       timingRxDataN : in sl;
 
-      timingClkOut : out sl;
-      timingRstOut : out sl;
-      timingData   : out LocalTimingType;
+      timingRxClkOut : out sl;
+      timingRxRstOut : out sl;
+      timingDataOut  : out LocalTimingType;
 
       axilClk         : in  sl;
       axilRst         : in  sl;
@@ -90,11 +86,6 @@ architecture rtl of TimingRx is
    signal codeErr          : sl;
    signal dispErr          : sl;
 
-   signal timingRefClk  : sl;
-   signal timingRefClkG : sl;
-
-   signal idelayClk : sl;
-   signal idelayRst : sl;
 
    type RegType is record
       timingData : LocalTimingType;
@@ -106,9 +97,6 @@ architecture rtl of TimingRx is
    signal r   : RegType := REG_INIT_C;
    signal rin : RegType;
 
-
-   attribute IODELAY_GROUP                 : string;
-   attribute IODELAY_GROUP of IDELAYCTRL_0 : label is IODELAY_GROUP_G;
 
    -------------------------------------------------------------------------------------------------
    -- AXI Lite
@@ -148,55 +136,9 @@ architecture rtl of TimingRx is
 
 begin
 
-   -------------------------------------------------------------------------------------------------
-   -- USE Timing Refclk to create 200 MHz IODELAY CLK
-   -------------------------------------------------------------------------------------------------
-   U_IBUFDS_GTE2 : IBUFDS_GTE2
-      port map (
-         I     => timingRefClkP,
-         IB    => timingRefClkN,
-         CEB   => '0',
-         ODIV2 => open,
-         O     => timingRefClk);
-
-   U_BUFG : BUFG
-      port map (
-         I => timingRefClk,
-         O => timingRefClkG);
-
-   U_MMCM_IDELAY : entity surf.ClockManager7
-      generic map(
-         TPD_G              => TPD_G,
-         TYPE_G             => "MMCM",
-         INPUT_BUFG_G       => false,
-         FB_BUFG_G          => true,    -- Without this, will never lock in simulation
-         RST_IN_POLARITY_G  => '1',
-         NUM_CLOCKS_G       => 1,
-         -- MMCM attributes
-         BANDWIDTH_G        => "OPTIMIZED",
-         CLKIN_PERIOD_G     => 4.0,     -- 250 MHz
-         DIVCLK_DIVIDE_G    => 1,       -- 250 MHz
-         CLKFBOUT_MULT_F_G  => 4.0,     -- 1.0GHz =  x 250 MHz
-         CLKOUT0_DIVIDE_F_G => 5.0)     --  = 200 MHz = 1.0GHz/5
-      port map(
-         clkIn     => timingRefClkG,
-         rstIn     => '0',
-         clkOut(0) => idelayClk,
-         rstOut(0) => idelayRst,
-         locked    => open);
-
-
-   -------------
-   -- IDELAYCTRL
-   -------------
-   IDELAYCTRL_0 : IDELAYCTRL
-      port map (
-         RDY    => open,
-         REFCLK => idelayClk,
-         RST    => idelayRst);
 
    -------------------------
-   -- 125 Mhz Timing clock
+   -- 125 Mhz Timing RX clock
    -------------------------
    TIMING_RX_CLK_BUFF : IBUFGDS
       port map (
@@ -204,18 +146,28 @@ begin
          ib => timingRxClkN,
          o  => timingRxClk);
 
-   U_PwrUpRst_1 : entity surf.PwrUpRst
-      generic map (
-         TPD_G => TPD_G)
---         SIM_SPEEDUP_G  => SIMULATION_G,
---         DURATION_G     => DURATION_G)
-      port map (
-         arst   => '0',                 -- [in]
-         clk    => timingRxClk,         -- [in]
-         rstOut => timingRxRst);        -- [out]
+--    U_PwrUpRst_1 : entity surf.PwrUpRst
+--       generic map (
+--          TPD_G => TPD_G)
+-- --         SIM_SPEEDUP_G  => SIMULATION_G,
+-- --         DURATION_G     => DURATION_G)
+--       port map (
+--          arst   => '0',                 -- [in]
+--          clk    => timingRxClk,         -- [in]
+--          rstOut => timingRxRst);        -- [out]
 
-   timingClkOut <= timingRxClk;
-   timingRstOut <= timingRxRst;
+   U_RstSync_1 : entity surf.RstSync
+      generic map (
+         TPD_G           => TPD_G,
+         RELEASE_DELAY_G => 10,
+         OUT_REG_RST_G   => false)
+      port map (
+         clk      => timingRxClk,       -- [in]
+         asyncRst => axilRst,           -- [in]
+         syncRst  => timingRxRst);      -- [out]
+
+   timingRxClkOut <= timingRxClk;
+   timingRxRstOut <= timingRxRst;
 
 
    -------------------------------------------------------------------------------------------------
@@ -433,16 +385,18 @@ begin
       if (timingRxValid = '1' and timingRxDataK = '1') then
          case timingRxData is
             when START_RUN_C =>
-               v.timingData.startRun := '1';
-               v.timingData.runTime  := (others => '0');
-               v.timingData.running  := '1';
+               v.timingData.startRun     := '1';
+               v.timingData.runTime      := (others => '0');
+               v.timingData.readoutCount := (others => '0');
+               v.timingData.running      := '1';
             when END_RUN_C =>
                v.timingData.endRun  := '1';
                v.timingData.running := '0';
             when FIRST_ROW_C =>
-               v.timingData.rowStrobe := '1';
-               v.timingData.rowNum    := (others => '0');
-               v.timingData.rowTime   := (others => '0');
+               v.timingData.rowStrobe    := '1';
+               v.timingData.rowNum       := (others => '0');
+               v.timingData.rowTime      := (others => '0');
+               v.timingData.readoutCount := r.timingData.readoutCount + 1;
             when ROW_STROBE_C =>
                v.timingData.rowStrobe := '1';
                v.timingData.rowNum    := r.timingData.rowNum + 1;
@@ -457,7 +411,7 @@ begin
 
       rin <= v;
 
-      timingData <= r.timingData;
+      timingDataOut <= r.timingData;
 
    end process comb;
 
