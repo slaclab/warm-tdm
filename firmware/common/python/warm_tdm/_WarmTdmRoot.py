@@ -19,7 +19,7 @@ class WarmTdmRoot(pyrogue.Root):
             
             stack = [
                 {'cls': warm_tdm.RowModule,
-                 'simEthPort' : 10000 + (1000*i),
+                 'simEthSrpPort' : 10000 + (1000*i),
                  'simPgpPort' : 7000 + (20 *i)} for i in range(4)],
 
             **kwargs):
