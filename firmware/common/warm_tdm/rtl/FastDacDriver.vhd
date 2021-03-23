@@ -131,19 +131,19 @@ begin
             ADDR_WIDTH_G     => 6,
             DATA_WIDTH_G     => 16)
          port map (
-            axiClk         => axilClk,                 -- [in]
-            axiRst         => axilRst,                 -- [in]
-            axiReadMaster  => locAxilReadMasters(i),   -- [in]
-            axiReadSlave   => locAxilReadSlaves(i),    -- [out]
-            axiWriteMaster => locAxilWriteMasters(i),  -- [in]
-            axiWriteSlave  => locAxilWriteSlaves(i),   -- [out]
-            clk            => timingClk125,            -- [in]
+            axiClk         => axilClk,                        -- [in]
+            axiRst         => axilRst,                        -- [in]
+            axiReadMaster  => locAxilReadMasters(i),          -- [in]
+            axiReadSlave   => locAxilReadSlaves(i),           -- [out]
+            axiWriteMaster => locAxilWriteMasters(i),         -- [in]
+            axiWriteSlave  => locAxilWriteSlaves(i),          -- [out]
+            clk            => timingClk125,                   -- [in]
 --          en             => en,              -- [in]
 --          we             => we,              -- [in]
-            rst            => timingRst125,            -- [in]
-            addr           => timingData.rowNum,       -- [in]
+            rst            => timingRst125,                   -- [in]
+            addr           => timingData.rowNum(5 downto 0),  -- [in]
 --         din            => din,             -- [in]
-            dout           => ramDout(i));             -- [out]
+            dout           => ramDout(i));                    -- [out]
    end generate GEN_AXIL_RAM;
 
 
@@ -165,8 +165,8 @@ begin
 
          when DATA_0_S =>
             v.dacSel := (others => '0');
-            v.dacDb := ramDout(r.dacNum*2)(13 downto 0);
-            v.state := WRITE_0_S;
+            v.dacDb  := ramDout(r.dacNum*2)(13 downto 0);
+            v.state  := WRITE_0_S;
 
          when WRITE_0_S =>
             v.dacWrt(r.dacNum) := '1';
@@ -194,16 +194,16 @@ begin
 
          when CLK_0_RISE_S =>
             v.dacClk := (others => '1');
-            v.state := CLK_0_FALL_S;
+            v.state  := CLK_0_FALL_S;
 
          when CLK_0_FALL_S =>
             v.dacClk := (others => '0');
-            v.state := CLK_1_RISE_S;
-            
+            v.state  := CLK_1_RISE_S;
+
          when CLK_1_RISE_S =>
             v.dacClk := (others => '1');
-            v.state := WAIT_ROW_STROBE_S;
-            
+            v.state  := WAIT_ROW_STROBE_S;
+
 
          when others => null;
       end case;
