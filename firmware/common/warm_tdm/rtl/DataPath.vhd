@@ -184,14 +184,6 @@ begin
             axilReadSlave   => locAxilReadSlaves(i+1),                    -- [out]
             axilWriteMaster => locAxilWriteMasters(i+1),                  -- [in]
             axilWriteSlave  => locAxilWriteSlaves(i+1));                  -- [out]
---       U_FirFilterWrapper_1 : entity warm_tdm.FirFilterWrapper
---          generic map (
---             TPD_G => TPD_G)
---          port map (
---             dataClk         => timingClk125,                              -- [in]
---             dataRst         => timingRst125,                              -- [in]
---             sDataAxisMaster => adcStreams(i),                             -- [in]
---             mDataAxisMaster => filteredAdcStreams(i));                    -- [out]
    end generate FIR_FILTER_GEN;
 
    comb : process (fifoAxisSlave, filteredAdcStreams, r, timingData, timingRst125) is
@@ -229,7 +221,6 @@ begin
                sample := shift_left(sample, 16-7);
                average := average - avgDiv + sample;
                v.average(i) := slv(average);
---               v.average(i) := slv(signed(r.average(i)) - shift_right(signed(r.average(i)), 7) + shift_left(signed(resize(filteredAdcStreams(i).tdata(15 downto 0), 32)), 16-7));
             end if;
          end if;
 
@@ -270,7 +261,7 @@ begin
       generic map (
          TPD_G               => TPD_G,
          INT_PIPE_STAGES_G   => 1,
-         PIPE_STAGES_G       => 1,
+         PIPE_STAGES_G       => 0,
          SLAVE_READY_EN_G    => true,
          GEN_SYNC_FIFO_G     => false,
 --          FIFO_ADDR_WIDTH_G      => FIFO_ADDR_WIDTH_G,
