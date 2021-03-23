@@ -228,7 +228,8 @@ begin
    -------------------------------------------------------------------------------------------------
    U_TimingMmcm_1 : entity warm_tdm.TimingMmcm
       generic map (
-         TPD_G => TPD_G)
+         TPD_G     => TPD_G,
+         USE_HPC_G => false)
       port map (
          timingRxClk => timingClk125,   -- [in]
          timingRxRst => timingRst125,   -- [in]

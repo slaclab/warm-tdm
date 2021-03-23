@@ -27,7 +27,8 @@ use surf.StdRtlPkg.all;
 entity TimingMmcm is
 
    generic (
-      TPD_G : time := 1 ns);
+      TPD_G     : time    := 1 ns;
+      USE_HPC_G : boolean := true);
 
    port (
       timingRxClk : in  sl;
@@ -86,28 +87,46 @@ begin
          CLKOUT0  => bitClkRaw,
          CLKOUT1  => wordClkRaw);
 
-   BIT_CLK_BUFIO : BUFIO
-      port map(
-         i => bitClkRaw,
-         o => bitClkLoc);
+   HPC_GEN : if USE_HPC_G generate
+      BIT_CLK_BUFIO : BUFIO
+         port map(
+            i => bitClkRaw,
+            o => bitClkLoc);
 
-   bitClk    <= bitClkLoc;
+      WORD_CLK_BUFR : BUFR
+         port map (
+            i   => wordClkRaw,
+            o   => wordClkLoc,
+            ce  => '0',
+            clr => '0');
 
-   WORD_CLK_BUFR : BUFR
-      port map (
-         i   => wordClkRaw,
-         o   => wordClkLoc,
-         ce  => '0',
-         clr => '0');
+      FB_BUFR : BUFR
+         port map (
+            i   => fbClkRaw,
+            o   => fbClk,
+            ce  => '0',
+            clr => '0');
+   end generate;
 
+   BUFG_GEN : if not USE_HPC_G generate
+      BIT_CLK_BUFG : BUFG
+         port map(
+            i => bitClkRaw,
+            o => bitClkLoc);
+
+      WORD_CLK_BUFG : BUFG
+         port map (
+            i => wordClkRaw,
+            o => wordClkLoc);
+
+      FB_BUFG : BUFG
+         port map (
+            i => fbClkRaw,
+            o => fbClk);
+   end generate;
+
+   bitClk  <= bitClkLoc;
    wordClk <= wordClkLoc;
-
-   FB_BUFR : BUFR
-      port map (
-         i   => fbClkRaw,
-         o   => fbClk,
-         ce  => '0',
-         clr => '0');
 
    RstSync_1 : entity surf.RstSync
       generic map (
