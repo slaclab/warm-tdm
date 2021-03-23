@@ -27,10 +27,11 @@ library warm_tdm;
 
 entity RowModuleBoard is
    generic (
-      TPD_G              : time     := 1 ns;
-      RING_ADDR_0_G      : boolean  := false;
-      SIM_PGP_PORT_NUM_G : positive := 7000;
-      SIM_ETH_PORT_NUM_G : positive := 8000);
+      TPD_G                   : time     := 1 ns;
+      RING_ADDR_0_G           : boolean  := false;
+      SIM_PGP_PORT_NUM_G      : positive := 7000;
+      SIM_ETH_SRP_PORT_NUM_G  : positive := 8000;
+      SIM_ETH_DATA_PORT_NUM_G : positive := 9000);
    port (
       rj45TimingRxClkP  : in  sl;       -- [in]
       rj45TimingRxClkN  : in  sl;       -- [in]
@@ -49,8 +50,8 @@ end entity RowModuleBoard;
 architecture sim of RowModuleBoard is
 
    -- component generics
-   constant SIMULATION_G       : boolean       := true;
-   constant BUILD_INFO_G       : BuildInfoType := BUILD_INFO_DEFAULT_SLV_C;
+   constant SIMULATION_G : boolean       := true;
+   constant BUILD_INFO_G : BuildInfoType := BUILD_INFO_DEFAULT_SLV_C;
 
    constant ETH_10G_G : boolean          := true;
    constant DHCP_G    : boolean          := false;
@@ -110,15 +111,16 @@ begin
    -------------------------------------------------------------------------------------------------
    U_RowModule : entity warm_tdm.RowModule
       generic map (
-         TPD_G              => TPD_G,
-         SIMULATION_G       => SIMULATION_G,
-         SIM_PGP_PORT_NUM_G => SIM_PGP_PORT_NUM_G,
-         SIM_ETH_PORT_NUM_G => SIM_ETH_PORT_NUM_G,
-         BUILD_INFO_G       => BUILD_INFO_G,
-         RING_ADDR_0_G      => RING_ADDR_0_G,
-         ETH_10G_G          => ETH_10G_G,
-         DHCP_G             => DHCP_G,
-         IP_ADDR_G          => IP_ADDR_G)
+         TPD_G                   => TPD_G,
+         SIMULATION_G            => SIMULATION_G,
+         SIM_PGP_PORT_NUM_G      => SIM_PGP_PORT_NUM_G,
+         SIM_ETH_SRP_PORT_NUM_G  => SIM_ETH_SRP_PORT_NUM_G,
+         SIM_ETH_DATA_PORT_NUM_G => SIM_ETH_DATA_PORT_NUM_G,
+         BUILD_INFO_G            => BUILD_INFO_G,
+         RING_ADDR_0_G           => RING_ADDR_0_G,
+         ETH_10G_G               => ETH_10G_G,
+         DHCP_G                  => DHCP_G,
+         IP_ADDR_G               => IP_ADDR_G)
       port map (
          gtRefClk0P    => gtRefClk0P,     -- [in]
          gtRefClk0N    => gtRefClk0N,     -- [in]
