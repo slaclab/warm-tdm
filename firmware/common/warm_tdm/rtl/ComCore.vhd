@@ -38,17 +38,16 @@ library warm_tdm;
 entity ComCore is
 
    generic (
-      TPD_G              : time             := 1 ns;
-      SIMULATION_G       : boolean          := false;
-      SIM_PGP_PORT_NUM_G : integer          := 7000;
-      SIM_ETH_PORT_NUM_G : integer          := 8000;
-      RING_ADDR_0_G      : boolean          := false;
-      AXIL_BASE_ADDR_G   : slv(31 downto 0) := X"00000000";
-      ETH_10G_G          : boolean          := true;
-      DHCP_G             : boolean          := false;         -- true = DHCP, false = static address
-      IP_ADDR_G          : slv(31 downto 0) := X"0A01A8C0");  -- 192.168.1.10 (before DHCP)
-
-
+      TPD_G                   : time             := 1 ns;
+      SIMULATION_G            : boolean          := false;
+      SIM_PGP_PORT_NUM_G      : integer          := 7000;
+      SIM_ETH_SRP_PORT_NUM_G  : integer          := 8000;
+      SIM_ETH_DATA_PORT_NUM_G : integer          := 9000;
+      RING_ADDR_0_G           : boolean          := false;
+      AXIL_BASE_ADDR_G        : slv(31 downto 0) := X"00000000";
+      ETH_10G_G               : boolean          := true;
+      DHCP_G                  : boolean          := false;  -- true = DHCP, false = static address
+      IP_ADDR_G               : slv(31 downto 0) := X"0A01A8C0");  -- 192.168.1.10 (before DHCP)
    port (
       gtRefClkP : in sl;
       gtRefClkN : in sl;
@@ -199,44 +198,45 @@ begin
    ---------------------
    U_EthCore_1 : entity warm_tdm.EthCore
       generic map (
-         TPD_G            => TPD_G,
-         RING_ADDR_0_G    => RING_ADDR_0_G,
-         ETH_10G_G        => ETH_10G_G,
-         SIMULATION_G     => SIMULATION_G,
-         SIM_PORT_NUM_G   => SIM_ETH_PORT_NUM_G,
-         AXIL_BASE_ADDR_G => AXIL_BASE_ADDR_G + X"00100000",
-         DHCP_G           => DHCP_G,
-         IP_ADDR_G        => IP_ADDR_G)
+         TPD_G               => TPD_G,
+         RING_ADDR_0_G       => RING_ADDR_0_G,
+         ETH_10G_G           => ETH_10G_G,
+         SIMULATION_G        => SIMULATION_G,
+         SIM_SRP_PORT_NUM_G  => SIM_ETH_SRP_PORT_NUM_G,
+         SIM_DATA_PORT_NUM_G => SIM_ETH_DATA_PORT_NUM_G,
+         AXIL_BASE_ADDR_G    => AXIL_BASE_ADDR_G + X"00100000",
+         DHCP_G              => DHCP_G,
+         IP_ADDR_G           => IP_ADDR_G)
       port map (
-         extRst              => '0',                               -- [in]
-         refClk              => gtRefClkDiv2,                      -- [in]
-         refClkG             => gtRefClkDiv2G,                     -- [in]
-         gtRxP               => ethRxP,                            -- [in]
-         gtRxN               => ethRxN,                            -- [in]
-         gtTxP               => ethTxP,                            -- [out]
-         gtTxN               => ethTxN,                            -- [out]
-         phyReady            => open,                              -- [out]
-         rssiStatus          => open,                              -- [out]
-         axilClk             => axilClk,                           -- [in]
-         axilRst             => axilRst,                           -- [in]
-         mAxilReadMaster     => mLocAxilReadMasters(AXIL_ETH_C),   -- [out]
-         mAxilReadSlave      => mLocAxilReadSlaves(AXIL_ETH_C),    -- [in]
-         mAxilWriteMaster    => mLocAxilWriteMasters(AXIL_ETH_C),  -- [out]
-         mAxilWriteSlave     => mLocAxilWriteSlaves(AXIL_ETH_C),   -- [in]
-         sAxilReadMaster     => sLocAxilReadMasters(AXIL_ETH_C),   -- [in]
-         sAxilReadSlave      => sLocAxilReadSlaves(AXIL_ETH_C),    -- [out]
-         sAxilWriteMaster    => sLocAxilWriteMasters(AXIL_ETH_C),  -- [in]
-         sAxilWriteSlave     => sLocAxilWriteSlaves(AXIL_ETH_C),   -- [out]
-         axisClk             => axilClk,                           -- [in]
-         axisRst             => axilRst,                           -- [in]
-         localRxAxisMaster   => ethDataRxAxisMaster,               -- [out]
-         localRxAxisSlave    => ethDataRxAxisSlave,                -- [in]
-         localTxAxisMaster   => ethDataTxAxisMaster,               -- [in]
-         localTxAxisSlave    => ethDataTxAxisSlave,                -- [out]
-         remoteRxAxisMasters => ethRemoteRxAxisMasters,            -- [out]
-         remoteRxAxisSlaves  => ethRemoteRxAxisSlaves,             -- [in]
-         remoteTxAxisMasters => ethRemoteTxAxisMasters,            -- [in]
-         remoteTxAxisSlaves  => ethRemoteTxAxisSlaves);            -- [out]
+         extRst                => '0',                               -- [in]
+         refClk                => gtRefClkDiv2,                      -- [in]
+         refClkG               => gtRefClkDiv2G,                     -- [in]
+         gtRxP                 => ethRxP,                            -- [in]
+         gtRxN                 => ethRxN,                            -- [in]
+         gtTxP                 => ethTxP,                            -- [out]
+         gtTxN                 => ethTxN,                            -- [out]
+         phyReady              => open,                              -- [out]
+         rssiStatus            => open,                              -- [out]
+         axilClk               => axilClk,                           -- [in]
+         axilRst               => axilRst,                           -- [in]
+         mAxilReadMaster       => mLocAxilReadMasters(AXIL_ETH_C),   -- [out]
+         mAxilReadSlave        => mLocAxilReadSlaves(AXIL_ETH_C),    -- [in]
+         mAxilWriteMaster      => mLocAxilWriteMasters(AXIL_ETH_C),  -- [out]
+         mAxilWriteSlave       => mLocAxilWriteSlaves(AXIL_ETH_C),   -- [in]
+         sAxilReadMaster       => sLocAxilReadMasters(AXIL_ETH_C),   -- [in]
+         sAxilReadSlave        => sLocAxilReadSlaves(AXIL_ETH_C),    -- [out]
+         sAxilWriteMaster      => sLocAxilWriteMasters(AXIL_ETH_C),  -- [in]
+         sAxilWriteSlave       => sLocAxilWriteSlaves(AXIL_ETH_C),   -- [out]
+         axisClk               => axilClk,                           -- [in]
+         axisRst               => axilRst,                           -- [in]
+         localDataRxAxisMaster => ethDataRxAxisMaster,               -- [out]
+         localDataRxAxisSlave  => ethDataRxAxisSlave,                -- [in]
+         localDataTxAxisMaster => ethDataTxAxisMaster,               -- [in]
+         localDataTxAxisSlave  => ethDataTxAxisSlave,                -- [out]
+         remoteRxAxisMasters   => ethRemoteRxAxisMasters,            -- [out]
+         remoteRxAxisSlaves    => ethRemoteRxAxisSlaves,             -- [in]
+         remoteTxAxisMasters   => ethRemoteTxAxisMasters,            -- [in]
+         remoteTxAxisSlaves    => ethRemoteTxAxisSlaves);            -- [out]
 
    -------------------------------------
    -- Data Mux

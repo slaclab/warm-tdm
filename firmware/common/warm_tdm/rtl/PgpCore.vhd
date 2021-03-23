@@ -114,16 +114,14 @@ architecture rtl of PgpCore is
    signal appLocalTxAxisMasters : AxiStreamMasterArray(3 downto 0) := (others => axiStreamMasterInit(PACKETIZER2_AXIS_CFG_C));
    signal appLocalTxAxisSlaves  : AxiStreamSlaveArray(3 downto 0)  := (others => AXI_STREAM_SLAVE_INIT_C);
 
-   constant VC_SRP_C      : integer := 0;
-   constant VC_DATA_C     : integer := 1;
-   constant VC_PRBS_C     : integer := 2;
-   constant VC_LOOPBACK_C : integer := 3;
+   constant VC_SRP_C        : integer := 0;
+   constant VC_DATA_C       : integer := 1;
+   constant VC_LOOPBACK_2_C : integer := 2;
+   constant VC_LOOPBACK_3_C : integer := 3;
 
-   constant NUM_AXIL_MASTERS_C : integer := 4;
+   constant NUM_AXIL_MASTERS_C : integer := 2;
    constant AXIL_PGP_C         : integer := 0;
    constant AXIL_GTX_C         : integer := 1;
-   constant AXIL_PRBS_RX_C     : integer := 2;
-   constant AXIL_PRBS_TX_C     : integer := 3;
 
    constant AXIL_XBAR_CFG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := (
       AXIL_PGP_C      => (
@@ -132,14 +130,6 @@ architecture rtl of PgpCore is
          connectivity => X"FFFF"),
       AXIL_GTX_C      => (
          baseAddr     => AXIL_BASE_ADDR_G + X"00001000",
-         addrBits     => 12,
-         connectivity => X"FFFF"),
-      AXIL_PRBS_RX_C  => (
-         baseAddr     => AXIL_BASE_ADDR_G + X"00002000",
-         addrBits     => 12,
-         connectivity => X"FFFF"),
-      AXIL_PRBS_TX_C  => (
-         baseAddr     => AXIL_BASE_ADDR_G + X"00003000",
          addrBits     => 12,
          connectivity => X"FFFF"));
 
@@ -301,7 +291,7 @@ begin
             TPD_G               => TPD_G,
             ROGUE_SIM_EN_G      => SIMULATION_G,
             INT_PIPE_STAGES_G   => 1,
-            PIPE_STAGES_G       => 1,
+            PIPE_STAGES_G       => 0,
 --             VALID_THOLD_G       => VALID_THOLD_G,
 --             VALID_BURST_MODE_G  => VALID_BURST_MODE_G,
             SYNTH_MODE_G        => "inferred",
@@ -361,7 +351,7 @@ begin
          generic map (
             TPD_G             => TPD_G,
             INT_PIPE_STAGES_G => 1,
-            PIPE_STAGES_G     => 1,
+            PIPE_STAGES_G     => 0,
 --             VALID_THOLD_G      => VALID_THOLD_G,
 --             VALID_BURST_MODE_G => VALID_BURST_MODE_G,
             SYNTH_MODE_G      => "inferred",
@@ -397,7 +387,7 @@ begin
             TDEST_ROUTES_G => (
                0           => "0-------",
                1           => "1-------"),
-            PIPE_STAGES_G  => 1)
+            PIPE_STAGES_G  => 0)
          port map (
             axisClk         => pgpClk,                    -- [in]
             axisRst         => pgpRst,                    -- [in]
@@ -411,7 +401,7 @@ begin
       U_AxiStreamMux_1 : entity surf.AxiStreamMux
          generic map (
             TPD_G                => TPD_G,
-            PIPE_STAGES_G        => 1,
+            PIPE_STAGES_G        => 0,
             NUM_SLAVES_G         => 2,
             MODE_G               => "ROUTED",
             TDEST_ROUTES_G       => (
@@ -442,7 +432,7 @@ begin
       generic map (
          TPD_G               => TPD_G,
          INT_PIPE_STAGES_G   => 1,
-         PIPE_STAGES_G       => 1,
+         PIPE_STAGES_G       => 0,
 --          FIFO_PAUSE_THRESH_G   => FIFO_PAUSE_THRESH_G,
 --          FIFO_SYNTH_MODE_G     => FIFO_SYNTH_MODE_G,
 --          TX_VALID_THOLD_G      => TX_VALID_THOLD_G,
@@ -496,67 +486,40 @@ begin
    appLocalRxAxisSlaves(VC_DATA_C)  <= dataRxAxisSlave;
    dataRxAxisMaster                 <= appLocalRxAxisMasters(VC_DATA_C);
 
-
-   -----------------------------------
-   -- PRBS
-   -----------------------------------
-   U_SsiPrbsRx_1 : entity surf.SsiPrbsRx
-      generic map (
-         TPD_G                     => TPD_G,
-         STATUS_CNT_WIDTH_G        => 32,
-         SLAVE_READY_EN_G          => true,
-         GEN_SYNC_FIFO_G           => true,
-         SYNTH_MODE_G              => "inferred",
---          MEMORY_TYPE_G             => MEMORY_TYPE_G,
-         SLAVE_AXI_STREAM_CONFIG_G => AXIS_CONFIG_C,
-         SLAVE_AXI_PIPE_STAGES_G   => 1)
-      port map (
-         sAxisClk       => pgpClk,                               -- [in]
-         sAxisRst       => pgpRst,                               -- [in]
-         sAxisMaster    => appLocalRxAxisMasters(VC_PRBS_C),     -- [in]
-         sAxisSlave     => appLocalRxAxisSlaves(VC_PRBS_C),      -- [out]
---         sAxisCtrl       => sAxisCtrl,        -- [out]
-         axiClk         => pgpClk,                               -- [in]
-         axiRst         => pgpRst,                               -- [in]
-         axiReadMaster  => locAxilReadMasters(AXIL_PRBS_RX_C),   -- [in]
-         axiReadSlave   => locAxilReadSlaves(AXIL_PRBS_RX_C),    -- [out]
-         axiWriteMaster => locAxilWriteMasters(AXIL_PRBS_RX_C),  -- [in]
-         axiWriteSlave  => locAxilWriteSlaves(AXIL_PRBS_RX_C));  -- [out]
-
-   U_SsiPrbsTx_1 : entity surf.SsiPrbsTx
-      generic map (
-         TPD_G                      => TPD_G,
---          MEMORY_TYPE_G              => MEMORY_TYPE_G,
-         GEN_SYNC_FIFO_G            => true,
-         SYNTH_MODE_G               => "inferred",
-         MASTER_AXI_STREAM_CONFIG_G => AXIS_CONFIG_C,
-         MASTER_AXI_PIPE_STAGES_G   => 1)
-      port map (
-         mAxisClk        => pgpClk,                               -- [in]
-         mAxisRst        => pgpRst,                               -- [in]
-         mAxisMaster     => appLocalTxAxisMasters(VC_PRBS_C),     -- [out]
-         mAxisSlave      => appLocalTxAxisSlaves(VC_PRBS_C),      -- [in]
-         locClk          => pgpClk,                               -- [in]
-         locRst          => pgpRst,                               -- [in]
---          trig            => trig,             -- [in]
---          packetLength    => packetLength,     -- [in]
---          forceEofe       => forceEofe,        -- [in]
---          busy            => busy,             -- [out]
---          tDest           => tDest,            -- [in]
---          tId             => tId,              -- [in]
-         axilReadMaster  => locAxilReadMasters(AXIL_PRBS_TX_C),   -- [in]
-         axilReadSlave   => locAxilReadSlaves(AXIL_PRBS_TX_C),    -- [out]
-         axilWriteMaster => locAxilWriteMasters(AXIL_PRBS_TX_C),  -- [in]
-         axilWriteSlave  => locAxilWriteSlaves(AXIL_PRBS_TX_C));  -- [out]
-
    ---------------------------------
-   -- Loopback
+   -- VC 2 and 3 are Loopback
    ---------------------------------
-   U_AxiStreamFifoV2_LOOPBACK : entity surf.AxiStreamFifoV2
+   U_AxiStreamFifoV2_LOOPBACK_2 : entity surf.AxiStreamFifoV2
       generic map (
          TPD_G               => TPD_G,
          INT_PIPE_STAGES_G   => 1,
-         PIPE_STAGES_G       => 1,
+         PIPE_STAGES_G       => 0,
+         SLAVE_READY_EN_G    => true,
+         VALID_THOLD_G       => 1,
+         VALID_BURST_MODE_G  => false,
+         SYNTH_MODE_G        => "inferred",
+         MEMORY_TYPE_G       => "block",
+         GEN_SYNC_FIFO_G     => true,
+         FIFO_ADDR_WIDTH_G   => 9,
+         FIFO_FIXED_THRESH_G => true,
+--         FIFO_PAUSE_THRESH_G => 2**12-32,
+         SLAVE_AXI_CONFIG_G  => AXIS_CONFIG_C,
+         MASTER_AXI_CONFIG_G => AXIS_CONFIG_C)
+      port map (
+         sAxisClk    => pgpClk,                                  -- [in]
+         sAxisRst    => pgpRst,                                  -- [in]
+         sAxisMaster => appLocalRxAxisMasters(VC_LOOPBACK_2_C),  -- [in]
+         sAxisSlave  => appLocalRxAxisSlaves(VC_LOOPBACK_2_C),   -- [out]
+         mAxisClk    => pgpClk,                                  -- [in]
+         mAxisRst    => pgpRst,                                  -- [in]
+         mAxisMaster => appLocalTxAxisMasters(VC_LOOPBACK_2_C),  -- [out]
+         mAxisSlave  => appLocalTxAxisSlaves(VC_LOOPBACK_2_C));  -- [in]
+
+   U_AxiStreamFifoV2_LOOPBACK_3 : entity surf.AxiStreamFifoV2
+      generic map (
+         TPD_G               => TPD_G,
+         INT_PIPE_STAGES_G   => 1,
+         PIPE_STAGES_G       => 0,
          SLAVE_READY_EN_G    => true,
          VALID_THOLD_G       => 1,
          VALID_BURST_MODE_G  => false,
@@ -571,12 +534,12 @@ begin
       port map (
          sAxisClk    => pgpClk,                                -- [in]
          sAxisRst    => pgpRst,                                -- [in]
-         sAxisMaster => appLocalRxAxisMasters(VC_LOOPBACK_C),  -- [in]
-         sAxisSlave  => appLocalRxAxisSlaves(VC_LOOPBACK_C),   -- [out]
+         sAxisMaster => appLocalRxAxisMasters(VC_LOOPBACK_3_C),  -- [in]
+         sAxisSlave  => appLocalRxAxisSlaves(VC_LOOPBACK_3_C),   -- [out]
          mAxisClk    => pgpClk,                                -- [in]
          mAxisRst    => pgpRst,                                -- [in]
-         mAxisMaster => appLocalTxAxisMasters(VC_LOOPBACK_C),  -- [out]
-         mAxisSlave  => appLocalTxAxisSlaves(VC_LOOPBACK_C));  -- [in]
+         mAxisMaster => appLocalTxAxisMasters(VC_LOOPBACK_3_C),  -- [out]
+         mAxisSlave  => appLocalTxAxisSlaves(VC_LOOPBACK_3_C));  -- [in]
 
 
 
