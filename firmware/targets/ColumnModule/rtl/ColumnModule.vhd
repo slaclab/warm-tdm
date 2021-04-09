@@ -61,9 +61,9 @@ entity ColumnModule is
       pgpRxN : in  sl;
 
       -- Timing Interface Crossbars
-      xbarDataSel : out slv(1 downto 0) := "00";
-      xbarClkSel  : out slv(1 downto 0) := "00";
-      xbarMgtSel  : out slv(1 downto 0) := "00";
+      xbarDataSel : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarClkSel  : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarMgtSel  : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
 
       -- MGT Timing
 --       timingRxP : in sl;
@@ -462,7 +462,7 @@ begin
       generic map (
          TPD_G             => TPD_G,
          NUM_CHIPS_G       => 1,
-         SCLK_PERIOD_G     => 1.0E-6,
+         SCLK_PERIOD_G     => ite(SIMULATION_G, 100.0e-9, 1.0E-6),
          AXIL_CLK_PERIOD_G => 6.4E-9)
       port map (
          axilClk         => axilClk,                                 -- [in]
