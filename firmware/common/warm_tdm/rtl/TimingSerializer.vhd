@@ -60,9 +60,10 @@ begin
 
    U_OSERDES_MASTER : OSERDESE2
       generic map (
-         DATA_RATE_OQ => "DDR",
-         DATA_WIDTH   => 10,
-         SERDES_MODE  => "MASTER")
+         DATA_RATE_OQ   => "DDR",
+         DATA_WIDTH     => 10,
+         SERDES_MODE    => "MASTER",
+         TRISTATE_WIDTH => 1)
       port map (
          OQ        => timingTxData,
          OFB       => open,
@@ -81,7 +82,7 @@ begin
          D7        => dataIn(6),
          D8        => dataIn(7),
          TCE       => '0',
-         OCE       => enable,              -- Output data clock enable
+         OCE       => enable,           -- Output data clock enable
          TBYTEIN   => '1',
          TBYTEOUT  => open,
          RST       => rst,              -- 1-bit Asynchronous reset only.
@@ -94,9 +95,10 @@ begin
 
    U_OSERDES_SLAVE : OSERDESE2
       generic map (
-         DATA_RATE_OQ => "DDR",
-         DATA_WIDTH   => 10,
-         SERDES_MODE  => "SLAVE")
+         DATA_RATE_OQ   => "DDR",
+         DATA_WIDTH     => 10,
+         SERDES_MODE    => "SLAVE",
+         TRISTATE_WIDTH => 1)
       port map (
          OQ        => open,
          OFB       => open,
@@ -115,7 +117,7 @@ begin
          D7        => '0',
          D8        => '0',
          TCE       => '0',
-         OCE       => enable,              -- Output data clock enable
+         OCE       => enable,           -- Output data clock enable
          TBYTEIN   => '1',
          TBYTEOUT  => open,
          RST       => rst,              -- 1-bit Asynchronous reset only.
