@@ -32,10 +32,10 @@ package TimingPkg is
    constant K_28_5_C : slv(9 downto 0) := "0101111100";
 
    constant IDLE_C       : slv(7 downto 0) := "10111100";  -- K28.5, 0xBC
-   constant START_RUN_C  : slv(7 downto 0) := "00111000";  -- K28.0
+   constant START_RUN_C  : slv(7 downto 0) := "00011100";  -- K28.0
    constant END_RUN_C    : slv(7 downto 0) := "00111100";  -- K28.1
-   constant FIRST_ROW_C  : slv(7 downto 0) := "00111010";  -- K28.2
-   constant ROW_STROBE_C : slv(7 downto 0) := "00111110";  -- K28.3
+   constant FIRST_ROW_C  : slv(7 downto 0) := "01011100";  -- K28.2
+   constant ROW_STROBE_C : slv(7 downto 0) := "01111100";  -- K28.3
 
    type LocalTimingType is record
       startRun     : sl;                -- Strobed at start of run
