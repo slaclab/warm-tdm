@@ -20,6 +20,8 @@ use ieee.std_logic_1164.all;
 use ieee.std_logic_arith.all;
 use ieee.std_logic_unsigned.all;
 
+library unisim;
+use unisim.vcomponents.all;
 
 library surf;
 use surf.StdRtlPkg.all;
@@ -118,13 +120,11 @@ begin
             coreSDout      => dacSdio(i),              -- [out]
             coreMCsb(0)    => dacCsB(i));              -- [out]
 
-      U_ClkOutBufDiff_1 : entity surf.ClkOutBufDiff
-         generic map (
-            TPD_G => TPD_G)
+      U_ClkOutBufDiff_1 : OBUFDS
          port map (
-            clkIn   => timingData.rowStrobe,  -- [in]
-            clkOutP => dacClkP(i),            -- [out]
-            clkOutN => dacClkN(i));           -- [out]
+            i  => timingData.rowStrobe,  -- [in]
+            o  => dacClkP(i),            -- [out]
+            ob => dacClkN(i));           -- [out]
    end generate DAC_SPI_GEN;
 
 end architecture rtl;
