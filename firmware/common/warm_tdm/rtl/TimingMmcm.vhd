@@ -34,6 +34,7 @@ entity TimingMmcm is
       timingRxClk : in  sl;
       timingRxRst : in  sl;
       bitClk      : out sl;
+      bitRst      : out sl;
       wordClk     : out sl;
       wordRst     : out sl);
 
@@ -64,7 +65,7 @@ begin
          CLKIN1_PERIOD    => 8.0,
          DIVCLK_DIVIDE    => 1,
          CLKFBOUT_MULT_F  => 10.0,
-         CLKOUT0_DIVIDE_F => 4.0,
+         CLKOUT0_DIVIDE_F => 2.0,
          CLKOUT1_DIVIDE   => 10)
       port map (
          DCLK     => '0',
@@ -130,11 +131,21 @@ begin
 
    RstSync_1 : entity surf.RstSync
       generic map (
-         TPD_G => TPD_G)
+         TPD_G         => TPD_G,
+         IN_POLARITY_G => '0')
       port map (
          clk      => wordClkLoc,
          asyncRst => locked,
          syncRst  => wordRst);
+
+   RstSync_2 : entity surf.RstSync
+      generic map (
+         TPD_G         => TPD_G,
+         IN_POLARITY_G => '0')
+      port map (
+         clk      => bitClkLoc,
+         asyncRst => locked,
+         syncRst  => bitRst);
 
 
 
