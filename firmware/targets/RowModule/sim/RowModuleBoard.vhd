@@ -53,8 +53,8 @@ architecture sim of RowModuleBoard is
    constant SIMULATION_G : boolean       := true;
    constant BUILD_INFO_G : BuildInfoType := BUILD_INFO_DEFAULT_SLV_C;
 
-   constant ETH_10G_G : boolean          := true;
-   constant DHCP_G    : boolean          := false;
+   constant ETH_10G_G : boolean          := false;
+   constant DHCP_G    : boolean          := true;
    constant IP_ADDR_G : slv(31 downto 0) := x"0B01A8C0";
 
    -- component ports
