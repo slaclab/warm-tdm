@@ -12,7 +12,7 @@ class RowModule(pr.Device):
         self.add(warm_tdm.WarmTdmCommon(
             offset = 0x00000000))
 
-        self.add(warm_tdm.TimingRx(
+        self.add(warm_tdm.Timing(
             offset = 0x00100000))
 
         self.add(warm_tdm.RowModuleDacs(

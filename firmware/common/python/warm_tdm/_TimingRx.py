@@ -8,6 +8,22 @@ class TimingRx(pr.Device):
         super().__init__(**kwargs)
 
         self.add(pr.RemoteVariable(
+            name = "RxClockFrequencyRaw",
+            mode = 'RO',
+            offset = 0x30,
+            bitOffset = 0,
+            bitSize = 32,
+            hidden = True))
+
+        self.add(pr.LinkVariable(
+            name = "RxClockFrequency",
+            mode = "RO",
+            disp = '{:3.2f}',
+            units = 'MHz',
+            dependencies = [self.RxClockFrequencyRaw],
+            linkedGet = lambda: self.RxClockFrequencyRaw.value()*1.0E3))
+
+        self.add(pr.RemoteVariable(
             name = 'UserDelay',
             mode = 'RW',
             offset = 0x00,
