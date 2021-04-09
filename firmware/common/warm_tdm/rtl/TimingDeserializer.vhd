@@ -108,14 +108,14 @@ begin
          IOBDELAY          => "IFD",       -- Use input at DDLY to output the data on Q1-Q6
          SERDES_MODE       => "MASTER")
       port map (
-         Q1           => dataOut(0),
-         Q2           => dataOut(1),
-         Q3           => dataOut(2),
-         Q4           => dataOut(3),
-         Q5           => dataOut(4),
-         Q6           => dataOut(5),
-         Q7           => dataOut(6),
-         Q8           => dataOut(7),
+         Q1           => dataOut(9),
+         Q2           => dataOut(8),
+         Q3           => dataOut(7),
+         Q4           => dataOut(6),
+         Q5           => dataOut(5),
+         Q6           => dataOut(4),
+         Q7           => dataOut(3),
+         Q8           => dataOut(2),
          SHIFTOUT1    => shift1,           -- Cascade connection to Slave ISERDES
          SHIFTOUT2    => shift2,           -- Cascade connection to Slave ISERDES
          BITSLIP      => slip,             -- 1-bit Invoke Bitslip. This can be used with any
@@ -142,7 +142,7 @@ begin
    U_ISERDES_SLAVE : ISERDESE2
       generic map (
          DATA_RATE         => "DDR",
-         DATA_WIDTH        => 14,
+         DATA_WIDTH        => 10,
          INTERFACE_TYPE    => "NETWORKING",
          DYN_CLKDIV_INV_EN => "FALSE",
          DYN_CLK_INV_EN    => "FALSE",
@@ -153,8 +153,8 @@ begin
       port map (
          Q1           => open,
          Q2           => open,
-         Q3           => dataOut(8),
-         Q4           => dataOut(9),
+         Q3           => dataOut(1),
+         Q4           => dataOut(0),
          Q5           => open,
          Q6           => open,
          Q7           => open,
