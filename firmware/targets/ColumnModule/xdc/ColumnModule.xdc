@@ -30,6 +30,13 @@ create_generated_clock -name ethClkDiv2 [get_pins {U_ComCore_1/U_EthCore_1/REAL_
 
 create_generated_clock -name idelayClk [get_pins {U_Timing_1/U_MMCM_IDELAY/MmcmGen.U_Mmcm/CLKOUT1}]
 
+create_generated_clock -name timingTxClk [get_pins {U_Timing_1/U_MMCM_IDELAY/MmcmGen.U_Mmcm/CLKOUT0}]
+create_generated_clock -name timingTxBitClk [get_pins {U_Timing_1/U_TimingTx_1/U_TimingMmcm_1/U_Mmcm/CLKOUT0}]
+create_generated_clock -name timingTxWordClk [get_pins {U_Timing_1/U_TimingTx_1/U_TimingMmcm_1/U_Mmcm/CLKOUT1}]
+
+create_generated_clock -name timingRxBitClk [get_pins {U_Timing_1/U_TimingRx_1/U_TimingMmcm_1/U_Mmcm/CLKOUT0}]
+create_generated_clock -name timingRxWordClk [get_pins {U_Timing_1/U_TimingRx_1/U_TimingMmcm_1/U_Mmcm/CLKOUT1}]
+
 
 #set ethRxClk {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/U_TenGigEthGtx7Core/U0/gt0_gtwizard_10gbaser_multi_gt_i/gt0_gtwizard_10gbaser_i/gtxe2_i/RXOUTCLK}
 #set ethTxClk {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/U_TenGigEthGtx7Core/U0/gt0_gtwizard_10gbaser_multi_gt_i/gt0_gtwizard_10gbaser_i/gtxe2_i/TXOUTCLK}
@@ -37,7 +44,12 @@ create_generated_clock -name idelayClk [get_pins {U_Timing_1/U_MMCM_IDELAY/MmcmG
 #set_clock_groups -asynchronous \
 #    -group [get_clocks {gtRefClk0Div2}] \
 #    -group [get_clocks ${ethTxClk}] \
-#    -group [get_clocks ${ethRxClk}]
+    #    -group [get_clocks ${ethRxClk}]
+
+set_clock_groups -asynchronous \
+    -group [get_clocks {gtRefClk0Div2}] \
+    -group [get_clocks {ethClk}] 
+
 
 set_clock_groups -asynchronous \
     -group [get_clocks -include_generated_clocks gtRefClk0] \
@@ -64,12 +76,12 @@ set_clock_groups -asynchronous \
 
 set_clock_groups -asynchronous \
     -group [get_clocks axilClk] \
-    -group [get_clocks timingRxClk] \        
+    -group [get_clocks timingRxWordClk] \        
     -group [get_clocks -include_generated_clocks adcDClk0] 
 
 set_clock_groups -asynchronous \
     -group [get_clocks axilClk] \
-    -group [get_clocks timingRxClk] \    
+    -group [get_clocks timingRxWordClk] \    
     -group [get_clocks -include_generated_clocks adcDClk1]
 
 # This isn't right
