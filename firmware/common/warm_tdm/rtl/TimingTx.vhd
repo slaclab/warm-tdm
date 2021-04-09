@@ -58,6 +58,7 @@ end entity TimingTx;
 architecture rtl of TimingTx is
 
    signal bitClk  : sl;
+   signal bitRst  : sl;
    signal wordClk : sl;
    signal wordRst : sl;
 
@@ -83,7 +84,7 @@ architecture rtl of TimingTx is
       startRun       => '0',
       endRun         => '0',
       rowPeriod      => toSlv(250, 16),  -- 125 MHz / 250 = 500 kHz
-      numRows        => toSlv(80, 16),   -- Default of 80 rows
+      numRows        => toSlv(64, 16),   -- Default of 80 rows
       timingTx       => IDLE_C,
       timingData     => LOCAL_TIMING_INIT_C,
       axilWriteSlave => AXI_LITE_WRITE_SLAVE_INIT_C,
@@ -110,14 +111,14 @@ begin
          sAxiReadSlave   => axilReadSlave,          -- [out]
          sAxiWriteMaster => axilWriteMaster,        -- [in]
          sAxiWriteSlave  => axilWriteSlave,         -- [out]
-         mAxiClk         => timingClk125,           -- [in]
-         mAxiClkRst      => timingRst125,           -- [in]
+         mAxiClk         => wordClk,                -- [in]
+         mAxiClkRst      => wordRst,                -- [in]
          mAxiReadMaster  => timingAxilReadMaster,   -- [out]
          mAxiReadSlave   => timingAxilReadSlave,    -- [in]
          mAxiWriteMaster => timingAxilWriteMaster,  -- [out]
          mAxiWriteSlave  => timingAxilWriteSlave);  -- [in]
 
-   comb : process (r, timingAxilReadMaster, timingAxilWriteMaster, timingRst125) is
+   comb : process (r, timingAxilReadMaster, timingAxilWriteMaster, wordRst) is
       variable v      : RegType;
       variable axilEp : AxiLiteEndpointType;
    begin
@@ -141,9 +142,9 @@ begin
       -- Status
       axiSlaveRegisterR(axilEp, X"10", 0, r.timingData.running);
       axiSlaveRegisterR(axilEp, X"14", 0, r.timingData.rowNum);
-      axiSlaveRegisterR(axilEp, X"18", 0, r.timingData.runTime);
-      axiSlaveRegisterR(axilEp, X"1C", 0, r.timingData.rowTime);
-      axiSlaveRegisterR(axilEp, X"20", 0, r.timingData.readoutCount);
+      axiSlaveRegisterR(axilEp, X"18", 0, r.timingData.rowTime);
+      axiSlaveRegisterR(axilEp, X"20", 0, r.timingData.runTime);
+      axiSlaveRegisterR(axilEp, X"28", 0, r.timingData.readoutCount);
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
 
@@ -172,7 +173,7 @@ begin
             v.timingData.rowTime := (others => '0');
             v.timingData.rowNum  := r.timingData.rowNum + 1;
 
-            if (r.timingData.rowNum = r.numRows) then
+            if (r.timingData.rowNum = r.numRows-1) then
                v.timingData.rowNum       := (others => '0');
                v.timingData.readoutCount := r.timingData.readoutCount + 1;
             end if;
@@ -194,7 +195,7 @@ begin
       end if;
 
 
-      if (timingRst125 = '1') then
+      if (wordRst = '1') then
          v := REG_INIT_C;
       end if;
 
@@ -205,9 +206,9 @@ begin
 
    end process;
 
-   seq : process (timingClk125) is
+   seq : process (wordClk) is
    begin
-      if (rising_edge(timingClk125)) then
+      if (rising_edge(wordClk)) then
          r <= rin after TPD_G;
       end if;
    end process;
@@ -234,6 +235,7 @@ begin
          timingRxClk => timingClk125,   -- [in]
          timingRxRst => timingRst125,   -- [in]
          bitClk      => bitClk,         -- [out]
+         bitRst      => bitRst,         -- [out]
          wordClk     => wordClk,        -- [out]
          wordRst     => wordRst);       -- [out]
 
@@ -242,8 +244,9 @@ begin
    -------------------------------------------------------------------------------------------------
    U_Encoder8b10b_1 : entity surf.Encoder8b10b
       generic map (
-         TPD_G       => TPD_G,
-         NUM_BYTES_G => 1)
+         TPD_G          => TPD_G,
+         RST_POLARITY_G => '1',
+         NUM_BYTES_G    => 1)
       port map (
          clk     => wordClk,            -- [in]
          rst     => wordRst,            -- [in]
@@ -259,8 +262,8 @@ begin
       generic map (
          TPD_G => TPD_G)
       port map (
-         rst           => '0',                -- [in]
-         enable        => r.enable,           -- [in]
+         rst           => wordRst,             -- [in]
+         enable        => '1',                --r.enable,           -- [in]
          bitClk        => bitClk,             -- [in]
          timingTxDataP => timingTxDataP,      -- [in]
          timingTxDataN => timingTxDataN,      -- [in]

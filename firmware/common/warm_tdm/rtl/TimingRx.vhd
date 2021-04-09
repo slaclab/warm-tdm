@@ -86,6 +86,7 @@ architecture rtl of TimingRx is
    signal codeErr          : sl;
    signal dispErr          : sl;
 
+   signal rxClkFreq : slv(31 downto 0);
 
    type RegType is record
       timingData : LocalTimingType;
@@ -166,8 +167,8 @@ begin
          asyncRst => axilRst,           -- [in]
          syncRst  => timingRxRst);      -- [out]
 
-   timingRxClkOut <= timingRxClk;
-   timingRxRstOut <= timingRxRst;
+   timingRxClkOut <= wordClk;           --timingRxClk;
+   timingRxRstOut <= wordRst;           --timingRxRst;
 
 
    -------------------------------------------------------------------------------------------------
@@ -175,7 +176,8 @@ begin
    -------------------------------------------------------------------------------------------------
    U_TimingMmcm_1 : entity warm_tdm.TimingMmcm
       generic map (
-         TPD_G => TPD_G)
+         TPD_G     => TPD_G,
+         USE_HPC_G => false)
       port map (
          timingRxClk => timingRxClk,    -- [in]
          timingRxRst => timingRxRst,    -- [in]
@@ -195,7 +197,7 @@ begin
          DEFAULT_DELAY_G   => DEFAULT_DELAY_G,
          IDELAYCTRL_FREQ_G => IDELAYCTRL_FREQ_G)
       port map (
-         rst           => '0',                 -- [in]
+         rst           => wordRst,             -- [in]
          bitClk        => bitClk,              -- [in]
          bitClkInv     => bitClkInv,           -- [in]
          timingRxDataP => timingRxDataP,       -- [in]
@@ -321,7 +323,7 @@ begin
          TPD_G          => TPD_G,
          IN_POLARITY_G  => '1',
          OUT_POLARITY_G => '1',
-         CNT_RST_EDGE_G => true,
+         CNT_RST_EDGE_G => false,
          CNT_WIDTH_G    => 16)
       port map (
          dataIn     => errorDet,
@@ -363,12 +365,35 @@ begin
          valid  => debugDataValid,
          dout   => debugDataOut);
 
+   ----------------------------------------------------
+   -- Monitor clock frequency
+   ----------------------------------------------------
+   U_SyncClockFreq_1 : entity surf.SyncClockFreq
+      generic map (
+         TPD_G             => TPD_G,
+--         USE_DSP_G         => USE_DSP_G,
+         REF_CLK_FREQ_G    => 125.0E6,
+         REFRESH_RATE_G    => 1.0E3,
+         CLK_LOWER_LIMIT_G => 124.0E6,
+         CLK_UPPER_LIMIT_G => 126.0E6,
+         COMMON_CLK_G      => true,
+         CNT_WIDTH_G       => 32)
+      port map (
+         freqOut     => rxClkFreq,      -- [out]
+         freqUpdated => open,           -- [out]
+         locked      => open,           -- [out]
+         tooFast     => open,           -- [out]
+         tooSlow     => open,           -- [out]
+         clkIn       => timingRxClk,    -- [in]
+         locClk      => axilClk,        -- [in]
+         refClk      => axilClk);       -- [in]
+
 
    -------------------------------------------------------------------------------------------------
    -- Transition to timingRxClk here from wordClk
    -- Is this ok?
    -------------------------------------------------------------------------------------------------
-   comb : process (r, timingRxData, timingRxDataK, timingRxRst, timingRxValid) is
+   comb : process (r, timingRxData, timingRxDataK, timingRxValid, wordRst) is
       variable v : RegType;
    begin
       v := r;
@@ -382,7 +407,7 @@ begin
       v.timingData.endRun    := '0';
       v.timingData.rowStrobe := '0';
 
-      if (timingRxValid = '1' and timingRxDataK = '1') then
+      if (timingRxValid = '1' and timingRxDataK = '1' and locked = '1') then
          case timingRxData is
             when START_RUN_C =>
                v.timingData.startRun     := '1';
@@ -405,7 +430,7 @@ begin
          end case;
       end if;
 
-      if (timingRxRst = '1') then
+      if (wordRst = '1') then
          v := REG_INIT_C;
       end if;
 
@@ -415,9 +440,9 @@ begin
 
    end process comb;
 
-   seq : process (timingRxClk) is
+   seq : process (wordClk) is
    begin
-      if (rising_edge(timingRxClk)) then
+      if (rising_edge(wordClk)) then
          r <= rin after TPD_G;
       end if;
    end process seq;
@@ -465,6 +490,8 @@ begin
       axiSlaveRegisterR(axilEp, X"20", 0, axilR.readoutDebug0);
       axiSlaveRegisterR(axilEp, X"20", 10, axilR.readoutDebug1);
       axiSlaveRegisterR(axilEp, X"20", 20, axilR.readoutDebug2);
+
+      axiSlaveRegisterR(axilEp, X"30", 0, rxClkFreq);
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
 
