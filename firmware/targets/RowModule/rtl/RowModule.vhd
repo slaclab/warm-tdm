@@ -103,11 +103,11 @@ entity RowModule is
       pwrSda : inout sl;
 
       -- Status LEDs
-      leds           : out slv(7 downto 0) := (others => '0');
-      conRxGreenLed  : out sl              := '0';
-      conRxYellowLed : out sl              := '0';
-      conTxGreenLed  : out sl              := '0';
-      conTxYellowLed : out sl              := '0';
+      leds           : out slv(7 downto 0) := "10000000";
+      conRxGreenLed  : out sl              := '1';
+      conRxYellowLed : out sl              := '1';
+      conTxGreenLed  : out sl              := '1';
+      conTxYellowLed : out sl              := '1';
 
       oscOe : out slv(1 downto 0) := "11";
       
