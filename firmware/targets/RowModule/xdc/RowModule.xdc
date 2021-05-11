@@ -228,10 +228,10 @@ set_property -dict { PACKAGE_PIN N22 IOSTANDARD LVCMOS33 } [get_ports { leds[5] 
 set_property -dict { PACKAGE_PIN M22 IOSTANDARD LVCMOS33 } [get_ports { leds[6] }];
 set_property -dict { PACKAGE_PIN K21 IOSTANDARD LVCMOS33 } [get_ports { leds[7] }];
 
-set_property -dict { PACKAGE_PIN  IOSTANDARD LVCMOS33 } [get_ports { conRxGreenLed }];
-set_property -dict { PACKAGE_PIN  IOSTANDARD LVCMOS33 } [get_ports { conRxYellowLed }];
-set_property -dict { PACKAGE_PIN  IOSTANDARD LVCMOS33 } [get_ports { conTxGreenLed }];
-set_property -dict { PACKAGE_PIN  IOSTANDARD LVCMOS33 } [get_ports { conTxYellowLed }];
+set_property -dict { PACKAGE_PIN L21 IOSTANDARD LVCMOS33 } [get_ports { conRxGreenLed }];
+set_property -dict { PACKAGE_PIN R18 IOSTANDARD LVCMOS33 } [get_ports { conRxYellowLed }];
+set_property -dict { PACKAGE_PIN R19 IOSTANDARD LVCMOS33 } [get_ports { conTxGreenLed }];
+set_property -dict { PACKAGE_PIN P19 IOSTANDARD LVCMOS33 } [get_ports { conTxYellowLed }];
 
 
 
