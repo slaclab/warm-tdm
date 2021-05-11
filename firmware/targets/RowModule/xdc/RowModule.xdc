@@ -243,6 +243,10 @@ set_property -dict { PACKAGE_PIN H20 IOSTANDARD LVCMOS33 } [get_ports { promSda 
 set_property -dict { PACKAGE_PIN E22 IOSTANDARD LVCMOS33 } [get_ports { pwrScl }];
 set_property -dict { PACKAGE_PIN H22 IOSTANDARD LVCMOS33 } [get_ports { pwrSda }];
 
+#OSC Enable
+set_property -dict { PACKAGE_PIN P21 IOSTANDARD LVCMOS33 } [get_ports { oscOe[0] }];
+set_property -dict { PACKAGE_PIN P22 IOSTANDARD LVCMOS33 } [get_ports { oscOe[1] }];
+
 ## Thermistors
 set_property -dict { PACKAGE_PIN G15 IOSTANDARD LVCMOS25 } [get_ports { vAuxP[0] }];
 set_property -dict { PACKAGE_PIN C12 IOSTANDARD LVCMOS25 } [get_ports { vAuxP[1] }];

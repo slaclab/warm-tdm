@@ -109,6 +109,8 @@ entity RowModule is
       conTxGreenLed  : out sl              := '0';
       conTxYellowLed : out sl              := '0';
 
+      oscOe : out slv(1 downto 0) := "11";
+      
       -- XADC
       vAuxP : in slv(3 downto 0);
       vAuxN : in slv(3 downto 0);
@@ -353,7 +355,7 @@ begin
 
 
    -------------------------------------------------------------------------------------------------
-   -- Main crossbar
+   -- Main crosbar
    -------------------------------------------------------------------------------------------------
    U_AxiLiteCrossbar_Main : entity surf.AxiLiteCrossbar
       generic map (
