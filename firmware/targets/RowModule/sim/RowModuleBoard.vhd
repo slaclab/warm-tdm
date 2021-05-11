@@ -21,6 +21,9 @@ use ieee.std_logic_1164.all;
 library surf;
 use surf.StdRtlPkg.all;
 
+library ruckus;
+use ruckus.BuildInfoPkg.all;
+
 library warm_tdm;
 
 ----------------------------------------------------------------------------------------------------
@@ -51,7 +54,7 @@ architecture sim of RowModuleBoard is
 
    -- component generics
    constant SIMULATION_G : boolean       := true;
-   constant BUILD_INFO_G : BuildInfoType := BUILD_INFO_DEFAULT_SLV_C;
+   constant BUILD_INFO_G : BuildInfoType := BUILD_INFO_C;
 
    constant ETH_10G_G : boolean          := false;
    constant DHCP_G    : boolean          := true;
@@ -252,6 +255,25 @@ begin
          i2cSda => pwrSda,              -- [inout]
          i2cScl => pwrScl);             -- [inout]
 
+   ------------------------------------------------
+   -- AD9106 Array
+   ------------------------------------------------
+   AD9106_GEN : for i in 11 downto 0 generate
+      U_Ad9106_1 : entity warm_tdm.Ad9106
+         generic map (
+            TPD_G => TPD_G)
+         port map (
+            sclk     => dacSclk(i),      -- [in]
+            sdio     => dacSdio(i),      -- [in]
+            sdo      => dacSdo(i),       -- [out]
+            csB      => dacCsB(i),       -- [in]
+            clkP     => dacClkP(i),      -- [in]
+            clkN     => dacClkN(i),      -- [in]
+            triggerB => dacTriggerB(i),  -- [in]
+--         fsadj    => fsadj,             -- [in]
+            iOutP    => open,            -- [out]
+            iOutN    => open);           -- [out]
+   end generate;
 
 end architecture sim;
 

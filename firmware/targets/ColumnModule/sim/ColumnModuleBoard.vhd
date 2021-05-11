@@ -21,6 +21,9 @@ use ieee.std_logic_1164.all;
 library surf;
 use surf.StdRtlPkg.all;
 
+library ruckus;
+use ruckus.BuildInfoPkg.all;
+
 library warm_tdm;
 
 ----------------------------------------------------------------------------------------------------
@@ -51,7 +54,7 @@ architecture sim of ColumnModuleBoard is
 
    -- component generics
    constant SIMULATION_G : boolean       := true;
-   constant BUILD_INFO_G : BuildInfoType := BUILD_INFO_DEFAULT_SLV_C;
+   constant BUILD_INFO_G : BuildInfoType := BUILD_INFO_C;
 
    constant ETH_10G_G : boolean          := false;
    constant DHCP_G    : boolean          := true;
@@ -137,14 +140,19 @@ architecture sim of ColumnModuleBoard is
    signal rst : sl;
 
    signal adcVin : RealArray(7 downto 0) := (
-      0 => -1.0,
-      1 => -0.99999,
-      2 => -0.5,
+      0 => -0.001,
+      1 => -0.010,
+      2 => -0.100,
       3 => 0.0,
-      4 => 0.123456789,
-      5 => 0.5,
-      6 => 0.75,
-      7 => 0.9999);
+      4 => 0.1,
+      5 => 0.010,
+      6 => 0.001,
+      7 => 0.0001);
+
+   signal tesDacVout : RealArray(15 downto 0) := (others => 0.0);
+   signal tesBias    : RealArray(7 downto 0)  := (others => 0.0);
+
+   signal saDacVout : RealArray(15 downto 0) := (others => 0.0);
 
 begin
 
@@ -346,6 +354,41 @@ begin
    adcSclk <= 'H';
    adcSdio <= 'H';
    adcCsb  <= 'H';
+
+   -------------------------------------------------------------------------------------------------
+   -- TES Bias DAC
+   -------------------------------------------------------------------------------------------------
+   U_Ad5679R_TES_BIAS : entity warm_tdm.Ad5679R
+      generic map (
+         TPD_G => TPD_G)
+      port map (
+         sclk   => tesDacSclk,          -- [in]
+         sdi    => tesDacMosi,          -- [in]
+         sdo    => tesDacMiso,          -- [out]
+         syncB  => tesDacSyncB,         -- [in]
+         ldacB  => tesDacLdacB,         -- [in]
+         resetB => tesDacResetB,        -- [in]
+         vout   => tesDacVout);         -- [out]
+
+   TES_BIAS_LOOP : for i in 7 downto 0 generate
+      tesBias(i) <= (tesDacVout(i)-tesDacVout(i+8)) * 0.5 when tesDelatch(i) = '0' else
+                    (tesDacVout(i)-tesDacVout(i+8)) * 3.2;
+   end generate;
+
+   -------------------------------------------------------------------------------------------------
+   -- TES Bias DAC
+   -------------------------------------------------------------------------------------------------
+   U_Ad5679R_SA_BIAS : entity warm_tdm.Ad5679R
+      generic map (
+         TPD_G => TPD_G)
+      port map (
+         sclk   => saDacSclk,           -- [in]
+         sdi    => saDacMosi,           -- [in]
+         sdo    => saDacMiso,           -- [out]
+         syncB  => saDacSyncB,          -- [in]
+         ldacB  => saDacLdacB,          -- [in]
+         resetB => saDacResetB,         -- [in]
+         vout   => saDacVout);          -- [out]
 
 end architecture sim;
 

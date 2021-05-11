@@ -349,6 +349,7 @@ begin
    U_RowModuleDacs_1 : entity warm_tdm.RowModuleDacs
       generic map (
          TPD_G            => TPD_G,
+         SIMULATION_G     => SIMULATION_G,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_DACS_C).baseAddr)
       port map (
          axilClk         => axilClk,                           -- [in]

@@ -201,7 +201,7 @@ architecture rtl of ColumnModule is
          connectivity     => X"FFFF"),
       AXIL_DATA_PATH_C    => (
          baseAddr         => X"00300000",
-         addrBits         => 16,
+         addrBits         => 20,
          connectivity     => X"FFFF"),
       AXIL_SQ1_BIAS_DAC_C => (
          baseAddr         => X"00400000",
@@ -409,11 +409,11 @@ begin
          ADDRESS_SIZE_G    => 8,
          DATA_SIZE_G       => 16,
          MODE_G            => "WO",
-         SHADOW_EN_G       => false,
+         SHADOW_EN_G       => true,
          CPHA_G            => '1',
-         CPOL_G            => '1',
-         CLK_PERIOD_G      => 156.25E+6,
-         SPI_SCLK_PERIOD_G => 100.0E-6,
+         CPOL_G            => '0',
+         CLK_PERIOD_G      => 6.4e-9,
+         SPI_SCLK_PERIOD_G => ite(SIMULATION_G, 100.0e-9, 1.0E-6),
          SPI_NUM_CHIPS_G   => 1)
       port map (
          axiClk         => axilClk,                                  -- [in]
@@ -436,11 +436,11 @@ begin
          ADDRESS_SIZE_G    => 8,
          DATA_SIZE_G       => 16,
          MODE_G            => "WO",
-         SHADOW_EN_G       => false,
+         SHADOW_EN_G       => true,
          CPHA_G            => '1',
-         CPOL_G            => '1',
-         CLK_PERIOD_G      => 156.25E+6,
-         SPI_SCLK_PERIOD_G => 100.0E-6,
+         CPOL_G            => '0',
+         CLK_PERIOD_G      => 6.4E-9,
+         SPI_SCLK_PERIOD_G => ite(SIMULATION_G, 100.0E-9, 1.0e-6),
          SPI_NUM_CHIPS_G   => 1)
       port map (
          axiClk         => axilClk,                                   -- [in]
