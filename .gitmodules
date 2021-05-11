@@ -4,3 +4,6 @@
 [submodule "firmware/submodules/ruckus"]
 	path = firmware/submodules/ruckus
 	url = git@github.com:slaclab/ruckus
+[submodule "software/rogue"]
+	path = software/rogue
+	url = git@github.com:slaclab/rogue
