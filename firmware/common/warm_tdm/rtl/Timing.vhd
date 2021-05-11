@@ -46,6 +46,7 @@ entity Timing is
       -- Reference clock
       timingRefClkP : in sl;
       timingRefClkN : in sl;
+      timingRefClkOut : out sl;
 
       -- RX Timing Serial Interface
       timingRxClkP  : in sl;

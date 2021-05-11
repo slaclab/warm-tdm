@@ -49,8 +49,9 @@ entity ComCore is
       DHCP_G                  : boolean          := false;  -- true = DHCP, false = static address
       IP_ADDR_G               : slv(31 downto 0) := X"0A01A8C0");  -- 192.168.1.10 (before DHCP)
    port (
-      gtRefClkP : in sl;
-      gtRefClkN : in sl;
+      gtRefClkP       : in  sl;
+      gtRefClkN       : in  sl;
+      gtRefClkDiv2Out : out sl;
 
       -- PGP IO
       pgpTxP : out sl;
@@ -63,6 +64,10 @@ entity ComCore is
       ethRxN : in  sl;
       ethTxP : out sl;
       ethTxN : out sl;
+
+      -- Debug
+      rssiStatus : out slv7Array(1 downto 0);
+      ethPhyReady : out sl;
 
       -- AXI Lite Master
       axilClkOut       : out sl;
@@ -141,6 +146,7 @@ begin
          ODIV2 => gtRefClkDiv2,
          O     => gtRefClk);
 
+   gtRefClkDiv2Out <= gtRefClkDiv2G;
    U_BUFG : BUFG
       port map (
          I => gtRefClkDiv2,
@@ -215,8 +221,8 @@ begin
          gtRxN                 => ethRxN,                            -- [in]
          gtTxP                 => ethTxP,                            -- [out]
          gtTxN                 => ethTxN,                            -- [out]
-         phyReady              => open,                              -- [out]
-         rssiStatus            => open,                              -- [out]
+         phyReady              => ethPhyReady,                       -- [out]
+         rssiStatus            => rssiStatus,                        -- [out]
          axilClk               => axilClk,                           -- [in]
          axilRst               => axilRst,                           -- [in]
          mAxilReadMaster       => mLocAxilReadMasters(AXIL_ETH_C),   -- [out]

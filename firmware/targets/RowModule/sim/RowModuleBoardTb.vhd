@@ -34,7 +34,7 @@ architecture sim of RowModuleBoardTb is
 
    -- component generics
    constant TPD_G             : time    := 1 ns;
-   constant NUM_ROW_MODULES_C : integer := 4;
+   constant NUM_ROW_MODULES_C : integer := 1;
 
    -- component ports
    signal rj45TimingClkP  : slv(NUM_ROW_MODULES_C-1 downto 0);  -- [in]

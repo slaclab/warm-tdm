@@ -103,7 +103,11 @@ entity RowModule is
       pwrSda : inout sl;
 
       -- Status LEDs
-      leds : out slv(7 downto 0);
+      leds           : out slv(7 downto 0) := (others => '0');
+      conRxGreenLed  : out sl              := '0';
+      conRxYellowLed : out sl              := '0';
+      conTxGreenLed  : out sl              := '0';
+      conTxYellowLed : out sl              := '0';
 
       -- XADC
       vAuxP : in slv(3 downto 0);
@@ -185,8 +189,56 @@ architecture rtl of RowModule is
    signal dataRxAxisMaster : AxiStreamMasterType;
    signal dataRxAxisSlave  : AxiStreamSlaveType;
 
+   -- Debug clocks
+   signal gtRefClk0Div2 : sl;
+   signal gtRefClk1     : sl;
+   signal rssiStatus    : slv7Array(1 downto 0);
+   signal ethPhyReady   : sl;
+
 
 begin
+
+   Heartbeat_gtRefClk0Div2 : entity surf.Heartbeat
+      generic map (
+         TPD_G        => TPD_G,
+         PERIOD_IN_G  => 6.4E-9,
+         PERIOD_OUT_G => 0.64)
+      port map (
+         clk => gtRefClk0Div2,
+         o   => leds(0));
+
+   Heartbeat_gtRefClk1 : entity surf.Heartbeat
+      generic map (
+         TPD_G        => TPD_G,
+         PERIOD_IN_G  => 8.0E-9,
+         PERIOD_OUT_G => 0.8)
+      port map (
+         clk => gtRefClk1,
+         o   => leds(1));
+
+   Heartbeat_axilClk : entity surf.Heartbeat
+      generic map (
+         TPD_G        => TPD_G,
+         PERIOD_IN_G  => 8.0E-9,
+         PERIOD_OUT_G => 0.8)
+      port map (
+         clk => axilClk,
+         o   => leds(2));
+
+   Heartbeat_timingRxClk : entity surf.Heartbeat
+      generic map (
+         TPD_G        => TPD_G,
+         PERIOD_IN_G  => 8.0E-9,
+         PERIOD_OUT_G => 0.8)
+      port map (
+         clk => timingClk125,
+         o   => leds(3));
+
+   leds(4) <= rssiStatus(0)(0);
+   leds(5) <= rssiStatus(1)(0);   
+   leds(6) <= ethPhyReady;
+
+
 
    -------------------------------------------------------------------------------------------------
    -- Timing Interface
@@ -201,6 +253,7 @@ begin
       port map (
          timingRefClkP   => gtRefClk1P,                          -- [in]
          timingRefClkN   => gtRefClk1N,                          -- [in]
+         timingRefClkOut => gtRefClk1,                           -- [out]
          timingRxClkP    => timingRxClkP,                        -- [in]
          timingRxClkN    => timingRxClkN,                        -- [in]
          timingRxDataP   => timingRxDataP,                       -- [in]
@@ -274,6 +327,7 @@ begin
       port map (
          gtRefClkP        => gtRefClk0P,                       -- [in]
          gtRefClkN        => gtRefClk0N,                       -- [in]
+         gtRefClkDiv2Out  => gtRefClk0Div2,                    -- [out]
          pgpTxP           => pgpTxP,                           -- [out]
          pgpTxN           => pgpTxN,                           -- [out]
          pgpRxP           => pgpRxP,                           -- [in]

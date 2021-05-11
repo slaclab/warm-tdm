@@ -219,10 +219,21 @@ set_property -dict { PACKAGE_PIN H18 IOSTANDARD LVCMOS33 } [get_ports { bootMosi
 set_property -dict { PACKAGE_PIN H19 IOSTANDARD LVCMOS33 } [get_ports { bootMiso }];
 
 # LEDs
-set_property -dict { PACKAGE_PIN P16 IOSTANDARD LVCMOS33 } [get_ports { leds[0] }];
-set_property -dict { PACKAGE_PIN N17 IOSTANDARD LVCMOS33 } [get_ports { leds[1] }];
-set_property -dict { PACKAGE_PIN R21 IOSTANDARD LVCMOS33 } [get_ports { leds[2] }];
-set_property -dict { PACKAGE_PIN R22 IOSTANDARD LVCMOS33 } [get_ports { leds[3] }];
+set_property -dict { PACKAGE_PIN L20 IOSTANDARD LVCMOS33 } [get_ports { leds[0] }];
+set_property -dict { PACKAGE_PIN N18 IOSTANDARD LVCMOS33 } [get_ports { leds[1] }];
+set_property -dict { PACKAGE_PIN N19 IOSTANDARD LVCMOS33 } [get_ports { leds[2] }];
+set_property -dict { PACKAGE_PIN M17 IOSTANDARD LVCMOS33 } [get_ports { leds[3] }];
+set_property -dict { PACKAGE_PIN M18 IOSTANDARD LVCMOS33 } [get_ports { leds[4] }];
+set_property -dict { PACKAGE_PIN N22 IOSTANDARD LVCMOS33 } [get_ports { leds[5] }];
+set_property -dict { PACKAGE_PIN M22 IOSTANDARD LVCMOS33 } [get_ports { leds[6] }];
+set_property -dict { PACKAGE_PIN K21 IOSTANDARD LVCMOS33 } [get_ports { leds[7] }];
+
+set_property -dict { PACKAGE_PIN  IOSTANDARD LVCMOS33 } [get_ports { conRxGreenLed }];
+set_property -dict { PACKAGE_PIN  IOSTANDARD LVCMOS33 } [get_ports { conRxYellowLed }];
+set_property -dict { PACKAGE_PIN  IOSTANDARD LVCMOS33 } [get_ports { conTxGreenLed }];
+set_property -dict { PACKAGE_PIN  IOSTANDARD LVCMOS33 } [get_ports { conTxYellowLed }];
+
+
 
 # I2C PROM
 set_property -dict { PACKAGE_PIN J20 IOSTANDARD LVCMOS33 } [get_ports { promScl }];
