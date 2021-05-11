@@ -66,29 +66,27 @@ architecture rtl of TimingTx is
 
    type RegType is record
       -- Config
-      enable         : sl;
-      startRun       : sl;
-      endRun         : sl;
-      rowPeriod      : slv(15 downto 0);
-      numRows        : slv(15 downto 0);
+      rowPeriod       : slv(15 downto 0);
+      numRows         : slv(15 downto 0);
+      sampleStartTime : slv(15 downto 0);
+      sampleEndTime   : slv(15 downto 0);
       -- State
-      timingData     : LocalTimingType;
-      timingTx       : slv(7 downto 0);
+      timingData      : LocalTimingType;
+      timingTx        : slv(7 downto 0);
       -- AXIL
-      axilWriteSlave : AxiLiteWriteSlaveType;
-      axilReadSlave  : AxiLiteReadSlaveType;
+      axilWriteSlave  : AxiLiteWriteSlaveType;
+      axilReadSlave   : AxiLiteReadSlaveType;
    end record RegType;
 
    constant REG_INIT_C : RegType := (
-      enable         => '0',
-      startRun       => '0',
-      endRun         => '0',
-      rowPeriod      => toSlv(250, 16),  -- 125 MHz / 250 = 500 kHz
-      numRows        => toSlv(64, 16),   -- Default of 80 rows
-      timingTx       => IDLE_C,
-      timingData     => LOCAL_TIMING_INIT_C,
-      axilWriteSlave => AXI_LITE_WRITE_SLAVE_INIT_C,
-      axilReadSlave  => AXI_LITE_READ_SLAVE_INIT_C);
+      rowPeriod       => toSlv(250, 16),  -- 125 MHz / 250 = 500 kHz
+      numRows         => toSlv(64, 16),   -- Default of 64 rows
+      sampleStartTime => toSlv(150, 16),
+      sampleEndTime   => toSlv(249, 16),  -- Could be corner case here?
+      timingTx        => IDLE_C,
+      timingData      => LOCAL_TIMING_INIT_C,
+      axilWriteSlave  => AXI_LITE_WRITE_SLAVE_INIT_C,
+      axilReadSlave   => AXI_LITE_READ_SLAVE_INIT_C);
 
    signal r   : RegType := REG_INIT_C;
    signal rin : RegType;
@@ -132,19 +130,20 @@ begin
       v.timingData.startRun := '0';
       v.timingData.endRun   := '0';
       -- Configuration
-      axiSlaveRegister(axilEp, X"30", 0, v.enable);
-
       axiSlaveRegister(axilEp, X"00", 0, v.timingData.startRun);
       axiSlaveRegister(axilEp, X"04", 0, v.timingData.endRun);
       axiSlaveRegister(axilEp, X"08", 0, v.rowPeriod);
       axiSlaveRegister(axilEp, X"0C", 0, v.numRows);
+      axiSlaveRegister(axilEp, X"10", 0, v.sampleStartTime);
+      axiSlaveRegister(axilEp, X"10", 16, v.sampleEndTime);
 
       -- Status
-      axiSlaveRegisterR(axilEp, X"10", 0, r.timingData.running);
-      axiSlaveRegisterR(axilEp, X"14", 0, r.timingData.rowNum);
-      axiSlaveRegisterR(axilEp, X"18", 0, r.timingData.rowTime);
-      axiSlaveRegisterR(axilEp, X"20", 0, r.timingData.runTime);
-      axiSlaveRegisterR(axilEp, X"28", 0, r.timingData.readoutCount);
+      axiSlaveRegisterR(axilEp, X"30", 0, r.timingData.running);
+      axiSlaveRegisterR(axilEp, X"30", 1, r.timingData.sample);
+      axiSlaveRegisterR(axilEp, X"34", 0, r.timingData.rowNum);
+      axiSlaveRegisterR(axilEp, X"38", 0, r.timingData.rowTime);
+      axiSlaveRegisterR(axilEp, X"40", 0, r.timingData.runTime);
+      axiSlaveRegisterR(axilEp, X"48", 0, r.timingData.readoutCount);
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
 
@@ -169,7 +168,7 @@ begin
          v.timingData.runTime := r.timingData.runTime + 1;
          v.timingData.rowTime := r.timingData.rowTime + 1;
 
-         if (r.timingData.rowTime = r.rowPeriod) then
+         if (r.timingData.rowTime = r.rowPeriod-1) then
             v.timingData.rowTime := (others => '0');
             v.timingData.rowNum  := r.timingData.rowNum + 1;
 
@@ -186,6 +185,14 @@ begin
             if (r.timingData.rowNum = 0) then
                v.timingTx := FIRST_ROW_C;
             end if;
+
+         elsif (r.timingData.rowTime = r.sampleStartTime) then
+            v.timingData.sample := '1';
+            v.timingTx          := SAMPLE_START_C;
+
+         elsif (r.timingData.rowTime = r.sampleEndTime) then
+            v.timingData.sample := '0';
+            v.timingTx          := SAMPLE_END_C;
          end if;
 
          if (r.timingData.endRun = '1') then
@@ -262,7 +269,7 @@ begin
       generic map (
          TPD_G => TPD_G)
       port map (
-         rst           => wordRst,             -- [in]
+         rst           => wordRst,            -- [in]
          enable        => '1',                --r.enable,           -- [in]
          bitClk        => bitClk,             -- [in]
          timingTxDataP => timingTxDataP,      -- [in]

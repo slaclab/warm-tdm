@@ -34,6 +34,7 @@ entity RowModuleDacs is
 
    generic (
       TPD_G            : time             := 1 ns;
+      SIMULATION_G     : boolean          := false;
       AXIL_BASE_ADDR_G : slv(31 downto 0) := X"00000000");
    port (
       -- AXI Lite Slave
@@ -99,14 +100,14 @@ begin
       U_AxiSpiMaster_1 : entity surf.AxiSpiMaster
          generic map (
             TPD_G             => TPD_G,
-            ADDRESS_SIZE_G    => 16,
+            ADDRESS_SIZE_G    => 15,
             DATA_SIZE_G       => 16,
             MODE_G            => "RW",
             SHADOW_EN_G       => false,
             CPHA_G            => '0',
             CPOL_G            => '0',
-            CLK_PERIOD_G      => 156.25E+6,
-            SPI_SCLK_PERIOD_G => 100.0E-6,
+            CLK_PERIOD_G      => 6.4e-9,
+            SPI_SCLK_PERIOD_G => ite(SIMULATION_G, 51.2e-9, 1.0E-6),
             SPI_NUM_CHIPS_G   => 1)
          port map (
             axiClk         => axilClk,                 -- [in]

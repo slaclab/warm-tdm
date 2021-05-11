@@ -170,6 +170,9 @@ architecture rtl of EthCore is
    signal rogueObMasters : AxiStreamMasterArray(SERVER_SIZE_C-1 downto 0) := (others => AXI_STREAM_MASTER_INIT_C);
    signal rogueObSlaves  : AxiStreamSlaveArray(SERVER_SIZE_C-1 downto 0)  := (others => AXI_STREAM_SLAVE_INIT_C);
 
+   signal rogueDemuxAxisMaster : AxiStreamMasterType;
+   signal rogueDemuxAxisSlave  : AxiStreamSlaveType;
+
    signal locAxilReadMasters  : AxiLiteReadMasterArray(AXIL_NUM_C-1 downto 0);
    signal locAxilReadSlaves   : AxiLiteReadSlaveArray(AXIL_NUM_C-1 downto 0)  := (others => AXI_LITE_READ_SLAVE_EMPTY_DECERR_C);
    signal locAxilWriteMasters : AxiLiteWriteMasterArray(AXIL_NUM_C-1 downto 0);
@@ -532,6 +535,27 @@ begin
             mAxisMaster => rogueObMasters(SRP_RSSI_INDEX_C),  -- [out]
             mAxisSlave  => rogueObSlaves(SRP_RSSI_INDEX_C));  -- [in]
 
+      U_AxiStreamFifoV2_1 : entity surf.AxiStreamFifoV2
+         generic map (
+            TPD_G               => TPD_G,
+            INT_PIPE_STAGES_G   => 0,
+            PIPE_STAGES_G       => 0,
+            SLAVE_READY_EN_G    => true,
+            GEN_SYNC_FIFO_G     => true,
+            FIFO_PAUSE_THRESH_G => 2**11-16,
+            FIFO_ADDR_WIDTH_G   => 11,
+            SLAVE_AXI_CONFIG_G  => AXIS_CONFIG_C,
+            MASTER_AXI_CONFIG_G => AXIS_CONFIG_C)
+         port map (
+            sAxisClk    => ethClk,                            -- [in]
+            sAxisRst    => ethRst,                            -- [in]
+            sAxisMaster => rogueObMasters(SRP_RSSI_INDEX_C),  -- [in]
+            sAxisSlave  => rogueObSlaves(SRP_RSSI_INDEX_C),   -- [out]
+            mAxisClk    => ethClk,                            -- [in]
+            mAxisRst    => ethRst,                            -- [in]
+            mAxisMaster => rogueDemuxAxisMaster,              -- [out]
+            mAxisSlave  => rogueDemuxAxisSlave);              -- [in]
+
       U_AxiStreamDeMux_SRP : entity surf.AxiStreamDeMux
          generic map (
             TPD_G          => TPD_G,
@@ -539,12 +563,12 @@ begin
             MODE_G         => "ROUTED",
             TDEST_ROUTES_G => RSSI_ROUTES_C)
          port map (
-            axisClk      => ethClk,                            -- [in]
-            axisRst      => ethRst,                            -- [in]
-            sAxisMaster  => rogueObMasters(SRP_RSSI_INDEX_C),  -- [in]
-            sAxisSlave   => rogueObSlaves(SRP_RSSI_INDEX_C),   -- [out]
-            mAxisMasters => srpRssiObMasters,                  -- [out]
-            mAxisSlaves  => srpRssiObSlaves);                  -- [in]
+            axisClk      => ethClk,                -- [in]
+            axisRst      => ethRst,                -- [in]
+            sAxisMaster  => rogueDemuxAxisMaster,  --rogueObMasters(SRP_RSSI_INDEX_C),  -- [in]
+            sAxisSlave   => rogueDemuxAxisSlave,   --rogueObSlaves(SRP_RSSI_INDEX_C),   -- [out]
+            mAxisMasters => srpRssiObMasters,      -- [out]
+            mAxisSlaves  => srpRssiObSlaves);      -- [in]
 
       U_AxiStreamMux_SRP : entity surf.AxiStreamMux
          generic map (

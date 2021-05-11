@@ -31,11 +31,13 @@ package TimingPkg is
 
    constant K_28_5_C : slv(9 downto 0) := "0101111100";
 
-   constant IDLE_C       : slv(7 downto 0) := "10111100";  -- K28.5, 0xBC
-   constant START_RUN_C  : slv(7 downto 0) := "00011100";  -- K28.0
-   constant END_RUN_C    : slv(7 downto 0) := "00111100";  -- K28.1
-   constant FIRST_ROW_C  : slv(7 downto 0) := "01011100";  -- K28.2
-   constant ROW_STROBE_C : slv(7 downto 0) := "01111100";  -- K28.3
+   constant IDLE_C         : slv(7 downto 0) := "10111100";  -- K28.5, 0xBC
+   constant START_RUN_C    : slv(7 downto 0) := "00011100";  -- K28.0
+   constant END_RUN_C      : slv(7 downto 0) := "00111100";  -- K28.1
+   constant FIRST_ROW_C    : slv(7 downto 0) := "01011100";  -- K28.2
+   constant ROW_STROBE_C   : slv(7 downto 0) := "01111100";  -- K28.3
+   constant SAMPLE_START_C : slv(7 downto 0) := "10011100";  -- K28.4
+   constant SAMPLE_END_C   : slv(7 downto 0) := "11011100";  -- K28.6
 
    type LocalTimingType is record
       startRun     : sl;                -- Strobed at start of run
@@ -43,6 +45,9 @@ package TimingPkg is
       running      : sl;                -- Set high during run
       runTime      : slv(63 downto 0);  -- TimingClk counts since start of run
       rowStrobe    : sl;                -- Moving to new row
+      sample       : sl;
+      firstSample  : sl;
+      lastSample   : sl;
       rowNum       : slv(15 downto 0);  -- Current row number
       rowTime      : slv(15 downto 0);  -- timingClk counts since last row strobe
       readoutCount : slv(63 downto 0);  -- Number of full loops through all rows
@@ -54,6 +59,9 @@ package TimingPkg is
       running      => '0',
       runTime      => (others => '0'),
       rowStrobe    => '0',
+      sample       => '0',
+      firstSample  => '0',
+      lastSample   => '0',
       rowNum       => (others => '0'),
       rowTime      => (others => '0'),
       readoutCount => (others => '0'));

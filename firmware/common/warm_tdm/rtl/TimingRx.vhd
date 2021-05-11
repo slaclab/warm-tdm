@@ -393,7 +393,7 @@ begin
    -- Transition to timingRxClk here from wordClk
    -- Is this ok?
    -------------------------------------------------------------------------------------------------
-   comb : process (r, timingRxData, timingRxDataK, timingRxValid, wordRst) is
+   comb : process (locked, r, timingRxData, timingRxDataK, timingRxValid, wordRst) is
       variable v : RegType;
    begin
       v := r;
@@ -403,9 +403,11 @@ begin
          v.timingData.rowTime := r.timingData.rowTime + 1;
       end if;
 
-      v.timingData.startRun  := '0';
-      v.timingData.endRun    := '0';
-      v.timingData.rowStrobe := '0';
+      v.timingData.startRun    := '0';
+      v.timingData.endRun      := '0';
+      v.timingData.rowStrobe   := '0';
+      v.timingData.firstSample := '0';
+      v.timingData.lastSample  := '0';
 
       if (timingRxValid = '1' and timingRxDataK = '1' and locked = '1') then
          case timingRxData is
@@ -414,9 +416,11 @@ begin
                v.timingData.runTime      := (others => '0');
                v.timingData.readoutCount := (others => '0');
                v.timingData.running      := '1';
+               v.timingData.sample       := '0';
             when END_RUN_C =>
                v.timingData.endRun  := '1';
                v.timingData.running := '0';
+               v.timingData.sample  := '0';
             when FIRST_ROW_C =>
                v.timingData.rowStrobe    := '1';
                v.timingData.rowNum       := (others => '0');
@@ -426,6 +430,12 @@ begin
                v.timingData.rowStrobe := '1';
                v.timingData.rowNum    := r.timingData.rowNum + 1;
                v.timingData.rowTime   := (others => '0');
+            when SAMPLE_START_C =>
+               v.timingData.sample      := '1';
+               v.timingData.firstSample := '1';
+            when SAMPLE_END_C =>
+               v.timingData.sample     := '0';
+               v.timingData.lastSample := '1';
             when others => null;
          end case;
       end if;
@@ -451,7 +461,7 @@ begin
    -- AXI-Lite interface
    -------------------------------------------------------------------------------------------------
    axilComb : process (axilR, axilReadMaster, axilRst, axilWriteMaster, curDelay, debugDataOut,
-                       debugDataValid, errorDetCount, lockedFallCount, lockedSync) is
+                       debugDataValid, errorDetCount, lockedFallCount, lockedSync, rxClkFreq) is
       variable v      : AxilRegType;
       variable axilEp : AxiLiteEndpointType;
    begin

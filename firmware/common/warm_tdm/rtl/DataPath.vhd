@@ -99,16 +99,16 @@ architecture rtl of DataPath is
    signal r   : RegType := REG_INIT_C;
    signal rin : RegType;
 
-   constant FILTER_COEFFICIENTS_C : IntegerArray(0 to 20) := (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21);
-   signal adcStreams         : AxiStreamMasterArray(7 downto 0) := (others => axiStreamMasterInit(AD9681_AXIS_CFG_G));
-   signal filteredAdcStreams : AxiStreamMasterArray(7 downto 0) := (others => axiStreamMasterInit(AD9681_AXIS_CFG_G));
+   constant FILTER_COEFFICIENTS_C : IntegerArray(0 to 20)            := (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21);
+   signal adcStreams              : AxiStreamMasterArray(7 downto 0) := (others => axiStreamMasterInit(AD9681_AXIS_CFG_G));
+   signal filteredAdcStreams      : AxiStreamMasterArray(7 downto 0) := (others => axiStreamMasterInit(AD9681_AXIS_CFG_G));
 
    signal fifoAxisSlave : AxiStreamSlaveType;
 
 
    constant NUM_AXIL_MASTERS_C : integer := 9;
 
-   constant XBAR_COFNIG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_MASTERS_C, AXIL_BASE_ADDR_G, 12, 8);
+   constant XBAR_COFNIG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_MASTERS_C, AXIL_BASE_ADDR_G, 20, 16);
 
    signal locAxilWriteMasters : AxiLiteWriteMasterArray(NUM_AXIL_MASTERS_C-1 downto 0);
    signal locAxilWriteSlaves  : AxiLiteWriteSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0);
@@ -162,126 +162,146 @@ begin
          adcStreamClk    => timingClk125,            -- [in]
          adcStreams      => adcStreams);             -- [out]
 
-   FIR_FILTER_GEN : for i in 7 downto 0 generate
-      U_FirFilterSingleChannel_1 : entity surf.FirFilterSingleChannel
+--    FIR_FILTER_GEN : for i in 7 downto 0 generate
+--       U_FirFilterSingleChannel_1 : entity surf.FirFilterSingleChannel
+--          generic map (
+--             TPD_G          => TPD_G,
+--             PIPE_STAGES_G  => 0,
+--             COMMON_CLK_G   => false,
+--             TAP_SIZE_G     => 21,
+--             WIDTH_G        => 16,
+--             COEFFICIENTS_G => FILTER_COEFFICIENTS_C)
+--          port map (
+--             clk             => timingClk125,                              -- [in]
+--             rst             => timingRst125,                              -- [in]
+--             ibValid         => adcStreams(i).tvalid,                      -- [in]
+--             din             => adcStreams(i).tData(15 downto 0),          -- [in]
+--             obValid         => filteredAdcStreams(i).tvalid,              -- [out]
+--             dout            => filteredAdcStreams(i).tData(15 downto 0),  -- [out]
+--             axilClk         => axilClk,                                   -- [in]
+--             axilRst         => axilRst,                                   -- [in]
+--             axilReadMaster  => locAxilReadMasters(i+1),                   -- [in]
+--             axilReadSlave   => locAxilReadSlaves(i+1),                    -- [out]
+--             axilWriteMaster => locAxilWriteMasters(i+1),                  -- [in]
+--             axilWriteSlave  => locAxilWriteSlaves(i+1));                  -- [out]
+--    end generate FIR_FILTER_GEN;
+
+   GEN_ADC_DSP : for i in 7 downto 0 generate
+      U_AdcDsp_1 : entity warm_tdm.AdcDsp
          generic map (
-            TPD_G          => TPD_G,
-            PIPE_STAGES_G  => 0,
-            COMMON_CLK_G   => false,
-            TAP_SIZE_G     => 21,
-            WIDTH_G        => 16,
-            COEFFICIENTS_G => FILTER_COEFFICIENTS_C)
+            TPD_G            => TPD_G,
+            AXIL_BASE_ADDR_G => XBAR_COFNIG_C(i+1).baseAddr)
          port map (
-            clk             => timingClk125,                              -- [in]
-            rst             => timingRst125,                              -- [in]
-            ibValid         => adcStreams(i).tvalid,                      -- [in]
-            din             => adcStreams(i).tData(15 downto 0),          -- [in]
-            obValid         => filteredAdcStreams(i).tvalid,              -- [out]
-            dout            => filteredAdcStreams(i).tData(15 downto 0),  -- [out]
-            axilClk         => axilClk,                                   -- [in]
-            axilRst         => axilRst,                                   -- [in]
-            axilReadMaster  => locAxilReadMasters(i+1),                   -- [in]
-            axilReadSlave   => locAxilReadSlaves(i+1),                    -- [out]
-            axilWriteMaster => locAxilWriteMasters(i+1),                  -- [in]
-            axilWriteSlave  => locAxilWriteSlaves(i+1));                  -- [out]
-   end generate FIR_FILTER_GEN;
+            timingClk125    => timingClk125,              -- [in]
+            timingRst125    => timingRst125,              -- [in]
+            timingData      => timingData,                -- [in]
+            adcAxisMaster   => adcStreams(i),             -- [in]
+            axilClk         => axilClk,                   -- [in]
+            axilRst         => axilRst,                   -- [in]
+            axilReadMaster  => locAxilReadMasters(i+1),   -- [in]
+            axilReadSlave   => locAxilReadSlaves(i+1),    -- [out]
+            axilWriteMaster => locAxilWriteMasters(i+1),  -- [in]
+            axilWriteSlave  => locAxilWriteSlaves(i+1));  -- [out]
 
-   comb : process (fifoAxisSlave, filteredAdcStreams, r, timingData, timingRst125) is
-      variable v : RegType;
-      variable average : signed(31 downto 0);
-      variable sample : signed(15 downto 0);
-      variable avgDiv : signed(31 downto 0);
-   begin
-      v := r;
 
-      v.firstSample := (others => '0');
-      for i in 7 downto 0 loop
+   end generate;
 
-         -- Determine sample windows
-         if (timingData.rowTime = r.windowStart(i)) then
-            v.inWindow(i)    := '1';
-            v.firstSample(i) := '1';
-         elsif (timingData.rowTime = r.windowEnd(i)) then
-            v.inWindow(i)   := '0';
-            v.lastSample(i) := '1';
-         end if;
+--    comb : process (fifoAxisSlave, filteredAdcStreams, r, timingData, timingRst125) is
+--       variable v       : RegType;
+--       variable average : signed(31 downto 0);
+--       variable sample  : signed(15 downto 0);
+--       variable avgDiv  : signed(31 downto 0);
+--    begin
+--       v := r;
 
-         -- Leaky integrator
-         -- Prime the average with the value of the first sample
-         -- On subsequent samples
-         -- Subtract a small fraction of the current average
-         -- Add a small fraction of the current sample
-         if (filteredAdcStreams(i).tValid = '1' and r.inWindow(i) = '1') then
-            if (r.firstSample(i) = '1') then
-               v.average(i) := filteredAdcStreams(i).tData(15 downto 0) & X"0000";
-            else
-               average := signed(r.average(i));
-               avgDiv := shift_right(average, 7);
-               sample := signed(filteredAdcStreams(i).tData(15 downto 0));
-               sample := shift_left(sample, 16-7);
-               average := average - avgDiv + sample;
-               v.average(i) := slv(average);
-            end if;
-         end if;
+--       v.firstSample := (others => '0');
+--       for i in 7 downto 0 loop
 
-      end loop;
+--          -- Determine sample windows
+--          if (timingData.rowTime = r.windowStart(i)) then
+--             v.inWindow(i)    := '1';
+--             v.firstSample(i) := '1';
+--          elsif (timingData.rowTime = r.windowEnd(i)) then
+--             v.inWindow(i)   := '0';
+--             v.lastSample(i) := '1';
+--          end if;
 
-      -- When all channels are done
-      -- Output a wide word
-      if (fifoAxisSlave.tReady = '1') then
-         v.axisMaster.tValid := '0';
-      end if;
+--          -- Leaky integrator
+--          -- Prime the average with the value of the first sample
+--          -- On subsequent samples
+--          -- Subtract a small fraction of the current average
+--          -- Add a small fraction of the current sample
+--          if (filteredAdcStreams(i).tValid = '1' and r.inWindow(i) = '1') then
+--             if (r.firstSample(i) = '1') then
+--                v.average(i) := filteredAdcStreams(i).tData(15 downto 0) & X"0000";
+--             else
+--                average      := signed(r.average(i));
+--                avgDiv       := shift_right(average, 7);
+--                sample       := signed(filteredAdcStreams(i).tData(15 downto 0));
+--                sample       := shift_left(sample, 16-7);
+--                average      := average - avgDiv + sample;
+--                v.average(i) := slv(average);
+--             end if;
+--          end if;
 
-      v.axisMaster.tLast := '0';
-      if (uAnd(r.lastSample) = '1' and v.axisMaster.tValid = '0') then
-         v.lastSample := (others => '0');
-         for i in 7 downto 0 loop
-            v.axisMaster.tData(i*16+15 downto i*16) := slv(r.average(i)(31 downto 16));
-            v.axisMaster.tValid                     := '1';
-            v.axisMaster.tLast                      := '1';
-         end loop;
-      end if;
+--       end loop;
 
-      if (timingRst125 = '1') then
-         v := REG_INIT_C;
-      end if;
+--       -- When all channels are done
+--       -- Output a wide word
+--       if (fifoAxisSlave.tReady = '1') then
+--          v.axisMaster.tValid := '0';
+--       end if;
 
-      rin <= v;
+--       v.axisMaster.tLast := '0';
+--       if (uAnd(r.lastSample) = '1' and v.axisMaster.tValid = '0') then
+--          v.lastSample := (others => '0');
+--          for i in 7 downto 0 loop
+--             v.axisMaster.tData(i*16+15 downto i*16) := slv(r.average(i)(31 downto 16));
+--             v.axisMaster.tValid                     := '1';
+--             v.axisMaster.tLast                      := '1';
+--          end loop;
+--       end if;
 
-   end process comb;
+--       if (timingRst125 = '1') then
+--          v := REG_INIT_C;
+--       end if;
 
-   seq : process (timingClk125) is
-   begin
-      if (rising_edge(timingClk125)) then
-         r <= rin after TPD_G;
-      end if;
-   end process seq;
+--       rin <= v;
 
-   U_AxiStreamFifoV2_1 : entity surf.AxiStreamFifoV2
-      generic map (
-         TPD_G               => TPD_G,
-         INT_PIPE_STAGES_G   => 1,
-         PIPE_STAGES_G       => 0,
-         SLAVE_READY_EN_G    => true,
-         GEN_SYNC_FIFO_G     => false,
---          FIFO_ADDR_WIDTH_G      => FIFO_ADDR_WIDTH_G,
---          FIFO_PAUSE_THRESH_G    => FIFO_PAUSE_THRESH_G,
---          SYNTH_MODE_G           => SYNTH_MODE_G,
---          MEMORY_TYPE_G          => MEMORY_TYPE_G,
---          INT_WIDTH_SELECT_G     => INT_WIDTH_SELECT_G,
---          INT_DATA_WIDTH_G       => INT_DATA_WIDTH_G,
-         SLAVE_AXI_CONFIG_G  => INT_AXIS_CONFIG_C,
-         MASTER_AXI_CONFIG_G => PACKETIZER2_AXIS_CFG_C)
-      port map (
-         sAxisClk    => timingClk125,   -- [in]
-         sAxisRst    => timingRst125,   -- [in]
-         sAxisMaster => r.axisMaster,   -- [in]
-         sAxisSlave  => fifoAxisSlave,  -- [out]
---         sAxisCtrl       => sAxisCtrl,        -- [out]
-         mAxisClk    => axisClk,        -- [in]
-         mAxisRst    => axisRst,        -- [in]
-         mAxisMaster => axisMaster,     -- [out]
-         mAxisSlave  => axisSlave);     -- [in]
+--    end process comb;
+
+--    seq : process (timingClk125) is
+--    begin
+--       if (rising_edge(timingClk125)) then
+--          r <= rin after TPD_G;
+--       end if;
+--    end process seq;
+
+--    U_AxiStreamFifoV2_1 : entity surf.AxiStreamFifoV2
+--       generic map (
+--          TPD_G               => TPD_G,
+--          INT_PIPE_STAGES_G   => 1,
+--          PIPE_STAGES_G       => 0,
+--          SLAVE_READY_EN_G    => true,
+--          GEN_SYNC_FIFO_G     => false,
+-- --          FIFO_ADDR_WIDTH_G      => FIFO_ADDR_WIDTH_G,
+-- --          FIFO_PAUSE_THRESH_G    => FIFO_PAUSE_THRESH_G,
+-- --          SYNTH_MODE_G           => SYNTH_MODE_G,
+-- --          MEMORY_TYPE_G          => MEMORY_TYPE_G,
+-- --          INT_WIDTH_SELECT_G     => INT_WIDTH_SELECT_G,
+-- --          INT_DATA_WIDTH_G       => INT_DATA_WIDTH_G,
+--          SLAVE_AXI_CONFIG_G  => INT_AXIS_CONFIG_C,
+--          MASTER_AXI_CONFIG_G => PACKETIZER2_AXIS_CFG_C)
+--       port map (
+--          sAxisClk    => timingClk125,   -- [in]
+--          sAxisRst    => timingRst125,   -- [in]
+--          sAxisMaster => r.axisMaster,   -- [in]
+--          sAxisSlave  => fifoAxisSlave,  -- [out]
+-- --         sAxisCtrl       => sAxisCtrl,        -- [out]
+--          mAxisClk    => axisClk,        -- [in]
+--          mAxisRst    => axisRst,        -- [in]
+--          mAxisMaster => axisMaster,     -- [out]
+--          mAxisSlave  => axisSlave);     -- [in]
 
 
 end architecture rtl;

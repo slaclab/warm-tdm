@@ -17,4 +17,4 @@ loadSource -lib warm_tdm -dir "$::DIR_PATH/rtl"
 #loadIpCore -path "$::DIR_PATH/ip/FirFilter/FirFilter.xci"
 
 # Load Simulation
-#loadSource -sim_only -dir "$::DIR_PATH/sim"
+loadSource -lib warm_tdm -sim_only -dir "$::DIR_PATH/sim"
