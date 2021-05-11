@@ -1,4 +1,5 @@
 import pyrogue as pr
+import rogue.interfaces.memory as rim
 
 class Ad9106(pr.Device):
     def __init__(self, **kwargs):
@@ -139,8 +140,8 @@ class Ad9106(pr.Device):
             enum = {
                 0: 'SDO/SDI2',
                 1: 'DOUT'}))
-            
-                 
+
+
         # POWERCONFIG
         self.add(pr.RemoteVariable(
             name = 'CLK_LDO_STAT',
@@ -150,7 +151,7 @@ class Ad9106(pr.Device):
             bitSize = 1,
             bitOffset = 11,
             base = pr.Bool))
-            
+
         self.add(pr.RemoteVariable(
             name = 'DIG1_LDO_STAT',
             description = 'Flag indicating DVDD1 LDO is on',
@@ -168,7 +169,7 @@ class Ad9106(pr.Device):
             bitSize = 1,
             bitOffset = 9,
             base = pr.Bool))
-            
+
         self.add(pr.RemoteVariable(
             name = 'PDN_LDO_CLK',
             description = 'Disables the 1.8V on-chip CLDO regulator. An external supply is required.',
@@ -189,7 +190,7 @@ class Ad9106(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'PDN_LDO_DIG2',
-            description = 'Disables the DVDD2 LDO. An external supply is required.',            
+            description = 'Disables the DVDD2 LDO. An external supply is required.',
             mode = 'RW',
             offset = POWERCONFIG,
             bitSize = 1,
@@ -213,7 +214,7 @@ class Ad9106(pr.Device):
             bitSize = 1,
             bitOffset = 4,
             base = pr.Bool))
-            
+
         self.add(pr.RemoteVariable(
             name = 'DAC1_SLEEP',
             description = 'Disables DAC1 output current',
@@ -240,7 +241,7 @@ class Ad9106(pr.Device):
             bitSize = 1,
             bitOffset = 1,
             base = pr.Bool))
-            
+
 
         self.add(pr.RemoteVariable(
             name = 'DAC4_SLEEP',
@@ -250,9 +251,9 @@ class Ad9106(pr.Device):
             bitSize = 1,
             bitOffset = 0,
             base = pr.Bool))
-        
-        #CLOCKCONFIG    
-            
+
+        #CLOCKCONFIG
+
         self.add(pr.RemoteVariable(
             name = 'DIS_CLK1',
             description = 'Disables the analog clock to DAC1 out of the clock distribution block.',
@@ -403,7 +404,7 @@ class Ad9106(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'DAC3_GAIN',
-            description = 'DAC3 analog gain control while not in calibration mode - twos complement.',            
+            description = 'DAC3 analog gain control while not in calibration mode - twos complement.',
             mode = 'RW',
             offset = DAC3AGAIN,
             bitSize = 7,
@@ -422,7 +423,7 @@ class Ad9106(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'DAC2_GAIN',
-            description = 'DAC3 analog gain control while not in calibration mode - twos complement.',            
+            description = 'DAC3 analog gain control while not in calibration mode - twos complement.',
             mode = 'RW',
             offset = DAC2AGAIN,
             bitSize = 7,
@@ -441,13 +442,13 @@ class Ad9106(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'DAC1_GAIN',
-            description = 'DAC1 analog gain control while not in calibration mode - twos complement.',            
+            description = 'DAC1 analog gain control while not in calibration mode - twos complement.',
             mode = 'RW',
             offset = DAC1AGAIN,
             bitSize = 7,
             bitOffset = 0,
             base = pr.Int))
-        
+
 
         # DACxRANGE
         self.add(pr.RemoteVariable(
@@ -486,7 +487,7 @@ class Ad9106(pr.Device):
             bitOffset = 0,
             base = pr.UInt))
 
-        
+
         # FSADJ4
         self.add(pr.RemoteVariable(
             name = 'DAC4_RSET_EN',
@@ -689,7 +690,7 @@ class Ad9106(pr.Device):
             bitSize = 2,
             bitOffset = 4,
             base = pr.UInt))
-        
+
         self.add(pr.RemoteVariable(
             name = 'CAL_CLK_EN',
             description = 'Enables the calibration clock to calibration circuitry',
@@ -698,7 +699,7 @@ class Ad9106(pr.Device):
             bitSize = 1,
             bitOffset = 3,
             base = pr.UInt))
-        
+
         self.add(pr.RemoteVariable(
             name = 'CAL_CLK_DIV',
             description = 'Sets the divider from DAC clock to calibration clock',
@@ -718,7 +719,7 @@ class Ad9106(pr.Device):
             bitSize = 7,
             bitOffset = 8,
             base = pr.UInt))
-        
+
         self.add(pr.RemoteVariable(
             name = 'CAL_FIN',
             description = 'Flag indicating calibration is completed',
@@ -727,7 +728,7 @@ class Ad9106(pr.Device):
             bitSize = 1,
             bitOffset = 1,
             base = pr.Bool))
-        
+
         self.add(pr.RemoteCommand(
             name = 'START_CAL',
             description = 'Start a calibration cycle',
@@ -736,16 +737,22 @@ class Ad9106(pr.Device):
             bitOffset = 0,
             function = pr.RemoteCommand.toggle))
 
+        def nonBlockingTouch(cmd, arg):
+            print(f'Sending nonblocking touch command for {cmd.path}')
+            cmd._set(1, -1)
+            pr.startTransaction(cmd._block, type=rim.Write, forceWr=True, checkEach=False, variable=cmd, index=-1)
+        
         # RAMUPDATE
-        self.add(pr.RemoteCommand(
+        self.add(pr.RemoteVariable(
             name = 'RAMUPDATE',
             description = 'Update all SPI settings with new configuration',
             offset = RAMUPDATE,
             bitSize = 1,
-            bitOffset = 0,
-            function = pr.RemoteCommand.touchOne))
+            bulkOpEn = False,
+            hidden = True,
+            bitOffset = 0))
 
-        
+
         # PAT_STATUS
         self.add(pr.RemoteVariable(
             name = 'BUF_READ',
@@ -754,21 +761,24 @@ class Ad9106(pr.Device):
             offset = PAT_STATUS,
             bitSize = 1,
             bitOffset = 3,
-            base = pr.UInt))
+            base = pr.UInt,
+            bulkOpEn=False))
 
         self.add(pr.RemoteVariable(
             name = 'MEM_ACCESS',
             description = 'Memory SPI access enable.',
             mode = 'RW',
+            bulkOpEn = False,
             offset = PAT_STATUS,
             bitSize = 1,
             bitOffset = 2,
             base = pr.Bool))
-        
+
         self.add(pr.RemoteVariable(
             name = 'PATTERN',
             description = 'Status of pattern being played',
             mode = 'RO',
+            bulkOpEn = False,
             offset = PAT_STATUS,
             bitSize = 1,
             bitOffset = 1,
@@ -778,6 +788,7 @@ class Ad9106(pr.Device):
             name = 'RUN',
             description = 'Allows the pattern generation and stop pattern after trigger.',
             mode = 'RW',
+            bulkOpEn = False,
             offset = PAT_STATUS,
             bitSize = 1,
             bitOffset = 0,
@@ -792,7 +803,9 @@ class Ad9106(pr.Device):
             offset = PAT_TYPE,
             bitSize = 1,
             bitOffset = 0,
-            base = pr.Bool))
+            enum = {
+                0: 'Continuous',
+                1: 'Register'}))
 
         # PATTERN_DLY
         self.add(pr.RemoteVariable(
@@ -803,6 +816,7 @@ class Ad9106(pr.Device):
             bitSize = 16,
             bitOffset = 0,
             base = pr.UInt,
+            value = 14,
             disp = '{:d}'))
 
         # DAC4DOF
@@ -824,7 +838,7 @@ class Ad9106(pr.Device):
             bitSize = 12,
             bitOffset = 4,
             base = pr.UInt))
-        
+
         # DAC2DOF
         self.add(pr.RemoteVariable(
             name = 'DAC2_DIG_OFFSET',
@@ -834,7 +848,7 @@ class Ad9106(pr.Device):
             bitSize = 12,
             bitOffset = 4,
             base = pr.UInt))
-        
+
         # DAC1DOF
         self.add(pr.RemoteVariable(
             name = 'DAC1_DIG_OFFSET',
@@ -844,7 +858,7 @@ class Ad9106(pr.Device):
             bitSize = 12,
             bitOffset = 4,
             base = pr.UInt))
-        
+
         # WAV4_3CONFIG
         self.add(pr.RemoteVariable(
             name = 'PRESTORE_SEL4',
@@ -859,7 +873,7 @@ class Ad9106(pr.Device):
                 1: 'Sawtooth',
                 2: 'Pseudorandom',
                 3: 'DDS4'}))
-        
+
         self.add(pr.RemoteVariable(
             name = 'WAVE_SEL4',
             description = '',
@@ -887,7 +901,7 @@ class Ad9106(pr.Device):
                 1: 'Sawtooth',
                 2: 'Pseudorandom',
                 3: 'DDS3'}))
-        
+
         self.add(pr.RemoteVariable(
             name = 'WAVE_SEL3',
             description = '',
@@ -916,7 +930,7 @@ class Ad9106(pr.Device):
                 1: 'Sawtooth',
                 2: 'Pseudorandom',
                 3: 'DDS2'}))
-        
+
         self.add(pr.RemoteVariable(
             name = 'WAVE_SEL2',
             description = '',
@@ -944,7 +958,7 @@ class Ad9106(pr.Device):
                 1: 'Sawtooth',
                 2: 'Pseudorandom',
                 3: 'DDS1'}))
-        
+
         self.add(pr.RemoteVariable(
             name = 'WAVE_SEL1',
             description = '',
@@ -967,7 +981,7 @@ class Ad9106(pr.Device):
             bitSize = 1,
             bitOffset = 11,
             base = pr.Bool))
-        
+
         self.add(pr.RemoteVariable(
             name = 'CH2_ADD',
             description = 'Add DAC2 and DAC4, output ad DAC2',
@@ -976,7 +990,7 @@ class Ad9106(pr.Device):
             bitSize = 1,
             bitOffset = 10,
             base = pr.Bool))
-        
+
         self.add(pr.RemoteVariable(
             name = 'MASK_DAC3',
             description = 'Mask DAC3 and DAC3_CONST value',
@@ -985,7 +999,7 @@ class Ad9106(pr.Device):
             bitSize = 1,
             bitOffset = 3,
             base = pr.Bool))
-        
+
         self.add(pr.RemoteVariable(
             name = 'CH1_ADD',
             description = 'Add DAC1 and DAC3, output at DAC1',
@@ -1004,6 +1018,7 @@ class Ad9106(pr.Device):
             bitSize = 4,
             bitOffset = 8,
             base = pr.UInt,
+            value = 1,
             disp = '{:d}'))
 
         self.add(pr.RemoteVariable(
@@ -1014,8 +1029,9 @@ class Ad9106(pr.Device):
             bitSize = 4,
             bitOffset = 4,
             base = pr.UInt,
+            value = 1,
             disp = '{:d}'))
-        
+
         self.add(pr.RemoteVariable(
             name = 'START_DELAY_BASE',
             description = 'Number of DAC clock periods per STASRT_DELAYxLSB',
@@ -1024,6 +1040,7 @@ class Ad9106(pr.Device):
             bitSize = 4,
             bitOffset = 0,
             base = pr.UInt,
+            value = 1,
             disp = '{:d}'))
 
         # PAT_PERIOD
@@ -1065,7 +1082,7 @@ class Ad9106(pr.Device):
             name = 'DAC2_REPEAT_CYCLE',
             description = 'Number of DAC2 pattern repeat cycles + 1',
             mode = 'RW',
-            value = 0x1,            
+            value = 0x1,
             offset = DAC2_1PATx,
             bitSize = 8,
             bitOffset = 8,
@@ -1076,7 +1093,7 @@ class Ad9106(pr.Device):
             name = 'DAC1_REPEAT_CYCLE',
             description = 'Number of DAC1 pattern repeat cycles + 1',
             mode = 'RW',
-            value = 0x1,            
+            value = 0x1,
             offset = DAC2_1PATx,
             bitSize = 8,
             bitOffset = 0,
@@ -1104,7 +1121,7 @@ class Ad9106(pr.Device):
             bitSize = 1,
             bitOffset = 5,
             base = pr.UInt))
-        
+
         self.add(pr.RemoteVariable(
             name = 'DOUT_MODE',
             description = 'Sets different enable signal mode',
@@ -1116,7 +1133,7 @@ class Ad9106(pr.Device):
             enum = {
                 0: 'DOUT_VAL',
                 1: 'DOUT_START/DOUT_STOP'}))
-        
+
         self.add(pr.RemoteVariable(
             name = 'DOUT_STOP',
             description = 'Time between pattern end and DOUT signal low in number of DAC clock cycles',
@@ -1217,7 +1234,7 @@ class Ad9106(pr.Device):
             bitOffset = 10,
             base = pr.UInt,
             disp = '{:d}'))
-        
+
         self.add(pr.RemoteVariable(
             name = 'SAW_TYPE4',
             description = 'The type of sawtooth (positive, negative, triangle) for DAC4',
@@ -1242,7 +1259,7 @@ class Ad9106(pr.Device):
             bitOffset = 2,
             base = pr.UInt,
             disp = '{:d}'))
-        
+
         self.add(pr.RemoteVariable(
             name = 'SAW_TYPE3',
             description = 'The type of sawtooth (positive, negative, triangle) for DAC3',
@@ -1268,7 +1285,7 @@ class Ad9106(pr.Device):
             bitOffset = 10,
             base = pr.UInt,
             disp = '{:d}'))
-        
+
         self.add(pr.RemoteVariable(
             name = 'SAW_TYPE2',
             description = 'The type of sawtooth (positive, negative, triangle) for DAC2',
@@ -1293,7 +1310,7 @@ class Ad9106(pr.Device):
             bitOffset = 2,
             base = pr.UInt,
             disp = '{:d}'))
-        
+
         self.add(pr.RemoteVariable(
             name = 'SAW_TYPE1',
             description = 'The type of sawtooth (positive, negative, triangle) for DAC1',
@@ -1432,7 +1449,7 @@ class Ad9106(pr.Device):
             bitSize = 1,
             bitOffset = 6,
             base = pr.Bool))
-        
+
         self.add(pr.RemoteVariable(
             name = 'DDS_COS_EN1',
             description = 'Enable DDS1 cosine output of DDS instead of sine wave',
@@ -1480,8 +1497,8 @@ class Ad9106(pr.Device):
                 0x07 : "(DDSTW[23:17],RAM[11:0],5'b0)",
                 0x08 : "(DDSTW[23:16],RAM[11:0],3'b0)",
                 0x09 : "(DDSTW[23:15],RAM[11:0],4'b0)",
-                0x0A : "(DDSTW[23:14],RAM[11:0],2?b0)",
-                0x0B : "(DDSTW[23:13],RAM[11:0],1?b0)",
+                0x0A : "(DDSTW[23:14],RAM[11:0],2'b0)",
+                0x0B : "(DDSTW[23:13],RAM[11:0],1'b0)",
                 0x0C : "(DDSTW[23:12],RAM[11:0])",
                 0x0D : "(DDSTW[23:11],RAM[11:1])",
                 0x0E : "(DDSTW[23:10],RAM[11:2])",
@@ -1611,7 +1628,7 @@ class Ad9106(pr.Device):
             bitSize = 16,
             bitOffset = 0,
             base = pr.UInt))
- 
+
         # START_DLY1
         self.add(pr.RemoteVariable(
             name = 'START_DELAY1',
@@ -1652,7 +1669,7 @@ class Ad9106(pr.Device):
             bitSize = 16,
             bitOffset = 0,
             base = pr.UInt))
-        
+
         # CFG_ERROR
         self.add(pr.RemoteCommand(
             name = 'ERROR_CLEAR',
@@ -1671,7 +1688,7 @@ class Ad9106(pr.Device):
             bitSize = 1,
             bitOffset = 5,
             base = pr.Bool))
-        
+
         self.add(pr.RemoteVariable(
             name = 'PAT_DLY_SHORT_ERR',
             description = 'When pattern delay value is smaller than default value, this error is toggled.',
@@ -1680,7 +1697,7 @@ class Ad9106(pr.Device):
             bitSize = 1,
             bitOffset = 4,
             base = pr.Bool))
-        
+
         self.add(pr.RemoteVariable(
             name = 'DOUT_START_SHORT_ERR',
             description = 'When DOUT_START value is smaller than default value, this error is toggled.',
@@ -1689,7 +1706,7 @@ class Ad9106(pr.Device):
             bitSize = 1,
             bitOffset = 3,
             base = pr.Bool))
-        
+
         self.add(pr.RemoteVariable(
             name = 'PERIOD_SHORT_ERR',
             description = 'When period register setting value is smaller than pattern play cycle, this error is toggled',
@@ -1698,7 +1715,7 @@ class Ad9106(pr.Device):
             bitSize = 1,
             bitOffset = 2,
             base = pr.Bool))
-        
+
         self.add(pr.RemoteVariable(
             name = 'ODD_ADDR_ERR',
             description = 'When memory pattern play is not even in length in trigger delay mode, this error flag is toggled',
@@ -1707,7 +1724,7 @@ class Ad9106(pr.Device):
             bitSize = 1,
             bitOffset = 1,
             base = pr.Bool))
-        
+
         self.add(pr.RemoteVariable(
             name = 'MEM_READ_ERR',
             description = 'When there is a memory read conflict, this error flag is toggled',
@@ -1717,13 +1734,88 @@ class Ad9106(pr.Device):
             bitOffset = 0,
             base = pr.Bool))
 
-        self.add(pr.MemoryDevice(
+#         self.add(pr.RemoteVariable(
+#             name = 'SRAM',
+#             offset = SRAM_DATA,
+#             base = pr.UInt,
+#             bitSize = 2**12 * 32,
+#             numValues = 2**12,
+#             valueBits = 16,
+#             valueStride = 32))
+        
+        self.add(Ad9106Sram(
+            dac = self,            
             name = 'SRAM',
             description = 'SRAM for waveforms',
             offset = SRAM_DATA,
-            size = 2**12,
+            size = 2**12<<2,
             base = pr.UInt,
             wordBitSize = 16,
-            stride = 2)) # This might need to be 4
+            stride = 4)) 
+
+        # Don't need RAMUPDATE if writing to BUF_READ, MEM_ACCESS or RUN        
+        self.NON_BUFFERED = [self.BUF_READ, self.MEM_ACCESS, self.RUN]
+
+
+    def writeBlocks(self, *, force=False, recurse=True, variable=None, checkEach=False, index=-1, **kwargs):
+
+        checkEach = checkEach or self.forceCheckEach
+
+        if variable is not None:
+            pr.startTransaction(variable._block, type=rim.Write, forceWr=force, checkEach=checkEach, variable=variable, index=index, **kwargs)
+            if variable not in self.NON_BUFFERED:
+                print("single RAMUPDATE")
+                self.RAMUPDATE.post(1)
+
+        else:
+            for block in self._blocks:
+                if block.bulkOpEn:
+                    pr.startTransaction(block, type=rim.Write, forceWr=force, checkEach=checkEach, **kwargs)
+
+            if recurse:
+                for key,value in self.devices.items():
+                    value.writeBlocks(force=force, recurse=True, checkEach=checkEach, **kwargs)
+                    
+            print('bulk ramupdate')
+            self.RAMUPDATE.post(1)
+
         
+
+            
+class Ad9106Sram(pr.MemoryDevice):
+    def __init__(self, dac, **kwargs):
+        super().__init__(**kwargs)
+        self._dac = dac
         
+
+    def writeBlocks(self, **kwargs):
+        print(f'{self.path}.writeBlocks()')        
+        # BUF_READ must be set to 0 before writing to SRAM
+        if self.enable.get() and len(self._setValues) > 0:
+            print('Setting BUF_READ and MEM_ACCESS for write to SRAM')
+            self._dac.BUF_READ.set(0, write=False)
+            print('Done post 1')
+            self._dac.MEM_ACCESS.post(1)
+            print('Done post 2')
+#            queueVariable(self._dac.BUF_READ, 0)
+
+        print('super writeblocks')
+        super().writeBlocks(**kwargs)
+        print('super writeblocks done')
+
+    def verifyBlocks(self, **kwargs):
+        # BUF_READ must be set to 1 before reading from SRAM
+ #       save = self._dac.BUF_READ.value()
+        #queueVariable(self._dac.BUF_READ, 1)
+        #self._dac.BUF_READ.post(1)
+        self._dac.BUF_READ.set(1, write=False, check=False)
+        self._dac.MEM_ACCESS.set(1, check=False)
+        super().verifyBlocks(**kwargs)
+        #queueVariable(self._dac.BUF_READ, 0)
+#        self._dac.BUF_READ.post(save)
+        self.checkBlocks()
+
+    def readBlocks(self, **kwargs):
+        self._dac.BUF_READ.set(1, write=False, check=False)
+        self._dac.MEM_ACCESS.set(1, check=False)
+        super().readBlocks(**kwargs)

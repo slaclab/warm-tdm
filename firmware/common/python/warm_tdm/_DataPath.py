@@ -1,7 +1,7 @@
 import pyrogue as pr
 
 import surf
-import surf.dsp.fixed
+#mport surf.dsp.fixed
 
 import warm_tdm
 
@@ -15,10 +15,16 @@ class DataPath(pr.Device):
             offset = 0x00000000))
 
         for i in range(8):
-            self.add(surf.dsp.fixed.FirFilterSingleChannel(
-                name = f'FirFilter[{i}]',
-                offset = (i+1) << 8,
-                numberTaps = 21,
-                dataWordBitSize = 16))
-            
+            self.add(warm_tdm.AdcDsp(
+                name = f'AdcDsp[{i}]',
+                offset = (i+1) << 16))
+
+#         for i in range(8):
+#             self.add(surf.dsp.fixed.FirFilterSingleChannel(
+#                 name = f'FirFilter[{i}]',
+#                 offset = (i+1) << 8,
+#                 numberTaps = 21,
+#                 dataWordBitSize = 16))
+
+
         

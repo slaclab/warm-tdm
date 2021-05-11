@@ -17,7 +17,7 @@ class RowModule(pr.Device):
 
         self.add(warm_tdm.RowModuleDacs(
             offset = 0x01000000,
-            enabled = False))
+            enabled = True))
 
         self.add(warm_tdm.ComCore(
             offset = 0xA0000000))

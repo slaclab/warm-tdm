@@ -21,6 +21,14 @@ class ColumnModule(pr.Device):
         self.add(warm_tdm.DataPath(
             offset = 0x00300000))
 
+        self.add(warm_tdm.Ad5679R(
+            name = 'SaBiasDac',
+            offset = 0x00700000))
+        
+        self.add(warm_tdm.Ad5679R(
+            name = 'TesBiasDac',
+            offset = 0x00701000))
+
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1BaisDac',
             offset = 0x00400000))
@@ -32,6 +40,8 @@ class ColumnModule(pr.Device):
         self.add(warm_tdm.FastDacDriver(
             name = 'SAFbDac',
             offset = 0x00600000))
+
+        
             
         self.add(surf.devices.analog_devices.Ad9681Config(
             offset = 0x00200000))

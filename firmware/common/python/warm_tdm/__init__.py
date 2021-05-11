@@ -10,3 +10,6 @@ from warm_tdm._WarmTdmRoot import *
 from warm_tdm._ComCore import *
 from warm_tdm._DataPath import *
 from warm_tdm._FastDacDriver import *
+from warm_tdm._AdcDsp import *
+from warm_tdm._Ad5679R import *
+from warm_tdm._RowSelect import *
