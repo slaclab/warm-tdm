@@ -19,42 +19,31 @@ import warm_tdm
 #rogue.Logging.setFilter('pyrogue.batcher', rogue.Logging.Debug)
 #rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
 
-rogue.Logging.setFilter('pyrogue.stream.TcpCore', rogue.Logging.Debug)
+rogue.Logging.setFilter('pyrogue.stream.TcpCore.localhost.Client.10000', rogue.Logging.Debug)
+rogue.Logging.setFilter('pyrogue.stream.TcpCore.localhost.Client.10002', rogue.Logging.Debug)
+rogue.Logging.setFilter('pyrogue.stream.TcpCore.localhost.Client.10004', rogue.Logging.Debug)
+rogue.Logging.setFilter('pyrogue.stream.TcpCore.localhost.Client.10006', rogue.Logging.Debug)
+rogue.Logging.setFilter('pyrogue.stream.TcpCore.localhost.Client.10008', rogue.Logging.Debug)
+rogue.Logging.setFilter('pyrogue.stream.TcpCore.localhost.Client.10010', rogue.Logging.Debug)
+#rogue.Logging.setFilter('pyrogue.stream.TcpCore', rogue.Logging.Debug)
+rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
 logging.getLogger('pyrogue.SideBandSim').setLevel(logging.DEBUG)
 
 # Set the argument parser
 parser = argparse.ArgumentParser()
 
 parser.add_argument(
-    "--ip",
+    "--cfg",
     type     = str,
-    required = False,
-    default = '192.168.2.10',
-    help     = "IP address")
+    required = True,
+    default = 'stack')
 
 parser.add_argument(
-    "--serverPort",
-    type = int,
-    default = 0,
-    help = "ZMQ Server Port")
+    "--env",
+    type     = str,
+    required = True,
+    default = 'hw')
 
-parser.add_argument(
-    "--hwEmu",
-    required = False,
-    action = 'store_true',
-    help     = "hardware emulation (false=normal operation, true=emulation)")
-
-parser.add_argument(
-    "--sim",
-    required = False,
-    action   = 'store_true',
-    help     = "hardware emulation (false=normal operation, true=emulation)")
-
-parser.add_argument(
-    "--pollEn",
-    required = False,
-    action   = 'store_true',
-    help     = "enable auto-polling")
 
 
 
@@ -68,7 +57,9 @@ parser.add_argument(
 args = parser.parse_known_args()[0]
 print(args)
 
-with warm_tdm.WarmTdmRoot(timeout=1000, **vars(args)) as root:
+kwargs = warm_tdm.CONFIGS[args.env][args.cfg]
+
+with warm_tdm.WarmTdmRoot(**kwargs) as root:
 
     # Create GUI
     appTop = pyrogue.gui.application(sys.argv)
