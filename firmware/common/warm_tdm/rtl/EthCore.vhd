@@ -268,7 +268,7 @@ begin
                TPD_G                   => TPD_G,
                EN_AXI_REG_G            => true,
                AXIL_BASE_ADDR_G        => AXIL_XBAR_CONFIG_C(AXIL_ETH_C).baseAddr,
-               AXIL_CLK_IS_SYSCLK125_G => true,
+               AXIL_CLK_IS_SYSCLK125_G => false,
                AXIS_CONFIG_G           => EMAC_AXIS_CONFIG_C)
             port map (
                -- Local Configurations

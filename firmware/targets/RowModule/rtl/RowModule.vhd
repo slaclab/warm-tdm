@@ -44,7 +44,7 @@ entity RowModule is
       RING_ADDR_0_G           : boolean          := false;
       ETH_10G_G               : boolean          := false;
       DHCP_G                  : boolean          := false;  -- true = DHCP, false = static address
-      IP_ADDR_G               : slv(31 downto 0) := x"0B01A8C0");  -- 192.168.1.10 (before DHCP)
+      IP_ADDR_G               : slv(31 downto 0) := x"0B02A8C0");  -- 192.168.2.11 (before DHCP)
    port (
       -- Clocks
       gtRefClk0P : in sl;
@@ -221,8 +221,8 @@ begin
    Heartbeat_axilClk : entity surf.Heartbeat
       generic map (
          TPD_G        => TPD_G,
-         PERIOD_IN_G  => 8.0E-9,
-         PERIOD_OUT_G => 0.8)
+         PERIOD_IN_G  => 6.4E-9,
+         PERIOD_OUT_G => 0.64)
       port map (
          clk => axilClk,
          o   => leds(2));

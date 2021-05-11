@@ -139,6 +139,8 @@ begin
          rstOut(1) => idelayRst,
          locked    => open);
 
+   timingRefClkOut <= timingClk125;
+
    -------------
    -- IDELAYCTRL
    -------------
