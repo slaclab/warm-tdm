@@ -43,7 +43,7 @@ entity RowModule is
       BUILD_INFO_G            : BuildInfoType;
       RING_ADDR_0_G           : boolean          := false;
       ETH_10G_G               : boolean          := false;
-      DHCP_G                  : boolean          := true;  -- true = DHCP, false = static address
+      DHCP_G                  : boolean          := false;  -- true = DHCP, false = static address
       IP_ADDR_G               : slv(31 downto 0) := x"0B01A8C0");  -- 192.168.1.10 (before DHCP)
    port (
       -- Clocks
