@@ -743,14 +743,13 @@ class Ad9106(pr.Device):
             pr.startTransaction(cmd._block, type=rim.Write, forceWr=True, checkEach=False, variable=cmd, index=-1)
         
         # RAMUPDATE
-        self.add(pr.RemoteVariable(
+        self.add(pr.RemoteCommand(
             name = 'RAMUPDATE',
             description = 'Update all SPI settings with new configuration',
             offset = RAMUPDATE,
             bitSize = 1,
-            bulkOpEn = False,
-            hidden = True,
-            bitOffset = 0))
+            bitOffset = 0,
+            function = pr.RemoteCommand.touchOne))
 
 
         # PAT_STATUS
@@ -1761,13 +1760,18 @@ class Ad9106(pr.Device):
 
         checkEach = checkEach or self.forceCheckEach
 
+
+
         if variable is not None:
+            if variable not in self.NON_BUFFERED:
+                self.BUF_READ.set(0, write=True)            
             pr.startTransaction(variable._block, type=rim.Write, forceWr=force, checkEach=checkEach, variable=variable, index=index, **kwargs)
             if variable not in self.NON_BUFFERED:
                 print("single RAMUPDATE")
-                self.RAMUPDATE.post(1)
+                self.RAMUPDATE() #.set(1, write=True)
 
         else:
+            self.BUF_READ.set(0, write=True)            
             for block in self._blocks:
                 if block.bulkOpEn:
                     pr.startTransaction(block, type=rim.Write, forceWr=force, checkEach=checkEach, **kwargs)
@@ -1777,7 +1781,7 @@ class Ad9106(pr.Device):
                     value.writeBlocks(force=force, recurse=True, checkEach=checkEach, **kwargs)
                     
             print('bulk ramupdate')
-            self.RAMUPDATE.post(1)
+            self.RAMUPDATE() #.set(1, write=True)
 
         
 
