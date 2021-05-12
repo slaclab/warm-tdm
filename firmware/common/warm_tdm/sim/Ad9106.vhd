@@ -151,8 +151,8 @@ begin
    U_SpiRegSlave_1 : entity warm_tdm.SpiRegSlave
       generic map (
          TPD_G       => TPD_G,
-         CPOL_G      => '0',
-         CPHA_G      => '0',
+         CPOL_G      => '1',
+         CPHA_G      => '1',
          WORD_SIZE_G => 16)
       port map (
          clk     => clk,                -- [in]

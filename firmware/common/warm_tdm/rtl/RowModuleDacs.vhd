@@ -104,8 +104,8 @@ begin
             DATA_SIZE_G       => 16,
             MODE_G            => "RW",
             SHADOW_EN_G       => false,
-            CPHA_G            => '0',
-            CPOL_G            => '0',
+            CPHA_G            => '1',
+            CPOL_G            => '1',
             CLK_PERIOD_G      => 6.4e-9,
             SPI_SCLK_PERIOD_G => ite(SIMULATION_G, 51.2e-9, 1.0E-6),
             SPI_NUM_CHIPS_G   => 1)
