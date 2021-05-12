@@ -55,6 +55,7 @@ CONFIGS = {
             'stack': [{'cls': warm_tdm.RowModule, 'name': 'RowModule[0]'}]}},
     'hw': {
         'stack': {
+            'pollEn': False,
             'host': '192.168.2.11',
             'srpPort': 8192,
             'dataPort': 8193,
