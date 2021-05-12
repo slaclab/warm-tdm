@@ -249,6 +249,7 @@ begin
       generic map (
          TPD_G             => TPD_G,
          SIMULATION_G      => SIMULATION_G,
+         AXIL_CLK_FREQ_G   => 156.26E6,
          AXIL_BASE_ADDR_G  => AXIL_XBAR_CFG_C(AXIL_TIMING_C).baseAddr,
          IODELAY_GROUP_G   => "IODELAY0",
          IDELAYCTRL_FREQ_G => 200.0)
@@ -273,43 +274,6 @@ begin
          axilWriteSlave  => locAxilWriteSlaves(AXIL_TIMING_C),   -- [out]
          axilReadMaster  => locAxilReadMasters(AXIL_TIMING_C),   -- [in]
          axilReadSlave   => locAxilReadSlaves(AXIL_TIMING_C));   -- [out]
-
---    U_TimingRx_1 : entity warm_tdm.TimingRx
---       generic map (
---          TPD_G             => TPD_G,
---          SIMULATION_G      => SIMULATION_G,
---          IODELAY_GROUP_G   => "IODELAY0",
---          IDELAYCTRL_FREQ_G => 200.0)
---       port map (
---          timingRefClkP   => gtRefClk1P,                             -- [in]
---          timingRefClkN   => gtRefClk1N,                             -- [in]
---          timingRxClkP    => timingRxClkP,                           -- [in]
---          timingRxClkN    => timingRxClkN,                           -- [in]
---          timingRxDataP   => timingRxDataP,                          -- [in]
---          timingRxDataN   => timingRxDataN,                          -- [in]
---          timingClkOut    => timingClk125,                           -- [out]
---          timingRstOut    => timingRst125,                           -- [out]
---          timingData      => timingData,                             -- [out]
---          axilClk         => axilClk,                                -- [in]
---          axilRst         => axilRst,                                -- [in]
---          axilWriteMaster => locAxilWriteMasters(AXIL_TIMING_RX_C),  -- [in]
---          axilWriteSlave  => locAxilWriteSlaves(AXIL_TIMING_RX_C),   -- [out]
---          axilReadMaster  => locAxilReadMasters(AXIL_TIMING_RX_C),   -- [in]
---          axilReadSlave   => locAxilReadSlaves(AXIL_TIMING_RX_C));
-
---    U_TimingRx_1 : entity warm_tdm.TimingRx
---       generic map (
---          TPD_G => TPD_G)
---       port map (
---          timingRefClkP => gtRefClk1P,     -- [in]
---          timingRefClkN => gtRefClk1N,     -- [in]
---          timingRxClkP  => timingRxClkP,   -- [in]
---          timingRxClkN  => timingRxClkN,   -- [in]
---          timingRxTrigP => timingRxTrigP,  -- [in]
---          timingRxTrigN => timingRxTrigN,  -- [in]
---          dacTriggerB   => dacTriggerB,    -- [out]
---          dacClkP       => dacClkP,        -- [out]
---          dacClkN       => dacClkN);       -- [out]
 
    -------------------------------------------------------------------------------------------------
    -- Communications Interfaces

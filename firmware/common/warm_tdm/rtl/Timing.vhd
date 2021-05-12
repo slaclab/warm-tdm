@@ -37,6 +37,7 @@ entity Timing is
    generic (
       TPD_G             : time                  := 1 ns;
       SIMULATION_G      : boolean               := false;
+      AXIL_CLK_FREQ_G   : real                  := 156.26E6;
       AXIL_BASE_ADDR_G  : slv(31 downto 0)      := (others => '0');
       IODELAY_GROUP_G   : string                := "DEFAULT_GROUP";
       IDELAYCTRL_FREQ_G : real                  := 200.0;
@@ -44,8 +45,8 @@ entity Timing is
 
    port (
       -- Reference clock
-      timingRefClkP : in sl;
-      timingRefClkN : in sl;
+      timingRefClkP   : in  sl;
+      timingRefClkN   : in  sl;
       timingRefClkOut : out sl;
 
       -- RX Timing Serial Interface
@@ -187,6 +188,7 @@ begin
       generic map (
          TPD_G             => TPD_G,
          SIMULATION_G      => SIMULATION_G,
+         AXIL_CLK_FREQ_G   => AXIL_CLK_FREQ_G,
          IODELAY_GROUP_G   => IODELAY_GROUP_G,
          IDELAYCTRL_FREQ_G => IDELAYCTRL_FREQ_G,
          DEFAULT_DELAY_G   => DEFAULT_DELAY_G)

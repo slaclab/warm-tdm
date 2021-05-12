@@ -37,6 +37,7 @@ entity TimingRx is
    generic (
       TPD_G             : time                  := 1 ns;
       SIMULATION_G      : boolean               := false;
+      AXIL_CLK_FREQ_G   : real                  := 156.25E6;
       IODELAY_GROUP_G   : string                := "DEFAULT_GROUP";
       IDELAYCTRL_FREQ_G : real                  := 200.0;
       DEFAULT_DELAY_G   : integer range 0 to 31 := 0);
@@ -372,8 +373,8 @@ begin
       generic map (
          TPD_G             => TPD_G,
 --         USE_DSP_G         => USE_DSP_G,
-         REF_CLK_FREQ_G    => 125.0E6,
-         REFRESH_RATE_G    => 1.0E3,
+         REF_CLK_FREQ_G    => AXIL_CLK_FREQ_G,
+         REFRESH_RATE_G    => 100.0,
          CLK_LOWER_LIMIT_G => 124.0E6,
          CLK_UPPER_LIMIT_G => 126.0E6,
          COMMON_CLK_G      => true,
