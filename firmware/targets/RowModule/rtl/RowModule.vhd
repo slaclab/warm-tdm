@@ -236,7 +236,7 @@ begin
          clk => timingClk125,
          o   => leds(3));
 
-   leds(4) <= rssiStatus(0)(0);
+   leds(4) <= timingRst125;
    leds(5) <= rssiStatus(1)(0);
    leds(6) <= ethPhyReady;
 
