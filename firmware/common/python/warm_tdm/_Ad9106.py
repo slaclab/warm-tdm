@@ -159,6 +159,7 @@ class Ad9106(pr.Device):
             offset = POWERCONFIG,
             bitSize = 1,
             bitOffset = 10,
+            pollInterval = 5,
             base = pr.Bool))
 
         self.add(pr.RemoteVariable(
@@ -1733,30 +1734,33 @@ class Ad9106(pr.Device):
             bitOffset = 0,
             base = pr.Bool))
 
-#         self.add(pr.RemoteVariable(
-#             name = 'SRAM',
-#             offset = SRAM_DATA,
-#             base = pr.UInt,
-#             bitSize = 2**12 * 32,
-#             numValues = 2**12,
-#             valueBits = 16,
-#             valueStride = 32))
+#         for i in range(4):
+#             self.add(pr.RemoteVariable(
+#                 name = f'SRAM[{i}]',
+#                 offset = SRAM_DATA + i*2**12,
+#                 base = pr.UInt,
+#                 bitSize = 32* 2**10,
+#                 bitOffset = 4,
+#                 numValues = 2**10,
+#                 valueBits = 12,
+#                 valueStride = 32))
         
         self.add(Ad9106Sram(
-            dac = self,            
+            dac = self,
+            enabled=True,
             name = 'SRAM',
             description = 'SRAM for waveforms',
             offset = SRAM_DATA,
             size = 2**12<<2,
             base = pr.UInt,
-            wordBitSize = 16,
+            wordBitSize = 12,
             stride = 4)) 
 
         # Don't need RAMUPDATE if writing to BUF_READ, MEM_ACCESS or RUN        
         self.NON_BUFFERED = [self.BUF_READ, self.MEM_ACCESS, self.RUN]
 
 
-    def writeBlocks(self, *, force=False, recurse=True, variable=None, checkEach=False, index=-1, **kwargs):
+    def writeBlocks2(self, *, force=False, recurse=True, variable=None, checkEach=False, index=-1, **kwargs):
 
         checkEach = checkEach or self.forceCheckEach
 
@@ -1764,14 +1768,15 @@ class Ad9106(pr.Device):
 
         if variable is not None:
             if variable not in self.NON_BUFFERED:
-                self.BUF_READ.set(0, write=True)            
+                pass
+#                self.BUF_READ.set(0, write=True)            
             pr.startTransaction(variable._block, type=rim.Write, forceWr=force, checkEach=checkEach, variable=variable, index=index, **kwargs)
             if variable not in self.NON_BUFFERED:
                 print("single RAMUPDATE")
                 self.RAMUPDATE() #.set(1, write=True)
 
         else:
-            self.BUF_READ.set(0, write=True)            
+ #           self.BUF_READ.set(0, write=True)            
             for block in self._blocks:
                 if block.bulkOpEn:
                     pr.startTransaction(block, type=rim.Write, forceWr=force, checkEach=checkEach, **kwargs)
@@ -1790,17 +1795,24 @@ class Ad9106Sram(pr.MemoryDevice):
     def __init__(self, dac, **kwargs):
         super().__init__(**kwargs)
         self._dac = dac
-        
+
+    # Terrible hack to account for bitOffset=4
+    def _setDict(self, d, writeEach, modes,incGroups,excGroups,keys):
+        # Parse comma separated values at each offset (key) in d
+        with self._txnLock:
+            for offset, values in d.items():
+                self._setValues[offset] = [self._base.fromString(s)<<4 for s in values.split(',')]
 
     def writeBlocks(self, **kwargs):
         print(f'{self.path}.writeBlocks()')        
         # BUF_READ must be set to 0 before writing to SRAM
         if self.enable.get() and len(self._setValues) > 0:
             print('Setting BUF_READ and MEM_ACCESS for write to SRAM')
-            self._dac.BUF_READ.set(0, write=False)
-            print('Done post 1')
-            self._dac.MEM_ACCESS.post(1)
-            print('Done post 2')
+            print(f'setValues = {self._setValues}')
+            self._dac.BUF_READ.set(0, write=True)
+            print('Done BUF_READ = 0')
+            self._dac.MEM_ACCESS.set(1, write=True)
+            print('Done MEM_ACCESS = 1')
 #            queueVariable(self._dac.BUF_READ, 0)
 
         print('super writeblocks')
@@ -1812,14 +1824,26 @@ class Ad9106Sram(pr.MemoryDevice):
  #       save = self._dac.BUF_READ.value()
         #queueVariable(self._dac.BUF_READ, 1)
         #self._dac.BUF_READ.post(1)
-        self._dac.BUF_READ.set(1, write=False, check=False)
-        self._dac.MEM_ACCESS.set(1, check=False)
-        super().verifyBlocks(**kwargs)
-        #queueVariable(self._dac.BUF_READ, 0)
-#        self._dac.BUF_READ.post(save)
-        self.checkBlocks()
+        if self.enable.get() is not True:
+            return
 
-    def readBlocks(self, **kwargs):
-        self._dac.BUF_READ.set(1, write=False, check=False)
-        self._dac.MEM_ACCESS.set(1, check=False)
-        super().readBlocks(**kwargs)
+        print(f'Verify {self.path}')
+        self._dac.BUF_READ.set(1, write=True)
+        print('Done BUF_READ = 1')
+        self._dac.MEM_ACCESS.set(1, write=True)
+        print('Done MEM_ACCESS = 1')        
+        super().verifyBlocks(**kwargs)
+        print('Done super')
+        
+        self._dac.BUF_READ.set(0, write=True)
+        self._dac.MEM_ACCESS.set(0, write=True)
+        
+#     def readBlocks(self, **kwargs):
+#         if self.enable.get() is not True:
+#             return
+        
+#         self._dac.BUF_READ.set(1, write=False, check=False)
+#         self._dac.MEM_ACCESS.set(1, check=False)
+#         super().readBlocks(**kwargs)
+#         self._dac.BUF_READ.set(0, write=False, check=False)
+#         self._dac.MEM_ACCESS.set(0)
