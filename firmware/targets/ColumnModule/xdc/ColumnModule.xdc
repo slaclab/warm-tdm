@@ -373,11 +373,14 @@ set_property -dict { PACKAGE_PIN B20 IOSTANDARD LVCMOS33 } [get_ports { pwrSda }
 #set_property -dict { PACKAGE_PIN K21 IOSTANDARD LVCMOS33 } [get_ports { tempAlertL }];
 
 # RJ-45 LEDs
-# set_property -dict { PACKAGE_PIN H26 IOSTANDARD LVCMOS33 } [get_ports { rj45RxGrn }];
-# set_property -dict { PACKAGE_PIN H21 IOSTANDARD LVCMOS33 } [get_ports { rj45RxYlw }];
-# set_property -dict { PACKAGE_PIN G21 IOSTANDARD LVCMOS33 } [get_ports { rj45TxGrn }];
-# set_property -dict { PACKAGE_PIN H23 IOSTANDARD LVCMOS33 } [get_ports { rj45TxYlw }];
 
+set_property -dict { PACKAGE_PIN H26 IOSTANDARD LVCMOS33 } [get_ports { conRxGreenLed }];
+set_property -dict { PACKAGE_PIN H21 IOSTANDARD LVCMOS33 } [get_ports { conRxYellowLed }];
+set_property -dict { PACKAGE_PIN G21 IOSTANDARD LVCMOS33 } [get_ports { conTxGreenLed }];
+set_property -dict { PACKAGE_PIN H23 IOSTANDARD LVCMOS33 } [get_ports { conTxYellowLed }];
+
+set_property -dict { PACKAGE_PIN J24 IOSTANDARD LVCMOS33 } [get_ports { oscOe[0] }];
+set_property -dict { PACKAGE_PIN J25 IOSTANDARD LVCMOS33 } [get_ports { oscOe[1] }];
 
 ## Thermistors
 set_property -dict { PACKAGE_PIN C16 IOSTANDARD LVCMOS33 } [get_ports { vAuxP[0] }];

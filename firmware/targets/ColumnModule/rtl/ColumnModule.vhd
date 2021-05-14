@@ -106,7 +106,13 @@ entity ColumnModule is
       pwrSda : inout sl;
 
       -- Status LEDs
-      leds : out slv(7 downto 0);
+      leds           : out slv(7 downto 0) := "00000000";
+      conRxGreenLed  : out sl              := '1';
+      conRxYellowLed : out sl              := '1';
+      conTxGreenLed  : out sl              := '1';
+      conTxYellowLed : out sl              := '1';
+
+      oscOe : out slv(1 downrto 0) := "11";
 
       -- XADC
       vAuxP : in slv(3 downto 0);
