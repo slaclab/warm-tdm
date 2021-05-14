@@ -22,11 +22,11 @@ entity AdcDsp is
 
    port (
       -- Timing interface
-      timingClk125  : in sl;
-      timingRst125  : in sl;
-      timingData    : in LocalTimingType;
+      timingRxClk125 : in sl;
+      timingRxRst125 : in sl;
+      timingRxData   : in LocalTimingType;
       -- Incomming ADC Stream
-      adcAxisMaster : in AxiStreamMasterType;
+      adcAxisMaster  : in AxiStreamMasterType;
 
       -- Local register access
       axilClk         : in  sl;
@@ -150,9 +150,9 @@ begin
          axiReadSlave   => locAxilReadSlaves(ADC_OFFSET_C),    -- [out]
          axiWriteMaster => locAxilWriteMasters(ADC_OFFSET_C),  -- [in]
          axiWriteSlave  => locAxilWriteSlaves(ADC_OFFSET_C),   -- [out]
-         clk            => timingClk125,                       -- [in]
-         rst            => timingRst125,                       -- [in]
-         addr           => timingData.rowNum(5 downto 0),      -- [in]
+         clk            => timingRxClk125,                     -- [in]
+         rst            => timingRxRst125,                     -- [in]
+         addr           => timingRxData.rowNum(5 downto 0),    -- [in]
          dout           => adcOffsetRamOut);                   -- [out]
 
    accumError <= slv(r.accumError);
@@ -175,8 +175,8 @@ begin
          axiReadSlave   => locAxilReadSlaves(ACCUM_ERROR_C),    -- [out]
          axiWriteMaster => locAxilWriteMasters(ACCUM_ERROR_C),  -- [in]
          axiWriteSlave  => locAxilWriteSlaves(ACCUM_ERROR_C),   -- [out]
-         clk            => timingClk125,                        -- [in]
-         rst            => timingRst125,                        -- [in]
+         clk            => timingRxClk125,                      -- [in]
+         rst            => timingRxRst125,                      -- [in]
          addr           => r.accumRow,                          -- [in]         
          we             => r.accumValid,                        -- [in]
          din            => accumError,                          -- [in]
@@ -202,8 +202,8 @@ begin
          axiReadSlave   => locAxilReadSlaves(P_TERMS_C),    -- [out]
          axiWriteMaster => locAxilWriteMasters(P_TERMS_C),  -- [in]
          axiWriteSlave  => locAxilWriteSlaves(P_TERMS_C),   -- [out]
-         clk            => timingClk125,                    -- [in]
-         rst            => timingRst125,                    -- [in]
+         clk            => timingRxClk125,                  -- [in]
+         rst            => timingRxRst125,                  -- [in]
          addr           => r.accumRow,                      -- [in]         
          dout           => pRamOut);                        -- [in]
 
@@ -227,8 +227,8 @@ begin
          axiReadSlave   => locAxilReadSlaves(I_TERMS_C),    -- [out]
          axiWriteMaster => locAxilWriteMasters(I_TERMS_C),  -- [in]
          axiWriteSlave  => locAxilWriteSlaves(I_TERMS_C),   -- [out]
-         clk            => timingClk125,                    -- [in]
-         rst            => timingRst125,                    -- [in]
+         clk            => timingRxClk125,                  -- [in]
+         rst            => timingRxRst125,                  -- [in]
          addr           => r.accumRow,                      -- [in]         
          dout           => iRamOut);                        -- [in]
 
@@ -252,8 +252,8 @@ begin
          axiReadSlave   => locAxilReadSlaves(D_TERMS_C),    -- [out]
          axiWriteMaster => locAxilWriteMasters(D_TERMS_C),  -- [in]
          axiWriteSlave  => locAxilWriteSlaves(D_TERMS_C),   -- [out]
-         clk            => timingClk125,                    -- [in]
-         rst            => timingRst125,                    -- [in]
+         clk            => timingRxClk125,                  -- [in]
+         rst            => timingRxRst125,                  -- [in]
          addr           => r.accumRow,                      -- [in]         
          dout           => dRamOut);                        -- [in]
 
@@ -277,8 +277,8 @@ begin
          axiReadSlave   => locAxilReadSlaves(SUM_ACCUM_C),    -- [out]
          axiWriteMaster => locAxilWriteMasters(SUM_ACCUM_C),  -- [in]
          axiWriteSlave  => locAxilWriteSlaves(SUM_ACCUM_C),   -- [out]
-         clk            => timingClk125,                      -- [in]
-         rst            => timingRst125,                      -- [in]
+         clk            => timingRxClk125,                    -- [in]
+         rst            => timingRxRst125,                    -- [in]
          addr           => r.accumRow,                        -- [in]         
          we             => r.pidValid,                        -- [in]
          din            => sumAccum,                          -- [in]
@@ -304,8 +304,8 @@ begin
          axiReadSlave   => locAxilReadSlaves(PID_RESULTS_C),    -- [out]
          axiWriteMaster => locAxilWriteMasters(PID_RESULTS_C),  -- [in]
          axiWriteSlave  => locAxilWriteSlaves(PID_RESULTS_C),   -- [out]
-         clk            => timingClk125,                        -- [in]
-         rst            => timingRst125,                        -- [in]
+         clk            => timingRxClk125,                      -- [in]
+         rst            => timingRxRst125,                      -- [in]
          addr           => r.accumRow,                          -- [in]         
          we             => r.pidValid,                          -- [in]
          din            => pidResult,                           -- [in]
@@ -318,12 +318,12 @@ begin
          TAP_SIZE_G    => 10,
          CH_SIZE_G     => NUM_ROWS_G,
          PARALLEL_G    => 1,
-         WIDTH_G       => 16, --RESULT_BITS_C,
+         WIDTH_G       => 16,                                    --RESULT_BITS_C,
          MEMORY_TYPE_G => "block",
          SYNTH_MODE_G  => "inferred")
       port map (
-         axisClk         => timingClk125,                        -- [in]
-         axisRst         => timingRst125,                        -- [in]
+         axisClk         => timingRxClk125,                      -- [in]
+         axisRst         => timingRxRst125,                      -- [in]
          sAxisMaster     => pidStreamMaster,                     -- [in]
          sAxisSlave      => open,                                -- [out]
          mAxisMaster     => filterStreamMaster,                  -- [out]
@@ -355,15 +355,15 @@ begin
          axiReadSlave   => locAxilReadSlaves(FILTER_RESULTS_C),                 -- [out]
          axiWriteMaster => locAxilWriteMasters(FILTER_RESULTS_C),               -- [in]
          axiWriteSlave  => locAxilWriteSlaves(FILTER_RESULTS_C),                -- [out]
-         clk            => timingClk125,                                        -- [in]
-         rst            => timingRst125,                                        -- [in]
+         clk            => timingRxClk125,                                      -- [in]
+         rst            => timingRxRst125,                                      -- [in]
          addr           => r.accumRow,                                          -- [in]         
          we             => filterStreamMaster.tValid,                           -- [in]
          din            => filterStreamMaster.tData(RESULT_BITS_C-1 downto 0),  -- [in]
          dout           => open);                                               -- [in]
 
    comb : process (accumRamOut, adcAxisMaster, adcOffsetRamOut, dRamOut, iRamOut, pRamOut,
-                   pidResult, r, sumRamOut, timingData, timingRst125) is
+                   pidResult, r, sumRamOut, timingRxData, timingRxRst125) is
       variable v               : RegType;
       variable adcValueSigned  : signed(13 downto 0);
       variable adcOffsetSigned : signed(13 downto 0);
@@ -378,10 +378,10 @@ begin
 
       -- Add up the errors from all the samples
       -- rowNum may advance before calculation done, so save it in a register at start      
-      if (timingData.sample = '1') then
-         if timingData.firstSample = '1' then
+      if (timingRxData.sample = '1') then
+         if timingRxData.firstSample = '1' then
             v.accumError := (others => '0');
-            v.accumRow   := timingData.rowNum(5 downto 0);
+            v.accumRow   := timingRxData.rowNum(5 downto 0);
          end if;
 --         if adcAxisMaster.tValid = '1' then
          v.accumError := (adcValueSigned - adcOffsetSigned) + v.accumError;
@@ -389,7 +389,7 @@ begin
       end if;
 
       -- Indicate new accumulated error value is ready
-      if timingData.lastSample = '1' then
+      if timingRxData.lastSample = '1' then
          v.accumValid := '1';
 
          -- Register values from RAM for PID calculation
@@ -408,21 +408,21 @@ begin
       end if;
 
 
-      if (timingRst125 = '1') then
+      if (timingRxRst125 = '1') then
          v := REG_INIT_C;
       end if;
 
 
       rin <= v;
 
-      pidStreamMaster.tValid                          <= r.pidValid;
+      pidStreamMaster.tValid             <= r.pidValid;
       pidStreamMaster.tData(15 downto 0) <= pidResult(31 downto 16);
 
    end process;
 
-   seq : process (timingClk125) is
+   seq : process (timingRxClk125) is
    begin
-      if (rising_edge(timingClk125)) then
+      if (rising_edge(timingRxClk125)) then
          r <= rin after TPD_G;
       end if;
    end process;

@@ -56,9 +56,9 @@ entity Timing is
       timingRxDataN : in sl;
 
       -- Local RX timing data for app
-      timingClkOut  : out sl;
-      timingRstOut  : out sl;
-      timingDataOut : out LocalTimingType;
+      timingRxClkOut  : out sl;
+      timingRxRstOut  : out sl;
+      timingRxDataOut : out LocalTimingType;
 
       -- TX Timing Serial Interface
       timingTxClkP  : out sl;
@@ -197,9 +197,9 @@ begin
          timingRxClkN    => timingRxClkN,            -- [in]
          timingRxDataP   => timingRxDataP,           -- [in]
          timingRxDataN   => timingRxDataN,           -- [in]
-         timingRxClkOut  => timingClkOut,            -- [out]
-         timingRxRstOut  => timingRstOut,            -- [out]
-         timingDataOut   => timingDataOut,           -- [out]
+         timingRxClkOut  => timingRxClkOut,          -- [out]
+         timingRxRstOut  => timingRxRstOut,          -- [out]
+         timingRxDataOut => timingRxDataOut,         -- [out]
          axilClk         => axilClk,                 -- [in]
          axilRst         => axilRst,                 -- [in]
          axilWriteMaster => locAxilWriteMasters(0),  -- [in]

@@ -50,7 +50,7 @@ entity TimingRx is
 
       timingRxClkOut : out sl;
       timingRxRstOut : out sl;
-      timingDataOut  : out LocalTimingType;
+      timingRxDataOut  : out LocalTimingType;
 
       axilClk         : in  sl;
       axilRst         : in  sl;
@@ -90,11 +90,11 @@ architecture rtl of TimingRx is
    signal rxClkFreq : slv(31 downto 0);
 
    type RegType is record
-      timingData : LocalTimingType;
+      timingRxData : LocalTimingType;
    end record RegType;
 
    constant REG_INIT_C : RegType := (
-      timingData => LOCAL_TIMING_INIT_C);
+      timingRxData => LOCAL_TIMING_INIT_C);
 
    signal r   : RegType := REG_INIT_C;
    signal rin : RegType;
@@ -399,44 +399,44 @@ begin
    begin
       v := r;
 
-      if (v.timingData.running = '1') then
-         v.timingData.runTime := r.timingData.runTime + 1;
-         v.timingData.rowTime := r.timingData.rowTime + 1;
+      if (v.timingRxData.running = '1') then
+         v.timingRxData.runTime := r.timingRxData.runTime + 1;
+         v.timingRxData.rowTime := r.timingRxData.rowTime + 1;
       end if;
 
-      v.timingData.startRun    := '0';
-      v.timingData.endRun      := '0';
-      v.timingData.rowStrobe   := '0';
-      v.timingData.firstSample := '0';
-      v.timingData.lastSample  := '0';
+      v.timingRxData.startRun    := '0';
+      v.timingRxData.endRun      := '0';
+      v.timingRxData.rowStrobe   := '0';
+      v.timingRxData.firstSample := '0';
+      v.timingRxData.lastSample  := '0';
 
       if (timingRxValid = '1' and timingRxDataK = '1' and locked = '1') then
          case timingRxData is
             when START_RUN_C =>
-               v.timingData.startRun     := '1';
-               v.timingData.runTime      := (others => '0');
-               v.timingData.readoutCount := (others => '0');
-               v.timingData.running      := '1';
-               v.timingData.sample       := '0';
+               v.timingRxData.startRun     := '1';
+               v.timingRxData.runTime      := (others => '0');
+               v.timingRxData.readoutCount := (others => '0');
+               v.timingRxData.running      := '1';
+               v.timingRxData.sample       := '0';
             when END_RUN_C =>
-               v.timingData.endRun  := '1';
-               v.timingData.running := '0';
-               v.timingData.sample  := '0';
+               v.timingRxData.endRun  := '1';
+               v.timingRxData.running := '0';
+               v.timingRxData.sample  := '0';
             when FIRST_ROW_C =>
-               v.timingData.rowStrobe    := '1';
-               v.timingData.rowNum       := (others => '0');
-               v.timingData.rowTime      := (others => '0');
-               v.timingData.readoutCount := r.timingData.readoutCount + 1;
+               v.timingRxData.rowStrobe    := '1';
+               v.timingRxData.rowNum       := (others => '0');
+               v.timingRxData.rowTime      := (others => '0');
+               v.timingRxData.readoutCount := r.timingRxData.readoutCount + 1;
             when ROW_STROBE_C =>
-               v.timingData.rowStrobe := '1';
-               v.timingData.rowNum    := r.timingData.rowNum + 1;
-               v.timingData.rowTime   := (others => '0');
+               v.timingRxData.rowStrobe := '1';
+               v.timingRxData.rowNum    := r.timingRxData.rowNum + 1;
+               v.timingRxData.rowTime   := (others => '0');
             when SAMPLE_START_C =>
-               v.timingData.sample      := '1';
-               v.timingData.firstSample := '1';
+               v.timingRxData.sample      := '1';
+               v.timingRxData.firstSample := '1';
             when SAMPLE_END_C =>
-               v.timingData.sample     := '0';
-               v.timingData.lastSample := '1';
+               v.timingRxData.sample     := '0';
+               v.timingRxData.lastSample := '1';
             when others => null;
          end case;
       end if;
@@ -447,7 +447,7 @@ begin
 
       rin <= v;
 
-      timingDataOut <= r.timingData;
+      timingRxDataOut <= r.timingRxData;
 
    end process comb;
 

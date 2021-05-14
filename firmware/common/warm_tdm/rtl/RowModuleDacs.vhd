@@ -46,9 +46,9 @@ entity RowModuleDacs is
       axilReadSlave   : out AxiLiteReadSlaveType;
 
       -- Timing Interface
-      timingClk125 : in sl;
-      timingRst125 : in sl;
-      timingData   : in LocalTimingType;
+      timingRxClk125 : in sl;
+      timingRxRst125 : in sl;
+      timingRxData   : in LocalTimingType;
 
       -- DAC Interfaces
       dacCsB      : out slv(11 downto 0);
@@ -123,9 +123,9 @@ begin
 
       U_ClkOutBufDiff_1 : OBUFDS
          port map (
-            i  => timingData.rowStrobe,  -- [in]
-            o  => dacClkP(i),            -- [out]
-            ob => dacClkN(i));           -- [out]
+            i  => timingRxData.rowStrobe,  -- [in]
+            o  => dacClkP(i),              -- [out]
+            ob => dacClkN(i));             -- [out]
    end generate DAC_SPI_GEN;
 
 end architecture rtl;

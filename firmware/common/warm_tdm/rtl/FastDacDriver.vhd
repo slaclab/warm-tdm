@@ -34,10 +34,10 @@ entity FastDacDriver is
       AXIL_BASE_ADDR_G : slv(31 downto 0) := (others => '0'));
 
    port (
-      timingClk125 : in sl;
-      timingRst125 : in sl;
+      timingRxClk125 : in sl;
+      timingRxRst125 : in sl;
 
-      timingData : in LocalTimingType;
+      timingRxData : in LocalTimingType;
 
       dacDb    : out slv(13 downto 0);
       dacWrt   : out slv(3 downto 0);
@@ -131,23 +131,23 @@ begin
             ADDR_WIDTH_G     => 6,
             DATA_WIDTH_G     => 16)
          port map (
-            axiClk         => axilClk,                        -- [in]
-            axiRst         => axilRst,                        -- [in]
-            axiReadMaster  => locAxilReadMasters(i),          -- [in]
-            axiReadSlave   => locAxilReadSlaves(i),           -- [out]
-            axiWriteMaster => locAxilWriteMasters(i),         -- [in]
-            axiWriteSlave  => locAxilWriteSlaves(i),          -- [out]
-            clk            => timingClk125,                   -- [in]
+            axiClk         => axilClk,                          -- [in]
+            axiRst         => axilRst,                          -- [in]
+            axiReadMaster  => locAxilReadMasters(i),            -- [in]
+            axiReadSlave   => locAxilReadSlaves(i),             -- [out]
+            axiWriteMaster => locAxilWriteMasters(i),           -- [in]
+            axiWriteSlave  => locAxilWriteSlaves(i),            -- [out]
+            clk            => timingRxClk125,                   -- [in]
 --          en             => en,              -- [in]
 --          we             => we,              -- [in]
-            rst            => timingRst125,                   -- [in]
-            addr           => timingData.rowNum(5 downto 0),  -- [in]
+            rst            => timingRxRst125,                   -- [in]
+            addr           => timingRxData.rowNum(5 downto 0),  -- [in]
 --         din            => din,             -- [in]
-            dout           => ramDout(i));                    -- [out]
+            dout           => ramDout(i));                      -- [out]
    end generate GEN_AXIL_RAM;
 
 
-   comb : process (r, ramDout, timingData, timingRst125) is
+   comb : process (r, ramDout, timingRxData, timingRxRst125) is
       variable v : RegType;
    begin
       v := r;
@@ -159,7 +159,7 @@ begin
       case r.state is
          when WAIT_ROW_STROBE_S =>
             v.dacNum := 0;
-            if (timingData.rowStrobe = '1') then
+            if (timingRxData.rowStrobe = '1') then
                v.state := DATA_0_S;
             end if;
 
@@ -208,7 +208,7 @@ begin
          when others => null;
       end case;
 
-      if (timingRst125 = '1') then
+      if (timingRxRst125 = '1') then
          v := REG_INIT_C;
       end if;
 
@@ -221,9 +221,9 @@ begin
 
    end process comb;
 
-   seq : process (timingClk125) is
+   seq : process (timingRxClk125) is
    begin
-      if (rising_edge(timingClk125)) then
+      if (rising_edge(timingRxClk125)) then
          r <= rin after TPD_G;
       end if;
    end process seq;

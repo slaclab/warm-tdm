@@ -180,9 +180,9 @@ architecture rtl of RowModule is
    signal locAxilReadSlaves   : AxiLiteReadSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0);
 
    -- Timing clocks and data
-   signal timingClk125 : sl;
-   signal timingRst125 : sl;
-   signal timingData   : LocalTimingType;
+   signal timingRxClk125 : sl;
+   signal timingRxRst125 : sl;
+   signal timingRxData   : LocalTimingType;
 
 
    -- Debug streams
@@ -227,16 +227,16 @@ begin
          clk => axilClk,
          o   => leds(2));
 
-   Heartbeat_timingRxClk : entity surf.Heartbeat
+   Heartbeat_timingTxClk : entity surf.Heartbeat
       generic map (
          TPD_G        => TPD_G,
          PERIOD_IN_G  => 8.0E-9,
          PERIOD_OUT_G => 0.8)
       port map (
-         clk => timingClk125,
+         clk => timingRxClk125,
          o   => leds(3));
 
-   leds(4) <= timingRst125;
+   leds(4) <= timingRxRst125;
    leds(5) <= rssiStatus(1)(0);
    leds(6) <= ethPhyReady;
 
@@ -261,9 +261,9 @@ begin
          timingRxClkN    => timingRxClkN,                        -- [in]
          timingRxDataP   => timingRxDataP,                       -- [in]
          timingRxDataN   => timingRxDataN,                       -- [in]
-         timingClkOut    => timingClk125,                        -- [out]
-         timingRstOut    => timingRst125,                        -- [out]
-         timingDataOut   => timingData,                          -- [out]
+         timingRxClkOut  => timingRxClk125,                      -- [out]
+         timingRxRstOut  => timingRxRst125,                      -- [out]
+         timingRxDataOut => timingRxData,                        -- [out]
          timingTxClkP    => timingTxClkP,                        -- [out]
          timingTxClkN    => timingTxClkN,                        -- [out]
          timingTxDataP   => timingTxDataP,                       -- [out]
@@ -380,9 +380,9 @@ begin
          axilWriteSlave  => locAxilWriteSlaves(AXIL_DACS_C),   -- [out]
          axilReadMaster  => locAxilReadMasters(AXIL_DACS_C),   -- [in]
          axilReadSlave   => locAxilReadSlaves(AXIL_DACS_C),    -- [out]
-         timingClk125    => timingClk125,                      -- [in]
-         timingRst125    => timingRst125,                      -- [in]
-         timingData      => timingData,                        -- [in]
+         timingRxClk125  => timingRxClk125,                    -- [in]
+         timingRxRst125  => timingRxRst125,                    -- [in]
+         timingRxData    => timingRxData,                      -- [in]
          dacCsB          => dacCsB,                            -- [out]
          dacSdio         => dacSdio,                           -- [out]
          dacSdo          => dacSdo,                            -- [in]

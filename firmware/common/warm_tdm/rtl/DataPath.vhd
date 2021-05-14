@@ -44,9 +44,9 @@ entity DataPath is
       adc : in Ad9681SerialType;
 
       -- Timing interface
-      timingClk125 : in sl;
-      timingRst125 : in sl;
-      timingData   : in LocalTimingType;
+      timingRxClk125 : in sl;
+      timingRxRst125 : in sl;
+      timingRxData   : in LocalTimingType;
 
       -- Formatted data
       axisClk    : in  sl;
@@ -159,7 +159,7 @@ begin
          axilReadSlave   => locAxilReadSlaves(0),    -- [out]
          adcClkRst       => '0',                     -- [in]
          adcSerial       => adc,                     -- [in]
-         adcStreamClk    => timingClk125,            -- [in]
+         adcStreamClk    => timingRxClk125,          -- [in]
          adcStreams      => adcStreams);             -- [out]
 
 --    FIR_FILTER_GEN : for i in 7 downto 0 generate
@@ -192,9 +192,9 @@ begin
             TPD_G            => TPD_G,
             AXIL_BASE_ADDR_G => XBAR_COFNIG_C(i+1).baseAddr)
          port map (
-            timingClk125    => timingClk125,              -- [in]
-            timingRst125    => timingRst125,              -- [in]
-            timingData      => timingData,                -- [in]
+            timingRxClk125  => timingRxClk125,            -- [in]
+            timingRxRst125  => timingRxRst125,            -- [in]
+            timingRxData    => timingRxData,              -- [in]
             adcAxisMaster   => adcStreams(i),             -- [in]
             axilClk         => axilClk,                   -- [in]
             axilRst         => axilRst,                   -- [in]

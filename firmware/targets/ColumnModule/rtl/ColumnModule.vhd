@@ -254,9 +254,9 @@ architecture rtl of ColumnModule is
    signal dataRxAxisSlave  : AxiStreamSlaveType;
 
    -- Timing clocks and data
-   signal timingClk125 : sl;
-   signal timingRst125 : sl;
-   signal timingData   : LocalTimingType;
+   signal timingRxClk125 : sl;
+   signal timingRxRst125 : sl;
+   signal timingRxData   : LocalTimingType;
 
    signal adc : Ad9681SerialType;
 
@@ -302,7 +302,7 @@ begin
          PERIOD_IN_G  => 8.0E-9,
          PERIOD_OUT_G => 0.8)
       port map (
-         clk => timingClk125,
+         clk => timingRxClk125,
          o   => leds(3));
 
    leds(4) <= rssiStatus(0)(0);
@@ -327,9 +327,9 @@ begin
          timingRxClkN    => timingRxClkN,                        -- [in]
          timingRxDataP   => timingRxDataP,                       -- [in]
          timingRxDataN   => timingRxDataN,                       -- [in]
-         timingClkOut    => timingClk125,                        -- [out]
-         timingRstOut    => timingRst125,                        -- [out]
-         timingDataOut   => timingData,                          -- [out]
+         timingRxClkOut  => timingRxClk125,                      -- [out]
+         timingRxRstOut  => timingRxRst125,                      -- [out]
+         timingRxDataOut => timingRxData,                        -- [out]
          timingTxClkP    => timingTxClkP,                        -- [out]
          timingTxClkN    => timingTxClkN,                        -- [out]
          timingTxDataP   => timingTxDataP,                       -- [out]
@@ -526,7 +526,7 @@ begin
       generic map (
          TPD_G => TPD_G)
       port map (
-         clkIn   => timingClk125,       -- [in]
+         clkIn   => timingRxClk125,     -- [in]
          clkOutP => adcClkP,            -- [out]
          clkOutN => adcClkN);           -- [out]
 
@@ -538,9 +538,9 @@ begin
          IODELAY_GROUP_G  => "IODELAY0")
       port map (
          adc             => adc,                                    -- [in]
-         timingClk125    => timingClk125,                           -- [in]
-         timingRst125    => timingRst125,                           -- [in]
-         timingData      => timingData,                             -- [in]
+         timingRxClk125  => timingRxClk125,                         -- [in]
+         timingRxRst125  => timingRxRst125,                         -- [in]
+         timingRxData    => timingRxData,                           -- [in]
          axisClk         => axilClk,                                -- [in]
          axisRst         => axilRst,                                -- [in]
          axisMaster      => dataTxAxisMaster,                       -- [out]
@@ -560,9 +560,9 @@ begin
          TPD_G            => TPD_G,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_SQ1_BIAS_DAC_C).baseAddr)
       port map (
-         timingClk125    => timingClk125,                              -- [in]
-         timingRst125    => timingRst125,                              -- [in]
-         timingData      => timingData,                                -- [in]
+         timingRxClk125  => timingRxClk125,                            -- [in]
+         timingRxRst125  => timingRxRst125,                            -- [in]
+         timingRxData    => timingRxData,                              -- [in]
          dacDb           => sq1BiasDb,                                 -- [out]
          dacWrt          => sq1BiasWrt,                                -- [out]
          dacClk          => sq1BiasClk,                                -- [out]
@@ -580,9 +580,9 @@ begin
          TPD_G            => TPD_G,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_SQ1_FB_DAC_C).baseAddr)
       port map (
-         timingClk125    => timingClk125,                            -- [in]
-         timingRst125    => timingRst125,                            -- [in]
-         timingData      => timingData,                              -- [in]
+         timingRxClk125  => timingRxClk125,                          -- [in]
+         timingRxRst125  => timingRxRst125,                          -- [in]
+         timingRxData    => timingRxData,                            -- [in]
          dacDb           => sq1FbDb,                                 -- [out]
          dacWrt          => sq1FbWrt,                                -- [out]
          dacClk          => sq1FbClk,                                -- [out]
@@ -600,9 +600,9 @@ begin
          TPD_G            => TPD_G,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_SA_FB_DAC_C).baseAddr)
       port map (
-         timingClk125    => timingClk125,                           -- [in]
-         timingRst125    => timingRst125,                           -- [in]
-         timingData      => timingData,                             -- [in]
+         timingRxClk125  => timingRxClk125,                         -- [in]
+         timingRxRst125  => timingRxRst125,                         -- [in]
+         timingRxData    => timingRxData,                           -- [in]
          dacDb           => saFbDb,                                 -- [out]
          dacWrt          => saFbWrt,                                -- [out]
          dacClk          => saFbClk,                                -- [out]
