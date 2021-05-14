@@ -25,7 +25,6 @@ class WarmTdmCommon(pr.Device):
             offset = 0x00002000))
 
         self.add(surf.devices.nxp.Sa56004x(
-            enabled = False,
             offset = 0x00010000))
 
         self.add(surf.devices.microchip.Axi24LC64FT(
