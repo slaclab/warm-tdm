@@ -233,6 +233,15 @@ set_property -dict { PACKAGE_PIN R18 IOSTANDARD LVCMOS33 } [get_ports { conRxYel
 set_property -dict { PACKAGE_PIN R19 IOSTANDARD LVCMOS33 } [get_ports { conTxGreenLed }];
 set_property -dict { PACKAGE_PIN P19 IOSTANDARD LVCMOS33 } [get_ports { conTxYellowLed }];
 
+set_property -dict { PACKAGE_PIN A21 IOSTANDARD LVCMOS25 } [get_ports { xbarDataSel[0] }];
+set_property -dict { PACKAGE_PIN D21 IOSTANDARD LVCMOS25 } [get_ports { xbarDataSel[1] }];
+set_property -dict { PACKAGE_PIN D22 IOSTANDARD LVCMOS25 } [get_ports { xbarClkSel[0] }];
+set_property -dict { PACKAGE_PIN B20 IOSTANDARD LVCMOS25 } [get_ports { xbarClkSel[1]}];
+set_property -dict { PACKAGE_PIN B21 IOSTANDARD LVCMOS25 } [get_ports { xbarMgtSel[0] }];
+set_property -dict { PACKAGE_PIN H15 IOSTANDARD LVCMOS25 } [get_ports { xbarMgtSel[1] }];
+
+
+
 
 
 # I2C PROM
