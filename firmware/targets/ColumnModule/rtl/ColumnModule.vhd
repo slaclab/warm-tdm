@@ -368,6 +368,8 @@ begin
          ethRxN           => sfp0RxN,                          -- [in]
          ethTxP           => sfp0TxP,                          -- [out]
          ethTxN           => sfp0TxN,                          -- [out]
+         rssiStatus       => rssiStatus,                       -- [out]
+         ethPhyReady      => ethPhyReady,                      -- [out]
          axilClkOut       => axilClk,                          -- [out]
          axilRstOut       => axilRst,                          -- [out]
          mAxilWriteMaster => srpAxilWriteMaster,               -- [out]

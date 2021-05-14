@@ -303,6 +303,8 @@ begin
          ethTxP           => sfp0TxP,                          -- [out]
          ethTxN           => sfp0TxN,                          -- [out]
          axilClkOut       => axilClk,                          -- [out]
+         rssiStatus       => rssiStatus,                       -- [out]
+         ethPhyReady      => ethPhyReady,                      -- [out]
          axilRstOut       => axilRst,                          -- [out]
          mAxilWriteMaster => srpAxilWriteMaster,               -- [out]
          mAxilWriteSlave  => srpAxilWriteSlave,                -- [in]
