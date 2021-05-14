@@ -260,7 +260,54 @@ architecture rtl of ColumnModule is
 
    signal adc : Ad9681SerialType;
 
+   -- Debug clocks
+   signal gtRefClk0Div2 : sl;
+   signal gtRefClk1     : sl;
+   signal rssiStatus    : slv7Array(1 downto 0);
+   signal ethPhyReady   : sl;
+
+
 begin
+
+   Heartbeat_gtRefClk0Div2 : entity surf.Heartbeat
+      generic map (
+         TPD_G        => TPD_G,
+         PERIOD_IN_G  => 6.4E-9,
+         PERIOD_OUT_G => 0.64)
+      port map (
+         clk => gtRefClk0Div2,
+         o   => leds(0));
+
+   Heartbeat_gtRefClk1 : entity surf.Heartbeat
+      generic map (
+         TPD_G        => TPD_G,
+         PERIOD_IN_G  => 8.0E-9,
+         PERIOD_OUT_G => 0.8)
+      port map (
+         clk => gtRefClk1,
+         o   => leds(1));
+
+   Heartbeat_axilClk : entity surf.Heartbeat
+      generic map (
+         TPD_G        => TPD_G,
+         PERIOD_IN_G  => 6.4E-9,
+         PERIOD_OUT_G => 0.64)
+      port map (
+         clk => axilClk,
+         o   => leds(2));
+
+   Heartbeat_timingRxClk : entity surf.Heartbeat
+      generic map (
+         TPD_G        => TPD_G,
+         PERIOD_IN_G  => 8.0E-9,
+         PERIOD_OUT_G => 0.8)
+      port map (
+         clk => timingClk125,
+         o   => leds(3));
+
+   leds(4) <= rssiStatus(0)(0);
+   leds(5) <= rssiStatus(1)(0);
+   leds(6) <= ethPhyReady;
 
    -------------------------------------------------------------------------------------------------
    -- Timing Interface
@@ -275,6 +322,7 @@ begin
       port map (
          timingRefClkP   => gtRefClk1P,                          -- [in]
          timingRefClkN   => gtRefClk1N,                          -- [in]
+         timingRefClkOut => gtRefClk1,                           -- [out]
          timingRxClkP    => timingRxClkP,                        -- [in]
          timingRxClkN    => timingRxClkN,                        -- [in]
          timingRxDataP   => timingRxDataP,                       -- [in]
@@ -293,28 +341,6 @@ begin
          axilReadMaster  => locAxilReadMasters(AXIL_TIMING_C),   -- [in]
          axilReadSlave   => locAxilReadSlaves(AXIL_TIMING_C));   -- [out]
 
---    U_TimingRx_1 : entity warm_tdm.TimingRx
---       generic map (
---          TPD_G             => TPD_G,
---          SIMULATION_G      => SIMULATION_G,
---          IODELAY_GROUP_G   => "IODELAY0",
---          IDELAYCTRL_FREQ_G => 200.0)
---       port map (
---          timingRefClkP   => gtRefClk1P,                             -- [in]
---          timingRefClkN   => gtRefClk1N,                             -- [in]
---          timingRxClkP    => timingRxClkP,                           -- [in]
---          timingRxClkN    => timingRxClkN,                           -- [in]
---          timingRxDataP   => timingRxDataP,                          -- [in]
---          timingRxDataN   => timingRxDataN,                          -- [in]
---          timingClkOut    => timingClk125,                           -- [out]
---          timingRstOut    => timingRst125,                           -- [out]
---          timingData      => timingData,                             -- [out]
---          axilClk         => axilClk,                                -- [in]
---          axilRst         => axilRst,                                -- [in]
---          axilWriteMaster => locAxilWriteMasters(AXIL_TIMING_RX_C),  -- [in]
---          axilWriteSlave  => locAxilWriteSlaves(AXIL_TIMING_RX_C),   -- [out]
---          axilReadMaster  => locAxilReadMasters(AXIL_TIMING_RX_C),   -- [in]
---          axilReadSlave   => locAxilReadSlaves(AXIL_TIMING_RX_C));
    -------------------------------------------------------------------------------------------------
    -- Communications Interfaces
    -------------------------------------------------------------------------------------------------
@@ -333,6 +359,7 @@ begin
       port map (
          gtRefClkP        => gtRefClk0P,                       -- [in]
          gtRefClkN        => gtRefClk0N,                       -- [in]
+         gtRefClkDiv2Out  => gtRefClkDiv2Out,                  -- [out]
          pgpTxP           => pgpTxP,                           -- [out]
          pgpTxN           => pgpTxN,                           -- [out]
          pgpRxP           => pgpRxP,                           -- [in]
