@@ -62,12 +62,14 @@ CONFIGS = {
             'simPorts': None,
             'stack': NORMAL_STACK},
         'row': {
+            'pollEn': False,                        
             'host': '192.168.2.11',
             'srpPort': 8192,
             'dataPort': 8193,
             'simPorts': None,
             'stack': [{'cls': warm_tdm.RowModule, 'name': 'RowModule[0]'}]},
         'col': {
+            'pollEn': False,                        
             'host': '192.168.2.11',            
             'srpPort': 8192,
             'dataPort': 8193,
@@ -105,7 +107,8 @@ class WarmTdmRoot(pyrogue.Root):
             else:
                 udp = pyrogue.protocols.UdpRssiPack(host=host, port=srpPort, packVer=2)
                 srpStream = udp.application(dest=index)
-                self.addInterface(udp)            
+                self.addInterface(udp)
+                self.add(udp)
 
             # Create SRP and link to SRP stream
             srp = rogue.protocols.srp.SrpV3() #board['name'])
@@ -138,9 +141,9 @@ class WarmTdmRoot(pyrogue.Root):
 #         pgpRing[5].sb.setRecvCb(pgpRing[0].sb.send)
         #pgpRing[0].sb.send(0, 0)
 
-        rowModules = [x for x in self.deviceList if isinstance(x, warm_tdm.RowModule)]        
-        if len(rowModules) > 0: 
-            self.add(warm_tdm.RowSelectArray(rowModules))
+#         rowModules = [x for x in self.deviceList if isinstance(x, warm_tdm.RowModule)]        
+#         if len(rowModules) > 0: 
+#             self.add(warm_tdm.RowSelectArray(rowModules, enabled=False))
 
 #             if index != 0:
 #                 for ch in range(4):
@@ -156,4 +159,4 @@ class WarmTdmRoot(pyrogue.Root):
 #                     pgpRing[index].vc[ch] >> pgpRing[0].vc[ch]
 
 #                 print(f'Linking index {index} to index 0')
-#                 pgpRing[index].sb.setRecvCb(pgpRing[0].sb.send)
+#                 pgpRing[index].sb.setRecvCb(pgpRi
