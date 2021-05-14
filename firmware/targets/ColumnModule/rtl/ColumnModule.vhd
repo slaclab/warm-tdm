@@ -359,7 +359,7 @@ begin
       port map (
          gtRefClkP        => gtRefClk0P,                       -- [in]
          gtRefClkN        => gtRefClk0N,                       -- [in]
-         gtRefClkDiv2Out  => gtRefClkDiv2Out,                  -- [out]
+         gtRefClkDiv2Out  => gtRefClk0Div2,                    -- [out]
          pgpTxP           => pgpTxP,                           -- [out]
          pgpTxN           => pgpTxN,                           -- [out]
          pgpRxP           => pgpRxP,                           -- [in]
