@@ -41,7 +41,7 @@ entity RowModule is
       SIM_ETH_SRP_PORT_NUM_G  : positive         := 8000;
       SIM_ETH_DATA_PORT_NUM_G : positive         := 9000;
       BUILD_INFO_G            : BuildInfoType;
-      RING_ADDR_0_G           : boolean          := false;
+      RING_ADDR_0_G           : boolean          := true;
       ETH_10G_G               : boolean          := false;
       DHCP_G                  : boolean          := false;  -- true = DHCP, false = static address
       IP_ADDR_G               : slv(31 downto 0) := x"0B02A8C0");  -- 192.168.2.11 (before DHCP)
@@ -59,9 +59,9 @@ entity RowModule is
       pgpRxN : in  sl;
 
       -- Timing Interface Crossbars
-      xbarDataSel : out slv(1 downto 0) := "00";
-      xbarClkSel  : out slv(1 downto 0) := "00";
-      xbarMgtSel  : out slv(1 downto 0) := "00";
+      xbarDataSel : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarClkSel  : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarMgtSel  : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
 
       -- MGT Timing
 --       timingRxP : in sl;
@@ -249,7 +249,7 @@ begin
       generic map (
          TPD_G             => TPD_G,
          SIMULATION_G      => SIMULATION_G,
-         AXIL_CLK_FREQ_G   => 156.26E6,
+         AXIL_CLK_FREQ_G   => 156.25E6,
          AXIL_BASE_ADDR_G  => AXIL_XBAR_CFG_C(AXIL_TIMING_C).baseAddr,
          IODELAY_GROUP_G   => "IODELAY0",
          IDELAYCTRL_FREQ_G => 200.0)
