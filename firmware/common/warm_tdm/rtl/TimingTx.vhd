@@ -34,12 +34,16 @@ use warm_tdm.TimingPkg.all;
 entity TimingTx is
 
    generic (
-      TPD_G        : time    := 1 ns;
-      SIMULATION_G : boolean := false);
+      TPD_G         : time    := 1 ns;
+      RING_ADDR_0_G : boolean := false;
+      SIMULATION_G  : boolean := false);
 
    port (
       timingClk125 : in sl;
       timingRst125 : in sl;
+
+      xbarDataSel : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarClkSel  : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
 
       timingTxClkP  : out sl;
       timingTxClkN  : out sl;
@@ -65,6 +69,10 @@ architecture rtl of TimingTx is
    signal timingTxCodeWord : slv(9 downto 0);
 
    type RegType is record
+      -- XBAR
+      xbarDataSel : slv(1 downto 0);
+      xbarClkSel  : slv(1 downto 0);
+
       -- Config
       rowPeriod       : slv(15 downto 0);
       numRows         : slv(15 downto 0);
@@ -79,6 +87,8 @@ architecture rtl of TimingTx is
    end record RegType;
 
    constant REG_INIT_C : RegType := (
+      xbarDataSel     => ite(RING_ADDR_0_G, "11", "00"),
+      xbarClkSel      => ite(RING_ADDR_0_G, "11", "00"),
       rowPeriod       => toSlv(250, 16),  -- 125 MHz / 250 = 500 kHz
       numRows         => toSlv(64, 16),   -- Default of 64 rows
       sampleStartTime => toSlv(150, 16),
@@ -145,6 +155,9 @@ begin
       axiSlaveRegisterR(axilEp, X"40", 0, r.timingData.runTime);
       axiSlaveRegisterR(axilEp, X"48", 0, r.timingData.readoutCount);
 
+      axiSlaveRegister(axilEp, X"50", 0, v.xbarClkSel);
+      axiSlaveRegister(axilEp, X"50", 4, v.xbarDataSel);
+
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
 
       ----------------------
@@ -209,6 +222,9 @@ begin
       rin                  <= v;
       timingAxilWriteSlave <= r.axilWriteSlave;
       timingAxilReadSlave  <= r.axilReadSlave;
+
+      xbarClkSel  <= r.xbarClkSel;
+      xbarDataSel <= r.xbarDataSel;
 
 
    end process;

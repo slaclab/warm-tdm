@@ -236,7 +236,7 @@ begin
          clk => timingRxClk125,
          o   => leds(3));
 
-   leds(4) <= timingRxRst125;
+   leds(4) <= rssiStatus(0)(0);
    leds(5) <= rssiStatus(1)(0);
    leds(6) <= ethPhyReady;
 
@@ -268,6 +268,8 @@ begin
          timingTxClkN    => timingTxClkN,                        -- [out]
          timingTxDataP   => timingTxDataP,                       -- [out]
          timingTxDataN   => timingTxDataN,                       -- [out]
+         xbarClkSel      => xbarClkSel,                          -- [out]
+         xbarDataSel     => xbarDataSel,                         -- [out]
          axilClk         => axilClk,                             -- [in]
          axilRst         => axilRst,                             -- [in]
          axilWriteMaster => locAxilWriteMasters(AXIL_TIMING_C),  -- [in]

@@ -1,4 +1,4 @@
-import argparse
+guimport argparse
 
 import rogue
 import pyrogue
@@ -24,6 +24,12 @@ NORMAL_STACK = [
      'name': 'RowModule[0]'},
     {'cls': warm_tdm.RowModule,
      'name': 'RowModule[1]'}]
+
+SINGLE_ROW = [
+    {'cls': warm_tdm.RowModule, 'name': 'RowModule[0]'}]
+
+SINGLE_COLUMN = [
+    {'cls': warm_tdm.ColumnModule, 'name': 'ColumnModule[0]'}]
 
 SIM_PORTS = list(range(7000, 7051, 10))
 
@@ -52,7 +58,7 @@ CONFIGS = {
             'srpPort': 10000,
             'dataPort': 20000,
             'simPorts': [7000],
-            'stack': [{'cls': warm_tdm.RowModule, 'name': 'RowModule[0]'}]}},
+            'stack': [{'cls': warm_tdm.ColumnModule, 'name': 'ColumnModule[0]'}]}},
     'hw': {
         'stack': {
             'pollEn': False,
@@ -74,7 +80,7 @@ CONFIGS = {
             'srpPort': 8192,
             'dataPort': 8193,
             'simPorts': None,
-            'stack': [{'cls': warm_tdm.RowModule, 'name': 'RowModule[0]'}]}}}
+            'stack': [{'cls': warm_tdm.ColumnModule, 'name': 'ColumnModule[0]'}]}}}
  
 
 class WarmTdmRoot(pyrogue.Root):

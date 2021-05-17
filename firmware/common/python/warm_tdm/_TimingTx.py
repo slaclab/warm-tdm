@@ -111,3 +111,45 @@ class TimingTx(pr.Device):
             bitSize = 64,
             disp = '{:d}'))
 
+        self.add(pr.RemoteVariable(
+            name = 'XbarTxClkSrc',
+            mode = 'RW',
+            offset = 0x50,
+            bitOffset = 0,
+            bitSize = 1,
+            enum = {
+                0: 'RJ-45 RX',
+                1: 'FPGA TX'}))
+
+
+        self.add(pr.RemoteVariable(
+            name = 'XbarRxClkSrc',
+            mode = 'RW',
+            offset = 0x50,
+            bitOffset = 1,
+            bitSize = 1,
+            enum = {
+                0: 'RJ-45 RX',
+                1: 'FPGA TX'}))
+        
+        self.add(pr.RemoteVariable(
+            name = 'XbarTxDataSrc',
+            mode = 'RW',
+            offset = 0x50,
+            bitOffset = 4,
+            bitSize = 1,
+            enum = {
+                0: 'RJ-45 RX',
+                1: 'FPGA TX'}))
+
+
+        self.add(pr.RemoteVariable(
+            name = 'XbarRxDataSrc',
+            mode = 'RW',
+            offset = 0x50,
+            bitOffset = 5,
+            bitSize = 1,
+            enum = {
+                0: 'RJ-45 RX',
+                1: 'FPGA TX'}))
+        

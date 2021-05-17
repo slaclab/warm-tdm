@@ -316,6 +316,7 @@ begin
       generic map (
          TPD_G             => TPD_G,
          SIMULATION_G      => SIMULATION_G,
+         RING_ADDR_0_G     => RING_ADDR_0_G,
          AXIL_BASE_ADDR_G  => AXIL_XBAR_CFG_C(AXIL_TIMING_C).baseAddr,
          IODELAY_GROUP_G   => "IODELAY0",
          IDELAYCTRL_FREQ_G => 200.0)
@@ -334,6 +335,8 @@ begin
          timingTxClkN    => timingTxClkN,                        -- [out]
          timingTxDataP   => timingTxDataP,                       -- [out]
          timingTxDataN   => timingTxDataN,                       -- [out]
+         xbarClkSel      => xbarClkSel,                          -- [out]
+         xbarDataSel     => xbarDataSel,                         -- [out]
          axilClk         => axilClk,                             -- [in]
          axilRst         => axilRst,                             -- [in]
          axilWriteMaster => locAxilWriteMasters(AXIL_TIMING_C),  -- [in]

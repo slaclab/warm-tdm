@@ -16,6 +16,8 @@ class PgpCore(pr.Device):
             offset=0x00000000))
 
         #GTX
+        self.add(surf.xilinx.Gtxe2Channel(
+            offset = 0x0001000))
 
 class EthCore(pr.Device):
     def __init__(self, **kwargs):

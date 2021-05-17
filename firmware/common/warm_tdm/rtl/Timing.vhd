@@ -37,6 +37,7 @@ entity Timing is
    generic (
       TPD_G             : time                  := 1 ns;
       SIMULATION_G      : boolean               := false;
+      RING_ADDR_0_G     : boolean               := false;
       AXIL_CLK_FREQ_G   : real                  := 156.26E6;
       AXIL_BASE_ADDR_G  : slv(31 downto 0)      := (others => '0');
       IODELAY_GROUP_G   : string                := "DEFAULT_GROUP";
@@ -65,6 +66,10 @@ entity Timing is
       timingTxClkN  : out sl;
       timingTxDataP : out sl;
       timingTxDataN : out sl;
+
+      -- XBAR select
+      xbarDataSel : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarClkSel  : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
 
       -- Configuration
       axilClk         : in  sl;
@@ -209,11 +214,14 @@ begin
 
    U_TimingTx_1 : entity warm_tdm.TimingTx
       generic map (
-         TPD_G        => TPD_G,
-         SIMULATION_G => SIMULATION_G)
+         TPD_G         => TPD_G,
+         SIMULATION_G  => SIMULATION_G,
+         RING_ADDR_0_G => RING_ADDR_0_G)
       port map (
          timingClk125    => timingClk125,            -- [in]
          timingRst125    => timingRst125,            -- [in]
+         xbarDataSel     => xbarDataSel,             -- [out]
+         xbarClkSel      => xbarClkSel,              --[out]
          timingTxClkP    => timingTxClkP,            -- [out]
          timingTxClkN    => timingTxClkN,            -- [out]
          timingTxDataP   => timingTxDataP,           -- [out]
