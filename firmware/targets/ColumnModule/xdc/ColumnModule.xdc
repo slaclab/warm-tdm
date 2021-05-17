@@ -9,7 +9,7 @@
 ##############################################################################
 create_clock -name gtRefClk0 -period 3.200 [get_ports {gtRefClk0P}]
 create_clock -name gtRefClk1 -period 4.000 [get_ports {gtRefClk1P}]
-create_clock -name timingRxClk -period 16.000 [get_ports {timingRxClkP}]
+create_clock -name timingRxClk -period 50.000 [get_ports {timingRxClkP}]
 create_clock -name adcDClk0 -period 2.00 [get_ports {adcDClkP[0]}]
 create_clock -name adcDClk1 -period 2.00 [get_ports {adcDClkP[1]}]
 
