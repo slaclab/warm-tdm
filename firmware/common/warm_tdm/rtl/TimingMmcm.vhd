@@ -29,7 +29,7 @@ entity TimingMmcm is
    generic (
       TPD_G              : time    := 1 ns;
       USE_HPC_G          : boolean := true;
-      CLKIN1_PERIOD_G    : real    := 8.0;
+      CLKIN1_PERIOD_G    : real    := 16.0;
       DIVCLK_DIVIDE_G    : integer := 1;
       CLKFBOUT_MULT_F_G  : real    := 10.0;
       CLKOUT0_DIVIDE_F_G : real    := 4.0;
