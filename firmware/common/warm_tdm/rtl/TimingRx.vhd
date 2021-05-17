@@ -107,6 +107,7 @@ architecture rtl of TimingRx is
       realignGearbox : sl;
       delay          : slv(4 downto 0);
       set            : sl;
+      minEyeWidth    : slv(7 downto 0);
       lockedCountRst : sl;
       readoutDebug0  : slv(9 downto 0);
       readoutDebug1  : slv(9 downto 0);
@@ -119,6 +120,7 @@ architecture rtl of TimingRx is
       realignGearbox => '0',
       delay          => toSlv(DEFAULT_DELAY_G, 5),
       set            => '0',
+      minEyeWidth    => toSlv(80, 8),
       lockedCountRst => '0',
       readoutDebug0  => (others => '0'),
       readoutDebug1  => (others => '0'),
@@ -135,6 +137,8 @@ architecture rtl of TimingRx is
    signal lockedSync      : sl;
    signal debugDataValid  : sl;
    signal debugDataOut    : slv(9 downto 0);
+
+   signal minEyeWidthSync : slv(7 downto 0);
 
 begin
 
@@ -257,7 +261,7 @@ begin
          enUsrDlyCfg     => enUsrDlyCfg,      -- [in]
          usrDlyCfg       => usrDlyCfg,        -- [in]
          bypFirstBerDet  => '1',              -- [in]
-         minEyeWidth     => toSlv(8, 8),      -- [in]
+         minEyeWidth     => minEyeWidthSync,  -- [in]
 --         lockingCntCfg   => lockingCntCfg,    -- [in]
          errorDet        => errorDet,         -- [out]
          locked          => locked);          -- [out]
@@ -304,6 +308,17 @@ begin
          rst     => wordRst,             -- [in]
          dataIn  => dlyCfg(8 downto 4),  -- [in]
          dataOut => curDelay);           -- [out]
+
+   U_SynchronizerVector_3 : entity surf.SynchronizerVector
+      generic map (
+         TPD_G    => TPD_G,
+         STAGES_G => 2,
+         WIDTH_G  => 8)
+      port map (
+         clk     => wordClk,            -- [in]
+         rst     => wordRst,            -- [in]
+         dataIn  => axilR.minEyeWidth,  -- [in]
+         dataOut => minEyeWidthSync);   -- [out]
 
 
    SynchronizerOneShotCnt_1 : entity surf.SynchronizerOneShotCnt
@@ -508,6 +523,8 @@ begin
       axiSlaveRegisterR(axilEp, X"20", 20, axilR.readoutDebug2);
 
       axiSlaveRegisterR(axilEp, X"30", 0, rxClkFreq);
+
+      axiSlaveRegister(axilEp, X"40", 0, v.minEyeWidth);
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
 

@@ -97,4 +97,11 @@ class TimingRx(pr.Device):
             offset = 0x20,
             bitOffset = 20,
             bitSize = 10))
+
+        self.add(pr.RemoteVariable(
+            name = 'MinEyeWidth',
+            mode = 'RW',
+            offset = 0x40,
+            bitOffset = 0,
+            bitSize = 8))
         
