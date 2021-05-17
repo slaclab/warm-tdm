@@ -243,7 +243,7 @@ begin
       generic map (
          TPD_G => TPD_G)
       port map (
-         clkIn   => timingClk125,       -- [in]
+         clkIn   => wordClk, --timingClk125,       -- [in]
          clkOutP => timingTxClkP,       -- [out]
          clkOutN => timingTxClkN);      -- [out]
 

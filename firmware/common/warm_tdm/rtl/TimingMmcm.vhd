@@ -27,8 +27,13 @@ use surf.StdRtlPkg.all;
 entity TimingMmcm is
 
    generic (
-      TPD_G     : time    := 1 ns;
-      USE_HPC_G : boolean := true);
+      TPD_G              : time    := 1 ns;
+      USE_HPC_G          : boolean := true;
+      CLKIN1_PERIOD_G    : real    := 8.0;
+      DIVCLK_DIVIDE_G    : integer := 1;
+      CLKFBOUT_MULT_F_G  : real    := 10.0;
+      CLKOUT0_DIVIDE_F_G : real    := 4.0;
+      CLKOUT1_DIVIDE_G   : integer := 20);
 
    port (
       timingRxClk : in  sl;
@@ -62,11 +67,11 @@ begin
          BANDWIDTH        => "OPTIMIZED",
          CLKOUT4_CASCADE  => false,
          STARTUP_WAIT     => false,
-         CLKIN1_PERIOD    => 8.0,
-         DIVCLK_DIVIDE    => 1,
-         CLKFBOUT_MULT_F  => 10.0,
-         CLKOUT0_DIVIDE_F => 4.0,
-         CLKOUT1_DIVIDE   => 20)
+         CLKIN1_PERIOD    => CLKIN1_PERIOD_G,
+         DIVCLK_DIVIDE    => DIVCLK_DIVIDE_G,
+         CLKFBOUT_MULT_F  => CLKFBOUT_MULT_F_G,
+         CLKOUT0_DIVIDE_F => CLKOUT0_DIVIDE_F_G,
+         CLKOUT1_DIVIDE   => CLKOUT1_DIVIDE_G)
       port map (
          DCLK     => '0',
          DEN      => '0',
