@@ -65,8 +65,8 @@ begin
          CLKIN1_PERIOD    => 8.0,
          DIVCLK_DIVIDE    => 1,
          CLKFBOUT_MULT_F  => 10.0,
-         CLKOUT0_DIVIDE_F => 2.0,
-         CLKOUT1_DIVIDE   => 10)
+         CLKOUT0_DIVIDE_F => 4.0,
+         CLKOUT1_DIVIDE   => 20)
       port map (
          DCLK     => '0',
          DEN      => '0',
