@@ -183,11 +183,11 @@ begin
       generic map (
          TPD_G              => TPD_G,
          USE_HPC_G          => false,
-         CLKIN1_PERIOD_G    => 50.0,
+         CLKIN1_PERIOD_G    => 100.0,
          DIVCLK_DIVIDE_G    => 1,
-         CLKFBOUT_MULT_F_G  => 50.0,
-         CLKOUT0_DIVIDE_F_G => 10.0,
-         CLKOUT1_DIVIDE_G   => 50)
+         CLKFBOUT_MULT_F_G  => 60.0,
+         CLKOUT0_DIVIDE_F_G => 12.0,
+         CLKOUT1_DIVIDE_G   => 60)
       port map (
          timingRxClk => timingRxClk,    -- [in]
          timingRxRst => timingRxRst,    -- [in]

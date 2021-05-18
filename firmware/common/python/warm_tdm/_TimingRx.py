@@ -104,4 +104,12 @@ class TimingRx(pr.Device):
             offset = 0x40,
             bitOffset = 0,
             bitSize = 8))
+
+        @self.command()
+        def ReadDebug():
+            for x in range(5000):
+                value = self.ReadoutDebug0.get(read=True)
+                if value != 0x17c and value != 0x283:
+                    print(f'Bad value: {value:x}')
+
         

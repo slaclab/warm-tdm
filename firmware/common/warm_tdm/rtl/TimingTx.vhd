@@ -257,8 +257,8 @@ begin
          CLKIN1_PERIOD_G    => 8.0,
          DIVCLK_DIVIDE_G    => 1,
          CLKFBOUT_MULT_F_G  => 8.0,
-         CLKOUT0_DIVIDE_F_G => 10.0,
-         CLKOUT1_DIVIDE_G   => 50)
+         CLKOUT0_DIVIDE_F_G => 20.0,
+         CLKOUT1_DIVIDE_G   => 100)
       port map (
          timingRxClk => timingClk125,   -- [in]
          timingRxRst => timingRst125,   -- [in]

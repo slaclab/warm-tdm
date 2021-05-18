@@ -9,7 +9,7 @@
 ##############################################################################
 create_clock -name gtRefClk0 -period 3.200 [get_ports {gtRefClk0P}]
 create_clock -name gtRefClk1 -period 4.000 [get_ports {gtRefClk1P}]
-create_clock -name timingRxClk -period 50.000 [get_ports {timingRxClkP}]
+create_clock -name timingRxClk -period 100.000 [get_ports {timingRxClkP}]
 
 create_generated_clock -name gtRefClk0Div2 [get_pins {U_ComCore_1/U_IBUFDS_GTE2/ODIV2}]
 
