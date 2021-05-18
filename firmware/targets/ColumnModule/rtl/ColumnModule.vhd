@@ -45,8 +45,8 @@ entity ColumnModule is
       BUILD_INFO_G            : BuildInfoType;
       RING_ADDR_0_G           : boolean          := true;
       ETH_10G_G               : boolean          := false;
-      DHCP_G                  : boolean          := true;  -- true = DHCP, false = static address
-      IP_ADDR_G               : slv(31 downto 0) := x"0A01A8C0");  -- 192.168.1.10 (before DHCP)
+      DHCP_G                  : boolean          := false;  -- true = DHCP, false = static address
+      IP_ADDR_G               : slv(31 downto 0) := x"0B02A8C0");  -- 192.168.1.10 (before DHCP)
    port (
       -- Clocks
       gtRefClk0P : in sl;
