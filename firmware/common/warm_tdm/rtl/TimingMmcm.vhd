@@ -137,7 +137,8 @@ begin
    RstSync_1 : entity surf.RstSync
       generic map (
          TPD_G         => TPD_G,
-         IN_POLARITY_G => '0')
+         IN_POLARITY_G => '0',
+         OUT_REG_RST_G => false)
       port map (
          clk      => wordClkLoc,
          asyncRst => locked,
@@ -146,7 +147,8 @@ begin
    RstSync_2 : entity surf.RstSync
       generic map (
          TPD_G         => TPD_G,
-         IN_POLARITY_G => '0')
+         IN_POLARITY_G => '0',
+         OUT_REG_RST_G => false)
       port map (
          clk      => bitClkLoc,
          asyncRst => locked,
