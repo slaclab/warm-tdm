@@ -16,9 +16,9 @@ use warm_tdm.TimingPkg.all;
 entity AdcDsp is
 
    generic (
-      TPD_G            : time             := 1 ns;
-      AXIL_BASE_ADDR_G : slv(31 downto 0) := (others => '0');
-      NUM_ROWS_G       : integer          := 64);
+      TPD_G            : time                    := 1 ns;
+      AXIL_BASE_ADDR_G : slv(31 downto 0)        := (others => '0');
+      NUM_ROWS_G       : integer range 2 to 1024 := 64);
 
    port (
       -- Timing interface
@@ -54,7 +54,7 @@ architecture rtl of AdcDsp is
    constant FILTER_COEF_C      : integer := 8;
 
    constant XBAR_CONFIG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) :=
-      genAxiLiteConfig(NUM_AXIL_MASTERS_C, AXIL_BASE_ADDR_G, 16, ROW_BITS_C+2);
+      genAxiLiteConfig(NUM_AXIL_MASTERS_C, AXIL_BASE_ADDR_G, 16, 12);
 
    signal locAxilWriteMasters : AxiLiteWriteMasterArray(NUM_AXIL_MASTERS_C-1 downto 0);
    signal locAxilWriteSlaves  : AxiLiteWriteSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0);
