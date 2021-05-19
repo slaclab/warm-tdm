@@ -261,7 +261,7 @@ begin
          TPD_G           => TPD_G,
          COMMON_TX_CLK_G => true,
          COMMON_RX_CLK_G => true,
-         WRITE_EN_G      => false,
+         WRITE_EN_G      => true,
          AXI_CLK_FREQ_G  => 156.26E6)
       port map (
          pgpTxClk        => pgpClk,                           -- [in]
