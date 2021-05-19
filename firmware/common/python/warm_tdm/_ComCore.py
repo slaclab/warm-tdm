@@ -24,12 +24,12 @@ class EthCore(pr.Device):
         super().__init__(**kwargs)
         
         self.add(surf.protocols.rssi.RssiCore(
-            name = "SRP RSSI",
+            name = "SRP_RSSI",
             offset = 0x11000,
             expand = False))
 
         self.add(surf.protocols.rssi.RssiCore(
-            name = "Data RSSI",
+            name = "Data_RSSI",
             offset = 0x12000,
             expand = False))
         
