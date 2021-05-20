@@ -162,7 +162,7 @@ begin
          TPD_G         => TPD_G,
          SIM_SPEEDUP_G => SIMULATION_G)
       port map (
-         clk    => refClk,
+         clk    => gtRefClkDiv2G,
          rstOut => refRst);
 
    -----------------
