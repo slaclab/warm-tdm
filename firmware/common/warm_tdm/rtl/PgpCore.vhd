@@ -141,34 +141,36 @@ architecture rtl of PgpCore is
 
 begin
 
-   REAL_PGP_GEN : if (not SIMULATION_G) generate
+   REAL_PGP_GEN : if (true) generate
       U_Pgp2bGtx7VarLatWrapper_1 : entity surf.Pgp2bGtx7VarLatWrapper
          generic map (
-            TPD_G              => TPD_G,
-            USE_REFCLK_G       => true,
-            CLKIN_PERIOD_G     => 6.4,
-            DIVCLK_DIVIDE_G    => 1,
-            CLKFBOUT_MULT_F_G  => 6.4,
-            CLKOUT0_DIVIDE_F_G => 6.4,
+            TPD_G                 => TPD_G,
+            SIM_GTRESET_SPEEDUP_G => "TRUE",
+            SIM_VERSION_G         => "4.0",
+            USE_REFCLK_G          => true,
+            CLKIN_PERIOD_G        => 6.4,
+            DIVCLK_DIVIDE_G       => 1,
+            CLKFBOUT_MULT_F_G     => 6.375,
+            CLKOUT0_DIVIDE_F_G    => 6.375,
 --         CPLL_REFCLK_SEL_G  => CPLL_REFCLK_SEL_G,
-            CPLL_FBDIV_G       => GTX_CFG_C.CPLL_FBDIV_G,
-            CPLL_FBDIV_45_G    => GTX_CFG_C.CPLL_FBDIV_45_G,
-            CPLL_REFCLK_DIV_G  => GTX_CFG_C.CPLL_REFCLK_DIV_G,
-            RXOUT_DIV_G        => GTX_CFG_C.OUT_DIV_G,
-            TXOUT_DIV_G        => GTX_CFG_C.OUT_DIV_G,
-            RX_CLK25_DIV_G     => GTX_CFG_C.CLK25_DIV_G,
-            TX_CLK25_DIV_G     => GTX_CFG_C.CLK25_DIV_G,
+            CPLL_FBDIV_G          => GTX_CFG_C.CPLL_FBDIV_G,
+            CPLL_FBDIV_45_G       => GTX_CFG_C.CPLL_FBDIV_45_G,
+            CPLL_REFCLK_DIV_G     => GTX_CFG_C.CPLL_REFCLK_DIV_G,
+            RXOUT_DIV_G           => GTX_CFG_C.OUT_DIV_G,
+            TXOUT_DIV_G           => GTX_CFG_C.OUT_DIV_G,
+            RX_CLK25_DIV_G        => GTX_CFG_C.CLK25_DIV_G,
+            TX_CLK25_DIV_G        => GTX_CFG_C.CLK25_DIV_G,
 --          RX_OS_CFG_G        => RX_OS_CFG_G,
 --          RXCDR_CFG_G        => RXCDR_CFG_G,
 --          RXDFEXYDEN_G       => RXDFEXYDEN_G,
 --          RX_DFE_KL_CFG2_G   => RX_DFE_KL_CFG2_G,
-            VC_INTERLEAVE_G    => 1,
+            VC_INTERLEAVE_G       => 1,
 --         PAYLOAD_CNT_TOP_G  => PAYLOAD_CNT_TOP_G,
-            NUM_VC_EN_G        => 4,
+            NUM_VC_EN_G           => 4,
 --          TX_POLARITY_G      => TX_POLARITY_G,
 --          RX_POLARITY_G      => RX_POLARITY_G,
-            TX_ENABLE_G        => true,
-            RX_ENABLE_G        => true)
+            TX_ENABLE_G           => true,
+            RX_ENABLE_G           => true)
          port map (
             extRst          => '0',                              -- [in]
             pgpClk          => pgpClk,                           -- [out]
@@ -201,7 +203,7 @@ begin
             axilWriteSlave  => locAxilWriteSlaves(AXIL_GTX_C));  -- [out]
    end generate REAL_PGP_GEN;
 
-   SIM_GEN : if (SIMULATION_G) generate
+   SIM_GEN : if (false) generate
       ClockManager7_Inst : entity surf.ClockManager7
          generic map(
             TPD_G              => TPD_G,
@@ -293,7 +295,7 @@ begin
             INT_PIPE_STAGES_G   => 1,
             PIPE_STAGES_G       => 0,
             VALID_THOLD_G       => 500,
-             VALID_BURST_MODE_G  => true,
+            VALID_BURST_MODE_G  => true,
             SYNTH_MODE_G        => "inferred",
             MEMORY_TYPE_G       => "block",
             GEN_SYNC_FIFO_G     => true,
@@ -349,17 +351,17 @@ begin
 
       U_PgpTXVcFifo_1 : entity surf.PgpTXVcFifo
          generic map (
-            TPD_G             => TPD_G,
-            INT_PIPE_STAGES_G => 1,
-            PIPE_STAGES_G     => 0,
+            TPD_G              => TPD_G,
+            INT_PIPE_STAGES_G  => 1,
+            PIPE_STAGES_G      => 0,
             VALID_THOLD_G      => 500,
             VALID_BURST_MODE_G => true,
-            SYNTH_MODE_G      => "inferred",
-            MEMORY_TYPE_G     => "block",
-            GEN_SYNC_FIFO_G   => true,
-            FIFO_ADDR_WIDTH_G => 10,
-            APP_AXI_CONFIG_G  => AXIS_CONFIG_C,
-            PHY_AXI_CONFIG_G  => SSI_PGP2B_CONFIG_C)
+            SYNTH_MODE_G       => "inferred",
+            MEMORY_TYPE_G      => "block",
+            GEN_SYNC_FIFO_G    => true,
+            FIFO_ADDR_WIDTH_G  => 10,
+            APP_AXI_CONFIG_G   => AXIS_CONFIG_C,
+            PHY_AXI_CONFIG_G   => SSI_PGP2B_CONFIG_C)
          port map (
             axisClk     => pgpClk,              -- [in]
             axisRst     => pgpRst,              -- [in]
@@ -532,12 +534,12 @@ begin
          SLAVE_AXI_CONFIG_G  => AXIS_CONFIG_C,
          MASTER_AXI_CONFIG_G => AXIS_CONFIG_C)
       port map (
-         sAxisClk    => pgpClk,                                -- [in]
-         sAxisRst    => pgpRst,                                -- [in]
+         sAxisClk    => pgpClk,                                  -- [in]
+         sAxisRst    => pgpRst,                                  -- [in]
          sAxisMaster => appLocalRxAxisMasters(VC_LOOPBACK_3_C),  -- [in]
          sAxisSlave  => appLocalRxAxisSlaves(VC_LOOPBACK_3_C),   -- [out]
-         mAxisClk    => pgpClk,                                -- [in]
-         mAxisRst    => pgpRst,                                -- [in]
+         mAxisClk    => pgpClk,                                  -- [in]
+         mAxisRst    => pgpRst,                                  -- [in]
          mAxisMaster => appLocalTxAxisMasters(VC_LOOPBACK_3_C),  -- [out]
          mAxisSlave  => appLocalTxAxisSlaves(VC_LOOPBACK_3_C));  -- [in]
 
