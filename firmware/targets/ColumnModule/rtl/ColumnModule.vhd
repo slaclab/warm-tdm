@@ -337,6 +337,7 @@ begin
          timingTxDataN   => timingTxDataN,                       -- [out]
          xbarClkSel      => xbarClkSel,                          -- [out]
          xbarDataSel     => xbarDataSel,                         -- [out]
+         xbarMgtSel      => xbarMgtSel,                          -- [out]         
          axilClk         => axilClk,                             -- [in]
          axilRst         => axilRst,                             -- [in]
          axilWriteMaster => locAxilWriteMasters(AXIL_TIMING_C),  -- [in]

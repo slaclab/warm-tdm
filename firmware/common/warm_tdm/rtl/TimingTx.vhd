@@ -44,6 +44,7 @@ entity TimingTx is
 
       xbarDataSel : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
       xbarClkSel  : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarMgtSel  : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");      
 
       timingTxClkP  : out sl;
       timingTxClkN  : out sl;
@@ -157,6 +158,7 @@ begin
 
       axiSlaveRegister(axilEp, X"50", 0, v.xbarClkSel);
       axiSlaveRegister(axilEp, X"50", 4, v.xbarDataSel);
+      axiSlaveRegister(axilEp, X"50", 8, v.xbarMgtSel);      
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
 
@@ -225,6 +227,7 @@ begin
 
       xbarClkSel  <= r.xbarClkSel;
       xbarDataSel <= r.xbarDataSel;
+      xbarMgtSel <= r.xbarMgtSel;
 
 
    end process;
