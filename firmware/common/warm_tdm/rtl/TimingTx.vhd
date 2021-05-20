@@ -73,6 +73,7 @@ architecture rtl of TimingTx is
       -- XBAR
       xbarDataSel : slv(1 downto 0);
       xbarClkSel  : slv(1 downto 0);
+      xbarMgtSel  : slv(1 downto 0);      
 
       -- Config
       rowPeriod       : slv(15 downto 0);
@@ -90,6 +91,7 @@ architecture rtl of TimingTx is
    constant REG_INIT_C : RegType := (
       xbarDataSel     => ite(RING_ADDR_0_G, "11", "00"),
       xbarClkSel      => ite(RING_ADDR_0_G, "11", "00"),
+      xbarMgtSel      => ite(RING_ADDR_0_G, "11", "00"),      
       rowPeriod       => toSlv(250, 16),  -- 125 MHz / 250 = 500 kHz
       numRows         => toSlv(64, 16),   -- Default of 64 rows
       sampleStartTime => toSlv(150, 16),
