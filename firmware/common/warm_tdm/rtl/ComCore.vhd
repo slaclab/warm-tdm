@@ -66,7 +66,7 @@ entity ComCore is
       ethTxN : out sl;
 
       -- Debug
-      rssiStatus : out slv7Array(1 downto 0);
+      rssiStatus  : out slv7Array(1 downto 0);
       ethPhyReady : out sl;
 
       -- AXI Lite Master
@@ -129,6 +129,8 @@ architecture rtl of ComCore is
    signal pgpDataTxAxisMaster : AxiStreamMasterType;
    signal pgpDataTxAxisSlave  : AxiStreamSlaveType;
 
+   signal refRst : sl;
+
 begin
 
    axilClkOut <= axilClk;
@@ -155,13 +157,13 @@ begin
    -----------------
    -- Power Up Reset
    -----------------
---    U_PwrUpRst : entity surf.PwrUpRst
---       generic map (
---          TPD_G         => TPD_G,
---          SIM_SPEEDUP_G => SIMULATION_G)
---       port map (
---          clk    => refClk,
---          rstOut => refRst);
+   U_PwrUpRst : entity surf.PwrUpRst
+      generic map (
+         TPD_G         => TPD_G,
+         SIM_SPEEDUP_G => SIMULATION_G)
+      port map (
+         clk    => refClk,
+         rstOut => refRst);
 
    -----------------
    -- PGP Interface
@@ -174,6 +176,7 @@ begin
          RING_ADDR_0_G    => RING_ADDR_0_G,
          AXIL_BASE_ADDR_G => AXIL_BASE_ADDR_G)
       port map (
+         extRst           => refRst,                            -- [in]
          gtRefClk         => gtRefClk,                          -- [in]
          gtRefClkG        => gtRefClkDiv2G,                     -- [in]
          pgpTxP           => pgpTxP,                            -- [out]

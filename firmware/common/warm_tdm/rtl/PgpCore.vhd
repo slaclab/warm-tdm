@@ -43,6 +43,7 @@ entity PgpCore is
 
    port (
       -- GT Ports and clock
+      extRst    : in  sl;
       gtRefClk  : in  sl;
       gtRefClkG : in  sl;
       pgpTxP    : out sl;
@@ -172,7 +173,7 @@ begin
             TX_ENABLE_G           => true,
             RX_ENABLE_G           => true)
          port map (
-            extRst          => '0',                              -- [in]
+            extRst          => extRst,                           -- [in]
             pgpClk          => pgpClk,                           -- [out]
             pgpRst          => pgpRst,                           -- [out]
             stableClk       => open,                             -- [out]
