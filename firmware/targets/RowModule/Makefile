@@ -3,7 +3,7 @@
 target: prom
 
 # Define target part
-export PRJ_PART = XC7K160TFBG484-1
+export PRJ_PART = XC7K160TFBG484-2
 
 export RUCKUS_DIR = $(abspath $(PWD)/../../submodules/ruckus)
 
