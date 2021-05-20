@@ -261,11 +261,12 @@ begin
 
    U_Pgp2bAxi_1 : entity surf.Pgp2bAxi
       generic map (
-         TPD_G           => TPD_G,
-         COMMON_TX_CLK_G => true,
-         COMMON_RX_CLK_G => true,
-         WRITE_EN_G      => true,
-         AXI_CLK_FREQ_G  => 156.26E6)
+         TPD_G             => TPD_G,
+         COMMON_TX_CLK_G   => true,
+         COMMON_RX_CLK_G   => true,
+         WRITE_EN_G        => true,
+         AXI_CLK_FREQ_G    => 156.26E6,
+         ERROR_CNT_WIDTH_G => 16)
       port map (
          pgpTxClk        => pgpClk,                           -- [in]
          pgpTxClkRst     => pgpRst,                           -- [in]

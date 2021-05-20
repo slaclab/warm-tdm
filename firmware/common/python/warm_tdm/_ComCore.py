@@ -13,7 +13,8 @@ class PgpCore(pr.Device):
         super().__init__(**kwargs)
 
         self.add(surf.protocols.pgp.Pgp2bAxi(
-            offset=0x00000000))
+            offset=0x00000000,
+            errorCountBits=16))
 
         #GTX
         self.add(surf.xilinx.Gtxe2Channel(
