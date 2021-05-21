@@ -41,7 +41,7 @@ entity RowModule is
       SIM_ETH_SRP_PORT_NUM_G  : positive         := 8000;
       SIM_ETH_DATA_PORT_NUM_G : positive         := 9000;
       BUILD_INFO_G            : BuildInfoType;
-      RING_ADDR_0_G           : boolean          := true;
+      RING_ADDR_0_G           : boolean          := false;
       ETH_10G_G               : boolean          := false;
       DHCP_G                  : boolean          := false;  -- true = DHCP, false = static address
       IP_ADDR_G               : slv(31 downto 0) := x"0B02A8C0");  -- 192.168.2.11 (before DHCP)
@@ -130,7 +130,7 @@ end entity RowModule;
 
 architecture rtl of RowModule is
 
-   constant AXI_CLK_FREQ_C : real := 125.0E6;   
+   constant AXI_CLK_FREQ_C : real := 125.0E6;
 
    constant AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(8);  -- Maybe packetizer config?
 
@@ -251,7 +251,8 @@ begin
       generic map (
          TPD_G             => TPD_G,
          SIMULATION_G      => SIMULATION_G,
-         AXIL_CLK_FREQ_G   => 156.25E6,
+         RING_ADDR_0_G     => RING_ADDR_0_G,
+         AXIL_CLK_FREQ_G   => AXI_CLK_FREQ_C,
          AXIL_BASE_ADDR_G  => AXIL_XBAR_CFG_C(AXIL_TIMING_C).baseAddr,
          IODELAY_GROUP_G   => "IODELAY0",
          IDELAYCTRL_FREQ_G => 200.0)
@@ -355,7 +356,7 @@ begin
          TPD_G            => TPD_G,
          BUILD_INFO_G     => BUILD_INFO_G,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_COMMON_C).baseAddr,
-         AXIL_CLK_FREQ_G => AXI_CLK_FREQ_C)
+         AXIL_CLK_FREQ_G  => AXI_CLK_FREQ_C)
       port map (
          axilClk         => axilClk,                             -- [in]
          axilRst         => axilRst,                             -- [in]

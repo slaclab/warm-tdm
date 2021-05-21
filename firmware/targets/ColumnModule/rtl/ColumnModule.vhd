@@ -319,6 +319,7 @@ begin
          TPD_G             => TPD_G,
          SIMULATION_G      => SIMULATION_G,
          RING_ADDR_0_G     => RING_ADDR_0_G,
+         AXIL_CLK_FREQ_G   => AXI_CLK_FREQ_C,
          AXIL_BASE_ADDR_G  => AXIL_XBAR_CFG_C(AXIL_TIMING_C).baseAddr,
          IODELAY_GROUP_G   => "IODELAY0",
          IDELAYCTRL_FREQ_G => 200.0)
@@ -454,7 +455,7 @@ begin
          SHADOW_EN_G       => true,
          CPHA_G            => '1',
          CPOL_G            => '0',
-         CLK_PERIOD_G      => 1.0/AXI_CLK_FREQ_C, --6.4e-9,
+         CLK_PERIOD_G      => 1.0/AXI_CLK_FREQ_C,                    --6.4e-9,
          SPI_SCLK_PERIOD_G => ite(SIMULATION_G, 100.0e-9, 1.0E-6),
          SPI_NUM_CHIPS_G   => 1)
       port map (
@@ -481,7 +482,7 @@ begin
          SHADOW_EN_G       => true,
          CPHA_G            => '1',
          CPOL_G            => '0',
-         CLK_PERIOD_G      => 1.0/AXI_CLK_FREQ_C, --6.4E-9,
+         CLK_PERIOD_G      => 1.0/AXI_CLK_FREQ_C,                     --6.4E-9,
          SPI_SCLK_PERIOD_G => ite(SIMULATION_G, 100.0E-9, 1.0e-6),
          SPI_NUM_CHIPS_G   => 1)
       port map (
@@ -505,7 +506,7 @@ begin
          TPD_G             => TPD_G,
          NUM_CHIPS_G       => 1,
          SCLK_PERIOD_G     => ite(SIMULATION_G, 100.0e-9, 1.0E-6),
-         AXIL_CLK_PERIOD_G => 1.0/AXI_CLK_FREQ_C) --6.4E-9)
+         AXIL_CLK_PERIOD_G => 1.0/AXI_CLK_FREQ_C)                    --6.4E-9)
       port map (
          axilClk         => axilClk,                                 -- [in]
          axilRst         => axilRst,                                 -- [in]
