@@ -130,6 +130,8 @@ end entity RowModule;
 
 architecture rtl of RowModule is
 
+   constant AXI_CLK_FREQ_C : real := 125.0E6;   
+
    constant AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(8);  -- Maybe packetizer config?
 
    constant NUM_AXIL_MASTERS_C : integer := 6;
@@ -352,7 +354,8 @@ begin
       generic map (
          TPD_G            => TPD_G,
          BUILD_INFO_G     => BUILD_INFO_G,
-         AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_COMMON_C).baseAddr)
+         AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_COMMON_C).baseAddr,
+         AXIL_CLK_FREQ_G => AXI_CLK_FREQ_C)
       port map (
          axilClk         => axilClk,                             -- [in]
          axilRst         => axilRst,                             -- [in]

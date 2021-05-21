@@ -178,6 +178,8 @@ end entity ColumnModule;
 
 architecture rtl of ColumnModule is
 
+   constant AXI_CLK_FREQ_C : real := 125.0E6;
+
    constant AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(8);  -- Maybe packetizer config?
 
    constant NUM_AXIL_MASTERS_C  : integer := 10;
@@ -420,7 +422,8 @@ begin
       generic map (
          TPD_G            => TPD_G,
          BUILD_INFO_G     => BUILD_INFO_G,
-         AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_COMMON_C).baseAddr)
+         AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_COMMON_C).baseAddr,
+         AXIL_CLK_FREQ_G  => AXI_CLK_FREQ_C)
       port map (
          axilClk         => axilClk,                             -- [in]
          axilRst         => axilRst,                             -- [in]
@@ -451,7 +454,7 @@ begin
          SHADOW_EN_G       => true,
          CPHA_G            => '1',
          CPOL_G            => '0',
-         CLK_PERIOD_G      => 6.4e-9,
+         CLK_PERIOD_G      => 1.0/AXI_CLK_FREQ_C, --6.4e-9,
          SPI_SCLK_PERIOD_G => ite(SIMULATION_G, 100.0e-9, 1.0E-6),
          SPI_NUM_CHIPS_G   => 1)
       port map (
@@ -478,7 +481,7 @@ begin
          SHADOW_EN_G       => true,
          CPHA_G            => '1',
          CPOL_G            => '0',
-         CLK_PERIOD_G      => 6.4E-9,
+         CLK_PERIOD_G      => 1.0/AXI_CLK_FREQ_C, --6.4E-9,
          SPI_SCLK_PERIOD_G => ite(SIMULATION_G, 100.0E-9, 1.0e-6),
          SPI_NUM_CHIPS_G   => 1)
       port map (
@@ -502,7 +505,7 @@ begin
          TPD_G             => TPD_G,
          NUM_CHIPS_G       => 1,
          SCLK_PERIOD_G     => ite(SIMULATION_G, 100.0e-9, 1.0E-6),
-         AXIL_CLK_PERIOD_G => 6.4E-9)
+         AXIL_CLK_PERIOD_G => 1.0/AXI_CLK_FREQ_C) --6.4E-9)
       port map (
          axilClk         => axilClk,                                 -- [in]
          axilRst         => axilRst,                                 -- [in]

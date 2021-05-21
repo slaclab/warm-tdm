@@ -15,7 +15,8 @@ create_clock -name adcDClk1 -period 2.00 [get_ports {adcDClkP[1]}]
 
 create_generated_clock -name gtRefClk0Div2 [get_pins {U_ComCore_1/U_IBUFDS_GTE2/ODIV2}]
 
-create_generated_clock -name axilClk [get_pins {U_ComCore_1/U_PgpCore_1/REAL_PGP_GEN.U_Pgp2bGtx7VarLatWrapper_1/ClockManager7_Inst/MmcmGen.U_Mmcm/CLKOUT0}]
+create_generated_clock -name axilClk [get_pins {U_ComCore_1/U_PgpCore_1/ClockManager7_Inst/MmcmGen.U_Mmcm/CLKOUT0}]
+create_generated_clock -name pgpClk [get_pins {U_ComCore_1/U_PgpCore_1/ClockManager7_Inst/MmcmGen.U_Mmcm/CLKOUT1}]
 
 create_generated_clock -name dnaDivClk [get_pins U_WarmTdmCommon_1/U_AxiVersion_1/GEN_DEVICE_DNA.DeviceDna_1/GEN_7SERIES.DeviceDna7Series_Inst/BUFR_Inst/O]
 create_generated_clock -name icapClk [get_pins U_WarmTdmCommon_1/U_AxiVersion_1/GEN_ICAP.Iprog_1/GEN_7SERIES.Iprog7Series_Inst/DIVCLK_GEN.BUFR_ICPAPE2/O]

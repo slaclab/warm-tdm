@@ -148,11 +148,11 @@ begin
          ODIV2 => gtRefClkDiv2,
          O     => gtRefClk);
 
-   gtRefClkDiv2Out <= gtRefClkDiv2G;
    U_BUFG : BUFG
       port map (
          I => gtRefClkDiv2,
          O => gtRefClkDiv2G);
+   gtRefClkDiv2Out <= gtRefClkDiv2G;
 
    -----------------
    -- Power Up Reset
@@ -176,7 +176,7 @@ begin
          RING_ADDR_0_G    => RING_ADDR_0_G,
          AXIL_BASE_ADDR_G => AXIL_BASE_ADDR_G)
       port map (
-         extRst           => refRst,                            -- [in]
+         refRst           => refRst,                            -- [in]
          gtRefClk         => gtRefClk,                          -- [in]
          gtRefClkG        => gtRefClkDiv2G,                     -- [in]
          pgpTxP           => pgpTxP,                            -- [out]
