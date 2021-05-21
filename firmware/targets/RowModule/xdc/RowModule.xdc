@@ -46,7 +46,16 @@ create_generated_clock -name timingRxWordClk [get_pins {U_Timing_1/U_TimingRx_1/
 
 set_clock_groups -asynchronous \
     -group [get_clocks {gtRefClk0Div2}] \
-    -group [get_clocks {ethClk}] 
+    -group [get_clocks {ethClk}]
+
+set_clock_groups -asynchronous \
+    -group [get_clocks {gtRefClk0Div2}] \
+    -group [get_clocks {pgpClk}]
+
+set_clock_groups -asynchronous \
+    -group [get_clocks {axiClk}] \
+    -group [get_clocks {pgpClk}] 
+
 
 set_clock_groups -asynchronous \
     -group [get_clocks -include_generated_clocks gtRefClk0] \

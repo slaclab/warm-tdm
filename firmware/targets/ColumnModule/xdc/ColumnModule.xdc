@@ -51,6 +51,14 @@ set_clock_groups -asynchronous \
     -group [get_clocks {gtRefClk0Div2}] \
     -group [get_clocks {ethClk}] 
 
+set_clock_groups -asynchronous \
+    -group [get_clocks {gtRefClk0Div2}] \
+    -group [get_clocks {pgpClk}]
+
+set_clock_groups -asynchronous \
+    -group [get_clocks {axiClk}] \
+    -group [get_clocks {pgpClk}] 
+
 
 set_clock_groups -asynchronous \
     -group [get_clocks -include_generated_clocks gtRefClk0] \
