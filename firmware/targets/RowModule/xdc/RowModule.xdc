@@ -85,8 +85,8 @@ set_property PACKAGE_PIN F5 [get_ports {gtRefClk1N}]
 # set_property PACKAGE_PIN G3 [get_ports {pgpRxN}]
 
 # Timing
-set_property PACKAGE_PIN D2 [get_ports {pgpRxP}]
-set_property PACKAGE_PIN D1 [get_ports {pgpRxN}]
+set_property PACKAGE_PIN D2 [get_ports {pgpTxP}]
+set_property PACKAGE_PIN D1 [get_ports {pgpTxN}]
 set_property PACKAGE_PIN E4 [get_ports {pgpRxP}]
 set_property PACKAGE_PIN E3 [get_ports {pgpRxN}]
 
