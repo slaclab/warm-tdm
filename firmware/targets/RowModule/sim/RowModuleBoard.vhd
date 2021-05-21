@@ -36,14 +36,22 @@ entity RowModuleBoard is
       SIM_ETH_SRP_PORT_NUM_G  : positive := 8000;
       SIM_ETH_DATA_PORT_NUM_G : positive := 9000);
    port (
-      rj45TimingRxClkP  : in  sl;       -- [in]
-      rj45TimingRxClkN  : in  sl;       -- [in]
-      rj45TimingRxDataP : in  sl;       -- [in]
-      rj45TimingRxDataN : in  sl;       -- [in]
-      rj45TimingTxClkP  : out sl;       -- [out]
-      rj45TimingTxClkN  : out sl;       -- [out]
-      rj45TimingTxDataP : out sl;       -- [out]
-      rj45TimingTxDataN : out sl);      -- [out]
+      rj45TimingRxClkP  : in  sl;          -- [in]
+      rj45TimingRxClkN  : in  sl;          -- [in]
+      rj45TimingRxDataP : in  sl;          -- [in]
+      rj45TimingRxDataN : in  sl;          -- [in]
+      rj45TimingRxMgtP  : in  sl;          -- [in]
+      rj45TimingRxMgtN  : in  sl;          -- [in]
+      rj45PgpRxP        : in  sl;          -- [in]
+      rj45PgpRxN        : in  sl;          -- [in]
+      rj45TimingTxClkP  : out sl;          -- [out]
+      rj45TimingTxClkN  : out sl;          -- [out]
+      rj45TimingTxDataP : out sl;          -- [out]
+      rj45TimingTxDataN : out sl;          -- [out]
+      rj45TimingTxMgtP  : out sl;          -- [out]
+      rj45TimingTxMgtN  : out sl;          -- [out]
+      rj45PgpTxP        : out sl := '0';   -- [out]
+      rj45PgpTxN        : out sl := '0');  -- [out]
 
 
 end entity RowModuleBoard;
@@ -202,6 +210,14 @@ begin
 
    timingRxClkP <= rj45TimingRxClkP when xbarClkSel(1) = '0' else timingTxClkP;
    timingRxClkN <= rj45TimingRxClkN when xbarClkSel(1) = '0' else timingTxClkN;
+
+   -- Put PGP on timingMgt
+   rj45TimingTxMgtP <= rj45TimingRxMgtP when xbarMgtSel(0) = '0' else pgpTxP;
+   rj45TimingTxMgtN <= rj45TimingRxMgtN when xbarMgtSel(0) = '0' else pgpTxN;
+
+   pgpRxP <= rj45TimingRxMgtP when xbarClkSel(1) = '0' else pgpTxP;
+   pgpRxN <= rj45TimingRxMgtN when xbarClkSel(1) = '0' else pgpTxN;
+
 
    -------------------------------------------------------------------------------------------------
    -- Clock and reset for things that need it
