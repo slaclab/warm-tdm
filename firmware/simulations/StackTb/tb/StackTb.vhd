@@ -52,22 +52,22 @@ begin
          SIM_ETH_SRP_PORT_NUM_G  => 10000,
          SIM_ETH_DATA_PORT_NUM_G => 20000)
       port map (
-         rj45TimingRxClkP  => rj45TimingClkP(5),   -- [in]
-         rj45TimingRxClkN  => rj45TimingClkN(5),   -- [in]
-         rj45TimingRxDataP => rj45TimingDataP(5),  -- [in]
-         rj45TimingRxDataN => rj45TimingDataN(5),  -- [in]
-         rj45TimingRxMgtP  => rj45TimingRxMgtP(5)  -- [in]
-         rj45TimingRxMgtP  => rj45TimingRxMgtN(5)  -- [in]
-         rj45PgpRxP        => rj45PgpP(5),         -- [in]
-         rj45PgpRxN        => rj45PgpN(5),         -- [in]
-         rj45TimingTxClkP  => rj45TimingClkP(0),   -- [out]
-         rj45TimingTxClkN  => rj45TimingClkN(0),   -- [out]
-         rj45TimingTxDataP => rj45TimingDataP(0),  -- [out]
-         rj45TimingTxDataN => rj45TimingDataN(0),  -- [out]
-         rj45TimingTxMgtP  => rj45TimingMgtP(0),   -- [out]
-         rj45TimingTxMgtN  => rj45TimingMgtN(0),   -- [out]
-         rj45PgpTxP        => rj45PgpP(0),         -- [out]
-         rj45PgpTxN        => rj45PgpN(0));        -- [out]
+         rj45TimingRxClkP  => rj45TimingClkP(5),    -- [in]
+         rj45TimingRxClkN  => rj45TimingClkN(5),    -- [in]
+         rj45TimingRxDataP => rj45TimingDataP(5),   -- [in]
+         rj45TimingRxDataN => rj45TimingDataN(5),   -- [in]
+         rj45TimingRxMgtP  => rj45TimingRxMgtP(5),  -- [in]
+         rj45TimingRxMgtP  => rj45TimingRxMgtN(5),  -- [in]
+         rj45PgpRxP        => rj45PgpP(5),          -- [in]
+         rj45PgpRxN        => rj45PgpN(5),          -- [in]
+         rj45TimingTxClkP  => rj45TimingClkP(0),    -- [out]
+         rj45TimingTxClkN  => rj45TimingClkN(0),    -- [out]
+         rj45TimingTxDataP => rj45TimingDataP(0),   -- [out]
+         rj45TimingTxDataN => rj45TimingDataN(0),   -- [out]
+         rj45TimingTxMgtP  => rj45TimingMgtP(0),    -- [out]
+         rj45TimingTxMgtN  => rj45TimingMgtN(0),    -- [out]
+         rj45PgpTxP        => rj45PgpP(0),          -- [out]
+         rj45PgpTxN        => rj45PgpN(0));         -- [out]
 
 
    U_ColumnModuleBoard_1 : entity warm_tdm.ColumnModuleBoard

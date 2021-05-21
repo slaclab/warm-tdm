@@ -31,6 +31,11 @@ SINGLE_ROW = [
 SINGLE_COLUMN = [
     {'cls': warm_tdm.ColumnModule, 'name': 'ColumnModule[0]'}]
 
+DUAL_STACK = [
+    {'cls': warm_tdm.ColumnModule, 'name': 'ColumnModule[0]'},
+    {'cls': warm_tdm.RowModule, 'name': 'RowModule[0]'}]
+
+
 SIM_PORTS = list(range(7000, 7051, 10))
 
 CONFIGS = {
@@ -67,6 +72,13 @@ CONFIGS = {
             'dataPort': 8193,
             'simPorts': None,
             'stack': NORMAL_STACK},
+        'dual': {
+            'pollEn': False,
+            'host': '192.168.2.11',
+            'srpPort': 8192,
+            'dataPort': 8193,
+            'simPorts': None,
+            'stack': DUAL_STACK},
         'row': {
             'pollEn': False,                        
             'host': '192.168.2.11',
@@ -102,8 +114,11 @@ class WarmTdmRoot(pyrogue.Root):
 
         pgpRing = []
 
-#        ethPort = stack[0]['simEthSrpPort']
-
+        if simPorts is None:
+            udp = pyrogue.protocols.UdpRssiPack(host=host, port=srpPort, packVer=2)
+            self.add(udp)            
+            self.addInterface(udp)
+                
         # Instantiate and link each board in the stack
         for index, board in enumerate(stack):
             # Create streams to each board
@@ -111,10 +126,7 @@ class WarmTdmRoot(pyrogue.Root):
                 srpStream = rogue.interfaces.stream.TcpClient('localhost', srpPort + (0x00 <<4 | index)*2)
                 self.addInterface(srpStream)            
             else:
-                udp = pyrogue.protocols.UdpRssiPack(host=host, port=srpPort, packVer=2)
                 srpStream = udp.application(dest=index)
-                self.addInterface(udp)
-                self.add(udp)
 
             # Create SRP and link to SRP stream
             srp = rogue.protocols.srp.SrpV3() #board['name'])
