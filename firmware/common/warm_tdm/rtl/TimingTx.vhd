@@ -261,9 +261,9 @@ begin
          USE_HPC_G => false,
          CLKIN1_PERIOD_G    => 8.0,
          DIVCLK_DIVIDE_G    => 1,
-         CLKFBOUT_MULT_F_G  => 10.0,
-         CLKOUT0_DIVIDE_F_G => 2.0,
-         CLKOUT1_DIVIDE_G   => 10)
+         CLKFBOUT_MULT_F_G  => 5.0,
+         CLKOUT0_DIVIDE_F_G => 1.0,
+         CLKOUT1_DIVIDE_G   => 5)
       port map (
          timingRxClk => timingClk125,   -- [in]
          timingRxRst => timingRst125,   -- [in]
