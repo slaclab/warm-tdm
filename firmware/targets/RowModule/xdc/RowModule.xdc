@@ -79,14 +79,17 @@ set_property PACKAGE_PIN F6 [get_ports {gtRefClk1P}]
 set_property PACKAGE_PIN F5 [get_ports {gtRefClk1N}]
 
 # PGP
-set_property PACKAGE_PIN F2 [get_ports {pgpTxP}]
-set_property PACKAGE_PIN F1 [get_ports {pgpTxN}]
-set_property PACKAGE_PIN G4 [get_ports {pgpRxP}]
-set_property PACKAGE_PIN G3 [get_ports {pgpRxN}]
+# set_property PACKAGE_PIN F2 [get_ports {pgpTxP}]
+# set_property PACKAGE_PIN F1 [get_ports {pgpTxN}]
+# set_property PACKAGE_PIN G4 [get_ports {pgpRxP}]
+# set_property PACKAGE_PIN G3 [get_ports {pgpRxN}]
 
 # Timing
-#set_property PACKAGE_PIN E4 [get_ports {timingRxP}]
-#set_property PACKAGE_PIN E3 [get_ports {timingRxN}]
+set_property PACKAGE_PIN D2 [get_ports {pgpRxP}]
+set_property PACKAGE_PIN D1 [get_ports {pgpRxN}]
+set_property PACKAGE_PIN E4 [get_ports {pgpRxP}]
+set_property PACKAGE_PIN E3 [get_ports {pgpRxN}]
+
 set_property -dict { PACKAGE_PIN E11  IOSTANDARD LVDS_25 } [get_ports { timingRxClkP }];
 set_property -dict { PACKAGE_PIN D11  IOSTANDARD LVDS_25 } [get_ports { timingRxClkN }];
 set_property -dict { PACKAGE_PIN G11  IOSTANDARD LVDS_25 } [get_ports { timingRxDataP }];
