@@ -40,6 +40,7 @@ entity EthCore is
       SIM_SRP_PORT_NUM_G  : integer          := 9000;
       SIM_DATA_PORT_NUM_G : integer          := 9000;
       AXIL_BASE_ADDR_G    : slv(31 downto 0) := X"00000000";
+      AXIL_CLK_FREQ_G     : real             := 125.0E6;
       DHCP_G              : boolean          := false;  -- true = DHCP, false = static address
       IP_ADDR_G           : slv(31 downto 0) := x"0A01A8C0");  -- 192.168.1.10 (before DHCP)
    port (
@@ -173,6 +174,11 @@ architecture rtl of EthCore is
    signal rogueDemuxAxisMaster : AxiStreamMasterType;
    signal rogueDemuxAxisSlave  : AxiStreamSlaveType;
 
+   signal syncAxilReadMaster  : AxiLiteReadMasterType;
+   signal syncAxilReadSlave   : AxiLiteReadSlaveType;
+   signal syncAxilWriteMaster : AxiLiteWriteMasterType;
+   signal syncAxilWriteSlave  : AxiLiteWriteSlaveType;
+
    signal locAxilReadMasters  : AxiLiteReadMasterArray(AXIL_NUM_C-1 downto 0);
    signal locAxilReadSlaves   : AxiLiteReadSlaveArray(AXIL_NUM_C-1 downto 0)  := (others => AXI_LITE_READ_SLAVE_EMPTY_DECERR_C);
    signal locAxilWriteMasters : AxiLiteWriteMasterArray(AXIL_NUM_C-1 downto 0);
@@ -200,6 +206,24 @@ begin
 
    localMac(47 downto 0) <= x"00_00_16_56_00_08";
 
+   -- UdpEngineWrapper needs AXIL on eth clock so just sync everything
+   U_AxiLiteAsync_1 : entity surf.AxiLiteAsync
+      generic map (
+         TPD_G => TPD_G)
+      port map (
+         sAxiClk         => axilClk,              -- [in]
+         sAxiClkRst      => axilRst,              -- [in]
+         sAxiReadMaster  => sAxilReadMaster,      -- [in]
+         sAxiReadSlave   => sAxilReadSlave,       -- [out]
+         sAxiWriteMaster => sAxilWriteMaster,     -- [in]
+         sAxiWriteSlave  => sAxilWriteSlave,      -- [out]
+         mAxiClk         => ethClk,               -- [in]
+         mAxiClkRst      => ethRst,               -- [in]
+         mAxiReadMaster  => syncAxilReadMaster,   -- [out]
+         mAxiReadSlave   => syncAxilReadSlave,    -- [in]
+         mAxiWriteMaster => syncAxilWriteMaster,  -- [out]
+         mAxiWriteSlave  => syncAxilWriteSlave);  -- [in]
+
 
    -- Check which clock is expected 
    U_XBAR : entity surf.AxiLiteCrossbar
@@ -209,12 +233,12 @@ begin
          NUM_MASTER_SLOTS_G => AXIL_NUM_C,
          MASTERS_CONFIG_G   => AXIL_XBAR_CONFIG_C)
       port map (
-         axiClk              => axilClk,
-         axiClkRst           => axilRst,
-         sAxiWriteMasters(0) => sAxilWriteMaster,
-         sAxiWriteSlaves(0)  => sAxilWriteSlave,
-         sAxiReadMasters(0)  => sAxilReadMaster,
-         sAxiReadSlaves(0)   => sAxilReadSlave,
+         axiClk              => ethClk,
+         axiClkRst           => ethRst,
+         sAxiWriteMasters(0) => syncAxilWriteMaster,
+         sAxiWriteSlaves(0)  => syncAxilWriteSlave,
+         sAxiReadMasters(0)  => syncAxilReadMaster,
+         sAxiReadSlaves(0)   => syncAxilReadSlave,
          mAxiWriteMasters    => locAxilWriteMasters,
          mAxiWriteSlaves     => locAxilWriteSlaves,
          mAxiReadMasters     => locAxilReadMasters,
@@ -268,7 +292,7 @@ begin
                TPD_G                   => TPD_G,
                EN_AXI_REG_G            => true,
                AXIL_BASE_ADDR_G        => AXIL_XBAR_CONFIG_C(AXIL_ETH_C).baseAddr,
-               AXIL_CLK_IS_SYSCLK125_G => false,
+               AXIL_CLK_IS_SYSCLK125_G => true,
                AXIS_CONFIG_G           => EMAC_AXIS_CONFIG_C)
             port map (
                -- Local Configurations
@@ -281,8 +305,8 @@ begin
                dmaObMaster        => txMaster,
                dmaObSlave         => txSlave,
                -- AXI Lite debug interface
-               axiLiteClk         => axilClk,
-               axiLiteRst         => axilRst,
+               axiLiteClk         => ethClk,
+               axiLiteRst         => ethRst,
                axiLiteReadMaster  => locAxilReadMasters(AXIL_ETH_C),
                axiLiteReadSlave   => locAxilReadSlaves(AXIL_ETH_C),
                axiLiteWriteMaster => locAxilWriteMasters(AXIL_ETH_C),
@@ -345,8 +369,8 @@ begin
                dmaIbSlave         => rxSlave,                          -- [in]
                dmaObMaster        => txMaster,                         -- [in]
                dmaObSlave         => txSlave,                          -- [out]
-               axiLiteClk         => axilClk,                          -- [in]
-               axiLiteRst         => axilRst,                          -- [in]
+               axiLiteClk         => ethClk,                           -- [in]
+               axiLiteRst         => ethRst,                           -- [in]
                axiLiteReadMaster  => locAxilReadMasters(AXIL_ETH_C),   -- [in]
                axiLiteReadSlave   => locAxilReadSlaves(AXIL_ETH_C),    -- [out]
                axiLiteWriteMaster => locAxilWriteMasters(AXIL_ETH_C),  -- [in]
@@ -642,7 +666,7 @@ begin
          PIPE_STAGES_G       => 0,
          SLAVE_READY_EN_G    => true,
          GEN_SYNC_FIFO_G     => false,
-         AXIL_CLK_FREQ_G     => 125.0e6,
+         AXIL_CLK_FREQ_G     => AXIL_CLK_FREQ_G,
          AXI_STREAM_CONFIG_G => AXIS_CONFIG_C)
       port map (
          -- Streaming Slave (Rx) Interface (sAxisClk domain) 

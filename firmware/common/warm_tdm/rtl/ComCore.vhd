@@ -214,6 +214,7 @@ begin
          SIM_SRP_PORT_NUM_G  => SIM_ETH_SRP_PORT_NUM_G,
          SIM_DATA_PORT_NUM_G => SIM_ETH_DATA_PORT_NUM_G,
          AXIL_BASE_ADDR_G    => AXIL_BASE_ADDR_G + X"00100000",
+         AXIL_CLK_FREQ_G     => 125.0e6,
          DHCP_G              => DHCP_G,
          IP_ADDR_G           => IP_ADDR_G)
       port map (
