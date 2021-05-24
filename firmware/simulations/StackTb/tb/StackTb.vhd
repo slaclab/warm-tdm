@@ -2,7 +2,7 @@
 -- File       : RceSimTb.vhd
 -- Company    : SLAC National Accelerator Laboratory
 -- Created    : 2018-06-23
--- Last update: 2021-05-21
+-- Last update: 2021-05-24
 -------------------------------------------------------------------------------
 -- Description: Simulation Testbed for testing the SimpleRogueSim module
 -------------------------------------------------------------------------------
@@ -56,8 +56,8 @@ begin
          rj45TimingRxClkN  => rj45TimingClkN(5),    -- [in]
          rj45TimingRxDataP => rj45TimingDataP(5),   -- [in]
          rj45TimingRxDataN => rj45TimingDataN(5),   -- [in]
-         rj45TimingRxMgtP  => rj45TimingRxMgtP(5),  -- [in]
-         rj45TimingRxMgtP  => rj45TimingRxMgtN(5),  -- [in]
+         rj45TimingRxMgtP  => rj45TimingMgtP(5),  -- [in]
+         rj45TimingRxMgtN  => rj45TimingMgtN(5),  -- [in]
          rj45PgpRxP        => rj45PgpP(5),          -- [in]
          rj45PgpRxN        => rj45PgpN(5),          -- [in]
          rj45TimingTxClkP  => rj45TimingClkP(0),    -- [out]
