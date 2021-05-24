@@ -165,6 +165,11 @@ architecture rtl of EthCore is
    signal dataRssiObMasters : AxiStreamMasterArray(RSSI_SIZE_C-1 downto 0);
    signal dataRssiObSlaves  : AxiStreamSlaveArray(RSSI_SIZE_C-1 downto 0);
 
+   signal fifoRemoteRxAxisMasters : AxiStreamMasterArray(3 downto 0);
+   signal fifoRemoteRxAxisSlaves  : AxiStreamSlaveArray(3 downto 0);
+   signal fifoRemoteTxAxisMasters : AxiStreamMasterArray(3 downto 0);
+   signal fifoRemoteTxAxisSlaves  : AxiStreamSlaveArray(3 downto 0);
+
    constant CHAN_MASK_C  : slv(7 downto 0)                                := "00010111";
    signal rogueIbMasters : AxiStreamMasterArray(SERVER_SIZE_C-1 downto 0) := (others => AXI_STREAM_MASTER_INIT_C);
    signal rogueIbSlaves  : AxiStreamSlaveArray(SERVER_SIZE_C-1 downto 0)  := (others => AXI_STREAM_SLAVE_INIT_C);
@@ -807,25 +812,81 @@ begin
 
    -------------------------------
    -- REMOTE channels
+   -- Use fifos to transition to axi clock
    -------------------------------
-   remoteRxAxisMasters(0) <= srpRssiObMasters(DEST_REMOTE_SRP_DATA_C);
-   remoteRxAxisMasters(1) <= dataRssiObMasters(DEST_REMOTE_SRP_DATA_C);
-   remoteRxAxisMasters(2) <= srpRssiObMasters(DEST_REMOTE_LOOPBACK_C);
-   remoteRxAxisMasters(3) <= dataRssiObMasters(DEST_REMOTE_LOOPBACK_C);
+   fifoRemoteRxAxisMasters(0) <= srpRssiObMasters(DEST_REMOTE_SRP_DATA_C);
+   fifoRemoteRxAxisMasters(1) <= dataRssiObMasters(DEST_REMOTE_SRP_DATA_C);
+   fifoRemoteRxAxisMasters(2) <= srpRssiObMasters(DEST_REMOTE_LOOPBACK_C);
+   fifoRemoteRxAxisMasters(3) <= dataRssiObMasters(DEST_REMOTE_LOOPBACK_C);
 
-   srpRssiObSlaves(DEST_REMOTE_SRP_DATA_C)  <= remoteRxAxisSlaves(0);
-   dataRssiObSlaves(DEST_REMOTE_SRP_DATA_C) <= remoteRxAxisSlaves(1);
-   srpRssiObSlaves(DEST_REMOTE_LOOPBACK_C)  <= remoteRxAxisSlaves(2);
-   dataRssiObSlaves(DEST_REMOTE_LOOPBACK_C) <= remoteRxAxisSlaves(3);
+   srpRssiObSlaves(DEST_REMOTE_SRP_DATA_C)  <= fifoRemoteRxAxisSlaves(0);
+   dataRssiObSlaves(DEST_REMOTE_SRP_DATA_C) <= fifoRemoteRxAxisSlaves(1);
+   srpRssiObSlaves(DEST_REMOTE_LOOPBACK_C)  <= fifoRemoteRxAxisSlaves(2);
+   dataRssiObSlaves(DEST_REMOTE_LOOPBACK_C) <= fifoRemoteRxAxisSlaves(3);
 
-   srpRssiIbMasters(DEST_REMOTE_SRP_DATA_C)  <= remoteTxAxisMasters(0);
-   dataRssiIbMasters(DEST_REMOTE_SRP_DATA_C) <= remoteTxAxisMasters(1);
-   srpRssiIbMasters(DEST_REMOTE_LOOPBACK_C)  <= remoteTxAxisMasters(2);
-   dataRssiIbMasters(DEST_REMOTE_LOOPBACK_C) <= remoteTxAxisMasters(3);
+   srpRssiIbMasters(DEST_REMOTE_SRP_DATA_C)  <= fifoRemoteTxAxisMasters(0);
+   dataRssiIbMasters(DEST_REMOTE_SRP_DATA_C) <= fifoRemoteTxAxisMasters(1);
+   srpRssiIbMasters(DEST_REMOTE_LOOPBACK_C)  <= fifoRemoteTxAxisMasters(2);
+   dataRssiIbMasters(DEST_REMOTE_LOOPBACK_C) <= fifoRemoteTxAxisMasters(3);
 
-   remoteTxAxisSlaves(0) <= srpRssiIbSlaves(DEST_REMOTE_SRP_DATA_C);
-   remoteTxAxisSlaves(1) <= dataRssiIbSlaves(DEST_REMOTE_SRP_DATA_C);
-   remoteTxAxisSlaves(2) <= srpRssiIbSlaves(DEST_REMOTE_LOOPBACK_C);
-   remoteTxAxisSlaves(3) <= dataRssiIbSlaves(DEST_REMOTE_LOOPBACK_C);
+   fifoRemoteTxAxisSlaves(0) <= srpRssiIbSlaves(DEST_REMOTE_SRP_DATA_C);
+   fifoRemoteTxAxisSlaves(1) <= dataRssiIbSlaves(DEST_REMOTE_SRP_DATA_C);
+   fifoRemoteTxAxisSlaves(2) <= srpRssiIbSlaves(DEST_REMOTE_LOOPBACK_C);
+   fifoRemoteTxAxisSlaves(3) <= dataRssiIbSlaves(DEST_REMOTE_LOOPBACK_C);
+
+   GEN_REMOTE_FIFOS : for i in 3 downto 0 generate
+      U_AxiStreamFifoV2_REMOTE_RX : entity surf.AxiStreamFifoV2
+         generic map (
+            TPD_G               => TPD_G,
+            INT_PIPE_STAGES_G   => 1,
+            PIPE_STAGES_G       => 0,
+            SLAVE_READY_EN_G    => true,
+            VALID_THOLD_G       => 1,
+            VALID_BURST_MODE_G  => false,
+            SYNTH_MODE_G        => "inferred",
+            MEMORY_TYPE_G       => "block",
+            GEN_SYNC_FIFO_G     => false,
+            FIFO_ADDR_WIDTH_G   => 9,
+            FIFO_FIXED_THRESH_G => true,
+--         FIFO_PAUSE_THRESH_G => 2**12-32,
+            SLAVE_AXI_CONFIG_G  => AXIS_CONFIG_C,
+            MASTER_AXI_CONFIG_G => AXIS_CONFIG_C)
+         port map (
+            sAxisClk    => ethClk,                      -- [in]
+            sAxisRst    => ethRst,                      -- [in]
+            sAxisMaster => fifoRemoteRxAxisMasters(i),  -- [in]
+            sAxisSlave  => fifoRemoteRxAxisSlaves(i),   -- [out]
+            mAxisClk    => axisClk,                     -- [in]
+            mAxisRst    => axisRst,                     -- [in]
+            mAxisMaster => remoteRxAxisMasters(i),      -- [out]
+            mAxisSlave  => remoteRxAxisSlaves(i));      -- [in]
+
+      U_AxiStreamFifoV2_REMOTE_TX : entity surf.AxiStreamFifoV2
+         generic map (
+            TPD_G               => TPD_G,
+            INT_PIPE_STAGES_G   => 1,
+            PIPE_STAGES_G       => 0,
+            SLAVE_READY_EN_G    => true,
+            VALID_THOLD_G       => 1,
+            VALID_BURST_MODE_G  => false,
+            SYNTH_MODE_G        => "inferred",
+            MEMORY_TYPE_G       => "block",
+            GEN_SYNC_FIFO_G     => false,
+            FIFO_ADDR_WIDTH_G   => 9,
+            FIFO_FIXED_THRESH_G => true,
+--         FIFO_PAUSE_THRESH_G => 2**12-32,
+            SLAVE_AXI_CONFIG_G  => AXIS_CONFIG_C,
+            MASTER_AXI_CONFIG_G => AXIS_CONFIG_C)
+         port map (
+            sAxisClk    => axisClk,                     -- [in]
+            sAxisRst    => axisRst,                     -- [in]
+            sAxisMaster => remoteTxAxisMasters(i),      -- [in]
+            sAxisSlave  => remoteTxAxisSlaves(i),       -- [out]
+            mAxisClk    => ethClk,                      -- [in]
+            mAxisRst    => ethRst,                      -- [in]
+            mAxisMaster => fifoRemoteTxAxisMasters(i),  -- [out]
+            mAxisSlave  => fifoRemoteTxAxisSlaves(i));  -- [in]
+
+   end generate;
 
 end rtl;
