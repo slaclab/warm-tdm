@@ -292,8 +292,8 @@ begin
    rj45TimingTxMgtP <= rj45TimingRxMgtP when xbarMgtSel(0) = '0' else pgpTxP;
    rj45TimingTxMgtN <= rj45TimingRxMgtN when xbarMgtSel(0) = '0' else pgpTxN;
 
-   pgpRxP <= rj45TimingRxMgtP when xbarClkSel(1) = '0' else pgpTxP;
-   pgpRxN <= rj45TimingRxMgtN when xbarClkSel(1) = '0' else pgpTxN;
+   pgpRxP <= rj45TimingRxMgtP when xbarMgtSel(1) = '0' else pgpTxP;
+   pgpRxN <= rj45TimingRxMgtN when xbarMgtSel(1) = '0' else pgpTxN;
 
 
    -------------------------------------------------------------------------------------------------
