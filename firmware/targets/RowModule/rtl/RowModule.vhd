@@ -44,7 +44,7 @@ entity RowModule is
       RING_ADDR_0_G           : boolean          := false;
       ETH_10G_G               : boolean          := false;
       DHCP_G                  : boolean          := false;  -- true = DHCP, false = static address
-      IP_ADDR_G               : slv(31 downto 0) := x"0B02A8C0");  -- 192.168.2.11 (before DHCP)
+      IP_ADDR_G               : slv(31 downto 0) := x"0C02A8C0");  -- 192.168.2.11 (before DHCP)
    port (
       -- Clocks
       gtRefClk0P : in sl;
