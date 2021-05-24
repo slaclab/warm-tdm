@@ -15,12 +15,12 @@ class RowModule(pr.Device):
         self.add(warm_tdm.Timing(
             offset = 0x00100000))
 
+        self.add(warm_tdm.ComCore(
+            offset = 0xA0000000))
+        
         self.add(warm_tdm.RowModuleDacs(
             offset = 0x01000000,
             enabled = True))
-
-        self.add(warm_tdm.ComCore(
-            offset = 0xA0000000))
 
         self.add(surf.protocols.ssi.SsiPrbsRx(
             offset = 0x00200000))

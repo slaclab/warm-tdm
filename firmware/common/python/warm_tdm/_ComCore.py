@@ -18,6 +18,7 @@ class PgpCore(pr.Device):
 
         #GTX
         self.add(surf.xilinx.Gtxe2Channel(
+            enabled = False,
             offset = 0x0001000))
 
 class EthCore(pr.Device):
@@ -25,20 +26,24 @@ class EthCore(pr.Device):
         super().__init__(**kwargs)
         
         self.add(surf.protocols.rssi.RssiCore(
+            enabled = False,
             name = "SRP_RSSI",
             offset = 0x11000,
             expand = False))
 
         self.add(surf.protocols.rssi.RssiCore(
+            enabled = False,
             name = "Data_RSSI",
             offset = 0x12000,
             expand = False))
         
         self.add(surf.ethernet.udp.UdpEngine(
+            enabled = False,
             offset = 0x10000,
             numSrv = 2))
 
         self.add(surf.ethernet.gige.GigEthGtx7(
+            enabled = False,
             gtxe2_read_only = True,
             offset = 0x00000))
 
