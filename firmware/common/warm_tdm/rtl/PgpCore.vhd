@@ -189,6 +189,7 @@ begin
             -- MGT Configurations
             RX_OS_CFG_G           => "0000010000000",        --RX_OS_CFG_G,
             RXCDR_CFG_G           => x"03000023ff10100020",  -- RXCDR_CFG_G,
+--            0000107FE106001041010
             RXDFEXYDEN_G          => '1',                    --RXDFEXYDEN_G,
             PMA_RSV_G             => x"00018480",
             RX_DFE_KL_CFG2_G      => X"301148AC",

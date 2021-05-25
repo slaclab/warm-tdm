@@ -39,12 +39,12 @@ entity TimingTx is
       SIMULATION_G  : boolean := false);
 
    port (
-      timingClk125 : in sl;
-      timingRst125 : in sl;
+      timingRefClk : in sl;
+      timingRefRst : in sl;
 
       xbarDataSel : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
       xbarClkSel  : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
-      xbarMgtSel  : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");      
+      xbarMgtSel  : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
 
       timingTxClkP  : out sl;
       timingTxClkN  : out sl;
@@ -73,7 +73,7 @@ architecture rtl of TimingTx is
       -- XBAR
       xbarDataSel : slv(1 downto 0);
       xbarClkSel  : slv(1 downto 0);
-      xbarMgtSel  : slv(1 downto 0);      
+      xbarMgtSel  : slv(1 downto 0);
 
       -- Config
       rowPeriod       : slv(15 downto 0);
@@ -160,7 +160,7 @@ begin
 
       axiSlaveRegister(axilEp, X"50", 0, v.xbarClkSel);
       axiSlaveRegister(axilEp, X"50", 4, v.xbarDataSel);
-      axiSlaveRegister(axilEp, X"50", 8, v.xbarMgtSel);      
+      axiSlaveRegister(axilEp, X"50", 8, v.xbarMgtSel);
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
 
@@ -229,7 +229,7 @@ begin
 
       xbarClkSel  <= r.xbarClkSel;
       xbarDataSel <= r.xbarDataSel;
-      xbarMgtSel <= r.xbarMgtSel;
+      xbarMgtSel  <= r.xbarMgtSel;
 
 
    end process;
@@ -248,29 +248,52 @@ begin
       generic map (
          TPD_G => TPD_G)
       port map (
-         clkIn   => wordClk, --timingClk125,       -- [in]
+         clkIn   => wordClk,            --timingClk125,       -- [in]
          clkOutP => timingTxClkP,       -- [out]
          clkOutN => timingTxClkN);      -- [out]
 
    -------------------------------------------------------------------------------------------------
    -- Create serial clock for serializer
    -------------------------------------------------------------------------------------------------
-   U_TimingMmcm_1 : entity warm_tdm.TimingMmcm
+   U_ClockManager7_1 : entity surf.ClockManager7
       generic map (
-         TPD_G     => TPD_G,
-         USE_HPC_G => false,
-         CLKIN1_PERIOD_G    => 8.0,
-         DIVCLK_DIVIDE_G    => 1,
-         CLKFBOUT_MULT_F_G  => 5.0,
-         CLKOUT0_DIVIDE_F_G => 1.0,
-         CLKOUT1_DIVIDE_G   => 5)
+         TPD_G            => TPD_G,
+         SIMULATION_G     => false,
+         TYPE_G           => "PLL",
+         INPUT_BUFG_G     => false,
+         FB_BUFG_G        => true,
+         OUTPUT_BUFG_G    => true,
+         NUM_CLOCKS_G     => 2,
+         BANDWIDTH_G      => "HIGH",
+         CLKIN_PERIOD_G   => 4.0,
+         DIVCLK_DIVIDE_G  => 1,
+         CLKFBOUT_MULT_G  => 5,
+         CLKOUT0_DIVIDE_G => 2,
+         CLKOUT1_DIVIDE_G => 10)
       port map (
-         timingRxClk => timingClk125,   -- [in]
-         timingRxRst => timingRst125,   -- [in]
-         bitClk      => bitClk,         -- [out]
-         bitRst      => bitRst,         -- [out]
-         wordClk     => wordClk,        -- [out]
-         wordRst     => wordRst);       -- [out]
+         clkIn     => timingRefClk,     -- [in]
+         rstIn     => timingRefRst,     -- [in]
+         clkOut(0) => bitClk,           -- [out]
+         clkOut(1) => wordClk,          -- [out]         
+         rstOut(0) => bitRst,           -- [out]
+         rstOut(1) => wordRst);         -- [out]
+                                    -- 
+--    U_TimingMmcm_1 : entity warm_tdm.TimingMmcm
+--       generic map (
+--          TPD_G     => TPD_G,
+--          USE_HPC_G => false,
+--          CLKIN1_PERIOD_G    => 8.0,
+--          DIVCLK_DIVIDE_G    => 1,
+--          CLKFBOUT_MULT_F_G  => 5.0,
+--          CLKOUT0_DIVIDE_F_G => 1.0,
+--          CLKOUT1_DIVIDE_G   => 5)
+--       port map (
+--          timingRxClk => timingClk125,   -- [in]
+--          timingRxRst => timingRst125,   -- [in]
+--          bitClk      => bitClk,         -- [out]
+--          bitRst      => bitRst,         -- [out]
+--          wordClk     => wordClk,        -- [out]
+--          wordRst     => wordRst);       -- [out]
 
    -------------------------------------------------------------------------------------------------
    -- 8B10B encode

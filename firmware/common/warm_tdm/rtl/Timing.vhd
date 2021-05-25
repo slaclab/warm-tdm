@@ -86,12 +86,13 @@ architecture rtl of Timing is
 
    signal timingRefClk  : sl;
    signal timingRefClkG : sl;
+   signal timingRefRst  : sl;
 
    signal idelayClk : sl;
    signal idelayRst : sl;
 
-   signal timingClk125 : sl;
-   signal timingRst125 : sl;
+--    signal timingClk125 : sl;
+--    signal timingRst125 : sl;
 
    attribute IODELAY_GROUP                 : string;
    attribute IODELAY_GROUP of IDELAYCTRL_0 : label is IODELAY_GROUP_G;
@@ -122,6 +123,15 @@ begin
          I => timingRefClk,
          O => timingRefClkG);
 
+   U_PwrUpRst : entity surf.PwrUpRst
+      generic map (
+         TPD_G         => TPD_G,
+         SIM_SPEEDUP_G => SIMULATION_G)
+      port map (
+         clk    => timingRefClkG,
+         rstOut => timingRefRst);
+
+
    U_MMCM_IDELAY : entity surf.ClockManager7
       generic map(
          TPD_G              => TPD_G,
@@ -129,24 +139,23 @@ begin
          INPUT_BUFG_G       => false,
          FB_BUFG_G          => true,    -- Without this, will never lock in simulation
          RST_IN_POLARITY_G  => '1',
-         NUM_CLOCKS_G       => 2,
+         NUM_CLOCKS_G       => 1,
          -- MMCM attributes
          BANDWIDTH_G        => "OPTIMIZED",
          CLKIN_PERIOD_G     => 4.0,     -- 250 MHz
          DIVCLK_DIVIDE_G    => 1,       -- 250 MHz
          CLKFBOUT_MULT_F_G  => 4.0,     -- 1.0GHz =  250 MHz x 4
-         CLKOUT0_DIVIDE_F_G => 8.0,     -- 125 MHz = 1.0GHz/8
-         CLKOUT1_DIVIDE_G   => 5)       --  = 200 MHz = 1.0GHz/5
+         CLKOUT0_DIVIDE_F_G => 5.0)     --  = 200 MHz = 1.0GHz/5
       port map(
          clkIn     => timingRefClkG,
          rstIn     => '0',
-         clkOut(0) => timingClk125,
-         clkOut(1) => idelayClk,
-         rstOut(0) => timingRst125,
-         rstOut(1) => idelayRst,
+         clkOut(0) => idelayClk,
+--         clkOut(1) => idelayClk,
+--         rstOut(0) => timingRst125,
+         rstOut(0) => idelayRst,
          locked    => open);
 
-   timingRefClkOut <= timingClk125;
+   timingRefClkOut <= timingRefClkG;
 
    -------------
    -- IDELAYCTRL
@@ -219,8 +228,8 @@ begin
          SIMULATION_G  => SIMULATION_G,
          RING_ADDR_0_G => RING_ADDR_0_G)
       port map (
-         timingClk125    => timingClk125,            -- [in]
-         timingRst125    => timingRst125,            -- [in]
+         timingRefClk    => timingRefClkG,           -- [in]
+         timingRefRst    => timingRefRst,            -- [in]
          xbarDataSel     => xbarDataSel,             -- [out]
          xbarClkSel      => xbarClkSel,              --[out]
          xbarMgtSel      => xbarMgtSel,              --[out]         
