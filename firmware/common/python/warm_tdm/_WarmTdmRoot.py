@@ -33,7 +33,7 @@ SINGLE_COLUMN = [
 
 DUAL_STACK = [
     {'cls': warm_tdm.ColumnModule, 'name': 'ColumnModule[0]'},
-    {'cls': warm_tdm.RowModule, 'name': 'RowModule[0]'}]
+    {'cls': warm_tdm.ColumnModule, 'name': 'ColumnModule[1]'}]
 
 
 SIM_PORTS = list(range(7000, 7051, 10))
@@ -81,7 +81,7 @@ CONFIGS = {
             'stack': DUAL_STACK},
         'row': {
             'pollEn': False,                        
-            'host': '192.168.2.11',
+            'host': '192.168.2.12',
             'srpPort': 8192,
             'dataPort': 8193,
             'simPorts': None,
