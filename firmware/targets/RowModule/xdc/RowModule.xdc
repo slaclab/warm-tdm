@@ -99,10 +99,10 @@ set_property PACKAGE_PIN D1 [get_ports {pgpTxN}]
 set_property PACKAGE_PIN E4 [get_ports {pgpRxP}]
 set_property PACKAGE_PIN E3 [get_ports {pgpRxN}]
 
-set_property -dict { PACKAGE_PIN E11  IOSTANDARD LVDS_25 } [get_ports { timingRxClkP }];
-set_property -dict { PACKAGE_PIN D11  IOSTANDARD LVDS_25 } [get_ports { timingRxClkN }];
-set_property -dict { PACKAGE_PIN G11  IOSTANDARD LVDS_25 } [get_ports { timingRxDataP }];
-set_property -dict { PACKAGE_PIN G10  IOSTANDARD LVDS_25 } [get_ports { timingRxDataN }];
+set_property -dict { PACKAGE_PIN E11  IOSTANDARD LVDS_25  DIFF_TERM TRUE} [get_ports { timingRxClkP }];
+set_property -dict { PACKAGE_PIN D11  IOSTANDARD LVDS_25  DIFF_TERM TRUE} [get_ports { timingRxClkN }];
+set_property -dict { PACKAGE_PIN G11  IOSTANDARD LVDS_25  DIFF_TERM TRUE} [get_ports { timingRxDataP }];
+set_property -dict { PACKAGE_PIN G10  IOSTANDARD LVDS_25  DIFF_TERM TRUE} [get_ports { timingRxDataN }];
 set_property -dict { PACKAGE_PIN H12  IOSTANDARD LVDS_25 } [get_ports { timingTxClkP }];
 set_property -dict { PACKAGE_PIN G12  IOSTANDARD LVDS_25 } [get_ports { timingTxClkN }];
 set_property -dict { PACKAGE_PIN F9   IOSTANDARD LVDS_25 } [get_ports { timingTxDataP }];
