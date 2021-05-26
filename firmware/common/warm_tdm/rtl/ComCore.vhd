@@ -47,7 +47,8 @@ entity ComCore is
       AXIL_BASE_ADDR_G        : slv(31 downto 0) := X"00000000";
       ETH_10G_G               : boolean          := true;
       DHCP_G                  : boolean          := false;  -- true = DHCP, false = static address
-      IP_ADDR_G               : slv(31 downto 0) := X"0A01A8C0");  -- 192.168.1.10 (before DHCP)
+      IP_ADDR_G               : slv(31 downto 0) := X"0A01A8C0";  -- 192.168.1.10 (before DHCP)
+      MAC_ADDR_G              : slv(47 downto 0) := x"00_00_16_56_00_08");
    port (
       gtRefClkP       : in  sl;
       gtRefClkN       : in  sl;
@@ -216,7 +217,8 @@ begin
          AXIL_BASE_ADDR_G    => AXIL_BASE_ADDR_G + X"00100000",
          AXIL_CLK_FREQ_G     => 125.0e6,
          DHCP_G              => DHCP_G,
-         IP_ADDR_G           => IP_ADDR_G)
+         IP_ADDR_G           => IP_ADDR_G,
+         MAC_ADDR_G          => MAC_ADDR_G)
       port map (
          extRst                => '0',                               -- [in]
          refClk                => gtRefClkDiv2,                      -- [in]

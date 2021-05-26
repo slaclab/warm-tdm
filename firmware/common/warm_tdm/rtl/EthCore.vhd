@@ -41,12 +41,13 @@ entity EthCore is
       SIM_DATA_PORT_NUM_G : integer          := 9000;
       AXIL_BASE_ADDR_G    : slv(31 downto 0) := X"00000000";
       AXIL_CLK_FREQ_G     : real             := 125.0E6;
-      DHCP_G              : boolean          := false;  -- true = DHCP, false = static address
-      IP_ADDR_G           : slv(31 downto 0) := x"0A01A8C0");  -- 192.168.1.10 (before DHCP)
+      DHCP_G              : boolean          := false;        -- true = DHCP, false = static address
+      IP_ADDR_G           : slv(31 downto 0) := x"0A01A8C0";  -- 192.168.1.10 (before DHCP)
+      MAC_ADDR_G          : slv(47 downto 0) := x"00_00_16_56_00_08");
    port (
       extRst                : in  sl                    := '0';
       -- GT ports and clock
-      refClk                : in  sl;   -- GT Ref Clock 156.25 MHz
+      refClk                : in  sl;                         -- GT Ref Clock 156.25 MHz
       refClkG               : in  sl;
       gtRxP                 : in  sl;
       gtRxN                 : in  sl;
@@ -209,7 +210,7 @@ begin
 --    localMac(23 downto 0)  <= x"56_00_08";  -- 08:00:56:XX:XX:XX (big endian SLV)   
 --    localMac(47 downto 24) <= efuse(31 downto 8);
 
-   localMac(47 downto 0) <= x"00_00_16_56_00_08";
+   localMac(47 downto 0) <= MAC_ADDR_G;  --x"00_00_16_56_00_08";
 
    -- UdpEngineWrapper needs AXIL on eth clock so just sync everything
    U_AxiLiteAsync_1 : entity surf.AxiLiteAsync

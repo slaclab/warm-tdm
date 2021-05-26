@@ -45,8 +45,9 @@ entity ColumnModule is
       BUILD_INFO_G            : BuildInfoType;
       RING_ADDR_0_G           : boolean          := false;
       ETH_10G_G               : boolean          := false;
-      DHCP_G                  : boolean          := false;  -- true = DHCP, false = static address
-      IP_ADDR_G               : slv(31 downto 0) := x"0B02A8C0");  -- 192.168.1.10 (before DHCP)
+      DHCP_G                  : boolean          := false;  
+      IP_ADDR_G               : slv(31 downto 0) := x"0B02A8C0";-- 192.168.2.11
+      MAC_ADDR_G              : slv(47 downto 0) := x"00_00_16_56_00_08");
    port (
       -- Clocks
       gtRefClk0P : in sl;
@@ -362,7 +363,8 @@ begin
          AXIL_BASE_ADDR_G        => AXIL_XBAR_CFG_C(AXIL_COM_C).baseAddr,
          ETH_10G_G               => ETH_10G_G,
          DHCP_G                  => DHCP_G,
-         IP_ADDR_G               => IP_ADDR_G)
+         IP_ADDR_G               => IP_ADDR_G,
+         MAC_ADDR_G              => MAC_ADDR_G)
       port map (
          gtRefClkP        => gtRefClk0P,                       -- [in]
          gtRefClkN        => gtRefClk0N,                       -- [in]
