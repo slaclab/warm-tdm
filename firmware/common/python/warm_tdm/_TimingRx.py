@@ -80,6 +80,7 @@ class TimingRx(pr.Device):
         self.add(pr.RemoteVariable(
             name = 'ReadoutDebug0',
             mode = 'RO',
+            disp = '{:010b}',
             offset = 0x20,
             bitOffset = 0,
             bitSize = 10))
@@ -87,6 +88,7 @@ class TimingRx(pr.Device):
         self.add(pr.RemoteVariable(
             name = 'ReadoutDebug1',
             mode = 'RO',
+            disp = '{:010b}',            
             offset = 0x20,
             bitOffset = 10,
             bitSize = 10))
@@ -94,6 +96,7 @@ class TimingRx(pr.Device):
         self.add(pr.RemoteVariable(
             name = 'ReadoutDebug2',
             mode = 'RO',
+            disp = '{:010b}',            
             offset = 0x20,
             bitOffset = 20,
             bitSize = 10))
