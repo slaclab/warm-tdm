@@ -13,13 +13,27 @@ class PgpCore(pr.Device):
         super().__init__(**kwargs)
 
         self.add(surf.protocols.pgp.Pgp2bAxi(
+            name = 'Pgp2bAxi[0]',
             offset=0x00000000,
             errorCountBits=16))
 
         #GTX
         self.add(surf.xilinx.Gtxe2Channel(
+            name = 'Gtxe2Channel[0]',
             enabled = False,
             offset = 0x0001000))
+
+        self.add(surf.protocols.pgp.Pgp2bAxi(
+            name = 'Pgp2bAxi[1]',
+            offset=0x00002000,
+            errorCountBits=16))
+
+        #GTX
+        self.add(surf.xilinx.Gtxe2Channel(
+            name = 'Gtxe2Channel[1]',
+            enabled = False,
+            offset = 0x0003000))
+        
 
 class EthCore(pr.Device):
     def __init__(self, **kwargs):
