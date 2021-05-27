@@ -73,10 +73,10 @@ architecture sim of ColumnModuleBoard is
    signal gtRefClk0N    : sl;                                  -- [in]
    signal gtRefClk1P    : sl;                                  -- [in]
    signal gtRefClk1N    : sl;                                  -- [in]
-   signal pgpTxP        : slv(1 downto 0);                     -- [out]
-   signal pgpTxN        : slv(1 downto 0);                     -- [out]
-   signal pgpRxP        : slv(1 downto 0);                     -- [in]
-   signal pgpRxN        : slv(1 downto 0);                     -- [in]
+   signal pgpTxP        : sl;                                  -- [out]
+   signal pgpTxN        : sl;                                  -- [out]
+   signal pgpRxP        : sl;                                  -- [in]
+   signal pgpRxN        : sl;                                  -- [in]
    signal xbarDataSel   : slv(1 downto 0) := "00";             -- [out]
    signal xbarClkSel    : slv(1 downto 0) := "00";             -- [out]
    signal xbarMgtSel    : slv(1 downto 0) := "00";             -- [out]
@@ -289,17 +289,12 @@ begin
    timingRxClkN <= rj45TimingRxClkN when xbarClkSel(1) = '0' else timingTxClkN;
 
    -- Put PGP on timingMgt
-   rj45TimingTxMgtP <= rj45TimingRxMgtP when xbarMgtSel(0) = '0' else pgpTxP(0);
-   rj45TimingTxMgtN <= rj45TimingRxMgtN when xbarMgtSel(0) = '0' else pgpTxN(0);
+   rj45TimingTxMgtP <= rj45TimingRxMgtP when xbarMgtSel(0) = '0' else pgpTxP;
+   rj45TimingTxMgtN <= rj45TimingRxMgtN when xbarMgtSel(0) = '0' else pgpTxN;
 
-   pgpRxP(0) <= rj45TimingRxMgtP when xbarMgtSel(1) = '0' else pgpTxP(0);
-   pgpRxN(0) <= rj45TimingRxMgtN when xbarMgtSel(1) = '0' else pgpTxN(0);
+   pgpRxP <= rj45TimingRxMgtP when xbarMgtSel(1) = '0' else pgpTxP;
+   pgpRxN <= rj45TimingRxMgtN when xbarMgtSel(1) = '0' else pgpTxN;
 
-   rj45PgpTxP <= pgpTxP(1);
-   rj45PgpTxN <= pgpTxN(1);
-
-   pgpRxP(1) <= rj45PgpRxP;
-   pgpRxN(1) <= rj45PgpRxN;
 
    -------------------------------------------------------------------------------------------------
    -- Clock and reset for things that need it

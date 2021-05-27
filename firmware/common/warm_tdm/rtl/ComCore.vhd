@@ -55,10 +55,10 @@ entity ComCore is
       gtRefClkDiv2Out : out sl;
 
       -- PGP IO
-      pgpTxP : out slv(1 downto 0);
-      pgpTxN : out slv(1 downto 0);
-      pgpRxP : in  slv(1 downto 0);
-      pgpRxN : in  slv(1 downto 0);
+      pgpTxP : out sl;
+      pgpTxN : out sl;
+      pgpRxP : in  sl;
+      pgpRxN : in  sl;
 
       -- Ethernet IO
       ethRxP : in  sl;

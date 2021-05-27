@@ -106,16 +106,16 @@ set_property PACKAGE_PIN K6 [get_ports {gtRefClk1P}]
 set_property PACKAGE_PIN K5 [get_ports {gtRefClk1N}]
 
 # PGP
-set_property PACKAGE_PIN P2 [get_ports {pgpTxP[1]}]
-set_property PACKAGE_PIN P1 [get_ports {pgpTxN[1]}]
-set_property PACKAGE_PIN R4 [get_ports {pgpRxP[1]}]
-set_property PACKAGE_PIN R3 [get_ports {pgpRxN[1]}]
+# set_property PACKAGE_PIN P2 [get_ports {pgpTxP}]
+# set_property PACKAGE_PIN P1 [get_ports {pgpTxN}]
+# set_property PACKAGE_PIN R4 [get_ports {pgpRxP}]
+# set_property PACKAGE_PIN R3 [get_ports {pgpRxN}]
 
 # GT Timing
-set_property PACKAGE_PIN N4 [get_ports {pgpRxP[0]}]
-set_property PACKAGE_PIN N3 [get_ports {pgpRxN[0]}]
-set_property PACKAGE_PIN M2 [get_ports {pgpTxP[0]}]
-set_property PACKAGE_PIN M1 [get_ports {pgpTxN[0]}]
+set_property PACKAGE_PIN N4 [get_ports {pgpRxP}]
+set_property PACKAGE_PIN N3 [get_ports {pgpRxN}]
+set_property PACKAGE_PIN M2 [get_ports {pgpTxP}]
+set_property PACKAGE_PIN M1 [get_ports {pgpTxN}]
 
 
 # IO Timing

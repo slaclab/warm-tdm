@@ -43,10 +43,10 @@ entity ColumnModule is
       SIM_ETH_SRP_PORT_NUM_G  : positive         := 8000;
       SIM_ETH_DATA_PORT_NUM_G : positive         := 9000;
       BUILD_INFO_G            : BuildInfoType;
-      RING_ADDR_0_G           : boolean          := false;
+      RING_ADDR_0_G           : boolean          := true;
       ETH_10G_G               : boolean          := false;
-      DHCP_G                  : boolean          := false;
-      IP_ADDR_G               : slv(31 downto 0) := x"0B02A8C0";  -- 192.168.2.11
+      DHCP_G                  : boolean          := false;  
+      IP_ADDR_G               : slv(31 downto 0) := x"0B02A8C0";-- 192.168.2.11
       MAC_ADDR_G              : slv(47 downto 0) := x"00_00_16_56_00_08");
    port (
       -- Clocks
@@ -56,10 +56,10 @@ entity ColumnModule is
       gtRefClk1N : in sl;
 
       -- PGP Interface
-      pgpTxP : out slv(1 downto 0);
-      pgpTxN : out slv(1 downto 0);
-      pgpRxP : in  slv(1 downto 0);
-      pgpRxN : in  slv(1 downto 0);
+      pgpTxP : out sl;
+      pgpTxN : out sl;
+      pgpRxP : in  sl;
+      pgpRxN : in  sl;
 
       -- Timing Interface Crossbars
       xbarDataSel : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
