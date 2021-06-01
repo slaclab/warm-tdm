@@ -224,9 +224,10 @@ begin
 
    U_TimingTx_1 : entity warm_tdm.TimingTx
       generic map (
-         TPD_G         => TPD_G,
-         SIMULATION_G  => SIMULATION_G,
-         RING_ADDR_0_G => RING_ADDR_0_G)
+         TPD_G           => TPD_G,
+         SIMULATION_G    => SIMULATION_G,
+         RING_ADDR_0_G   => RING_ADDR_0_G,
+         AXIL_CLK_FREQ_G => AXIL_CLK_FREQ_G)
       port map (
          timingRefClk    => timingRefClkG,           -- [in]
          timingRefRst    => timingRefRst,            -- [in]

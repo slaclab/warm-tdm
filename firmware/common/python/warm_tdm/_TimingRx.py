@@ -18,7 +18,7 @@ class TimingRx(pr.Device):
         self.add(pr.LinkVariable(
             name = "RxClockFrequency",
             mode = "RO",
-            disp = '{:0.2f}',
+            disp = '{:0.3f}',
             units = 'MHz',
             dependencies = [self.RxClockFrequencyRaw],
             linkedGet = lambda: self.RxClockFrequencyRaw.value()*1.0E-6))

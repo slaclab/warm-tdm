@@ -26,14 +26,14 @@ create_generated_clock -name ethClk [get_pins {U_ComCore_1/U_EthCore_1/REAL_ETH_
 create_generated_clock -name ethClkDiv2 [get_pins {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.GIG_ETH_GEN.U_MMCM/MmcmGen.U_Mmcm/CLKOUT1}]
 
 
-create_generated_clock -name idelayClk [get_pins {U_Timing_1/U_MMCM_IDELAY/MmcmGen.U_Mmcm/CLKOUT1}]
+create_generated_clock -name idelayClk [get_pins {U_Timing_1/U_MMCM_IDELAY/MmcmGen.U_Mmcm/CLKOUT0}]
 
-create_generated_clock -name timingTxClk [get_pins {U_Timing_1/U_MMCM_IDELAY/MmcmGen.U_Mmcm/CLKOUT0}]
-create_generated_clock -name timingTxBitClk [get_pins {U_Timing_1/U_TimingTx_1/U_TimingMmcm_1/U_Mmcm/CLKOUT0}]
-create_generated_clock -name timingTxWordClk [get_pins {U_Timing_1/U_TimingTx_1/U_TimingMmcm_1/U_Mmcm/CLKOUT1}]
-
-create_generated_clock -name timingRxBitClk [get_pins {U_Timing_1/U_TimingRx_1/U_TimingMmcm_1/U_Mmcm/CLKOUT0}]
-create_generated_clock -name timingRxWordClk [get_pins {U_Timing_1/U_TimingRx_1/U_TimingMmcm_1/U_Mmcm/CLKOUT1}]
+## create_generated_clock -name timingTxClk [get_pins {U_Timing_1/U_MMCM_IDELAY/MmcmGen.U_Mmcm/CLKOUT0}]
+create_generated_clock -name timingTxBitClk  [get_pins  -hier -filter {NAME =~ U_Timing_1/U_TimingTx_1/*/*/CLKOUT0}]
+create_generated_clock -name timingTxWordClk [get_pins  -hier -filter {NAME =~ U_Timing_1/U_TimingTx_1/*/*/CLKOUT1}]
+												       
+create_generated_clock -name timingRxBitClk  [get_pins  -hier -filter {NAME =~ U_Timing_1/U_TimingRx_1/*/*/CLKOUT0}]
+create_generated_clock -name timingRxWordClk [get_pins  -hier -filter {NAME =~ U_Timing_1/U_TimingRx_1/*/*/CLKOUT1}]
 
 
 #set ethRxClk {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/U_TenGigEthGtx7Core/U0/gt0_gtwizard_10gbaser_multi_gt_i/gt0_gtwizard_10gbaser_i/gtxe2_i/RXOUTCLK}
@@ -53,7 +53,7 @@ set_clock_groups -asynchronous \
     -group [get_clocks {pgpClk}]
 
 set_clock_groups -asynchronous \
-    -group [get_clocks {axiClk}] \
+    -group [get_clocks {axilClk}] \
     -group [get_clocks {pgpClk}] 
 
 

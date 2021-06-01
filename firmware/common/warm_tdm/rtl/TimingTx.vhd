@@ -34,9 +34,10 @@ use warm_tdm.TimingPkg.all;
 entity TimingTx is
 
    generic (
-      TPD_G         : time    := 1 ns;
-      RING_ADDR_0_G : boolean := false;
-      SIMULATION_G  : boolean := false);
+      TPD_G           : time    := 1 ns;
+      RING_ADDR_0_G   : boolean := false;
+      SIMULATION_G    : boolean := false;
+      AXIL_CLK_FREQ_G : real    := 125.0E+6);
 
    port (
       timingRefClk : in sl;
@@ -104,6 +105,9 @@ architecture rtl of TimingTx is
    signal r   : RegType := REG_INIT_C;
    signal rin : RegType;
 
+   signal refClkFreq  : slv(31 downto 0);
+   signal wordClkFreq : slv(31 downto 0);
+
    signal timingAxilWriteMaster : AxiLiteWriteMasterType;
    signal timingAxilWriteSlave  : AxiLiteWriteSlaveType;
    signal timingAxilReadMaster  : AxiLiteReadMasterType;
@@ -129,7 +133,7 @@ begin
          mAxiWriteMaster => timingAxilWriteMaster,  -- [out]
          mAxiWriteSlave  => timingAxilWriteSlave);  -- [in]
 
-   comb : process (r, timingAxilReadMaster, timingAxilWriteMaster, wordRst) is
+   comb : process (r, refClkFreq, timingAxilReadMaster, timingAxilWriteMaster, wordClkFreq, wordRst) is
       variable v      : RegType;
       variable axilEp : AxiLiteEndpointType;
    begin
@@ -161,6 +165,9 @@ begin
       axiSlaveRegister(axilEp, X"50", 0, v.xbarClkSel);
       axiSlaveRegister(axilEp, X"50", 4, v.xbarDataSel);
       axiSlaveRegister(axilEp, X"50", 8, v.xbarMgtSel);
+
+      axiSlaveRegisterR(axilEp, X"60", 0, refClkFreq);
+      axiSlaveRegisterR(axilEp, X"64", 0, wordClkFreq);
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
 
@@ -277,7 +284,49 @@ begin
          clkOut(1) => wordClk,          -- [out]         
          rstOut(0) => bitRst,           -- [out]
          rstOut(1) => wordRst);         -- [out]
-                                    -- 
+
+   U_SyncClockFreq_REF : entity surf.SyncClockFreq
+      generic map (
+         TPD_G             => TPD_G,
+--         USE_DSP_G         => USE_DSP_G,
+         REF_CLK_FREQ_G    => AXIL_CLK_FREQ_G,
+         REFRESH_RATE_G    => 100.0,
+         CLK_LOWER_LIMIT_G => 124.0E6,
+         CLK_UPPER_LIMIT_G => 126.0E6,
+         COMMON_CLK_G      => true,
+         CNT_WIDTH_G       => 32)
+      port map (
+         freqOut     => refClkFreq,     -- [out]
+         freqUpdated => open,           -- [out]
+         locked      => open,           -- [out]
+         tooFast     => open,           -- [out]
+         tooSlow     => open,           -- [out]
+         clkIn       => timingRefClk,   -- [in]
+         locClk      => axilClk,        -- [in]
+         refClk      => axilClk);       -- [in]
+
+   U_SyncClockFreq_WORD : entity surf.SyncClockFreq
+      generic map (
+         TPD_G             => TPD_G,
+--         USE_DSP_G         => USE_DSP_G,
+         REF_CLK_FREQ_G    => AXIL_CLK_FREQ_G,
+         REFRESH_RATE_G    => 100.0,
+         CLK_LOWER_LIMIT_G => 124.0E6,
+         CLK_UPPER_LIMIT_G => 126.0E6,
+         COMMON_CLK_G      => true,
+         CNT_WIDTH_G       => 32)
+      port map (
+         freqOut     => wordClkFreq,    -- [out]
+         freqUpdated => open,           -- [out]
+         locked      => open,           -- [out]
+         tooFast     => open,           -- [out]
+         tooSlow     => open,           -- [out]
+         clkIn       => wordClk,        -- [in]
+         locClk      => axilClk,        -- [in]
+         refClk      => axilClk);       -- [in]
+
+
+   -- 
 --    U_TimingMmcm_1 : entity warm_tdm.TimingMmcm
 --       generic map (
 --          TPD_G     => TPD_G,

@@ -67,6 +67,7 @@ architecture rtl of TimingRx is
    signal timingRxRst : sl;
    signal bitClk      : sl;
    signal bitClkInv   : sl;
+   signal bitRst      : sl;
    signal wordClk     : sl;
    signal wordRst     : sl;
 
@@ -120,7 +121,7 @@ architecture rtl of TimingRx is
       realignGearbox => '0',
       delay          => toSlv(DEFAULT_DELAY_G, 5),
       set            => '0',
-      minEyeWidth    => toSlv(80, 8),
+      minEyeWidth    => toSlv(ite(SIMULATION_G, 2, 64), 8),
       lockedCountRst => '0',
       readoutDebug0  => (others => '0'),
       readoutDebug1  => (others => '0'),
@@ -139,6 +140,7 @@ architecture rtl of TimingRx is
    signal debugDataOut    : slv(9 downto 0);
 
    signal minEyeWidthSync : slv(7 downto 0);
+   signal lockingCntCfg : slv(23 downto 0) := ite(SIMULATION_G, X"000008", X"00FFFF");
 
 begin
 
@@ -179,21 +181,44 @@ begin
    -------------------------------------------------------------------------------------------------
    -- Create serial clock for deserializer
    -------------------------------------------------------------------------------------------------
-   U_TimingMmcm_1 : entity warm_tdm.TimingMmcm
+   U_ClockManager7_1 : entity surf.ClockManager7
       generic map (
-         TPD_G              => TPD_G,
-         USE_HPC_G          => false,
-         CLKIN1_PERIOD_G    => 8.0,
-         DIVCLK_DIVIDE_G    => 1,
-         CLKFBOUT_MULT_F_G  => 5.0,
-         CLKOUT0_DIVIDE_F_G => 1.0,
-         CLKOUT1_DIVIDE_G   => 5)
+         TPD_G            => TPD_G,
+         SIMULATION_G     => false,
+         TYPE_G           => "PLL",
+         INPUT_BUFG_G     => false,
+         FB_BUFG_G        => true,
+         OUTPUT_BUFG_G    => true,
+         NUM_CLOCKS_G     => 2,
+         BANDWIDTH_G      => "LOW",
+         CLKIN_PERIOD_G   => 8.0,
+         DIVCLK_DIVIDE_G  => 1,
+         CLKFBOUT_MULT_G  => 10,
+         CLKOUT0_DIVIDE_G => 2,
+         CLKOUT1_DIVIDE_G => 10)
       port map (
-         timingRxClk => timingRxClk,    -- [in]
-         timingRxRst => timingRxRst,    -- [in]
-         bitClk      => bitClk,         -- [out]
-         wordClk     => wordClk,        -- [out]
-         wordRst     => wordRst);       -- [out]
+         clkIn     => timingRxClk,      -- [in]
+         rstIn     => timingRxRst,      -- [in]
+         clkOut(0) => bitClk,           -- [out]
+         clkOut(1) => wordClk,          -- [out]         
+         rstOut(0) => bitRst,           -- [out]
+         rstOut(1) => wordRst);         -- [out]
+
+--    U_TimingMmcm_1 : entity warm_tdm.TimingMmcm
+--       generic map (
+--          TPD_G              => TPD_G,
+--          USE_HPC_G          => false,
+--          CLKIN1_PERIOD_G    => 8.0,
+--          DIVCLK_DIVIDE_G    => 1,
+--          CLKFBOUT_MULT_F_G  => 5.0,
+--          CLKOUT0_DIVIDE_F_G => 1.0,
+--          CLKOUT1_DIVIDE_G   => 5)
+--       port map (
+--          timingRxClk => timingRxClk,    -- [in]
+--          timingRxRst => timingRxRst,    -- [in]
+--          bitClk      => bitClk,         -- [out]
+--          wordClk     => wordClk,        -- [out]
+--          wordRst     => wordRst);       -- [out]
 
    -------------------------------------------------------------------------------------------------
    -- Deserialize the incomming data
@@ -262,7 +287,7 @@ begin
          usrDlyCfg       => usrDlyCfg,        -- [in]
          bypFirstBerDet  => '1',              -- [in]
          minEyeWidth     => minEyeWidthSync,  -- [in]
---         lockingCntCfg   => lockingCntCfg,    -- [in]
+         lockingCntCfg   => lockingCntCfg,    -- [in]
          errorDet        => errorDet,         -- [out]
          locked          => locked);          -- [out]
 

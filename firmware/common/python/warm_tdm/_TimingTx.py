@@ -16,6 +16,39 @@ class TimingTx(pr.Device):
 #             bitSize = 1,
 #             base = pr.Bool))
 
+        self.add(pr.RemoteVariable(
+            name = "TxRefClkFreqRaw",
+            mode = 'RO',
+            offset = 0x60,
+            bitOffset = 0,
+            bitSize = 32,
+            hidden = True))
+
+        self.add(pr.LinkVariable(
+            name = "TxRefClkFreq",
+            mode = "RO",
+            disp = '{:0.3f}',
+            units = 'MHz',
+            dependencies = [self.TxRefClkFreqRaw],
+            linkedGet = lambda: self.TxRefClkFreqRaw.value()*1.0E-6))
+
+        self.add(pr.RemoteVariable(
+            name = "TxWordClkFreqRaw",
+            mode = 'RO',
+            offset = 0x64,
+            bitOffset = 0,
+            bitSize = 32,
+            hidden = True))
+
+        self.add(pr.LinkVariable(
+            name = "TxWordClkFreq",
+            mode = "RO",
+            disp = '{:0.3f}',
+            units = 'MHz',
+            dependencies = [self.TxWordClkFreqRaw],
+            linkedGet = lambda: self.TxWordClkFreqRaw.value()*1.0E-6))
+        
+
         self.add(pr.RemoteCommand(
             name = 'StartRun',
             offset = 0x00,
