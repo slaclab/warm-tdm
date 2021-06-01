@@ -704,11 +704,11 @@ begin
          PIPE_STAGES_G       => 0,
          SLAVE_READY_EN_G    => false,
          VALID_THOLD_G       => 1,
-         VALID_BURST_MODE_G  => true,
+         VALID_BURST_MODE_G  => false,
          SYNTH_MODE_G        => "inferred",
-         MEMORY_TYPE_G       => "block",
+         MEMORY_TYPE_G       => "distributed",
          GEN_SYNC_FIFO_G     => false,
-         FIFO_ADDR_WIDTH_G   => 9,
+         FIFO_ADDR_WIDTH_G   => 4,
          FIFO_FIXED_THRESH_G => true,
 --         FIFO_PAUSE_THRESH_G => 2**9-32,
          SLAVE_AXI_CONFIG_G  => AXIS_CONFIG_C,
@@ -724,6 +724,7 @@ begin
          mAxisMaster => dataRssiIbMasters(DEST_LOCAL_SRP_DATA_C),  -- [out]
          mAxisSlave  => dataRssiIbSlaves(DEST_LOCAL_SRP_DATA_C));  -- [in]
 
+   -- Could get rid of this fifo and just drop incomming data
    U_AxiStreamFifoV2_LOC_RX : entity surf.AxiStreamFifoV2
       generic map (
          TPD_G               => TPD_G,
@@ -733,9 +734,9 @@ begin
          VALID_THOLD_G       => 1,
          VALID_BURST_MODE_G  => false,
          SYNTH_MODE_G        => "inferred",
-         MEMORY_TYPE_G       => "block",
+         MEMORY_TYPE_G       => "distributed",
          GEN_SYNC_FIFO_G     => false,
-         FIFO_ADDR_WIDTH_G   => 9,
+         FIFO_ADDR_WIDTH_G   => 4,
          FIFO_FIXED_THRESH_G => true,
 --         FIFO_PAUSE_THRESH_G => 2**12-32,
          SLAVE_AXI_CONFIG_G  => AXIS_CONFIG_C,
@@ -845,9 +846,9 @@ begin
             VALID_THOLD_G       => 1,
             VALID_BURST_MODE_G  => false,
             SYNTH_MODE_G        => "inferred",
-            MEMORY_TYPE_G       => "block",
+            MEMORY_TYPE_G       => "distributed",
             GEN_SYNC_FIFO_G     => false,
-            FIFO_ADDR_WIDTH_G   => 9,
+            FIFO_ADDR_WIDTH_G   => 5,
             FIFO_FIXED_THRESH_G => true,
 --         FIFO_PAUSE_THRESH_G => 2**12-32,
             SLAVE_AXI_CONFIG_G  => AXIS_CONFIG_C,
@@ -871,9 +872,9 @@ begin
             VALID_THOLD_G       => 1,
             VALID_BURST_MODE_G  => false,
             SYNTH_MODE_G        => "inferred",
-            MEMORY_TYPE_G       => "block",
+            MEMORY_TYPE_G       => "distributed",
             GEN_SYNC_FIFO_G     => false,
-            FIFO_ADDR_WIDTH_G   => 9,
+            FIFO_ADDR_WIDTH_G   => 5,
             FIFO_FIXED_THRESH_G => true,
 --         FIFO_PAUSE_THRESH_G => 2**12-32,
             SLAVE_AXI_CONFIG_G  => AXIS_CONFIG_C,

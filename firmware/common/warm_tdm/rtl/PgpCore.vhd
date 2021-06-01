@@ -422,6 +422,7 @@ begin
          generic map (
             TPD_G               => TPD_G,
             ROGUE_SIM_EN_G      => SIMULATION_G,
+            FILTER_G            => true,
             INT_PIPE_STAGES_G   => 1,
             PIPE_STAGES_G       => 0,
             VALID_THOLD_G       => 500,
@@ -429,7 +430,7 @@ begin
             SYNTH_MODE_G        => "inferred",
             MEMORY_TYPE_G       => "block",
             GEN_SYNC_FIFO_G     => false,
-            FIFO_ADDR_WIDTH_G   => 10,
+            FIFO_ADDR_WIDTH_G   => 9,
             FIFO_PAUSE_THRESH_G => 256,
             PHY_AXI_CONFIG_G    => SSI_PGP2B_CONFIG_C,
             APP_AXI_CONFIG_G    => AXIS_CONFIG_C)
@@ -485,12 +486,12 @@ begin
             TPD_G              => TPD_G,
             INT_PIPE_STAGES_G  => 1,
             PIPE_STAGES_G      => 0,
-            VALID_THOLD_G      => 500,
+--            VALID_THOLD_G      => 500,
             VALID_BURST_MODE_G => true,
             SYNTH_MODE_G       => "inferred",
             MEMORY_TYPE_G      => "block",
             GEN_SYNC_FIFO_G    => false,
-            FIFO_ADDR_WIDTH_G  => 10,
+            FIFO_ADDR_WIDTH_G  => 9,
             APP_AXI_CONFIG_G   => AXIS_CONFIG_C,
             PHY_AXI_CONFIG_G   => SSI_PGP2B_CONFIG_C)
          port map (
