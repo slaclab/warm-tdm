@@ -269,8 +269,9 @@ begin
    U_SelectIoRxGearboxAligner_1 : entity surf.SelectIoRxGearboxAligner
       generic map (
          TPD_G        => TPD_G,
+         SIMULATION_G => SIMULATION_G,         
          CODE_TYPE_G  => "LINE_CODE",
-         SIMULATION_G => SIMULATION_G)
+         DLY_STEP_SIZE_G => 16)
       port map (
          clk             => wordClk,          -- [in]
          rst             => wordRst,          -- [in]
