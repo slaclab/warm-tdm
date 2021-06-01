@@ -454,6 +454,7 @@ begin
       v.timingRxData.rowStrobe   := '0';
       v.timingRxData.firstSample := '0';
       v.timingRxData.lastSample  := '0';
+      v.timingRxData.rawAdc      := '0';
 
       if (timingRxValid = '1' and timingRxDataK = '1' and locked = '1') then
          case timingRxData is
@@ -482,6 +483,8 @@ begin
             when SAMPLE_END_C =>
                v.timingRxData.sample     := '0';
                v.timingRxData.lastSample := '1';
+            when RAW_ADC_C =>
+               v.timingRxData.rawAdc := '1';
             when others => null;
          end case;
       end if;

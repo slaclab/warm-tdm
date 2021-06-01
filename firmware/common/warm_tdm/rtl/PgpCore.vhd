@@ -97,7 +97,7 @@ architecture rtl of PgpCore is
    signal pgpRxMasters : AxiStreamMasterArray(3 downto 0) := (others => axiStreamMasterInit(SSI_PGP2B_CONFIG_C));
    signal pgpRxSlaves  : AxiStreamSlaveArray(3 downto 0)  := (others => AXI_STREAM_SLAVE_INIT_C);
    signal pgpRxCtrl    : AxiStreamCtrlArray(3 downto 0)   := (others => AXI_STREAM_CTRL_UNUSED_C);
-   signal locData      : slv(7 downto 0);
+   signal locData      : slv(7 downto 0) := (others => '0');
 
    signal iAxiClk : sl;
    signal iAxiRst : sl;

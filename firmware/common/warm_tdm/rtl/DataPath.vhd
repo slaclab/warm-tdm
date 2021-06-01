@@ -71,33 +71,35 @@ architecture rtl of DataPath is
    constant INT_AXIS_CONFIG_C : AxiStreamConfigType := (
       TSTRB_EN_C    => false,
       TDATA_BYTES_C => 16,
-      TDEST_BITS_C  => 0,
+      TDEST_BITS_C  => 8,
       TID_BITS_C    => 0,
       TKEEP_MODE_C  => TKEEP_FIXED_C,
       TUSER_BITS_C  => 0,
       TUSER_MODE_C  => TUSER_NORMAL_C);
 
+   constant OUT_AXIS_CONFIG_C : AxiStreamConfigType := (
+      TSTRB_EN_C    => false,
+      TDATA_BYTES_C => 8,
+      TDEST_BITS_C  => 8,
+      TID_BITS_C    => 0,
+      TKEEP_MODE_C  => TKEEP_NORMAL_C,
+      TUSER_BITS_C  => 0,
+      TUSER_MODE_C  => TUSER_NORMAL_C);
+
+
    type RegType is record
-      firstSample : slv(7 downto 0);
-      lastSample  : slv(7 downto 0);
-      windowStart : slv7Array(7 downto 0);
-      windowEnd   : slv7Array(7 downto 0);
-      inWindow    : slv(7 downto 0);
-      average     : slv32Array(7 downto 0);
-      axisMaster  : AxiStreamMasterType;
+      doRawAdc     : sl;
+      rawAdcMaster : AxiStreamMasterType;
    end record RegType;
 
    constant REG_INIT_C : RegType := (
-      firstSample => (others => '0'),
-      lastSample  => (others => '0'),
-      windowStart => (others => toSlv(150, 7)),
-      windowEnd   => (others => toSlv(250, 7)),
-      inWindow    => (others => '0'),
-      average     => (others => (others => '0')),
-      axisMaster  => axiStreamMasterInit(INT_AXIS_CONFIG_C));
+      doRawAdc     => '0',
+      rawAdcMaster => axiStreamMasterInit(INT_AXIS_CONFIG_C));
 
    signal r   : RegType := REG_INIT_C;
    signal rin : RegType;
+
+   signal rawAdcCtrl : AxiStreamCtrlType;
 
    constant FILTER_COEFFICIENTS_C : IntegerArray(0 to 20)            := (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21);
    signal adcStreams              : AxiStreamMasterArray(7 downto 0) := (others => axiStreamMasterInit(AD9681_AXIS_CFG_G));
@@ -206,102 +208,75 @@ begin
 
    end generate;
 
---    comb : process (fifoAxisSlave, filteredAdcStreams, r, timingData, timingRst125) is
---       variable v       : RegType;
---       variable average : signed(31 downto 0);
---       variable sample  : signed(15 downto 0);
---       variable avgDiv  : signed(31 downto 0);
---    begin
---       v := r;
+   comb : process (adcStreams, r, rawAdcCtrl, timingRxData, timingRxRst125) is
+      variable v : RegType;
+   begin
+      v := r;
 
---       v.firstSample := (others => '0');
---       for i in 7 downto 0 loop
+      v.rawAdcMaster.tDest := "00001000";
 
---          -- Determine sample windows
---          if (timingData.rowTime = r.windowStart(i)) then
---             v.inWindow(i)    := '1';
---             v.firstSample(i) := '1';
---          elsif (timingData.rowTime = r.windowEnd(i)) then
---             v.inWindow(i)   := '0';
---             v.lastSample(i) := '1';
---          end if;
+      if (timingRxData.rawAdc = '1') then
+         v.doRawAdc := '1';
+      end if;
 
---          -- Leaky integrator
---          -- Prime the average with the value of the first sample
---          -- On subsequent samples
---          -- Subtract a small fraction of the current average
---          -- Add a small fraction of the current sample
---          if (filteredAdcStreams(i).tValid = '1' and r.inWindow(i) = '1') then
---             if (r.firstSample(i) = '1') then
---                v.average(i) := filteredAdcStreams(i).tData(15 downto 0) & X"0000";
---             else
---                average      := signed(r.average(i));
---                avgDiv       := shift_right(average, 7);
---                sample       := signed(filteredAdcStreams(i).tData(15 downto 0));
---                sample       := shift_left(sample, 16-7);
---                average      := average - avgDiv + sample;
---                v.average(i) := slv(average);
---             end if;
---          end if;
+      if (r.doRawAdc = '1') then
+         for i in 7 downto 0 loop
+            v.rawAdcMaster.tData(i*16+15 downto i*16) := adcStreams(i).tData(15 downto 0);
+         end loop;
+         v.rawAdcMaster.tValid := '1';
 
---       end loop;
+         if (rawAdcCtrl.pause = '1') then
+            v.rawAdcMaster.tLast := '1';
+         end if;
 
---       -- When all channels are done
---       -- Output a wide word
---       if (fifoAxisSlave.tReady = '1') then
---          v.axisMaster.tValid := '0';
---       end if;
+         if (r.rawAdcMaster.tLast = '1') then
+            v.doRawAdc            := '0';
+            v.rawAdcMaster.tValid := '0';
+            v.rawAdcMaster.tLast  := '0';
+         end if;
+      end if;
 
---       v.axisMaster.tLast := '0';
---       if (uAnd(r.lastSample) = '1' and v.axisMaster.tValid = '0') then
---          v.lastSample := (others => '0');
---          for i in 7 downto 0 loop
---             v.axisMaster.tData(i*16+15 downto i*16) := slv(r.average(i)(31 downto 16));
---             v.axisMaster.tValid                     := '1';
---             v.axisMaster.tLast                      := '1';
---          end loop;
---       end if;
+      if (timingRxRst125 = '1') then
+         v := REG_INIT_C;
+      end if;
 
---       if (timingRst125 = '1') then
---          v := REG_INIT_C;
---       end if;
+      rin <= v;
 
---       rin <= v;
+   end process;
 
---    end process comb;
+   seq : process (timingRxClk125) is
+   begin
+      if (rising_edge(timingRxClk125)) then
+         r <= rin after TPD_G;
+      end if;
+   end process seq;
 
---    seq : process (timingClk125) is
---    begin
---       if (rising_edge(timingClk125)) then
---          r <= rin after TPD_G;
---       end if;
---    end process seq;
-
---    U_AxiStreamFifoV2_1 : entity surf.AxiStreamFifoV2
---       generic map (
---          TPD_G               => TPD_G,
---          INT_PIPE_STAGES_G   => 1,
---          PIPE_STAGES_G       => 0,
---          SLAVE_READY_EN_G    => true,
---          GEN_SYNC_FIFO_G     => false,
--- --          FIFO_ADDR_WIDTH_G      => FIFO_ADDR_WIDTH_G,
--- --          FIFO_PAUSE_THRESH_G    => FIFO_PAUSE_THRESH_G,
--- --          SYNTH_MODE_G           => SYNTH_MODE_G,
--- --          MEMORY_TYPE_G          => MEMORY_TYPE_G,
--- --          INT_WIDTH_SELECT_G     => INT_WIDTH_SELECT_G,
--- --          INT_DATA_WIDTH_G       => INT_DATA_WIDTH_G,
---          SLAVE_AXI_CONFIG_G  => INT_AXIS_CONFIG_C,
---          MASTER_AXI_CONFIG_G => PACKETIZER2_AXIS_CFG_C)
---       port map (
---          sAxisClk    => timingClk125,   -- [in]
---          sAxisRst    => timingRst125,   -- [in]
---          sAxisMaster => r.axisMaster,   -- [in]
---          sAxisSlave  => fifoAxisSlave,  -- [out]
--- --         sAxisCtrl       => sAxisCtrl,        -- [out]
---          mAxisClk    => axisClk,        -- [in]
---          mAxisRst    => axisRst,        -- [in]
---          mAxisMaster => axisMaster,     -- [out]
---          mAxisSlave  => axisSlave);     -- [in]
+   U_AxiStreamFifoV2_1 : entity surf.AxiStreamFifoV2
+      generic map (
+         TPD_G               => TPD_G,
+         INT_PIPE_STAGES_G   => 1,
+         PIPE_STAGES_G       => 0,
+         VALID_THOLD_G       => 0,
+         SLAVE_READY_EN_G    => false,
+         GEN_SYNC_FIFO_G     => false,
+         FIFO_ADDR_WIDTH_G   => 10,
+         FIFO_PAUSE_THRESH_G => 2**10-8,
+--           SYNTH_MODE_G           => SYNTH_MODE_G,
+--           MEMORY_TYPE_G          => MEMORY_TYPE_G,
+--           INT_WIDTH_SELECT_G     => INT_WIDTH_SELECT_G,
+--           INT_DATA_WIDTH_G       => INT_DATA_WIDTH_G,
+         SLAVE_AXI_CONFIG_G  => INT_AXIS_CONFIG_C,
+         MASTER_AXI_CONFIG_G => OUT_AXIS_CONFIG_C)
+      port map (
+         sAxisClk    => timingRxClk125,  -- [in]
+         sAxisRst    => timingRxRst125,  -- [in]
+         sAxisMaster => r.rawAdcMaster,  -- [in]
+--       sAxisSlave  => fifoAxisSlave,  -- [out]
+         sAxisCtrl   => rawAdcCtrl,      -- [out]
+         mAxisClk    => axisClk,         -- [in]
+         mAxisRst    => axisRst,         -- [in]
+         mAxisMaster => axisMaster,      -- [out]
+         mAxisSlave  => axisSlave);      -- [in]
 
 
 end architecture rtl;

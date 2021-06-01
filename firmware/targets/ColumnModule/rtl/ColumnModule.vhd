@@ -254,7 +254,7 @@ architecture rtl of ColumnModule is
    signal dataTxAxisMaster : AxiStreamMasterType;
    signal dataTxAxisSlave  : AxiStreamSlaveType;
    signal dataRxAxisMaster : AxiStreamMasterType;
-   signal dataRxAxisSlave  : AxiStreamSlaveType;
+   signal dataRxAxisSlave  : AxiStreamSlaveType := AXI_STREAM_SLAVE_FORCE_C;
 
    -- Timing clocks and data
    signal timingRxClk125 : sl;

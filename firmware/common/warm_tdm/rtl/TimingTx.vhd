@@ -144,8 +144,11 @@ begin
       --------------------
       axiSlaveWaitTxn(axilEp, timingAxilWriteMaster, timingAxilReadMaster, v.axilWriteSlave, v.axilReadSlave);
 
+      -- Strobed signals
       v.timingData.startRun := '0';
       v.timingData.endRun   := '0';
+      v.timingData.rawAdc   := '0';
+
       -- Configuration
       axiSlaveRegister(axilEp, X"00", 0, v.timingData.startRun);
       axiSlaveRegister(axilEp, X"04", 0, v.timingData.endRun);
@@ -153,6 +156,8 @@ begin
       axiSlaveRegister(axilEp, X"0C", 0, v.numRows);
       axiSlaveRegister(axilEp, X"10", 0, v.sampleStartTime);
       axiSlaveRegister(axilEp, X"10", 16, v.sampleEndTime);
+
+      axiSlaveRegister(axilEp, X"20", 0, v.timingData.rawAdc);
 
       -- Status
       axiSlaveRegisterR(axilEp, X"30", 0, r.timingData.running);
@@ -175,6 +180,10 @@ begin
       -- Timing Gen
       ----------------------
       v.timingTx := IDLE_C;
+
+      if (r.timingData.rawAdc = '1') then
+         v.timingTx := RAW_ADC_C;
+      end if;
 
       -- Start run
       if (r.timingData.startRun = '1' and r.timingData.running = '0') then

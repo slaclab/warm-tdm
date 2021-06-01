@@ -125,10 +125,10 @@ architecture rtl of ComCore is
    signal ethDataTxAxisSlave  : AxiStreamSlaveType;
 
 
-   signal pgpDataRxAxisMaster : AxiStreamMasterType;
-   signal pgpDataRxAxisSlave  : AxiStreamSlaveType;
-   signal pgpDataTxAxisMaster : AxiStreamMasterType;
-   signal pgpDataTxAxisSlave  : AxiStreamSlaveType;
+   signal pgpDataRxAxisMaster : AxiStreamMasterType := AXI_STREAM_MASTER_INIT_C;
+   signal pgpDataRxAxisSlave  : AxiStreamSlaveType := AXI_STREAM_SLAVE_INIT_C;
+   signal pgpDataTxAxisMaster : AxiStreamMasterType := AXI_STREAM_MASTER_INIT_C;
+   signal pgpDataTxAxisSlave  : AxiStreamSlaveType := AXI_STREAM_SLAVE_INIT_C;
 
    signal refRst : sl;
 
@@ -259,6 +259,7 @@ begin
       ethDataRxAxisSlave  <= dataRxAxisSlave;
       ethDataTxAxisMaster <= dataTxAxisMaster;
       dataTxAxisSlave     <= ethDataTxAxisSlave;
+      pgpDataRxAxisSlave  <= AXI_STREAM_SLAVE_FORCE_C;
    end generate ADDR_0;
 
    NOT_ADDR_0 : if (not RING_ADDR_0_G) generate

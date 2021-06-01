@@ -62,6 +62,13 @@ class TimingTx(pr.Device):
             bitOffset = 0,
             bitSize = 1,
             function = pr.Command.toggle))
+
+        self.add(pr.RemoteCommand(
+            name = 'RawAdc',
+            offset = 0x20,
+            bitOffset = 0,
+            bitSize = 1,
+            function = pr.Command.touchOne))
         
 
         self.add(pr.RemoteVariable(

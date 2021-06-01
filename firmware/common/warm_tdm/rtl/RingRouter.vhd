@@ -69,6 +69,7 @@ architecture RingRouter of RingRouter is
    signal muxTxSlave  : AxiStreamSlaveType;
 
    signal appRxAxisMasterTmp : AxiStreamMasterType;
+   signal appTxAxisMasterTmp : AxiStreamMasterType;
 
    signal dumpMaster : AxiStreamMasterType;
    signal dumpSlave  : AxiStreamSlaveType := AXI_STREAM_SLAVE_FORCE_C;
@@ -105,7 +106,7 @@ begin
    -- All others are passthrough and are routed back out the PGP TX
    ----------------------------------------------------------------------------------------------
    dynDest <= "00000" & address;
-   dynDump <= "0" & address & "0000";         -- This catches frames that have cycled the loop without
+   dynDump <= "0" & address & "0000";   -- This catches frames that have cycled the loop without
    -- finding the intended destination address
 
    U_AxiStreamDeMux_1 : entity surf.AxiStreamDeMux
@@ -141,10 +142,18 @@ begin
       appRxAxisMaster <= v;
    end process SWAP_TDEST;
 
-
+   -- Outgoing data gets tagged with the source address
+   TAG_SRC : process (address, appTxAxisMaster) is
+      variable v : AxiStreamMasterType;
+   begin
+      v                   := appTxAxisMaster;
+      v.tdest(6 downto 4) := address;
+      appTxAxisMasterTmp  <= v;
+   end process TAG_SRC;
 
    ----------------------------------------------------------------------------------------------
    -- Multiplex the local TX frames with the passthrough frames
+   -- Passthrough data needs priority because incomming data cannot backpressure
    ----------------------------------------------------------------------------------------------
    U_AxiStreamMux_1 : entity surf.AxiStreamMux
       generic map (
@@ -155,19 +164,20 @@ begin
          TID_MODE_G           => "PASSTHROUGH",
          ILEAVE_EN_G          => true,
          ILEAVE_ON_NOTVALID_G => true,
-         ILEAVE_REARB_G       => 31,            -- Check this
+         ILEAVE_REARB_G       => 31,                   -- Check this
          REARB_DELAY_G        => true,
-         FORCED_REARB_HOLD_G  => false)         -- Check this
+         FORCED_REARB_HOLD_G  => false)                -- Check this
       port map (
-         axisClk         => axisClk,            -- [in]
-         axisRst         => axisRst,            -- [in]
---         rearbitrate     => rearbitrate,              -- [in]
-         sAxisMasters(0) => appTxAxisMaster,    -- [in]
-         sAxisMasters(1) => passthroughMaster,  -- [in]
-         sAxisSlaves(0)  => appTxAxisSlave,     -- [out]
-         sAxisSlaves(1)  => passthroughSlave,   -- [out]            
-         mAxisMaster     => muxTxMaster,        -- [out]
-         mAxisSlave      => muxTxSlave);        -- [in]
+         axisClk         => axisClk,                   -- [in]
+         axisRst         => axisRst,                   -- [in]
+         disableSel(0)   => passthroughMaster.tValid,  -- [in]
+         disableSel(1)   => '0',                       -- [in]
+         sAxisMasters(0) => appTxAxisMasterTmp,        -- [in]
+         sAxisMasters(1) => passthroughMaster,         -- [in]
+         sAxisSlaves(0)  => appTxAxisSlave,            -- [out]
+         sAxisSlaves(1)  => passthroughSlave,          -- [out]            
+         mAxisMaster     => muxTxMaster,               -- [out]
+         mAxisSlave      => muxTxSlave);               -- [in]
 
    ----------------------------------------------------------------------------------------------
    -- Packetize the multiplexed frames

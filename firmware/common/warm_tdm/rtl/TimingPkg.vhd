@@ -38,6 +38,7 @@ package TimingPkg is
    constant ROW_STROBE_C   : slv(7 downto 0) := "01111100";  -- K28.3
    constant SAMPLE_START_C : slv(7 downto 0) := "10011100";  -- K28.4
    constant SAMPLE_END_C   : slv(7 downto 0) := "11011100";  -- K28.6
+   constant RAW_ADC_C      : slv(7 downto 0) := "11111110";  -- K30.7
 
    type LocalTimingType is record
       startRun     : sl;                -- Strobed at start of run
@@ -51,6 +52,7 @@ package TimingPkg is
       rowNum       : slv(15 downto 0);  -- Current row number
       rowTime      : slv(15 downto 0);  -- timingClk counts since last row strobe
       readoutCount : slv(63 downto 0);  -- Number of full loops through all rows
+      rawAdc       : sl;
    end record LocalTimingType;
 
    constant LOCAL_TIMING_INIT_C : LocalTimingType := (
@@ -64,6 +66,7 @@ package TimingPkg is
       lastSample   => '0',
       rowNum       => (others => '0'),
       rowTime      => (others => '0'),
-      readoutCount => (others => '0'));
+      readoutCount => (others => '0'),
+      rawAdc       => '0');
 
 end package TimingPkg;
