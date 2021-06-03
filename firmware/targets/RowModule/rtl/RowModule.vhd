@@ -44,8 +44,8 @@ entity RowModule is
       RING_ADDR_0_G           : boolean          := false;
       ETH_10G_G               : boolean          := false;
       DHCP_G                  : boolean          := false;  
-      IP_ADDR_G               : slv(31 downto 0) := x"0C02A8C0";  -- 192.168.2.12 
-      MAC_ADDR_G              : slv(47 downto 0) := x"01_00_16_56_00_08");
+      IP_ADDR_G               : slv(31 downto 0) := x"0C03A8C0";  -- 192.168.3.12 
+      MAC_ADDR_G              : slv(47 downto 0) := x"0C_00_16_56_00_08");
    port (
       -- Clocks
       gtRefClk0P : in sl;
