@@ -544,6 +544,7 @@ begin
    U_DataPath_1 : entity warm_tdm.DataPath
       generic map (
          TPD_G            => TPD_G,
+         SIMULATION_G     => SIMULATION_G,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_DATA_PATH_C).baseAddr,
          IODELAY_GROUP_G  => "IODELAY0")
       port map (

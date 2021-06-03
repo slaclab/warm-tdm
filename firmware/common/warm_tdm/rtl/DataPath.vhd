@@ -36,6 +36,7 @@ entity DataPath is
 
    generic (
       TPD_G            : time             := 1 ns;
+      SIMULATION_G     : boolean          := false;
       AXIL_BASE_ADDR_G : slv(31 downto 0) := (others => '0');
       IODELAY_GROUP_G  : string           := "DEFAULT_GROUP");
 
@@ -149,6 +150,7 @@ begin
    U_Ad9681Readout_1 : entity surf.Ad9681Readout
       generic map (
          TPD_G           => TPD_G,
+         SIMULATION_G    => SIMULATION_G,
          IODELAY_GROUP_G => IODELAY_GROUP_G)
 --         IDELAYCTRL_FREQ_G => 200.0,
 --         DEFAULT_DELAY_G   => DEFAULT_DELAY_G
