@@ -46,9 +46,8 @@ entity Timing is
 
    port (
       -- Reference clock
-      timingRefClkP   : in  sl;
-      timingRefClkN   : in  sl;
-      timingRefClkOut : out sl;
+      timingGtRefClk  : in sl;
+      timingFabRefClk : in sl;
 
       -- RX Timing Serial Interface
       timingRxClkP  : in sl;
@@ -84,9 +83,7 @@ end entity Timing;
 
 architecture rtl of Timing is
 
-   signal timingRefClk  : sl;
-   signal timingRefClkG : sl;
-   signal timingRefRst  : sl;
+   signal timingRefRst : sl;
 
    signal idelayClk : sl;
    signal idelayRst : sl;
@@ -105,32 +102,13 @@ architecture rtl of Timing is
 
 begin
 
-
-
-   -------------------------------------------------------------------------------------------------
-   -- USE Timing Refclk to create 125 MHz Timing TX clock and 200 MHz IDELAYCTRL clock
-   -------------------------------------------------------------------------------------------------
-   U_IBUFDS_GTE2 : IBUFDS_GTE2
-      port map (
-         I     => timingRefClkP,
-         IB    => timingRefClkN,
-         CEB   => '0',
-         ODIV2 => open,
-         O     => timingRefClk);
-
-   U_BUFG : BUFG
-      port map (
-         I => timingRefClk,
-         O => timingRefClkG);
-
    U_PwrUpRst : entity surf.PwrUpRst
       generic map (
          TPD_G         => TPD_G,
          SIM_SPEEDUP_G => SIMULATION_G)
       port map (
-         clk    => timingRefClkG,
+         clk    => timingFabRefClk,
          rstOut => timingRefRst);
-
 
    U_MMCM_IDELAY : entity surf.ClockManager7
       generic map(
@@ -147,15 +125,13 @@ begin
          CLKFBOUT_MULT_F_G  => 4.0,     -- 1.0GHz =  250 MHz x 4
          CLKOUT0_DIVIDE_F_G => 5.0)     --  = 200 MHz = 1.0GHz/5
       port map(
-         clkIn     => timingRefClkG,
+         clkIn     => timingFabRefClk,
          rstIn     => '0',
          clkOut(0) => idelayClk,
 --         clkOut(1) => idelayClk,
 --         rstOut(0) => timingRst125,
          rstOut(0) => idelayRst,
          locked    => open);
-
-   timingRefClkOut <= timingRefClkG;
 
    -------------
    -- IDELAYCTRL
@@ -229,7 +205,7 @@ begin
          RING_ADDR_0_G   => RING_ADDR_0_G,
          AXIL_CLK_FREQ_G => AXIL_CLK_FREQ_G)
       port map (
-         timingRefClk    => timingRefClkG,           -- [in]
+         timingRefClk    => timingFabRefClk,         -- [in]
          timingRefRst    => timingRefRst,            -- [in]
          xbarDataSel     => xbarDataSel,             -- [out]
          xbarClkSel      => xbarClkSel,              --[out]

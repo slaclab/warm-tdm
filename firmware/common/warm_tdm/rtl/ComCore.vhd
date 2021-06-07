@@ -43,6 +43,7 @@ entity ComCore is
       SIM_PGP_PORT_NUM_G      : integer          := 7000;
       SIM_ETH_SRP_PORT_NUM_G  : integer          := 8000;
       SIM_ETH_DATA_PORT_NUM_G : integer          := 9000;
+      REF_CLK_FREQ_G          : real             := 250.0e+6;
       RING_ADDR_0_G           : boolean          := false;
       AXIL_BASE_ADDR_G        : slv(31 downto 0) := X"00000000";
       ETH_10G_G               : boolean          := true;
@@ -50,9 +51,8 @@ entity ComCore is
       IP_ADDR_G               : slv(31 downto 0) := X"0A01A8C0";  -- 192.168.1.10 (before DHCP)
       MAC_ADDR_G              : slv(47 downto 0) := x"00_00_16_56_00_08");
    port (
-      gtRefClkP       : in  sl;
-      gtRefClkN       : in  sl;
-      gtRefClkDiv2Out : out sl;
+      gtRefClk  : in sl;
+      fabRefClk : in sl;
 
       -- PGP IO
       pgpTxP : out slv(1 downto 0);
@@ -97,10 +97,6 @@ architecture rtl of ComCore is
    constant AXIL_PGP_C : integer := 0;
    constant AXIL_ETH_C : integer := 1;
 
-   signal gtRefClk      : sl;
-   signal gtRefClkDiv2  : sl;
-   signal gtRefClkDiv2G : sl;
-
    signal axilClk : sl;
    signal axilRst : sl;
 
@@ -126,9 +122,9 @@ architecture rtl of ComCore is
 
 
    signal pgpDataRxAxisMaster : AxiStreamMasterType := AXI_STREAM_MASTER_INIT_C;
-   signal pgpDataRxAxisSlave  : AxiStreamSlaveType := AXI_STREAM_SLAVE_INIT_C;
+   signal pgpDataRxAxisSlave  : AxiStreamSlaveType  := AXI_STREAM_SLAVE_INIT_C;
    signal pgpDataTxAxisMaster : AxiStreamMasterType := AXI_STREAM_MASTER_INIT_C;
-   signal pgpDataTxAxisSlave  : AxiStreamSlaveType := AXI_STREAM_SLAVE_INIT_C;
+   signal pgpDataTxAxisSlave  : AxiStreamSlaveType  := AXI_STREAM_SLAVE_INIT_C;
 
    signal refRst : sl;
 
@@ -141,19 +137,19 @@ begin
    ------------------
    -- Reference Clock
    ------------------
-   U_IBUFDS_GTE2 : IBUFDS_GTE2
-      port map (
-         I     => gtRefClkP,
-         IB    => gtRefClkN,
-         CEB   => '0',
-         ODIV2 => gtRefClkDiv2,
-         O     => gtRefClk);
+--    U_IBUFDS_GTE2 : IBUFDS_GTE2
+--       port map (
+--          I     => gtRefClkP,
+--          IB    => gtRefClkN,
+--          CEB   => '0',
+--          ODIV2 => gtRefClkDiv2,
+--          O     => gtRefClk);
 
-   U_BUFG : BUFG
-      port map (
-         I => gtRefClkDiv2,
-         O => gtRefClkDiv2G);
-   gtRefClkDiv2Out <= gtRefClkDiv2G;
+--    U_BUFG : BUFG
+--       port map (
+--          I => gtRefClkDiv2,
+--          O => gtRefClkDiv2G);
+--    gtRefClkDiv2Out <= gtRefClkDiv2G;
 
    -----------------
    -- Power Up Reset
@@ -163,7 +159,7 @@ begin
          TPD_G         => TPD_G,
          SIM_SPEEDUP_G => SIMULATION_G)
       port map (
-         clk    => gtRefClkDiv2G,
+         clk    => fabRefClk,
          rstOut => refRst);
 
    -----------------
@@ -174,12 +170,13 @@ begin
          TPD_G            => TPD_G,
          SIMULATION_G     => SIMULATION_G,
          SIM_PORT_NUM_G   => SIM_PGP_PORT_NUM_G,
+         REF_CLK_FREQ_G   => REF_CLK_FREQ_G,
          RING_ADDR_0_G    => RING_ADDR_0_G,
          AXIL_BASE_ADDR_G => AXIL_BASE_ADDR_G)
       port map (
          refRst           => refRst,                            -- [in]
          gtRefClk         => gtRefClk,                          -- [in]
-         gtRefClkG        => gtRefClkDiv2G,                     -- [in]
+         fabRefClk        => fabRefClk,                         -- [in]
          pgpTxP           => pgpTxP,                            -- [out]
          pgpTxN           => pgpTxN,                            -- [out]
          pgpRxP           => pgpRxP,                            -- [in]
@@ -221,8 +218,8 @@ begin
          MAC_ADDR_G          => MAC_ADDR_G)
       port map (
          extRst                => '0',                               -- [in]
-         refClk                => gtRefClkDiv2,                      -- [in]
-         refClkG               => gtRefClkDiv2G,                     -- [in]
+         gtRefClk              => gtRefClk,                          -- [in]
+         fabRefClk             => fabRefClk,                         -- [in]
          gtRxP                 => ethRxP,                            -- [in]
          gtRxN                 => ethRxN,                            -- [in]
          gtTxP                 => ethTxP,                            -- [out]

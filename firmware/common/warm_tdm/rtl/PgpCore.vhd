@@ -38,6 +38,7 @@ entity PgpCore is
       TPD_G            : time             := 1 ns;
       SIMULATION_G     : boolean          := false;
       SIM_PORT_NUM_G   : integer          := 7000;
+      REF_CLK_FREQ_G   : real             := 250.0E+6;
       RING_ADDR_0_G    : boolean          := false;
       AXIL_BASE_ADDR_G : slv(31 downto 0) := X"00000000");
 
@@ -45,7 +46,7 @@ entity PgpCore is
       -- GT Ports and clock
       refRst    : in  sl;
       gtRefClk  : in  sl;
-      gtRefClkG : in  sl;
+      fabRefClk : in  sl;
       pgpTxP    : out slv(1 downto 0);
       pgpTxN    : out slv(1 downto 0);
       pgpRxP    : in  slv(1 downto 0);
@@ -83,7 +84,7 @@ architecture rtl of PgpCore is
 
    signal address : slv(2 downto 0) := "111";
 
-   constant GTX_CFG_C : Gtx7CPllCfgType := getGtx7CPllCfg(312.5E6, 1.25E9);
+   constant GTX_CFG_C : Gtx7CPllCfgType := getGtx7CPllCfg(REF_CLK_FREQ_G, 1.25E9);
 
    signal pgpClk       : sl;
    signal pgpRst       : sl;
@@ -97,7 +98,7 @@ architecture rtl of PgpCore is
    signal pgpRxMasters : AxiStreamMasterArray(3 downto 0) := (others => axiStreamMasterInit(SSI_PGP2B_CONFIG_C));
    signal pgpRxSlaves  : AxiStreamSlaveArray(3 downto 0)  := (others => AXI_STREAM_SLAVE_INIT_C);
    signal pgpRxCtrl    : AxiStreamCtrlArray(3 downto 0)   := (others => AXI_STREAM_CTRL_UNUSED_C);
-   signal locData      : slv(7 downto 0) := (others => '0');
+   signal locData      : slv(7 downto 0)                  := (others => '0');
 
    signal iAxiClk : sl;
    signal iAxiRst : sl;
@@ -164,13 +165,13 @@ begin
          NUM_CLOCKS_G       => 2,
          -- MMCM attributes
          BANDWIDTH_G        => "OPTIMIZED",
-         CLKIN_PERIOD_G     => 6.4,
-         DIVCLK_DIVIDE_G    => 5,
-         CLKFBOUT_MULT_F_G  => 32.0,
+         CLKIN_PERIOD_G     => 4.0,
+         DIVCLK_DIVIDE_G    => 1,
+         CLKFBOUT_MULT_F_G  => 4.0,
          CLKOUT0_DIVIDE_F_G => 8.0,
          CLKOUT1_DIVIDE_G   => 16)
       port map(
-         clkIn     => gtRefClkG,
+         clkIn     => fabRefClk,
          rstIn     => refRst,
          clkOut(0) => iAxiClk,
          clkOut(1) => pgpClk,
@@ -209,7 +210,7 @@ begin
             NUM_VC_EN_G       => 4)
          port map (
             -- GT Clocking
-            stableClk        => gtRefClkG,
+            stableClk        => fabRefClk,
             gtCPllRefClk     => gtRefClk,
             gtCPllLock       => open,
             gtQPllRefClk     => '0',
@@ -285,7 +286,7 @@ begin
             NUM_VC_EN_G           => 1)
          port map (
             -- GT Clocking
-            stableClk        => gtRefClkG,
+            stableClk        => fabRefClk,
             gtCPllRefClk     => gtRefClk,
             gtCPllLock       => open,
             gtQPllRefClk     => '0',

@@ -43,7 +43,7 @@ entity RowModule is
       BUILD_INFO_G            : BuildInfoType;
       RING_ADDR_0_G           : boolean          := false;
       ETH_10G_G               : boolean          := false;
-      DHCP_G                  : boolean          := false;  
+      DHCP_G                  : boolean          := false;
       IP_ADDR_G               : slv(31 downto 0) := x"0C03A8C0";  -- 192.168.3.12 
       MAC_ADDR_G              : slv(47 downto 0) := x"0C_00_16_56_00_08");
    port (
@@ -195,10 +195,13 @@ architecture rtl of RowModule is
    signal dataRxAxisSlave  : AxiStreamSlaveType;
 
    -- Debug clocks
-   signal gtRefClk0Div2 : sl;
-   signal gtRefClk1     : sl;
-   signal rssiStatus    : slv7Array(1 downto 0);
-   signal ethPhyReady   : sl;
+   signal fabRefClk0 : sl;
+   signal fabRefClk1 : sl;
+   signal gtRefClk0  : sl;
+   signal gtRefClk1  : sl;
+
+   signal rssiStatus  : slv7Array(1 downto 0);
+   signal ethPhyReady : sl;
 
 
 begin
@@ -209,16 +212,16 @@ begin
          PERIOD_IN_G  => 6.4E-9,
          PERIOD_OUT_G => 0.64)
       port map (
-         clk => gtRefClk0Div2,
+         clk => fabRefClk0,
          o   => leds(0));
 
    Heartbeat_gtRefClk1 : entity surf.Heartbeat
       generic map (
          TPD_G        => TPD_G,
-         PERIOD_IN_G  => 8.0E-9,
-         PERIOD_OUT_G => 0.8)
+         PERIOD_IN_G  => 4.0E-9,
+         PERIOD_OUT_G => 0.4)
       port map (
-         clk => gtRefClk1,
+         clk => fabRefClk1,
          o   => leds(1));
 
    Heartbeat_axilClk : entity surf.Heartbeat
@@ -243,7 +246,23 @@ begin
    leds(5) <= rssiStatus(1)(0);
    leds(6) <= ethPhyReady;
 
-
+   -------------------------------------------------------------------------------------------------
+   -- Clock buffers
+   -------------------------------------------------------------------------------------------------
+   U_ClockDist_1 : entity warm_tdm.ClockDist
+      generic map (
+         TPD_G        => TPD_G,
+         CLK_0_DIV2_G => true,
+         CLK_1_DIV2_G => false)
+      port map (
+         gtRefClk0P => gtRefClk0P,      -- [in]
+         gtRefClk0N => gtRefClk0N,      -- [in]
+         gtRefClk0  => gtRefClk0,       -- [out]
+         fabRefClk0 => fabRefClk0,      -- [out]
+         gtRefClk1P => gtRefClk1P,      -- [in]
+         gtRefClk1N => gtRefClk1N,      -- [in]
+         gtRefClk1  => gtRefClk1,       -- [out]
+         fabRefClk1 => fabRefClk1);     -- [out]
 
    -------------------------------------------------------------------------------------------------
    -- Timing Interface
@@ -258,9 +277,8 @@ begin
          IODELAY_GROUP_G   => "IODELAY0",
          IDELAYCTRL_FREQ_G => 200.0)
       port map (
-         timingRefClkP   => gtRefClk1P,                          -- [in]
-         timingRefClkN   => gtRefClk1N,                          -- [in]
-         timingRefClkOut => gtRefClk1,                           -- [out]
+         timingGtRefClk  => gtRefClk1,                           -- [in]
+         timingFabRefClk => fabRefClk1,                          -- [in]
          timingRxClkP    => timingRxClkP,                        -- [in]
          timingRxClkN    => timingRxClkN,                        -- [in]
          timingRxDataP   => timingRxDataP,                       -- [in]
@@ -292,6 +310,7 @@ begin
          SIM_PGP_PORT_NUM_G      => SIM_PGP_PORT_NUM_G,
          SIM_ETH_SRP_PORT_NUM_G  => SIM_ETH_SRP_PORT_NUM_G,
          SIM_ETH_DATA_PORT_NUM_G => SIM_ETH_DATA_PORT_NUM_G,
+         REF_CLK_FREQ_G          => 250.0E6,
          RING_ADDR_0_G           => RING_ADDR_0_G,
          AXIL_BASE_ADDR_G        => AXIL_XBAR_CFG_C(AXIL_COM_C).baseAddr,
          ETH_10G_G               => ETH_10G_G,
@@ -299,9 +318,8 @@ begin
          IP_ADDR_G               => IP_ADDR_G,
          MAC_ADDR_G              => MAC_ADDR_G)
       port map (
-         gtRefClkP        => gtRefClk0P,                       -- [in]
-         gtRefClkN        => gtRefClk0N,                       -- [in]
-         gtRefClkDiv2Out  => gtRefClk0Div2,                    -- [out]
+         gtRefClk         => gtRefClk1,                        -- [in]
+         fabRefClk        => fabRefClk1,                       -- [in]
          pgpTxP           => pgpTxP,                           -- [out]
          pgpTxN           => pgpTxN,                           -- [out]
          pgpRxP           => pgpRxP,                           -- [in]

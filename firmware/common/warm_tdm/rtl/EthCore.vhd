@@ -47,8 +47,8 @@ entity EthCore is
    port (
       extRst                : in  sl                    := '0';
       -- GT ports and clock
-      refClk                : in  sl;                         -- GT Ref Clock 156.25 MHz
-      refClkG               : in  sl;
+      gtRefClk              : in  sl;                         -- GT Ref Clock 156.25 MHz
+      fabRefClk             : in  sl;
       gtRxP                 : in  sl;
       gtRxN                 : in  sl;
       gtTxP                 : out sl;
@@ -260,7 +260,7 @@ begin
                TPD_G => TPD_G)
             port map (
                arst   => extRst,
-               clk    => refClkG,
+               clk    => fabRefClk,
                rstOut => refRst);
 
          ----------------
@@ -276,13 +276,13 @@ begin
                NUM_CLOCKS_G       => 2,
                -- MMCM attributes
                BANDWIDTH_G        => "OPTIMIZED",
-               CLKIN_PERIOD_G     => 6.4,   -- 156.25 MHz
-               DIVCLK_DIVIDE_G    => 5,     -- 31.25 MHz = 156.25 MHz/5
-               CLKFBOUT_MULT_F_G  => 32.0,  -- 1.0GHz = 32 x 31.25 MHz
+               CLKIN_PERIOD_G     => 4.0,   -- 250 MHz
+               DIVCLK_DIVIDE_G    => 1,     -- 250 MHz = 156.25 MHz/5
+               CLKFBOUT_MULT_F_G  => 4.0,   -- 1.0GHz = 250 MHz * 4
                CLKOUT0_DIVIDE_F_G => 8.0,   -- 125 MHz = 1.0GHz/8
                CLKOUT1_DIVIDE_G   => 16)    -- 62.5 MHz = 1.0GHz/16
             port map(
-               clkIn     => refClkG,
+               clkIn     => fabRefClk,
                rstIn     => refRst,
                clkOut(0) => ethClk,
                clkOut(1) => ethClkDiv2,
@@ -331,7 +331,7 @@ begin
       end generate GIG_ETH_GEN;
 
       TEN_GIG_ETH_GEN : if (ETH_10G_G) generate
-         ethClk <= refClkG;
+         ethClk <= fabRefClk;
 
          PwrUpRst_Inst : entity surf.PwrUpRst
             generic map (
@@ -352,7 +352,7 @@ begin
                QPLL_FBDIV_RATIO_G  => '0',           -- 64B/66B Encoding
                QPLL_REFCLK_DIV_G   => 1)
             port map (
-               qPllRefClk     => refClk,             -- 156.25 MHz
+               qPllRefClk     => gtRefClk,           -- 156.25 MHz
                qPllOutClk     => qPllOutClk,
                qPllOutRefClk  => qPllOutRefClk,
                qPllLock       => qPllLock,
@@ -538,7 +538,7 @@ begin
    end generate REAL_ETH_GEN;
 
    SIM_GEN : if (SIMULATION_G and RING_ADDR_0_G) generate
-      ethClk <= refClkG;
+      ethClk <= fabRefClk;
 
       PwrUpRst_Inst : entity surf.PwrUpRst
          generic map (
