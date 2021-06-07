@@ -67,28 +67,28 @@ CONFIGS = {
     'hw': {
         'stack': {
             'pollEn': False,
-            'host': '192.168.2.11',
+            'host': '192.168.3.11',
             'srpPort': 8192,
             'dataPort': 8193,
             'simPorts': None,
             'stack': NORMAL_STACK},
         'dual': {
             'pollEn': False,
-            'host': '192.168.2.11',
+            'host': '192.168.3.11',
             'srpPort': 8192,
             'dataPort': 8193,
             'simPorts': None,
             'stack': DUAL_STACK},
         'row': {
             'pollEn': False,                        
-            'host': '192.168.2.12',
+            'host': '192.168.3.12',
             'srpPort': 8192,
             'dataPort': 8193,
             'simPorts': None,
             'stack': [{'cls': warm_tdm.RowModule, 'name': 'RowModule[0]'}]},
         'col': {
             'pollEn': False,                        
-            'host': '192.168.2.11',            
+            'host': '192.168.3.11',            
             'srpPort': 8192,
             'dataPort': 8193,
             'simPorts': None,
@@ -111,7 +111,7 @@ class StreamDebug(rogue.interfaces.stream.Slave):
 class WarmTdmRoot(pyrogue.Root):
     def __init__(
             self,
-            host='192.168.2.10',
+            host='192.168.3.11',
             srpPort=8192,
             dataPort=8193,
             simPorts=None,
@@ -131,7 +131,7 @@ class WarmTdmRoot(pyrogue.Root):
             srpUdp = pyrogue.protocols.UdpRssiPack(host=host, port=srpPort, packVer=2)
             dataUdp = pyrogue.protocols.UdpRssiPack(host=host, port=dataPort, packVer=2)            
             self.add(srpUdp)
-            self.add(dataUdp)                        
+#            self.add(dataUdp)                        
             self.addInterface(srpUdp, dataUdp)
                 
         # Instantiate and link each board in the stack
