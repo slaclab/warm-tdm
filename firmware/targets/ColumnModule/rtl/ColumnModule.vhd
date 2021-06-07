@@ -379,7 +379,7 @@ begin
          SIM_PGP_PORT_NUM_G      => SIM_PGP_PORT_NUM_G,
          SIM_ETH_SRP_PORT_NUM_G  => SIM_ETH_SRP_PORT_NUM_G,
          SIM_ETH_DATA_PORT_NUM_G => SIM_ETH_DATA_PORT_NUM_G,
-         REF_CLK_FREQ_G          => 125.0E6,
+         REF_CLK_FREQ_G          => 250.0E6,
          RING_ADDR_0_G           => RING_ADDR_0_G,
          AXIL_BASE_ADDR_G        => AXIL_XBAR_CFG_C(AXIL_COM_C).baseAddr,
          ETH_10G_G               => ETH_10G_G,
