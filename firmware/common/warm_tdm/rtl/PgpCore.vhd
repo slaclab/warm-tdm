@@ -165,9 +165,9 @@ begin
          NUM_CLOCKS_G       => 2,
          -- MMCM attributes
          BANDWIDTH_G        => "OPTIMIZED",
-         CLKIN_PERIOD_G     => 4.0,
+         CLKIN_PERIOD_G     => 8.0,
          DIVCLK_DIVIDE_G    => 1,
-         CLKFBOUT_MULT_F_G  => 4.0,
+         CLKFBOUT_MULT_F_G  => 8.0,
          CLKOUT0_DIVIDE_F_G => 8.0,
          CLKOUT1_DIVIDE_G   => 16)
       port map(

@@ -276,9 +276,9 @@ begin
                NUM_CLOCKS_G       => 2,
                -- MMCM attributes
                BANDWIDTH_G        => "OPTIMIZED",
-               CLKIN_PERIOD_G     => 4.0,   -- 250 MHz
+               CLKIN_PERIOD_G     => 8.0,   -- 250 MHz
                DIVCLK_DIVIDE_G    => 1,     -- 250 MHz = 156.25 MHz/5
-               CLKFBOUT_MULT_F_G  => 4.0,   -- 1.0GHz = 250 MHz * 4
+               CLKFBOUT_MULT_F_G  => 8.0,   -- 1.0GHz = 250 MHz * 4
                CLKOUT0_DIVIDE_F_G => 8.0,   -- 125 MHz = 1.0GHz/8
                CLKOUT1_DIVIDE_G   => 16)    -- 62.5 MHz = 1.0GHz/16
             port map(

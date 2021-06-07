@@ -120,9 +120,9 @@ begin
          NUM_CLOCKS_G       => 1,
          -- MMCM attributes
          BANDWIDTH_G        => "OPTIMIZED",
-         CLKIN_PERIOD_G     => 4.0,     -- 250 MHz
-         DIVCLK_DIVIDE_G    => 1,       -- 250 MHz
-         CLKFBOUT_MULT_F_G  => 4.0,     -- 1.0GHz =  250 MHz x 4
+         CLKIN_PERIOD_G     => 8.0,     -- 125 MHz
+         DIVCLK_DIVIDE_G    => 1,       -- 125 MHz
+         CLKFBOUT_MULT_F_G  => 8.0,     -- 1.0GHz =  125 MHz x 8
          CLKOUT0_DIVIDE_F_G => 5.0)     --  = 200 MHz = 1.0GHz/5
       port map(
          clkIn     => timingFabRefClk,

@@ -281,9 +281,9 @@ begin
          OUTPUT_BUFG_G    => true,
          NUM_CLOCKS_G     => 2,
          BANDWIDTH_G      => "HIGH",
-         CLKIN_PERIOD_G   => 4.0,
+         CLKIN_PERIOD_G   => 8.0,
          DIVCLK_DIVIDE_G  => 1,
-         CLKFBOUT_MULT_G  => 5,
+         CLKFBOUT_MULT_G  => 10,
          CLKOUT0_DIVIDE_G => 2,
          CLKOUT1_DIVIDE_G => 10)
       port map (
