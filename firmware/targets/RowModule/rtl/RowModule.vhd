@@ -110,7 +110,7 @@ entity RowModule is
       conTxGreenLed  : out sl              := '1';
       conTxYellowLed : out sl              := '1';
 
-      oscOe : out slv(1 downto 0) := "11";
+      oscOe : out slv(1 downto 0) := "ZZ";
 
       -- XADC
       vAuxP : in slv(3 downto 0);
