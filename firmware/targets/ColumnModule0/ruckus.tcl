@@ -30,7 +30,7 @@ loadConstraints -dir  "$::DIR_PATH/../ColumnModule/xdc/"
 
 set_property top {ColumnModule} [get_filesets {sources_1}]
 set sysGeneric [get_property generic -object [current_fileset]]
-set testGeneric "${sysGeneric}, RING_ADDR_G=true"
+set testGeneric "${sysGeneric}, RING_ADDR_0_G=true"
 set_property generic ${testGeneric} -object [current_fileset]
 
 

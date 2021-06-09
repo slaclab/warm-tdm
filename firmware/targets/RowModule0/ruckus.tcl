@@ -14,10 +14,6 @@
 # Load RUCKUS environment and library
 source -quiet $::env(RUCKUS_DIR)/vivado_proc.tcl
 
-set_property top {RowModule} [get_filesets {sources_1}]
-set sysGeneric [get_property generic -object [current_fileset]]
-set testGeneric "${sysGeneric}, RING_ADDR_G=true"
-set_property generic ${testGeneric} -object [current_fileset]
 
 # Load submodules' code and constraints
 loadRuckusTcl $::env(TOP_DIR)/submodules/surf
@@ -31,6 +27,10 @@ loadSource      -lib warm_tdm -dir  "$::DIR_PATH/../RowModule/rtl/"
 loadSource      -lib warm_tdm -sim_only -dir "$::DIR_PATH/../RowModule/sim/"
 loadConstraints -dir  "$::DIR_PATH/../RowModule/xdc/"
 
+set_property top {RowModule} [get_filesets {sources_1}]
+set sysGeneric [get_property generic -object [current_fileset]]
+set testGeneric "${sysGeneric}, RING_ADDR_0_G=true"
+set_property generic ${testGeneric} -object [current_fileset]
 
 
 
