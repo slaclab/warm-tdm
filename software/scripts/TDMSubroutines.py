@@ -84,48 +84,59 @@ def initialize(): #INIT? didn't want to use "init"
 		root.group[?].superconducting.set(False) # or "Off"?
 
 	#Turn on FLL logic
-def saFluxBias():
-	for bias in : #some set of SA BIAS values
-		saFlux()
 
-def saFlux():
 
-	### will use something like this (in a loop?)
-	root.group[?].SA_OFFSET.get()
-	###
-	return SA_OFFSET result
 
-def saTune():
-	saFluxBiasResults = saFluxBias()
-	peak = maxPeak()
-	midpoint = midpoint() #very rough idea of what's going on
-
-	#There will be a function to summarize the data in a plot
-
-	return #SA_BIAS, SA_OFFSET & SA_FB
-
-#FAS tuning
 
 with pyrogue.interfaces.VirtualClient(host,port) as client:
     root = client.root
     group = root.group[0]
 
     tunevalues = saTune()
-    group.SA_BIAS.set(tunevalues[0])
-    group.SA_OFFSET.set(tunevalues[1])
-    group.SA_FB.set(tunevalues[2])
+    group.saBias.set(tunevalues[0])
+    group.saOffset.set(tunevalues[1])
+    group.saFb.set(tunevalues[2])
 
+#SA TUNING
+def saFlux(group):
+	curve = []
+	for feedback in : #some set of SA_FB values
+		group.saFb.set(feedback)
+		curve.append(group.saOffset.get())
+	return curve
+	###
+	
+
+def saFluxBias(group):
+	data = {'xvalues' : [] #Need to know these
+			'curves' : {}}
+	for bias in : #some set of SA BIAS values
+		data['curves'][bias] = saFlux() #assuming this will return a list
+
+		
+
+
+def saTune(group):
+	initialize()
+	saFluxBiasResults = saFluxBias()
+	peak = maxPeak(saFluxBiasResults)
+	midpoint = midpoint(saFluxBiasResults) 
+	#record sa offset
+
+	#There will be a function to summarize the data in a plot
+
+	return #SA_BIAS, SA_OFFSET & SA_FB
 
 
 #FAS TUNING
-def fasFlux():
+def fasFlux(group):
 	for bias in fasbiasvalues:
 
-def fasTune():
+def fasTune(group):
 	for row in range(64):
 		results = fasFlux()
 		off, on = min(results), max(results) #assuming results is a list
-		
+
 
 
 #SQ1 TUNING
