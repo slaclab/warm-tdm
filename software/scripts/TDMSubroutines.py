@@ -5,18 +5,35 @@ import matplotlib.backends.backend_pdf
 from mpl_toolkits.mplot3d import Axes3D #not sure if necessary
 
 
+#taken from ucsc project
+outFile = "summary.pdf"
+pdf = matplotlib.backends.backend_pdf.PdfPages(outFile)
+figs = plt.figure()
+
+# accessible variables:
+# root.group[n].numCols
+# root.group[n].numRows
+# root.group[n].tesBias[32]
+# root.group[n].saBias[32]
+# root.group[n].saOffset[32]
+# root.group[n].sq1Bias[32][64]
+# root.group[n].sq1Fb[32][64]
+# root.group[n].fllEnable
+# root.group[n].fasFlux[32][64][2]
+
+
+
 
 
 #General form: root.group[0].saOffset
 
 
-def maxPeak(group,data): #Where data is a dict for one graph
-	maxcurve = None #[amplitude,minpoint,maxpoint]
+def maxPeak(data): #Where data is a dict for one graph
+	maxcurve = None #list of this form: [amplitude,minpoint,maxpoint]
 	xval = 0
 	for curve in data['curves']:
 		min_offset_point, max_offset_point = [0,data[curve][0]],[0,data[curve][0]] #store the points of max and min offset
-		
-		for point in data[curve]:
+		for point in data[curve]: #didn't use min/max because wanted to know the index
 			if point > max_offset_point:
 				max_offset_point = [xval,point]
 			if point < min_offset_point:
@@ -32,9 +49,10 @@ def maxPeak(group,data): #Where data is a dict for one graph
 
 
 	#given the curve dictionary structure, find SA_BIAS value with max peak to peak
-def midpoint(group,curve):
+def midpoint(data):
 	#given the SA_FLUX curve, find the midpoint
-	return curve[2][0] - curve[1][0]/2 #returns midpoint x value
+	curve = maxpeak(data)
+	return (curve[2][0] - curve[1][0])/2 #returns midpoint x value
 
 
 
@@ -97,11 +115,53 @@ with pyrogue.interfaces.VirtualClient(host,port) as client:
     group.SA_OFFSET.set(tunevalues[1])
     group.SA_FB.set(tunevalues[2])
 
+
+
+#FAS TUNING
 def fasFlux():
-	
-	
+	for bias in fasbiasvalues:
+
 def fasTune():
 	for row in range(64):
+		results = fasFlux()
+		off, on = min(results), max(results) #assuming results is a list
+		
+
+
+#SQ1 TUNING
+def sq1Flux(group):
+	pass
+	#is this needed, or does it happen at a lower level?
+
+def sq1Flux(group):
+	pass
+
+def sq1FluxRow(group):
+	#confused
+	results = sq1Flux()
+
+def sq1FluxRowBias(group):
+	data = {'xvalues' : [] #Need to know these
+			'curves' : {}}
+			#with offset as a function of s sq1FB, with each 
+			#curve being a different sq1Bias
+
+
+	for bias in sq1biasvalues: #What are these values?
+		data['curves'][bias] = []
+		#Do something with sq1FluxRow()
+		sq1FluxRow()
+		#maybe data['curves'][bias] = sq1FluxRow()?
+		#not sure what data type is returned by sq1Fluxrow
+
+
+def sq1Tune(group):
+	for row in range(group.numRows.get()):
+		data = sq1FluxRowBias()
+		mid = midpoint(data)
+		#What to do with these results?
+
+
 
 
 
