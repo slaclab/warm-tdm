@@ -159,14 +159,14 @@ def sq1FluxRowBias(group):
 
 
 	for bias in sq1biasvalues: #What are these values?
-		data['curves'][bias] = []
+		data['curves'][bias] = sq1FluxRow()
 		#Do something with sq1FluxRow()
-		sq1FluxRow()
 		#maybe data['curves'][bias] = sq1FluxRow()?
-		#not sure what data type is returned by sq1Fluxrow
+		#assuming sq1fluxrow returns a list
 
 
 def sq1Tune(group):
+	data = sq1FluxRowBias()
 	for row in range(group.numRows.get()):
 		data = sq1FluxRowBias()
 		mid = midpoint(data)
