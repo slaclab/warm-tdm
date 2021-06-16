@@ -2,6 +2,7 @@ import numpy as np
 import sys
 import matplotlib.pyplot as plt
 import matplotlib.backends.backend_pdf
+import time
 from mpl_toolkits.mplot3d import Axes3D #not sure if necessary
 
 
@@ -10,22 +11,20 @@ outFile = "summary.pdf"
 pdf = matplotlib.backends.backend_pdf.PdfPages(outFile)
 figs = plt.figure()
 
-# accessible variables:
-# root.group[n].numCols
-# root.group[n].numRows
-# root.group[n].tesBias[32]
-# root.group[n].saBias[32]
-# root.group[n].saOffset[32]
-# root.group[n].sq1Bias[32][64]
-# root.group[n].sq1Fb[32][64]
-# root.group[n].fllEnable
-# root.group[n].fasFlux[32][64][2]
 
 
+#### not sure where something like this will fit in
 
+with pyrogue.interfaces.VirtualClient(host,port) as client:
+    root = client.root
+    group = root.group[0]
 
+    tunevalues = saTune()
+    group.saBias.set(tunevalues[0])
+    group.saOffset.set(tunevalues[1])
+    group.saFb.set(tunevalues[2])
+####
 
-#General form: root.group[0].saOffset
 
 
 def maxPeak(data): #Where data is a dict for one graph
@@ -56,52 +55,27 @@ def midpoint(data):
 
 
 
-#Enable mask
-#TES bias value for 8 channels
 
-#Set SA_FB and SA_BIAS to initial values
-def initialize(): #INIT? didn't want to use "init"
-	#Open and read config file
+#INITIALIZATION AND OFFSET ADJUSTMENT
+
+def initialize(group):
+	#Open and read config file (maybe)
 	inFile = sys.argv[1]
 
-	#check for num of sys arguments
-
-	tesBiases = [] #Maybe these will be stored as a list?
-	with open(inFile) as f:
-		pass
-		#How many lines will there be to read in?
+	for column in (group.numRows.get()):
+		saBias[column].set() #still don't know what we are setting these to
+		saFb[column].set()
 
 
-	#Will we be iterating through each group, or just working on one group per instance?
-
-	for column in range(32):
-		#Drive high current on TES_BIAS
-
-		root.group[?].tesBias[column].high_current()
-		root.group[?].tesBias[column].set(tesBiases[column])
-
-	for row in range(64):
-		root.group[?].superconducting.set(False) # or "Off"?
-
-	#Turn on FLL logic
-
-
-
-
-with pyrogue.interfaces.VirtualClient(host,port) as client:
-    root = client.root
-    group = root.group[0]
-
-    tunevalues = saTune()
-    group.saBias.set(tunevalues[0])
-    group.saOffset.set(tunevalues[1])
-    group.saFb.set(tunevalues[2])
+def saOffset(group, fb, row):
+	pass
+	#is this necessary, or will it be at a lower level?
 
 #SA TUNING
 def saFlux(group):
 	curve = []
-	for feedback in : #some set of SA_FB values
-		group.saFb.set(feedback)
+	for fb in : #some set of SA_FB values
+		group.saFb.set(fb)
 		curve.append(group.saOffset.get())
 	return curve
 	###
@@ -125,54 +99,103 @@ def saTune(group):
 
 	#There will be a function to summarize the data in a plot
 
+
 	return #SA_BIAS, SA_OFFSET & SA_FB
 
-
 #FAS TUNING
-def fasFlux(group):
+def fasFlux(group,row):
+	data = []
 	for bias in fasbiasvalues:
+		group.saFb[row].set(bias)
+		#is saOut a variable we can access? how will we determine when it is 0
+
 
 def fasTune(group):
 	for row in range(64):
-		results = fasFlux()
+		results = fasFlux(group,row)
 		off, on = min(results), max(results) #assuming results is a list
 
 
 
-#SQ1 TUNING
-def sq1Flux(group):
-	pass
-	#is this needed, or does it happen at a lower level?
 
-def sq1Flux(group):
-	pass
+#SQ1 TUNING
+def sq1Flux(group,row):
+	data = []
+	for fb in : #some set of fb
+		data.append(saOffset(group,fb,row))
+
+	return data
 
 def sq1FluxRow(group):
-	#confused
-	results = sq1Flux()
+	for row in range(group.numRows.get()):
+		group.fasBias[row].set(True)  #will on be a boolean?
+		group.saFb[row].set(?) #does this come from a config file
+	results = sq1Flux(group)
 
 def sq1FluxRowBias(group):
 	data = {'xvalues' : [] #Need to know these
 			'curves' : {}}
-			#with offset as a function of s sq1FB, with each 
-			#curve being a different sq1Bias
-
-
+			#with offset as a function of s sq1FB, with each curve being a different sq1Bias
 	for bias in sq1biasvalues: #What are these values?
-		data['curves'][bias] = sq1FluxRow()
+		data['curves'][bias] = sq1FluxRow(group)
 		#Do something with sq1FluxRow()
 		#maybe data['curves'][bias] = sq1FluxRow()?
 		#assuming sq1fluxrow returns a list
-
+	return data
 
 def sq1Tune(group):
-	data = sq1FluxRowBias()
+	data = []
 	for row in range(group.numRows.get()):
-		data = sq1FluxRowBias()
-		mid = midpoint(data)
+		curves = sq1FluxRowBias()
+		mid = midpoint(curves)
+		data.append((curves,mid))
 		#What to do with these results?
 
+#SQ1 DIAGNOSTIC
+
+def sq1Ramp(group,row):
+	data = []
+	for fb in : #some set of sq1fb values
+		data.append(saOffset(group,fb,row))
+	return data
+
+def sq1RampRow(group):
+	rowsdata = []
+	for row in range(group.numRows.get()):
+		group.fasBias[row].set(True)
+		rowsdata.append(sq1Ramp(group,row))
 
 
+#TES BIAS DIAGNOSTIC
+
+def tesRamp(group,row):
+	offsets = [] #is tesRamp meant to return a list like this?
+	for bias in : #some set of tesBias values
+		group.tesBias[row].set(bias)
+		offset = saOffset(row)
+		offsets.append(offset)
+
+def tesRampRow(group):
+	data = []
+	for row in range(group.numRows.get()):
+		group.fasBias[row].set(True)
+		data.append(tesRamp(row))
+	return data
+
+
+
+# accessible variables:
+# root.group[n].numCols
+# root.group[n].numRows
+# root.group[n].tesBias[32]
+# root.group[n].saBias[32]
+# root.group[n].saOffset[32]
+# root.group[n].sq1Bias[32][64]
+# root.group[n].sq1Fb[32][64]
+# root.group[n].fllEnable
+# root.group[n].fasFlux[32][64][2]
+
+
+#General form: root.group[0].saOffset
 
 
