@@ -1,9 +1,26 @@
 import pyrogue as pr
 
 class Group(pr.Device):
-    def __init__(self, **kwargs):
+    def __init__(self, rowMap, colMap, **kwargs):
         super().__init__(**kwargs)
 
+        # Row map is a list of tuples containing (board, channel) values to map row indexes
+        self._rowMap = rowMap
+
+        # Col map is a list of tuples containing (board, channel) values to map col indexes
+        self._colMap = colMap
+
+
+        # Number of columns supported in this group
+        self.add(pr.LocalVariable(name='numColumns', value=len(self._colMap), mode='RO',description="Number of columns"))
+
+        # Number of rows supported in this group
+        self.add(pr.LocalVariable(name='numRows', value=len(self._rowMap), mode='RO',description="Number of rows"))
+
+        # TES Bias values, accessed with index value
+        self.add(pr.LinkVariable(name='tesBias', value=[0.0]*32, mode='RW',
+                                 localSet=self._tesBiasSet,
+                                 localGet=self._tesBiasGet))
 
 
 
@@ -15,34 +32,50 @@ class Group(pr.Device):
 
 
 
-        NOP_CMD        = 0b0000
-        WR_INP_CMD     = 0b0001
-        DAC_UPDATE_CMD = 0b0010
-        WR_DAC_CMD     = 0b0011
-        PWR_DOWN_CMD   = 0b0100
-        LDAC_MASK_CMD  = 0b0101
-        SOFT_RST_CMD   = 0b0110
-        INT_REF_CMD    = 0b0111
-        DCEN_CMD       = 0b1000
-        RDBACK_CMD     = 0b1001
-        WR_ALL_INP_CMD = 0b1010
-        WR_ALL_DAC_CMD = 0b1011
+    # Set TES bias value
+    def _tesBiasSet(self, value, write, index):
 
-        for i in range(16):
-            self.add(pr.RemoteVariable(
-                name = f'Inp[{i}]',
-                mode = 'RW',
-                offset = WR_INP_CMD << 6 | i << 2,
-                bitSize = 16,
-                bitOffset = 0,
-                base = pr.UInt))
+        # index access
+        if index != -1:
+            board, chan = self._colMap(index)
+            self.Hardware.ColumnBoard[board].TesBias.set(value=value,index=chan,write=write)
 
-            self.add(pr.RemoteVariable(
-                name = f'Dac[{i}]',
-                mode = 'RW',
-                offset = DAC_UPDATE_CMD << 6 | i <<2,
-                bitSize = 16,
-                bitOffset = 0,
-                base = pr.UInt))
+        # Full array access
+        else:
+
+            for idx in range(len(self._colMap)):
+                board, chan = self._colMap(idx)
+
+                self.Hardware.ColumnBoard[board].TesBias.set(value=value[idx],index=chan,write=False)
+
+            # Force writes
+            if write is True:
+                for col in self.Hardware.ColumnBoard:
+                    col.TesBias.write()
+
+
+    # Get TES bias value
+    def _tesBiasGet(self, read, index):
+
+        # index access
+        if index != -1:
+            board, chan = self._colMap(index)
+            return self.Hardware.ColumnBoard[board].TesBias.get(index=chan,read=read)
+
+        # Full array access
+        else:
+            ret = [0.0] * len(self._colMap)
+
+            # Force reads
+            if read is True:
+                for col in self.Hardware.ColumnBoard:
+                    col.TesBias.get()
+
+            for idx in range(len(self._colMap)):
+                board, chan = self._colMap(idx)
+
+                ret[idx] = self.Hardware.ColumnBoard[board].TesBias.value(index=chan)
+
+            return ret
 
 
