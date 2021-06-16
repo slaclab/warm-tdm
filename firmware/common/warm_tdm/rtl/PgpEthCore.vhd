@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- Title      : ComCore
+-- Title      : PgpEthCore
 -------------------------------------------------------------------------------
 -- Company    : SLAC National Accelerator Laboratory
 -- Platform   : 
@@ -35,7 +35,7 @@ use unisim.vcomponents.all;
 
 library warm_tdm;
 
-entity ComCore is
+entity PgpEthCore is
 
    generic (
       TPD_G                   : time             := 1 ns;
@@ -90,9 +90,9 @@ entity ComCore is
       dataRxAxisSlave  : in  AxiStreamSlaveType);
 
 
-end entity ComCore;
+end entity PgpEthCore;
 
-architecture rtl of ComCore is
+architecture rtl of PgpEthCore is
 
    constant AXIL_PGP_C : integer := 0;
    constant AXIL_ETH_C : integer := 1;

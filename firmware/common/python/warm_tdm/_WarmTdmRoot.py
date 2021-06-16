@@ -132,6 +132,7 @@ class WarmTdmRoot(pyrogue.Root):
         self._doHeartbeat = False
         super().__init__(**kwargs)
 
+
         # Add the data writer
         self.add(pyrogue.utilities.fileio.StreamWriter(name='DataWriter'))
         self >> self.DataWriter.getChannel(len(stack))

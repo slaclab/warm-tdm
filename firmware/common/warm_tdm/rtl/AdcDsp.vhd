@@ -68,7 +68,7 @@ architecture rtl of AdcDsp is
 
    type RegType is record
       accumValid : sl;
-      pidStep : integer range 0 to 2;
+      pidStep    : integer range 0 to 2;
       accumRow   : slv(ROW_BITS_C-1 downto 0);
       accumError : signed(ACCUM_BITS_C-1 downto 0);
       p          : signed(COEF_BITS_C-1 downto 0);
@@ -82,7 +82,7 @@ architecture rtl of AdcDsp is
 
    constant REG_INIT_C : RegType := (
       accumValid => '0',
-      pidStep => 0,
+      pidStep    => 0,
       accumError => (others => '0'),
       accumRow   => (others => '0'),
       p          => (others => '0'),
@@ -404,20 +404,20 @@ begin
       end if;
 
       if (r.pidStep = 0 and r.accumValid = '1') then
-         v.pidStep := 1;
+         v.pidStep   := 1;
          v.pidResult := resize((r.p * r.accumError), RESULT_BITS_C);
       end if;
 
       if (r.pidStep = 1) then
-         v.pidStep := 2;
+         v.pidStep   := 2;
          v.pidResult := resize(r.pidResult + (r.i * r.sumAccum), RESULT_BITS_C);
       end if;
 
       if (r.pidStep = 2) then
-         v.pidStep := 0;
+         v.pidStep   := 0;
          v.pidResult := resize(r.pidResult + (r.d * (r.lastAccum-r.accumError)), RESULT_BITS_C);
          v.sumAccum  := r.sumAccum + r.accumError;
-         v.pidValid  := '1';         
+         v.pidValid  := '1';
       end if;
 
 
