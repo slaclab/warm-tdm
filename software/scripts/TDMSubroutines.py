@@ -20,8 +20,8 @@ with pyrogue.interfaces.VirtualClient(host,port) as client:
     group = root.group[0]
 
     tunevalues = saTune()
-    group.saBias.set(tunevalues[0])
-    group.saOffset.set(tunevalues[1])
+    group.SaBias.set(tunevalues[0])
+    group.SaOffset.set(tunevalues[1])
     group.saFb.set(tunevalues[2])
 ####
 
@@ -62,12 +62,12 @@ def initialize(group):
 	#Open and read config file (maybe)
 	inFile = sys.argv[1]
 
-	for column in (group.numRows.get()):
-		saBias[column].set() #still don't know what we are setting these to
+	for column in (group.NumRows.get()):
+		SaBias[column].set() #still don't know what we are setting these to
 		saFb[column].set()
 
 
-def saOffset(group, fb, row):
+def SaOffset(group, fb, row):
 	pass
 	#is this necessary, or will it be at a lower level?
 
@@ -76,7 +76,7 @@ def saFlux(group):
 	curve = []
 	for fb in : #some set of SA_FB values
 		group.saFb.set(fb)
-		curve.append(group.saOffset.get())
+		curve.append(group.SaOffset.get())
 	return curve
 	###
 	
@@ -107,7 +107,7 @@ def fasFlux(group,row):
 	data = []
 	for bias in fasbiasvalues:
 		group.saFb[row].set(bias)
-		#is saOut a variable we can access? how will we determine when it is 0
+		#is SaOut a variable we can access? how will we determine when it is 0
 
 
 def fasTune(group):
@@ -122,12 +122,12 @@ def fasTune(group):
 def sq1Flux(group,row):
 	data = []
 	for fb in : #some set of fb
-		data.append(saOffset(group,fb,row))
+		data.append(SaOffset(group,fb,row))
 
 	return data
 
 def sq1FluxRow(group):
-	for row in range(group.numRows.get()):
+	for row in range(group.NumRows.get()):
 		group.fasBias[row].set(True)  #will on be a boolean?
 		group.saFb[row].set(?) #does this come from a config file
 	results = sq1Flux(group)
@@ -135,7 +135,7 @@ def sq1FluxRow(group):
 def sq1FluxRowBias(group):
 	data = {'xvalues' : [] #Need to know these
 			'curves' : {}}
-			#with offset as a function of s sq1FB, with each curve being a different sq1Bias
+			#with offset as a function of s sq1FB, with each curve being a different Sq1Bias
 	for bias in sq1biasvalues: #What are these values?
 		data['curves'][bias] = sq1FluxRow(group)
 		#Do something with sq1FluxRow()
@@ -145,7 +145,7 @@ def sq1FluxRowBias(group):
 
 def sq1Tune(group):
 	data = []
-	for row in range(group.numRows.get()):
+	for row in range(group.NumRows.get()):
 		curves = sq1FluxRowBias()
 		mid = midpoint(curves)
 		data.append((curves,mid))
@@ -156,12 +156,12 @@ def sq1Tune(group):
 def sq1Ramp(group,row):
 	data = []
 	for fb in : #some set of sq1fb values
-		data.append(saOffset(group,fb,row))
+		data.append(SaOffset(group,fb,row))
 	return data
 
 def sq1RampRow(group):
 	rowsdata = []
-	for row in range(group.numRows.get()):
+	for row in range(group.NumRows.get()):
 		group.fasBias[row].set(True)
 		rowsdata.append(sq1Ramp(group,row))
 
@@ -170,14 +170,15 @@ def sq1RampRow(group):
 
 def tesRamp(group,row):
 	offsets = [] #is tesRamp meant to return a list like this?
-	for bias in : #some set of tesBias values
-		group.tesBias[row].set(bias)
-		offset = saOffset(row)
+	for bias in : #some set of TesBias values
+		group.TesBias[row].set(bias)
+		offset = SaOffset(row)
 		offsets.append(offset)
+	return offsets
 
 def tesRampRow(group):
 	data = []
-	for row in range(group.numRows.get()):
+	for row in range(group.NumRows.get()):
 		group.fasBias[row].set(True)
 		data.append(tesRamp(row))
 	return data
@@ -185,17 +186,17 @@ def tesRampRow(group):
 
 
 # accessible variables:
-# root.group[n].numCols
-# root.group[n].numRows
-# root.group[n].tesBias[32]
-# root.group[n].saBias[32]
-# root.group[n].saOffset[32]
-# root.group[n].sq1Bias[32][64]
-# root.group[n].sq1Fb[32][64]
-# root.group[n].fllEnable
+# root.group[n].NumColumns
+# root.group[n].NumRows
+# root.group[n].TesBias[32]
+# root.group[n].SaBias[32]
+# root.group[n].SaOffset[32]
+# root.group[n].Sq1Bias[32][64]
+# root.group[n].Sq1Fb[32][64]
+# root.group[n].FllEnable
 # root.group[n].fasFlux[32][64][2]
 
 
-#General form: root.group[0].saOffset
+#General form: root.group[0].SaOffset
 
 
