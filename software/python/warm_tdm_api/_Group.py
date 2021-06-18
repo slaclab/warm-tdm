@@ -41,77 +41,216 @@ class Group(pr.Device):
                                  localGet=self._rowTuneIdxGet,
                                  description="Row Tune Index"))
 
-        # Row Tune Mode (On/Off)
-        self.add(pr.LinkVariable(name='RowTuneMode',
-                                 value=False,
-                                 mode='RW',
-                                 localSet=self._rowTuneModeSet,
-                                 localGet=self._rowTuneModeGet,
-                                 description="Row Tune Mode"))
+        # Low offset for SA FB Tuning
+        self.add(pr.LocalVariable(name='SaFbLowOffset',
+                                  value=0.0,
+                                  mode='RW',
+                                  description="Starting point offset for SA FB Tuning"))
+
+        # High offset for SA FB Tuning
+        self.add(pr.LocalVariable(name='SaFbHighOffset',
+                                  value=0.0,
+                                  mode='RW',
+                                  description="Ending point offset for SA FB Tuning"))
+
+        # Step size for SA FB Tuning
+        self.add(pr.LocalVariable(name='SaFbStepSize',
+                                  value=0.0,
+                                  mode='RW',
+                                  description="Step size for SA FB Tuning"))
+
+        # Low offset for SA Bias Tuning
+        self.add(pr.LocalVariable(name='SaBiasLowOffset',
+                                  value=0.0,
+                                  mode='RW',
+                                  description="Starting point offset for SA Bias Tuning"))
+
+        # High offset for SA Bias Tuning
+        self.add(pr.LocalVariable(name='SaBiasHighOffset',
+                                  value=0.0,
+                                  mode='RW',
+                                  description="Ending point offset for SA Bias Tuning"))
+
+        # Step size for SA Bias Tuning
+        self.add(pr.LocalVariable(name='SaBiasStepSize',
+                                  value=0.0,
+                                  mode='RW',
+                                  description="Step size for SA Bias Tuning"))
+
+        # Low offset for Fas FLux Tuning
+        self.add(pr.LocalVariable(name='FasFluxLowOffset',
+                                  value=0.0,
+                                  mode='RW',
+                                  description="Starting point offset for Fas Flux Tuning"))
+
+        # High offset for Fas Flux Tuning
+        self.add(pr.LocalVariable(name='FasFluxHighOffset',
+                                  value=0.0,
+                                  mode='RW',
+                                  description="Ending point offset for Fas Flux Tuning"))
+
+        # Step size for Fas Flux Tuning
+        self.add(pr.LocalVariable(name='FasFluxStepSize',
+                                  value=0.0,
+                                  mode='RW',
+                                  description="Step size for Fas Flux Tuning"))
+
+        # Low offset for SQ1 FB Tuning
+        self.add(pr.LocalVariable(name='Sq1FbLowOffset',
+                                  value=0.0,
+                                  mode='RW',
+                                  description="Starting point offset for SQ1 FB Tuning"))
+
+        # High offset for SQ1 FB Tuning
+        self.add(pr.LocalVariable(name='Sq1FbHighOffset',
+                                  value=0.0,
+                                  mode='RW',
+                                  description="Ending point offset for SQ1 FB Tuning"))
+
+        # Step size for SQ1 FB Tuning
+        self.add(pr.LocalVariable(name='Sq1FbStepSize',
+                                  value=0.0,
+                                  mode='RW',
+                                  description="Step size for SQ1 FB Tuning"))
+
+        # Low offset for SQ1 Bias Tuning
+        self.add(pr.LocalVariable(name='Sq1BiasLowOffset',
+                                  value=0.0,
+                                  mode='RW',
+                                  description="Starting point offset for SQ1 Bias Tuning"))
+
+        # High offset for SQ1 Bias Tuning
+        self.add(pr.LocalVariable(name='Sq1BiasHighOffset',
+                                  value=0.0,
+                                  mode='RW',
+                                  description="Ending point offset for SQ1 Bias Tuning"))
+
+        # Step size for SQ1 Bias Tuning
+        self.add(pr.LocalVariable(name='Sq1BiasStepSize',
+                                  value=0.0,
+                                  mode='RW',
+                                  description="Step size for SQ1 Bias Tuning"))
+
+        # Low offset for TES Bias Ramping
+        self.add(pr.LocalVariable(name='TesBiasLowOffset',
+                                  value=0.0,
+                                  mode='RW',
+                                  description="Starting point offset for TES Bias Ramping"))
+
+        # High offset for SQ1 Bias Ramping
+        self.add(pr.LocalVariable(name='TesBiasHighOffset',
+                                  value=0.0,
+                                  mode='RW',
+                                  description="Ending point offset for SQ1 Bias Ramping"))
+
+        # Step size for SQ1 Bias Ramping
+        self.add(pr.LocalVariable(name='TesBiasStepSize',
+                                  value=0.0,
+                                  mode='RW',
+                                  description="Step size for SQ1 Bias Ramping"))
 
         # TES Bias values, accessed with column index value
         self.add(pr.LinkVariable(name='TesBias',
                                  mode='RW',
                                  localSet=self._saBiasSet,
-                                 localGet=self._saBiasGet))
+                                 localGet=self._saBiasGet,
+                                 description=""))
 
         # SA Bias values, accessed with column index value
         self.add(pr.LinkVariable(name='SaBias',
                                  mode='RW',
                                  localSet=self._saBiasSet,
-                                 localGet=self._saBiasGet))
+                                 localGet=self._saBiasGet,
+                                 description=""))
 
         # SA Offset values, accessed with column index value
         self.add(pr.LinkVariable(name='SaOffset',
                                  mode='RW',
                                  localSet=self._saOffsetSet,
-                                 localGet=self._saOffsetGet))
+                                 localGet=self._saOffsetGet,
+                                 description=""))
 
         # SA Out values, accessed with column index value
         self.add(pr.LinkVariable(name='SaOut',
                                  mode='RO',
-                                 localGet=self._saOutGet))
+                                 localGet=self._saOutGet,
+                                 description=""))
 
         # SA FB values, accessed with index tuple (column, row)
         self.add(pr.LinkVariable(name='SaFb',
                                  mode='RW',
                                  localSet=self._saFbSet,
-                                 localGet=self._saFbGet))
+                                 localGet=self._saFbGet,
+                                 description=""))
 
         # SQ1 Bias values, accessed with index tuple (column, row)
         self.add(pr.LinkVariable(name='Sq1Bias',
                                  mode='RW',
                                  localSet=self._sq1BiasSet,
-                                 localGet=self._sq1BiasGet))
+                                 localGet=self._sq1BiasGet,
+                                 description=""))
 
         # SQ1 Fb values, accessed with index tuple (column, row)
         self.add(pr.LinkVariable(name='Sq1Fb',
                                  mode='RW',
                                  localSet=self._sq1FbSet,
-                                 localGet=self._sq1FbGet))
+                                 localGet=self._sq1FbGet,
+                                 description=""))
 
         # FAS Flux off values, accessed with row index
         self.add(pr.LinkVariable(name='FasFluxOff',
                                  mode='RW',
                                  localSet=self._fasFluxOffSet,
-                                 localGet=self._fasFluxOffGet))
+                                 localGet=self._fasFluxOffGet,
+                                 description=""))
 
         # FAS Flux on values, accessed with row index
         self.add(pr.LinkVariable(name='FasFluxOn',
                                  mode='RW',
                                  localSet=self._fasFluxOnSet,
-                                 localGet=self._fasFluxOnGet))
+                                 localGet=self._fasFluxOnGet,
+                                 description=""))
 
         # FLL Enable value
         self.add(pr.LinkVariable(name='FllEnable',
                                  mode='RW',
                                  localSet=self._fllEnableSet,
-                                 localGet=self._fllEnableGet))
+                                 localGet=self._fllEnableGet,
+                                 description=""))
+
+        # SA Tuning Results
+        self.add(pr.LocalVariable(name='SaTuneOutput',
+                                  value=None,
+                                  mode='RW',
+                                  description="Results Data From SA Tuning"))
+
+        # FAS Tuning Results
+        self.add(pr.LocalVariable(name='FasTuneOutput',
+                                  value=None,
+                                  mode='RW',
+                                  description="Results Data From FAS Tuning"))
+
+        # SQ1 Tuning Results
+        self.add(pr.LocalVariable(name='Sq1TuneOutput',
+                                  value=None,
+                                  mode='RW',
+                                  description="Results Data From SQ1 Tuning"))
+
+        # SQ1 Diagnostic Results
+        self.add(pr.LocalVariable(name='Sq1DiagOutput',
+                                  value=None,
+                                  mode='RW',
+                                  description="Results Data From SQ1 Diagnostic"))
+
+        # TES Diagnostic Results
+        self.add(pr.LocalVariable(name='TesDiagOutput',
+                                  value=None,
+                                  mode='RW',
+                                  description="Results Data From Tes Diagnostic"))
 
         if self._emulate:
             self._tuneEn     = False
             self._tuneIdx    = 0
-            self._tuneMode   = False
             self._tesBias    = [0.0] * self._colMap
             self._saBias     = [0.0] * self._colMap
             self._saOffset   = [0.0] * self._colMap
@@ -169,27 +308,6 @@ class Group(pr.Device):
 
         else:
             return self.Hardware.RowBoard[0].RowTuneIdx.get(read=read)
-
-
-    # Set Row Tune Mode
-    def _rowTuneModeSet(self, value, write):
-
-        if self._emulate is True:
-            self._tuneMode = value
-
-        else:
-            for row in self.Hardware.RowBoard:
-                row.RowTuneMode.set(value,write=write)
-
-
-    # Get Row Tune Mode
-    def _rowTuneModeGet(self, read):
-
-        if self._emulate is True:
-            return self._tuneMode
-
-        else:
-            return self.Hardware.RowBoard[0].RowTuneMode.get(read=read)
 
 
     # Set TES bias value, index is column
@@ -394,7 +512,8 @@ class Group(pr.Device):
                 for rowIndex in range(len(self._rowMap)):
 
                     if self._emulate is True:
-                        self._saFb[colIndex][rowIndex] = value[colIndex][rowIndex]
+                        self._saFb[colIndex][rowIndex] = value[colIndex][rowIndex] self.Hardware.RowBoard[board].FasFluxOff[chan].set(value=value[idx],write=write)
+
                     else:
                         self.Hardware.ColumnBoard[colBoard].SaFb[colChan].set(value=value[colIndex][rowIndex],index=rowIndex,write=False)
 
@@ -553,7 +672,8 @@ class Group(pr.Device):
                 return self.Hardware.ColumnBoard[colBoard].Sq1Fb[colChan].get(index=rowIndex,read=read)
 
         # Full array access
-        else:
+        else: self.Hardware.RowBoard[board].FasFluxOff[chan].set(value=value[idx],write=write)
+
             ret = [[0.0] * len(self._rowMap)] * len(self._colMap)
 
             for colIndex in range(len(self._colMap)):
