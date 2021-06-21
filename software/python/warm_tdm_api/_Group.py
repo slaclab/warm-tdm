@@ -309,157 +309,90 @@ class Group(pr.Device):
         else:
             return self.Hardware.RowBoard[0].RowTuneIdx.get(read=read)
 
+    def __colLoopHelper(self, value, index):
+        # Construct a generator to loop over
+        if index != -1:
+            return ((idx, self._colMap[idx], val for idx, val in zip(range(index, index+1), [value])))
+        else:
+            return ((idx, self._colMap[idx], val for idx, val in enumerate(value)))
+
+
 
     # Set TES bias value, index is column
     def _tesBiasSet(self, value, write, index):
-
-        # index access
-        if index != -1:
-            board, chan = self._colMap(index)
+        for idx, board, chan, val in self.__colLoopHelper(value, index):
             if self._emulate is True:
-                self._tesBias[index] = value
+                self._tesBias[idx] = val
             else:
-                self.Hardware.ColumnBoard[board].TesBias[chan].set(value=value,write=write)
+                self.Hardware.ColumnBoard[board].TesBias.BiasCurrent[chan].set(value=value,write=write)
 
-        # Full array access
-        else:
-
-            for idx in range(len(self._colMap)):
-                board, chan = self._colMap(idx)
-
-                if self._emulate is True:
-                    self._tesBias[idx] = value[idx]
-                else:
-                    self.Hardware.ColumnBoard[board].TesBias[chan].set(value=value[idx],write=write)
 
 
     # Get TES bias value, index is column
     def _tesBiasGet(self, read, index):
+        ret = [0.0] * len(self._colMap)
 
-        # index access
-        if index != -1:
-            board, chan = self._colMap(index)
-
+        for idx, board, chan, val in self.__colLoopHelper(value, index):
             if self._emulate is True:
-                return self._tesBias[index]
+                ret[idx] = self._tesBias[idx]
             else:
-                return self.Hardware.ColumnBoard[board].TesBias[chan].get(read=read)
+                ret[idx] = self.Hardware.ColumnBoard[board].TesBias.BiasCurrent[chan].value(read=read)
 
-        # Full array access
+        if index != -1:
+            return ret[0]
         else:
-            ret = [0.0] * len(self._colMap)
-
-            for idx in range(len(self._colMap)):
-                board, chan = self._colMap(idx)
-
-                if self._emulate is True:
-                    ret[idx] = self._tesBias[idx]
-                else:
-                    ret[idx] = self.Hardware.ColumnBoard[board].TesBias[chan].value(read=read)
-
             return ret
 
 
     # Set SA Bias value, index is column
     def _saBiasSet(self, value, write, index):
-
-        # index access
-        if index != -1:
-            board, chan = self._colMap(index)
-
+        for idx, board, chan, val in self.__colLoopHelper(value, index):
             if self._emulate is True:
-                self._saBias[index] = value
+                self._saBias[idx] = val
             else:
-                self.Hardware.ColumnBoard[board].SaBias[chan].set(value=value,write=write)
-
-        # Full array access
-        else:
-
-            for idx in range(len(self._colMap)):
-                board, chan = self._colMap(idx)
-
-                if self._emulate is True:
-                    self._saBias[idx] = value[idx]
-                else:
-                    self.Hardware.ColumnBoard[board].SaBias[chan].set(value=value[idx],write=write)
+                self.Hardware.ColumnBoard[board].SaBiasOffset.Bias[chan].set(value=val, write=write)
 
 
     # Get SA Bias value, index is column
     def _saBiasGet(self, read, index):
+        ret = [0.0] * len(self._colMap)
 
-        # index access
-        if index != -1:
-            board, chan = self._colMap(index)
-
+        for idx, board, chan, val in self.__colLoopHelper(value, index):
             if self._emulate is True:
-                return self._saBias[index]
+                ret[idx] = self._saBias[idx]
             else:
-                return self.Hardware.ColumnBoard[board].SaBias[chan].get(read=read)
+                ret[idx] = self.Hardware.ColumnBoard[board].SaBiasOffset.Bias[chan].value(read=read)
 
-        # Full array access
+        if index != -1:
+            return ret[0]
         else:
-            ret = [0.0] * len(self._colMap)
-
-            for idx in range(len(self._colMap)):
-                board, chan = self._colMap(idx)
-
-                if self._emulate is True:
-                    ret[idx] = self._saBias[idx]
-                else:
-                    ret[idx] = self.Hardware.ColumnBoard[board].SaBias[chan].value(read=read)
-
             return ret
-
+        
 
     # Set SA Offset value, index is column
     def _saOffsetSet(self, value, write, index):
-
-        # index access
-        if index != -1:
-            board, chan = self._colMap(index)
-
+        for idx, board, chan, val in self.__colLoopHelper(value, index):
             if self._emulate is True:
-                self._saOffset[index] = value
+                self._saOffset[idx] = val[idx]
             else:
-                self.Hardware.ColumnBoard[board].SaOffset[chan].set(value=value,write=write)
-
-        # Full array access
-        else:
-
-            for idx in range(len(self._colMap)):
-                board, chan = self._colMap(idx)
-
-                if self._emulate is True:
-                    self._saOffset[idx] = value[idx]
-                else:
-                    self.Hardware.ColumnBoard[board].SaOffset[chan].set(value=value[idx],write=write)
+                self.Hardware.ColumnBoard[board].SaBiasOffset.Offset[chan].set(value=val, write=write)
 
 
     # Get SA Offset value, index is column
     def _saOffsetGet(self, read, index):
+        ret = [0.0] * len(self._colMap)
 
-        # index access
-        if index != -1:
-            board, chan = self._colMap(index)
-
+        for idx, board, chan, val in self.__colLoopHelper(value, index):
             if self._emulate is True:
-                return self._saOffset[index]
+                ret[idx] = self._saOffset[idx]
             else:
-                return self.Hardware.ColumnBoard[board].SaOffset[chan].get(read=read)
+                ret[idx] = self.Hardware.ColumnBoard[board].SaBiasOffset.Offset[chan].value(read=read)
 
-        # Full array access
+        if index != -1:
+            return ret[0]
         else:
-            ret = [0.0] * len(self._colMap)
-
-            for idx in range(len(self._colMap)):
-                board, chan = self._colMap(idx)
-
-                if self._emulate is True:
-                    ret[idx] = self._saOffset[idx]
-                else:
-                    ret[idx] = self.Hardware.ColumnBoard[board].SaOffset[chan].value(read=read)
-
             return ret
+
 
 
     # Get SA Out value, index is column
