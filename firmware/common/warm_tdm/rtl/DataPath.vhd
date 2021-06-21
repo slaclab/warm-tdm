@@ -31,6 +31,7 @@ use surf.Ad9681Pkg.all;
 
 library warm_tdm;
 use warm_tdm.TimingPkg.all;
+use warm_tdm.WarmTdmPkg.all;
 
 entity DataPath is
 
@@ -77,16 +78,6 @@ architecture rtl of DataPath is
       TKEEP_MODE_C  => TKEEP_FIXED_C,
       TUSER_BITS_C  => 0,
       TUSER_MODE_C  => TUSER_NORMAL_C);
-
-   constant OUT_AXIS_CONFIG_C : AxiStreamConfigType := (
-      TSTRB_EN_C    => false,
-      TDATA_BYTES_C => 8,
-      TDEST_BITS_C  => 8,
-      TID_BITS_C    => 0,
-      TKEEP_MODE_C  => TKEEP_NORMAL_C,
-      TUSER_BITS_C  => 0,
-      TUSER_MODE_C  => TUSER_NORMAL_C);
-
 
    type RegType is record
       doRawAdc     : sl;
@@ -261,14 +252,14 @@ begin
          VALID_THOLD_G       => 0,
          SLAVE_READY_EN_G    => false,
          GEN_SYNC_FIFO_G     => false,
-         FIFO_ADDR_WIDTH_G   => 10,
-         FIFO_PAUSE_THRESH_G => 2**10-8,
+         FIFO_ADDR_WIDTH_G   => 11,
+         FIFO_PAUSE_THRESH_G => 2**11-8,
 --           SYNTH_MODE_G           => SYNTH_MODE_G,
 --           MEMORY_TYPE_G          => MEMORY_TYPE_G,
 --           INT_WIDTH_SELECT_G     => INT_WIDTH_SELECT_G,
 --           INT_DATA_WIDTH_G       => INT_DATA_WIDTH_G,
          SLAVE_AXI_CONFIG_G  => INT_AXIS_CONFIG_C,
-         MASTER_AXI_CONFIG_G => OUT_AXIS_CONFIG_C)
+         MASTER_AXI_CONFIG_G => DATA_AXIS_CONFIG_C)
       port map (
          sAxisClk    => timingRxClk125,  -- [in]
          sAxisRst    => timingRxRst125,  -- [in]

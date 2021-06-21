@@ -9,39 +9,33 @@ class ColumnModule(pr.Device):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        self.add(warm_tdm.WarmTdmCommon(
-            offset = 0x00000000))
-
-        self.add(warm_tdm.Timing(
-            offset = 0x00100000))
-
-        self.add(warm_tdm.ComCore(
-            offset = 0xA0000000))
+        self.add(warm_tdm.WarmTdmCore(
+            offset = 0x00000000,
+            expand = True))
 
         self.add(warm_tdm.DataPath(
-            offset = 0x00300000))
+            offset = 0xC0300000))
 
         self.add(warm_tdm.Ad5679R(
             name = 'SaBiasDac',
-            offset = 0x00700000))
+            offset = 0xC0700000))
         
         self.add(warm_tdm.Ad5679R(
             name = 'TesBiasDac',
-            offset = 0x00701000))
+            offset = 0xC0701000))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1BaisDac',
-            offset = 0x00400000))
+            offset = 0xC0400000))
             
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1FbDac',
-            offset =0x00500000))
+            offset =0xC0500000))
         
         self.add(warm_tdm.FastDacDriver(
             name = 'SAFbDac',
-            offset = 0x00600000))
-
-        
+            offset = 0xC0600000))
             
         self.add(surf.devices.analog_devices.Ad9681Config(
-            offset = 0x00200000))
+            enabled = False,
+            offset = 0xC0200000))

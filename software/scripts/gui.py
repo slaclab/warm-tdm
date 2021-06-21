@@ -26,7 +26,7 @@ import warm_tdm
 #rogue.Logging.setFilter('pyrogue.stream.TcpCore.localhost.Client.10008', rogue.Logging.Debug)
 #rogue.Logging.setFilter('pyrogue.stream.TcpCore.localhost.Client.10010', rogue.Logging.Debug)
 rogue.Logging.setFilter('pyrogue.stream.TcpCore', rogue.Logging.Debug)
-#rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
+rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
 #logging.getLogger('pyrogue.SideBandSim').setLevel(logging.DEBUG)
 
 # Set the argument parser

@@ -98,6 +98,7 @@ architecture rtl of PgpCore is
    signal pgpRxMasters : AxiStreamMasterArray(3 downto 0) := (others => axiStreamMasterInit(SSI_PGP2B_CONFIG_C));
    signal pgpRxSlaves  : AxiStreamSlaveArray(3 downto 0)  := (others => AXI_STREAM_SLAVE_INIT_C);
    signal pgpRxCtrl    : AxiStreamCtrlArray(3 downto 0)   := (others => AXI_STREAM_CTRL_UNUSED_C);
+   signal locPgpRxCtrl : AxiStreamCtrlArray(3 downto 0)   := (others => AXI_STREAM_CTRL_UNUSED_C);
    signal locData      : slv(7 downto 0)                  := (others => '0');
 
    signal iAxiClk : sl;
@@ -155,6 +156,8 @@ architecture rtl of PgpCore is
 
 begin
 
+   locPgpTxIn(0).flowCntlDis <= '0' when RING_ADDR_0_G else '1';
+
    ClockManager7_Inst : entity surf.ClockManager7
       generic map(
          TPD_G              => TPD_G,
@@ -198,8 +201,8 @@ begin
             RX_CLK25_DIV_G        => GTX_CFG_C.CLK25_DIV_G,
             TX_CLK25_DIV_G        => GTX_CFG_C.CLK25_DIV_G,
             -- MGT Configurations
-            RX_OS_CFG_G           => "0000010000000",           --RX_OS_CFG_G,
-            RXCDR_CFG_G           => X"03000023FF10100020", -- X"0000107FE106001041010",  --x"03000023ff10100020",  -- RXCDR_CFG_G,
+            RX_OS_CFG_G           => "0000010000000",        --RX_OS_CFG_G,
+            RXCDR_CFG_G           => X"03000023FF10100020",  -- X"0000107FE106001041010",  --x"03000023ff10100020",  -- RXCDR_CFG_G,
 
             RXDFEXYDEN_G      => '1',   --RXDFEXYDEN_G,
             PMA_RSV_G         => x"00018480",
@@ -259,6 +262,21 @@ begin
             axilWriteMaster  => locAxilWriteMasters(AXIL_GTX_0_C),
             axilWriteSlave   => locAxilWriteSlaves(AXIL_GTX_0_C));
 
+      PGP_RX_CTRL : process (pgpRxCtrl, pgpRxOut) is
+         variable tmp : AxiStreamCtrlArray(3 downto 0);
+      begin
+         tmp := locPgpRxCtrl;
+         for i in 3 downto 0 loop
+            if (RING_ADDR_0_G = false) then
+               if (pgpRxOut(0).linkReady = '1') then
+                  tmp(i).pause := locPgpRxCtrl(i).pause or pgpRxOut(0).remPause(i);
+               end if;
+            end if;
+         end loop;
+         pgpRxCtrl <= tmp;
+
+      end process PGP_RX_CTRL;
+
       Pgp2bGtx7VarLat_Inst_1 : entity surf.Pgp2bGtx7VarLat
          generic map (
             TPD_G                 => TPD_G,
@@ -275,9 +293,9 @@ begin
             RX_CLK25_DIV_G        => GTX_CFG_C.CLK25_DIV_G,
             TX_CLK25_DIV_G        => GTX_CFG_C.CLK25_DIV_G,
             -- MGT Configurations
-            RX_OS_CFG_G           => "0000010000000",           --RX_OS_CFG_G,
+            RX_OS_CFG_G           => "0000010000000",        --RX_OS_CFG_G,
             RXCDR_CFG_G           => X"03000023ff10100020",  -- RXCDR_CFG_G,
-            RXDFEXYDEN_G          => '1',                       --RXDFEXYDEN_G,
+            RXDFEXYDEN_G          => '1',                    --RXDFEXYDEN_G,
             PMA_RSV_G             => x"00018480",
             RX_DFE_KL_CFG2_G      => X"301148AC",
             -- VC Configuration
@@ -426,13 +444,13 @@ begin
             FILTER_G            => true,
             INT_PIPE_STAGES_G   => 1,
             PIPE_STAGES_G       => 0,
-            VALID_THOLD_G       => 500,
+            VALID_THOLD_G       => 64,
             VALID_BURST_MODE_G  => true,
             SYNTH_MODE_G        => "inferred",
             MEMORY_TYPE_G       => "block",
             GEN_SYNC_FIFO_G     => false,
-            FIFO_ADDR_WIDTH_G   => 9,
-            FIFO_PAUSE_THRESH_G => 256,
+            FIFO_ADDR_WIDTH_G   => 10,
+            FIFO_PAUSE_THRESH_G => 64,
             PHY_AXI_CONFIG_G    => SSI_PGP2B_CONFIG_C,
             APP_AXI_CONFIG_G    => AXIS_CONFIG_C)
          port map (
@@ -440,7 +458,7 @@ begin
             pgpRst      => pgpRst,                 -- [in]
             rxlinkReady => pgpRxOut(0).linkReady,  -- [in]
             pgpRxMaster => pgpRxMasters(i),        -- [in]
-            pgpRxCtrl   => pgpRxCtrl(i),           -- [out]
+            pgpRxCtrl   => locPgpRxCtrl(i),        -- [out]
             pgpRxSlave  => pgpRxSlaves(i),         -- [out]
             axisClk     => iAxiClk,                -- [in]
             axisRst     => iAxiRst,                -- [in]
@@ -492,7 +510,7 @@ begin
             SYNTH_MODE_G       => "inferred",
             MEMORY_TYPE_G      => "block",
             GEN_SYNC_FIFO_G    => false,
-            FIFO_ADDR_WIDTH_G  => 9,
+            FIFO_ADDR_WIDTH_G  => 11,
             APP_AXI_CONFIG_G   => AXIS_CONFIG_C,
             PHY_AXI_CONFIG_G   => SSI_PGP2B_CONFIG_C)
          port map (
@@ -566,7 +584,8 @@ begin
          TPD_G               => TPD_G,
          INT_PIPE_STAGES_G   => 1,
          PIPE_STAGES_G       => 0,
---          FIFO_PAUSE_THRESH_G   => FIFO_PAUSE_THRESH_G,
+         FIFO_ADDR_WIDTH_G   => 9,
+--         FIFO_PAUSE_THRESH_G   => 8,
 --          FIFO_SYNTH_MODE_G     => FIFO_SYNTH_MODE_G,
 --          TX_VALID_THOLD_G      => TX_VALID_THOLD_G,
 --          TX_VALID_BURST_MODE_G => TX_VALID_BURST_MODE_G,
