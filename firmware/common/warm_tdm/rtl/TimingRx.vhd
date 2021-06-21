@@ -109,7 +109,7 @@ architecture rtl of TimingRx is
       delay          : slv(4 downto 0);
       set            : sl;
       minEyeWidth    : slv(7 downto 0);
-      lockedCountRst : sl;
+      counterReset   : sl;
       readoutDebug0  : slv(9 downto 0);
       readoutDebug1  : slv(9 downto 0);
       readoutDebug2  : slv(9 downto 0);
@@ -122,7 +122,7 @@ architecture rtl of TimingRx is
       delay          => toSlv(DEFAULT_DELAY_G, 5),
       set            => '0',
       minEyeWidth    => toSlv(ite(SIMULATION_G, 2, 64), 8),
-      lockedCountRst => '0',
+      counterReset   => '0',
       readoutDebug0  => (others => '0'),
       readoutDebug1  => (others => '0'),
       readoutDebug2  => (others => '0'),
@@ -140,7 +140,9 @@ architecture rtl of TimingRx is
    signal debugDataOut    : slv(9 downto 0);
 
    signal minEyeWidthSync : slv(7 downto 0);
-   signal lockingCntCfg : slv(23 downto 0) := ite(SIMULATION_G, X"000008", X"00FFFF");
+   signal lockingCntCfg   : slv(23 downto 0) := ite(SIMULATION_G, X"000008", X"00FFFF");
+   signal counterVector   : SlVectorArray(7 downto 0, 15 downto 0);
+   signal statusVector    : slv(7 downto 0);
 
 begin
 
@@ -268,9 +270,9 @@ begin
    -------------------------------------------------------------------------------------------------
    U_SelectIoRxGearboxAligner_1 : entity surf.SelectIoRxGearboxAligner
       generic map (
-         TPD_G        => TPD_G,
-         SIMULATION_G => SIMULATION_G,         
-         CODE_TYPE_G  => "LINE_CODE",
+         TPD_G           => TPD_G,
+         SIMULATION_G    => SIMULATION_G,
+         CODE_TYPE_G     => "LINE_CODE",
          DLY_STEP_SIZE_G => 16)
       port map (
          clk             => wordClk,          -- [in]
@@ -292,6 +294,9 @@ begin
          errorDet        => errorDet,         -- [out]
          locked          => locked);          -- [out]
 
+   -------------------------------------------------------------------------------------------------
+   -- AXIL clock to word clock
+   -------------------------------------------------------------------------------------------------
    Synchronizer_1 : entity surf.Synchronizer
       generic map (
          TPD_G    => TPD_G,
@@ -347,52 +352,55 @@ begin
          dataOut => minEyeWidthSync);   -- [out]
 
 
-   SynchronizerOneShotCnt_1 : entity surf.SynchronizerOneShotCnt
-      generic map (
-         TPD_G          => TPD_G,
-         IN_POLARITY_G  => '0',
-         OUT_POLARITY_G => '0',
-         CNT_RST_EDGE_G => true,
-         CNT_WIDTH_G    => 16)
-      port map (
-         dataIn     => locked,
-         rollOverEn => '0',
-         cntRst     => axilR.lockedCountRst,
-         dataOut    => open,
-         cntOut     => lockedFallCount,
-         wrClk      => wordClk,
-         wrRst      => '0',
-         rdClk      => axilClk,
-         rdRst      => axilRst);
+   -------------------------------------------------------------------------------------------------
+   -- Word clock to AXIL clock
+   -------------------------------------------------------------------------------------------------
+--    SynchronizerOneShotCnt_1 : entity surf.SynchronizerOneShotCnt
+--       generic map (
+--          TPD_G          => TPD_G,
+--          IN_POLARITY_G  => '0',
+--          OUT_POLARITY_G => '0',
+--          CNT_RST_EDGE_G => true,
+--          CNT_WIDTH_G    => 16)
+--       port map (
+--          dataIn     => locked,
+--          rollOverEn => '0',
+--          cntRst     => axilR.counterReset,
+--          dataOut    => open,
+--          cntOut     => lockedFallCount,
+--          wrClk      => wordClk,
+--          wrRst      => '0',
+--          rdClk      => axilClk,
+--          rdRst      => axilRst);
 
-   SynchronizerOneShotCnt_2 : entity surf.SynchronizerOneShotCnt
-      generic map (
-         TPD_G          => TPD_G,
-         IN_POLARITY_G  => '1',
-         OUT_POLARITY_G => '1',
-         CNT_RST_EDGE_G => false,
-         CNT_WIDTH_G    => 16)
-      port map (
-         dataIn     => errorDet,
-         rollOverEn => '0',
-         cntRst     => axilR.lockedCountRst,
-         dataOut    => open,
-         cntOut     => errorDetCount,
-         wrClk      => wordClk,
-         wrRst      => '0',
-         rdClk      => axilClk,
-         rdRst      => axilRst);
+--    SynchronizerOneShotCnt_2 : entity surf.SynchronizerOneShotCnt
+--       generic map (
+--          TPD_G          => TPD_G,
+--          IN_POLARITY_G  => '1',
+--          OUT_POLARITY_G => '1',
+--          CNT_RST_EDGE_G => false,
+--          CNT_WIDTH_G    => 16)
+--       port map (
+--          dataIn     => errorDet,
+--          rollOverEn => '0',
+--          cntRst     => axilR.counterReset,
+--          dataOut    => open,
+--          cntOut     => errorDetCount,
+--          wrClk      => wordClk,
+--          wrRst      => '0',
+--          rdClk      => axilClk,
+--          rdRst      => axilRst);
 
 
-   Synchronizer_3 : entity surf.Synchronizer
-      generic map (
-         TPD_G    => TPD_G,
-         STAGES_G => 2)
-      port map (
-         clk     => axilClk,
-         rst     => axilRst,
-         dataIn  => locked,
-         dataOut => lockedSync);
+--    Synchronizer_3 : entity surf.Synchronizer
+--       generic map (
+--          TPD_G    => TPD_G,
+--          STAGES_G => 2)
+--       port map (
+--          clk     => axilClk,
+--          rst     => axilRst,
+--          dataIn  => locked,
+--          dataOut => lockedSync);
 
 
    U_DataFifoDebug : entity surf.SynchronizerFifo
@@ -434,6 +442,33 @@ begin
          clkIn       => timingRxClk,    -- [in]
          locClk      => axilClk,        -- [in]
          refClk      => axilClk);       -- [in]
+
+   U_SyncStatusVector_1 : entity surf.SyncStatusVector
+      generic map (
+         TPD_G          => TPD_G,
+         COMMON_CLK_G   => false,
+         USE_DSP_G      => "yes",
+         SYNTH_CNT_G    => "11111111",
+         CNT_RST_EDGE_G => true,
+         CNT_WIDTH_G    => 16,
+         WIDTH_G        => 8)
+      port map (
+         statusIn(0)  => locked,                      -- [in]
+         statusIn(1)  => errorDet,                    -- [in]
+         statusIn(2)  => r.timingRxData.startRun,     -- [in]
+         statusIn(3)  => r.timingRxData.endRun,       -- [in]
+         statusIn(4)  => r.timingRxData.rowStrobe,    -- [in]
+         statusIn(5)  => r.timingRxData.firstSample,  -- [in]
+         statusIn(6)  => r.timingRxData.lastSample,   -- [in]
+         statusIn(7)  => r.timingRxData.rawAdc,       -- [in]
+         statusOut    => statusVector,                -- [out]
+         cntRstIn     => axilR.counterReset,          -- [in]
+         rollOverEnIn => "01110000",                  -- [in]
+         cntOut       => counterVector,               -- [out]
+         wrClk        => wordClk,                     -- [in]
+         wrRst        => wordRst,                     -- [in]
+         rdClk        => axilClk,                     -- [in]
+         rdRst        => axilRst);                    -- [in]
 
 
    -------------------------------------------------------------------------------------------------
@@ -510,8 +545,8 @@ begin
    -------------------------------------------------------------------------------------------------
    -- AXI-Lite interface
    -------------------------------------------------------------------------------------------------
-   axilComb : process (axilR, axilReadMaster, axilRst, axilWriteMaster, curDelay, debugDataOut,
-                       debugDataValid, errorDetCount, lockedFallCount, lockedSync, rxClkFreq) is
+   axilComb : process (axilR, axilReadMaster, axilRst, axilWriteMaster, counterVector, curDelay,
+                       debugDataOut, debugDataValid, rxClkFreq, statusVector) is
       variable v      : AxilRegType;
       variable axilEp : AxiLiteEndpointType;
    begin
@@ -540,12 +575,13 @@ begin
 
       axiSlaveRegister(axilEp, X"04", 0, v.realignGearbox);
 
-      -- Debug output to see how many times the shift has needed a relock
-      axiSlaveRegisterR(axilEp, X"10", 0, lockedFallCount);
-      axiSlaveRegisterR(axilEp, X"10", 16, lockedSync);
-      axiSlaveRegisterR(axilEp, X"14", 0, errorDetCount);
+      axiSlaveRegisterR(axilEp, X"08", 0, statusVector(0));  -- locked      
 
-      axiSlaveRegister(axilEp, X"1C", 0, v.lockedCountRst);
+      -- Debug output to see how many times the shift has needed a relock
+      axiSlaveRegisterR(axilEp, X"10", 0, muxSlVectorArray(counterVector, 0));  -- lock count
+      axiSlaveRegisterR(axilEp, X"14", 0, muxSlVectorArray(counterVector, 1));  -- Error Det Count
+
+      axiSlaveRegister(axilEp, X"1C", 0, v.counterReset);
 
       axiSlaveRegisterR(axilEp, X"20", 0, axilR.readoutDebug0);
       axiSlaveRegisterR(axilEp, X"20", 10, axilR.readoutDebug1);
@@ -554,6 +590,13 @@ begin
       axiSlaveRegisterR(axilEp, X"30", 0, rxClkFreq);
 
       axiSlaveRegister(axilEp, X"40", 0, v.minEyeWidth);
+
+      axiSlaveRegisterR(axilEp, X"50", 0, muxSlVectorArray(counterVector, 2));  -- start count
+      axiSlaveRegisterR(axilEp, X"54", 0, muxSlVectorArray(counterVector, 3));  -- end count
+      axiSlaveRegisterR(axilEp, X"58", 0, muxSlVectorArray(counterVector, 4));  -- row strobe count
+      axiSlaveRegisterR(axilEp, X"5C", 0, muxSlVectorArray(counterVector, 5));  -- first sample count
+      axiSlaveRegisterR(axilEp, X"60", 0, muxSlVectorArray(counterVector, 6));  -- last sample count
+      axiSlaveRegisterR(axilEp, X"64", 0, muxSlVectorArray(counterVector, 7));  -- raw adc count
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
 

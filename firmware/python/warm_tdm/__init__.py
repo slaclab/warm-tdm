@@ -3,6 +3,7 @@ from warm_tdm._TimingRx import *
 from warm_tdm._TimingTx import *
 from warm_tdm._Timing import *
 from warm_tdm._WarmTdmCommon import *
+from warm_tdm._WarmTdmCore import *
 from warm_tdm._RowModuleDacs import *
 from warm_tdm._RowModule import *
 from warm_tdm._ColumnModule import *

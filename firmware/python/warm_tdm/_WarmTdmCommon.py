@@ -16,7 +16,7 @@ class WarmTdmCommon(pr.Device):
             offset = 0x0000))
 
         self.add(surf.xilinx.Xadc(
-            enabled = True,
+            enabled = False,
             offset = 0x00001000,
             auxChannels = [0, 1, 8, 9]))
 
@@ -25,7 +25,7 @@ class WarmTdmCommon(pr.Device):
             offset = 0x00002000))
 
         self.add(surf.devices.nxp.Sa56004x(
-            enabled = True,
+            enabled = False,
             offset = 0x00010000))
 
         self.add(surf.devices.microchip.Axi24LC64FT(

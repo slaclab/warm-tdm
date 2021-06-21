@@ -9,8 +9,6 @@ import pyrogue.utilities.prbs
 
 import warm_tdm
 
-
-
 NORMAL_STACK = [
     {'cls': warm_tdm.ColumnModule,
      'name': 'ColumnModule[0]'},
@@ -34,6 +32,12 @@ SINGLE_COLUMN = [
 DUAL_STACK = [
     {'cls': warm_tdm.ColumnModule, 'name': 'ColumnModule[0]'},
     {'cls': warm_tdm.ColumnModule, 'name': 'ColumnModule[1]'}]
+
+TEST_STACK = [
+    {'cls': warm_tdm.ColumnModule, 'name': 'ColumnModule[0]'},
+    {'cls': warm_tdm.ColumnModule, 'name': 'ColumnModule[1]'},
+    {'cls': warm_tdm.ColumnModule, 'name': 'ColumnModule[2]'},    
+    {'cls': warm_tdm.RowModule, 'name': 'RowModule[0]'}]
 
 
 SIM_PORTS = list(range(7000, 7051, 10))
@@ -79,6 +83,13 @@ CONFIGS = {
             'dataPort': 8193,
             'simPorts': None,
             'stack': DUAL_STACK},
+        'test': {
+            'pollEn': False,
+            'host': '192.168.3.11',
+            'srpPort': 8192,
+            'dataPort': 8193,
+            'simPorts': None,
+            'stack': TEST_STACK},
         'row': {
             'pollEn': False,                        
             'host': '192.168.3.12',
@@ -120,6 +131,7 @@ class WarmTdmRoot(pyrogue.Root):
 
         self._doHeartbeat = False
         super().__init__(**kwargs)
+
 
         # Add the data writer
         self.add(pyrogue.utilities.fileio.StreamWriter(name='DataWriter'))

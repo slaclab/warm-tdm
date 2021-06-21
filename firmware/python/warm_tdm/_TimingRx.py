@@ -13,6 +13,7 @@ class TimingRx(pr.Device):
             offset = 0x30,
             bitOffset = 0,
             bitSize = 32,
+            pollInterval = 2,
             hidden = True))
 
         self.add(pr.LinkVariable(
@@ -47,19 +48,21 @@ class TimingRx(pr.Device):
             function = pr.RemoteCommand.toggle))
 
         self.add(pr.RemoteVariable(
-            name = 'LockedFallCount',
+            name = 'Locked',
+            mode = 'RO',
+            offset = 0x08,
+            bitOffset = 0,
+            bitSize = 1,
+            pollInterval = 2,
+            disp = '{:d}'))
+
+        self.add(pr.RemoteVariable(
+            name = 'LockedCount',
             mode = 'RO',
             offset = 0x10,
             bitOffset = 0,
             bitSize = 16,
-            disp = '{:d}'))
-
-        self.add(pr.RemoteVariable(
-            name = 'LockedSync',
-            mode = 'RO',
-            offset = 0x10,
-            bitOffset = 16,
-            bitSize = 1,
+            pollInterval = 2,
             disp = '{:d}'))
 
         self.add(pr.RemoteVariable(
@@ -68,6 +71,7 @@ class TimingRx(pr.Device):
             offset = 0x14,
             bitOffset = 0,
             bitSize = 16,
+            pollInterval = 2,
             disp = '{:d}'))
 
         self.add(pr.RemoteCommand(
@@ -76,11 +80,12 @@ class TimingRx(pr.Device):
             bitOffset = 0,
             bitSize = 1,
             function = pr.RemoteCommand.toggle))
-            
+
         self.add(pr.RemoteVariable(
             name = 'ReadoutDebug0',
             mode = 'RO',
             disp = '{:010b}',
+            pollInterval = 2,
             offset = 0x20,
             bitOffset = 0,
             bitSize = 10))
@@ -88,7 +93,8 @@ class TimingRx(pr.Device):
         self.add(pr.RemoteVariable(
             name = 'ReadoutDebug1',
             mode = 'RO',
-            disp = '{:010b}',            
+            disp = '{:010b}',
+            pollInterval = 2,
             offset = 0x20,
             bitOffset = 10,
             bitSize = 10))
@@ -96,7 +102,8 @@ class TimingRx(pr.Device):
         self.add(pr.RemoteVariable(
             name = 'ReadoutDebug2',
             mode = 'RO',
-            disp = '{:010b}',            
+            disp = '{:010b}',
+            pollInterval = 2,
             offset = 0x20,
             bitOffset = 20,
             bitSize = 10))
@@ -108,11 +115,63 @@ class TimingRx(pr.Device):
             bitOffset = 0,
             bitSize = 8))
 
+        self.add(pr.RemoteVariable(
+            name = 'StartCount',
+            mode = 'RO',
+            offset = 0x50,
+            bitOffset = 0,
+            bitSize = 16,
+            pollInterval = 2,
+            disp = '{:d}'))
+
+        self.add(pr.RemoteVariable(
+            name = 'EndCount',
+            mode = 'RO',
+            offset = 0x54,
+            bitOffset = 0,
+            bitSize = 16,
+            pollInterval = 2,
+            disp = '{:d}'))
+
+        self.add(pr.RemoteVariable(
+            name = 'RowStrobeCount',
+            mode = 'RO',
+            offset = 0x58,
+            bitOffset = 0,
+            bitSize = 16,
+            pollInterval = 2,
+            disp = '{:d}'))
+
+        self.add(pr.RemoteVariable(
+            name = 'FirstSampleCount',
+            mode = 'RO',
+            offset = 0x5C,
+            bitOffset = 0,
+            bitSize = 16,
+            pollInterval = 2,
+            disp = '{:d}'))
+
+        self.add(pr.RemoteVariable(
+            name = 'LastSampleCount',
+            mode = 'RO',
+            offset = 0x60,
+            bitOffset = 0,
+            bitSize = 16,
+            pollInterval = 2,
+            disp = '{:d}'))
+
+        self.add(pr.RemoteVariable(
+            name = 'RawAdcCount',
+            mode = 'RO',
+            offset = 0x64,
+            bitOffset = 0,
+            bitSize = 16,
+            pollInterval = 2,
+            disp = '{:d}'))
+
         @self.command()
         def ReadDebug():
             for x in range(5000):
                 value = self.ReadoutDebug0.get(read=True)
                 if value != 0x17c and value != 0x283:
                     print(f'Bad value: {value:x}')
-
-        
