@@ -12,12 +12,14 @@ class DataPath(pr.Device):
         super().__init__(**kwargs)
 
         self.add(surf.devices.analog_devices.Ad9681Readout(
+            enabled = False,
             offset = 0x00000000))
 
         for i in range(8):
             self.add(warm_tdm.AdcDsp(
                 name = f'AdcDsp[{i}]',
-                offset = (i+1) << 16))
+                offset = (i+1) << 16,
+                enabled = False))
 
 #         for i in range(8):
 #             self.add(surf.dsp.fixed.FirFilterSingleChannel(

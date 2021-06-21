@@ -15,7 +15,7 @@ class RowModule(pr.Device):
         
         self.add(warm_tdm.RowModuleDacs(
             offset = 0xC1000000,
-            enabled = False))
+            enabled = True))
 
         self.add(surf.protocols.ssi.SsiPrbsRx(
             offset = 0xC0200000))
