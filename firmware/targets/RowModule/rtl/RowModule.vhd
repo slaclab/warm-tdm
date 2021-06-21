@@ -289,6 +289,7 @@ begin
       generic map (
          TPD_G            => TPD_G,
          SIMULATION_G     => SIMULATION_G,
+         AXIL_CLK_FREQ_G => AXIL_CLK_FREQ_C,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_DACS_C).baseAddr)
       port map (
          axilClk         => axilClk,                           -- [in]
