@@ -29,16 +29,18 @@ class Group(pr.Device):
         self.add(pr.LinkVariable(name='RowTuneEn',
                                  value=False,
                                  mode='RW',
-                                 localSet=self._rowTuneEnSet,
-                                 localGet=self._rowTuneEnGet,
+                                 typeStr='bool',
+                                 linkedSet=self._rowTuneEnSet,
+                                 linkedGet=self._rowTuneEnGet,
                                  description="Row Tune Enable"))
 
         # Row Tune Channel
         self.add(pr.LinkVariable(name='RowTuneIndex',
                                  value=0,
                                  mode='RW',
-                                 localSet=self._rowTuneIdxSet,
-                                 localGet=self._rowTuneIdxGet,
+                                 typeStr='int',
+                                 linkedSet=self._rowTuneIdxSet,
+                                 linkedGet=self._rowTuneIdxGet,
                                  description="Row Tune Index"))
 
         # Low offset for SA FB Tuning
@@ -57,6 +59,7 @@ class Group(pr.Device):
         self.add(pr.LocalVariable(name='SaFbStepSize',
                                   value=0.0,
                                   mode='RW',
+                                  typeStr='double[]',
                                   description="Step size for SA FB Tuning"))
 
         # Low offset for SA Bias Tuning
@@ -152,113 +155,124 @@ class Group(pr.Device):
         # TES Bias values, accessed with column index value
         self.add(pr.LinkVariable(name='TesBias',
                                  mode='RW',
-                                 localSet=self._saBiasSet,
-                                 localGet=self._saBiasGet,
+                                 typeStr='double[]',
+                                 linkedSet=self._saBiasSet,
+                                 linkedGet=self._saBiasGet,
                                  description=""))
 
         # SA Bias values, accessed with column index value
         self.add(pr.LinkVariable(name='SaBias',
                                  mode='RW',
-                                 localSet=self._saBiasSet,
-                                 localGet=self._saBiasGet,
+                                 typeStr='double[]',
+                                 linkedSet=self._saBiasSet,
+                                 linkedGet=self._saBiasGet,
                                  description=""))
 
         # SA Offset values, accessed with column index value
         self.add(pr.LinkVariable(name='SaOffset',
                                  mode='RW',
-                                 localSet=self._saOffsetSet,
-                                 localGet=self._saOffsetGet,
+                                 typeStr='double[]',
+                                 linkedSet=self._saOffsetSet,
+                                 linkedGet=self._saOffsetGet,
                                  description=""))
 
         # SA Out values, accessed with column index value
         self.add(pr.LinkVariable(name='SaOut',
                                  mode='RO',
-                                 localGet=self._saOutGet,
+                                 typeStr='double[]',
+                                 linkedGet=self._saOutGet,
                                  description=""))
 
         # SA FB values, accessed with index tuple (column, row)
         self.add(pr.LinkVariable(name='SaFb',
                                  mode='RW',
-                                 localSet=self._saFbSet,
-                                 localGet=self._saFbGet,
+                                 typeStr='double[]',
+                                 linkedSet=self._saFbSet,
+                                 linkedGet=self._saFbGet,
                                  description=""))
 
         # SQ1 Bias values, accessed with index tuple (column, row)
         self.add(pr.LinkVariable(name='Sq1Bias',
                                  mode='RW',
-                                 localSet=self._sq1BiasSet,
-                                 localGet=self._sq1BiasGet,
+                                 typeStr='double[]',
+                                 linkedSet=self._sq1BiasSet,
+                                 linkedGet=self._sq1BiasGet,
                                  description=""))
 
         # SQ1 Fb values, accessed with index tuple (column, row)
         self.add(pr.LinkVariable(name='Sq1Fb',
                                  mode='RW',
-                                 localSet=self._sq1FbSet,
-                                 localGet=self._sq1FbGet,
+                                 typeStr='double[]',
+                                 linkedSet=self._sq1FbSet,
+                                 linkedGet=self._sq1FbGet,
                                  description=""))
 
         # FAS Flux off values, accessed with row index
         self.add(pr.LinkVariable(name='FasFluxOff',
                                  mode='RW',
-                                 localSet=self._fasFluxOffSet,
-                                 localGet=self._fasFluxOffGet,
+                                 typeStr='double[]',
+                                 linkedSet=self._fasFluxOffSet,
+                                 linkedGet=self._fasFluxOffGet,
                                  description=""))
 
         # FAS Flux on values, accessed with row index
         self.add(pr.LinkVariable(name='FasFluxOn',
                                  mode='RW',
-                                 localSet=self._fasFluxOnSet,
-                                 localGet=self._fasFluxOnGet,
+                                 typeStr='double[]',
+                                 linkedSet=self._fasFluxOnSet,
+                                 linkedGet=self._fasFluxOnGet,
                                  description=""))
 
         # FLL Enable value
         self.add(pr.LinkVariable(name='FllEnable',
                                  mode='RW',
-                                 localSet=self._fllEnableSet,
-                                 localGet=self._fllEnableGet,
+                                 typeStr='double[]',
+                                 linkedSet=self._fllEnableSet,
+                                 linkedGet=self._fllEnableGet,
                                  description=""))
 
         # SA Tuning Results
         self.add(pr.LocalVariable(name='SaTuneOutput',
-                                  value=None,
-                                  mode='RW',
+                                  value={},
+                                  mode='RO',
                                   description="Results Data From SA Tuning"))
 
         # FAS Tuning Results
         self.add(pr.LocalVariable(name='FasTuneOutput',
-                                  value=None,
-                                  mode='RW',
+                                  value={},
+                                  mode='RO',
                                   description="Results Data From FAS Tuning"))
 
         # SQ1 Tuning Results
         self.add(pr.LocalVariable(name='Sq1TuneOutput',
-                                  value=None,
-                                  mode='RW',
+                                  value={},
+                                  mode='RO',
                                   description="Results Data From SQ1 Tuning"))
 
         # SQ1 Diagnostic Results
         self.add(pr.LocalVariable(name='Sq1DiagOutput',
-                                  value=None,
-                                  mode='RW',
+                                  value={},
+                                  mode='RO',
                                   description="Results Data From SQ1 Diagnostic"))
 
         # TES Diagnostic Results
         self.add(pr.LocalVariable(name='TesDiagOutput',
-                                  value=None,
-                                  mode='RW',
+                                  value={},
+                                  mode='RO',
                                   description="Results Data From Tes Diagnostic"))
 
         if self._emulate:
             self._tuneEn     = False
             self._tuneIdx    = 0
-            self._tesBias    = [0.0] * self._colMap
-            self._saBias     = [0.0] * self._colMap
-            self._saOffset   = [0.0] * self._colMap
-            self._saOut      = [0.0] * self._colMap
-            self._sq1Bias    = [[0.0] * self._rowMap] * self._colMap
-            self._sq1Fb      = [[0.0] * self._rowMap] * self._colMap
-            self._fasFluxOff = [[0.0] * self._rowMap] * self._colMap
-            self._fasFluxOn  = [[0.0] * self._rowMap] * self._colMap
+            self._tesBias    = [0.0] * len(self._colMap)
+            self._saBias     = [0.0] * len(self._colMap)
+            self._saOffset   = [0.0] * len(self._colMap)
+            self._saOut      = [0.0] * len(self._colMap)
+            self._sq1Bias    = [[0.0] * len(self._rowMap)] * len(self._colMap)
+            self._sq1Fb      = [[0.0] * len(self._rowMap)] * len(self._colMap)
+            self._saFb       = [[0.0] * len(self._rowMap)] * len(self._colMap)
+            self._fasFluxOff = [[0.0] * len(self._rowMap)] * len(self._colMap)
+            self._fasFluxOn  = [[0.0] * len(self._rowMap)] * len(self._colMap)
             self._fllEnable  = False
 
 
@@ -315,7 +329,7 @@ class Group(pr.Device):
 
         # index access
         if index != -1:
-            board, chan = self._colMap(index)
+            board, chan = self._colMap[index]
             if self._emulate is True:
                 self._tesBias[index] = value
             else:
@@ -325,7 +339,7 @@ class Group(pr.Device):
         else:
 
             for idx in range(len(self._colMap)):
-                board, chan = self._colMap(idx)
+                board, chan = self._colMap[idx]
 
                 if self._emulate is True:
                     self._tesBias[idx] = value[idx]
@@ -338,7 +352,7 @@ class Group(pr.Device):
 
         # index access
         if index != -1:
-            board, chan = self._colMap(index)
+            board, chan = self._colMap[index]
 
             if self._emulate is True:
                 return self._tesBias[index]
@@ -350,7 +364,7 @@ class Group(pr.Device):
             ret = [0.0] * len(self._colMap)
 
             for idx in range(len(self._colMap)):
-                board, chan = self._colMap(idx)
+                board, chan = self._colMap[idx]
 
                 if self._emulate is True:
                     ret[idx] = self._tesBias[idx]
@@ -365,7 +379,7 @@ class Group(pr.Device):
 
         # index access
         if index != -1:
-            board, chan = self._colMap(index)
+            board, chan = self._colMap[index]
 
             if self._emulate is True:
                 self._saBias[index] = value
@@ -376,7 +390,7 @@ class Group(pr.Device):
         else:
 
             for idx in range(len(self._colMap)):
-                board, chan = self._colMap(idx)
+                board, chan = self._colMap[idx]
 
                 if self._emulate is True:
                     self._saBias[idx] = value[idx]
@@ -389,7 +403,7 @@ class Group(pr.Device):
 
         # index access
         if index != -1:
-            board, chan = self._colMap(index)
+            board, chan = self._colMap[index]
 
             if self._emulate is True:
                 return self._saBias[index]
@@ -401,7 +415,7 @@ class Group(pr.Device):
             ret = [0.0] * len(self._colMap)
 
             for idx in range(len(self._colMap)):
-                board, chan = self._colMap(idx)
+                board, chan = self._colMap[idx]
 
                 if self._emulate is True:
                     ret[idx] = self._saBias[idx]
@@ -416,7 +430,7 @@ class Group(pr.Device):
 
         # index access
         if index != -1:
-            board, chan = self._colMap(index)
+            board, chan = self._colMap[index]
 
             if self._emulate is True:
                 self._saOffset[index] = value
@@ -427,7 +441,7 @@ class Group(pr.Device):
         else:
 
             for idx in range(len(self._colMap)):
-                board, chan = self._colMap(idx)
+                board, chan = self._colMap[idx]
 
                 if self._emulate is True:
                     self._saOffset[idx] = value[idx]
@@ -440,7 +454,7 @@ class Group(pr.Device):
 
         # index access
         if index != -1:
-            board, chan = self._colMap(index)
+            board, chan = self._colMap[index]
 
             if self._emulate is True:
                 return self._saOffset[index]
@@ -452,7 +466,7 @@ class Group(pr.Device):
             ret = [0.0] * len(self._colMap)
 
             for idx in range(len(self._colMap)):
-                board, chan = self._colMap(idx)
+                board, chan = self._colMap[idx]
 
                 if self._emulate is True:
                     ret[idx] = self._saOffset[idx]
@@ -467,7 +481,7 @@ class Group(pr.Device):
 
         # index access
         if index != -1:
-            board, chan = self._colMap(index)
+            board, chan = self._colMap[index]
 
             if self._emulate is True:
                 return self._saOut[index]
@@ -479,7 +493,7 @@ class Group(pr.Device):
             ret = [0.0] * len(self._colMap)
 
             for idx in range(len(self._colMap)):
-                board, chan = self._colMap(idx)
+                board, chan = self._colMap[idx]
 
                 if self._emulate is True:
                     ret[idx] = self._saOut[idx]
@@ -496,7 +510,7 @@ class Group(pr.Device):
         if index != -1:
             colIndex = index[0]
             rowIndex = index[1]
-            colBoard, colChan = self._colMap(colIndex)
+            colBoard, colChan = self._colMap[colIndex]
 
             if self._emulate is True:
                 self._saFb[colIndex][rowIndex] = value
@@ -507,12 +521,12 @@ class Group(pr.Device):
         else:
 
             for colIndex in range(len(self._colMap)):
-                colBoard, colChan = self._colMap(colIndex)
+                colBoard, colChan = self._colMap[colIndex]
 
                 for rowIndex in range(len(self._rowMap)):
 
                     if self._emulate is True:
-                        self._saFb[colIndex][rowIndex] = value[colIndex][rowIndex] self.Hardware.RowBoard[board].FasFluxOff[chan].set(value=value[idx],write=write)
+                        self._saFb[colIndex][rowIndex] = value[colIndex][rowIndex]
 
                     else:
                         self.Hardware.ColumnBoard[colBoard].SaFb[colChan].set(value=value[colIndex][rowIndex],index=rowIndex,write=False)
@@ -529,7 +543,7 @@ class Group(pr.Device):
         if index != -1:
             colIndex = index[0]
             rowIndex = index[1]
-            colBoard, colChan = self._colMap(colIndex)
+            colBoard, colChan = self._colMap[colIndex]
 
             if self._emulate is True:
                 return self._saFb[colIndex][rowIndex]
@@ -541,7 +555,7 @@ class Group(pr.Device):
             ret = [[0.0] * len(self._rowMap)] * len(self._colMap)
 
             for colIndex in range(len(self._colMap)):
-                colBoard, colChan = self._colMap(colIndex)
+                colBoard, colChan = self._colMap[colIndex]
 
                 # Force reads
                 if read is True:
@@ -565,7 +579,7 @@ class Group(pr.Device):
         if index != -1:
             colIndex = index[0]
             rowIndex = index[1]
-            colBoard, colChan = self._colMap(colIndex)
+            colBoard, colChan = self._colMap[colIndex]
 
             if self._emulate is True:
                 self._sq1Bias[colIndex][rowIndex] = value
@@ -576,7 +590,7 @@ class Group(pr.Device):
         else:
 
             for colIndex in range(len(self._colMap)):
-                colBoard, colChan = self._colMap(colIndex)
+                colBoard, colChan = self._colMap[colIndex]
 
                 for rowIndex in range(len(self._rowMap)):
 
@@ -597,7 +611,7 @@ class Group(pr.Device):
         if index != -1:
             colIndex = index[0]
             rowIndex = index[1]
-            colBoard, colChan = self._colMap(colIndex)
+            colBoard, colChan = self._colMap[colIndex]
 
             if self._emulate is True:
                 return self._sq1Bias[colIndex][rowIndex]
@@ -609,7 +623,7 @@ class Group(pr.Device):
             ret = [[0.0] * len(self._rowMap)] * len(self._colMap)
 
             for colIndex in range(len(self._colMap)):
-                colBoard, colChan = self._colMap(colIndex)
+                colBoard, colChan = self._colMap[colIndex]
 
                 # Force reads
                 if read is True:
@@ -632,7 +646,7 @@ class Group(pr.Device):
         if index != -1:
             colIndex = index[0]
             rowIndex = index[1]
-            colBoard, colChan = self._colMap(colIndex)
+            colBoard, colChan = self._colMap[colIndex]
 
             if self._emulate is True:
                 self._sq1Fb[colIndex][rowIndex] = value
@@ -643,7 +657,7 @@ class Group(pr.Device):
         else:
 
             for colIndex in range(len(self._colMap)):
-                colBoard, colChan = self._colMap(colIndex)
+                colBoard, colChan = self._colMap[colIndex]
 
                 for rowIndex in range(len(self._rowMap)):
 
@@ -664,7 +678,7 @@ class Group(pr.Device):
         if index != -1:
             colIndex = index[0]
             rowIndex = index[1]
-            colBoard, colChan = self._colMap(colIndex)
+            colBoard, colChan = self._colMap[colIndex]
 
             if self._emulate is True:
                 return self._sq1Fb[colIndex][rowIndex]
@@ -672,12 +686,12 @@ class Group(pr.Device):
                 return self.Hardware.ColumnBoard[colBoard].Sq1Fb[colChan].get(index=rowIndex,read=read)
 
         # Full array access
-        else: self.Hardware.RowBoard[board].FasFluxOff[chan].set(value=value[idx],write=write)
+        else:
 
             ret = [[0.0] * len(self._rowMap)] * len(self._colMap)
 
             for colIndex in range(len(self._colMap)):
-                colBoard, colChan = self._colMap(colIndex)
+                colBoard, colChan = self._colMap[colIndex]
 
                 # Force reads
                 if read is True:
@@ -698,7 +712,7 @@ class Group(pr.Device):
 
         # index access
         if index != -1:
-            board, chan = self._rowMap(index)
+            board, chan = self._rowMap[index]
 
             if self._emulate is True:
                 self._fasFluxOff[index] = value
@@ -709,7 +723,7 @@ class Group(pr.Device):
         else:
 
             for idx in range(len(self._rowMap)):
-                board, chan = self._rowMap(idx)
+                board, chan = self._rowMap[idx]
 
                 if self._emulate is True:
                     self._fasFluxOff[idx] = value[idx]
@@ -722,7 +736,7 @@ class Group(pr.Device):
 
         # index access
         if index != -1:
-            board, chan = self._rowMap(index)
+            board, chan = self._rowMap[index]
 
             if self._emulate is True:
                 return self._fasFluxOff[index]
@@ -734,7 +748,7 @@ class Group(pr.Device):
             ret = [0.0] * len(self._rowMap)
 
             for idx in range(len(self._rowMap)):
-                board, chan = self._rowMap(idx)
+                board, chan = self._rowMap[idx]
 
                 if self._emulate is True:
                     ret[idx] = self._fasFluxOff[idx]
@@ -749,7 +763,7 @@ class Group(pr.Device):
 
         # index access
         if index != -1:
-            board, chan = self._rowMap(index)
+            board, chan = self._rowMap[index]
 
             if self._emulate is True:
                 self._fasFluxOn[index] = value
@@ -760,7 +774,7 @@ class Group(pr.Device):
         else:
 
             for idx in range(len(self._rowMap)):
-                board, chan = self._rowMap(idx)
+                board, chan = self._rowMap[idx]
 
                 if self._emulate is True:
                     self._fasFluxOn[idx] = value[idx]
@@ -773,7 +787,7 @@ class Group(pr.Device):
 
         # index access
         if index != -1:
-            board, chan = self._rowMap(index)
+            board, chan = self._rowMap[index]
 
             if self._emulate is True:
                 return self._fasFluxOn[index]
@@ -785,7 +799,7 @@ class Group(pr.Device):
             ret = [0.0] * len(self._rowMap)
 
             for idx in range(len(self._rowMap)):
-                board, chan = self._rowMap(idx)
+                board, chan = self._rowMap[idx]
 
                 if self._emulate is True:
                     ret[idx] = self._fasFluxOn[idx]
