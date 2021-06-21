@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.backends.backend_pdf
 import time
 from mpl_toolkits.mplot3d import Axes3D #not sure if necessary
+from simple_pid import PID #might be used for saOffset
 
 
 #taken from ucsc project
@@ -69,14 +70,16 @@ def initialize(group):
 
 def SaOffset(group, fb, row):
 	pass
-	#is this necessary, or will it be at a lower level?
+	
 
 #SA TUNING
 def saFlux(group):
 	curve = []
-	for fb in : #some set of SA_FB values
-		group.saFb.set(fb)
+	saFb = group.SaFbLowOffset.get()
+	while saFb <= group.SaFbHighOffset.get(): #some set of SA_FB values
+		group.saFb[row?].set(fb)
 		curve.append(group.SaOffset.get())
+		saFb += group.SaFbStepSize.get()
 	return curve
 	###
 	
@@ -91,6 +94,7 @@ def saFluxBias(group):
 
 
 def saTune(group):
+	#row agnostic?
 	initialize()
 	saFluxBiasResults = saFluxBias()
 	peak = maxPeak(saFluxBiasResults)
@@ -105,8 +109,10 @@ def saTune(group):
 #FAS TUNING
 def fasFlux(group,row):
 	data = []
-	for bias in fasbiasvalues:
-		group.saFb[row].set(bias)
+	offset = group.FaxFluxLowOffset.get()
+	while offset <= group.FasFluxHighOffset.get():
+		group.saFb[row].set(offset)
+		offset += group.FasFluxStepSize.get()
 		#is SaOut a variable we can access? how will we determine when it is 0
 
 
@@ -116,9 +122,9 @@ def fasTune(group):
 		off, on = min(results), max(results) #assuming results is a list
 
 
-
-
+#urn on rowtunenable
 #SQ1 TUNING
+#output vs sq1 feedback for various values of sq1 bias for everey row for every column 
 def sq1Flux(group,row):
 	data = []
 	for fb in : #some set of fb
@@ -128,6 +134,7 @@ def sq1Flux(group,row):
 
 def sq1FluxRow(group):
 	for row in range(group.NumRows.get()):
+		#on value is not a boolean, change this
 		group.fasBias[row].set(True)  #will on be a boolean?
 		group.saFb[row].set(?) #does this come from a config file
 	results = sq1Flux(group)
@@ -135,12 +142,11 @@ def sq1FluxRow(group):
 def sq1FluxRowBias(group):
 	data = {'xvalues' : [] #Need to know these
 			'curves' : {}}
-			#with offset as a function of s sq1FB, with each curve being a different Sq1Bias
-	for bias in sq1biasvalues: #What are these values?
-		data['curves'][bias] = sq1FluxRow(group)
-		#Do something with sq1FluxRow()
-		#maybe data['curves'][bias] = sq1FluxRow()?
-		#assuming sq1fluxrow returns a list
+	#with offset as a function of s sq1FB, with each curve being a different Sq1Bias
+	sq1Bias = group.Sq1BiasLowOffset.get()
+	while saFb <= group.Sq1BiasHighOffset.get():
+		data['curves'][sq1Bias] = sq1FluxRow(group)
+		sq1Bias += group.Sq1BiasStepSize.get()
 	return data
 
 def sq1Tune(group):
@@ -152,11 +158,13 @@ def sq1Tune(group):
 		#What to do with these results?
 
 #SQ1 DIAGNOSTIC
-
+#output vs sq1 feedback for every row  for every column
 def sq1Ramp(group,row):
 	data = []
-	for fb in : #some set of sq1fb values
-		data.append(SaOffset(group,fb,row))
+	sq1Fb = group.Sq1FbLowOffset.get()
+	while saFb <= group.Sq1FbHighOffset.get():
+		data.append(SaOffset(group,saFb,row))
+		saFb += group.Sq1FbStepSize.get()
 	return data
 
 def sq1RampRow(group):
@@ -167,13 +175,15 @@ def sq1RampRow(group):
 
 
 #TES BIAS DIAGNOSTIC
-
+#out vs tes for row for column 
 def tesRamp(group,row):
 	offsets = [] #is tesRamp meant to return a list like this?
-	for bias in : #some set of TesBias values
+	bias = group.TesBiasLowOffset.get()
+	while bias <= group.TesBiasHighOffset.get()
 		group.TesBias[row].set(bias)
 		offset = SaOffset(row)
 		offsets.append(offset)
+		bias += group.TesBiasStepSize.get()
 	return offsets
 
 def tesRampRow(group):
