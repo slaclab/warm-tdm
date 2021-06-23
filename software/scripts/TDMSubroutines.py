@@ -73,7 +73,7 @@ def SaOffset(group, fb, row):
 	
 
 #SA TUNING
-def saFlux(group):
+def saFlux(group,bias):
 	curve = []
 	saFb = group.SaFbLowOffset.get()
 	while saFb <= group.SaFbHighOffset.get(): #some set of SA_FB values
@@ -85,10 +85,14 @@ def saFlux(group):
 	
 
 def saFluxBias(group):
-	data = {'xvalues' : [] #Need to know these
+	data = {'xvalues' : [],
 			'curves' : {}}
-	for bias in : #some set of SA BIAS values
-		data['curves'][bias] = saFlux() #assuming this will return a list
+
+	bias = group.SaBiasLowOffset.get()
+	while bias <= group.SaBiasHighOffset.get(): #some set of SA BIAS values
+		data['curves'][bias] = saFlux(bias) #assuming this will return a list
+		bias += group.SaBiasStepSize.get()
+	return data
 
 		
 
@@ -127,9 +131,10 @@ def fasTune(group):
 #output vs sq1 feedback for various values of sq1 bias for everey row for every column 
 def sq1Flux(group,row):
 	data = []
-	for fb in : #some set of fb
+	fb = group.Sq1FbLowOffset.get()
+	while fb <= group.Sq1FbHighOffset.get(): #some set of fb
 		data.append(SaOffset(group,fb,row))
-
+		fb += group.Sq1FbStepSize.get()
 	return data
 
 def sq1FluxRow(group):
