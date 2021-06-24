@@ -3,9 +3,21 @@ import sys
 import matplotlib.pyplot as plt
 import matplotlib.backends.backend_pdf
 import time
+
+import pyrogue
+import pyrogue.pydm
+import rogue
+
 from mpl_toolkits.mplot3d import Axes3D #not sure if necessary
 from simple_pid import PID #might be used for saOffset
 
+pyrogue.addLibraryPath(f'../python/')
+pyrogue.addLibraryPath(f'../../firmware/python/')
+
+import warm_tdm_api
+
+with warm_tdm_api.GroupRoot() as root:
+	pyrogue.pydm.runPyDM(root=root,title='Subroutines',sizeX=1000,sizeY=500) #Probably wrong
 
 #taken from ucsc project
 outFile = "summary.pdf"
