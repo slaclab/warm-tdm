@@ -25,7 +25,6 @@ pdf = matplotlib.backends.backend_pdf.PdfPages(outFile)
 figs = plt.figure()
 
 
-
 #### not sure where something like this will fit in
 
 with pyrogue.interfaces.VirtualClient(host,port) as client:
@@ -70,19 +69,37 @@ def midpoint(data):
 
 
 #INITIALIZATION AND OFFSET ADJUSTMENT
-
 def initialize(group):
 	#Open and read config file (maybe)
 	inFile = sys.argv[1]
-
 	for column in (group.NumRows.get()):
 		SaBias[column].set() #still don't know what we are setting these to
 		saFb[column].set()
 
+def SaOffsetPid(group, fb, row):
+# 	Adjusts the SA_OFFSET value to zero out the SA_OUT value read by the ADC
+# Resulting SA_OFFSET is made available for readback	
+	pid = PID(1, .1, .05)
+	pid.setpoint(0) #want to zero the saOut value
+	while True: #not sure of the properties of this loop
+		out = group.SaOut.get() #get current saout
+		control = pid(out) #get control value to set offset to
+		group.saOffset.set(control) #set offset
+		if : #What will be the condition to exit this loop?
+			break
+	return control
 
-def SaOffset(group, fb, row):
-	pass
-	
+def SaOffsetSweep(group, fb, row): #optional
+	offset = group.SaLowOffset.get()
+	while offset < group.SaHighOffset.get():
+		SaOffset.set(offset)
+		out = SaOut.get()
+		if out <= 0:
+			break
+		offset += group.SaOffsetStepsize.get():
+	return offset
+
+
 
 #SA TUNING
 def saFlux(group,bias):
@@ -93,8 +110,6 @@ def saFlux(group,bias):
 		curve.append(group.SaOffset.get())
 		saFb += group.SaFbStepSize.get()
 	return curve
-	###
-	
 
 def saFluxBias(group):
 	data = {'xvalues' : [],
@@ -106,9 +121,6 @@ def saFluxBias(group):
 		bias += group.SaBiasStepSize.get()
 	return data
 
-		
-
-
 def saTune(group):
 	#row agnostic?
 	initialize()
@@ -116,11 +128,10 @@ def saTune(group):
 	peak = maxPeak(saFluxBiasResults)
 	midpoint = midpoint(saFluxBiasResults) 
 	#record sa offset
-
 	#There will be a function to summarize the data in a plot
-
-
 	return #SA_BIAS, SA_OFFSET & SA_FB
+
+
 
 #FAS TUNING
 def fasFlux(group,row):
@@ -131,14 +142,14 @@ def fasFlux(group,row):
 		offset += group.FasFluxStepSize.get()
 		#is SaOut a variable we can access? how will we determine when it is 0
 
-
 def fasTune(group):
 	for row in range(64):
 		results = fasFlux(group,row)
 		off, on = min(results), max(results) #assuming results is a list
 
 
-#urn on rowtunenable
+
+#turn on rowtunenable
 #SQ1 TUNING
 #output vs sq1 feedback for various values of sq1 bias for everey row for every column 
 def sq1Flux(group,row):
@@ -157,7 +168,7 @@ def sq1FluxRow(group):
 	results = sq1Flux(group)
 
 def sq1FluxRowBias(group):
-	data = {'xvalues' : [] #Need to know these
+	data = {'xvalues' : [], #Need to know these
 			'curves' : {}}
 	#with offset as a function of s sq1FB, with each curve being a different Sq1Bias
 	sq1Bias = group.Sq1BiasLowOffset.get()
@@ -173,6 +184,8 @@ def sq1Tune(group):
 		mid = midpoint(curves)
 		data.append((curves,mid))
 		#What to do with these results?
+
+
 
 #SQ1 DIAGNOSTIC
 #output vs sq1 feedback for every row  for every column
@@ -191,9 +204,9 @@ def sq1RampRow(group):
 		rowsdata.append(sq1Ramp(group,row))
 
 
+
 #TES BIAS DIAGNOSTIC
-#out vs tes for row for column 
-def tesRamp(group,row):
+def tesRamp(group,row): #out vs tes for row for column 
 	offsets = [] #is tesRamp meant to return a list like this?
 	bias = group.TesBiasLowOffset.get()
 	while bias <= group.TesBiasHighOffset.get()
@@ -209,6 +222,7 @@ def tesRampRow(group):
 		group.fasBias[row].set(True)
 		data.append(tesRamp(row))
 	return data
+
 
 
 
