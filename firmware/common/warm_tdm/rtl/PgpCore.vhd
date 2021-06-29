@@ -262,7 +262,7 @@ begin
             axilWriteMaster  => locAxilWriteMasters(AXIL_GTX_0_C),
             axilWriteSlave   => locAxilWriteSlaves(AXIL_GTX_0_C));
 
-      PGP_RX_CTRL : process (pgpRxCtrl, pgpRxOut) is
+      PGP_RX_CTRL : process (locPgpRxCtrl, pgpRxOut) is
          variable tmp : AxiStreamCtrlArray(3 downto 0);
       begin
          tmp := locPgpRxCtrl;
