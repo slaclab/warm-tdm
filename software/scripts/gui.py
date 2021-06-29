@@ -9,8 +9,8 @@ import logging
 
 if '--local' in sys.argv:
     baseDir = os.path.dirname(os.path.realpath(__file__))
-    print(f'{baseDir}/../../firmware/common/python')
-    pyrogue.addLibraryPath(f'{baseDir}/../../firmware/common/python')
+    print(f'{baseDir}/../../firmware/python')
+    pyrogue.addLibraryPath(f'{baseDir}/../../firmware/python')
     pyrogue.addLibraryPath(f'{baseDir}/../../firmware/submodules/surf/python')
 
 
@@ -33,18 +33,14 @@ rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
 parser = argparse.ArgumentParser()
 
 parser.add_argument(
-    "--cfg",
-    type     = str,
-    required = True,
-    default = 'stack')
+    "--sim",
+    action = 'store_true',
+    default = False)
 
-parser.add_argument(
-    "--env",
-    type     = str,
-    required = True,
-    default = 'hw')
-
-
+groups = [{
+    'host': '192.168.3.11',
+    'colBoards': 4,
+    'rowBoards': 2}]
 
 
 # parser.add_argument(
@@ -57,7 +53,11 @@ parser.add_argument(
 args = parser.parse_known_args()[0]
 print(args)
 
-kwargs = warm_tdm.CONFIGS[args.env][args.cfg]
+kwargs = {}
+kwargs['simulation'] = args.sim
+kwargs['groups'] = groups
+
+print(kwargs)
 
 with warm_tdm.WarmTdmRoot(**kwargs) as root:
 

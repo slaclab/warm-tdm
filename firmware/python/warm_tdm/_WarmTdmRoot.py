@@ -9,101 +9,50 @@ import pyrogue.utilities.prbs
 
 import warm_tdm
 
-NORMAL_STACK = [
-    {'cls': warm_tdm.ColumnModule,
-     'name': 'ColumnModule[0]'},
-    {'cls': warm_tdm.ColumnModule,
-     'name': 'ColumnModule[1]'},
-    {'cls': warm_tdm.ColumnModule,
-     'name': 'ColumnModule[2]'},
-    {'cls': warm_tdm.ColumnModule,
-     'name': 'ColumnModule[3]'},
-    {'cls': warm_tdm.RowModule,
-     'name': 'RowModule[0]'},
-    {'cls': warm_tdm.RowModule,
-     'name': 'RowModule[1]'}]
+NORMAL_GROUP =  {
+    'host': '192.168.3.11',
+    'colBoards': 4,
+    'rowBoards': 2}
 
-SINGLE_ROW = [
-    {'cls': warm_tdm.RowModule, 'name': 'RowModule[0]'}]
+# CONFIGS = {
+#     'sim': {
+#         'group': {
+#             'groups': [{
+#                 'host': 'localhost',
+#                 'colBoards': 4,
+#                 'rowBoards': 2}]},
+#         'row': {
+#             'groups': [{
+#                 'host': 'localhost',
+#                 'colBoards': 0,
+#                 'rowBoards': 1}],
+#         'col': {
+#             'groups': [{
+#                 'host': 'localhost',
+#                 'colBoards': 0,
+#                 'rowBoards': 1}],
+#     'hw': {
+#         'group': {
+#             'groups': [NORMAL_GROUP]},
+#         'test': {
+#             'groups': [{
+#                 'host': '192.168.3.11',
+#                 'colBoards': 3,
+#                 'rowBoards': 2
 
-SINGLE_COLUMN = [
-    {'cls': warm_tdm.ColumnModule, 'name': 'ColumnModule[0]'}]
+#         'row': {
+#             'pollEn': False,
+#             'host': '192.168.3.12',
+#             'srpPort': 8192,
+#             'dataPort': 8193,
+#             'group': [{'cls': warm_tdm.RowModule, 'name': 'RowModule[0]'}]},
+#         'col': {
 
-DUAL_STACK = [
-    {'cls': warm_tdm.ColumnModule, 'name': 'ColumnModule[0]'},
-    {'cls': warm_tdm.ColumnModule, 'name': 'ColumnModule[1]'}]
-
-TEST_STACK = [
-    {'cls': warm_tdm.ColumnModule, 'name': 'ColumnModule[0]'},
-    {'cls': warm_tdm.ColumnModule, 'name': 'ColumnModule[1]'},
-    {'cls': warm_tdm.ColumnModule, 'name': 'ColumnModule[2]'},    
-    {'cls': warm_tdm.RowModule, 'name': 'RowModule[0]'}]
-
-
-SIM_PORTS = list(range(7000, 7051, 10))
-
-CONFIGS = {
-    'sim': {
-        'stack': {
-            'pollEn': False,
-            'timeout': 1000,
-            'host': 'localhost',
-            'srpPort': 10000,
-            'dataPort': 20000,
-            'simPorts': SIM_PORTS,
-            'stack': NORMAL_STACK},
-        'row': {
-            'pollEn': False,            
-            'timeout': 1000,            
-            'host': 'localhost',
-            'srpPort': 10000,
-            'dataPort': 20000,
-            'simPorts': [7000],
-            'stack': [{'cls': warm_tdm.RowModule, 'name': 'RowModule[0]'}]},
-        'col': {
-            'pollEn': False,            
-            'timeout': 1000,            
-            'host': 'localhost',
-            'srpPort': 10000,
-            'dataPort': 20000,
-            'simPorts': [7000],
-            'stack': [{'cls': warm_tdm.ColumnModule, 'name': 'ColumnModule[0]'}]}},
-    'hw': {
-        'stack': {
-            'pollEn': False,
-            'host': '192.168.3.11',
-            'srpPort': 8192,
-            'dataPort': 8193,
-            'simPorts': None,
-            'stack': NORMAL_STACK},
-        'dual': {
-            'pollEn': False,
-            'host': '192.168.3.11',
-            'srpPort': 8192,
-            'dataPort': 8193,
-            'simPorts': None,
-            'stack': DUAL_STACK},
-        'test': {
-            'pollEn': False,
-            'host': '192.168.3.11',
-            'srpPort': 8192,
-            'dataPort': 8193,
-            'simPorts': None,
-            'stack': TEST_STACK},
-        'row': {
-            'pollEn': False,                        
-            'host': '192.168.3.12',
-            'srpPort': 8192,
-            'dataPort': 8193,
-            'simPorts': None,
-            'stack': [{'cls': warm_tdm.RowModule, 'name': 'RowModule[0]'}]},
-        'col': {
-            'pollEn': False,                        
-            'host': '192.168.3.11',            
-            'srpPort': 8192,
-            'dataPort': 8193,
-            'simPorts': None,
-            'stack': [{'cls': warm_tdm.ColumnModule, 'name': 'ColumnModule[0]'}]}}}
+#             'host': '192.168.3.11',
+#             'srpPort': 8192,
+#             'dataPort': 8193,
+#             'simPorts': None,
+#             'group': [{'cls': warm_tdm.ColumnModule, 'name': 'ColumnModule[0]'}]}}}
 
 class StreamDebug(rogue.interfaces.stream.Slave):
     def __init__(self, ):
@@ -122,52 +71,39 @@ class StreamDebug(rogue.interfaces.stream.Slave):
 class WarmTdmRoot(pyrogue.Root):
     def __init__(
             self,
-            host='192.168.3.11',
-            srpPort=8192,
-            dataPort=8193,
-            simPorts=None,
-            stack=NORMAL_STACK,
+            simulation=False,
+            groups=[NORMAL_GROUP],
             **kwargs):
 
-        self._doHeartbeat = False
-        super().__init__(**kwargs)
+        # Disable polling and set a longer timeout in simulation mode
+        if simulation:
+            kwargs['pollEn'] = False
+            kwargs['timeout'] = 1000
 
+        #self._doHeartbeat = False
+        super().__init__(**kwargs)
 
         # Add the data writer
         self.add(pyrogue.utilities.fileio.StreamWriter(name='DataWriter'))
-        self >> self.DataWriter.getChannel(len(stack))
+        self >> self.DataWriter.getChannel(len(groups))
 
-        pgpRing = []
+        for s in groups:
+            self.add(warm_tdm.HardwareGroup(simulation=simulation, **s))
 
-        if simPorts is None:
-            srpUdp = pyrogue.protocols.UdpRssiPack(host=host, port=srpPort, packVer=2)
-            dataUdp = pyrogue.protocols.UdpRssiPack(host=host, port=dataPort, packVer=2)            
-            self.add(srpUdp)
-#            self.add(dataUdp)                        
-            self.addInterface(srpUdp, dataUdp)
-                
-        # Instantiate and link each board in the stack
-        for index, board in enumerate(stack):
-            # Create streams to each board
-            if simPorts is not None:
-                srpStream = rogue.interfaces.stream.TcpClient('localhost', srpPort + (0x00 <<4 | index)*2)
-                dataStream = rogue.interfaces.stream.TcpClient('localhost', dataPort + (0x00 <<4 | index)*2)
-                self.addInterface(srpStream, dataStream)            
-            else:
-                srpStream = srpUdp.application(dest=index)
-                dataStream = dataUdp.application(dest=index)
 
-            # Create SRP and link to SRP stream
-            srp = rogue.protocols.srp.SrpV3() #board['name'])
-            srp == srpStream
 
-            # Instantiate the board Device tree and link it to the SRP
-            self.add(board['cls'](name=board['name'], memBase=srp))
 
-            # Link the data stream to the DataWriter
-            debug = StreamDebug()
-            dataStream >> debug
-            self.addInterface(debug)
+
+
+
+
+
+
+
+
+
+
+        # Add the data writer
 #            dataStream >> self.DataWriter.getChannel(index)
 
             # Connect to simulated PGP ring
@@ -181,7 +117,7 @@ class WarmTdmRoot(pyrogue.Root):
 #             print(f'Linking board {i} to board {(i+1)%numBoards}')
 #             pgpRing[i].vc[0] >> pgpRing[(i+1)%numBoards].vc[0]
 #             pgpRing[i].sb.setRecvCb(pgpRing[(i+1)%numBoards].sb.send)
-            
+
 #         pgpRing[0].vc[0] >> pgpRing[1].vc[0] >> pgpRing[2].vc[0] >> pgpRing[3].vc[0] >> pgpRing[4].vc[0] >> pgpRing[5].vc[0] >> pgpRing[0].vc[0]
 #         pgpRing[0].sb.setRecvCb(pgpRing[1].sb.send)
 #         pgpRing[1].sb.setRecvCb(pgpRing[2].sb.send)
@@ -191,8 +127,8 @@ class WarmTdmRoot(pyrogue.Root):
 #         pgpRing[5].sb.setRecvCb(pgpRing[0].sb.send)
         #pgpRing[0].sb.send(0, 0)
 
-#         rowModules = [x for x in self.deviceList if isinstance(x, warm_tdm.RowModule)]        
-#         if len(rowModules) > 0: 
+#         rowModules = [x for x in self.deviceList if isinstance(x, warm_tdm.RowModule)]
+#         if len(rowModules) > 0:
 #             self.add(warm_tdm.RowSelectArray(rowModules, enabled=False))
 
 #             if index != 0:
