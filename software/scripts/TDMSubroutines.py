@@ -151,7 +151,7 @@ def fasTune(group):
 
 #turn on rowtunenable
 #SQ1 TUNING
-#output vs sq1 feedback for various values of sq1 bias for everey row for every column 
+#output vs sq1 feedback for various values of sq1 bias for every row for every column 
 def sq1Flux(group,row):
 	data = []
 	fb = group.Sq1FbLowOffset.get()
@@ -222,7 +222,6 @@ def tesRampRow(group):
 		group.fasBias[row].set(True)
 		data.append(tesRamp(row))
 	return data
-
 
 
 
