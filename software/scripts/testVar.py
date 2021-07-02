@@ -3,6 +3,7 @@
 import pyrogue
 import pyrogue.pydm
 import rogue
+import TDMSubroutines.py
 
 pyrogue.addLibraryPath(f'../python/')
 pyrogue.addLibraryPath(f'../../firmware/python/')

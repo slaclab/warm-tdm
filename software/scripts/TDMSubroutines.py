@@ -85,7 +85,7 @@ def SaOffsetPid(group, fb, row):
 		out = group.SaOut.get() #get current saout
 		control = pid(out) #get control value to set offset to
 		group.saOffset.set(control) #set offset
-		if : #What will be the condition to exit this loop?
+		if not True: #What will be the condition to exit this loop?
 			break
 	return control
 
@@ -96,7 +96,7 @@ def SaOffsetSweep(group, fb, row): #optional
 		out = SaOut.get()
 		if out <= 0:
 			break
-		offset += group.SaOffsetStepsize.get():
+		offset += group.SaOffsetStepsize.get()
 	return offset
 
 
@@ -106,7 +106,7 @@ def saFlux(group,bias):
 	curve = []
 	saFb = group.SaFbLowOffset.get()
 	while saFb <= group.SaFbHighOffset.get(): #some set of SA_FB values
-		group.saFb[row?].set(fb)
+		group.saFb[row].set(fb)
 		curve.append(group.SaOffset.get())
 		saFb += group.SaFbStepSize.get()
 	return curve
@@ -164,7 +164,7 @@ def sq1FluxRow(group):
 	for row in range(group.NumRows.get()):
 		#on value is not a boolean, change this
 		group.fasBias[row].set(True)  #will on be a boolean?
-		group.saFb[row].set(?) #does this come from a config file
+		group.saFb[row].set() #does this come from a config file
 	results = sq1Flux(group)
 
 def sq1FluxRowBias(group):
@@ -209,7 +209,7 @@ def sq1RampRow(group):
 def tesRamp(group,row): #out vs tes for row for column 
 	offsets = [] #is tesRamp meant to return a list like this?
 	bias = group.TesBiasLowOffset.get()
-	while bias <= group.TesBiasHighOffset.get()
+        while bias <= group.TesBiasHighOffset.get():
 		group.TesBias[row].set(bias)
 		offset = SaOffset(row)
 		offsets.append(offset)
