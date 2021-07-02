@@ -35,6 +35,7 @@ entity RowModuleDacs is
    generic (
       TPD_G            : time             := 1 ns;
       SIMULATION_G     : boolean          := false;
+      AXIL_CLK_FREQ_G  : real             := 125.0E6;
       AXIL_BASE_ADDR_G : slv(31 downto 0) := X"00000000");
    port (
       -- AXI Lite Slave
@@ -106,7 +107,7 @@ begin
             SHADOW_EN_G       => false,
             CPHA_G            => '1',
             CPOL_G            => '1',
-            CLK_PERIOD_G      => 6.4e-9,
+            CLK_PERIOD_G      => 1.0/AXIL_CLK_FREQ_G,
             SPI_SCLK_PERIOD_G => ite(SIMULATION_G, 51.2e-9, 1.0E-6),
             SPI_NUM_CHIPS_G   => 1)
          port map (
