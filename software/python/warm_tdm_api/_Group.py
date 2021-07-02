@@ -326,11 +326,11 @@ class Group(pr.Device):
     def __colSetLoopHelper(self, value, index):
         # Construct a generator to loop over
         if index != -1:
-            return ((idx, self._colMap[idx], val for idx, val in zip(range(index, index+1), [value])))
+            return ((idx, self._colMap[idx], val) for idx, val in zip(range(index, index+1), [value]))
         else:
-            return ((idx, self._colMap[idx], val for idx, val in enumerate(value)))
+            return ((idx, self._colMap[idx], val) for idx, val in enumerate(value))
 
-    def __colgetLoopHelper(self, index)
+    def __colgetLoopHelper(self, index):
         # Construct a generator to loop over
 
         if index != -1:
@@ -338,7 +338,7 @@ class Group(pr.Device):
         else:
             ra = range(index)
 
-        return ((idx, self._colMap[idx] for idx in ra))
+        return ((idx, self._colMap[idx]) for idx in ra)
 
 
 
