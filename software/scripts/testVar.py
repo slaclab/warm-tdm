@@ -3,7 +3,7 @@
 import pyrogue
 import pyrogue.pydm
 import rogue
-import TDMSubroutines
+from TDMSubroutines import *
 
 pyrogue.addLibraryPath(f'../python/')
 pyrogue.addLibraryPath(f'../../firmware/python/')
@@ -11,5 +11,17 @@ pyrogue.addLibraryPath(f'../../firmware/python/')
 import warm_tdm_api
 
 with warm_tdm_api.GroupRoot() as root:
-    initialize(root.Group)
+	group = root.Group
+
+	#saTune(group)
+
+	fasTune(group)
+
+	sq1Tune(group)
+
+	sq1RampRow(group)
+
+	tesRampRow(group)
+
+	#open gui
 	pyrogue.pydm.runPyDM(root=root,title='TestGroup',sizeX=1000,sizeY=500)

@@ -71,10 +71,10 @@ def midpoint(data):
 #INITIALIZATION AND OFFSET ADJUSTMENT
 def initialize(group):
 	#Open and read config file (maybe)
-	inFile = sys.argv[1]
-	for column in (group.NumRows.get()):
-		SaBias[column].set() #still don't know what we are setting these to
-		saFb[column].set()
+		#inFile = sys.argv[1]
+	for column in range(group.NumRows.get()):
+		group.SaBias[column].set() #still don't know what we are setting these to
+		group.saFb[column].set()
 
 def SaOffsetPid(group, fb, row):
 # 	Adjusts the SA_OFFSET value to zero out the SA_OUT value read by the ADC
@@ -123,7 +123,7 @@ def saFluxBias(group):
 
 def saTune(group):
 	#row agnostic?
-	initialize()
+	initialize(group)
 	saFluxBiasResults = saFluxBias()
 	peak = maxPeak(saFluxBiasResults)
 	midpoint = midpoint(saFluxBiasResults) 
@@ -136,7 +136,7 @@ def saTune(group):
 #FAS TUNING
 def fasFlux(group,row):
 	data = []
-	offset = group.FaxFluxLowOffset.get()
+	offset = group.FasFluxLowOffset.get()
 	while offset <= group.FasFluxHighOffset.get():
 		group.saFb[row].set(offset)
 		offset += group.FasFluxStepSize.get()
@@ -219,7 +219,7 @@ def tesRamp(group,row): #out vs tes for row for column
 def tesRampRow(group):
 	data = []
 	for row in range(group.NumRows.get()):
-		group.fasBias[row].set(True)
+		group.FasBias[row].set(True)
 		data.append(tesRamp(row))
 	return data
 
