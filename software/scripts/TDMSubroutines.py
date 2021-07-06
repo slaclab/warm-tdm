@@ -34,7 +34,7 @@ figs = plt.figure()
 #    tunevalues = saTune()
 #    group.SaBias.set(tunevalues[0])
 #    group.SaOffset.set(tunevalues[1])
-#    group.saFb.set(tunevalues[2])
+#    group.SaFb.set(tunevalues[2])
 ####
 
 
@@ -74,7 +74,7 @@ def initialize(group):
 		#inFile = sys.argv[1]
 	for column in range(group.NumRows.get()):
 		group.SaBias[column].set() #still don't know what we are setting these to
-		group.saFb[column].set()
+		group.SaFb[column].set()
 
 def SaOffsetPid(group, fb, row):
 # 	Adjusts the SA_OFFSET value to zero out the SA_OUT value read by the ADC
@@ -104,11 +104,11 @@ def SaOffsetSweep(group, fb, row): #optional
 #SA TUNING
 def saFlux(group,bias):
 	curve = []
-	saFb = group.SaFbLowOffset.get()
-	while saFb <= group.SaFbHighOffset.get(): #some set of SA_FB values
-		group.saFb[row].set(fb)
+	SaFb = group.SaFbLowOffset.get()
+	while SaFb <= group.SaFbHighOffset.get(): #some set of SA_FB values
+		group.SaFb[row].set(fb)
 		curve.append(group.SaOffset.get())
-		saFb += group.SaFbStepSize.get()
+		SaFb += group.SaFbStepSize.get()
 	return curve
 
 def saFluxBias(group):
@@ -138,7 +138,7 @@ def fasFlux(group,row):
 	data = []
 	offset = group.FasFluxLowOffset.get()
 	while offset <= group.FasFluxHighOffset.get():
-		group.saFb[row].set(offset)
+		group.SaFb[row].set(offset)
 		offset += group.FasFluxStepSize.get()
 		#is SaOut a variable we can access? how will we determine when it is 0
 
@@ -164,7 +164,7 @@ def sq1FluxRow(group):
 	for row in range(group.NumRows.get()):
 		#on value is not a boolean, change this
 		group.fasBias[row].set(True)  #will on be a boolean?
-		group.saFb[row].set() #does this come from a config file
+		group.SaFb[row].set() #does this come from a config file
 	results = sq1Flux(group)
 
 def sq1FluxRowBias(group):
@@ -172,7 +172,7 @@ def sq1FluxRowBias(group):
 			'curves' : {}}
 	#with offset as a function of s sq1FB, with each curve being a different Sq1Bias
 	sq1Bias = group.Sq1BiasLowOffset.get()
-	while saFb <= group.Sq1BiasHighOffset.get():
+	while SaFb <= group.Sq1BiasHighOffset.get():
 		data['curves'][sq1Bias] = sq1FluxRow(group)
 		sq1Bias += group.Sq1BiasStepSize.get()
 	return data
@@ -192,9 +192,9 @@ def sq1Tune(group):
 def sq1Ramp(group,row):
 	data = []
 	sq1Fb = group.Sq1FbLowOffset.get()
-	while saFb <= group.Sq1FbHighOffset.get():
-		data.append(SaOffset(group,saFb,row))
-		saFb += group.Sq1FbStepSize.get()
+	while SaFb <= group.Sq1FbHighOffset.get():
+		data.append(SaOffset(group,SaFb,row))
+		SaFb += group.Sq1FbStepSize.get()
 	return data
 
 def sq1RampRow(group):
