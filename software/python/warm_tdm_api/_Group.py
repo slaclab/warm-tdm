@@ -330,7 +330,7 @@ class Group(pr.Device):
         else:
             return ((idx, self._colMap[idx], val) for idx, val in enumerate(value))
 
-    def __colgetLoopHelper(self, index):
+    def __colGetLoopHelper(self, index):
         # Construct a generator to loop over
 
         if index != -1:
