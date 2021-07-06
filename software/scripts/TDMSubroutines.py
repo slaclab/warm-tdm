@@ -143,7 +143,7 @@ def fasFlux(group,row):
 		#is SaOut a variable we can access? how will we determine when it is 0
 
 def fasTune(group):
-	for row in range(64):
+	for row in range(group.NumRows.get()):
 		results = fasFlux(group,row)
 		off, on = min(results), max(results) #assuming results is a list
 

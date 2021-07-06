@@ -12,7 +12,9 @@ import warm_tdm_api
 
 with warm_tdm_api.GroupRoot() as root:
 	group = root.Group
-
+	
+	group.SaFb[0].set(3.0)
+	
 	#saTune(group)
 
 	fasTune(group)
