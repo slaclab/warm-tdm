@@ -381,7 +381,7 @@ class Group(pr.Device):
     def _saBiasGet(self, read, index):
         ret = [0.0] * len(self._colMap)
 
-        for idx, board, chan, val in self.__colGetLoopHelper(value, index):
+        for idx, board, chan, val in self.__colGetLoopHelper(index):
             if self._emulate is True:
                 ret[idx] = self._saBias[idx]
             else:
@@ -406,7 +406,7 @@ class Group(pr.Device):
     def _saOffsetGet(self, read, index):
         ret = [0.0] * len(self._colMap)
 
-        for idx, board, chan, val in self.__colGetLoopHelper(value, index):
+        for idx, board, chan, val in self.__colGetLoopHelper(index):
             if self._emulate is True:
                 ret[idx] = self._saOffset[idx]
             else:
@@ -578,7 +578,7 @@ class Group(pr.Device):
 
     # Get SQ1 Bias value, index is (column, row) tuple
     def _sq1BiasGet(self, read, index):
-        return self._fastDacGet('Sq1Bias', index, read)
+        return self._fastDacGet('Sq1Bias', read, index)
 
 
     # Set SQ1 FB value, index is (column, row) tuple
@@ -588,7 +588,7 @@ class Group(pr.Device):
 
     # Get SQ1 FB value, index is (column, row) tuple
     def _sq1FbGet(self, read, index):
-        return self._fastDacGet('Sq1Fb', index, read)
+        return self._fastDacGet('Sq1Fb', read, index)
 
 
     # Set FAS Flux Off value, index is row
