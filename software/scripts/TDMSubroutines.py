@@ -16,8 +16,8 @@ pyrogue.addLibraryPath(f'../../firmware/python/')
 
 import warm_tdm_api
 
-with warm_tdm_api.GroupRoot() as root:
-	pyrogue.pydm.runPyDM(root=root,title='Subroutines',sizeX=1000,sizeY=500) #Probably wrong
+#with warm_tdm_api.GroupRoot() as root:
+#	pyrogue.pydm.runPyDM(root=root,title='Subroutines',sizeX=1000,sizeY=500) #Probably wrong
 
 #taken from ucsc project
 outFile = "summary.pdf"
@@ -27,14 +27,14 @@ figs = plt.figure()
 
 #### not sure where something like this will fit in
 
-with pyrogue.interfaces.VirtualClient(host,port) as client:
-    root = client.root
-    group = root.group[0]
+#with pyrogue.interfaces.VirtualClient(host,port) as client:
+#    root = client.root
+#    group = root.group[0]
 
-    tunevalues = saTune()
-    group.SaBias.set(tunevalues[0])
-    group.SaOffset.set(tunevalues[1])
-    group.saFb.set(tunevalues[2])
+#    tunevalues = saTune()
+#    group.SaBias.set(tunevalues[0])
+#    group.SaOffset.set(tunevalues[1])
+#    group.saFb.set(tunevalues[2])
 ####
 
 
@@ -209,7 +209,7 @@ def sq1RampRow(group):
 def tesRamp(group,row): #out vs tes for row for column 
 	offsets = [] #is tesRamp meant to return a list like this?
 	bias = group.TesBiasLowOffset.get()
-        while bias <= group.TesBiasHighOffset.get():
+	while bias <= group.TesBiasHighOffset.get():
 		group.TesBias[row].set(bias)
 		offset = SaOffset(row)
 		offsets.append(offset)
