@@ -11,6 +11,5 @@ pyrogue.addLibraryPath(f'../../firmware/python/')
 import warm_tdm_api
 
 with warm_tdm_api.GroupRoot() as root:
-	root.Group.NumRows.set(3)
-	rows = root.Group.NumRows.get()
+    initialize(root.Group)
 	pyrogue.pydm.runPyDM(root=root,title='TestGroup',sizeX=1000,sizeY=500)
