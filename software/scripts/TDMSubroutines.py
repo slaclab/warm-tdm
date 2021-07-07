@@ -16,26 +16,10 @@ pyrogue.addLibraryPath(f'../../firmware/python/')
 
 import warm_tdm_api
 
-#with warm_tdm_api.GroupRoot() as root:
-#	pyrogue.pydm.runPyDM(root=root,title='Subroutines',sizeX=1000,sizeY=500) #Probably wrong
-
 #taken from ucsc project
 outFile = "summary.pdf"
 pdf = matplotlib.backends.backend_pdf.PdfPages(outFile)
 figs = plt.figure()
-
-
-#### not sure where something like this will fit in
-
-#with pyrogue.interfaces.VirtualClient(host,port) as client:
-#    root = client.root
-#    group = root.group[0]
-
-#    tunevalues = saTune()
-#    group.SaBias.set(tunevalues[0])
-#    group.SaOffset.set(tunevalues[1])
-#    group.SaFb.set(tunevalues[2])
-####
 
 
 

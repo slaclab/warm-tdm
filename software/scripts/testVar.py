@@ -12,9 +12,12 @@ import warm_tdm_api
 
 with warm_tdm_api.GroupRoot() as root:
 	group = root.Group
-	
-	group.SaFb[0].set(3.0)
-	
+
+	print(group.SaBiasLowOffset.get())
+	group.SaBiasLowOffset.set(23)
+	print(group.SaBiasLowOffset.get())
+	print(group.Sq1Bias)
+	print("passed these tests")
 	#saTune(group)
 
 	fasTune(group)
