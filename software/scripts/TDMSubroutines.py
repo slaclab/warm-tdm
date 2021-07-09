@@ -89,8 +89,8 @@ def SaOffsetSweep(group, fb, row): #optional
 def saFlux(group,bias):
 	curve = []
 	SaFb = group.SaFbLowOffset.get()
-	while SaFb <= group.SaFbHighOffset.get(): #some set of SA_FB values
-		group.SaFb[row].set(fb)
+	while SaFb <= group.SaFbHighOffset.get(): 
+		group.SaFb[0:1][0:1].set(SaFb) #need to find out how to index to row
 		curve.append(group.SaOffset.get())
 		SaFb += group.SaFbStepSize.get()
 	return curve
@@ -101,19 +101,19 @@ def saFluxBias(group):
 
 	bias = group.SaBiasLowOffset.get()
 	while bias <= group.SaBiasHighOffset.get(): #some set of SA BIAS values
-		data['curves'][bias] = saFlux(bias) #assuming this will return a list
+		data['curves'][bias] = saFlux(group,bias) #assuming this will return a list
 		bias += group.SaBiasStepSize.get()
 	return data
 
-def saTune(group):
-	#row agnostic?
-	initialize(group)
-	saFluxBiasResults = saFluxBias()
-	peak = maxPeak(saFluxBiasResults)
-	midpoint = midpoint(saFluxBiasResults) 
-	#record sa offset
-	#There will be a function to summarize the data in a plot
-	return #SA_BIAS, SA_OFFSET & SA_FB
+# def saTune(group):
+# 	#row agnostic?
+# 	group.initialize()
+# 	saFluxBiasResults = saFluxBias()
+# 	peak = maxPeak(saFluxBiasResults)
+# 	midpoint = midpoint(saFluxBiasResults) 
+# 	#record sa offset
+# 	#There will be a function to summarize the data in a plot
+# 	return #SA_BIAS, SA_OFFSET & SA_FB
 
 
 
