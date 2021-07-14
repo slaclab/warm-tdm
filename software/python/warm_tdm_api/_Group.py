@@ -406,7 +406,7 @@ class Group(pr.Device):
     def _saOffsetSet(self, value, write, index):
         for idx, (board, chan), val in self.__colSetLoopHelper(value, index):
             if self._emulate is True:
-                self._saOffset[idx] = val[idx]
+                self._saOffset[idx] = val
             else:
                 self.Hardware.ColumnBoard[board].SaBiasOffset.Offset[chan].set(value=val, write=write)
 
