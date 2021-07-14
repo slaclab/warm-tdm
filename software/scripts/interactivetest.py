@@ -28,7 +28,10 @@ group = vc.root.Group
 SetLoopParameters(group,0,5,1) #Set the loop parameters to arbitary values
 
 
-data = saFluxBias(group,1,1)
+saTune(group,1,2)
 
+#Testing saFluxBias
+# data = saFluxBias(group,1,1)
+# print(data)
 
-print("saFluxBias done")
+# print("saFluxBias done")

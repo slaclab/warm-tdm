@@ -26,9 +26,9 @@ figs = plt.figure()
 def maxPeak(data): #Where data is a dict for one graph
 	maxcurve = None #list of this form: [amplitude,minpoint,maxpoint]
 	xval = 0
-	for curve in data['curves']:
-		min_offset_point, max_offset_point = [0,data[curve][0]],[0,data[curve][0]] #store the points of max and min offset
-		for point in data[curve]: #didn't use min/max because wanted to know the index
+	for curve in range(len(data['curves'])):
+		min_offset_point, max_offset_point = [0, data['curves'][curve][0]],[0, data['curves'][curve][0]] #store the points of max and min offset
+		for point in data['curves'][curve]: #didn't use min/max because wanted to know the index
 			if point > max_offset_point:
 				max_offset_point = [xval,point]
 			if point < min_offset_point:
@@ -43,24 +43,12 @@ def maxPeak(data): #Where data is a dict for one graph
 	return maxcurve
 
 
-	#given the curve dictionary structure, find SA_BIAS value with max peak to peak
-def midpoint(data):
-	#given the SA_FLUX curve, find the midpoint
+	#given the curve dict structure, find SA_BIAS value with max peak to peak
+def midpoint(data): #given the SA_FLUX curve, find the midpoint
 	curve = maxpeak(data)
 	return (curve[2][0] - curve[1][0])/2 #returns midpoint x value
 
-
-
-
-#INITIALIZATION AND OFFSET ADJUSTMENT
-# def initialize(group):
-# 	#Open and read config file (maybe)
-# 		#inFile = sys.argv[1]
-# 	for column in range(group.NumRows.get()):
-# 		group.SaBias[column].set(value=) #still don't know what we are setting these to
-# 		group.SaFb[column].set(value=)
-
-def SaOffset(group, fb, row):
+def saOffset(group, fb, row):
 # 	Adjusts the SA_OFFSET value to zero out the SA_OUT value read by the ADC
 # Resulting SA_OFFSET is made available for readback	
 	pid = PID(1, .1, .05)
@@ -69,11 +57,11 @@ def SaOffset(group, fb, row):
 		out = group.SaOut.get(index=row) #get current saout
 		control = pid(out) #get control value to set offset to
 		group.SaOffset.set(index=row,value=control) #set offset
-		if not True: #What will be the condition to exit this loop?
+		if abs(control) < 1: #What will be the condition to exit this loop?
 			break
 	return control
 
-def SaOffsetSweep(group, fb, row): #optional
+def saOffsetSweep(group, fb, row): #optional
 	offset = group.SaLowOffset.get()
 	while offset < group.SaHighOffset.get():
 		SaOffset.set(value=offset)
@@ -86,35 +74,42 @@ def SaOffsetSweep(group, fb, row): #optional
 
 
 #SA TUNING
-def saFlux(group,bias,row,column):
+def saFlux(group,bias,column,row=0):
 	curve = []
 	SaFb = group.SaFbLowOffset.get()
 	while SaFb <= group.SaFbHighOffset.get():
-		group.SaFb.set(index=(row,column),value=SaFb) #need to find out how to index to row
-		curve.append(group.SaOffset.get())
+		group.SaFb.set(index=(row,column),value=SaFb) 
+		curve.append(saOffset(group,SaFb,row))
 		SaFb += group.SaFbStepSize.get()
 	return curve
 
-def saFluxBias(group,row,column):
+def saFluxBias(group,column,row=0):
 	data = {'xvalues' : [],
 			'curves' : {}}
 
 	bias = group.SaBiasLowOffset.get()
-	while bias <= group.SaBiasHighOffset.get(): #some set of SA BIAS values
-		data['curves'][bias] = saFlux(group,bias,row,column) #assuming this will return a list
+	while bias <= group.SaBiasHighOffset.get():
+		data['curves'][bias] = saFlux(group,bias,row,column) 
 		bias += group.SaBiasStepSize.get()
 	return data
 
 
-# def saTune(group):
-# 	#row agnostic?
-# 	group.initialize()
-# 	saFluxBiasResults = saFluxBias()
-# 	peak = maxPeak(saFluxBiasResults)
-# 	midpoint = midpoint(saFluxBiasResults) 
-# 	#record sa offset
-# 	#There will be a function to summarize the data in a plot
-# 	return #SA_BIAS, SA_OFFSET & SA_FB
+def saTune(group,column,row=0):
+	# group.Init()
+	# print("initialized")
+	saFluxBiasResults = saFluxBias(group,row,column)
+	print("got saFluxBias results")
+
+	peak = maxPeak(saFluxBiasResults)
+	print("found maxpeak")
+	
+	midpoint = midpoint(saFluxBiasResults)
+	print("found midpoint")
+	#record sa offset
+	#There will be a function to summarize the data in a plot
+	return #SA_BIAS, SA_OFFSET & SA_FB
+
+#set row to index 0
 
 
 #FAS TUNING
