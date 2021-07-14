@@ -86,24 +86,25 @@ def SaOffsetSweep(group, fb, row): #optional
 
 
 #SA TUNING
-def saFlux(group,bias):
+def saFlux(group,bias,row,column):
 	curve = []
 	SaFb = group.SaFbLowOffset.get()
 	while SaFb <= group.SaFbHighOffset.get():
-		group.SaFb.set(index=(1,1),value=SaFb) #need to find out how to index to row
+		group.SaFb.set(index=(row,column),value=SaFb) #need to find out how to index to row
 		curve.append(group.SaOffset.get())
 		SaFb += group.SaFbStepSize.get()
 	return curve
 
-def saFluxBias(group):
+def saFluxBias(group,row,column):
 	data = {'xvalues' : [],
 			'curves' : {}}
 
 	bias = group.SaBiasLowOffset.get()
 	while bias <= group.SaBiasHighOffset.get(): #some set of SA BIAS values
-		data['curves'][bias] = saFlux(group,bias) #assuming this will return a list
+		data['curves'][bias] = saFlux(group,bias,row,column) #assuming this will return a list
 		bias += group.SaBiasStepSize.get()
 	return data
+
 
 # def saTune(group):
 # 	#row agnostic?
@@ -114,7 +115,6 @@ def saFluxBias(group):
 # 	#record sa offset
 # 	#There will be a function to summarize the data in a plot
 # 	return #SA_BIAS, SA_OFFSET & SA_FB
-
 
 
 #FAS TUNING
@@ -130,7 +130,6 @@ def fasTune(group):
 	for row in range(group.NumRows.get()):
 		results = fasFlux(group,row)
 		off, on = min(results), max(results) #assuming results is a list
-
 
 
 #turn on rowtunenable
@@ -170,7 +169,6 @@ def sq1Tune(group):
 		#What to do with these results?
 
 
-
 #SQ1 DIAGNOSTIC
 #output vs sq1 feedback for every row  for every column
 def sq1Ramp(group,row):
@@ -186,7 +184,6 @@ def sq1RampRow(group):
 	for row in range(group.NumRows.get()):
 		group.fasBias[row].set(True)
 		rowsdata.append(sq1Ramp(group,row))
-
 
 
 #TES BIAS DIAGNOSTIC
@@ -206,7 +203,6 @@ def tesRampRow(group):
 		group.FasBias[row].set(True)
 		data.append(tesRamp(row))
 	return data
-
 
 
 # accessible variables:
