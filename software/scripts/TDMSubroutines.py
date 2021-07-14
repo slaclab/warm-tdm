@@ -89,7 +89,7 @@ def SaOffsetSweep(group, fb, row): #optional
 def saFlux(group,bias):
 	curve = []
 	SaFb = group.SaFbLowOffset.get()
-	while SaFb <= group.SaFbHighOffset.get(): 
+	while SaFb <= group.SaFbHighOffset.get():
 		group.SaFb.set(index=(1,1),value=SaFb) #need to find out how to index to row
 		curve.append(group.SaOffset.get())
 		SaFb += group.SaFbStepSize.get()
