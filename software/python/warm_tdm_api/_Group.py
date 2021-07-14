@@ -156,8 +156,8 @@ class Group(pr.Device):
         self.add(pr.LinkVariable(name='TesBias',
                                  mode='RW',
                                  typeStr='double[]',
-                                 linkedSet=self._saBiasSet,
-                                 linkedGet=self._saBiasGet,
+                                 linkedSet=self._tesBiasSet,
+                                 linkedGet=self._tesBiasGet,
                                  description=""))
 
         # SA Bias values, accessed with column index value
@@ -341,7 +341,7 @@ class Group(pr.Device):
         if index != -1:
             ra = range(index, index+1)
         else:
-            ra = range(index)
+            ra = range(len(self._colMap))
 
         return ((idx, self._colMap[idx]) for idx in ra)
 
@@ -349,7 +349,9 @@ class Group(pr.Device):
 
     # Set TES bias value, index is column
     def _tesBiasSet(self, value, write, index):
-        for idx, board, chan, val in self.__colSetLoopHelper(value, index):
+        for idx, (board, chan), val in self.__colSetLoopHelper(value, index):
+            #print(f"Tes set {idx}, {board}, {chan}, {val}")
+
             if self._emulate is True:
                 self._tesBias[idx] = val
             else:
@@ -361,21 +363,23 @@ class Group(pr.Device):
     def _tesBiasGet(self, read, index):
         ret = [0.0] * len(self._colMap)
 
-        for idx, board, chan, val in self.__colGetLoopHelper(index):
+        for idx, (board, chan) in self.__colGetLoopHelper(index):
             if self._emulate is True:
                 ret[idx] = self._tesBias[idx]
             else:
                 ret[idx] = self.Hardware.ColumnBoard[board].TesBias.BiasCurrent[chan].value(read=read)
 
+            print(f"Tes get {idx}, {board}, {chan}, {ret[idx]}")
+
         if index != -1:
-            return ret[0]
+            return ret[index]
         else:
             return ret
 
 
     # Set SA Bias value, index is column
     def _saBiasSet(self, value, write, index):
-        for idx, board, chan, val in self.__colSetLoopHelper(value, index):
+        for idx, (board, chan), val in self.__colSetLoopHelper(value, index):
             if self._emulate is True:
                 self._saBias[idx] = val
             else:
@@ -386,21 +390,21 @@ class Group(pr.Device):
     def _saBiasGet(self, read, index):
         ret = [0.0] * len(self._colMap)
 
-        for idx, board, chan, val in self.__colGetLoopHelper(index):
+        for idx, (board, chan) in self.__colGetLoopHelper(index):
             if self._emulate is True:
                 ret[idx] = self._saBias[idx]
             else:
                 ret[idx] = self.Hardware.ColumnBoard[board].SaBiasOffset.Bias[chan].value(read=read)
 
         if index != -1:
-            return ret[0]
+            return ret[index]
         else:
             return ret
 
 
     # Set SA Offset value, index is column
     def _saOffsetSet(self, value, write, index):
-        for idx, board, chan, val in self.__colSetLoopHelper(value, index):
+        for idx, (board, chan), val in self.__colSetLoopHelper(value, index):
             if self._emulate is True:
                 self._saOffset[idx] = val[idx]
             else:
@@ -411,14 +415,14 @@ class Group(pr.Device):
     def _saOffsetGet(self, read, index):
         ret = [0.0] * len(self._colMap)
 
-        for idx, board, chan, val in self.__colGetLoopHelper(index):
+        for idx, (board, chan) in self.__colGetLoopHelper(index):
             if self._emulate is True:
                 ret[idx] = self._saOffset[idx]
             else:
                 ret[idx] = self.Hardware.ColumnBoard[board].SaBiasOffset.Offset[chan].value(read=read)
 
         if index != -1:
-            return ret[0]
+            return ret[index]
         else:
             return ret
 
@@ -428,14 +432,14 @@ class Group(pr.Device):
     def _saOutGet(self, read, index):
         ret = [0.0] * len(self._colMap)
 
-        for idx, (board, chan), val in self.__colGetLoopHelper(index):
+        for idx, (board, chan) in self.__colGetLoopHelper(index):
             if self._emulate is True:
                 ret[idx] = self._saOut[idx]
             else:
                 ret[idx] = self.Hardware.ColumnBoard[board].DataPath.Ad9681Readout.AdcVoltage[chan].get(read=read)
 
         if index != -1:
-            return ret[0]
+            return ret[index]
         else:
             return ret
 
