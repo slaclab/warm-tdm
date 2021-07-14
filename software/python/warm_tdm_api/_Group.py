@@ -226,7 +226,7 @@ class Group(pr.Device):
         # FLL Enable value
         self.add(pr.LinkVariable(name='FllEnable',
                                  mode='RW',
-                                 typeStr='double[]',
+                                 typeStr='bool',
                                  linkedSet=self._fllEnableSet,
                                  linkedGet=self._fllEnableGet,
                                  description=""))
@@ -260,6 +260,11 @@ class Group(pr.Device):
                                   value={},
                                   mode='RO',
                                   description="Results Data From Tes Diagnostic"))
+
+        # Initialize System
+        self.add(pr.LocalCommand(name='Init',
+                                 function=self._init,
+                                 description="Initialize System"))
 
         if self._emulate:
             self._tuneEn     = False
@@ -711,3 +716,17 @@ class Group(pr.Device):
 
         else:
             return self.Hardware.ColumnBoard[0].FllEnable.get(read=read)
+
+    # Init system
+    def _init(self):
+
+        # Local defaults
+        #self.LoadConfig("defaults.yml")
+        pass
+
+        # Disable FLL
+        self.FllEnable(value=False)
+
+        # Drive high TES bias currents?????
+        pass
+
