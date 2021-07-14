@@ -53,22 +53,22 @@ def midpoint(data):
 
 
 #INITIALIZATION AND OFFSET ADJUSTMENT
-def initialize(group):
-	#Open and read config file (maybe)
-		#inFile = sys.argv[1]
-	for column in range(group.NumRows.get()):
-		group.SaBias[column].set() #still don't know what we are setting these to
-		group.SaFb[column].set()
+# def initialize(group):
+# 	#Open and read config file (maybe)
+# 		#inFile = sys.argv[1]
+# 	for column in range(group.NumRows.get()):
+# 		group.SaBias[column].set(value=) #still don't know what we are setting these to
+# 		group.SaFb[column].set(value=)
 
-def SaOffsetPid(group, fb, row):
+def SaOffset(group, fb, row):
 # 	Adjusts the SA_OFFSET value to zero out the SA_OUT value read by the ADC
 # Resulting SA_OFFSET is made available for readback	
 	pid = PID(1, .1, .05)
-	pid.setpoint(0) #want to zero the saOut value
+	pid.setpoint = 0 #want to zero the saOut value
 	while True: #not sure of the properties of this loop
-		out = group.SaOut.get() #get current saout
+		out = group.SaOut.get(index=row) #get current saout
 		control = pid(out) #get control value to set offset to
-		group.saOffset.set(control) #set offset
+		group.SaOffset.set(index=row,value=control) #set offset
 		if not True: #What will be the condition to exit this loop?
 			break
 	return control
@@ -76,7 +76,7 @@ def SaOffsetPid(group, fb, row):
 def SaOffsetSweep(group, fb, row): #optional
 	offset = group.SaLowOffset.get()
 	while offset < group.SaHighOffset.get():
-		SaOffset.set(offset)
+		SaOffset.set(value=offset)
 		out = SaOut.get()
 		if out <= 0:
 			break
@@ -90,7 +90,7 @@ def saFlux(group,bias):
 	curve = []
 	SaFb = group.SaFbLowOffset.get()
 	while SaFb <= group.SaFbHighOffset.get(): 
-		group.SaFb[0:1][0:1].set(SaFb) #need to find out how to index to row
+		group.SaFb.set(index=(1,1),value=SaFb) #need to find out how to index to row
 		curve.append(group.SaOffset.get())
 		SaFb += group.SaFbStepSize.get()
 	return curve
