@@ -22,6 +22,29 @@ pdf = matplotlib.backends.backend_pdf.PdfPages(outFile)
 figs = plt.figure()
 
 
+Data = {‘xvalues’ : [1,2,2,3],
+        ‘curves’ : {34 : [35,23,15,25],
+                    35 : [34,34,34,34,], }
+def peak(curvelist):
+    low, high = 0 
+    for i in range(len(curvelist)):
+        if curvelist[i] < curvelist[low]:
+            low = i
+        elif curvelist[i] > curvelist[high]:
+            high = i
+    return (low,high,curvelist[high] - curvelist[low])
+
+        
+def maxPeak(data):
+    highestpeak = 0
+    for curve in range(len(data['curves'])):
+        height = peak(data['curves'][curve])[2]
+        if height > highestpeak:
+            highestpeak = height
+            #probably need to use .items()?
+
+        
+        
 
 def maxPeak(data): #Where data is a dict for one graph
 	maxcurve = None #list of this form: [amplitude,minpoint,maxpoint]
