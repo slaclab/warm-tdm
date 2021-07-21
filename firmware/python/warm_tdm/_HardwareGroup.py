@@ -66,8 +66,8 @@ class HardwareGroup(pyrogue.Device):
                 dataStream = rogue.interfaces.stream.TcpClient(host, SIM_DATA_PORT + (0x00 <<4 | boardIndex)*2)
                 self.addInterface(srpStream, dataStream)            
             else:
-                srpStream = srpUdp.application(dest=index)
-                dataStream = dataUdp.application(dest=index)
+                srpStream = srpUdp.application(dest=boardIndex)
+                dataStream = dataUdp.application(dest=boardIndex)
 
             # Create SRP and link to SRP stream
             srp = rogue.protocols.srp.SrpV3() #board['name'])
