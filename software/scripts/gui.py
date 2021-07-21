@@ -39,7 +39,7 @@ parser.add_argument(
 
 groups = [{
     'host': '192.168.3.11',
-    'colBoards': 4,
+    'colBoards': 3,
     'rowBoards': 2}]
 
 
@@ -59,7 +59,7 @@ kwargs['groups'] = groups
 
 print(kwargs)
 
-with warm_tdm.WarmTdmRoot(**kwargs) as root:
+with warm_tdm.WarmTdmRoot(pollEn=False, **kwargs) as root:
 
     # Create GUI
     appTop = pyrogue.gui.application(sys.argv)
