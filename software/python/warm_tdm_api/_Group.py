@@ -156,8 +156,8 @@ class Group(pr.Device):
         self.add(pr.LinkVariable(name='TesBias',
                                  mode='RW',
                                  typeStr='double[]',
-                                 linkedSet=self._saBiasSet,
-                                 linkedGet=self._saBiasGet,
+                                 linkedSet=self._tesBiasSet,
+                                 linkedGet=self._tesBiasGet,
                                  description=""))
 
         # SA Bias values, accessed with column index value
@@ -226,7 +226,7 @@ class Group(pr.Device):
         # FLL Enable value
         self.add(pr.LinkVariable(name='FllEnable',
                                  mode='RW',
-                                 typeStr='double[]',
+                                 typeStr='bool',
                                  linkedSet=self._fllEnableSet,
                                  linkedGet=self._fllEnableGet,
                                  description=""))
@@ -260,6 +260,11 @@ class Group(pr.Device):
                                   value={},
                                   mode='RO',
                                   description="Results Data From Tes Diagnostic"))
+
+        # Initialize System
+        self.add(pr.LocalCommand(name='Init',
+                                 function=self._init,
+                                 description="Initialize System"))
 
         if self._emulate:
             self._tuneEn     = False
@@ -326,25 +331,27 @@ class Group(pr.Device):
     def __colSetLoopHelper(self, value, index):
         # Construct a generator to loop over
         if index != -1:
-            return ((idx, self._colMap[idx], val for idx, val in zip(range(index, index+1), [value])))
+            return ((idx, self._colMap[idx], val) for idx, val in zip(range(index, index+1), [value]))
         else:
-            return ((idx, self._colMap[idx], val for idx, val in enumerate(value)))
+            return ((idx, self._colMap[idx], val) for idx, val in enumerate(value))
 
-    def __colgetLoopHelper(self, index)
+    def __colGetLoopHelper(self, index):
         # Construct a generator to loop over
 
         if index != -1:
             ra = range(index, index+1)
         else:
-            ra = range(index)
+            ra = range(len(self._colMap))
 
-        return ((idx, self._colMap[idx] for idx in ra))
+        return ((idx, self._colMap[idx]) for idx in ra)
 
 
 
     # Set TES bias value, index is column
     def _tesBiasSet(self, value, write, index):
-        for idx, board, chan, val in self.__colSetLoopHelper(value, index):
+        for idx, (board, chan), val in self.__colSetLoopHelper(value, index):
+            #print(f"Tes set {idx}, {board}, {chan}, {val}")
+
             if self._emulate is True:
                 self._tesBias[idx] = val
             else:
@@ -356,21 +363,23 @@ class Group(pr.Device):
     def _tesBiasGet(self, read, index):
         ret = [0.0] * len(self._colMap)
 
-        for idx, board, chan, val in self.__colGetLoopHelper(index):
+        for idx, (board, chan) in self.__colGetLoopHelper(index):
             if self._emulate is True:
                 ret[idx] = self._tesBias[idx]
             else:
                 ret[idx] = self.Hardware.ColumnBoard[board].TesBias.BiasCurrent[chan].value(read=read)
 
+            print(f"Tes get {idx}, {board}, {chan}, {ret[idx]}")
+
         if index != -1:
-            return ret[0]
+            return ret[index]
         else:
             return ret
 
 
     # Set SA Bias value, index is column
     def _saBiasSet(self, value, write, index):
-        for idx, board, chan, val in self.__colSetLoopHelper(value, index):
+        for idx, (board, chan), val in self.__colSetLoopHelper(value, index):
             if self._emulate is True:
                 self._saBias[idx] = val
             else:
@@ -381,23 +390,23 @@ class Group(pr.Device):
     def _saBiasGet(self, read, index):
         ret = [0.0] * len(self._colMap)
 
-        for idx, board, chan, val in self.__colGetLoopHelper(value, index):
+        for idx, (board, chan) in self.__colGetLoopHelper(index):
             if self._emulate is True:
                 ret[idx] = self._saBias[idx]
             else:
                 ret[idx] = self.Hardware.ColumnBoard[board].SaBiasOffset.Bias[chan].value(read=read)
 
         if index != -1:
-            return ret[0]
+            return ret[index]
         else:
             return ret
 
 
     # Set SA Offset value, index is column
     def _saOffsetSet(self, value, write, index):
-        for idx, board, chan, val in self.__colSetLoopHelper(value, index):
+        for idx, (board, chan), val in self.__colSetLoopHelper(value, index):
             if self._emulate is True:
-                self._saOffset[idx] = val[idx]
+                self._saOffset[idx] = val
             else:
                 self.Hardware.ColumnBoard[board].SaBiasOffset.Offset[chan].set(value=val, write=write)
 
@@ -406,14 +415,14 @@ class Group(pr.Device):
     def _saOffsetGet(self, read, index):
         ret = [0.0] * len(self._colMap)
 
-        for idx, board, chan, val in self.__colGetLoopHelper(value, index):
+        for idx, (board, chan) in self.__colGetLoopHelper(index):
             if self._emulate is True:
                 ret[idx] = self._saOffset[idx]
             else:
                 ret[idx] = self.Hardware.ColumnBoard[board].SaBiasOffset.Offset[chan].value(read=read)
 
         if index != -1:
-            return ret[0]
+            return ret[index]
         else:
             return ret
 
@@ -423,14 +432,14 @@ class Group(pr.Device):
     def _saOutGet(self, read, index):
         ret = [0.0] * len(self._colMap)
 
-        for idx, (board, chan), val in self.__colGetLoopHelper(index):
+        for idx, (board, chan) in self.__colGetLoopHelper(index):
             if self._emulate is True:
                 ret[idx] = self._saOut[idx]
             else:
                 ret[idx] = self.Hardware.ColumnBoard[board].DataPath.Ad9681Readout.AdcVoltage[chan].get(read=read)
 
         if index != -1:
-            return ret[0]
+            return ret[index]
         else:
             return ret
 
@@ -578,7 +587,7 @@ class Group(pr.Device):
 
     # Get SQ1 Bias value, index is (column, row) tuple
     def _sq1BiasGet(self, read, index):
-        return self._fastDacGet('Sq1Bias', index, read)
+        return self._fastDacGet('Sq1Bias', read, index)
 
 
     # Set SQ1 FB value, index is (column, row) tuple
@@ -588,7 +597,7 @@ class Group(pr.Device):
 
     # Get SQ1 FB value, index is (column, row) tuple
     def _sq1FbGet(self, read, index):
-        return self._fastDacGet('Sq1Fb', index, read)
+        return self._fastDacGet('Sq1Fb', read, index)
 
 
     # Set FAS Flux Off value, index is row
@@ -711,3 +720,17 @@ class Group(pr.Device):
 
         else:
             return self.Hardware.ColumnBoard[0].FllEnable.get(read=read)
+
+    # Init system
+    def _init(self):
+
+        # Local defaults
+        #self.LoadConfig("defaults.yml")
+        pass
+
+        # Disable FLL
+        self.FllEnable.set(value=False)
+
+        # Drive high TES bias currents?????
+        pass
+
