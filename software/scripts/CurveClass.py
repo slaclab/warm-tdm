@@ -18,8 +18,14 @@ class CurveData():
 		for curve in self.curveList_:
 			curve.updatePeak()
 	def plot(self):
-		pass
-
+		self.maxPeak()
+		fig = plt.figure()
+		ax = fig.add_subplot(111)
+		for curveindex in range(len(self.curveList_)):
+			ax.plot(self.xValues_,self.curveList_[curveindex].points_) #plot the curves
+		ax.plot(self.xValues_[self.maxPeakCurve.highindex_],self.maxPeakCurve.points_[self.maxPeakCurve.highindex_],"^") #plot the max point
+		ax.plot(self.xValues_[self.maxPeakCurve.lowindex_],self.maxPeakCurve.points_[self.maxPeakCurve.lowindex_],"v")#plot the min point
+		plt.show()
 
 class Curve():
 	def __init__(self,sq1Fb,points):
@@ -28,6 +34,7 @@ class Curve():
 		self.lowindex_ = 0
 		self.highindex_ = 0
 		self.peakheight_ = 0
+		self.midpoint = 0
 	def updatePeak(self):
 		for i in range(len(self.points_)):
 			if self.points_[i] < self.points_[self.lowindex_]:

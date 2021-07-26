@@ -1,8 +1,10 @@
 import numpy as np
 import sys
+import math
 import matplotlib.pyplot as plt
 import matplotlib.backends.backend_pdf
 import time
+import random #for testing purposes
 
 import pyrogue
 import pyrogue.pydm
@@ -16,65 +18,29 @@ pyrogue.addLibraryPath(f'../../firmware/python/')
 
 import warm_tdm_api
 
+from CurveClass import *
 outFile = "summary.pdf"
 pdf = matplotlib.backends.backend_pdf.PdfPages(outFile)
-figs = plt.figure()
 
 
+#test instantiation of curve and data objects
 
-###testing data
-Data = {"xvalues":[1,2,2,3],
-        "curves":{34 : [35,23,15,25],
-                    35 : [34,34,34,34]}}
-###
+####
+def gencurve(l):
+	ret = []
+	offset = random.uniform(-1,1)
+	for i in range(l):
+		ret.append(math.sin(i/2) + random.uniform(-.2 + offset,.2 + offset))
+	return ret
+curvelist = []
+for i in range(3):
+	curvelist.append(Curve(i + 30,gencurve(20)))
 
-
-
-def peak(curvelist):
-    low, high = 0,0
-    for i in range(len(curvelist)):
-        if curvelist[i] < curvelist[low]:
-            low = i
-        elif curvelist[i] > curvelist[high]:
-            high = i
-    return (low,high,curvelist[high] - curvelist[low]) #returns indices of low and high, and the amplitude
-
-        
-def maxPeak(data):
-    highestpeak = 0
-    for curve in range(len(data['curves'])):
-        height = peak(data['curves'][curve])[2]
-        if height > highestpeak:
-            highestpeak = height
-            #probably need to use .items()?
-
-        
-        
-
-# def maxPeak(data): #Where data is a dict for one graph
-# 	maxcurve = None #list of this form: [amplitude,minpoint,maxpoint]
-# 	xval = 0
-# 	for curve in range(len(data['curves'])):
-# 		min_offset_point, max_offset_point = [0, data['curves'][curve][0]],[0, data['curves'][curve][0]] #store the points of max and min offset
-# 		for point in data['curves'][curve]: #didn't use min/max because wanted to know the index
-# 			if point > max_offset_point:
-# 				max_offset_point = [xval,point]
-# 			if point < min_offset_point:
-# 				min_offset_point = [xval,point]
-		
-# 		curve_amplitude = max_offset_point[1] - min_offset_point[1]
-
-# 		if not maxcurve or curve_amplitude > maxcurve:
-# 			maxcurve = [curve_amplitude, min_offset_point, max_offset_point]
-
-# 		xval += 1
-# 	return maxcurve
+d = CurveData(range(20),curvelist)
+d.plot()
+####
 
 
-	#given the curve dict structure, find SA_BIAS value with max peak to peak
-def midpoint(data): #given the SA_FLUX curve, find the midpoint
-	curve = maxPeak(data)
-	return (curve[2][0] - curve[1][0])/2 #returns midpoint x value
 
 def saOffset(group, fb, row):
 # 	Adjusts the SA_OFFSET value to zero out the SA_OUT value read by the ADC
