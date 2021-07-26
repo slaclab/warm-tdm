@@ -9,30 +9,35 @@ import pyrogue.pydm
 import rogue
 
 from mpl_toolkits.mplot3d import Axes3D #not sure if necessary
-from simple_pid import PID #might be used for saOffset
+from simple_pid import PID #for saOffset
 
 pyrogue.addLibraryPath(f'../python/')
 pyrogue.addLibraryPath(f'../../firmware/python/')
 
 import warm_tdm_api
 
-#taken from ucsc project
 outFile = "summary.pdf"
 pdf = matplotlib.backends.backend_pdf.PdfPages(outFile)
 figs = plt.figure()
 
 
-# Data = {‘xvalues’ : [1,2,2,3],
-#         ‘curves’ : {34 : [35,23,15,25],
-#                     35 : [34,34,34,34,], }
+
+###testing data
+Data = {"xvalues":[1,2,2,3],
+        "curves":{34 : [35,23,15,25],
+                    35 : [34,34,34,34]}}
+###
+
+
+
 def peak(curvelist):
-    low, high = 0 
+    low, high = 0,0
     for i in range(len(curvelist)):
         if curvelist[i] < curvelist[low]:
             low = i
         elif curvelist[i] > curvelist[high]:
             high = i
-    return (low,high,curvelist[high] - curvelist[low])
+    return (low,high,curvelist[high] - curvelist[low]) #returns indices of low and high, and the amplitude
 
         
 def maxPeak(data):
@@ -68,7 +73,7 @@ def maxPeak(data):
 
 	#given the curve dict structure, find SA_BIAS value with max peak to peak
 def midpoint(data): #given the SA_FLUX curve, find the midpoint
-	curve = maxpeak(data)
+	curve = maxPeak(data)
 	return (curve[2][0] - curve[1][0])/2 #returns midpoint x value
 
 def saOffset(group, fb, row):
@@ -126,7 +131,7 @@ def saTune(group,column,row=0):
 	peak = maxPeak(saFluxBiasResults)
 	print("found maxpeak")
 	
-	midpoint = midpoint(saFluxBiasResults)
+	mid = midpoint(saFluxBiasResults)
 	print("found midpoint")
 	#record sa offset
 	#There will be a function to summarize the data in a plot
