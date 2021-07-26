@@ -22,9 +22,9 @@ pdf = matplotlib.backends.backend_pdf.PdfPages(outFile)
 figs = plt.figure()
 
 
-Data = {‘xvalues’ : [1,2,2,3],
-        ‘curves’ : {34 : [35,23,15,25],
-                    35 : [34,34,34,34,], }
+# Data = {‘xvalues’ : [1,2,2,3],
+#         ‘curves’ : {34 : [35,23,15,25],
+#                     35 : [34,34,34,34,], }
 def peak(curvelist):
     low, high = 0 
     for i in range(len(curvelist)):
@@ -46,24 +46,24 @@ def maxPeak(data):
         
         
 
-def maxPeak(data): #Where data is a dict for one graph
-	maxcurve = None #list of this form: [amplitude,minpoint,maxpoint]
-	xval = 0
-	for curve in range(len(data['curves'])):
-		min_offset_point, max_offset_point = [0, data['curves'][curve][0]],[0, data['curves'][curve][0]] #store the points of max and min offset
-		for point in data['curves'][curve]: #didn't use min/max because wanted to know the index
-			if point > max_offset_point:
-				max_offset_point = [xval,point]
-			if point < min_offset_point:
-				min_offset_point = [xval,point]
+# def maxPeak(data): #Where data is a dict for one graph
+# 	maxcurve = None #list of this form: [amplitude,minpoint,maxpoint]
+# 	xval = 0
+# 	for curve in range(len(data['curves'])):
+# 		min_offset_point, max_offset_point = [0, data['curves'][curve][0]],[0, data['curves'][curve][0]] #store the points of max and min offset
+# 		for point in data['curves'][curve]: #didn't use min/max because wanted to know the index
+# 			if point > max_offset_point:
+# 				max_offset_point = [xval,point]
+# 			if point < min_offset_point:
+# 				min_offset_point = [xval,point]
 		
-		curve_amplitude = max_offset_point[1] - min_offset_point[1]
+# 		curve_amplitude = max_offset_point[1] - min_offset_point[1]
 
-		if not maxcurve or curve_amplitude > maxcurve:
-			maxcurve = [curve_amplitude, min_offset_point, max_offset_point]
+# 		if not maxcurve or curve_amplitude > maxcurve:
+# 			maxcurve = [curve_amplitude, min_offset_point, max_offset_point]
 
-		xval += 1
-	return maxcurve
+# 		xval += 1
+# 	return maxcurve
 
 
 	#given the curve dict structure, find SA_BIAS value with max peak to peak
