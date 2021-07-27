@@ -36,7 +36,7 @@ curvelist = []
 for i in range(3):
 	curvelist.append(Curve(i + 30,gencurve(20)))
 
-d = CurveData(range(20),curvelist)
+c = CurveData(list(range(20)),curvelist)
 # d.plot()
 ####
 
@@ -53,22 +53,20 @@ def saOffset(group, row):
 		group.SaOffset.set(index=row,value=control) #set offset
 		if abs(control) < 1: #What will be the condition to exit this loop?
 			break
-	print ("took measurement")
 	return control
 
 
 #SA TUNING
-def saFlux(group,bias,column,row=0): #Get the data class working with this
+def saFlux(group,bias,column,row=0):
 	low = group.SaFbLowOffset.get()
 	high = group.SaFbHighOffset.get()
 	step = group.SaFbStepSize.get()
 
 	curve = Curve(bias)
 
-	for saFb in np.arange(low,high,step):
+	for saFb in np.arange(low,high + step,step):
 		group.SaFb.set(index = (row,column), value = saFb)
 		curve.addPoint(saOffset(group,row))
-
 	return curve
 
 def saFluxBias(group,column,row=0):
@@ -82,20 +80,18 @@ def saFluxBias(group,column,row=0):
 
 	for bias in np.arange(low, high + step, step): #may be better to use while loop
 		data.addCurve(saFlux(group,bias,column,row))
-
+	
+	data.update()
 	return data
 
 def saTune(group,column,row=0):
-	# group.Init()
+	group.Init()
 	# print("initialized")
 	saFluxBiasResults = saFluxBias(group,column,row)
-	print("got saFluxBias results")
 
 	peak = saFluxBiasResults.maxPeak()
-	print("found maxpeak")
 	
-	mid = saFluxBiasResults.midpoint()
-	print("found midpoint")
+	mid = saFluxBiasResults.midPoint()
 	
 
 	return saFluxBiasResults
