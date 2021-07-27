@@ -25,10 +25,10 @@ vc = pyrogue.interfaces.VirtualClient()
 
 group = vc.root.Group
 
-SetLoopParameters(group,0,5,1) #Set the loop parameters to arbitary values
+SetLoopParameters(group,1,3,1) #Set the loop parameters to arbitary values
 
 
-saTune(group,1,2)
+x = saTune(group,0)
 
 #Testing saFluxBias
 # data = saFluxBias(group,1,1)

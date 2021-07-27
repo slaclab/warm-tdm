@@ -33,16 +33,16 @@ def gencurve(l):
 		ret.append(math.sin(i/2) + random.uniform(-.2 + offset,.2 + offset))
 	return ret
 curvelist = []
-for i in range(5):
+for i in range(3):
 	curvelist.append(Curve(i + 30,gencurve(20)))
 
 d = CurveData(range(20),curvelist)
-d.plot()
+# d.plot()
 ####
 
 
 
-def saOffset(group, fb, row):
+def saOffset(group, row):
 # 	Adjusts the SA_OFFSET value to zero out the SA_OUT value read by the ADC
 # Resulting SA_OFFSET is made available for readback	
 	pid = PID(1, .1, .05)
@@ -53,56 +53,54 @@ def saOffset(group, fb, row):
 		group.SaOffset.set(index=row,value=control) #set offset
 		if abs(control) < 1: #What will be the condition to exit this loop?
 			break
+	print ("took measurement")
 	return control
-
-def saOffsetSweep(group, fb, row): #optional
-	offset = group.SaLowOffset.get()
-	while offset < group.SaHighOffset.get():
-		SaOffset.set(value=offset)
-		out = SaOut.get()
-		if out <= 0:
-			break
-		offset += group.SaOffsetStepsize.get()
-	return offset
-
 
 
 #SA TUNING
 def saFlux(group,bias,column,row=0): #Get the data class working with this
-	curve = Curve(bias,[])
-	SaFb = group.SaFbLowOffset.get()
-	while SaFb <= group.SaFbHighOffset.get():
-		group.SaFb.set(index=(row,column),value=SaFb) 
-		curve.points_.append(saOffset(group,SaFb,row))
-		SaFb += group.SaFbStepSize.get()
+	low = group.SaFbLowOffset.get()
+	high = group.SaFbHighOffset.get()
+	step = group.SaFbStepSize.get()
+
+	curve = Curve(bias)
+
+	for saFb in np.arange(low,high,step):
+		group.SaFb.set(index = (row,column), value = saFb)
+		curve.addPoint(saOffset(group,row))
+
 	return curve
 
 def saFluxBias(group,column,row=0):
-	data = {'xvalues' : [],
-			'curves' : {}}
+	low = group.SaBiasLowOffset.get()
+	high = group.SaBiasHighOffset.get()
+	step = group.SaBiasStepSize.get()
 
-	bias = group.SaBiasLowOffset.get()
-	while bias <= group.SaBiasHighOffset.get():
-		data['curves'][bias] = saFlux(group,bias,row,column) 
-		bias += group.SaBiasStepSize.get()
+	data = CurveData()
+
+	data.populateXValues(low,high,step)
+
+	for bias in np.arange(low, high + step, step): #may be better to use while loop
+		data.addCurve(saFlux(group,bias,column,row))
+
 	return data
 
-
 def saTune(group,column,row=0):
-	group.Init()
+	# group.Init()
 	# print("initialized")
-	saFluxBiasResults = saFluxBias(group,row,column)
+	saFluxBiasResults = saFluxBias(group,column,row)
 	print("got saFluxBias results")
 
-	peak = maxPeak(saFluxBiasResults)
+	peak = saFluxBiasResults.maxPeak()
 	print("found maxpeak")
 	
-	mid = midpoint(saFluxBiasResults)
+	mid = saFluxBiasResults.midpoint()
 	print("found midpoint")
-	#record sa offset
-	#There will be a function to summarize the data in a plot
-	return #SA_BIAS, SA_OFFSET & SA_FB
+	
 
+	return saFluxBiasResults
+
+	
 #set row to index 0
 
 
