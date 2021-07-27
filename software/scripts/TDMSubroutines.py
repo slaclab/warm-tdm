@@ -33,7 +33,7 @@ def gencurve(l):
 		ret.append(math.sin(i/2) + random.uniform(-.2 + offset,.2 + offset))
 	return ret
 curvelist = []
-for i in range(3):
+for i in range(5):
 	curvelist.append(Curve(i + 30,gencurve(20)))
 
 d = CurveData(range(20),curvelist)
@@ -68,12 +68,12 @@ def saOffsetSweep(group, fb, row): #optional
 
 
 #SA TUNING
-def saFlux(group,bias,column,row=0):
-	curve = []
+def saFlux(group,bias,column,row=0): #Get the data class working with this
+	curve = Curve(bias,[])
 	SaFb = group.SaFbLowOffset.get()
 	while SaFb <= group.SaFbHighOffset.get():
 		group.SaFb.set(index=(row,column),value=SaFb) 
-		curve.append(saOffset(group,SaFb,row))
+		curve.points_.append(saOffset(group,SaFb,row))
 		SaFb += group.SaFbStepSize.get()
 	return curve
 
@@ -89,7 +89,7 @@ def saFluxBias(group,column,row=0):
 
 
 def saTune(group,column,row=0):
-	# group.Init()
+	group.Init()
 	# print("initialized")
 	saFluxBiasResults = saFluxBias(group,row,column)
 	print("got saFluxBias results")

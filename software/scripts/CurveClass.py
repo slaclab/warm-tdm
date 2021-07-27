@@ -26,6 +26,8 @@ class CurveData():
 		ax.plot(self.xValues_[self.maxPeakCurve.highindex_],self.maxPeakCurve.points_[self.maxPeakCurve.highindex_],"^") #plot the max point
 		ax.plot(self.xValues_[self.maxPeakCurve.lowindex_],self.maxPeakCurve.points_[self.maxPeakCurve.lowindex_],"v")#plot the min point
 		plt.show()
+	def asdict(self):
+		return {'xValues':self.xValues_}
 
 class Curve():
 	def __init__(self,sq1Fb,points):
