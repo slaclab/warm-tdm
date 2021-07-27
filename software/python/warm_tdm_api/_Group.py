@@ -729,7 +729,7 @@ class Group(pr.Device):
         pass
 
         # Disable FLL
-        self.FllEnable(value=False)
+        self.FllEnable.set(value=False)
 
         # Drive high TES bias currents?????
         pass
