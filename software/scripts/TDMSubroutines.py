@@ -22,7 +22,7 @@ from CurveClass import *
 outFile = "summary.pdf"
 pdf = matplotlib.backends.backend_pdf.PdfPages(outFile)
 
-####
+#### for testing
 def gencurve(l):
 	ret = []
 	offset = random.uniform(-1,1)
@@ -37,7 +37,6 @@ c = CurveData(list(range(20)),curvelist)
 c.update()
 # d.plot()
 ####
-
 
 
 def saOffset(group, row):
@@ -95,11 +94,12 @@ def saTune(group,column,row=0):
 
 	return saFluxBiasResults
 
-	
-#set row to index 0
+	#set row to index 0
 
 
 #FAS TUNING
+
+#fasflux is/will be an accessible variable, just need it to be added
 def fasFlux(group,row):
 	data = []
 	offset = group.FasFluxLowOffset.get()
@@ -137,6 +137,28 @@ def sq1FluxRow(group,sq1Bias):
 	results = sq1Flux(group)
 
 def sq1FluxRowBias(group):
+	pass
+	
+
+def sq1Tune(group):
+	sq1FluxRowBiasResults = sq1FluxRowBias(group)
+	for row in range(group.NumRows.get()): 
+		#Record sq1 bias value which results in the max peak to peak in the sq1 flux curve
+		data = sq1FluxRowBias()
+		#record sq1 fb value at the midpoint between high and low point in the sq1flux curve
+		#This is done within the class
+	
+	return #?
+
+def sq1Flux(group):
+	pass
+def sq1FluxRow(group,sq1Bias):
+	something = Curve(sq1Bias)
+
+	for row in range(group.NumRows.get()):
+		group.FasFlux.set(group.FasFluxOn)
+
+def sq1FluxRowBias(group):
 	low = group.Sq1BiasLowOffset.get()
 	high = group.Sq1BiasHighOffset.get()
 	step = group.Sq1BiasStepSize.get()
@@ -152,17 +174,15 @@ def sq1FluxRowBias(group):
 
 	return data
 
-	
 
 def sq1Tune(group):
-	sq1FluxRowBiasResults = sq1FluxRowBias(group)
-	for row in range(group.NumRows.get()): 
-		#Record sq1 bias value which results in the max peak to peak in the sq1 flux curve
-		curves = sq1FluxRowBias()
-		#record sq1 fb value at the midpoint between high and low point in the sq1flux curve
-		#This is done within the class
-	return #?
-		
+	data = sq1FluxRowBias()
+
+	for row in range(group.NumRows.get()): #or maybe for row in a list of curvedata objects
+		pass
+		#record sq1Bias value which results in the largest peak to peak value in the sq1Flux curve
+		#record sq1Fb value at the midpoint between a high and low point in the chosen sq1flux curve
+		#these are both done by the class
 
 
 #SQ1 DIAGNOSTIC
@@ -214,5 +234,4 @@ def tesRampRow(group):
 
 
 #General form: root.group[0].SaOffset
-
 
