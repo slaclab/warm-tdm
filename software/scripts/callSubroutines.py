@@ -10,25 +10,11 @@ pyrogue.addLibraryPath(f'../../firmware/python/')
 
 import warm_tdm_api
 
-
-
-def saTune(group):
-	group.initialize()
-	saFluxBiasResults = saFluxBias(group)
-
 with warm_tdm_api.GroupRoot() as root:
 	group = root.Group
-
-	group.SaFb.get()
-	print("Got SaFB")
-
-	# print(group.SaBiasLowOffset.get())
-	# group.SaBiasLowOffset.set(23)
-	# print(group.SaBiasLowOffset.get())
-	# print(group.Sq1Bias)
-	# print("passed these tests")
-	#saTune(group)
-	saTune(group)
+	
+	for col in range(group.NumColumns.get()):
+		saTune(group,col)
 
 	fasTune(group)
 

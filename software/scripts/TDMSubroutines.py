@@ -22,9 +22,6 @@ from CurveClass import *
 outFile = "summary.pdf"
 pdf = matplotlib.backends.backend_pdf.PdfPages(outFile)
 
-
-#test instantiation of curve and data objects
-
 ####
 def gencurve(l):
 	ret = []
@@ -68,6 +65,7 @@ def saFlux(group,bias,column,row=0):
 	for saFb in np.arange(low,high + step,step):
 		group.SaFb.set(index = (row,column), value = saFb)
 		curve.addPoint(saOffset(group,row))
+	
 	return curve
 
 def saFluxBias(group,column,row=0):
@@ -113,7 +111,7 @@ def fasFlux(group,row):
 def fasTune(group):
 	for row in range(group.NumRows.get()):
 		results = fasFlux(group,row)
-		off, on = min(results), max(results) #assuming results is a list
+		off, on = min(results), max(results) #wrong, need to change
 
 
 #turn on rowtunenable
@@ -132,16 +130,16 @@ def sq1Flux(group,row,bias):
 		fb += group.Sq1FbStepSize.get()
 	return data
 
-def sq1FluxRow(group):
+def sq1FluxRow(group,sq1Bias):
 	for row in range(group.NumRows.get()):
 		group.fasBias[row].set(on)  #At what level will this be stored
 		group.SaFb[row].set() #does this come from a config file
 	results = sq1Flux(group)
 
-def sq1FluxRowBias(group,row):
-	low = group.SaFbLowOffset.get()
-	high = group.SaFbHighOffset.get()
-	step = group.SaFbStepSize.get()
+def sq1FluxRowBias(group):
+	low = group.Sq1BiasLowOffset.get()
+	high = group.Sq1BiasHighOffset.get()
+	step = group.Sq1BiasStepSize.get()
 	
 	data.populateXValues(low,high,step)
 
@@ -154,8 +152,10 @@ def sq1FluxRowBias(group,row):
 
 	return data
 
+	
 
 def sq1Tune(group):
+	sq1FluxRowBiasResults = sq1FluxRowBias(group)
 	for row in range(group.NumRows.get()): 
 		#Record sq1 bias value which results in the max peak to peak in the sq1 flux curve
 		curves = sq1FluxRowBias()
@@ -178,7 +178,7 @@ def sq1Ramp(group,row):
 def sq1RampRow(group):
 	rowsdata = []
 	for row in range(group.NumRows.get()):
-		group.fasBias[row].set(True)
+		group.fasBias[row].set(on)
 		rowsdata.append(sq1Ramp(group,row))
 
 
