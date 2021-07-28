@@ -37,6 +37,7 @@ for i in range(3):
 	curvelist.append(Curve(i + 30,gencurve(20)))
 
 c = CurveData(list(range(20)),curvelist)
+c.update()
 # d.plot()
 ####
 
@@ -45,13 +46,13 @@ c = CurveData(list(range(20)),curvelist)
 def saOffset(group, row):
 # 	Adjusts the SA_OFFSET value to zero out the SA_OUT value read by the ADC
 # Resulting SA_OFFSET is made available for readback	
-	pid = PID(1, .1, .05)
+	pid = PID(1, .1, .05) #These constants need to be tuned
 	pid.setpoint = 0 #want to zero the saOut value
-	while True: #not sure of the properties of this loop
+	while True: 
 		out = group.SaOut.get(index=row) #get current saout
 		control = pid(out) #get control value to set offset to
 		group.SaOffset.set(index=row,value=control) #set offset
-		if abs(control) < 1: #What will be the condition to exit this loop?
+		if abs(control) < 1: 
 			break
 	return control
 
@@ -118,9 +119,14 @@ def fasTune(group):
 #turn on rowtunenable
 #SQ1 TUNING
 #output vs sq1 feedback for various values of sq1 bias for every row for every column 
-def sq1Flux(group,row):
-	data = []
-	fb = group.Sq1FbLowOffset.get()
+def sq1Flux(group,row,bias):
+	low = group.Sq1FbLowOffset.get()
+	high = group.Sq1FbHighOffset.get()
+	step = group.Sq1FbStepSize.get()
+	
+	curve = Curve(bias)
+	for fb in np.arange(low,high,step):
+		return
 	while fb <= group.Sq1FbHighOffset.get(): #some set of fb
 		data.append(SaOffset(group,fb,row))
 		fb += group.Sq1FbStepSize.get()
@@ -128,28 +134,35 @@ def sq1Flux(group,row):
 
 def sq1FluxRow(group):
 	for row in range(group.NumRows.get()):
-		#on value is not a boolean, change this
-		group.fasBias[row].set(True)  #will on be a boolean?
+		group.fasBias[row].set(on)  #At what level will this be stored
 		group.SaFb[row].set() #does this come from a config file
 	results = sq1Flux(group)
 
-def sq1FluxRowBias(group):
-	data = {'xvalues' : [], #Need to know these
-			'curves' : {}}
-	#with offset as a function of s sq1FB, with each curve being a different Sq1Bias
-	sq1Bias = group.Sq1BiasLowOffset.get()
-	while SaFb <= group.Sq1BiasHighOffset.get():
-		data['curves'][sq1Bias] = sq1FluxRow(group)
-		sq1Bias += group.Sq1BiasStepSize.get()
+def sq1FluxRowBias(group,row):
+	low = group.SaFbLowOffset.get()
+	high = group.SaFbHighOffset.get()
+	step = group.SaFbStepSize.get()
+	
+	data.populateXValues(low,high,step)
+
+	data = CurveData()
+
+	for sq1Bias in np.arange(low,high,step):
+		data.addCurve(sq1FluxRow(group,sq1Bias)) #with offset as a function of sq1FB, with each curve being a different Sq1Bias
+	
+	data.update()
+
 	return data
 
+
 def sq1Tune(group):
-	data = []
-	for row in range(group.NumRows.get()):
+	for row in range(group.NumRows.get()): 
+		#Record sq1 bias value which results in the max peak to peak in the sq1 flux curve
 		curves = sq1FluxRowBias()
-		mid = midpoint(curves)
-		data.append((curves,mid))
-		#What to do with these results?
+		#record sq1 fb value at the midpoint between high and low point in the sq1flux curve
+		#This is done within the class
+	return #?
+		
 
 
 #SQ1 DIAGNOSTIC

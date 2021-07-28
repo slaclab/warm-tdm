@@ -5,11 +5,11 @@ import matplotlib.backends.backend_pdf
 
 
 class CurveData():
-	
+
 	def __init__(self,xvalues = [],curves = []):
 		self.xValues_ = xvalues[:]
 		self.curveList_ = curves[:]
-		self.maxPeakCurve = None
+		self.bestCurve = None
 		self.biasOut = None
 		self.offsetOut = None
 		self.fbOut = None
@@ -17,14 +17,14 @@ class CurveData():
 	def update(self):
 		self.maxPeak()
 		self.midPoint()
-	
+
 	def maxPeak(self):
 		self.updateCurves()
 		for curve in self.curveList_:
-			if self.maxPeakCurve is None or curve.peakheight_ > self.maxPeakCurve.peakheight_:
-				self.maxPeakCurve = curve
-		self.biasOut = self.maxPeakCurve.bias_
-	
+			if self.bestCurve is None or curve.peakheight_ > self.bestCurve.peakheight_:
+				self.bestCurve = curve
+		self.biasOut = self.bestCurve.bias_
+
 	def updateCurves(self):
 		for curve in self.curveList_:
 			curve.updatePeak()
@@ -33,23 +33,22 @@ class CurveData():
 		for xvalue in np.arange(low,high + step,step):
 			self.addFb(xvalue)
 
-	
 	def plot(self):
 		self.update() #might not want to call this here
 		fig = plt.figure()
 		ax = fig.add_subplot(111)
 		for curveindex in range(len(self.curveList_)):
 			ax.plot(self.xValues_,self.curveList_[curveindex].points_) #plot the curves
-		ax.plot(self.xValues_[self.maxPeakCurve.highindex_],self.maxPeakCurve.points_[self.maxPeakCurve.highindex_],"^") #plot the max point
-		ax.plot(self.xValues_[self.maxPeakCurve.lowindex_],self.maxPeakCurve.points_[self.maxPeakCurve.lowindex_],"v")#plot the min point
-		ax.plot(self.fbOut,self.offsetOut,"s")
+		ax.plot(self.xValues_[self.bestCurve.highindex_],self.bestCurve.points_[self.bestCurve.highindex_],"^") #plot the max point
+		ax.plot(self.xValues_[self.bestCurve.lowindex_],self.bestCurve.points_[self.bestCurve.lowindex_],"v")#plot the min point
+		ax.plot(self.fbOut,self.offsetOut,"s") #plot the midpoint
 		plt.show()
 	
 	def midPoint(self):
-		curve = self.maxPeakCurve
+		curve = self.bestCurve
 		midY = (curve.points_[curve.highindex_] + curve.points_[curve.lowindex_]) / 2
 		self.offsetOut = midY
-		midX = (curve.highindex_ + curve.lowindex_)/2
+		midX = (curve.highindex_ + curve.lowindex_) / 2
 		self.fbOut = midX
 
 	def addCurve(self,curve):
@@ -68,7 +67,7 @@ class CurveData():
 		return str(self.asDict())
 
 class Curve():
-#plotting offset as a function of sq1FB, with each curve being a different sq1Bias
+#plotting offset as a function of FB, with each curve being a different bias
 	def __init__(self,bias,points = []):
 		self.bias_ = bias
 		self.points_ = points[:]
