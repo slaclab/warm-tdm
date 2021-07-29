@@ -30,7 +30,7 @@ class CurveData():
 			curve.updatePeak()
 
 	def populateXValues(self,low,high,step):
-		for xvalue in np.arange(low,high + step,step):
+		for xvalue in np.arange(low,high,step):
 			self.addFb(xvalue)
 
 	def plot(self):
@@ -86,3 +86,6 @@ class Curve():
 
 	def addPoint(self,point):
 		self.points_.append(point)
+	
+	def __repr__(self):
+		return(str(self.bias_) + ": " + str(self.points_))
