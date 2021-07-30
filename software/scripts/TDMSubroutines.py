@@ -34,7 +34,7 @@ for i in range(3):
 
 c = CurveData(list(range(20)),curvelist)
 c.update()
-# d.plot()
+#c.plot()
 ####
 
 def pidLoop(group,row,column,inputvar,precision = 1):
@@ -44,7 +44,7 @@ def pidLoop(group,row,column,inputvar,precision = 1):
 		out = group.SaOut.get(index=row) #get current SaOut
 		control = pid(out) #get control value to set offset to
 		if column is not None:
-			inputvar.set(index=(row,column),value=control)
+			inputvar.set(index=(column,row),value=control)
 		else:
 			inputvar.set(index=row,value=control)
 		if abs(control) < precision: #Exit the loop when within precision range
@@ -52,21 +52,8 @@ def pidLoop(group,row,column,inputvar,precision = 1):
 	return control
 
 
-# def saOffset(group,row):
-# # 	Adjusts the SA_OFFSET value to zero out the SA_OUT value read by the ADC
-# # Resulting SA_OFFSET is made available for readback	
-# 	pid = PID(1,.1,.05) #These constants need to be tuned
-# 	pid.setpoint = 0 #want to zero the saOut value
-# 	while True: 
-# 		out = group.SaOut.get(index=row) #get current saout
-# 		control = pid(out) #get control value to set offset to
-# 		group.SaOffset.set(index=row,value=control) #set offset
-# 		if abs(control) < 1: 
-# 			break
-# 	return control
-
 def saOffset(group,row,column,precision = 1):
-	return pidLoop(group,row,column,group.SaOffset,precision)
+	return pidLoop(group,row,None,group.SaOffset,precision)
 
 #SA TUNING
 def saFlux(group,bias,column,row = 0):
@@ -146,10 +133,10 @@ def sq1Flux(group,bias,column,row):
 	step = group.Sq1FbStepSize.get()
 	curve = Curve(bias)
 	for fb in np.arange(low,high,step):
+		group.Sq1Fb.set(index=(column,row),value=fb)
 		offset = saOffset(group,row,None)
 		curve.addPoint(offset)
 	return curve
-
 
 def sq1FluxRow(group,column,row,bias):
 	for row in range(group.NumRows.get()):
@@ -161,6 +148,7 @@ def sq1FluxRowBias(group,column,row):
 	low = group.Sq1BiasLowOffset.get()
 	high = group.Sq1BiasHighOffset.get()
 	step = group.Sq1BiasStepSize.get()
+
 	lowFb = group.Sq1FbLowOffset.get()
 	highFb = group.Sq1FbHighOffset.get()
 	stepFb= group. Sq1FbStepSize.get() 
@@ -172,58 +160,56 @@ def sq1FluxRowBias(group,column,row):
 		data.addCurve(sq1FluxRow(group,column,row,bias))
 	return data
 
-def sq1Tune(group,column,row):
+def sq1Tune(group,column):
 	group.RowTuneEn.set(True)
-	sq1FluxRowBiasResults = sq1FluxRowBias(group,column,row)
+	for row in range(group.NumRows.get()):
+		results = sq1FluxRowBias(group,column,row)
+		results.update()
+
+		group.Sq1Bias.set(index=(row,column),value=results.biasOut)
+		group.Sq1Fb.set(index=(row,column),value=results.fbOut)
 
 #SQ1 DIAGNOSTIC
 #output vs sq1 feedback for every row  for every column
-def sq1Ramp(group,row):
-	data = []
-	sq1Fb = group.Sq1FbLowOffset.get()
-	while SaFb <= group.Sq1FbHighOffset.get():
-		data.append(SaOffset(group,SaFb,row))
-		SaFb += group.Sq1FbStepSize.get()
-	return data
+def sq1Ramp(group,row, column):
+	low = group.Sq1FbLowOffset.get()
+	high = group.Sq1FbHighOffset.get()
+	step = group.Sq1FbStepSize.get()
 
-def sq1RampRow(group):
-	rowsdata = []
+	outputs = []
+	for fb in np.arange(low,high,step):
+		group.Sq1Fb.set(index = (column,row), value = fb)
+		offset = saOffset(group,row,column)
+		outputs.append(offset)
+	return outputs
+
+def sq1RampRow(group,column):
 	for row in range(group.NumRows.get()):
-		group.fasBias[row].set(on)
-		rowsdata.append(sq1Ramp(group,row))
+		group.RowTuneIndex.set(row)
+		group.RowTuneEn.set(True)
+		sq1RampResults = sq1Ramp(group,row,column)
+	group.RowTuneEn.set(False)
 
 
 #TES BIAS DIAGNOSTIC
-def tesRamp(group,row): #out vs tes for row for column 
-	offsets = [] #is tesRamp meant to return a list like this?
-	bias = group.TesBiasLowOffset.get()
-	while bias <= group.TesBiasHighOffset.get():
-		group.TesBias[row].set(bias)
-		offset = SaOffset(row)
-		offsets.append(offset)
-		bias += group.TesBiasStepSize.get()
-	return offsets
+def tesRamp(group,row, column):
+	low = group.TesBiasLowOffset.get()
+	high = group.TesBiasHighOffset.get()
+	step = group.TesBiasStepSize.get()
 
-def tesRampRow(group):
-	data = []
+	outputs = []
+	for bias in np.arange(low,high,step):
+		group.TesBias.set(index = row, value = bias)
+		offset = saOffset(group,row,column = 0)
+		outputs.append(offset)
+	return outputs
+
+def tesRampRow(group,column):
 	for row in range(group.NumRows.get()):
-		group.FasBias[row].set(True)
-		data.append(tesRamp(row))
-	return data
+		#group.fasBias.set(index = row, value = group.fasFluxOn.get()) #Not this 
+		group.RowTuneIndex.set(row)
+		group.RowTuneEn.set(True)
+		tesRampResults = tesRamp(group,row,column)
+	group.RowTuneEn.set(False)
 
-
-
-# accessible variables:
-# root.group[n].NumColumns
-# root.group[n].NumRows
-# root.group[n].TesBias[32]
-# root.group[n].SaBias[32]
-# root.group[n].SaOffset[32]
-# root.group[n].Sq1Bias[32][64]
-# root.group[n].Sq1Fb[32][64]
-# root.group[n].FllEnable
-# root.group[n].fasFlux[32][64][2]
-
-
-#General form: root.group[0].SaOffset
-
+#What to do with this data?

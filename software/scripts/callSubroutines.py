@@ -16,13 +16,17 @@ with warm_tdm_api.GroupRoot() as root:
 	for col in range(group.NumColumns.get()):
 		saTune(group,col)
 
-	fasTune(group)
+	for col in range(group.NumColumns.get()):
+		fasTune(group,col)
 
-	sq1Tune(group)
+	for col in range(group.NumColumns.get()):
+		sq1Tune(group,col)
 
-	sq1RampRow(group)
+	for col in range(group.NumColumns.get()):
+		sq1RampRow(group,col)
 
-	tesRampRow(group)
+	for col in range(group.NumColumns.get()):
+		tesRampRow(group,col)
 
 	#open gui
 	pyrogue.pydm.runPyDM(root=root,title='TestGroup',sizeX=1000,sizeY=500)
