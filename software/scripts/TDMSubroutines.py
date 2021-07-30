@@ -21,22 +21,6 @@ import warm_tdm_api
 from CurveClass import *
 
 
-#### for testing
-def gencurve(l):
-	ret = []
-	offset = random.uniform(-1,1)
-	for i in range(l):
-		ret.append(math.sin(i/2) + random.uniform(-.2 + offset,.2 + offset))
-	return ret
-curvelist = []
-for i in range(3):
-	curvelist.append(Curve(i + 30,gencurve(20)))
-
-c = CurveData(list(range(20)),curvelist)
-c.update()
-#c.plot()
-####
-
 def pidLoop(group,row,column,inputvar,precision = 1):
 	pid = PID(1,.1,.05) #These constants need to be tuned
 	pid.setpoint = 0 #want to zero out SaOut
@@ -51,9 +35,10 @@ def pidLoop(group,row,column,inputvar,precision = 1):
 			break
 	return control
 
-
 def saOffset(group,row,column,precision = 1):
 	return pidLoop(group,row,None,group.SaOffset,precision)
+
+
 
 #SA TUNING
 def saFlux(group,bias,column,row = 0):
@@ -96,6 +81,7 @@ def saTune(group,column,row = 0):
 	return saFluxBiasResults
 
 
+
 #FAS TUNING
 def saFb(group,row,column,precision = 1):
 	return pidLoop(group,row,column,group.SaFb,precision)
@@ -125,7 +111,6 @@ def fasTune(group,column):
 
 
 
-#turn on rowtunenable (?)
 #SQ1 TUNING - output vs sq1fb for various values of sq1 bias for every row for every column 
 def sq1Flux(group,bias,column,row):
 	low = group.Sq1FbLowOffset.get()
@@ -169,8 +154,9 @@ def sq1Tune(group,column):
 		group.Sq1Bias.set(index=(row,column),value=results.biasOut)
 		group.Sq1Fb.set(index=(row,column),value=results.fbOut)
 
-#SQ1 DIAGNOSTIC
-#output vs sq1 feedback for every row  for every column
+
+
+#SQ1 DIAGNOSTIC -output vs sq1 feedback for every row  for every column
 def sq1Ramp(group,row, column):
 	low = group.Sq1FbLowOffset.get()
 	high = group.Sq1FbHighOffset.get()
@@ -191,7 +177,8 @@ def sq1RampRow(group,column):
 	group.RowTuneEn.set(False)
 
 
-#TES BIAS DIAGNOSTIC
+
+#TES BIAS DIAGNOSTIC - what to do with this data?
 def tesRamp(group,row, column):
 	low = group.TesBiasLowOffset.get()
 	high = group.TesBiasHighOffset.get()
@@ -212,4 +199,4 @@ def tesRampRow(group,column):
 		tesRampResults = tesRamp(group,row,column)
 	group.RowTuneEn.set(False)
 
-#What to do with this data?
+
