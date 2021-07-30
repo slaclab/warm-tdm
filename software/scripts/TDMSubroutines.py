@@ -11,6 +11,7 @@ import pyrogue.pydm
 import rogue
 
 from mpl_toolkits.mplot3d import Axes3D #not sure if necessary
+
 from simple_pid import PID #for saOffset
 
 pyrogue.addLibraryPath(f'../python/')
@@ -32,8 +33,7 @@ def pidLoop(group,row,column,inputvar,precision = 1):
 		else:
 			inputvar.set(index=row,value=control)
 		if abs(control) < precision: #Exit the loop when within precision range
-			break
-	return control
+			return control
 
 def saOffset(group,row,column,precision = 1):
 	return pidLoop(group,row,None,group.SaOffset,precision)
@@ -125,7 +125,7 @@ def sq1Flux(group,bias,column,row):
 
 def sq1FluxRow(group,column,row,bias):
 	for row in range(group.NumRows.get()):
-		pass #need to set row fas bias and safb (?), come back to this
+		pass #need to set row fas bias (?) and safb, come back to this
 	curve = sq1Flux(group,bias,column,row)
 	return curve
 
