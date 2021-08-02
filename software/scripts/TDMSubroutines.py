@@ -125,7 +125,9 @@ def sq1Flux(group,bias,column,row):
 
 def sq1FluxRow(group,column,row,bias):
 	for row in range(group.NumRows.get()):
-		pass #need to set row fas bias (?) and safb, come back to this
+		group.RowTuneIndex.set(row)
+		group.RowTuneEn.set(True)
+		#set the corresponding saFb value for the row
 	curve = sq1Flux(group,bias,column,row)
 	return curve
 
