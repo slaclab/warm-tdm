@@ -1,6 +1,9 @@
 import pyrogue.interfaces
-from TDMSubroutines import *
 
+pyrogue.addLibraryPath(f'../python/')
+pyrogue.addLibraryPath(f'../../firmware/python/')
+
+from TDMSubroutines import *
 
 
 def SetLoopParameters(group,low,high,step):
@@ -28,7 +31,9 @@ group = vc.root.Group
 SetLoopParameters(group,0,5,1) #Set the loop parameters to arbitary values
 
 
-x = saTune(group,0)
+sa = saTune(group,0)
+# fas = fasTune(group,0)
+sq1 = sq1Tune(group,0)
 
 #Testing saFluxBias
 # data = saFluxBias(group,1,1)

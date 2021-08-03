@@ -1,8 +1,6 @@
 import numpy as np
 import sys
 import math
-import matplotlib.pyplot as plt
-import matplotlib.backends.backend_pdf
 import time
 import random #for testing purposes
 
@@ -10,23 +8,26 @@ import pyrogue
 import pyrogue.pydm
 import rogue
 
-from mpl_toolkits.mplot3d import Axes3D #not sure if necessary
-
 from simple_pid import PID #for saOffset
 
-pyrogue.addLibraryPath(f'../python/')
-pyrogue.addLibraryPath(f'../../firmware/python/')
+import CurveClass as cc
+
+# pyrogue.addLibraryPath(f'../python/')
+# pyrogue.addLibraryPath(f'../../firmware/python/') #should only be in top level script
 
 import warm_tdm_api
 
-from CurveClass import *
-
-def pidLoop(group,row,column,inputvar,precision=1):
+def pidLoop(group,row,column,inputvar,lowerbound,upperbound,precision=1):
     pid = PID(1,.1,.05) #These constants need to be tuned
     pid.setpoint = 0 #want to zero out SaOut
     while True:
         out = group.SaOut.get(index=row) #get current SaOut
+        assert(out < upperbound)
+        assert(out > lowerbound)
         control = pid(out) #get control value to set offset to
+
+        # time.sleep(0.1) #settling time
+
         if column is not None:
             inputvar.set(index=(column,row),value=control)
         else:
@@ -35,17 +36,19 @@ def pidLoop(group,row,column,inputvar,precision=1):
             return control
 
 def saOffset(group,row,column,precision=1):
-    return pidLoop(group,row,None,group.SaOffset,precision)
+    lowerbound = -100 
+    upperbound = 100
+    return pidLoop(group,row,None,group.SaOffset,lowerbound,upperbound,precision)
 
 
 
 #SA TUNING
 def saFlux(group,bias,column,row = 0):
-    low = group.SaFbLowOffset.get()
-    high = group.SaFbHighOffset.get()
+    low = group.SaFb.get(index=(column,row)) + group.SaFbLowOffset.get()
+    high = group.SaFb.get(index=(column,row)) + group.SaFbHighOffset.get()
     step = group.SaFbStepSize.get()
 
-    curve = Curve(bias)
+    curve = cc.Curve(bias)
 
     for saFb in np.arange(low,high+step,step):
         group.SaFb.set(index=(row,column),value=saFb)
@@ -54,11 +57,11 @@ def saFlux(group,bias,column,row = 0):
     return curve
 
 def saFluxBias(group,column,row = 0):
-    low = group.SaBiasLowOffset.get()
-    high = group.SaBiasHighOffset.get()
+    low = group.SaBias.get(index=column) + group.SaBiasLowOffset.get()
+    high = group.SaBias.get(index=column) + group.SaBiasHighOffset.get()
     step = group.SaBiasStepSize.get()
 
-    data = CurveData()
+    data = cc.CurveData()
 
     data.populateXValues(low,high+step,step)
 
@@ -72,7 +75,6 @@ def saTune(group,column,row = 0):
     group.Init()
 
     saFluxBiasResults = saFluxBias(group,column,row)
-
     group.SaFb.set(index=(row,column),value=saFluxBiasResults.fbOut)
     group.SaOffset.set(index=column,value=saFluxBiasResults.offsetOut)
     group.SaBias.set(index=column,value=saFluxBiasResults.biasOut)
@@ -83,16 +85,18 @@ def saTune(group,column,row = 0):
 
 #FAS TUNING
 def saFb(group,row,column,precision=1):
-    return pidLoop(group,row,column,group.SaFb,precision)
+    lowerbound = -100
+    upperbound = 100
+    return pidLoop(group,row,column,group.SaFb,lowerbound,upperbound,precision)
 
 def fasFlux(group,row,column):
-    low = group.FasFluxLowOffset.get()
-    high = group.FasFluxHighOffset.get()
+    low = group.FasFluxOn.get(index=(column,row)) + group.FasFluxLowOffset.get()
+    high = group.FasFluxOn.get(index=(column,row)) + group.FasFluxHighOffset.get()
     step = group.FasFluxStepSize.get()
 
-    data = CurveData()
+    data = cc.CurveData()
     data.populateXValues(low,high+step,step)
-    curve = Curve(row)
+    curve = cc.Curve(row)
 
     for flux in np.arange(low,high+step,step):
         group.FasFluxOn.set(index=row,value=flux)
@@ -115,10 +119,10 @@ def fasTune(group,column):
 
 #SQ1 TUNING - output vs sq1fb for various values of sq1 bias for every row for every column 
 def sq1Flux(group,bias,column,row):
-    low = group.Sq1FbLowOffset.get()
-    high = group.Sq1FbHighOffset.get()
+    low = group.Sq1Fb.get(index=(column,row)) + group.Sq1FbLowOffset.get()
+    high = group.Sq1Fb.get(index=(column,row)) + group.Sq1FbHighOffset.get()
     step = group.Sq1FbStepSize.get()
-    curve = Curve(bias)
+    curve = cc.Curve(bias)
     for fb in np.arange(low,high+step,step):
         group.Sq1Fb.set(index=(column,row),value=fb)
         offset = saOffset(group,row,None)
@@ -134,15 +138,15 @@ def sq1FluxRow(group,column,row,bias):
     return curve
 
 def sq1FluxRowBias(group,column,row):
-    low = group.Sq1BiasLowOffset.get()
-    high = group.Sq1BiasHighOffset.get()
+    low = group.Sq1Bias.get(index=(column,row)) + group.Sq1BiasLowOffset.get()
+    high = group.Sq1Bias.get(index=(column,row)) + group.Sq1BiasHighOffset.get()
     step = group.Sq1BiasStepSize.get()
 
-    lowFb = group.Sq1FbLowOffset.get()
-    highFb = group.Sq1FbHighOffset.get()
-    stepFb= group. Sq1FbStepSize.get() 
+    lowFb = group.Sq1Fb.get(index=(column,row)) + group.Sq1FbLowOffset.get()
+    highFb = group.Sq1Fb.get(index=(column,row)) + group.Sq1FbHighOffset.get()
+    stepFb= group.Sq1FbStepSize.get() 
 
-    data = CurveData()
+    data = cc.CurveData()
     data.populateXValues(lowFb,highFb+stepFb,stepFb) 
 
     for bias in np.arange(low,high+step,step):
@@ -165,8 +169,8 @@ def sq1Tune(group,column):
 
 #SQ1 DIAGNOSTIC -output vs sq1 feedback for every row  for every column
 def sq1Ramp(group,row, column):
-    low = group.Sq1FbLowOffset.get()
-    high = group.Sq1FbHighOffset.get()
+    low = group.Sq1Fb.get() + group.Sq1FbLowOffset.get()
+    high = group.Sq1Fb.get() + group.Sq1FbHighOffset.get()
     step = group.Sq1FbStepSize.get()
 
     outputs = []
@@ -187,8 +191,8 @@ def sq1RampRow(group,column):
 
 #TES BIAS DIAGNOSTIC - what to do with this data?
 def tesRamp(group,row, column):
-    low = group.TesBiasLowOffset.get()
-    high = group.TesBiasHighOffset.get()
+    low = group.TesBias.get() + group.TesBiasLowOffset.get()
+    high = group.TesBias.get() + group.TesBiasHighOffset.get()
     step = group.TesBiasStepSize.get()
 
     outputs = []
