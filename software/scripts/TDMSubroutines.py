@@ -21,8 +21,7 @@ import warm_tdm_api
 
 from CurveClass import *
 
-
-def pidLoop(group,row,column,inputvar,precision = 1):
+def pidLoop(group,row,column,inputvar,precision=1):
 	pid = PID(1,.1,.05) #These constants need to be tuned
 	pid.setpoint = 0 #want to zero out SaOut
 	while True:
@@ -35,7 +34,7 @@ def pidLoop(group,row,column,inputvar,precision = 1):
 		if abs(control) < precision: #Exit the loop when within precision range
 			return control
 
-def saOffset(group,row,column,precision = 1):
+def saOffset(group,row,column,precision=1):
 	return pidLoop(group,row,None,group.SaOffset,precision)
 
 
@@ -71,7 +70,7 @@ def saFluxBias(group,column,row = 0):
 
 def saTune(group,column,row = 0):
 	group.Init()
-	# print("initialized")
+
 	saFluxBiasResults = saFluxBias(group,column,row)
 
 	group.SaFb.set(index=(row,column),value=saFluxBiasResults.fbOut)
@@ -83,7 +82,7 @@ def saTune(group,column,row = 0):
 
 
 #FAS TUNING
-def saFb(group,row,column,precision = 1):
+def saFb(group,row,column,precision=1):
 	return pidLoop(group,row,column,group.SaFb,precision)
 
 def fasFlux(group,row,column):
@@ -97,17 +96,20 @@ def fasFlux(group,row,column):
 
 	for flux in np.arange(low,high+step,step):
 		group.FasFluxOn.set(index=row,value=flux)
-		curve.addPoint(saFb(group,row,column,precision = 1))
+		curve.addPoint(saFb(group,row,column,precision=1))
 
 	data.addCurve(curve)
 	data.update()
 	return data
 
 def fasTune(group,column):
+	curves = []
 	for row in range(group.NumRows.get()):
 		results = fasFlux(group,row,column)
 		group.FasFluxOn.set(index=row,value=results.bestCurve.points_[results.bestCurve.highindex_]) #Set fas flux on and off values
 		group.FasFluxOff.set(index=row,value=results.bestCurve.points_[results.bestCurve.lowindex_])
+		curves.append(results)
+	return curves	
 
 
 
@@ -117,7 +119,7 @@ def sq1Flux(group,bias,column,row):
 	high = group.Sq1FbHighOffset.get()
 	step = group.Sq1FbStepSize.get()
 	curve = Curve(bias)
-	for fb in np.arange(low,high,step):
+	for fb in np.arange(low,high+step,step):
 		group.Sq1Fb.set(index=(column,row),value=fb)
 		offset = saOffset(group,row,None)
 		curve.addPoint(offset)
@@ -127,10 +129,10 @@ def sq1FluxRow(group,column,row,bias):
 	for row in range(group.NumRows.get()):
 		group.RowTuneIndex.set(row)
 		group.RowTuneEn.set(True)
-		#set the corresponding saFb value for the row
+		#set the corresponding saFb value for the row (?)
 	curve = sq1Flux(group,bias,column,row)
 	return curve
-
+	
 def sq1FluxRowBias(group,column,row):
 	low = group.Sq1BiasLowOffset.get()
 	high = group.Sq1BiasHighOffset.get()
@@ -148,6 +150,7 @@ def sq1FluxRowBias(group,column,row):
 	return data
 
 def sq1Tune(group,column):
+	outputs = []
 	group.RowTuneEn.set(True)
 	for row in range(group.NumRows.get()):
 		results = sq1FluxRowBias(group,column,row)
@@ -155,6 +158,8 @@ def sq1Tune(group,column):
 
 		group.Sq1Bias.set(index=(row,column),value=results.biasOut)
 		group.Sq1Fb.set(index=(row,column),value=results.fbOut)
+		outputs.append(results)
+	return outputs
 
 
 
@@ -165,8 +170,8 @@ def sq1Ramp(group,row, column):
 	step = group.Sq1FbStepSize.get()
 
 	outputs = []
-	for fb in np.arange(low,high,step):
-		group.Sq1Fb.set(index = (column,row), value = fb)
+	for fb in np.arange(low,high+step,step):
+		group.Sq1Fb.set(index=(column,row),value=fb)
 		offset = saOffset(group,row,column)
 		outputs.append(offset)
 	return outputs
@@ -188,14 +193,14 @@ def tesRamp(group,row, column):
 
 	outputs = []
 	for bias in np.arange(low,high,step):
-		group.TesBias.set(index = row, value = bias)
-		offset = saOffset(group,row,column = 0)
+		group.TesBias.set(index=row,value=bias)
+		offset = saOffset(group,row,column=0)
 		outputs.append(offset)
 	return outputs
 
 def tesRampRow(group,column):
 	for row in range(group.NumRows.get()):
-		#group.fasBias.set(index = row, value = group.fasFluxOn.get()) #Not this 
+		#group.fasBias.set(index=row, value=group.fasFluxOn.get()) #Not this 
 		group.RowTuneIndex.set(row)
 		group.RowTuneEn.set(True)
 		tesRampResults = tesRamp(group,row,column)

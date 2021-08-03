@@ -3,7 +3,6 @@ import sys
 import matplotlib.pyplot as plt
 import matplotlib.backends.backend_pdf
 
-
 class CurveData():
 
 	def __init__(self,xvalues = [],curves = []):
@@ -74,7 +73,7 @@ class Curve():
 		self.lowindex_ = 0
 		self.highindex_ = 0
 		self.peakheight_ = 0
-		self.midpoint_ = 0
+		self.midpoint_ = 0 #not used
 
 	def updatePeak(self):
 		for i in range(len(self.points_)):
