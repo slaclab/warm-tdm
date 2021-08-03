@@ -59,7 +59,6 @@ class Group(pr.Device):
         self.add(pr.LocalVariable(name='SaFbStepSize',
                                   value=0.0,
                                   mode='RW',
-                                  typeStr='double[]',
                                   description="Step size for SA FB Tuning"))
 
         # Low offset for SA Bias Tuning
@@ -276,8 +275,8 @@ class Group(pr.Device):
             self._sq1Bias    = [[0.0] * len(self._rowMap)] * len(self._colMap)
             self._sq1Fb      = [[0.0] * len(self._rowMap)] * len(self._colMap)
             self._saFb       = [[0.0] * len(self._rowMap)] * len(self._colMap)
-            self._fasFluxOff = [[0.0] * len(self._rowMap)] * len(self._colMap)
-            self._fasFluxOn  = [[0.0] * len(self._rowMap)] * len(self._colMap)
+            self._fasFluxOff = [0.0] * len(self._rowMap)
+            self._fasFluxOn  = [0.0] * len(self._rowMap)
             self._fllEnable  = False
 
 
