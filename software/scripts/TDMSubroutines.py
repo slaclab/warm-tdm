@@ -72,7 +72,7 @@ def saFluxBias(group,column,row = 0):
     return data
 
 def saTune(group,column,row = 0):
-    group.Init()
+    # group.Init()
 
     saFluxBiasResults = saFluxBias(group,column,row)
     group.SaFb.set(index=(row,column),value=saFluxBiasResults.fbOut)
@@ -90,8 +90,8 @@ def saFb(group,row,column,precision=1):
     return pidLoop(group,row,column,group.SaFb,lowerbound,upperbound,precision)
 
 def fasFlux(group,row,column):
-    low = group.FasFluxOn.get(index=(column,row)) + group.FasFluxLowOffset.get()
-    high = group.FasFluxOn.get(index=(column,row)) + group.FasFluxHighOffset.get()
+    low = group.FasFluxOn.get(index=row) + group.FasFluxLowOffset.get()
+    high = group.FasFluxOn.get(index=row) + group.FasFluxHighOffset.get()
     step = group.FasFluxStepSize.get()
 
     data = cc.CurveData()
