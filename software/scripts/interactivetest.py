@@ -28,7 +28,7 @@ vc = pyrogue.interfaces.VirtualClient()
 
 group = vc.root.Group
 
-SetLoopParameters(group,0,5,1) #Set the loop parameters to arbitary values
+SetLoopParameters(group,-3,3,1) #Set the loop parameters to arbitary values
 
 
 sa = saTune(group,0)

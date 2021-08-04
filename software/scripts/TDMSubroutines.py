@@ -12,12 +12,13 @@ from simple_pid import PID #for saOffset
 
 import CurveClass as cc
 
-# pyrogue.addLibraryPath(f'../python/')
-# pyrogue.addLibraryPath(f'../../firmware/python/') #should only be in top level script
-
 import warm_tdm_api
 
+
+
 def pidLoop(group,row,column,inputvar,lowerbound,upperbound,precision=1):
+    """Returns value that gets SaOut within a defined precision range.
+    """
     pid = PID(1,.1,.05) #These constants need to be tuned
     pid.setpoint = 0 #want to zero out SaOut
     while True:
@@ -26,7 +27,7 @@ def pidLoop(group,row,column,inputvar,lowerbound,upperbound,precision=1):
         assert(out > lowerbound)
         control = pid(out) #get control value to set offset to
 
-        # time.sleep(0.1) #settling time
+        time.sleep(0.1) #settling time
 
         if column is not None:
             inputvar.set(index=(column,row),value=control)
@@ -36,6 +37,9 @@ def pidLoop(group,row,column,inputvar,lowerbound,upperbound,precision=1):
             return control
 
 def saOffset(group,row,column,precision=1):
+    """Returns float.
+    Calls pidLoop using saOffset as the input variable
+    """
     lowerbound = -100 
     upperbound = 100
     return pidLoop(group,row,None,group.SaOffset,lowerbound,upperbound,precision)
@@ -72,6 +76,10 @@ def saFluxBias(group,column,row = 0):
     return data
 
 def saTune(group,column,row = 0):
+    """Returns a CurveData object.
+    Initializes group
+    Runs saFluxBias and collects and sets SaFb, SaOffset, and SaBias
+    """
     # group.Init()
 
     saFluxBiasResults = saFluxBias(group,column,row)
@@ -107,6 +115,11 @@ def fasFlux(group,row,column):
     return data
 
 def fasTune(group,column):
+    """Returns a list of CurveData objects.
+    Iterate through all rows, measuring results from
+    fasFlux subroutine, and setting FasFluxOn and FasFluxOff
+    accordingly. 
+    """
     curves = []
     for row in range(group.NumRows.get()):
         results = fasFlux(group,row,column)
@@ -154,6 +167,10 @@ def sq1FluxRowBias(group,column,row):
     return data
 
 def sq1Tune(group,column):
+    """Returns list of CurveData Objects
+    Runs Sq1FluxRowBias for each row, collecting CurveData objects.
+    During this loop, sets the resulting Sq1Bias and Sq1Fb values
+    """
     outputs = []
     group.RowTuneEn.set(True)
     for row in range(group.NumRows.get()):
@@ -181,6 +198,8 @@ def sq1Ramp(group,row, column):
     return outputs
 
 def sq1RampRow(group,column):
+    """Iterates through all rows, enabling tuning, and then calls sq1Ramp
+    """
     for row in range(group.NumRows.get()):
         group.RowTuneIndex.set(row)
         group.RowTuneEn.set(True)
@@ -203,6 +222,8 @@ def tesRamp(group,row, column):
     return outputs
 
 def tesRampRow(group,column):
+    """Iterates through all rows, enabling tuning, and then calls tesRamp
+    """
     for row in range(group.NumRows.get()):
         #group.fasBias.set(index=row, value=group.fasFluxOn.get()) #Not this 
         group.RowTuneIndex.set(row)
