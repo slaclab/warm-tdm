@@ -34,9 +34,3 @@ SetLoopParameters(group,-3,3,1) #Set the loop parameters to arbitary values
 sa = saTune(group,0)
 fas = fasTune(group,0)
 sq1 = sq1Tune(group,0)
-
-#Testing saFluxBias
-# data = saFluxBias(group,1,1)
-# print(data)
-
-# print("saFluxBias done")
