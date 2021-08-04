@@ -48,6 +48,10 @@ def saOffset(group,row,column,precision=1):
 
 #SA TUNING
 def saFlux(group,bias,column,row = 0):
+    """Returns a Curve object.
+    Iterates through SaFb values determined by lowoffset,highoffset,step and 
+    calls SaOffset to generate points
+    """
     low = group.SaFb.get(index=(column,row)) + group.SaFbLowOffset.get()
     high = group.SaFb.get(index=(column,row)) + group.SaFbHighOffset.get()
     step = group.SaFbStepSize.get()
@@ -61,6 +65,10 @@ def saFlux(group,bias,column,row = 0):
     return curve
 
 def saFluxBias(group,column,row = 0):
+    """Returns a CurveData object.
+    Iterates through SaBias values determined by low,high,step and calls 
+    saFlux to generate curves.
+    """
     low = group.SaBias.get(index=column) + group.SaBiasLowOffset.get()
     high = group.SaBias.get(index=column) + group.SaBiasHighOffset.get()
     step = group.SaBiasStepSize.get()
@@ -74,14 +82,13 @@ def saFluxBias(group,column,row = 0):
     
     data.update()
     return data
-
+    
 def saTune(group,column,row = 0):
     """Returns a CurveData object.
     Initializes group
     Runs saFluxBias and collects and sets SaFb, SaOffset, and SaBias
     """
     # group.Init()
-
     saFluxBiasResults = saFluxBias(group,column,row)
     group.SaFb.set(index=(row,column),value=saFluxBiasResults.fbOut)
     group.SaOffset.set(index=column,value=saFluxBiasResults.offsetOut)
@@ -93,11 +100,17 @@ def saTune(group,column,row = 0):
 
 #FAS TUNING
 def saFb(group,row,column,precision=1):
+    #Returns (float) SaFb value which zeros out SaOut
     lowerbound = -100
     upperbound = 100
     return pidLoop(group,row,column,group.SaFb,lowerbound,upperbound,precision)
 
 def fasFlux(group,row,column):
+    """Returns a CurveData object.
+    Iterates through FasFluxOn values determined by 
+    lowoffset,highoffset,step,calling saFb to generate points. Adds
+    this curve to a CurveData object.
+    """
     low = group.FasFluxOn.get(index=row) + group.FasFluxLowOffset.get()
     high = group.FasFluxOn.get(index=row) + group.FasFluxHighOffset.get()
     step = group.FasFluxStepSize.get()
@@ -132,6 +145,10 @@ def fasTune(group,column):
 
 #SQ1 TUNING - output vs sq1fb for various values of sq1 bias for every row for every column 
 def sq1Flux(group,bias,column,row):
+    """Returns Curve object.
+    Iterates through Sq1Fb values determined by lowoffset,highoffset,step
+    Generates curve points with saOffset()
+    """
     low = group.Sq1Fb.get(index=(column,row)) + group.Sq1FbLowOffset.get()
     high = group.Sq1Fb.get(index=(column,row)) + group.Sq1FbHighOffset.get()
     step = group.Sq1FbStepSize.get()
@@ -143,6 +160,10 @@ def sq1Flux(group,bias,column,row):
     return curve
 
 def sq1FluxRow(group,column,row,bias):
+    """Returns Curve object. 
+    Iterates through rows, enabling tuning for each row.
+    Calls sq1Flux on row passed as argument
+    """
     for row in range(group.NumRows.get()):
         group.RowTuneIndex.set(row)
         group.RowTuneEn.set(True)
@@ -151,6 +172,11 @@ def sq1FluxRow(group,column,row,bias):
     return curve
 
 def sq1FluxRowBias(group,column,row):
+    """Returns CurveData object.
+    Iterates through Sq1Bias values determined by lowoffset,highoffset,step,
+    and gets curves by calling sq1FluxRow
+
+    """
     low = group.Sq1Bias.get(index=(column,row)) + group.Sq1BiasLowOffset.get()
     high = group.Sq1Bias.get(index=(column,row)) + group.Sq1BiasHighOffset.get()
     step = group.Sq1BiasStepSize.get()
@@ -186,6 +212,10 @@ def sq1Tune(group,column):
 
 #SQ1 DIAGNOSTIC -output vs sq1 feedback for every row  for every column
 def sq1Ramp(group,row, column):
+    """Returns list of offsets that zero out SaOut depending on the bias
+    Iterates through Sq1Fb values determined by lowoffset,highoffset,step
+    and records output of saOffset().
+    """
     low = group.Sq1Fb.get() + group.Sq1FbLowOffset.get()
     high = group.Sq1Fb.get() + group.Sq1FbHighOffset.get()
     step = group.Sq1FbStepSize.get()
@@ -210,6 +240,10 @@ def sq1RampRow(group,column):
 
 #TES BIAS DIAGNOSTIC - what to do with this data?
 def tesRamp(group,row, column):
+    """Returns list of offsets that zero out SaOut depending on the bias
+    Iterates through TesBias values determined by lowoffset,highoffset,step
+    and records output of saOffset().
+    """
     low = group.TesBias.get() + group.TesBiasLowOffset.get()
     high = group.TesBias.get() + group.TesBiasHighOffset.get()
     step = group.TesBiasStepSize.get()
