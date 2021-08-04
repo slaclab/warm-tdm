@@ -27,7 +27,7 @@ def pidLoop(group,row,column,inputvar,lowerbound,upperbound,precision=1):
         assert(out > lowerbound)
         control = pid(out) #get control value to set offset to
 
-        time.sleep(0.1) #settling time
+        #time.sleep(0.1) #settling time
 
         if column is not None:
             inputvar.set(index=(column,row),value=control)
@@ -88,7 +88,7 @@ def saTune(group,column,row = 0):
     Initializes group
     Runs saFluxBias and collects and sets SaFb, SaOffset, and SaBias
     """
-    # group.Init()
+    group.Init()
     saFluxBiasResults = saFluxBias(group,column,row)
     group.SaFb.set(index=(row,column),value=saFluxBiasResults.fbOut)
     group.SaOffset.set(index=column,value=saFluxBiasResults.offsetOut)
