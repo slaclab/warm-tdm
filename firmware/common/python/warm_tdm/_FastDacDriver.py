@@ -24,10 +24,17 @@ class FastDacDriver(pr.Device):
                 name = f'Channel[{i}]',
                 offset = i<<8,
                 size = 64*4))
-                
+            
 #             self.add(DacMemory(
 #                 name = f'Channel[{i}]',
 #                 offset = i<<8))
+            
+        for i in range(8):
+            self.add(pr.RemoteVariable(
+                name = f'Override[{i}]',
+                offset = (8<<8) + (i*4),
+                bitSize = 16))
+                        
 
         @self.command()
         def RamTest():
