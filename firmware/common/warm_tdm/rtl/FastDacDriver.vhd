@@ -181,9 +181,14 @@ begin
 
    comb : process (overrideWrAddr, overrideWrData, overrideWrValid, r, ramDout, timingRxData,
                    timingRxRst125) is
-      variable v : RegType;
+      variable v       : RegType;
+      variable dacInt  : integer range 0 to 7;
+      variable dacChip : integer range 0 to 3;
    begin
       v := r;
+
+      dacInt  := conv_integer(r.dacNum);
+      dacChip := conv_integer(r.dacNum(2 downto 1));
 
       v.dacWrt := (others => '0');
       v.dacClk := (others => '0');
@@ -203,13 +208,13 @@ begin
             end if;
 
          when DATA_S =>
-            v.dacSel(conv_integer(r.dacNum(2 downto 1))) := r.dacNum(0);
-            v.dacDb                                      := ramDout(conv_integer(r.dacNum(2 downto 1)))(13 downto 0);
-            v.state                                      := WRITE_S;
+            v.dacSel(dacChip) := r.dacNum(0);
+            v.dacDb           := ramDout(dacInt)(13 downto 0);
+            v.state           := WRITE_S;
 
          when WRITE_S =>
-            v.dacWrt(conv_integer(r.dacNum(2 downto 1))) := '1';
-            v.state                                      := WRITE_FALL_S;
+            v.dacWrt(dacChip) := '1';
+            v.state           := WRITE_FALL_S;
 
          when WRITE_FALL_S =>
             -- Wait 1 cycle for write strobe to fall back to 0
@@ -221,13 +226,13 @@ begin
             end if;
 
          when OVER_SEL_S =>
-            v.dacSel(conv_integer(r.dacNum(2 downto 1))) := r.dacNum(0);
-            v.state                                      := OVER_WRITE_S;
+            v.dacSel(dacChip) := r.dacNum(0);
+            v.state           := OVER_WRITE_S;
 
          when OVER_WRITE_S =>
-            v.dacWrt(conv_integer(r.dacNum(2 downto 1))) := '1';
-            v.dacNum                                     := "111";
-            v.state                                      := WRITE_FALL_S;
+            v.dacWrt(dacChip) := '1';
+            v.dacNum          := "111";
+            v.state           := WRITE_FALL_S;
 
          when CLK_0_RISE_S =>
             v.dacClk := (others => '1');
@@ -241,7 +246,6 @@ begin
             v.dacClk := (others => '1');
             v.dacSel := (others => '0');
             v.state  := WAIT_ROW_STROBE_S;
-
 
          when others => null;
       end case;
