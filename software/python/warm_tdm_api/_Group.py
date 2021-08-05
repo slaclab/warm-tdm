@@ -27,25 +27,25 @@ class Group(pr.Device):
 
         # Row Map
         self.add(pr.LocalVariable(name='RowMap',
-                                  localGet=lambda: return(self._rowMap),
+                                  localGet=lambda: self._rowMap,
                                   mode='RO',
                                   description="Row Map"))
 
         # Col Map
         self.add(pr.LocalVariable(name='ColMap',
-                                  localGet=lambda: return(self._colMap),
+                                  localGet=lambda: self._colMap,
                                   mode='RO',
                                   description="Column Map"))
 
         # Row Order
         self.add(pr.LocalVariable(name='RowOrder',
-                                  localGet=lambda: return(self._rowOrder),
+                                  localGet=lambda: self._rowOrder,
                                   mode='RO',
                                   description="Row Order"))
 
         # Col Enable
         self.add(pr.LocalVariable(name='ColEnable',
-                                  localGet=lambda: return(self._colEnable),
+                                  localGet=lambda: self._colEnable,
                                   mode='RO',
                                   description="Column Enable"))
 
