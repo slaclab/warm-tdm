@@ -190,8 +190,8 @@ def sq1FluxRow(group,column,row,bias):
     Calls sq1Flux on row passed as argument
     """
     for row in range(group.NumRows.get()):
-        group.RowTuneIndex.set(row)
-        group.RowTuneEn.set(True)
+        group.RowForceIndex.set(row)
+        group.RowForceEn.set(True)
         #set the corresponding saFb value for the row (wouldn't they already have been set?) 
     curve = sq1Flux(group,bias,column,row)
     return curve
@@ -235,7 +235,7 @@ def sq1Tune(group,column):
         with a different row
     """
     outputs = []
-    group.RowTuneEn.set(True)
+    group.RowForceEn.set(True)
     for row in range(group.NumRows.get()):
         results = sq1FluxRowBias(group,column,row)
         results.update()
@@ -268,10 +268,10 @@ def sq1RampRow(group,column):
     """Iterates through all rows, enabling tuning, and then calls sq1Ramp
     """
     for row in range(group.NumRows.get()):
-        group.RowTuneIndex.set(row)
-        group.RowTuneEn.set(True)
+        group.RowForceIndex.set(row)
+        group.RowForceEn.set(True)
         sq1RampResults = sq1Ramp(group,row,column)
-    group.RowTuneEn.set(False)
+    group.RowForceEn.set(False)
 
 
 
@@ -296,8 +296,8 @@ def tesRampRow(group,column):
     """Iterates through all rows, enabling tuning, and then calls tesRamp
     """
     for row in range(group.NumRows.get()):
-        group.RowTuneEn.set(True)
+        group.RowForceEn.set(True)
         tesRampResults = tesRamp(group,row,column)
-    group.RowTuneEn.set(False)
+    group.RowForceEn.set(False)
 
 
