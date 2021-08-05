@@ -555,6 +555,7 @@ begin
             TPD_G         => TPD_G,
             PORT_NUM_G    => SIM_SRP_PORT_NUM_G,
             SSI_EN_G      => true,
+            CHAN_COUNT_G  => 0,
             CHAN_MASK_G   => CHAN_MASK_C,
             AXIS_CONFIG_G => AXIS_CONFIG_C)
          port map (
