@@ -127,6 +127,10 @@ begin
             i  => timingRxData.rowStrobe,  -- [in]
             o  => dacClkP(i),              -- [out]
             ob => dacClkN(i));             -- [out]
+
+      dacTriggerB(i) <= not timingRxData.running;
    end generate DAC_SPI_GEN;
+
+   
 
 end architecture rtl;
