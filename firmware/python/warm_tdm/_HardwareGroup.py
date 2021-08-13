@@ -62,8 +62,8 @@ class HardwareGroup(pyrogue.Device):
         for rowIndex, boardIndex in enumerate(range(colBoards, colBoards+rowBoards)):
             # Create streams to each board
             if simulation is True:
-                srpStream = rogue.interfaces.stream.TcpClient(host, SIM_SRP_PORT + (0x00 <<4 | boardIndex)*2)
-                dataStream = rogue.interfaces.stream.TcpClient(host, SIM_DATA_PORT + (0x00 <<4 | boardIndex)*2)
+                srpStream = rogue.interfaces.stream.TcpClient('localhost', SIM_SRP_PORT + (0x00 <<4 | boardIndex)*2)
+                dataStream = rogue.interfaces.stream.TcpClient('localhost', SIM_DATA_PORT + (0x00 <<4 | boardIndex)*2)
                 self.addInterface(srpStream, dataStream)            
             else:
                 srpStream = srpUdp.application(dest=boardIndex)
@@ -76,11 +76,20 @@ class HardwareGroup(pyrogue.Device):
             # Instantiate the board Device tree and link it to the SRP
             self.add(warm_tdm.RowModule(name=f'RowBoard[{rowIndex}]', memBase=srp))
 
+        self.add(pyrogue.LocalVariable(
+            name = 'ReadoutList',
+            typeStr = 'int',
+            value = [0, 1 , 2, 3]))
+
         self.add(warm_tdm.RowSelectArray(
             rowModules = [self.RowBoard[i] for i in range(rowBoards)]))
 
-#         self.add(warm_tdm.RowSelectMap(
-#             rowSelectArray = self.RowSelectArray,
-#             numLogicalRows = 64))
+
+    def writeBlocks(self, **kwargs):
+        # Do the normal write
+        super().writeBlocks(**kwargs)
+
+        #Then configure the row selects according to the ReadoutList
+        self.RowSelectArray.configure(self.ReadoutList.value())
             
 
