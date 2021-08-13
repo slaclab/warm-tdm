@@ -39,8 +39,8 @@ parser.add_argument(
 
 groups = [{
     'host': '192.168.3.11',
-    'colBoards': 3,
-    'rowBoards': 2}]
+    'colBoards': 0,
+    'rowBoards': 1}]
 
 
 # parser.add_argument(
