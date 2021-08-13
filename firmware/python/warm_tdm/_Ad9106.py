@@ -1759,6 +1759,14 @@ class Ad9106(pr.Device):
         # Don't need RAMUPDATE if writing to BUF_READ, MEM_ACCESS or RUN        
         self.NON_BUFFERED = [self.BUF_READ, self.MEM_ACCESS, self.RUN]
 
+        @self.command()
+        def LoadSRAM(arg):
+            self.SRAM.set(0, [arg for x in range(16)], write=True)
+            
+        @self.command()
+        def LoadSRAMInc(arg):
+            self.SRAM.set(0, [x for x in range(arg)], write=True)
+
 
     def writeBlocks2(self, *, force=False, recurse=True, variable=None, checkEach=False, index=-1, **kwargs):
 
