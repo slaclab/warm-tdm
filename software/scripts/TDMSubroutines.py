@@ -47,51 +47,64 @@ def saOffset(group,row,column,precision=1):
 
 
 #SA TUNING
-def saFlux(group,bias,column,row = 0):
-    """Returns a Curve object.
+def saFlux(group,bias,row = 0):
+    """Returns a list of Curve objects.
     Iterates through SaFb values determined by lowoffset,highoffset,step and 
     calls SaOffset to generate points
     """
-    low = group.SaFb.get(index=(column,row)) + group.SaFbLowOffset.get()
-    high = group.SaFb.get(index=(column,row)) + group.SaFbHighOffset.get()
-    step = group.SaFbStepSize.get()
+    curves = []
+  
+    for col in range(len(group.ColMap.get())):
 
-    curve = cc.Curve(bias)
+ 
+        low = group.SaFb.get(index=(col,row)) + group.SaFbLowOffset.get()
+        high = group.SaFb.get(index=(col,row)) + group.SaFbHighOffset.get()
+        step = group.SaFbStepSize.get() #Doesn't need to be inside of loop, including for simplicity
 
-    for saFb in np.arange(low,high+step,step):
-        group.SaFb.set(index=(row,column),value=saFb)
-        curve.addPoint(saOffset(group,row,None)) #column is not a component
-    
-    return curve
+        curve = cc.Curve(bias)
 
-def saFluxBias(group,column,row = 0):
-    """Returns a CurveData object.
+        for saFb in np.arange(low,high+step,step):
+            group.SaFb.set(index=(row,col),value=saFb)
+            curve.addPoint(saOffset(group,row,None)) #column is not a component
+        curves.append(curve)
+  
+    return curves
+
+def saFluxBias(group,row = 0):
+    """Returns a list of CurveData objects.
+    Creates a list of CurveData objects, corresponding to each
+    column
     Iterates through SaBias values determined by low,high,
-    step and calls saFlux to generate curves.
+    step and calls saFlux to generate curves, adding them 
+    to their corresponding data objects
     """
-    low = group.SaBias.get(index=column) + group.SaBiasLowOffset.get()
-    high = group.SaBias.get(index=column) + group.SaBiasHighOffset.get()
     step = group.SaBiasStepSize.get()
 
-    data = cc.CurveData()
+    datalist = []
+    for col in range(len(group.ColMap.get())):
+        low = group.SaBias.get(index=col) + group.SaBiasLowOffset.get()
+        high = group.SaBias.get(index=col) + group.SaBiasHighOffset.get()
 
-    data.populateXValues(low,high+step,step)
+        data = cc.CurveData()
+        data.populateXValues(low,high+step,step)
+        datalist.append(data)
 
     for bias in np.arange(low,high+step,step):
-        data.addCurve(saFlux(group,bias,column,row))
-    
-    data.update()
-    return data
-    
-def saTune(group,column,row = 0):
+        curves = saFlux(group,bias,row)
+        for dataindex in range(len(datalist)):
+            datalist[dataindex].addCurve(curves[dataindex])
+    for dataobject in datalist:
+        dataobject.update()
+
+    return datalist
+
+def saTune(group,row = 0):
     """
     Initializes group, runs saFluxBias and collects and sets SaFb, SaOffset, and SaBias
-
+    Returns a list of CurveData objects
     Args
     ----
     group : group
-    column : int
-        column to operate on
     row : int
         row to operate on, default to zero
 
@@ -102,28 +115,32 @@ def saTune(group,column,row = 0):
      representing a different bias.
     """
     group.Init()
-    saFluxBiasResults = saFluxBias(group,column,row)
-    group.SaFb.set(index=(row,column),value=saFluxBiasResults.fbOut)
-    group.SaOffset.set(index=column,value=saFluxBiasResults.offsetOut)
-    group.SaBias.set(index=column,value=saFluxBiasResults.biasOut)
-
+    saFluxBiasResults = saFluxBias(group,row)
+    for col in range(len(group.ColMap.get())):
+        group.SaFb.set(index=(row,col),value=saFluxBiasResults[col].fbOut)
+        group.SaOffset.set(index=col,value=saFluxBiasResults[col].offsetOut)
+        group.SaBias.set(index=col,value=saFluxBiasResults[col].biasOut)
     return saFluxBiasResults
 
 
 
 #FAS TUNING
 def saFb(group,row,column,precision=1):
-    """Returns (float) SaFb value which zeros out SaOut
+    """Returns list of SaFb values which zero out SaOut. 
+    Each element corresponds with a column 
     """
     lowerbound = -100
     upperbound = 100
-    return pidLoop(group,row,column,group.SaFb,lowerbound,upperbound,precision)
+    colresults = []
+    for col in range(len(group.ColMap.get())):
+        colresults.append(pidLoop(group,row,col,group.SaFb,lowerbound,upperbound,precision))
+    return colresults
 
 def fasFlux(group,row,column):
     """Returns a CurveData object.
     Iterates through FasFluxOn values determined by 
     lowoffset,highoffset,step,calling saFb to generate
-     points. Addsthis curve to a CurveData object.
+     points. Adds this curve to a CurveData object.
     """
     low = group.FasFluxOn.get(index=row) + group.FasFluxLowOffset.get()
     high = group.FasFluxOn.get(index=row) + group.FasFluxHighOffset.get()
@@ -131,12 +148,14 @@ def fasFlux(group,row,column):
 
     data = cc.CurveData()
     data.populateXValues(low,high+step,step)
+    coldata = [data]*len(group.ColMap.get())
     curve = cc.Curve(row)
 
-    for flux in np.arange(low,high+step,step):
-        group.FasFluxOn.set(index=row,value=flux)
-        curve.addPoint(saFb(group,row,column,precision=1))
-
+    for col in group.ColMap.get():
+        for flux in np.arange(low,high+step,step):
+            group.FasFluxOn.set(index=row,value=flux)
+            curve.addPoint(saFb(group,row,column,precision=1))
+    
     data.addCurve(curve)
     data.update()
     return data
@@ -164,57 +183,68 @@ def fasTune(group,column):
         group.FasFluxOn.set(index=row,value=results.bestCurve.points_[results.bestCurve.highindex_]) #Set fas flux on and off values
         group.FasFluxOff.set(index=row,value=results.bestCurve.points_[results.bestCurve.lowindex_])
         curves.append(results)
-    return curves   
+    return curves
+
 
 
 
 #SQ1 TUNING - output vs sq1fb for various values of sq1 bias for every row for every column 
-def sq1Flux(group,bias,column,row):
-    """Returns Curve object.
+def sq1Flux(group,bias,row):
+    """Returns list of curve objects.
     Iterates through Sq1Fb values determined by lowoffset,
     highoffset,step. Generates curve points with saOffset()
     """
-    low = group.Sq1Fb.get(index=(column,row)) + group.Sq1FbLowOffset.get()
-    high = group.Sq1Fb.get(index=(column,row)) + group.Sq1FbHighOffset.get()
-    step = group.Sq1FbStepSize.get()
-    curve = cc.Curve(bias)
-    for fb in np.arange(low,high+step,step):
-        group.Sq1Fb.set(index=(column,row),value=fb)
-        offset = saOffset(group,row,None)
-        curve.addPoint(offset)
-    return curve
+    curves = []
+    for col in range(len(group.ColMap.get())):
+        low = group.Sq1Fb.get(index=(col,row)) + group.Sq1FbLowOffset.get()
+        high = group.Sq1Fb.get(index=(col,row)) + group.Sq1FbHighOffset.get()
+        step = group.Sq1FbStepSize.get()
 
-def sq1FluxRow(group,column,row,bias):
+        curve = cc.Curve(bias)
+        for fb in np.arange(low,high+step,step):
+            group.Sq1Fb.set(index=(col,row),value=fb)
+            offset = saOffset(group,row,None)
+            curve.addPoint(offset)
+        curves.append(curve)
+    return curves
+
+def sq1FluxRow(group,row,bias):
     """Returns Curve object. 
     Iterates through rows, enabling tuning for each row.
     Calls sq1Flux on row passed as argument
     """
+
     for row in range(group.NumRows.get()):
         group.RowForceIndex.set(row)
         group.RowForceEn.set(True)
         #set the corresponding saFb value for the row (wouldn't they already have been set?) 
-    curve = sq1Flux(group,bias,column,row)
-    return curve
+    curves = sq1Flux(group,bias,row)
+    return curves
 
-def sq1FluxRowBias(group,column,row):
-    """Returns CurveData object.
+def sq1FluxRowBias(group,row):
+    """Returns list of CurveData objects, corresponding to each column.
     Iterates through Sq1Bias values determined by
     lowoffset,highoffset,step,and gets curves by calling sq1FluxRow
-   """
-    low = group.Sq1Bias.get(index=(column,row)) + group.Sq1BiasLowOffset.get()
-    high = group.Sq1Bias.get(index=(column,row)) + group.Sq1BiasHighOffset.get()
-    step = group.Sq1BiasStepSize.get()
+    """
 
-    lowFb = group.Sq1Fb.get(index=(column,row)) + group.Sq1FbLowOffset.get()
-    highFb = group.Sq1Fb.get(index=(column,row)) + group.Sq1FbHighOffset.get()
-    stepFb= group.Sq1FbStepSize.get() 
+    datalist = []
 
-    data = cc.CurveData()
-    data.populateXValues(lowFb,highFb+stepFb,stepFb) 
+    for col in range(len(group.ColMap.get())):
+        low = group.Sq1Bias.get(index=(col,row)) + group.Sq1BiasLowOffset.get()
+        high = group.Sq1Bias.get(index=(col,row)) + group.Sq1BiasHighOffset.get()
+        step = group.Sq1BiasStepSize.get()
 
-    for bias in np.arange(low,high+step,step):
-        data.addCurve(sq1FluxRow(group,column,row,bias))
-    return data
+        lowFb = group.Sq1Fb.get(index=(col,row)) + group.Sq1FbLowOffset.get()
+        highFb = group.Sq1Fb.get(index=(col,row)) + group.Sq1FbHighOffset.get()
+        stepFb= group.Sq1FbStepSize.get() 
+
+        data = cc.CurveData()
+        data.populateXValues(lowFb,highFb+stepFb,stepFb) 
+
+        for bias in np.arange(low,high+step,step):
+            data.addCurve(sq1FluxRow(group,row,bias))
+        datalist.append(data)
+    return datalist
 
 def sq1Tune(group,column):
     """
@@ -237,8 +267,9 @@ def sq1Tune(group,column):
     outputs = []
     group.RowForceEn.set(True)
     for row in range(group.NumRows.get()):
-        results = sq1FluxRowBias(group,column,row)
-        results.update()
+        results = sq1FluxRowBias(group,row)
+        for data in results:
+            data.update()
 
         group.Sq1Bias.set(index=(row,column),value=results.biasOut)
         group.Sq1Fb.set(index=(row,column),value=results.fbOut)
