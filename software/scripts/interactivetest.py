@@ -31,6 +31,6 @@ group = vc.root.Group
 SetLoopParameters(group,-3,3,1) #Set the loop parameters to arbitary values
 
 
-sa = saTune(group,0)
-fas = fasTune(group,0)
-sq1 = sq1Tune(group,0)
+sa = saTune(group)
+fas = fasTune(group)
+sq1 = sq1Tune(group)

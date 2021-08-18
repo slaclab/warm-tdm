@@ -14,7 +14,7 @@ import CurveClass as cc
 
 import warm_tdm_api
 
-
+#pid loop 
 
 def pidLoop(group,row,column,inputvar,lowerbound,upperbound,precision=1):
     """Returns value that gets SaOut within a defined precision range.
@@ -36,38 +36,57 @@ def pidLoop(group,row,column,inputvar,lowerbound,upperbound,precision=1):
         if abs(control) < precision: #Exit the loop when within precision range
             return control
 
-def saOffset(group,row,column,precision=1):
+def saOffset(group,row,column,precision=1): #put the column loop in here 
     """Returns float.
     Calls pidLoop using saOffset as the input variable.
     """
-    lowerbound = -100 
-    upperbound = 100
-    return pidLoop(group,row,None,group.SaOffset,lowerbound,upperbound,precision)
+    lower = -100 
+    upper = 100
+    return pidLoop(group=group,
+                   row=row,
+                   column=None,
+                   inputvar=group.SaOffset,
+                   lowerbound=lower,
+                   upperbound=upper,
+                   precision=precision)
 
 
 
 #SA TUNING
 def saFlux(group,bias,row = 0):
-    """Returns a list of Curve objects.
+    """Returns a list of Curves objects.
     Iterates through SaFb values determined by lowoffset,highoffset,step and 
     calls SaOffset to generate points
     """
     curves = []
-  
+    saFbOffsetRange = []
+
+    for col in range(len(group.ColMap.get())):
+        low = group.SaFbLowOffset.get(index=(col,row)) + group.SaFbLowOffset.get()
+        high = group.SaBiasHighOffset.get(index=(col,row)) + group.SaFbHighOffset.get()
+        numsteps = group.SaFbNumSteps.get(index=col)
+        saFbOffsetRange.append(np.linspace(low,high,numsteps,endpoint=True))
+
     for col in range(len(group.ColMap.get())):
 
- 
-        low = group.SaFb.get(index=(col,row)) + group.SaFbLowOffset.get()
-        high = group.SaFb.get(index=(col,row)) + group.SaFbHighOffset.get()
-        step = group.SaFbStepSize.get() #Doesn't need to be inside of loop, including for simplicity
+        # low[col] = group.SaFb.get(index=(col,row)) + group.SaFbLowOffset.get()
+        # high[col] = group.SaFb.get(index=(col,row)) + group.SaFbHighOffset.get()
+        # step[col] = group.SaFbStepSize.get() #Doesn't need to be inside of loop, including for simplicity
+        # saFbOffsetRange[col] = [low[col], ... high[col]]
+        # curves[col] = cc.Curve(bias)
 
-        curve = cc.Curve(bias)
+        curves.append(cc.Curve(bias))
 
-        for saFb in np.arange(low,high+step,step):
-            group.SaFb.set(index=(row,col),value=saFb)
-            curve.addPoint(saOffset(group,row,None)) #column is not a component
-        curves.append(curve)
-  
+    for idx in range(len(saFbOffsetRange[0])):
+
+        for col in range(len(group.ColMap.get())):
+            group.SaFb.set(index=(row,col),value=saFbOffsetRange[col][idx])
+
+        points = saOffset(group,row)
+
+        for col in range(len(group.ColMap.get())):
+            curves[col].addPoint(points[col])
+
     return curves
 
 def saFluxBias(group,row = 0):
@@ -125,7 +144,7 @@ def saTune(group,row = 0):
 
 
 #FAS TUNING
-def saFb(group,row,column,precision=1):
+def saFb(group,row,precision=1):
     """Returns list of SaFb values which zero out SaOut. 
     Each element corresponds with a column 
     """
@@ -133,11 +152,18 @@ def saFb(group,row,column,precision=1):
     upperbound = 100
     colresults = []
     for col in range(len(group.ColMap.get())):
-        colresults.append(pidLoop(group,row,col,group.SaFb,lowerbound,upperbound,precision))
-    return colresults
+        pidresult = pidLoop(group=group,
+                            row=row,
+                            column=col,
+                            inputvar=group.SaFb,
+                            lowerbound=lowerbound,
+                            upperbound=upperbound,
+                            precision=precision)
+        colresults.append(pidresult)
+    return colresults 
 
-def fasFlux(group,row,column):
-    """Returns a CurveData object.
+def fasFlux(group,row):
+    """Returns a list of CurveData objects, each element corresponding to a column.
     Iterates through FasFluxOn values determined by 
     lowoffset,highoffset,step,calling saFb to generate
      points. Adds this curve to a CurveData object.
@@ -146,21 +172,29 @@ def fasFlux(group,row,column):
     high = group.FasFluxOn.get(index=row) + group.FasFluxHighOffset.get()
     step = group.FasFluxStepSize.get()
 
-    data = cc.CurveData()
-    data.populateXValues(low,high+step,step)
-    coldata = [data]*len(group.ColMap.get())
-    curve = cc.Curve(row)
+    datalist = []
+    saFbResults = saFb(group,row,precision=1)
 
-    for col in group.ColMap.get():
+
+    group.FasFluxOn.set(index=row,value=flux)
+    for col in range(len(group.ColMap.get())):
+
+       
+        data = cc.CurveData()
+        data.populateXValues(low,high+step,step)
+        coldata = [data]*len(group.ColMap.get())
+        curve = cc.Curve(row)
+
         for flux in np.arange(low,high+step,step):
-            group.FasFluxOn.set(index=row,value=flux)
-            curve.addPoint(saFb(group,row,column,precision=1))
-    
-    data.addCurve(curve)
-    data.update()
-    return data
+            
+            curve.addPoint(saFbResults[col]) #Confused about this
+        
+        data.addCurve(curve)
+        data.update()
+        datalist.append(data)
+    return datalist
 
-def fasTune(group,column):
+def fasTune(group):
     """
     Iterate through all rows, measuring results from
     fasFlux subroutine, and setting FasFluxOn and FasFluxOff
@@ -179,12 +213,11 @@ def fasTune(group,column):
     """
     curves = []
     for row in range(group.NumRows.get()):
-        results = fasFlux(group,row,column)
-        group.FasFluxOn.set(index=row,value=results.bestCurve.points_[results.bestCurve.highindex_]) #Set fas flux on and off values
-        group.FasFluxOff.set(index=row,value=results.bestCurve.points_[results.bestCurve.lowindex_])
+        results = fasFlux(group,row)
+        group.FasFluxOn.set(index=row,value=results.bestCurve.points_[results.bestCurve.highindex_][0]) #Set fas flux on and off values
+        group.FasFluxOff.set(index=row,value=results.bestCurve.points_[results.bestCurve.lowindex_][0])
         curves.append(results)
     return curves
-
 
 
 
