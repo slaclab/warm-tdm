@@ -42,7 +42,9 @@ def saOffset(group,row,column,precision=1): #put the column loop in here
     """
     lower = -100 
     upper = 100
-    return pidLoop(group=group,
+    percolumnresult = []
+    for col in range(len(group.ColMap.get())):
+        percolumnresult.append(pidLoop(group=group,
                    row=row,
                    column=None,
                    inputvar=group.SaOffset,
