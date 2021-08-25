@@ -30,7 +30,7 @@ class HardwareGroup(pyrogue.Device):
         if simulation is False:
             srpUdp = pyrogue.protocols.UdpRssiPack(host=host, port=SRP_PORT, packVer=2)
             dataUdp = pyrogue.protocols.UdpRssiPack(host=host, port=DATA_PORT, packVer=2)            
-            self.add(srpUdp)
+            #self.add(srpUdp)
             #self.add(dataUdp)                        
             self.addInterface(srpUdp, dataUdp)
 
@@ -74,12 +74,12 @@ class HardwareGroup(pyrogue.Device):
             srp == srpStream
 
             # Instantiate the board Device tree and link it to the SRP
-            self.add(warm_tdm.RowModule(name=f'RowBoard[{rowIndex}]', memBase=srp))
+            self.add(warm_tdm.RowModule(name=f'RowBoard[{rowIndex}]', memBase=srp, expand=True))
 
         self.add(pyrogue.LocalVariable(
             name = 'ReadoutList',
             typeStr = 'int',
-            value = [0, 1 , 2, 3]))
+            value = [0,1,2,3] )) #list(range(48))))
 
         self.add(warm_tdm.RowSelectArray(
             rowModules = [self.RowBoard[i] for i in range(rowBoards)]))
@@ -90,6 +90,6 @@ class HardwareGroup(pyrogue.Device):
         super().writeBlocks(**kwargs)
 
         #Then configure the row selects according to the ReadoutList
-        self.RowSelectArray.configure(self.ReadoutList.value())
+        #self.RowSelectArray.configure(self.ReadoutList.value())
             
 
