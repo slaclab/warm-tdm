@@ -25,8 +25,8 @@ import warm_tdm
 #rogue.Logging.setFilter('pyrogue.stream.TcpCore.localhost.Client.10006', rogue.Logging.Debug)
 #rogue.Logging.setFilter('pyrogue.stream.TcpCore.localhost.Client.10008', rogue.Logging.Debug)
 #rogue.Logging.setFilter('pyrogue.stream.TcpCore.localhost.Client.10010', rogue.Logging.Debug)
-rogue.Logging.setFilter('pyrogue.stream.TcpCore', rogue.Logging.Debug)
-rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
+#rogue.Logging.setFilter('pyrogue.stream.TcpCore', rogue.Logging.Debug)
+#rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
 #logging.getLogger('pyrogue.SideBandSim').setLevel(logging.DEBUG)
 
 # Set the argument parser
@@ -38,7 +38,7 @@ parser.add_argument(
     default = False)
 
 groups = [{
-    'host': '192.168.3.11',
+    'host': '192.168.3.12',
     'colBoards': 0,
     'rowBoards': 1}]
 
