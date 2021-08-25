@@ -18,7 +18,7 @@ class RowModuleDacs(pr.Device):
         checkEach = checkEach or self.forceCheckEach
 
         # Wait for outstanding blocks before starting
-        print(f"Calling root.checkBlocks() in {self.path}")
+#        print(f"Calling root.checkBlocks() in {self.path}")
         self.parent.checkBlocks(recurse=True)
 
         if variable is not None:
@@ -32,6 +32,6 @@ class RowModuleDacs(pr.Device):
             if recurse:
                 for key,value in self.devices.items():
                     value.readBlocks(recurse=True, checkEach=checkEach, **kwargs)
-                    print(f'Called {value.path}.readBlocks(), calling checkBlocks()')
+ #                   print(f'Called {value.path}.readBlocks(), calling checkBlocks()')
                     value.checkBlocks(recurse=True)
-                    print(f'Called {value.path}.checkBlocks()')
+ #                   print(f'Called {value.path}.checkBlocks()')
