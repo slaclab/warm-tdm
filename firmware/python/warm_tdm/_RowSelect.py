@@ -33,16 +33,19 @@ class PhysicalRowSelect(pr.Device):
         # Set the channel start and stop SRAM addrs
         readoutRows = len(readoutList)
         self._dacStartAddrVar.set(self.SRAM_START_ADDRS[self._dacChannel], write=True)
-        self._dacStopAddrVar.set(self.SRAM_START_ADDRS[self._dacChannel] + readoutRows - 1, write=True)
-#        self._dacDevice.PATTERN_PERIOD.set(readoutRows, write=True)
+        #self._dacStopAddrVar.set(self.SRAM_START_ADDRS[self._dacChannel] + readoutRows - 1, write=True)
+        self._dacStopAddrVar.set(self.SRAM_START_ADDRS[self._dacChannel] + 1024 - 1, write=True)        
+        self._dacDevice.PATTERN_PERIOD.set(1024, write=True)
+        self._dacDevice.HOLD.set(15, write=True)  # Hold each sample for 16 cycles      
 
         # initialize the SRAM to always off
-        sramList = [self.OffValue.value() for i in range(readoutRows)]
+        sramList = [self.OffValue.value() for i in range(1024)]
 
         # Turn on the row select as indicated by the readout list
         for i, rs in enumerate(readoutList):
             if rs == self.VirtualRow.value():
-                sramList[i] = self.ActiveValue.value()
+                for j in range(i*16, i*16+16):
+                    sramList[j] = self.ActiveValue.value()
 
         # Determine where to write the list into SRAM
         start = self.SRAM_START_ADDRS[self._dacChannel]*4

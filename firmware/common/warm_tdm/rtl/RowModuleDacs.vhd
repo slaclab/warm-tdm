@@ -122,15 +122,24 @@ begin
             coreSDout      => dacSdio(i),              -- [out]
             coreMCsb(0)    => dacCsB(i));              -- [out]
 
-      U_ClkOutBufDiff_1 : OBUFDS
+
+      U_ClkOutBufDiff_1 : entity surf.ClkOutBufDiff
+         generic map (
+            TPD_G => TPD_G)
          port map (
-            i  => timingRxData.rowStrobe,  -- [in]
-            o  => dacClkP(i),              -- [out]
-            ob => dacClkN(i));             -- [out]
+            clkIn   => timingRxClk125,  -- [in]
+            clkOutP => dacClkP(i),      -- [out]
+            clkOutN => dacClkN(i));     -- [out]
+
+--       U_ClkOutBufDiff_1 : OBUFDS
+--          port map (
+--             i  => timingRxData.rowStrobe,  -- [in]
+--             o  => dacClkP(i),              -- [out]
+--             ob => dacClkN(i));             -- [out]
 
       dacTriggerB(i) <= not timingRxData.running;
    end generate DAC_SPI_GEN;
 
-   
+
 
 end architecture rtl;
