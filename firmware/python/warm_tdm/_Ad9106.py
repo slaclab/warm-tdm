@@ -1807,15 +1807,17 @@ class Ad9106(pr.Device):
 
         @self.command()
         def SramSawtooth():
-            self.START_ADDR1.set(0)
-            self.START_ADDR2.set(0x400)
-            self.START_ADDR3.set(0x800)
-            self.START_ADDR4.set(0xc00)
+            self.START_ADDR1.set(0x000, write=False)
+            self.START_ADDR2.set(0x400, write=False)
+            self.START_ADDR3.set(0x800, write=False)
+            self.START_ADDR4.set(0xc00, write=False)
 
-            self.STOP_ADDR1.set(0x3ff)
-            self.STOP_ADDR2.set(0x7ff)
-            self.STOP_ADDR3.set(0xbff)
-            self.STOP_ADDR4.set(0xfff)
+            self.STOP_ADDR1.set(0x3ff, write=False)
+            self.STOP_ADDR2.set(0x7ff, write=False)
+            self.STOP_ADDR3.set(0xbff, write=False)
+            self.STOP_ADDR4.set(0xfff, write=False)
+
+            self.writeAndVerifyBlocks()
 
             self.SRAM.set(0, [x<<4 for x in range(2**12)], write=True)
 
@@ -1867,7 +1869,7 @@ class Ad9106Sram(pr.MemoryDevice):
             print('Setting BUF_READ and MEM_ACCESS for write to SRAM')
             for i in self._setValues.keys():
                 a = [hex(x) for x in self._setValues[i]]
-                print(f'setValues = {i} - {a}')
+                print(f'setValues = 0x{i:03x} (0x6{i>>2:03x}) - {a}')
             self._dac.BUF_READ.set(0, write=False)
             self._dac.MEM_ACCESS.set(1, write=True)
             print('Done MEM_ACCESS = 1 and BUF_READ = 1')
@@ -1892,7 +1894,7 @@ class Ad9106Sram(pr.MemoryDevice):
             return
 
         print(f'Verify {self.path}')
-        self._dac.BUF_READ.set(1, write=True)
+        self._dac.BUF_READ.set(1, write=False)
         print('Done BUF_READ = 1')
         self._dac.MEM_ACCESS.set(1, write=True)
         print('Done MEM_ACCESS = 1')
@@ -1901,7 +1903,7 @@ class Ad9106Sram(pr.MemoryDevice):
 
         #print(self._verValues)
 
-        self._dac.BUF_READ.set(0, write=True)
+        self._dac.BUF_READ.set(0, write=False)
         self._dac.MEM_ACCESS.set(0, write=True)
 
 #     def readBlocks(self, **kwargs):
@@ -1937,8 +1939,8 @@ class Ad9106Sram(pr.MemoryDevice):
                 checkValues[offset] = [self._base.fromBytes(ba[i:i+self._stride])
                                        for i in range(0, len(ba), self._stride)]
 
-            if len(checkValues) > 0:
-                print(checkValues)
+#            if len(checkValues) > 0:
+#                print(checkValues)
 
             # Do verify if necessary
             if len(self._verValues) > 0:
