@@ -18,7 +18,7 @@ class ColumnModule(pr.Device):
 
         self.add(warm_tdm.Ad5679R(
             name = 'SaBiasDac',
-            hidden = True,
+            hidden = False,
             offset = 0xC0700000))
 
         self.add(warm_tdm.SaBiasOffset(
@@ -26,7 +26,7 @@ class ColumnModule(pr.Device):
         
         self.add(warm_tdm.Ad5679R(
             name = 'TesBiasDac',
-            hidden = True,
+            hidden = False,
             offset = 0xC0701000))
 
         self.add(warm_tdm.TesBias(
