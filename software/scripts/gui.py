@@ -17,7 +17,7 @@ if '--local' in sys.argv:
 import warm_tdm
 
 #rogue.Logging.setFilter('pyrogue.batcher', rogue.Logging.Debug)
-#rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
+rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
 
 #rogue.Logging.setFilter('pyrogue.stream.TcpCore.localhost.Client.10000', rogue.Logging.Debug)
 #rogue.Logging.setFilter('pyrogue.stream.TcpCore.localhost.Client.10002', rogue.Logging.Debug)
@@ -37,10 +37,30 @@ parser.add_argument(
     action = 'store_true',
     default = False)
 
+parser.add_argument(
+    "--ip",
+    type     = str,
+    required = False,
+    default = '192.168.3.12',
+    help     = "IP address")
+
+parser.add_argument(
+    "--rows",
+    type     = int,
+    help     = "Number of row modules")
+
+parser.add_argument(
+    "--cols",
+    type     = int,
+    help     = "Number of column modules")
+
+args = parser.parse_known_args()[0]
+print(args)
+
 groups = [{
-    'host': '192.168.3.12',
-    'colBoards': 0,
-    'rowBoards': 1}]
+    'host': args.ip,
+    'colBoards': args.cols,
+    'rowBoards': args.rows}]
 
 
 # parser.add_argument(
@@ -49,9 +69,6 @@ groups = [{
 #     action = 'store_true',
 #     help     = "enable auto-polling",
 # )
-
-args = parser.parse_known_args()[0]
-print(args)
 
 kwargs = {}
 kwargs['simulation'] = args.sim
@@ -65,7 +82,7 @@ with warm_tdm.WarmTdmRoot(pollEn=False, **kwargs) as root:
     appTop = pyrogue.gui.application(sys.argv)
     guiTop = pyrogue.gui.GuiTop()
     guiTop.addTree(root)
-    guiTop.resize(1000,1000)
+    guiTop.resize(1500,1500)
 
     # Run gui
     appTop.exec_()
