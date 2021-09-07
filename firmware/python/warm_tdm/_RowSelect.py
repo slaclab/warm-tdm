@@ -17,12 +17,12 @@ class PhysicalRowSelect(pr.Device):
         self.add(pr.LocalVariable(
             name = 'ActiveValue',
             disp = '0x{:04x}',
-            value = 0xfff0))
+            value = 0x7ff))
 
         self.add(pr.LocalVariable(
             name = 'OffValue',
             disp = '0x{:04x}',            
-            value = 1<<4))
+            value = 0x800))
 
         self.add(pr.LocalVariable(
             name = 'VirtualRow',
@@ -36,21 +36,21 @@ class PhysicalRowSelect(pr.Device):
         #self._dacStopAddrVar.set(self.SRAM_START_ADDRS[self._dacChannel] + readoutRows - 1, write=True)
         self._dacStopAddrVar.set(self.SRAM_START_ADDRS[self._dacChannel] + 1024 - 1, write=True)        
         self._dacDevice.PATTERN_PERIOD.set(1024, write=True)
-        self._dacDevice.HOLD.set(15, write=True)  # Hold each sample for 16 cycles      
+        self._dacDevice.HOLD.set(0, write=True)  # Hold each sample for 16 cycles      
 
         # initialize the SRAM to always off
-        sramList = [self.OffValue.value() for i in range(1024)]
+        sramList = [self.OffValue.value() << 4 for i in range(1024)]
 
         # Turn on the row select as indicated by the readout list
         for i, rs in enumerate(readoutList):
             if rs == self.VirtualRow.value():
                 for j in range(i*16, i*16+16):
-                    sramList[j] = self.ActiveValue.value()
+                    sramList[j] = self.ActiveValue.value() << 4
 
         # Determine where to write the list into SRAM
         start = self.SRAM_START_ADDRS[self._dacChannel]*4
 
-        print(f'Setting SRAM start={start}, values = {[hex(x) for x in sramList]}')        
+#        print(f'Setting SRAM start=0x{start:0dx}, values = {[hex(x) for x in sramList]}')        
         self._dacDevice.SRAM.set(start, sramList, write=True)
 
 
