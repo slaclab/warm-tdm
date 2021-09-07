@@ -23,3 +23,16 @@ class RowModule(pr.Device):
         
         self.add(surf.protocols.ssi.SsiPrbsTx(
             offset = 0xC0201000))
+
+        @self.command()
+        def Run():
+            for i, dac in self.RowModuleDacs.Ad9106.items():
+                dac.RUN.set(1, write=True)
+            self.WarmTdmCore.Timing.TimingTx.StartRun()
+
+        @self.command()
+        def Stop():
+            self.WarmTdmCore.Timing.TimingTx.EndRun()            
+            for i, dac in self.RowModuleDacs.Ad9106.items():
+                dac.RUN.set(0, write=True)
+
