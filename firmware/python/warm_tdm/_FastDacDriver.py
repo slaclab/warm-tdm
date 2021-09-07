@@ -17,17 +17,31 @@ class DacMemory(pr.Device):
                 
 class FastDacDriver(pr.Device):
     
-    def __init__(self, rfsadj=4.02E3, dacLoad=49.9, ampGain=1, **kwargs):
+    def __init__(self, rfsadj=4.02E3, dacLoad=49.9, ampGain=6.0, **kwargs):
         super().__init__(**kwargs)
 
-        self.iOutFS = (1.2 / rfsadj) * 32
+        self.iOutFs = (1.2 / rfsadj) * 32
         self.dacLoad = dacLoad
+        self.ampGain = ampGain
 
         for i in range(8):
 #             self.add(pr.MemoryDevice(
 #                 name = f'Channel[{i}]',
 #                 offset = i<<8,
 #                 size = 64*4))
+
+            self.add(pr.RemoteVariable(
+                name = f'OverrideRaw[{i}]',
+                offset = (8 << 8) + 4*i,
+                base = pr.UInt,
+                bitSize = 16))
+
+            self.add(pr.LinkVariable(
+                name = f'Override[{i}]',
+                dependencies = [self.OverrideRaw[i]],
+                linkedGet = lambda index, read: self._dacToSquidVoltage(self.OverrideRaw[i].value),
+                linkedSet = lambda valuem, index, read: self.OverrideRaw[i].set(self._squidVoltageToDac(value))))
+                
 
             self.add(pr.RemoteVariable(
                 name = f'Column[{i}]',
@@ -62,7 +76,7 @@ class FastDacDriver(pr.Device):
         return ((dac/16384)-8192)*self.iOutFs
 
     def _dacToSquidVoltage(self, dac):
-        self._dacToMa(dac) * self.dacLoad * self.ampGain
+        self._dacToCurrent(dac) * self.dacLoad * self.ampGain
 
     def _squidVoltageToDac(self, voltage):
         dacCurrent = voltage / (self.dacLoad * self.ampGain)
@@ -73,7 +87,7 @@ class FastDacDriver(pr.Device):
     def _getChannelFunc(self, column, row):
         def _getChannel(index, read):
             dacValue = self.Column[column].get(row, read)
-            return self._dacToSquiidVoltage(dacValue)
+            return self._dacToSquidVoltage(dacValue)
         return _getChannel
 
     def _setChannelFunc(self, column, row):
