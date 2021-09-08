@@ -135,7 +135,8 @@ begin
             SYS_BYTE_WR_EN_G => false,
             COMMON_CLK_G     => false,
             ADDR_WIDTH_G     => 6,
-            DATA_WIDTH_G     => 16)
+            DATA_WIDTH_G     => 16,
+            INIT_G           => X"2000")                     -- init to midscale for DAC
          port map (
             axiClk         => axilClk,                          -- [in]
             axiRst         => axilRst,                          -- [in]
@@ -163,7 +164,8 @@ begin
          SYS_BYTE_WR_EN_G => false,
          COMMON_CLK_G     => false,
          ADDR_WIDTH_G     => 3,
-         DATA_WIDTH_G     => 16)
+         DATA_WIDTH_G     => 16,
+         INIT_G           => X"2000")            -- init to midscale for DAC         )
       port map (
          axiClk         => axilClk,                 -- [in]
          axiRst         => axilRst,                 -- [in]
