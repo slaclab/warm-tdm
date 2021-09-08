@@ -141,10 +141,9 @@ begin
    U_Ad9681Readout_1 : entity surf.Ad9681Readout
       generic map (
          TPD_G           => TPD_G,
-         SIMULATION_G    => SIMULATION_G,
+--         SIMULATION_G    => SIMULATION_G,
+         DEFAULT_DELAY_G => 12,
          IODELAY_GROUP_G => IODELAY_GROUP_G)
---         IDELAYCTRL_FREQ_G => 200.0,
---         DEFAULT_DELAY_G   => DEFAULT_DELAY_G
       port map (
          axilClk         => axilClk,                 -- [in]
          axilRst         => axilRst,                 -- [in]
