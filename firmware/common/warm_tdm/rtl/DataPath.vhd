@@ -151,7 +151,7 @@ begin
          axilWriteSlave  => locAxilWriteSlaves(0),   -- [out]
          axilReadMaster  => locAxilReadMasters(0),   -- [in]
          axilReadSlave   => locAxilReadSlaves(0),    -- [out]
-         adcClkRst       => '0',                     -- [in]
+         adcClkRst       => timingRxRst125,          -- [in]
          adcSerial       => adc,                     -- [in]
          adcStreamClk    => timingRxClk125,          -- [in]
          adcStreams      => adcStreams);             -- [out]

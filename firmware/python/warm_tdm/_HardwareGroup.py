@@ -52,7 +52,7 @@ class HardwareGroup(pyrogue.Device):
             srp == srpStream
 
             # Instantiate the board Device tree and link it to the SRP
-            self.add(warm_tdm.ColumnModule(name=f'ColumnBoard[{index}]', memBase=srp))
+            self.add(warm_tdm.ColumnModule(name=f'ColumnBoard[{index}]', memBase=srp, expand=True))
 
             # Link the data stream to the DataWriter
             debug = warm_tdm.StreamDebug()
