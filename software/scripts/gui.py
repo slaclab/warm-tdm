@@ -17,7 +17,11 @@ if '--local' in sys.argv:
 import warm_tdm
 
 #rogue.Logging.setFilter('pyrogue.batcher', rogue.Logging.Debug)
-rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
+#rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
+rogue.Logging.setFilter('pyrogue.rssi.Application', rogue.Logging.Debug)
+rogue.Logging.setFilter('pyrogue.udp.Server', rogue.Logging.Debug)
+rogue.Logging.setFilter('pyrogue.udp.Client', rogue.Logging.Debug)
+rogue.Logging.setFilter('pyrogue.packetizer.Application', rogue.Logging.Debug)
 
 #rogue.Logging.setFilter('pyrogue.stream.TcpCore.localhost.Client.10000', rogue.Logging.Debug)
 #rogue.Logging.setFilter('pyrogue.stream.TcpCore.localhost.Client.10002', rogue.Logging.Debug)

@@ -28,10 +28,10 @@ class HardwareGroup(pyrogue.Device):
 
         # Open rUDP connections to the Manager board
         if simulation is False:
-            srpUdp = pyrogue.protocols.UdpRssiPack(host=host, port=SRP_PORT, packVer=2)
-            dataUdp = pyrogue.protocols.UdpRssiPack(host=host, port=DATA_PORT, packVer=2)            
-            #self.add(srpUdp)
-            #self.add(dataUdp)                        
+            srpUdp = pyrogue.protocols.UdpRssiPack(host=host, port=SRP_PORT, packVer=2, name='SrpRssi')
+            dataUdp = pyrogue.protocols.UdpRssiPack(host=host, port=DATA_PORT, packVer=2, name='DataRssi')            
+            self.add(srpUdp)
+            self.add(dataUdp)                        
             self.addInterface(srpUdp, dataUdp)
 
                 
@@ -40,11 +40,11 @@ class HardwareGroup(pyrogue.Device):
             # Create streams to each board
             if simulation is True:
                 srpStream = rogue.interfaces.stream.TcpClient('localhost', SIM_SRP_PORT + (0x00 <<4 | index)*2)
-                dataStream = rogue.interfaces.stream.TcpClient('localhost', SIM_DATA_PORT + (0x00 <<4 | index)*2)
-                self.addInterface(srpStream, dataStream)            
+                dataStream = [rogue.interfaces.stream.TcpClient('localhost', SIM_DATA_PORT + (0x00 <<4 | index)*2)]
+                self.addInterface(srpStream, dataStream[0])            
             else:
                 srpStream = srpUdp.application(dest=index)
-                dataStream = dataUdp.application(dest=index)
+                dataStream = dataUdp.application(dest=0x08)
 
 
             # Create SRP and link to SRP stream
@@ -56,7 +56,7 @@ class HardwareGroup(pyrogue.Device):
 
             # Link the data stream to the DataWriter
             debug = warm_tdm.StreamDebug()
-            dataStream >> debug
+            ds >> debug
             self.addInterface(debug)
 
         for rowIndex, boardIndex in enumerate(range(colBoards, colBoards+rowBoards)):

@@ -205,7 +205,7 @@ begin
    begin
       v := r;
 
-      v.rawAdcMaster.tDest := "00001000";
+--      v.rawAdcMaster.tDest := "00001000";
 
       if (timingRxData.rawAdc = '1') then
          v.doRawAdc := '1';
