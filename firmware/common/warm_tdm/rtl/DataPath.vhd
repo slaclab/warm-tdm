@@ -25,6 +25,7 @@ use unisim.vcomponents.all;
 library surf;
 use surf.StdRtlPkg.all;
 use surf.AxiStreamPkg.all;
+use surf.SsiPkg.all;
 use surf.AxiLitePkg.all;
 use surf.AxiStreamPacketizer2Pkg.all;
 use surf.Ad9681Pkg.all;
@@ -70,14 +71,11 @@ end entity DataPath;
 
 architecture rtl of DataPath is
 
-   constant INT_AXIS_CONFIG_C : AxiStreamConfigType := (
-      TSTRB_EN_C    => false,
-      TDATA_BYTES_C => 16,
-      TDEST_BITS_C  => 8,
-      TID_BITS_C    => 0,
-      TKEEP_MODE_C  => TKEEP_FIXED_C,
-      TUSER_BITS_C  => 0,
-      TUSER_MODE_C  => TUSER_NORMAL_C);
+   constant INT_AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(
+      dataBytes => 16,
+      tKeepMode => TKEEP_FIXED_C,
+      tUserMode => TUSER_FIRST_LAST_C,
+      tDestBits => 8);
 
    type RegType is record
       doRawAdc     : sl;
@@ -205,10 +203,11 @@ begin
    begin
       v := r;
 
---      v.rawAdcMaster.tDest := "00001000";
+      v.rawAdcMaster.tDest := "00001000";
 
       if (timingRxData.rawAdc = '1') then
          v.doRawAdc := '1';
+         ssiSetUserSof(INT_AXIS_CONFIG_C, v.rawAdcMaster, '1');
       end if;
 
       if (r.doRawAdc = '1') then
@@ -216,6 +215,10 @@ begin
             v.rawAdcMaster.tData(i*16+15 downto i*16) := adcStreams(i).tData(15 downto 0);
          end loop;
          v.rawAdcMaster.tValid := '1';
+
+         if (r.rawAdcMaster.tvalid = '1') then
+            ssiSetUserSof(INT_AXIS_CONFIG_C, v.rawAdcMaster, '0');
+         end if;
 
          if (rawAdcCtrl.pause = '1') then
             v.rawAdcMaster.tLast := '1';
