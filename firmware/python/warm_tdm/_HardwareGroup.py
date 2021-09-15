@@ -29,7 +29,7 @@ class HardwareGroup(pyrogue.Device):
         # Open rUDP connections to the Manager board
         if simulation is False:
             srpUdp = pyrogue.protocols.UdpRssiPack(host=host, port=SRP_PORT, packVer=2, name='SrpRssi')
-            dataUdp = pyrogue.protocols.UdpRssiPack(host=host, port=DATA_PORT, packVer=2, name='DataRssi')            
+            dataUdp = pyrogue.protocols.UdpRssiPack(host=host, port=DATA_PORT, packVer=2, name='DataRssi', enSsi=False)            
             self.add(srpUdp)
             self.add(dataUdp)                        
             self.addInterface(srpUdp, dataUdp)
@@ -44,7 +44,29 @@ class HardwareGroup(pyrogue.Device):
                 self.addInterface(srpStream, dataStream[0])            
             else:
                 srpStream = srpUdp.application(dest=index)
-                dataStream = dataUdp.application(dest=0x08)
+                dataStream = [dataUdp.application(dest=x) for x in range(256)]
+
+                srpLoopDest = srpUdp.application(dest = 0x10)
+                dataLoopDest = dataUdp.application(dest = 0x10)
+                m = [rogue.interfaces.stream.Master() for x in range(2)]
+                s = [rogue.interfaces.stream.Slave() for x in range(2)]
+
+                for x in range(2):
+                    s[x].setDebug(10, f'LoopDebug{x}')
+#                    m[x].setDebug(10, f'LoopDebug{x}')
+                    
+                m[0] >> srpLoopDest >> s[0]
+                m[1] >> dataLoopDest >> s[1]
+
+                @self.command(name=f'LoopFrame{index}')
+                def _():
+                    for y in range(2):
+                        frame = m[y]._reqFrame(50000, True)
+                        ba = bytearray((i%256 for i in range(32000)))
+                        self._log.debug(f'Sending loopback frame {ba} for {y}')
+                        frame.write(ba, 0)
+                        m[y]._sendFrame(frame)
+                
 
 
             # Create SRP and link to SRP stream
@@ -55,9 +77,10 @@ class HardwareGroup(pyrogue.Device):
             self.add(warm_tdm.ColumnModule(name=f'ColumnBoard[{index}]', memBase=srp, expand=True))
 
             # Link the data stream to the DataWriter
-            debug = warm_tdm.StreamDebug()
-            ds >> debug
-            self.addInterface(debug)
+            for ds in dataStream:
+                debug = warm_tdm.StreamDebug()
+                ds >> debug
+                self.addInterface(debug)
 
         for rowIndex, boardIndex in enumerate(range(colBoards, colBoards+rowBoards)):
             # Create streams to each board
@@ -68,6 +91,7 @@ class HardwareGroup(pyrogue.Device):
             else:
                 srpStream = srpUdp.application(dest=boardIndex)
                 dataStream = dataUdp.application(dest=boardIndex)
+                
 
             # Create SRP and link to SRP stream
             srp = rogue.protocols.srp.SrpV3() #board['name'])
