@@ -1,4 +1,5 @@
 import argparse
+import numpy as np
 
 import rogue
 import pyrogue
@@ -58,6 +59,9 @@ class StreamDebug(rogue.interfaces.stream.Slave):
     def __init__(self, ):
         rogue.interfaces.stream.Slave.__init__(self)
 
+    def _conv(self, adc):
+        return 2*pyrogue.twosComplement(adc>>2, 14)/2**14
+
     def _acceptFrame(self, frame):
         if frame.getError():
             print('Frame Error!')
@@ -65,8 +69,19 @@ class StreamDebug(rogue.interfaces.stream.Slave):
 
         ba = bytearray(frame.getPayload())
         frame.read(ba, 0)
-        print(f'Got Frame on channel {frame.getChannel()}: {len(ba)} bytes')
+        numBytes = len(ba)
+        print(f'Got Frame on channel {frame.getChannel()}: {numBytes} bytes')
+        adcs = np.frombuffer(ba, dtype=np.uint16)
+        voltages = np.array([self._conv(adc) for adc in adcs], dtype=np.float64)
+        adcs.resize(numBytes//16, 8)
+        voltages.resize(numBytes//16, 8)        
+        print(adcs)
+        print(voltages)        
 
+        means = [np.mean(voltages[:,i]) for i in range(8)]
+        print(f'Mean: {means}')
+        noises = [np.std(adcs[:,i]) for i in range(8)]
+        print(f'Noise: {noises}')
 
 class WarmTdmRoot(pyrogue.Root):
     def __init__(
