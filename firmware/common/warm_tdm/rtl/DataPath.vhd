@@ -75,6 +75,7 @@ architecture rtl of DataPath is
       dataBytes => 16,
       tKeepMode => TKEEP_FIXED_C,
       tUserMode => TUSER_FIRST_LAST_C,
+      tUserBits => 8,
       tDestBits => 8);
 
    type RegType is record

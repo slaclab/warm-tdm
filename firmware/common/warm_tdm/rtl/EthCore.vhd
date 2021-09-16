@@ -31,6 +31,9 @@ use surf.EthMacPkg.all;
 library unisim;
 use unisim.vcomponents.all;
 
+library warm_tdm;
+use warm_tdm.WarmTdmPkg.all;
+
 entity EthCore is
    generic (
       TPD_G               : time             := 1 ns;
@@ -96,7 +99,7 @@ architecture rtl of EthCore is
 
    -- Both RSSI ports use the same TDEST and stream config
    constant RSSI_SIZE_C   : positive            := 4;
-   constant AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 8, tDestBits => 8);
+   constant AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 8, tDestBits => 8, tUserBits => 8);
 
    constant RSSI_AXIS_CONFIG_C : AxiStreamConfigArray(RSSI_SIZE_C-1 downto 0) := (others => AXIS_CONFIG_C);
 
@@ -117,7 +120,7 @@ architecture rtl of EthCore is
    constant AXIL_RSSI_SRP_C  : integer := 2;
    constant AXIL_RSSI_DATA_C : integer := 3;
 
-
+ 
    constant AXIL_XBAR_CONFIG_C : AxiLiteCrossbarMasterConfigArray(AXIL_NUM_C-1 downto 0) := (
       AXIL_ETH_C       => (
          baseAddr      => AXIL_BASE_ADDR_G + X"000000",
@@ -712,7 +715,7 @@ begin
          FIFO_ADDR_WIDTH_G   => 4,
          FIFO_FIXED_THRESH_G => true,
 --         FIFO_PAUSE_THRESH_G => 2**9-32,
-         SLAVE_AXI_CONFIG_G  => AXIS_CONFIG_C,
+         SLAVE_AXI_CONFIG_G  => DATA_AXIS_CONFIG_C,
          MASTER_AXI_CONFIG_G => AXIS_CONFIG_C)
       port map (
          sAxisClk    => axisClk,                                   -- [in]
@@ -741,7 +744,7 @@ begin
          FIFO_FIXED_THRESH_G => true,
 --         FIFO_PAUSE_THRESH_G => 2**12-32,
          SLAVE_AXI_CONFIG_G  => AXIS_CONFIG_C,
-         MASTER_AXI_CONFIG_G => AXIS_CONFIG_C)
+         MASTER_AXI_CONFIG_G => DATA_AXIS_CONFIG_C)
       port map (
          sAxisClk    => ethClk,                                    -- [in]
          sAxisRst    => ethRst,                                    -- [in]
