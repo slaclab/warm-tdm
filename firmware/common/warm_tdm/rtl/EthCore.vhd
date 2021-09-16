@@ -706,7 +706,7 @@ begin
          TPD_G               => TPD_G,
          INT_PIPE_STAGES_G   => 1,
          PIPE_STAGES_G       => 0,
-         SLAVE_READY_EN_G    => false,
+         SLAVE_READY_EN_G    => true,
          VALID_THOLD_G       => 1,
          VALID_BURST_MODE_G  => false,
          SYNTH_MODE_G        => "inferred",
