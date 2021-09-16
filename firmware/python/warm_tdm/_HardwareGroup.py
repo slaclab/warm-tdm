@@ -29,7 +29,7 @@ class HardwareGroup(pyrogue.Device):
         # Open rUDP connections to the Manager board
         if simulation is False:
             srpUdp = pyrogue.protocols.UdpRssiPack(host=host, port=SRP_PORT, packVer=2, name='SrpRssi')
-            dataUdp = pyrogue.protocols.UdpRssiPack(host=host, port=DATA_PORT, packVer=2, name='DataRssi', enSsi=False)            
+            dataUdp = pyrogue.protocols.UdpRssiPack(host=host, port=DATA_PORT, packVer=2, name='DataRssi')            
             self.add(srpUdp)
             self.add(dataUdp)                        
             self.addInterface(srpUdp, dataUdp)
@@ -46,26 +46,26 @@ class HardwareGroup(pyrogue.Device):
                 srpStream = srpUdp.application(dest=index)
                 dataStream = [dataUdp.application(dest=x) for x in range(256)]
 
-                srpLoopDest = srpUdp.application(dest = 0x10)
-                dataLoopDest = dataUdp.application(dest = 0x10)
-                m = [rogue.interfaces.stream.Master() for x in range(2)]
-                s = [rogue.interfaces.stream.Slave() for x in range(2)]
+#                 srpLoopDest = srpUdp.application(dest = 0x10)
+#                 dataLoopDest = dataUdp.application(dest = 0x10)
+#                 m = [rogue.interfaces.stream.Master() for x in range(2)]
+#                 s = [rogue.interfaces.stream.Slave() for x in range(2)]
 
-                for x in range(2):
-                    s[x].setDebug(10, f'LoopDebug{x}')
-#                    m[x].setDebug(10, f'LoopDebug{x}')
+#                 for x in range(2):
+#                     s[x].setDebug(10, f'LoopDebug{x}')
+# #                    m[x].setDebug(10, f'LoopDebug{x}')
                     
-                m[0] >> srpLoopDest >> s[0]
-                m[1] >> dataLoopDest >> s[1]
+#                 m[0] >> srpLoopDest >> s[0]
+#                 m[1] >> dataLoopDest >> s[1]
 
-                @self.command(name=f'LoopFrame{index}')
-                def _():
-                    for y in range(2):
-                        frame = m[y]._reqFrame(50000, True)
-                        ba = bytearray((i%256 for i in range(32000)))
-                        self._log.debug(f'Sending loopback frame {ba} for {y}')
-                        frame.write(ba, 0)
-                        m[y]._sendFrame(frame)
+#                 @self.command(name=f'LoopFrame{index}')
+#                 def _():
+#                     for y in range(2):
+#                         frame = m[y]._reqFrame(50000, True)
+#                         ba = bytearray((i%256 for i in range(32000)))
+#                         self._log.debug(f'Sending loopback frame {ba} for {y}')
+#                         frame.write(ba, 0)
+#                         m[y]._sendFrame(frame)
                 
 
 
