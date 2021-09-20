@@ -124,6 +124,15 @@ entity WarmTdmCore is
       axilReadMaster  : out AxiLiteReadMasterType;
       axilReadSlave   : in  AxiLiteReadSlaveType;
 
+      -- Data Streamss
+      axisClk          : out sl;
+      axisRst          : out sl;
+      dataTxAxisMaster : in  AxiStreamMasterType;
+      dataTxAxisSlave  : out AxiStreamSlaveType;
+      dataRxAxisMaster : out AxiStreamMasterType;
+      dataRxAxisSlave  : in  AxiStreamSlaveType := AXI_STREAM_SLAVE_FORCE_C;
+
+
       -- Timing Rx
       timingRxClk125 : out sl;
       timingRxRst125 : out sl;
@@ -172,11 +181,6 @@ architecture rtl of WarmTdmCore is
    signal locAxilReadMasters  : AxiLiteReadMasterArray(NUM_AXIL_MASTERS_C-1 downto 0);
    signal locAxilReadSlaves   : AxiLiteReadSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0);
 
-   -- Data Streams
-   signal dataTxAxisMaster : AxiStreamMasterType;
-   signal dataTxAxisSlave  : AxiStreamSlaveType;
-   signal dataRxAxisMaster : AxiStreamMasterType;
-   signal dataRxAxisSlave  : AxiStreamSlaveType := AXI_STREAM_SLAVE_FORCE_C;
 
    signal fabRefClk0 : sl;
    signal fabRefClk1 : sl;
@@ -191,8 +195,11 @@ architecture rtl of WarmTdmCore is
 
 begin
 
-   axilClk        <= locAxilClk;
-   axilRst        <= locAxilRst;
+   axilClk <= locAxilClk;
+   axilRst <= locAxilRst;
+   axisClk <= locAxilClk;
+   axisRst <= locAxilRst;
+
    timingRxClk125 <= locTimingRxClk125;
 
    Heartbeat_RefClk0 : entity surf.Heartbeat

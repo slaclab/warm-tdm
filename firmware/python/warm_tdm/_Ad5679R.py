@@ -59,6 +59,11 @@ class Ad5679R(pr.Device):
                 linkedSet = self._setVoltageFunc(self.Dac[i]),
                 linkedGet = self._getVoltageFunc(self.Dac[i])))
 
+        @self.command()
+        def ZeroVoltages():
+            self.setVoltages(list(range(16)), [0 for x in range(16)])
+            
+
     def _setVoltageFunc(self, chVar):
         def _setVoltage(value, write):
             if 0 > value > self.gain * 2.5:
@@ -87,3 +92,4 @@ class Ad5679R(pr.Device):
         for ch in channels:
             value |= 2**ch
         self.DacUpdate(value)
+

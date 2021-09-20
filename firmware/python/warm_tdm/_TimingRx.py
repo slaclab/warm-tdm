@@ -47,6 +47,14 @@ class TimingRx(pr.Device):
             bitSize = 1,
             function = pr.RemoteCommand.toggle))
 
+        self.add(pr.RemoteCommand(
+            name = 'ResetPll',
+            offset = 0x04,
+            bitOffset = 1,
+            bitSize = 1,
+            function = pr.RemoteCommand.toggle))
+        
+
         self.add(pr.RemoteVariable(
             name = 'Locked',
             mode = 'RO',

@@ -9,6 +9,8 @@
 ##############################################################################
 create_clock -name adcDClk0 -period 2.00 [get_ports {adcDClkP[0]}]
 create_clock -name adcDClk1 -period 2.00 [get_ports {adcDClkP[1]}]
+set_input_jitter adcDClk0 .35
+set_input_jitter adcDClk1 .35
 
 
 set_clock_groups -asynchronous \

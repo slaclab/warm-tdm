@@ -7,7 +7,21 @@ class TimingTx(pr.Device):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+        self.add(pr.RemoteVariable(
+            name = "Mode",
+            offset = 0x14,
+            bitSize = 1,
+            bitOffset = 0,
+            enum = {
+                0: "Software",
+                1: "Hardware"}))
 
+        self.add(pr.RemoteCommand(
+            name = "SoftRowStrobe",
+            offset = 0x18,
+            bitSize = 1,
+            bitOffset = 0,
+            function = pr.RemoteCommand.touchOne))
 #         self.add(pr.RemoteVariable(
 #             name = 'EnOutput',
 #             mode = 'RW',

@@ -82,7 +82,6 @@ entity PgpEthCore is
       sAxilWriteSlave  : out AxiLiteWriteSlaveType;
       sAxilReadMaster  : in  AxiLiteReadMasterType;
       sAxilReadSlave   : out AxiLiteReadSlaveType;
-
       -- Data Streams
       dataTxAxisMaster : in  AxiStreamMasterType;
       dataTxAxisSlave  : out AxiStreamSlaveType;
@@ -201,7 +200,7 @@ begin
          dataRxAxisSlave  => pgpDataRxAxisSlave);               -- [in]
 
    ---------------------
-   -- Ethernet Interface
+   -- Ethernet Interfacepcie
    ---------------------
    U_EthCore_1 : entity warm_tdm.EthCore
       generic map (

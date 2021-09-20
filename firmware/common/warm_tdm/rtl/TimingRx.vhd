@@ -106,6 +106,7 @@ architecture rtl of TimingRx is
    -------------------------------------------------------------------------------------------------
    type AxilRegType is record
       realignGearbox : sl;
+      resetPll       : sl;
       delay          : slv(4 downto 0);
       set            : sl;
       minEyeWidth    : slv(7 downto 0);
@@ -119,6 +120,7 @@ architecture rtl of TimingRx is
 
    constant AXIL_REG_INIT_C : AxilRegType := (
       realignGearbox => '0',
+      resetPll       => '0',
       delay          => toSlv(DEFAULT_DELAY_G, 5),
       set            => '0',
       minEyeWidth    => toSlv(ite(SIMULATION_G, 2, 64), 8),
@@ -173,7 +175,7 @@ begin
          OUT_REG_RST_G   => false)
       port map (
          clk      => timingRxClk,       -- [in]
-         asyncRst => axilRst,           -- [in]
+         asyncRst => axilR.resetPll,    -- [in]
          syncRst  => timingRxRst);      -- [out]
 
    timingRxClkOut <= wordClk;           --timingRxClk;
@@ -192,7 +194,7 @@ begin
          FB_BUFG_G        => true,
          OUTPUT_BUFG_G    => true,
          NUM_CLOCKS_G     => 2,
-         BANDWIDTH_G      => "LOW",
+         BANDWIDTH_G      => "OPTIMIZED",
          CLKIN_PERIOD_G   => 8.0,
          DIVCLK_DIVIDE_G  => 1,
          CLKFBOUT_MULT_G  => 10,
@@ -574,6 +576,7 @@ begin
       axiSlaveRegisterR(axilEp, X"00", 8, curDelay);
 
       axiSlaveRegister(axilEp, X"04", 0, v.realignGearbox);
+      axiSlaveRegister(axilEp, X"04", 1, v.resetPll);
 
       axiSlaveRegisterR(axilEp, X"08", 0, statusVector(0));  -- locked      
 

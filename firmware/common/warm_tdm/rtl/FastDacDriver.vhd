@@ -56,27 +56,29 @@ end entity FastDacDriver;
 
 architecture rtl of FastDacDriver is
 
-   constant XBAR_COFNIG_C : AxiLiteCrossbarMasterConfigArray(7 downto 0) := genAxiLiteConfig(8, AXIL_BASE_ADDR_G, 12, 8);
+   constant NUM_AXIL_C : integer := 9;
 
-   signal locAxilWriteMasters : AxiLiteWriteMasterArray(7 downto 0);
-   signal locAxilWriteSlaves  : AxiLiteWriteSlaveArray(7 downto 0);
-   signal locAxilReadMasters  : AxiLiteReadMasterArray(7 downto 0);
-   signal locAxilReadSlaves   : AxiLiteReadSlaveArray(7 downto 0);
+   constant XBAR_COFNIG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_C, AXIL_BASE_ADDR_G, 12, 8);
+
+   signal locAxilWriteMasters : AxiLiteWriteMasterArray(NUM_AXIL_C-1 downto 0);
+   signal locAxilWriteSlaves  : AxiLiteWriteSlaveArray(NUM_AXIL_C-1 downto 0);
+   signal locAxilReadMasters  : AxiLiteReadMasterArray(NUM_AXIL_C-1 downto 0);
+   signal locAxilReadSlaves   : AxiLiteReadSlaveArray(NUM_AXIL_C-1 downto 0);
 
    type StateType is (
       WAIT_ROW_STROBE_S,
-      DATA_0_S,
-      WRITE_0_S,
+      DATA_S,
+      WRITE_S,
       WRITE_FALL_S,
-      DATA_1_S,
-      WRITE_1_S,
+      OVER_SEL_S,
+      OVER_WRITE_S,
       CLK_0_RISE_S,
       CLK_0_FALL_S,
       CLK_1_RISE_S);
 
    type RegType is record
       state  : StateType;
-      dacNum : integer range 0 to 3;
+      dacNum : slv(2 downto 0);
       dacDb  : slv(13 downto 0);
       dacWrt : slv(3 downto 0);
       dacClk : slv(3 downto 0);
@@ -85,7 +87,7 @@ architecture rtl of FastDacDriver is
 
    constant REG_INIT_C : RegType := (
       state  => WAIT_ROW_STROBE_S,
-      dacNum => 0,
+      dacNum => (others => '0'),
       dacDb  => (others => '0'),
       dacWrt => (others => '0'),
       dacClk => (others => '0'),
@@ -96,13 +98,17 @@ architecture rtl of FastDacDriver is
 
    signal ramDout : slv16Array(7 downto 0);
 
+   signal overrideWrValid : sl;
+   signal overrideWrAddr  : slv(2 downto 0);
+   signal overrideWrData  : slv(15 downto 0);
+
 begin
 
    U_AxiLiteCrossbar_1 : entity surf.AxiLiteCrossbar
       generic map (
          TPD_G              => TPD_G,
          NUM_SLAVE_SLOTS_G  => 1,
-         NUM_MASTER_SLOTS_G => 8,
+         NUM_MASTER_SLOTS_G => NUM_AXIL_C,
          MASTERS_CONFIG_G   => XBAR_COFNIG_C,
          DEBUG_G            => false)
       port map (
@@ -129,7 +135,8 @@ begin
             SYS_BYTE_WR_EN_G => false,
             COMMON_CLK_G     => false,
             ADDR_WIDTH_G     => 6,
-            DATA_WIDTH_G     => 16)
+            DATA_WIDTH_G     => 16,
+            INIT_G           => X"2000")                     -- init to midscale for DAC
          port map (
             axiClk         => axilClk,                          -- [in]
             axiRst         => axilRst,                          -- [in]
@@ -146,11 +153,44 @@ begin
             dout           => ramDout(i));                      -- [out]
    end generate GEN_AXIL_RAM;
 
+   U_AxiDualPortRam_1 : entity surf.AxiDualPortRam
+      generic map (
+         TPD_G            => TPD_G,
+         SYNTH_MODE_G     => "inferred",
+         MEMORY_TYPE_G    => "distributed",
+         READ_LATENCY_G   => 0,
+         AXI_WR_EN_G      => true,
+         SYS_WR_EN_G      => false,
+         SYS_BYTE_WR_EN_G => false,
+         COMMON_CLK_G     => false,
+         ADDR_WIDTH_G     => 3,
+         DATA_WIDTH_G     => 16,
+         INIT_G           => X"2000")            -- init to midscale for DAC         )
+      port map (
+         axiClk         => axilClk,                 -- [in]
+         axiRst         => axilRst,                 -- [in]
+         axiReadMaster  => locAxilReadMasters(8),   -- [in]
+         axiReadSlave   => locAxilReadSlaves(8),    -- [out]
+         axiWriteMaster => locAxilWriteMasters(8),  -- [in]
+         axiWriteSlave  => locAxilWriteSlaves(8),   -- [out]
+         clk            => timingRxClk125,          -- [in]
+         rst            => timingRxRst125,          -- [in]
+         addr           => (others => '0'),         -- [in]
+         dout           => open,                    -- [out]
+         axiWrValid     => overrideWrValid,         -- [out]
+         axiWrAddr      => overrideWrAddr,          -- [out]
+         axiWrData      => overrideWrData);         -- [out]
 
-   comb : process (r, ramDout, timingRxData, timingRxRst125) is
-      variable v : RegType;
+   comb : process (overrideWrAddr, overrideWrData, overrideWrValid, r, ramDout, timingRxData,
+                   timingRxRst125) is
+      variable v       : RegType;
+      variable dacInt  : integer range 0 to 7;
+      variable dacChip : integer range 0 to 3;
    begin
       v := r;
+
+      dacInt  := conv_integer(r.dacNum);
+      dacChip := conv_integer(r.dacNum(2 downto 1));
 
       v.dacWrt := (others => '0');
       v.dacClk := (others => '0');
@@ -158,39 +198,43 @@ begin
 
       case r.state is
          when WAIT_ROW_STROBE_S =>
-            v.dacNum := 0;
+            v.dacNum := (others => '0');
             if (timingRxData.rowStrobe = '1') then
-               v.state := DATA_0_S;
+               v.state := DATA_S;
             end if;
 
-         when DATA_0_S =>
-            v.dacSel := (others => '0');
-            v.dacDb  := ramDout(r.dacNum*2)(13 downto 0);
-            v.state  := WRITE_0_S;
+            if (overrideWrValid = '1') then
+               v.dacDb  := overrideWrData(13 downto 0);
+               v.dacNum := overrideWrAddr;
+               v.state  := OVER_SEL_S;
+            end if;
 
-         when WRITE_0_S =>
-            v.dacWrt(r.dacNum) := '1';
-            v.state            := WRITE_FALL_S;
+         when DATA_S =>
+            v.dacSel(dacChip) := r.dacNum(0);
+            v.dacDb           := ramDout(dacInt)(13 downto 0);
+            v.state           := WRITE_S;
+
+         when WRITE_S =>
+            v.dacWrt(dacChip) := '1';
+            v.state           := WRITE_FALL_S;
 
          when WRITE_FALL_S =>
             -- Wait 1 cycle for write strobe to fall back to 0
             -- Might not be necessary but doesn't hurt
-            v.state := DATA_1_S;
-
-         when DATA_1_S =>
-            v.dacSel := (others => '1');
-            v.dacDb  := ramDout(r.dacNum*2+1)(13 downto 0);
-            v.state  := WRITE_1_S;
-
-         when WRITE_1_S =>
-            v.dacWrt(r.dacNum) := '1';
-            if (r.dacNum = 3) then
+            v.dacNum := r.dacNum + 1;
+            v.state  := DATA_S;
+            if (r.dacNum = 7) then
                v.state := CLK_0_RISE_S;
-            else
-               v.dacNum := r.dacNum + 1;
-               v.state  := DATA_0_S;
             end if;
 
+         when OVER_SEL_S =>
+            v.dacSel(dacChip) := r.dacNum(0);
+            v.state           := OVER_WRITE_S;
+
+         when OVER_WRITE_S =>
+            v.dacWrt(dacChip) := '1';
+            v.dacNum          := "111";
+            v.state           := WRITE_FALL_S;
 
          when CLK_0_RISE_S =>
             v.dacClk := (others => '1');
@@ -202,8 +246,8 @@ begin
 
          when CLK_1_RISE_S =>
             v.dacClk := (others => '1');
+            v.dacSel := (others => '0');
             v.state  := WAIT_ROW_STROBE_S;
-
 
          when others => null;
       end case;

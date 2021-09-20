@@ -15,4 +15,5 @@ class WarmTdmCore(pr.Device):
             expand = True))
 
         self.add(warm_tdm.ComCore(
-            offset = 0xA0000000))
+            offset = 0xA0000000,
+            expand = True))
