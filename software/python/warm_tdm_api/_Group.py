@@ -1,7 +1,7 @@
 import pyrogue as pr
 
 class Group(pr.Device):
-    def __init__(self, rowMap, colMap, emulate=False, **kwargs):
+    def __init__(self, rowMap, colMap, rowOrder=None, colEnable=None, emulate=False, **kwargs):
         super().__init__(**kwargs)
 
         # Row map is a list of tuples containing (board, channel) values to map row indexes
@@ -10,8 +10,44 @@ class Group(pr.Device):
         # Col map is a list of tuples containing (board, channel) values to map col indexes
         self._colMap = colMap
 
+        # If row order is not passed, assume map order
+        if rowOrder is None:
+            self._rowOrder = [i for i in range(len(self._rowMap))]
+        else:
+            self._rowOrder = rowOrder
+
+        # If col enable is not passed, assume all are enabled
+        if colEnable is None:
+            self._colEnable = [True] * len(self._rowMap)
+        else:
+            self._colEnable = colEnable
+
         # Emulate flag
         self._emulate = emulate
+
+        # Row Map
+        self.add(pr.LocalVariable(name='RowMap',
+                                  localGet=lambda: self._rowMap,
+                                  mode='RO',
+                                  description="Row Map"))
+
+        # Col Map
+        self.add(pr.LocalVariable(name='ColMap',
+                                  localGet=lambda: self._colMap,
+                                  mode='RO',
+                                  description="Column Map"))
+
+        # Row Order
+        self.add(pr.LocalVariable(name='RowOrder',
+                                  localGet=lambda: self._rowOrder,
+                                  mode='RO',
+                                  description="Row Order"))
+
+        # Col Enable
+        self.add(pr.LocalVariable(name='ColEnable',
+                                  localGet=lambda: self._colEnable,
+                                  mode='RO',
+                                  description="Column Enable"))
 
         # Number of columns supported in this group
         self.add(pr.LocalVariable(name='NumColumns',
@@ -26,22 +62,34 @@ class Group(pr.Device):
                                   description="Number of rows"))
 
         # Enable Row Tune Override
-        self.add(pr.LinkVariable(name='RowTuneEn',
+        self.add(pr.LinkVariable(name='RowForceEn',
                                  value=False,
                                  mode='RW',
                                  typeStr='bool',
-                                 linkedSet=self._rowTuneEnSet,
-                                 linkedGet=self._rowTuneEnGet,
+                                 linkedSet=self._rowForceEnSet,
+                                 linkedGet=self._rowForceEnGet,
                                  description="Row Tune Enable"))
 
         # Row Tune Channel
-        self.add(pr.LinkVariable(name='RowTuneIndex',
+        self.add(pr.LinkVariable(name='RowForceIndex',
                                  value=0,
                                  mode='RW',
                                  typeStr='int',
-                                 linkedSet=self._rowTuneIdxSet,
-                                 linkedGet=self._rowTuneIdxGet,
+                                 linkedSet=self._rowForceIdxSet,
+                                 linkedGet=self._rowForceIdxGet,
                                  description="Row Tune Index"))
+
+        # Tuning row enables
+        self.add(pr.LocalVariable(name='RowTuneEnable',
+                                  value=[True] * len(self._rowMap),
+                                  mode='RW',
+                                  description="Tune enable for each row"))
+
+        # Tuning column enables
+        self.add(pr.LocalVariable(name='ColTuneEnable',
+                                  value=[True] * len(self._colMap),
+                                  mode='RW',
+                                  description="Tune enable for each column"))
 
         # Low offset for SA FB Tuning
         self.add(pr.LocalVariable(name='SaFbLowOffset',
@@ -59,7 +107,6 @@ class Group(pr.Device):
         self.add(pr.LocalVariable(name='SaFbStepSize',
                                   value=0.0,
                                   mode='RW',
-                                  typeStr='double[]',
                                   description="Step size for SA FB Tuning"))
 
         # Low offset for SA Bias Tuning
@@ -267,8 +314,8 @@ class Group(pr.Device):
                                  description="Initialize System"))
 
         if self._emulate:
-            self._tuneEn     = False
-            self._tuneIdx    = 0
+            self._forceEn    = False
+            self._forceIdx   = 0
             self._tesBias    = [0.0] * len(self._colMap)
             self._saBias     = [0.0] * len(self._colMap)
             self._saOffset   = [0.0] * len(self._colMap)
@@ -276,40 +323,40 @@ class Group(pr.Device):
             self._sq1Bias    = [[0.0] * len(self._rowMap)] * len(self._colMap)
             self._sq1Fb      = [[0.0] * len(self._rowMap)] * len(self._colMap)
             self._saFb       = [[0.0] * len(self._rowMap)] * len(self._colMap)
-            self._fasFluxOff = [[0.0] * len(self._rowMap)] * len(self._colMap)
-            self._fasFluxOn  = [[0.0] * len(self._rowMap)] * len(self._colMap)
+            self._fasFluxOff = [0.0] * len(self._rowMap)
+            self._fasFluxOn  = [0.0] * len(self._rowMap)
             self._fllEnable  = False
 
 
     # Set Row Tune Override
-    def _rowTuneEnSet(self, value, write):
+    def _rowForceEnSet(self, value, write):
 
         if self._emulate is True:
-            self._tuneEn = value
+            self._forceEn = value
 
         else:
             for col in self.Hardware.ColumnBoard:
-                col.RowTuneEn.set(value,write=write)
+                col.RowForceEn.set(value,write=write)
 
             for row in self.Hardware.RowBoard:
-                row.RowTuneEn.set(value,write=write)
+                row.RowForceEn.set(value,write=write)
 
 
     # Get Row Tune Override
-    def _rowTuneEnGet(self, read):
+    def _rowForceEnGet(self, read):
 
         if self._emulate is True:
-            return self._tuneEn
+            return self._forceEn
 
         else:
-            return self.Hardware.RowBoard[0].RowTuneEn.get(read=read)
+            return self.Hardware.RowBoard[0].RowForceEn.get(read=read)
 
 
     # Set Row Tune Index
-    def _rowTuneIdxSet(self, value, write):
+    def _rowForceIdxSet(self, value, write):
 
         if self._emulate is True:
-            self._tuneIdx = value
+            self._forceIdx = value
 
         else:
             for col in self.Hardware.ColumnBoard:
@@ -320,10 +367,10 @@ class Group(pr.Device):
 
 
     # Get Row Tune Index
-    def _rowTuneIdxGet(self, read):
+    def _rowForceIdxGet(self, read):
 
         if self._emulate is True:
-            return self._tuneIdx
+            return self._forceIdx
 
         else:
             return self.Hardware.RowBoard[0].RowTuneIdx.get(read=read)
