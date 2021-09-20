@@ -1,0 +1,124 @@
+#!/usr/bin/env python3
+#-----------------------------------------------------------------------------
+# Title      : 
+#-----------------------------------------------------------------------------
+# Description:
+# Script to quickly test rogue devices
+#-----------------------------------------------------------------------------
+# This file is part of the HPS project. It is subject to 
+# the license terms in the LICENSE.txt file found in the top-level directory 
+# of this distribution and at: 
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html. 
+# No part of the HPS project, including this file, may be 
+# copied, modified, propagated, or distributed except according to the terms 
+# contained in the LICENSE.txt file.
+#-----------------------------------------------------------------------------
+import time
+import argparse
+import glob
+import os
+import sys
+import importlib
+
+import pyrogue
+import rogue
+
+# Search paths
+if '--local' in sys.argv:
+    baseDir = os.path.dirname(os.path.realpath(__file__))
+    pyrogue.addLibraryPath(f'{baseDir}/../../firmware/python')
+    pyrogue.addLibraryPath(f'{baseDir}/../../firmware/submodules/surf/python')
+
+import warm_tdm
+
+#rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
+#rogue.Logging.setFilter('pyrogue._Device', rogue.Logging.Info)
+
+# Set the argument parser
+parser = argparse.ArgumentParser()
+
+# Add arguments
+parser.add_argument(
+    "--path", '-p', 
+    type     = str,
+    required = False,
+    default = None,
+    help     = "path to image",
+)
+
+parser.add_argument(
+    "--ip",
+    type     = str,
+    required = False,
+    default = '192.168.3.12',
+    help     = "IP address")
+
+parser.add_argument(
+    "--rows",
+    type     = int,
+    help     = "Number of row modules")
+
+parser.add_argument(
+    "--cols",
+    type     = int,
+    help     = "Number of column modules")
+
+args = parser.parse_known_args()[0]
+print(args)
+
+groups = [{
+    'host': args.ip,
+    'colBoards': args.cols,
+    'rowBoards': args.rows}]
+
+# Get the arguments
+args = parser.parse_known_args()[0]
+
+print(args)
+
+kwargs = {}
+kwargs['groups'] = groups
+#kwargs = warm_tdm.CONFIGS['hw'][args.cfg]
+
+if args.path is None:
+    BasePackage = importlib.import_module('warm_tdm')
+    args.path = BasePackage.ImageDir
+    
+if os.path.isdir(args.path):
+    # Get a list of images
+    images = glob.glob('{}/*.mcs*'.format(args.path))
+    images = list(reversed(sorted(images)))
+
+    for i, l in enumerate(images):
+        print('{} : {}'.format(i, l))
+
+    idx = int(input('Enter image: '))
+    image = images[idx]
+else:
+    image = args.path
+
+
+#rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
+
+with warm_tdm.WarmTdmRoot(pollEn=False, **kwargs) as root:
+
+    av = root.find(name='AxiVersion')[0]
+
+    av.readBlocks()
+    av.checkBlocks()
+    av.printStatus()
+
+    x = input('Are you sure you wish to procede [y]/n: ')
+    if x == 'n':
+        exit()
+   
+    prom = root.find(name='AxiMicronN25Q')[0]
+    prom.enable.set(True)
+
+    print(f'Load MCS file: {image}')
+    prom.LoadMcsFile(image)
+       
+
+exit()
+
+

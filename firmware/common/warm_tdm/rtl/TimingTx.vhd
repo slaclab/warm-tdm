@@ -63,6 +63,9 @@ end entity TimingTx;
 
 architecture rtl of TimingTx is
 
+   constant SOFTWARE_C : sl := '0';
+   constant HARDWARE_C : sl := '1';
+
    signal bitClk  : sl;
    signal bitRst  : sl;
    signal wordClk : sl;
@@ -77,30 +80,34 @@ architecture rtl of TimingTx is
       xbarMgtSel  : slv(1 downto 0);
 
       -- Config
-      rowPeriod       : slv(15 downto 0);
-      numRows         : slv(15 downto 0);
-      sampleStartTime : slv(15 downto 0);
-      sampleEndTime   : slv(15 downto 0);
+      runMode           : sl;
+      softwareRowStrobe : sl;
+      rowPeriod         : slv(15 downto 0);
+      numRows           : slv(15 downto 0);
+      sampleStartTime   : slv(15 downto 0);
+      sampleEndTime     : slv(15 downto 0);
       -- State
-      timingData      : LocalTimingType;
-      timingTx        : slv(7 downto 0);
+      timingData        : LocalTimingType;
+      timingTx          : slv(7 downto 0);
       -- AXIL
-      axilWriteSlave  : AxiLiteWriteSlaveType;
-      axilReadSlave   : AxiLiteReadSlaveType;
+      axilWriteSlave    : AxiLiteWriteSlaveType;
+      axilReadSlave     : AxiLiteReadSlaveType;
    end record RegType;
 
    constant REG_INIT_C : RegType := (
-      xbarDataSel     => ite(RING_ADDR_0_G, "11", "00"),
-      xbarClkSel      => ite(RING_ADDR_0_G, "11", "00"),
-      xbarMgtSel      => "01",
-      rowPeriod       => toSlv(250, 16),  -- 125 MHz / 250 = 500 kHz
-      numRows         => toSlv(64, 16),   -- Default of 64 rows
-      sampleStartTime => toSlv(150, 16),
-      sampleEndTime   => toSlv(249, 16),  -- Could be corner case here?
-      timingTx        => IDLE_C,
-      timingData      => LOCAL_TIMING_INIT_C,
-      axilWriteSlave  => AXI_LITE_WRITE_SLAVE_INIT_C,
-      axilReadSlave   => AXI_LITE_READ_SLAVE_INIT_C);
+      xbarDataSel       => ite(RING_ADDR_0_G, "11", "00"),
+      xbarClkSel        => ite(RING_ADDR_0_G, "11", "00"),
+      xbarMgtSel        => "01",
+      runMode           => SOFTWARE_C,
+      softwareRowStrobe => '0',
+      rowPeriod         => toSlv(256, 16),  -- 125 MHz / 256 = 488 kHz
+      numRows           => toSlv(64, 16),   -- Default of 64 rows
+      sampleStartTime   => toSlv(150, 16),
+      sampleEndTime     => toSlv(249, 16),  -- Could be corner case here?
+      timingTx          => IDLE_C,
+      timingData        => LOCAL_TIMING_INIT_C,
+      axilWriteSlave    => AXI_LITE_WRITE_SLAVE_INIT_C,
+      axilReadSlave     => AXI_LITE_READ_SLAVE_INIT_C);
 
    signal r   : RegType := REG_INIT_C;
    signal rin : RegType;
@@ -145,9 +152,10 @@ begin
       axiSlaveWaitTxn(axilEp, timingAxilWriteMaster, timingAxilReadMaster, v.axilWriteSlave, v.axilReadSlave);
 
       -- Strobed signals
+      v.softwareRowStrobe   := '0';
       v.timingData.startRun := '0';
-      v.timingData.endRun   := '0';
       v.timingData.rawAdc   := '0';
+
 
       -- Configuration
       axiSlaveRegister(axilEp, X"00", 0, v.timingData.startRun);
@@ -156,6 +164,8 @@ begin
       axiSlaveRegister(axilEp, X"0C", 0, v.numRows);
       axiSlaveRegister(axilEp, X"10", 0, v.sampleStartTime);
       axiSlaveRegister(axilEp, X"10", 16, v.sampleEndTime);
+      axiSlaveRegister(axilEp, X"14", 0, v.runMode);
+      axiSlaveRegister(axilEp, X"18", 0, v.softwareRowStrobe);
 
       axiSlaveRegister(axilEp, X"20", 0, v.timingData.rawAdc);
 
@@ -201,7 +211,8 @@ begin
          v.timingData.runTime := r.timingData.runTime + 1;
          v.timingData.rowTime := r.timingData.rowTime + 1;
 
-         if (r.timingData.rowTime = r.rowPeriod-1) then
+         if ((r.runMode = HARDWARE_C and r.timingData.rowTime = r.rowPeriod-1) or
+             (r.runMode = SOFTWARE_C and r.softwareRowStrobe = '1')) then
             v.timingData.rowTime := (others => '0');
             v.timingData.rowNum  := r.timingData.rowNum + 1;
 
@@ -212,7 +223,8 @@ begin
          end if;
 
          -- Send codes
-         if (r.timingData.rowTime = 0) then
+         if (r.runMode = HARDWARE_C and r.timingData.rowTime = 0) or
+            (r.runMode = SOFTWARE_C and r.softwareRowStrobe = '1') then
             v.timingTx := ROW_STROBE_C;
 
             if (r.timingData.rowNum = 0) then
@@ -228,8 +240,13 @@ begin
             v.timingTx          := SAMPLE_END_C;
          end if;
 
-         if (r.timingData.endRun = '1') then
+         -- Need to end run more cleanly than this
+         if (r.timingData.endRun = '1') and (
+            (r.runMode = HARDWARE_C and v.timingTx = FIRST_ROW_C) or
+            (r.runMode = SOFTWARE_C)) then
             v.timingData.running := '0';
+            v.timingData.sample  := '0';
+            v.timingData.endRun  := '0';
             v.timingTx           := END_RUN_C;
          end if;
       end if;

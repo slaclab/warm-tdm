@@ -24,6 +24,7 @@ use ieee.std_logic_unsigned.all;
 library surf;
 use surf.StdRtlPkg.all;
 use surf.AxiStreamPkg.all;
+use surf.SsiPkg.all;
 
 
 library warm_tdm;
@@ -34,14 +35,7 @@ package WarmTdmPkg is
 
    constant APP_BASE_ADDR_C : slv(31 downto 0) := X"C0000000";
 
-   constant DATA_AXIS_CONFIG_C : AxiStreamConfigType := (
-      TSTRB_EN_C    => false,
-      TDATA_BYTES_C => 8,
-      TDEST_BITS_C  => 8,
-      TID_BITS_C    => 0,
-      TKEEP_MODE_C  => TKEEP_NORMAL_C,
-      TUSER_BITS_C  => 0,
-      TUSER_MODE_C  => TUSER_NORMAL_C);
+   constant DATA_AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 8, tDestBits => 8);
 
 end package;
 
