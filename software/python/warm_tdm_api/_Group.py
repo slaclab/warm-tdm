@@ -400,10 +400,12 @@ class Group(pr.Device):
 
         else:
             for col in self.HardwareGroup.ColumnBoard:
-                col.RowForceEn.set(value,write=write)
+                #col.RowForceEn.set(value,write=write)  #BEN
+                pass
 
             for row in self.HardwareGroup.RowBoard:
-                row.RowForceEn.set(value,write=write)
+                #row.RowForceEn.set(value,write=write)  #BEN
+                pass
 
     # Get Row Tune Override
     def _rowForceEnGet(self, read):
