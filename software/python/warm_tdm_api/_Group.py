@@ -414,7 +414,8 @@ class Group(pr.Device):
             return self._forceEn
 
         else:
-            return self.HardwareGroup.RowBoard[0].RowForceEn.get(read=read)
+            #return self.HardwareGroup.RowBoard[0].RowForceEn.get(read=read) #BEN
+            return False
 
     # Set Row Tune Index
     def _rowForceIdxSet(self, value, write):
@@ -424,10 +425,12 @@ class Group(pr.Device):
 
         else:
             for col in self.HardwareGroup.ColumnBoard:
-                col.RowTuneIdx.set(value,write=write)
+                pass
+                #col.RowTuneIdx.set(value,write=write) #BEN
 
             for row in self.HardwareGroup.RowBoard:
-                row.RowTuneIdx.set(value,write=write)
+                pass
+                #row.RowTuneIdx.set(value,write=write) #BEN
 
     # Get Row Tune Index
     def _rowForceIdxGet(self, read):
@@ -436,7 +439,8 @@ class Group(pr.Device):
             return self._forceIdx
 
         else:
-            return self.HardwareGroup.RowBoard[0].RowTuneIdx.get(read=read)
+            #return self.HardwareGroup.RowBoard[0].RowTuneIdx.get(read=read) #BEN
+            return 0
 
     # Set TES bias value, index is column
     def _tesBiasSet(self, value, write, index):
@@ -456,7 +460,8 @@ class Group(pr.Device):
             if self._emulate is True:
                 ret[idx] = self._tesBias[idx]
             else:
-                ret[idx] = self.HardwareGroup.ColumnBoard[board].TesBias.BiasCurrent[chan].value(read=read)
+                #ret[idx] = self.HardwareGroup.ColumnBoard[board].TesBias.BiasCurrent[chan].value(read=read) #BEN
+                ret[idx] = 0
 
         if index != -1:
             return ret[index]
@@ -479,7 +484,8 @@ class Group(pr.Device):
             if self._emulate is True:
                 ret[idx] = self._saBias[idx]
             else:
-                ret[idx] = self.HardwareGroup.ColumnBoard[board].SaBiasOffset.Bias[chan].value(read=read)
+                #ret[idx] = self.HardwareGroup.ColumnBoard[board].SaBiasOffset.Bias[chan].value(read=read) #BEN
+                ret[idx] = 0
 
         if index != -1:
             return ret[index]
@@ -502,7 +508,8 @@ class Group(pr.Device):
             if self._emulate is True:
                 ret[idx] = self._saOffset[idx]
             else:
-                ret[idx] = self.HardwareGroup.ColumnBoard[board].SaBiasOffset.Offset[chan].value(read=read)
+                #ret[idx] = self.HardwareGroup.ColumnBoard[board].SaBiasOffset.Offset[chan].value(read=read) #BEN
+                ret[idx] = 0
 
         if index != -1:
             return ret[index]
@@ -517,7 +524,8 @@ class Group(pr.Device):
             if self._emulate is True:
                 ret[idx] = self._saOut[idx]
             else:
-                ret[idx] = self.HardwareGroup.ColumnBoard[board].DataPath.Ad9681Readout.AdcVoltage[chan].get(read=read)
+                #ret[idx] = self.HardwareGroup.ColumnBoard[board].DataPath.Ad9681Readout.AdcVoltage[chan].get(read=read) #BEN
+                ret[idx] = 0
 
         if index != -1:
             return ret[index]
@@ -590,7 +598,8 @@ class Group(pr.Device):
                     if self._emulate is True:
                         ret[colIndex][rowIndex] = self._saFb[colIndex][rowIndex]
                     else:
-                        ret[colIndex][rowIndex] = self.HardwareGroup.ColumnBoard[colBoard].SaFb[colChan].get(index=rowIndex,read=False)
+                        #ret[colIndex][rowIndex] = self.HardwareGroup.ColumnBoard[colBoard].SaFb[colChan].get(index=rowIndex,read=False) #BEN
+                        ret[colIndex][rowIndex] = 0
 
             return ret
 
@@ -659,7 +668,8 @@ class Group(pr.Device):
                     if self._emulate is True:
                         ret[colIndex][rowIndex] = self._sq1Bias[colIndex][rowIndex]
                     else:
-                        ret[colIndex][rowIndex] = self.HardwareGroup.ColumnBoard[colBoard].node(name).ChannelVoltage[colChan].get(index=rowIndex,read=False)
+                        #ret[colIndex][rowIndex] = self.HardwareGroup.ColumnBoard[colBoard].node(name).ChannelVoltage[colChan].get(index=rowIndex,read=False) #BEN
+                        ret[colIndex][rowIndex] = 0
 
             return ret
 
@@ -728,7 +738,8 @@ class Group(pr.Device):
                 if self._emulate is True:
                     ret[idx] = self._fasFluxOff[idx]
                 else:
-                    ret[idx] = self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].OffValue.get(index=idx, read = read)
+                    #ret[idx] = self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].OffValue.get(index=idx, read = read) #BEN
+                    ret[idx] = 0
 
             return ret
 
@@ -781,7 +792,8 @@ class Group(pr.Device):
                 if self._emulate is True:
                     ret[idx] = self._fasFluxOn[idx]
                 else:
-                    ret[idx] = self.HardwareGroup.RowBoard[board].FasFluxOn[chan].get(index=index, read=read)
+                    #ret[idx] = self.HardwareGroup.RowBoard[board].FasFluxOn[chan].get(index=index, read=read) #BEN
+                    ret[idx] = False
 
             return ret
 
@@ -802,7 +814,8 @@ class Group(pr.Device):
             return self._fllEnable
 
         else:
-            return self.HardwareGroup.ColumnBoard[0].FllEnable.get(read=read)
+            #return self.HardwareGroup.ColumnBoard[0].FllEnable.get(read=read) #BEN
+            return False
 
     # Init system
     def _init(self):
