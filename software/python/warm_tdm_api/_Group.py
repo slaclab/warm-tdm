@@ -545,7 +545,7 @@ class Group(pr.Device):
             if self._emulate is True:
                 self._saFb[colIndex][rowIndex] = value
             else:
-                self.HardwareGroup.ColumnBoard[colBoard].SaFb[colChan].set(value=value,index=rowIndex,write=write)
+                self.HardwareGroup.ColumnBoard[colBoard].SAFb.Column[colChan].set(value=value,index=rowIndex,write=write)
 
         # Full array access
         else:
@@ -560,11 +560,11 @@ class Group(pr.Device):
                         self._saFb[colIndex][rowIndex] = value[colIndex][rowIndex]
 
                     else:
-                        self.HardwareGroup.ColumnBoard[colBoard].SaFb[colChan].set(value=value[colIndex][rowIndex],index=rowIndex,write=False)
+                        self.HardwareGroup.ColumnBoard[colBoard].SAFb.Column[colChan].set(value=value[colIndex][rowIndex],index=rowIndex,write=False)
 
                 # Force writes
                 if self._emulate is False and write is True:
-                    self.HardwareGroup.ColumnBoard[colBoard].SaFb[colChan].write()
+                    self.HardwareGroup.ColumnBoard[colBoard].SAFb.Column[colChan].write()
 
     # Get SA Feedback value, index is (column, row) tuple
     def _saFbGet(self, read, index):
@@ -579,7 +579,7 @@ class Group(pr.Device):
             if self._emulate is True:
                 return self._saFb[colIndex][rowIndex]
             else:
-                return self.HardwareGroup.ColumnBoard[colBoard].SaFb[colChan].get(index=rowIndex,read=read)
+                return self.HardwareGroup.ColumnBoard[colBoard].SAFb.Column[colChan].get(index=rowIndex,read=read)
 
         # Full array access
         else:
@@ -591,15 +591,14 @@ class Group(pr.Device):
 
                 # Force reads
                 if read is True:
-                    self.HardwareGroup.ColumnBoard[colBoard].SaFb[colChan].get()
+                    self.HardwareGroup.ColumnBoard[colBoard].SAFb.Column[colChan].get()
 
                 for rowIndex in range(len(self._config.rowMap)):
 
                     if self._emulate is True:
                         ret[colIndex][rowIndex] = self._saFb[colIndex][rowIndex]
                     else:
-                        #ret[colIndex][rowIndex] = self.HardwareGroup.ColumnBoard[colBoard].SaFb[colChan].get(index=rowIndex,read=False) #BEN
-                        ret[colIndex][rowIndex] = 0
+                        ret[colIndex][rowIndex] = self.HardwareGroup.ColumnBoard[colBoard].SAFb.Column[colChan].get(index=rowIndex,read=False)
 
             return ret
 

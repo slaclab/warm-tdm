@@ -33,5 +33,5 @@ config = warm_tdm_api.GroupConfig(columnMap=columnMap,
 
 with warm_tdm_api.GroupRoot(groupConfig=config, emulate=True) as root:
 
-    pyrogue.pydm.runPyDM(root=root,title='TestGroup',sizeX=1000,sizeY=500)
+    pyrogue.pydm.runPyDM(root=root,title='TestGroup',sizeX=1000,sizeY=800)
 
