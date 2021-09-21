@@ -377,17 +377,17 @@ class Group(pr.Device):
     def _rowForceEnSet(self, value, write):
 
         for col in self.HardwareGroup.ColumnBoard:
-            #col.RowForceEn.set(value,write=write)  #BEN
+            #col.RowForceEn.set(value,write=write)  # Waiting on force variables
             pass
 
         for row in self.HardwareGroup.RowBoard:
-            #row.RowForceEn.set(value,write=write)  #BEN
+            #row.RowForceEn.set(value,write=write)  # Waiting on force variables
             pass
 
     # Get Row Tune Override
     def _rowForceEnGet(self, read):
 
-        #return self.HardwareGroup.RowBoard[0].RowForceEn.get(read=read) #BEN
+        #return self.HardwareGroup.RowBoard[0].RowForceEn.get(read=read) # Waiting on force variables
         return False
 
     # Set Row Tune Index
@@ -395,16 +395,16 @@ class Group(pr.Device):
 
         for col in self.HardwareGroup.ColumnBoard:
             pass
-            #col.RowTuneIdx.set(value,write=write) #BEN
+            #col.RowTuneIdx.set(value,write=write) # Waiting on force variables
 
         for row in self.HardwareGroup.RowBoard:
             pass
-            #row.RowTuneIdx.set(value,write=write) #BEN
+            #row.RowTuneIdx.set(value,write=write) # Waiting on force variables
 
     # Get Row Tune Index
     def _rowForceIdxGet(self, read):
 
-        #return self.HardwareGroup.RowBoard[0].RowTuneIdx.get(read=read) #BEN
+        #return self.HardwareGroup.RowBoard[0].RowTuneIdx.get(read=read) # Waiting on force variables
         return 0
 
     # Set TES bias value, index is column
