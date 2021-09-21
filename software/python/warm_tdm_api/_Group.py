@@ -21,10 +21,6 @@ class Group(pr.Device):
         # Configuration
         self._config = groupConfig
 
-        # Emulate flag
-        #self._emulate = emulate
-        self._emulate = False
-
         # Row Map
         self.add(pr.LocalVariable(name='RowMap',
                                   localGet=lambda: self._config.rowMap,
@@ -358,22 +354,7 @@ class Group(pr.Device):
                                  function=self._init,
                                  description="Initialize System"))
 
-
-        if self._emulate:
-            self._forceEn    = False
-            self._forceIdx   = 0
-            self._tesBias    = [0.0] * len(self._config.columnMap)
-            self._saBias     = [0.0] * len(self._config.columnMap)
-            self._saOffset   = [0.0] * len(self._config.columnMap)
-            self._saOut      = [0.0] * len(self._config.columnMap)
-            self._sq1Bias    = [[0.0] * len(self._config.rowMap)] * len(self._config.columnMap)
-            self._sq1Fb      = [[0.0] * len(self._config.rowMap)] * len(self._config.columnMap)
-            self._saFb       = [[0.0] * len(self._config.rowMap)] * len(self._config.columnMap)
-            self._fasFluxOff = [0.0] * len(self._config.rowMap)
-            self._fasFluxOn  = [0.0] * len(self._config.rowMap)
-            self._fllEnable  = False
-        else:
-            self.add(warm_tdm.HardwareGroup(simulation=simulation, emulate=emulate, expand=True))
+        self.add(warm_tdm.HardwareGroup(simulation=simulation, emulate=emulate, expand=True))
 
     def __colSetLoopHelper(self, value, index):
         # Construct a generator to loop over
@@ -395,73 +376,51 @@ class Group(pr.Device):
     # Set Row Tune Override
     def _rowForceEnSet(self, value, write):
 
-        if self._emulate is True:
-            self._forceEn = value
+        for col in self.HardwareGroup.ColumnBoard:
+            #col.RowForceEn.set(value,write=write)  #BEN
+            pass
 
-        else:
-            for col in self.HardwareGroup.ColumnBoard:
-                #col.RowForceEn.set(value,write=write)  #BEN
-                pass
-
-            for row in self.HardwareGroup.RowBoard:
-                #row.RowForceEn.set(value,write=write)  #BEN
-                pass
+        for row in self.HardwareGroup.RowBoard:
+            #row.RowForceEn.set(value,write=write)  #BEN
+            pass
 
     # Get Row Tune Override
     def _rowForceEnGet(self, read):
 
-        if self._emulate is True:
-            return self._forceEn
-
-        else:
-            #return self.HardwareGroup.RowBoard[0].RowForceEn.get(read=read) #BEN
-            return False
+        #return self.HardwareGroup.RowBoard[0].RowForceEn.get(read=read) #BEN
+        return False
 
     # Set Row Tune Index
     def _rowForceIdxSet(self, value, write):
 
-        if self._emulate is True:
-            self._forceIdx = value
+        for col in self.HardwareGroup.ColumnBoard:
+            pass
+            #col.RowTuneIdx.set(value,write=write) #BEN
 
-        else:
-            for col in self.HardwareGroup.ColumnBoard:
-                pass
-                #col.RowTuneIdx.set(value,write=write) #BEN
-
-            for row in self.HardwareGroup.RowBoard:
-                pass
-                #row.RowTuneIdx.set(value,write=write) #BEN
+        for row in self.HardwareGroup.RowBoard:
+            pass
+            #row.RowTuneIdx.set(value,write=write) #BEN
 
     # Get Row Tune Index
     def _rowForceIdxGet(self, read):
 
-        if self._emulate is True:
-            return self._forceIdx
-
-        else:
-            #return self.HardwareGroup.RowBoard[0].RowTuneIdx.get(read=read) #BEN
-            return 0
+        #return self.HardwareGroup.RowBoard[0].RowTuneIdx.get(read=read) #BEN
+        return 0
 
     # Set TES bias value, index is column
     def _tesBiasSet(self, value, write, index):
         for idx, board, chan, val in self.__colSetLoopHelper(value, index):
             #print(f"Tes set {idx}, {board}, {chan}, {val}")
 
-            if self._emulate is True:
-                self._tesBias[idx] = val
-            else:
-                self.HardwareGroup.ColumnBoard[board].TesBias.BiasCurrent[chan].set(value=value, write=write)
+            self.HardwareGroup.ColumnBoard[board].TesBias.BiasCurrent[chan].set(value=value, write=write)
 
     # Get TES bias value, index is column
     def _tesBiasGet(self, read, index):
         ret = [0.0] * len(self._config.columnMap)
 
         for idx, board, chan in self.__colGetLoopHelper(index):
-            if self._emulate is True:
-                ret[idx] = self._tesBias[idx]
-            else:
-                #ret[idx] = self.HardwareGroup.ColumnBoard[board].TesBias.BiasCurrent[chan].value(read=read) #BEN
-                ret[idx] = 0
+            #ret[idx] = self.HardwareGroup.ColumnBoard[board].TesBias.BiasCurrent[chan].value(read=read) #BEN
+            ret[idx] = 0
 
         if index != -1:
             return ret[index]
@@ -471,21 +430,15 @@ class Group(pr.Device):
     # Set SA Bias value, index is column
     def _saBiasSet(self, value, write, index):
         for idx, board, chan, val in self.__colSetLoopHelper(value, index):
-            if self._emulate is True:
-                self._saBias[idx] = val
-            else:
-                self.HardwareGroup.ColumnBoard[board].SaBiasOffset.Bias[chan].set(value=val, write=write)
+            self.HardwareGroup.ColumnBoard[board].SaBiasOffset.Bias[chan].set(value=val, write=write)
 
     # Get SA Bias value, index is column
     def _saBiasGet(self, read, index):
         ret = [0.0] * len(self._config.columnMap)
 
         for idx, board, chan in self.__colGetLoopHelper(index):
-            if self._emulate is True:
-                ret[idx] = self._saBias[idx]
-            else:
-                #ret[idx] = self.HardwareGroup.ColumnBoard[board].SaBiasOffset.Bias[chan].value(read=read) #BEN
-                ret[idx] = 0
+            #ret[idx] = self.HardwareGroup.ColumnBoard[board].SaBiasOffset.Bias[chan].value(read=read) #BEN
+            ret[idx] = 0
 
         if index != -1:
             return ret[index]
@@ -495,21 +448,15 @@ class Group(pr.Device):
     # Set SA Offset value, index is column
     def _saOffsetSet(self, value, write, index):
         for idx, board, chan, val in self.__colSetLoopHelper(value, index):
-            if self._emulate is True:
-                self._saOffset[idx] = val
-            else:
-                self.HardwareGroup.ColumnBoard[board].SaBiasOffset.Offset[chan].set(value=val, write=write)
+            self.HardwareGroup.ColumnBoard[board].SaBiasOffset.Offset[chan].set(value=val, write=write)
 
     # Get SA Offset value, index is column
     def _saOffsetGet(self, read, index):
         ret = [0.0] * len(self._config.columnMap)
 
         for idx, board, chan in self.__colGetLoopHelper(index):
-            if self._emulate is True:
-                ret[idx] = self._saOffset[idx]
-            else:
-                #ret[idx] = self.HardwareGroup.ColumnBoard[board].SaBiasOffset.Offset[chan].value(read=read) #BEN
-                ret[idx] = 0
+            #ret[idx] = self.HardwareGroup.ColumnBoard[board].SaBiasOffset.Offset[chan].value(read=read) #BEN
+            ret[idx] = 0
 
         if index != -1:
             return ret[index]
@@ -521,11 +468,8 @@ class Group(pr.Device):
         ret = [0.0] * len(self._config.columnMap)
 
         for idx, board, chan in self.__colGetLoopHelper(index):
-            if self._emulate is True:
-                ret[idx] = self._saOut[idx]
-            else:
-                #ret[idx] = self.HardwareGroup.ColumnBoard[board].DataPath.Ad9681Readout.AdcVoltage[chan].get(read=read) #BEN
-                ret[idx] = 0
+            #ret[idx] = self.HardwareGroup.ColumnBoard[board].DataPath.Ad9681Readout.AdcVoltage[chan].get(read=read) #BEN
+            ret[idx] = 0
 
         if index != -1:
             return ret[index]
@@ -542,10 +486,7 @@ class Group(pr.Device):
             colBoard = self._config.columnMap[colIndex].board
             colChan = self._config.columnMap[colIndex].channel
 
-            if self._emulate is True:
-                self._saFb[colIndex][rowIndex] = value
-            else:
-                self.HardwareGroup.ColumnBoard[colBoard].SAFb.Column[colChan].set(value=value,index=rowIndex,write=write)
+            self.HardwareGroup.ColumnBoard[colBoard].SAFb.Column[colChan].set(value=value,index=rowIndex,write=write)
 
         # Full array access
         else:
@@ -555,15 +496,10 @@ class Group(pr.Device):
                 colChan = self._config.columnMap[colIndex].channel
 
                 for rowIndex in range(len(self._config.rowMap)):
-
-                    if self._emulate is True:
-                        self._saFb[colIndex][rowIndex] = value[colIndex][rowIndex]
-
-                    else:
-                        self.HardwareGroup.ColumnBoard[colBoard].SAFb.Column[colChan].set(value=value[colIndex][rowIndex],index=rowIndex,write=False)
+                    self.HardwareGroup.ColumnBoard[colBoard].SAFb.Column[colChan].set(value=value[colIndex][rowIndex],index=rowIndex,write=False)
 
                 # Force writes
-                if self._emulate is False and write is True:
+                if write is True:
                     self.HardwareGroup.ColumnBoard[colBoard].SAFb.Column[colChan].write()
 
     # Get SA Feedback value, index is (column, row) tuple
@@ -576,10 +512,7 @@ class Group(pr.Device):
             colBoard = self._config.columnMap[colIndex].board
             colChan = self._config.columnMap[colIndex].channel
 
-            if self._emulate is True:
-                return self._saFb[colIndex][rowIndex]
-            else:
-                return self.HardwareGroup.ColumnBoard[colBoard].SAFb.Column[colChan].get(index=rowIndex,read=read)
+            return self.HardwareGroup.ColumnBoard[colBoard].SAFb.Column[colChan].get(index=rowIndex,read=read)
 
         # Full array access
         else:
@@ -595,10 +528,7 @@ class Group(pr.Device):
 
                 for rowIndex in range(len(self._config.rowMap)):
 
-                    if self._emulate is True:
-                        ret[colIndex][rowIndex] = self._saFb[colIndex][rowIndex]
-                    else:
-                        ret[colIndex][rowIndex] = self.HardwareGroup.ColumnBoard[colBoard].SAFb.Column[colChan].get(index=rowIndex,read=False)
+                    ret[colIndex][rowIndex] = self.HardwareGroup.ColumnBoard[colBoard].SAFb.Column[colChan].get(index=rowIndex,read=False)
 
             return ret
 
@@ -612,10 +542,7 @@ class Group(pr.Device):
             colBoard = self._config.columnMap[colIndex].board
             colChan = self._config.columnMap[colIndex].channel
 
-            if self._emulate is True:
-                self._sq1Bias[colIndex][rowIndex] = value
-            else:
-                self.HardwareGroup.ColumnBoard[colBoard].node(name).ChannelVoltage[colChan].set(value=value,index=rowIndex,write=write)
+            self.HardwareGroup.ColumnBoard[colBoard].node(name).ChannelVoltage[colChan].set(value=value,index=rowIndex,write=write)
 
         # Full array access
         else:
@@ -626,13 +553,10 @@ class Group(pr.Device):
 
                 for rowIndex in range(len(self._config.rowMap)):
 
-                    if self._emulate is True:
-                        self._sq1Bias[colIndex][rowIndex] = value[colIndex][rowIndex]
-                    else:
-                        self.HardwareGroup.ColumnBoard[colBoard].node(name).ChannelVoltage[colChan].set(value=value[colIndex][rowIndex],index=rowIndex,write=False)
+                    self.HardwareGroup.ColumnBoard[colBoard].node(name).ChannelVoltage[colChan].set(value=value[colIndex][rowIndex],index=rowIndex,write=False)
 
                 # Force writes
-                if self._emulate is False and write is True:
+                if write is True:
                     self.HardwareGroup.ColumnBoard[colBoard].node(name).ChannelVoltage[colChan].write()
 
     # Get per row value, index is (column, row) tuple
@@ -645,10 +569,7 @@ class Group(pr.Device):
             colBoard = self._config.columnMap[colIndex].board
             colChan = self._config.columnMap[colIndex].channel
 
-            if self._emulate is True:
-                return self._sq1Bias[colIndex][rowIndex]
-            else:
-                return self.HardwareGroup.ColumnBoard[colBoard].node(name).ChannelVoltage[colChan].get(index=rowIndex,read=read)
+            return self.HardwareGroup.ColumnBoard[colBoard].node(name).ChannelVoltage[colChan].get(index=rowIndex,read=read)
 
         # Full array access
         else:
@@ -664,11 +585,8 @@ class Group(pr.Device):
 
                 for rowIndex in range(len(self._config.rowMap)):
 
-                    if self._emulate is True:
-                        ret[colIndex][rowIndex] = self._sq1Bias[colIndex][rowIndex]
-                    else:
-                        #ret[colIndex][rowIndex] = self.HardwareGroup.ColumnBoard[colBoard].node(name).ChannelVoltage[colChan].get(index=rowIndex,read=False) #BEN
-                        ret[colIndex][rowIndex] = 0
+                    #ret[colIndex][rowIndex] = self.HardwareGroup.ColumnBoard[colBoard].node(name).ChannelVoltage[colChan].get(index=rowIndex,read=False) #BEN
+                    ret[colIndex][rowIndex] = 0
 
             return ret
 
@@ -696,10 +614,7 @@ class Group(pr.Device):
             board = self._config.rowMap[index].board
             chan = self._config.rowMap[index].channel
 
-            if self._emulate is True:
-                self._fasFluxOff[index] = value
-            else:
-                self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].OffValue.set(value=value, write=write)
+            self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].OffValue.set(value=value, write=write)
 
         # Full array access
         else:
@@ -708,10 +623,7 @@ class Group(pr.Device):
                 board = self._config.rowMap[index].board
                 chan = self._config.rowMap[index].channel
 
-                if self._emulate is True:
-                    self._fasFluxOff[idx] = value[idx]
-                else:
-                    self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].OffValue.set(value=value[idx], write=write)
+                self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].OffValue.set(value=value[idx], write=write)
 
     # Get FAS Flux value
     def _fasFluxOffGet(self, read, index):
@@ -721,10 +633,7 @@ class Group(pr.Device):
             board = self._config.rowMap[index].board
             chan = self._config.rowMap[index].channel
 
-            if self._emulate is True:
-                return self._fasFluxOff[index]
-            else:
-                self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].OffValue.get(index=index, read=read)
+            self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].OffValue.get(index=index, read=read)
 
         # Full array access
         else:
@@ -734,11 +643,8 @@ class Group(pr.Device):
                 board = self._config.rowMap[index].board
                 chan = self._config.rowMap[index].channel
 
-                if self._emulate is True:
-                    ret[idx] = self._fasFluxOff[idx]
-                else:
-                    #ret[idx] = self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].OffValue.get(index=idx, read = read) #BEN
-                    ret[idx] = 0
+                #ret[idx] = self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].OffValue.get(index=idx, read = read) #BEN
+                ret[idx] = 0
 
             return ret
 
@@ -750,10 +656,7 @@ class Group(pr.Device):
             board = self._config.rowMap[index].board
             chan = self._config.rowMap[index].channel
 
-            if self._emulate is True:
-                self._fasFluxOn[index] = value
-            else:
-                self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].ActiveValue.set(value=value, write=write)
+            self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].ActiveValue.set(value=value, write=write)
 
         # Full array access
         else:
@@ -762,10 +665,7 @@ class Group(pr.Device):
                 board = self._config.rowMap[index].board
                 chan = self._config.rowMap[index].channel
 
-                if self._emulate is True:
-                    self._fasFluxOn[idx] = value[idx]
-                else:
-                    self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].ActiveValue.set(value=value[idx],write=write)
+                self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].ActiveValue.set(value=value[idx],write=write)
 
     # Get FAS Flux value
     def _fasFluxOnGet(self, read, index):
@@ -775,10 +675,7 @@ class Group(pr.Device):
             board = self._config.rowMap[index].board
             chan = self._config.rowMap[index].channel
 
-            if self._emulate is True:
-                return self._fasFluxOn[index]
-            else:
-                return self.HardwareGroup.RowBoard[board].FasFluxOn[chan].get(index= index, read=read)
+            return self.HardwareGroup.RowBoard[board].FasFluxOn[chan].get(index= index, read=read)
 
         # Full array access
         else:
@@ -788,33 +685,22 @@ class Group(pr.Device):
                 board = self._config.rowMap[index].board
                 chan = self._config.rowMap[index].channel
 
-                if self._emulate is True:
-                    ret[idx] = self._fasFluxOn[idx]
-                else:
-                    #ret[idx] = self.HardwareGroup.RowBoard[board].FasFluxOn[chan].get(index=index, read=read) #BEN
-                    ret[idx] = False
+                #ret[idx] = self.HardwareGroup.RowBoard[board].FasFluxOn[chan].get(index=index, read=read) #BEN
+                ret[idx] = False
 
             return ret
 
     # Set FLL Enable value
     def _fllEnableSet(self, value, write):
 
-        if self._emulate is True:
-            self._fllEnable = value
-
-        else:
-            for col in self.HardwareGroup.ColumnBoard:
-                col.FllEnable.set(value,write=write)
+        for col in self.HardwareGroup.ColumnBoard:
+            col.FllEnable.set(value,write=write)
 
     # Get FLL Enable value
     def _fllEnableGet(self, read):
 
-        if self._emulate is True:
-            return self._fllEnable
-
-        else:
-            #return self.HardwareGroup.ColumnBoard[0].FllEnable.get(read=read) #BEN
-            return False
+        #return self.HardwareGroup.ColumnBoard[0].FllEnable.get(read=read) #BEN
+        return False
 
     # Init system
     def _init(self):
