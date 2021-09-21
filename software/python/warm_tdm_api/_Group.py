@@ -1,5 +1,6 @@
 import pyrogue as pr
 
+
 class Group(pr.Device):
     def __init__(self, rowMap, colMap, rowOrder=None, colEnable=None, emulate=False, **kwargs):
         super().__init__(**kwargs)
@@ -313,6 +314,7 @@ class Group(pr.Device):
                                  function=self._init,
                                  description="Initialize System"))
 
+
         if self._emulate:
             self._forceEn    = False
             self._forceIdx   = 0
@@ -326,6 +328,11 @@ class Group(pr.Device):
             self._fasFluxOff = [0.0] * len(self._rowMap)
             self._fasFluxOn  = [0.0] * len(self._rowMap)
             self._fllEnable  = False
+        else:
+            pass
+
+            #for s in groups:
+            #    self.add(warm_tdm.HardwareGroup(simulation=simulation, expand=True, **s))
 
 
     # Set Row Tune Override

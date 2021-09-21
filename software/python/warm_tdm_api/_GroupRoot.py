@@ -11,3 +11,10 @@ class GroupRoot(pyrogue.Root):
 
         self.add(warm_tdm_api.Group(rowMap=rowMap,colMap=colMap,emulate=True))
 
+        # Add the data writer
+        self.add(pyrogue.utilities.fileio.StreamWriter(name='DataWriter'))
+        self >> self.DataWriter.getChannel(len(groups))
+
+
+
+
