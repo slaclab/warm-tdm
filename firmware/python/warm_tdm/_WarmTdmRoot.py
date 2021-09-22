@@ -60,7 +60,7 @@ class StreamDebug(rogue.interfaces.stream.Slave):
         rogue.interfaces.stream.Slave.__init__(self)
 
     def _conv(self, adc):
-        return 2*pyrogue.twosComplement(adc>>2, 14)/2**14
+        return (adc//4)/2**13
 
     def _acceptFrame(self, frame):
         if frame.getError():
@@ -71,7 +71,7 @@ class StreamDebug(rogue.interfaces.stream.Slave):
         frame.read(ba, 0)
         numBytes = len(ba)
         print(f'Got Frame on channel {frame.getChannel()}: {numBytes} bytes')
-        adcs = np.frombuffer(ba, dtype=np.uint16)
+        adcs = np.frombuffer(ba, dtype=np.int16)
         voltages = np.array([self._conv(adc) for adc in adcs], dtype=np.float64)
         adcs.resize(numBytes//16, 8)
         voltages.resize(numBytes//16, 8)        
