@@ -11,13 +11,13 @@ class SaTuneProcess(pr.Process):
 
         # Low offset for SA FB Tuning
         self.add(pr.LocalVariable(name='SaFbLowOffset',
-                                  value=-10.0,
+                                  value=0.0,
                                   mode='RW',
                                   description="Starting point offset for SA FB Tuning"))
 
         # High offset for SA FB Tuning
         self.add(pr.LocalVariable(name='SaFbHighOffset',
-                                  value=10.0,
+                                  value=1.0,
                                   mode='RW',
                                   description="Ending point offset for SA FB Tuning"))
 
@@ -29,13 +29,13 @@ class SaTuneProcess(pr.Process):
 
         # Low offset for SA Bias Tuning
         self.add(pr.LocalVariable(name='SaBiasLowOffset',
-                                  value=-10.0,
+                                  value=0.0,
                                   mode='RW',
                                   description="Starting point offset for SA Bias Tuning"))
 
         # High offset for SA Bias Tuning
         self.add(pr.LocalVariable(name='SaBiasHighOffset',
-                                  value=10.0,
+                                  value=1.0,
                                   mode='RW',
                                   description="Ending point offset for SA Bias Tuning"))
 
@@ -48,9 +48,10 @@ class SaTuneProcess(pr.Process):
         # SA Tuning Results
         self.add(pr.LocalVariable(name='SaTuneOutput',
                                   value={},
-                                  mode='RO',
+                                  mode='RW',
                                   description="Results Data From SA Tuning"))
 
     def _saTuneWrap(self):
-        self.SaTuneOutput,set(warm_tdm_api.saTune(self.parent,row=0,pctVar=self.Progress))
+        ret = warm_tdm_api.saTune(self.parent,row=0,pctVar=self.Progress)
+        self.SaTuneOutput.set(value=ret)
 

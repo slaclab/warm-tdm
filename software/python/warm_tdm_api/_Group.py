@@ -392,8 +392,7 @@ class Group(pr.Device):
         ret = [0.0] * len(self._config.columnMap)
 
         for idx, board, chan in self.__colGetLoopHelper(index):
-            #ret[idx] = self.HardwareGroup.ColumnBoard[board].SaBiasOffset.Bias[chan].value(read=read) #BEN
-            ret[idx] = 0
+            ret[idx] = self.HardwareGroup.ColumnBoard[board].SaBiasOffset.Bias[chan].get(read=read)
 
         if index != -1:
             return ret[index]
@@ -410,8 +409,7 @@ class Group(pr.Device):
         ret = [0.0] * len(self._config.columnMap)
 
         for idx, board, chan in self.__colGetLoopHelper(index):
-            #ret[idx] = self.HardwareGroup.ColumnBoard[board].SaBiasOffset.Offset[chan].value(read=read) #BEN
-            ret[idx] = 0
+            ret[idx] = self.HardwareGroup.ColumnBoard[board].SaBiasOffset.Offset[chan].get(read=read)
 
         if index != -1:
             return ret[index]
@@ -423,8 +421,7 @@ class Group(pr.Device):
         ret = [0.0] * len(self._config.columnMap)
 
         for idx, board, chan in self.__colGetLoopHelper(index):
-            #ret[idx] = self.HardwareGroup.ColumnBoard[board].DataPath.Ad9681Readout.AdcVoltage[chan].get(read=read) #BEN
-            ret[idx] = 0
+            ret[idx] = self.HardwareGroup.ColumnBoard[board].DataPath.Ad9249Readout.AdcVoltage[chan].get(read=read)
 
         if index != -1:
             return ret[index]
@@ -441,7 +438,7 @@ class Group(pr.Device):
             colBoard = self._config.columnMap[colIndex].board
             colChan = self._config.columnMap[colIndex].channel
 
-            self.HardwareGroup.ColumnBoard[colBoard].SAFb.Column[colChan].set(value=value,index=rowIndex,write=write)
+            self.HardwareGroup.ColumnBoard[colBoard].SAFb.node(f'Col{colChan}_Row[{rowIndex}]').set(value=value,write=write)
 
         # Full array access
         else:
@@ -451,7 +448,7 @@ class Group(pr.Device):
                 colChan = self._config.columnMap[colIndex].channel
 
                 for rowIndex in range(len(self._config.rowMap)):
-                    self.HardwareGroup.ColumnBoard[colBoard].SAFb.Column[colChan].set(value=value[colIndex][rowIndex],index=rowIndex,write=False)
+                    self.HardwareGroup.ColumnBoard[colBoard].SAFb.node(f'Col{colChan}_Row[{rowIndex}]').set(value=value,write=False)
 
                 # Force writes
                 if write is True:
@@ -467,7 +464,7 @@ class Group(pr.Device):
             colBoard = self._config.columnMap[colIndex].board
             colChan = self._config.columnMap[colIndex].channel
 
-            return self.HardwareGroup.ColumnBoard[colBoard].SAFb.Column[colChan].get(index=rowIndex,read=read)
+            return self.HardwareGroup.ColumnBoard[colBoard].SAFb.node(f'Col{colChan}_Row[{rowIndex}]').get(read=read)
 
         # Full array access
         else:
@@ -483,7 +480,7 @@ class Group(pr.Device):
 
                 for rowIndex in range(len(self._config.rowMap)):
 
-                    ret[colIndex][rowIndex] = self.HardwareGroup.ColumnBoard[colBoard].SAFb.Column[colChan].get(index=rowIndex,read=False)
+                    ret[colIndex][rowIndex] = self.HardwareGroup.ColumnBoard[colBoard].SAFb.node(f'Col{colChan}_Row[{rowIndex}]').get(read=False)
 
             return ret
 

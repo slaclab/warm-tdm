@@ -43,8 +43,8 @@ def saOffset(group,row,precision=1,pctIn=0.0,pctVar=None): #put the column loop 
     percolumnresult = []
     for col in range(len(group.ColumnMap.get())):
 
-        if pctVart is not None:
-            pctVart.set(pctIn * (col / len(group.ColumnMap.get())))
+        if pctVar is not None:
+            pctVar.set(pctIn * (col / len(group.ColumnMap.get())))
 
         percolumnresult.append(pidLoop(group=group,
                    row=row,
@@ -54,7 +54,7 @@ def saOffset(group,row,precision=1,pctIn=0.0,pctVar=None): #put the column loop 
                    upperbound=upper,
                    precision=precision))
 
-
+    return percolumnresult
 
 #SA TUNING
 def saFlux(group,bias,row = 0, pctIn=0.0, pctVar=None):
