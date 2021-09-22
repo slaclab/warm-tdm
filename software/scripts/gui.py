@@ -24,10 +24,10 @@ import warm_tdm
 # rogue.Logging.setFilter("pyrogue.packetizer",rogue.Logging.Info)
 # rogue.Logging.setLevel(rogue.Logging.Debug)
 
-rogue.Logging.setFilter('pyrogue.rssi', rogue.Logging.Debug)
-rogue.Logging.setFilter('pyrogue.udp', rogue.Logging.Debug)
-rogue.Logging.setFilter('pyrogue.udp', rogue.Logging.Debug)
-rogue.Logging.setFilter('pyrogue.packetizer', rogue.Logging.Debug)
+#rogue.Logging.setFilter('pyrogue.rssi', rogue.Logging.Debug)
+#rogue.Logging.setFilter('pyrogue.udp', rogue.Logging.Debug)
+#rogue.Logging.setFilter('pyrogue.udp', rogue.Logging.Debug)
+#rogue.Logging.setFilter('pyrogue.packetizer', rogue.Logging.Debug)
 
 #rogue.Logging.setFilter('pyrogue.stream.TcpCore.localhost.Client.10000', rogue.Logging.Debug)
 #rogue.Logging.setFilter('pyrogue.stream.TcpCore.localhost.Client.10002', rogue.Logging.Debug)
