@@ -10,8 +10,6 @@ import rogue
 
 from simple_pid import PID #for saOffset
 
-import CurveClass as cc
-
 import warm_tdm_api
 
 #pid loop
@@ -36,14 +34,18 @@ def pidLoop(group,row,column,inputvar,lowerbound,upperbound,precision=1):
         if abs(control) < precision: #Exit the loop when within precision range
             return control
 
-def saOffset(group,row,column,precision=1): #put the column loop in here
+def saOffset(group,row,precision=1,pctIn=0.0,pctVar=None): #put the column loop in here
     """Returns float.
     Calls pidLoop using saOffset as the input variable.
     """
     lower = -100
     upper = 100
     percolumnresult = []
-    for col in range(len(group.ColMap.get())):
+    for col in range(len(group.ColumnMap.get())):
+
+        if pctVart is not None:
+            pctVart.set(pctIn * (col / len(group.ColumnMap.get())))
+
         percolumnresult.append(pidLoop(group=group,
                    row=row,
                    column=None,
@@ -55,7 +57,7 @@ def saOffset(group,row,column,precision=1): #put the column loop in here
 
 
 #SA TUNING
-def saFlux(group,bias,row = 0):
+def saFlux(group,bias,row = 0, pctIn=0.0, pctVar=None):
     """Returns a list of Curves objects.
     Iterates through SaFb values determined by lowoffset,highoffset,step and
     calls SaOffset to generate points
@@ -63,35 +65,28 @@ def saFlux(group,bias,row = 0):
     curves = []
     saFbOffsetRange = []
 
-    for col in range(len(group.ColMap.get())):
-        low = group.SaFbLowOffset.get(index=(col,row)) + group.SaFbLowOffset.get()
-        high = group.SaBiasHighOffset.get(index=(col,row)) + group.SaFbHighOffset.get()
-        numsteps = group.SaFbNumSteps.get(index=col)
+    for col in range(len(group.ColumnMap.get())):
+        low = group.SaFb.get(index=(col,row)) + group.SaTuneProcess.SaFbLowOffset.get()
+        high = group.SaFb.get(index=(col,row)) + group.SaTuneProcess.SaFbHighOffset.get()
+        numsteps = group.SaTuneProcess.SaFbNumSteps.get()
         saFbOffsetRange.append(np.linspace(low,high,numsteps,endpoint=True))
-
-    for col in range(len(group.ColMap.get())):
-
-        # low[col] = group.SaFb.get(index=(col,row)) + group.SaFbLowOffset.get()
-        # high[col] = group.SaFb.get(index=(col,row)) + group.SaFbHighOffset.get()
-        # step[col] = group.SaFbStepSize.get() #Doesn't need to be inside of loop, including for simplicity
-        # saFbOffsetRange[col] = [low[col], ... high[col]]
-        # curves[col] = cc.Curve(bias)
-
-        curves.append(cc.Curve(bias))
+        curves.append(warm_tdm_api.Curve(bias))
 
     for idx in range(len(saFbOffsetRange[0])):
 
-        for col in range(len(group.ColMap.get())):
+        for col in range(len(group.ColumnMap.get())):
             group.SaFb.set(index=(col,row),value=saFbOffsetRange[col][idx])
 
-        points = saOffset(group,row)
+        pct = pctIn * (idx / len(saFbOffsetRange[0]))
 
-        for col in range(len(group.ColMap.get())):
+        points = saOffset(group=group,row=row,pctIn=pct,pctVar=pctVar)
+
+        for col in range(len(group.ColumnMap.get())):
             curves[col].addPoint(points[col])
 
     return curves
 
-def saFluxBias(group,row = 0):
+def saFluxBias(group,row = 0, pctIn=0.0, pctVar=None):
     """Returns a list of CurveData objects.
     Creates a list of CurveData objects, corresponding to each
     column
@@ -99,19 +94,20 @@ def saFluxBias(group,row = 0):
     step and calls saFlux to generate curves, adding them
     to their corresponding data objects
     """
-    step = group.SaBiasStepSize.get()
 
     datalist = []
-    for col in range(len(group.ColMap.get())):
-        low = group.SaBias.get(index=col) + group.SaBiasLowOffset.get()
-        high = group.SaBias.get(index=col) + group.SaBiasHighOffset.get()
+    for col in range(len(group.ColumnMap.get())):
+        low = group.SaBias.get(index=col) + group.SaTuneProcess.SaBiasLowOffset.get()
+        high = group.SaBias.get(index=col) + group.SaTuneProcess.SaBiasHighOffset.get()
+        step = (high-low) / group.SaTuneProcess.SaBiasNumSteps.get()
 
-        data = cc.CurveData()
+        data = warm_tdm_api.CurveData()
         data.populateXValues(low,high+step,step)
         datalist.append(data)
 
     for bias in np.arange(low,high+step,step):
-        curves = saFlux(group,bias,row)
+        pct = pctIn * ((high-bias)/(high-low))
+        curves = saFlux(group,bias,row,pct,pctVar)
         for dataindex in range(len(datalist)):
             datalist[dataindex].addCurve(curves[dataindex])
     for dataobject in datalist:
@@ -119,7 +115,7 @@ def saFluxBias(group,row = 0):
 
     return datalist
 
-def saTune(group,row = 0):
+def saTune(group,row = 0,pctVar=None):
     """
     Initializes group, runs saFluxBias and collects and sets SaFb, SaOffset, and SaBias
     Returns a list of CurveData objects
@@ -136,8 +132,8 @@ def saTune(group,row = 0):
      representing a different bias.
     """
     group.Init()
-    saFluxBiasResults = saFluxBias(group,row)
-    for col in range(len(group.ColMap.get())):
+    saFluxBiasResults = saFluxBias(group,row,pctIn=0.0,pctVar=pctVar)
+    for col in range(len(group.ColumnMap.get())):
         group.SaFb.set(index=(row,col),value=saFluxBiasResults[col].fbOut)
         group.SaOffset.set(index=col,value=saFluxBiasResults[col].offsetOut)
         group.SaBias.set(index=col,value=saFluxBiasResults[col].biasOut)
@@ -182,10 +178,10 @@ def fasFlux(group,row):
     for col in range(len(group.ColMap.get())):
 
 
-        data = cc.CurveData()
+        data = warm_tdm_api.CurveData()
         data.populateXValues(low,high+step,step)
         coldata = [data]*len(group.ColMap.get())
-        curve = cc.Curve(row)
+        curve = warm_tdm.api.Curve(row)
 
         for flux in np.arange(low,high+step,step):
 
@@ -239,11 +235,11 @@ def sq1Flux(group,bias,row):
         Sq1FbOffsetRange.append(np.linspace(low,high,numsteps,endpoint=True))
 
     for col in range(len(group.ColMap.get())):
-        curves.append(cc.Curve(bias))
+        curves.append(warm_tdm_api.Curve(bias))
 
     for idx in range(len(Sq1FbOffsetRange[0])):
         for col in range(len(group.ColMap.get)):
-            group.Sq1Fb.set((index=col,row),value=Sq1FbOffsetRange[col][idx])
+            group.Sq1Fb.set(index=(col,row),value=Sq1FbOffsetRange[col][idx])
         points = saOffset(group,row)
 
         for col in range(len(group.ColMap.get())):
@@ -251,7 +247,7 @@ def sq1Flux(group,bias,row):
 
     ###OLD CODE BELOW
     for col in range(len(group.ColMap.get())):
-        curve = cc.Curve(bias)
+        curve = warm_tdm_api.Curve(bias)
         for fb in np.arange(low,high+step,step):
             group.Sq1Fb.set(index=(col,row),value=fb)
             offset = saOffset(group,row,None)
@@ -289,7 +285,7 @@ def sq1FluxRowBias(group,row):
         highFb = group.Sq1Fb.get(index=(col,row)) + group.Sq1FbHighOffset.get()
         stepFb= group.Sq1FbStepSize.get()
 
-        data = cc.CurveData()
+        data = warm_tdp_api.CurveData()
         data.populateXValues(lowFb,highFb+stepFb,stepFb)
 
         for bias in np.arange(low,high+step,step):

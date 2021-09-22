@@ -1,5 +1,6 @@
 import pyrogue as pr
 import warm_tdm
+import warm_tdm_api
 
 
 class Group(pr.Device):
@@ -75,47 +76,7 @@ class Group(pr.Device):
                                   guiGroup='GroupConfig',
                                   description="Number of row boards"))
 
-        # Low offset for SA FB Tuning
-        self.add(pr.LocalVariable(name='SaFbLowOffset',
-                                  value=0.0,
-                                  mode='RW',
-                                  guiGroup='SATuneConfig',
-                                  description="Starting point offset for SA FB Tuning"))
-
-        # High offset for SA FB Tuning
-        self.add(pr.LocalVariable(name='SaFbHighOffset',
-                                  value=0.0,
-                                  mode='RW',
-                                  guiGroup='SATuneConfig',
-                                  description="Ending point offset for SA FB Tuning"))
-
-        # Step size for SA FB Tuning
-        self.add(pr.LocalVariable(name='SaFbStepSize',
-                                  value=0.0,
-                                  mode='RW',
-                                  guiGroup='SATuneConfig',
-                                  description="Step size for SA FB Tuning"))
-
-        # Low offset for SA Bias Tuning
-        self.add(pr.LocalVariable(name='SaBiasLowOffset',
-                                  value=0.0,
-                                  mode='RW',
-                                  guiGroup='SATuneConfig',
-                                  description="Starting point offset for SA Bias Tuning"))
-
-        # High offset for SA Bias Tuning
-        self.add(pr.LocalVariable(name='SaBiasHighOffset',
-                                  value=0.0,
-                                  mode='RW',
-                                  guiGroup='SATuneConfig',
-                                  description="Ending point offset for SA Bias Tuning"))
-
-        # Step size for SA Bias Tuning
-        self.add(pr.LocalVariable(name='SaBiasStepSize',
-                                  value=0.0,
-                                  mode='RW',
-                                  guiGroup='SATuneConfig',
-                                  description="Step size for SA Bias Tuning"))
+        self.add(warm_tdm_api.SaTuneProcess())
 
         # Low offset for Fas FLux Tuning
         self.add(pr.LocalVariable(name='FasFluxLowOffset',
@@ -235,12 +196,6 @@ class Group(pr.Device):
                                   guiGroup='TuneConfig',
                                   description="Tune enable for each column"))
 
-        # SA Tuning Results
-        self.add(pr.LocalVariable(name='SaTuneOutput',
-                                  value={},
-                                  mode='RO',
-                                  guiGroup='Tune Results',
-                                  description="Results Data From SA Tuning"))
 
         # FAS Tuning Results
         self.add(pr.LocalVariable(name='FasTuneOutput',
@@ -694,7 +649,8 @@ class Group(pr.Device):
     def _fllEnableSet(self, value, write):
 
         for col in self.HardwareGroup.ColumnBoard:
-            col.FllEnable.set(value,write=write)
+            pass
+            #col.FllEnable.set(value,write=write)
 
     # Get FLL Enable value
     def _fllEnableGet(self, read):
