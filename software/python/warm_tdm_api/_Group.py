@@ -365,7 +365,6 @@ class Group(pr.Device):
     # Set TES bias value, index is column
     def _tesBiasSet(self, value, write, index):
         for idx, board, chan, val in self.__colSetLoopHelper(value, index):
-            #print(f"Tes set {idx}, {board}, {chan}, {val}")
 
             self.HardwareGroup.ColumnBoard[board].TesBias.BiasCurrent[chan].set(value=value, write=write)
 
@@ -374,8 +373,7 @@ class Group(pr.Device):
         ret = [0.0] * len(self._config.columnMap)
 
         for idx, board, chan in self.__colGetLoopHelper(index):
-            #ret[idx] = self.HardwareGroup.ColumnBoard[board].TesBias.BiasCurrent[chan].value(read=read) #BEN
-            ret[idx] = 0
+            ret[idx] = self.HardwareGroup.ColumnBoard[board].TesBias.BiasCurrent[chan].get(read=read)
 
         if index != -1:
             return ret[index]
@@ -494,7 +492,7 @@ class Group(pr.Device):
             colBoard = self._config.columnMap[colIndex].board
             colChan = self._config.columnMap[colIndex].channel
 
-            self.HardwareGroup.ColumnBoard[colBoard].node(name).ChannelVoltage[colChan].set(value=value,index=rowIndex,write=write)
+            self.HardwareGroup.ColumnBoard[colBoard].node(name).node(f'Col{colChan}_Row[{rowIndex}]').set(value=value,write=write)
 
         # Full array access
         else:
@@ -505,11 +503,11 @@ class Group(pr.Device):
 
                 for rowIndex in range(len(self._config.rowMap)):
 
-                    self.HardwareGroup.ColumnBoard[colBoard].node(name).ChannelVoltage[colChan].set(value=value[colIndex][rowIndex],index=rowIndex,write=False)
+                    self.HardwareGroup.ColumnBoard[colBoard].node(name).node(f'Col{colChan}_Row[{rowIndex}]').set(value=value[colIndex][rowIndex],write=False)
 
                 # Force writes
                 if write is True:
-                    self.HardwareGroup.ColumnBoard[colBoard].node(name).ChannelVoltage[colChan].write()
+                    self.HardwareGroup.ColumnBoard[colBoard].node(name).Column[colChan].write()
 
     # Get per row value, index is (column, row) tuple
     def _fastDacGet(self, name, read, index):
@@ -521,7 +519,7 @@ class Group(pr.Device):
             colBoard = self._config.columnMap[colIndex].board
             colChan = self._config.columnMap[colIndex].channel
 
-            return self.HardwareGroup.ColumnBoard[colBoard].node(name).ChannelVoltage[colChan].get(index=rowIndex,read=read)
+            return self.HardwareGroup.ColumnBoard[colBoard].node(name).node(f'Col{colChan}_Row[{rowIndex}]').get(read=read)
 
         # Full array access
         else:
@@ -533,30 +531,29 @@ class Group(pr.Device):
 
                 # Force reads
                 if read is True:
-                    self.HardwareGroup.ColumnBoard[colBoard].node(name).ChannelVoltage[colChan].get()
+                    self.HardwareGroup.ColumnBoard[colBoard].node(name).Column[colChan].get()
 
                 for rowIndex in range(len(self._config.rowMap)):
 
-                    #ret[colIndex][rowIndex] = self.HardwareGroup.ColumnBoard[colBoard].node(name).ChannelVoltage[colChan].get(index=rowIndex,read=False) #BEN
-                    ret[colIndex][rowIndex] = 0
+                    ret[colIndex][rowIndex] = self.HardwareGroup.ColumnBoard[colBoard].node(name).node(f'Col{colChan}_Row[{rowIndex}]').get(read=False)
 
             return ret
 
     # Set SQ1 Bias value, index is (column, row) tuple
     def _sq1BiasSet(self, value, write, index):
-        self._fastDacSet('Sq1Bias', value, write, index)
+        self._fastDacSet('SQ1Bais', value, write, index)
 
     # Get SQ1 Bias value, index is (column, row) tuple
     def _sq1BiasGet(self, read, index):
-        return self._fastDacGet('Sq1Bias', read, index)
+        return self._fastDacGet('SQ1Bais', read, index)
 
     # Set SQ1 FB value, index is (column, row) tuple
     def _sq1FbSet(self, value, write, index):
-        self._fastDacSet('Sq1Fb', value, write, index)
+        self._fastDacSet('SQ1Fb', value, write, index)
 
     # Get SQ1 FB value, index is (column, row) tuple
     def _sq1FbGet(self, read, index):
-        return self._fastDacGet('Sq1Fb', read, index)
+        return self._fastDacGet('SQ1Fb', read, index)
 
     # Set FAS Flux Off value, index is row
     def _fasFluxOffSet(self, value, write, index):
@@ -647,12 +644,12 @@ class Group(pr.Device):
 
         for col in self.HardwareGroup.ColumnBoard:
             pass
-            #col.FllEnable.set(value,write=write)
+            #col.FllEnable.set(value,write=write) # Does not exist yet
 
     # Get FLL Enable value
     def _fllEnableGet(self, read):
 
-        #return self.HardwareGroup.ColumnBoard[0].FllEnable.get(read=read) #BEN
+        #return self.HardwareGroup.ColumnBoard[0].FllEnable.get(read=read) # Does not exist yet
         return False
 
     # Init system
