@@ -48,10 +48,10 @@ class SaTuneProcess(pr.Process):
         # SA Tuning Results
         self.add(pr.LocalVariable(name='SaTuneOutput',
                                   value={},
-                                  mode='RW',
+                                  mode='RO',
                                   description="Results Data From SA Tuning"))
 
     def _saTuneWrap(self):
-        ret = warm_tdm_api.saTune(self.parent,row=0,pctVar=self.Progress)
+        ret = warm_tdm_api.saTune(group=self.parent,pctVar=self.Progress)
         self.SaTuneOutput.set(value=ret)
 

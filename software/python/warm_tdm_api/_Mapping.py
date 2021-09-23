@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 
 @dataclass
-class PhysicalMapping:
+class PhysicalMap:
     board: int
     channel: int
     """ Row & Column Physical Mapping
@@ -17,7 +17,7 @@ class PhysicalMapping:
 
 
 @dataclass
-class VirtualMapping:
+class VirtualMap:
     row: int
     column: int
     """ Virtual Detector Mapping
@@ -32,9 +32,9 @@ class VirtualMapping:
 
 @dataclass
 class GroupConfig:
-    columnMap: PhysicalMapping
+    columnMap: PhysicalMap
     columnEnable: [bool]
-    rowMap: PhysicalMapping
+    rowMap: PhysicalMap
     rowOrder: [bool]
     host: str
     columnBoards: int

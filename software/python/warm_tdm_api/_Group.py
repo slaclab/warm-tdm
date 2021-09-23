@@ -26,148 +26,57 @@ class Group(pr.Device):
         self.add(pr.LocalVariable(name='RowMap',
                                   localGet=lambda: self._config.rowMap,
                                   mode='RO',
-                                  guiGroup='GroupConfig',
+                                  typeStr='PhysicalMap[]',
                                   description="Row Map"))
 
         # Col Map
         self.add(pr.LocalVariable(name='ColumnMap',
                                   localGet=lambda: self._config.columnMap,
                                   mode='RO',
-                                  guiGroup='GroupConfig',
+                                  typeStr='PhysicalMap[]',
                                   description="Column Map"))
 
         # Row Order
         self.add(pr.LocalVariable(name='RowOrder',
                                   localGet=lambda: self._config.rowOrder,
                                   mode='RO',
-                                  guiGroup='GroupConfig',
+                                  typeStr='int[]',
                                   description="Row Order"))
 
         # Col Enable
         self.add(pr.LocalVariable(name='ColumnEnable',
                                   localGet=lambda: self._config.columnEnable,
                                   mode='RO',
-                                  guiGroup='GroupConfig',
+                                  typeStr='bool[]',
                                   description="Column Enable"))
 
         # Number of columns supported in this group
         self.add(pr.LocalVariable(name='NumColumns',
                                   value=len(self._config.columnMap),
                                   mode='RO',
-                                  guiGroup='GroupConfig',
                                   description="Number of columns"))
 
         self.add(pr.LocalVariable(name='NumColumnBoards',
                                   value=self._config.columnBoards,
                                   mode='RO',
-                                  guiGroup='GroupConfig',
                                   description="Number of column boards"))
 
         # Number of rows supported in this group
         self.add(pr.LocalVariable(name='NumRows',
                                   value=len(self._config.rowMap),
                                   mode='RO',
-                                  guiGroup='GroupConfig',
                                   description="Number of rows"))
 
         self.add(pr.LocalVariable(name='NumRowBoards',
                                   value=self._config.rowBoards,
                                   mode='RO',
-                                  guiGroup='GroupConfig',
                                   description="Number of row boards"))
-
-        self.add(warm_tdm_api.SaTuneProcess())
-
-        # Low offset for Fas FLux Tuning
-        self.add(pr.LocalVariable(name='FasFluxLowOffset',
-                                  value=0.0,
-                                  mode='RW',
-                                  guiGroup='FasFluxTuneConfig',
-                                  description="Starting point offset for Fas Flux Tuning"))
-
-        # High offset for Fas Flux Tuning
-        self.add(pr.LocalVariable(name='FasFluxHighOffset',
-                                  value=0.0,
-                                  mode='RW',
-                                  guiGroup='FasFluxTuneConfig',
-                                  description="Ending point offset for Fas Flux Tuning"))
-
-        # Step size for Fas Flux Tuning
-        self.add(pr.LocalVariable(name='FasFluxStepSize',
-                                  value=0.0,
-                                  mode='RW',
-                                  guiGroup='FasFluxTuneConfig',
-                                  description="Step size for Fas Flux Tuning"))
-
-        # Low offset for SQ1 FB Tuning
-        self.add(pr.LocalVariable(name='Sq1FbLowOffset',
-                                  value=0.0,
-                                  mode='RW',
-                                  guiGroup='FasFluxTuneConfig',
-                                  description="Starting point offset for SQ1 FB Tuning"))
-
-        # High offset for SQ1 FB Tuning
-        self.add(pr.LocalVariable(name='Sq1FbHighOffset',
-                                  value=0.0,
-                                  mode='RW',
-                                  guiGroup='Sq1TuneConfig',
-                                  description="Ending point offset for SQ1 FB Tuning"))
-
-        # Step size for SQ1 FB Tuning
-        self.add(pr.LocalVariable(name='Sq1FbStepSize',
-                                  value=0.0,
-                                  mode='RW',
-                                  guiGroup='Sq1TuneConfig',
-                                  description="Step size for SQ1 FB Tuning"))
-
-        # Low offset for SQ1 Bias Tuning
-        self.add(pr.LocalVariable(name='Sq1BiasLowOffset',
-                                  value=0.0,
-                                  mode='RW',
-                                  guiGroup='Sq1TuneConfig',
-                                  description="Starting point offset for SQ1 Bias Tuning"))
-
-        # High offset for SQ1 Bias Tuning
-        self.add(pr.LocalVariable(name='Sq1BiasHighOffset',
-                                  value=0.0,
-                                  mode='RW',
-                                  guiGroup='Sq1TuneConfig',
-                                  description="Ending point offset for SQ1 Bias Tuning"))
-
-        # Step size for SQ1 Bias Tuning
-        self.add(pr.LocalVariable(name='Sq1BiasStepSize',
-                                  value=0.0,
-                                  mode='RW',
-                                  guiGroup='Sq1TuneConfig',
-                                  description="Step size for SQ1 Bias Tuning"))
-
-        # Low offset for TES Bias Ramping
-        self.add(pr.LocalVariable(name='TesBiasLowOffset',
-                                  value=0.0,
-                                  mode='RW',
-                                  guiGroup='TesScanConfig',
-                                  description="Starting point offset for TES Bias Ramping"))
-
-        # High offset for SQ1 Bias Ramping
-        self.add(pr.LocalVariable(name='TesBiasHighOffset',
-                                  value=0.0,
-                                  mode='RW',
-                                  guiGroup='TesScanConfig',
-                                  description="Ending point offset for SQ1 Bias Ramping"))
-
-        # Step size for SQ1 Bias Ramping
-        self.add(pr.LocalVariable(name='TesBiasStepSize',
-                                  value=0.0,
-                                  mode='RW',
-                                  guiGroup='TesScanConfig',
-                                  description="Step size for SQ1 Bias Ramping"))
 
         # Enable Row Tune Override
         self.add(pr.LinkVariable(name='RowForceEn',
                                  value=False,
                                  mode='RW',
                                  typeStr='bool',
-                                 guiGroup='TuneConfig',
                                  linkedSet=self._rowForceEnSet,
                                  linkedGet=self._rowForceEnGet,
                                  description="Row Tune Enable"))
@@ -177,7 +86,6 @@ class Group(pr.Device):
                                  value=0,
                                  mode='RW',
                                  typeStr='int',
-                                 guiGroup='TuneConfig',
                                  linkedSet=self._rowForceIdxSet,
                                  linkedGet=self._rowForceIdxGet,
                                  description="Row Tune Index"))
@@ -186,52 +94,22 @@ class Group(pr.Device):
         self.add(pr.LocalVariable(name='RowTuneEnable',
                                   value=[True] * len(self._config.rowMap),
                                   mode='RW',
-                                  guiGroup='TuneConfig',
                                   description="Tune enable for each row"))
 
         # Tuning column enables
         self.add(pr.LocalVariable(name='ColTuneEnable',
                                   value=[True] * len(self._config.columnMap),
                                   mode='RW',
-                                  guiGroup='TuneConfig',
                                   description="Tune enable for each column"))
-
-
-        # FAS Tuning Results
-        self.add(pr.LocalVariable(name='FasTuneOutput',
-                                  value={},
-                                  mode='RO',
-                                  guiGroup='Tune Results',
-                                  description="Results Data From FAS Tuning"))
-
-        # SQ1 Tuning Results
-        self.add(pr.LocalVariable(name='Sq1TuneOutput',
-                                  value={},
-                                  mode='RO',
-                                  guiGroup='Tune Results',
-                                  description="Results Data From SQ1 Tuning"))
-
-        # SQ1 Diagnostic Results
-        self.add(pr.LocalVariable(name='Sq1DiagOutput',
-                                  value={},
-                                  mode='RO',
-                                  guiGroup='Tune Results',
-                                  description="Results Data From SQ1 Diagnostic"))
-
-        # TES Diagnostic Results
-        self.add(pr.LocalVariable(name='TesDiagOutput',
-                                  value={},
-                                  mode='RO',
-                                  guiGroup='Tune Results',
-                                  description="Results Data From Tes Diagnostic"))
 
         # FLL Enable value
         self.add(pr.LinkVariable(name='FllEnable',
+                                 value=False,
                                  mode='RW',
                                  typeStr='bool',
                                  linkedSet=self._fllEnableSet,
                                  linkedGet=self._fllEnableGet,
-                                 description=""))
+                                 description="FLL Enable Control"))
 
         # TES Bias values, accessed with column index value
         self.add(pr.LinkVariable(name='TesBias',
@@ -308,6 +186,12 @@ class Group(pr.Device):
         self.add(pr.LocalCommand(name='Init',
                                  function=self._init,
                                  description="Initialize System"))
+
+        self.add(warm_tdm_api.SaTuneProcess())
+        self.add(warm_tdm_api.Sq1TuneProcess())
+        self.add(warm_tdm_api.FasTuneProcess())
+        self.add(warm_tdm_api.Sq1DiagProcess())
+        self.add(warm_tdm_api.TesRampProcess())
 
         self.add(warm_tdm.HardwareGroup(simulation=simulation, emulate=emulate, expand=True))
 
@@ -446,7 +330,7 @@ class Group(pr.Device):
                 colChan = self._config.columnMap[colIndex].channel
 
                 for rowIndex in range(len(self._config.rowMap)):
-                    self.HardwareGroup.ColumnBoard[colBoard].SAFb.node(f'Col{colChan}_Row[{rowIndex}]').set(value=value,write=False)
+                    self.HardwareGroup.ColumnBoard[colBoard].SAFb.node(f'Col{colChan}_Row[{rowIndex}]').set(value=value[colIndex][rowIndex],write=False)
 
                 # Force writes
                 if write is True:

@@ -42,7 +42,7 @@ class CurveData():
         ax.plot(self.xValues_[self.bestCurve.lowindex_],self.bestCurve.points_[self.bestCurve.lowindex_],"v")#plot the min point
         ax.plot(self.fbOut,self.offsetOut,"s") #plot the midpoint
         plt.show()
-    
+
     def midPoint(self):
         curve = self.bestCurve
         midY = (curve.points_[curve.highindex_] + curve.points_[curve.lowindex_]) / 2
@@ -85,6 +85,6 @@ class Curve():
 
     def addPoint(self,point):
         self.points_.append(point)
-    
+
     def __repr__(self):
         return(str(self.bias_) + ": " + str(self.points_))

@@ -10,7 +10,7 @@ pyrogue.addLibraryPath(f'../../firmware/submodules/surf/python')
 
 import warm_tdm_api
 
-from warm_tdm_api import PhysicalMapping as pm
+from warm_tdm_api import PhysicalMap as pm
 
 # Setup configuration
 columnBoards = 4
