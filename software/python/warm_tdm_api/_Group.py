@@ -300,10 +300,10 @@ class Group(pr.Device):
 
     # Get SA Out value, index is column
     def _saOutGet(self, read, index):
-        ret = [0.0] * len(self._config.columnMap)
+        ret = [2.0] * len(self._config.columnMap)
 
-        for idx, board, chan in self.__colGetLoopHelper(index):
-            ret[idx] = self.HardwareGroup.ColumnBoard[board].DataPath.Ad9249Readout.AdcVoltage[chan].get(read=read)
+        #for idx, board, chan in self.__colGetLoopHelper(index):
+            #ret[idx] = self.HardwareGroup.ColumnBoard[board].DataPath.Ad9249Readout.AdcVoltage[chan].get(read=read)
 
         if index != -1:
             return ret[index]

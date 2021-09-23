@@ -34,9 +34,9 @@ def saOffset(*,group,precision=1):
             break
 
         for i, p in enumerate(pid):
-            control[i] = pid(current[i])
+            control[i] = p(current[i])
 
-        group.saOffset.set(control)
+        group.SaOffset.set(control)
 
     return control
 
