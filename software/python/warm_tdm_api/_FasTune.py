@@ -17,15 +17,15 @@ class FasTuneProcess(pr.Process):
 
         # High offset for Fas Flux Tuning
         self.add(pr.LocalVariable(name='FasFluxHighOffset',
-                                  value=0.0,
+                                  value=1.0,
                                   mode='RW',
                                   description="Ending point offset for Fas Flux Tuning"))
 
         # Step size for Fas Flux Tuning
-        self.add(pr.LocalVariable(name='FasFluxStepSize',
-                                  value=0.0,
+        self.add(pr.LocalVariable(name='FasFluxNumSteps',
+                                  value=10,
                                   mode='RW',
-                                  description="Step size for Fas Flux Tuning"))
+                                  description="Number of steps for Fas Flux Tuning"))
 
         # FAS Tuning Results
         self.add(pr.LocalVariable(name='FasTuneOutput',
@@ -34,8 +34,5 @@ class FasTuneProcess(pr.Process):
                                   description="Results Data From FAS Tuning"))
 
     def _fasTuneWrap(self):
-        #ret = warm_tdm_api.saTune(self.parent,row=0,pctVar=self.Progress)
-        #self.SaTuneOutput.set(value=ret)
-        pass
-
-
+        ret = warm_tdm_api.fasTune(group=self.parent,pctVar=self.Progress)
+        self.FasTuneOutput.set(value=ret)

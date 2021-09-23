@@ -300,10 +300,10 @@ class Group(pr.Device):
 
     # Get SA Out value, index is column
     def _saOutGet(self, read, index):
-        ret = [2.0] * len(self._config.columnMap)
+        ret = [0.0] * len(self._config.columnMap)
 
-        #for idx, board, chan in self.__colGetLoopHelper(index):
-            #ret[idx] = self.HardwareGroup.ColumnBoard[board].DataPath.Ad9249Readout.AdcVoltage[chan].get(read=read)
+        for idx, board, chan in self.__colGetLoopHelper(index):
+            ret[idx] = self.HardwareGroup.ColumnBoard[board].DataPath.Ad9249Readout.AdcVoltage[chan].get(read=read)
 
         if index != -1:
             return ret[index]
@@ -447,7 +447,7 @@ class Group(pr.Device):
             board = self._config.rowMap[index].board
             chan = self._config.rowMap[index].channel
 
-            self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].OffValue.set(value=value, write=write)
+            #self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].OffValue.set(value=value, write=write)
 
         # Full array access
         else:
@@ -456,7 +456,7 @@ class Group(pr.Device):
                 board = self._config.rowMap[index].board
                 chan = self._config.rowMap[index].channel
 
-                self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].OffValue.set(value=value[idx], write=write)
+                #self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].OffValue.set(value=value[idx], write=write)
 
     # Get FAS Flux value
     def _fasFluxOffGet(self, read, index):
@@ -466,7 +466,8 @@ class Group(pr.Device):
             board = self._config.rowMap[index].board
             chan = self._config.rowMap[index].channel
 
-            self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].OffValue.get(index=index, read=read)
+            #return self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].OffValue.get(index=index, read=read)
+            return 0.0
 
         # Full array access
         else:
@@ -477,7 +478,7 @@ class Group(pr.Device):
                 chan = self._config.rowMap[index].channel
 
                 #ret[idx] = self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].OffValue.get(index=idx, read = read) #BEN
-                ret[idx] = 0
+                ret[idx] = 0.0
 
             return ret
 
@@ -489,7 +490,7 @@ class Group(pr.Device):
             board = self._config.rowMap[index].board
             chan = self._config.rowMap[index].channel
 
-            self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].ActiveValue.set(value=value, write=write)
+            #return self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].ActiveValue.set(value=value, write=write)
 
         # Full array access
         else:
@@ -498,7 +499,7 @@ class Group(pr.Device):
                 board = self._config.rowMap[index].board
                 chan = self._config.rowMap[index].channel
 
-                self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].ActiveValue.set(value=value[idx],write=write)
+                #self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].ActiveValue.set(value=value[idx],write=write)
 
     # Get FAS Flux value
     def _fasFluxOnGet(self, read, index):
@@ -508,7 +509,8 @@ class Group(pr.Device):
             board = self._config.rowMap[index].board
             chan = self._config.rowMap[index].channel
 
-            return self.HardwareGroup.RowBoard[board].FasFluxOn[chan].get(index= index, read=read)
+            #return self.HardwareGroup.RowBoard[board].FasFluxOn[chan].get(index= index, read=read)
+            return 0.0
 
         # Full array access
         else:
@@ -519,7 +521,7 @@ class Group(pr.Device):
                 chan = self._config.rowMap[index].channel
 
                 #ret[idx] = self.HardwareGroup.RowBoard[board].FasFluxOn[chan].get(index=index, read=read) #BEN
-                ret[idx] = False
+                ret[idx] = 0.0
 
             return ret
 
