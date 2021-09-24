@@ -27,6 +27,7 @@ class Group(pr.Device):
                                   localGet=lambda: self._config.rowMap,
                                   mode='RO',
                                   typeStr='PhysicalMap[]',
+                                  group='TopApi',
                                   description="Row Map"))
 
         # Col Map
@@ -34,6 +35,7 @@ class Group(pr.Device):
                                   localGet=lambda: self._config.columnMap,
                                   mode='RO',
                                   typeStr='PhysicalMap[]',
+                                  group='TopApi',
                                   description="Column Map"))
 
         # Row Order
@@ -41,6 +43,7 @@ class Group(pr.Device):
                                   localGet=lambda: self._config.rowOrder,
                                   mode='RO',
                                   typeStr='int[]',
+                                  group='TopApi',
                                   description="Row Order"))
 
         # Col Enable
@@ -48,28 +51,33 @@ class Group(pr.Device):
                                   localGet=lambda: self._config.columnEnable,
                                   mode='RO',
                                   typeStr='bool[]',
+                                  group='TopApi',
                                   description="Column Enable"))
 
         # Number of columns supported in this group
         self.add(pr.LocalVariable(name='NumColumns',
                                   value=len(self._config.columnMap),
                                   mode='RO',
+                                  group='TopApi',
                                   description="Number of columns"))
 
         self.add(pr.LocalVariable(name='NumColumnBoards',
                                   value=self._config.columnBoards,
                                   mode='RO',
+                                  group='TopApi',
                                   description="Number of column boards"))
 
         # Number of rows supported in this group
         self.add(pr.LocalVariable(name='NumRows',
                                   value=len(self._config.rowMap),
                                   mode='RO',
+                                  group='TopApi',
                                   description="Number of rows"))
 
         self.add(pr.LocalVariable(name='NumRowBoards',
                                   value=self._config.rowBoards,
                                   mode='RO',
+                                  group='TopApi',
                                   description="Number of row boards"))
 
         # Enable Row Tune Override
@@ -77,6 +85,7 @@ class Group(pr.Device):
                                  value=False,
                                  mode='RW',
                                  typeStr='bool',
+                                 group='TopApi',
                                  linkedSet=self._rowForceEnSet,
                                  linkedGet=self._rowForceEnGet,
                                  description="Row Tune Enable"))
@@ -84,6 +93,7 @@ class Group(pr.Device):
         # Row Tune Channel
         self.add(pr.LinkVariable(name='RowForceIndex',
                                  value=0,
+                                 group='TopApi',
                                  mode='RW',
                                  typeStr='int',
                                  linkedSet=self._rowForceIdxSet,
@@ -93,12 +103,14 @@ class Group(pr.Device):
         # Tuning row enables
         self.add(pr.LocalVariable(name='RowTuneEnable',
                                   value=[True] * len(self._config.rowMap),
+                                  group='TopApi',
                                   mode='RW',
                                   description="Tune enable for each row"))
 
         # Tuning column enables
         self.add(pr.LocalVariable(name='ColTuneEnable',
                                   value=[True] * len(self._config.columnMap),
+                                  group='TopApi',
                                   mode='RW',
                                   description="Tune enable for each column"))
 
@@ -106,6 +118,7 @@ class Group(pr.Device):
         self.add(pr.LinkVariable(name='FllEnable',
                                  value=False,
                                  mode='RW',
+                                 group='TopApi',
                                  typeStr='bool',
                                  linkedSet=self._fllEnableSet,
                                  linkedGet=self._fllEnableGet,
@@ -114,6 +127,7 @@ class Group(pr.Device):
         # TES Bias values, accessed with column index value
         self.add(pr.LinkVariable(name='TesBias',
                                  mode='RW',
+                                 group='TopApi',
                                  typeStr='double[]',
                                  linkedSet=self._tesBiasSet,
                                  linkedGet=self._tesBiasGet,
@@ -122,6 +136,7 @@ class Group(pr.Device):
         # SA Bias values, accessed with column index value
         self.add(pr.LinkVariable(name='SaBias',
                                  mode='RW',
+                                 group='TopApi',
                                  typeStr='double[]',
                                  linkedSet=self._saBiasSet,
                                  linkedGet=self._saBiasGet,
@@ -130,6 +145,7 @@ class Group(pr.Device):
         # SA Offset values, accessed with column index value
         self.add(pr.LinkVariable(name='SaOffset',
                                  mode='RW',
+                                 group='TopApi',
                                  typeStr='double[]',
                                  linkedSet=self._saOffsetSet,
                                  linkedGet=self._saOffsetGet,
@@ -138,6 +154,7 @@ class Group(pr.Device):
         # SA Out values, accessed with column index value
         self.add(pr.LinkVariable(name='SaOut',
                                  mode='RO',
+                                 group='TopApi',
                                  typeStr='double[]',
                                  linkedGet=self._saOutGet,
                                  description=""))
@@ -145,6 +162,7 @@ class Group(pr.Device):
         # SA FB values, accessed with index tuple (column, row)
         self.add(pr.LinkVariable(name='SaFb',
                                  mode='RW',
+                                 group='TopApi',
                                  typeStr='double[]',
                                  linkedSet=self._saFbSet,
                                  linkedGet=self._saFbGet,
@@ -153,6 +171,7 @@ class Group(pr.Device):
         # SQ1 Bias values, accessed with index tuple (column, row)
         self.add(pr.LinkVariable(name='Sq1Bias',
                                  mode='RW',
+                                 group='TopApi',
                                  typeStr='double[]',
                                  linkedSet=self._sq1BiasSet,
                                  linkedGet=self._sq1BiasGet,
@@ -162,6 +181,7 @@ class Group(pr.Device):
         self.add(pr.LinkVariable(name='Sq1Fb',
                                  mode='RW',
                                  typeStr='double[]',
+                                 group='TopApi',
                                  linkedSet=self._sq1FbSet,
                                  linkedGet=self._sq1FbGet,
                                  description=""))
@@ -170,6 +190,7 @@ class Group(pr.Device):
         self.add(pr.LinkVariable(name='FasFluxOff',
                                  mode='RW',
                                  typeStr='double[]',
+                                 group='TopApi',
                                  linkedSet=self._fasFluxOffSet,
                                  linkedGet=self._fasFluxOffGet,
                                  description=""))
@@ -177,6 +198,7 @@ class Group(pr.Device):
         # FAS Flux on values, accessed with row index
         self.add(pr.LinkVariable(name='FasFluxOn',
                                  mode='RW',
+                                 group='TopApi',
                                  typeStr='double[]',
                                  linkedSet=self._fasFluxOnSet,
                                  linkedGet=self._fasFluxOnGet,
@@ -185,6 +207,7 @@ class Group(pr.Device):
         # Initialize System
         self.add(pr.LocalCommand(name='Init',
                                  function=self._init,
+                                 group='TopApi',
                                  description="Initialize System"))
 
         self.add(warm_tdm_api.SaTuneProcess())
@@ -193,7 +216,7 @@ class Group(pr.Device):
         self.add(warm_tdm_api.Sq1DiagProcess())
         self.add(warm_tdm_api.TesRampProcess())
 
-        self.add(warm_tdm.HardwareGroup(simulation=simulation, emulate=emulate, expand=True))
+        self.add(warm_tdm.HardwareGroup(simulation=simulation, emulate=emulate, group='Hardware', expand=True))
 
     def __colSetLoopHelper(self, value, index):
         # Construct a generator to loop over

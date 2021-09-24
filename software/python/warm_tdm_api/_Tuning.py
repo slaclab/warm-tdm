@@ -1,21 +1,21 @@
 import numpy as np
 import time
 
-from simple_pid import PID #for saOffset
-
+from simple_pid import PID
 import warm_tdm_api
 
-def saOffset(*,group,precision=1.0):
+
+def saOffset(*, group, precision=1.0):
     """Returns float.
     Calls pidLoop using saOffset as the input variable.
     """
     # Setup PID controller
-    pid = [PID(1,.1,.05)] * len(group.ColumnMap.get())
+    pid = [PID(1, .1, .05)] * len(group.ColumnMap.get())
 
     for p in pid:
-        p.setpoint = 0 #want to zero out SaOut
+        p.setpoint = 0  # want to zero out SaOut
         p.output_limits = (0.0, 1.0)
-        p.sample_time   = 0.1
+        p.sample_time = 0.1
 
     stime = time.time()
 
@@ -41,7 +41,7 @@ def saOffset(*,group,precision=1.0):
     return control
 
 #SA TUNING
-def saFlux(*,group,bias,pctLow,pctRange,pctVar):
+def saFlux(*,group,bias,pctLow,pctRange,process):
     """Returns a list of Curves objects.
     Iterates through SaFb values determined by lowoffset,highoffset,steps and
     calls SaOffset to generate points
@@ -71,8 +71,8 @@ def saFlux(*,group,bias,pctLow,pctRange,pctVar):
         # large burse transaction of write data
         group.SaFb.set(value=saFbArray)
 
-        if pctVar is not None:
-            pctVar.set(pctLow + pctRange*(idx/numSteps))
+        if process is not None:
+            process.Progress.set(pctLow + pctRange*(idx/numSteps))
 
         points = saOffset(group=group)
 
@@ -81,7 +81,7 @@ def saFlux(*,group,bias,pctLow,pctRange,pctVar):
 
     return curves
 
-def saFluxBias(*,group,pctVar):
+def saFluxBias(*,group,process):
     """Returns a list of CurveData objects.
     Creates a list of CurveData objects, corresponding to each
     column
@@ -97,18 +97,22 @@ def saFluxBias(*,group,pctVar):
     pctRange = 1.0/numSteps
 
     # Get current sabias values
-    saBiasArray = group.SaBias.get()
+    bias = group.SaBias.get()
 
     for col in range(colCount):
-        low = saBiasArray[col] + group.SaTuneProcess.SaBiasLowOffset.get()
-        high = saBiasArray[col] + group.SaTuneProcess.SaBiasHighOffset.get()
+        low = bias[col] + group.SaTuneProcess.SaBiasLowOffset.get()
+        high = bias[col] + group.SaTuneProcess.SaBiasHighOffset.get()
         saBiasRange.append(np.linspace(low,high,numSteps,endpoint=True))
         datalist.append(warm_tdm_api.CurveData(xvalues=saBiasRange[col]))
 
     for idx in range(numSteps):
         bias = [saBiasRange[col][idx] for col in range(colCount)]
+        group.SaBias.set(bias)
 
-        curves = saFlux(group=group,bias=bias,pctLow=idx/numSteps,pctRange=pctRange,pctVar=pctVar)
+        if process is not None:
+            process.Message.set(f'SaBias step {idx} out of {numSteps}')
+
+        curves = saFlux(group=group,bias=bias,pctLow=idx/numSteps,pctRange=pctRange,process=process)
 
         for col in range(colCount):
             datalist[col].addCurve(curves[col])
@@ -118,7 +122,7 @@ def saFluxBias(*,group,pctVar):
 
     return datalist
 
-def saTune(*,group,pctVar=None):
+def saTune(*,group,process=None):
     """
     Initializes group, runs saFluxBias and collects and sets SaFb, SaOffset, and SaBias
     Returns a list of CurveData objects
@@ -137,7 +141,7 @@ def saTune(*,group,pctVar=None):
     group.Init()
     group.RowForceIndex.set(0)
     group.RowForceEn.set(True)
-    saFluxBiasResults = saFluxBias(group=group,pctVar=pctVar)
+    saFluxBiasResults = saFluxBias(group=group,process=process)
 
     for col in range(len(group.ColumnMap.get())):
         for row in range(len(group.RowMap.get())):
@@ -185,7 +189,7 @@ def saFb(*,group,row,precision=1.0):
 
     return control
 
-def fasFlux(*,group,row,pctLow,pctRange,pctVar):
+def fasFlux(*,group,row,pctLow,pctRange,process):
     """Returns a list of CurveData objects, each element corresponding to a column.
     Iterates through FasFluxOn values determined by
     lowoffset,highoffset,step,calling saFb to generate
@@ -205,8 +209,8 @@ def fasFlux(*,group,row,pctLow,pctRange,pctVar):
     for idx in range(numSteps):
         group.FasFluxOn.set(index=row,value=fasFluxRange[idx])
 
-        if pctVar is not None:
-            pctVar.set(pctLow + pctRange*(idx/numSteps))
+        if process is not None:
+            process.Progress.set(pctLow + pctRange*(idx/numSteps))
 
         points = saFb(group=group,row=row)
 
@@ -221,7 +225,7 @@ def fasFlux(*,group,row,pctLow,pctRange,pctVar):
 
     return datalist
 
-def fasTune(*,group,pctVar=None):
+def fasTune(*,group,process=None):
     """
     Iterate through all rows, measuring results from
     fasFlux subroutine, and setting FasFluxOn and FasFluxOff
@@ -244,9 +248,15 @@ def fasTune(*,group,pctVar=None):
     numRows = group.NumRows.get()
     pctRange = 1.0/numRows
 
-    for row in range(numRows):
-        curves.append(fasFlux(group=group,row=row,pctLow=row/numRows,pctRange=pctRange,pctVar=pctVar))
+    group.RowForceEn.set(True)
 
+    for row in range(numRows):
+        group.RowForceIndex.set(row)
+        if process is not None:
+            process.Message.set(f'Row {row} out of {numRows}')
+        curves.append(fasFlux(group=group,row=row,pctLow=row/numRows,pctRange=pctRange,process=process))
+
+    group.RowForceEn.set(False)
     return curves
 
 #SQ1 TUNING - output vs sq1fb for various values of sq1 bias for every row for every column

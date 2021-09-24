@@ -2,6 +2,7 @@
 import pyrogue as pr
 import warm_tdm_api
 
+
 class FasTuneProcess(pr.Process):
 
     def __init__(self, **kwargs):
@@ -29,10 +30,12 @@ class FasTuneProcess(pr.Process):
 
         # FAS Tuning Results
         self.add(pr.LocalVariable(name='FasTuneOutput',
+                                  hidden=True,
                                   value={},
                                   mode='RO',
                                   description="Results Data From FAS Tuning"))
 
     def _fasTuneWrap(self):
-        ret = warm_tdm_api.fasTune(group=self.parent,pctVar=self.Progress)
-        self.FasTuneOutput.set(value=ret)
+        with self.root.updateGroup(0.25):
+            ret = warm_tdm_api.fasTune(group=self.parent, process=self)
+            self.FasTuneOutput.set(value=ret)

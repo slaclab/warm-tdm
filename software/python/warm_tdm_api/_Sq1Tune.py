@@ -48,6 +48,7 @@ class Sq1TuneProcess(pr.Process):
         # SQ1 Tuning Results
         self.add(pr.LocalVariable(name='Sq1TuneOutput',
                                   value={},
+                                  hidden=True,
                                   mode='RO',
                                   description="Results Data From SQ1 Tuning"))
 

@@ -11,6 +11,7 @@ class Sq1DiagProcess(pr.Process):
 
         # SQ1 Diagnostic Results
         self.add(pr.LocalVariable(name='Sq1DiagOutput',
+                                  hidden=True,
                                   value={},
                                   mode='RO',
                                   description="Results Data From SQ1 Diagnostic"))

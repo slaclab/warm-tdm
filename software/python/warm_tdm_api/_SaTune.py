@@ -47,11 +47,13 @@ class SaTuneProcess(pr.Process):
 
         # SA Tuning Results
         self.add(pr.LocalVariable(name='SaTuneOutput',
+                                  hidden=True,
                                   value={},
                                   mode='RO',
                                   description="Results Data From SA Tuning"))
 
     def _saTuneWrap(self):
-        ret = warm_tdm_api.saTune(group=self.parent,pctVar=self.Progress)
-        self.SaTuneOutput.set(value=ret)
+        with self.root.updateGroup(0.25):
+            ret = warm_tdm_api.saTune(group=self.parent,process=self)
+            self.SaTuneOutput.set(value=ret)
 

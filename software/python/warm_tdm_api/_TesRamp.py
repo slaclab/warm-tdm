@@ -28,6 +28,7 @@ class TesRampProcess(pr.Process):
 
         # TES Diagnostic Results
         self.add(pr.LocalVariable(name='TesDiagOutput',
+                                  hidden=True,
                                   value={},
                                   mode='RO',
                                   description="Results Data From Tes Diagnostic"))
