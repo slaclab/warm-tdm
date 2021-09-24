@@ -8,3 +8,6 @@ from warm_tdm_api._Sq1Diag import *
 from warm_tdm_api._Sq1Tune import *
 from warm_tdm_api._TesRamp import *
 from warm_tdm_api._Tuning import *
+
+import os.path
+pydmUi = os.path.dirname(__file__) + '/warm_tdm_gui.ui'

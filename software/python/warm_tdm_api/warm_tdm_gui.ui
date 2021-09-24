@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1133</width>
+    <height>949</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <widget class="PyDMTabWidget" name="PyDMTabWidget">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>0</y>
+      <width>1151</width>
+      <height>961</height>
+     </rect>
+    </property>
+    <property name="toolTip">
+     <string/>
+    </property>
+    <property name="whatsThis">
+     <string/>
+    </property>
+    <property name="currentIndex">
+     <number>3</number>
+    </property>
+    <property name="alarmChannels">
+     <stringlist>
+      <string></string>
+      <string></string>
+      <string></string>
+      <string></string>
+     </stringlist>
+    </property>
+    <widget class="QWidget" name="tab">
+     <attribute name="title">
+      <string>System Window</string>
+     </attribute>
+     <widget class="SystemWindow" name="SystemWindow">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>1131</width>
+        <height>891</height>
+       </rect>
+      </property>
+      <property name="toolTip">
+       <string/>
+      </property>
+      <property name="channel" stdset="0">
+       <string>rogue://0/root</string>
+      </property>
+     </widget>
+    </widget>
+    <widget class="QWidget" name="tab_2">
+     <attribute name="title">
+      <string>Control</string>
+     </attribute>
+    </widget>
+    <widget class="QWidget" name="tab_3">
+     <attribute name="title">
+      <string>Hardware Variables</string>
+     </attribute>
+     <widget class="VariableTree" name="VariableTree">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>1121</width>
+        <height>901</height>
+       </rect>
+      </property>
+      <property name="toolTip">
+       <string/>
+      </property>
+      <property name="channel" stdset="0">
+       <string>rogue://0/GroupRoot.Group.HardwareGroup</string>
+      </property>
+     </widget>
+    </widget>
+    <widget class="QWidget" name="tab_4">
+     <attribute name="title">
+      <string>Hardware Commands</string>
+     </attribute>
+     <widget class="CommandTree" name="CommandTree">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>1121</width>
+        <height>901</height>
+       </rect>
+      </property>
+      <property name="toolTip">
+       <string/>
+      </property>
+      <property name="channel" stdset="0">
+       <string>rogue://0/GroupRoot.Group.HardwareGroup</string>
+      </property>
+     </widget>
+    </widget>
+   </widget>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1133</width>
+     <height>21</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>VariableTree</class>
+   <extends>PyDMFrame</extends>
+   <header>pyrogue.pydm.widgets.variable_tree</header>
+  </customwidget>
+  <customwidget>
+   <class>CommandTree</class>
+   <extends>PyDMFrame</extends>
+   <header>pyrogue.pydm.widgets.command_tree</header>
+  </customwidget>
+  <customwidget>
+   <class>SystemWindow</class>
+   <extends>PyDMFrame</extends>
+   <header>pyrogue.pydm.widgets.system_window</header>
+  </customwidget>
+  <customwidget>
+   <class>PyDMTabWidget</class>
+   <extends>QTabWidget</extends>
+   <header>pydm.widgets.tab_bar</header>
+  </customwidget>
+  <customwidget>
+   <class>PyDMFrame</class>
+   <extends>QFrame</extends>
+   <header>pydm.widgets.frame</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>
