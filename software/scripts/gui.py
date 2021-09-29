@@ -64,6 +64,12 @@ parser.add_argument(
     type     = int,
     help     = "Number of column modules")
 
+parser.add_argument(
+    "--plots",
+    action = 'store_true',
+    default = False)
+    
+
 args = parser.parse_known_args()[0]
 print(args)
 
@@ -83,6 +89,7 @@ groups = [{
 kwargs = {}
 kwargs['simulation'] = args.sim
 kwargs['groups'] = groups
+kwargs['plots'] = args.plots
 
 print(kwargs)
 

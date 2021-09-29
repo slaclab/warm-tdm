@@ -18,10 +18,12 @@ class HardwareGroup(pyrogue.Device):
     
     def __init__(
             self,
+            groupId = 0,
             simulation=False,
             host='192.168.3.11',
             colBoards=4,
             rowBoards=2,
+            plots=False,
             **kwargs):
 
         super().__init__(**kwargs)
@@ -40,11 +42,11 @@ class HardwareGroup(pyrogue.Device):
             # Create streams to each board
             if simulation is True:
                 srpStream = rogue.interfaces.stream.TcpClient('localhost', SIM_SRP_PORT + (0x00 <<4 | index)*2)
-                dataStream = [rogue.interfaces.stream.TcpClient('localhost', SIM_DATA_PORT + (0x00 <<4 | index)*2)]
-                self.addInterface(srpStream, dataStream[0])            
+                dataStream = rogue.interfaces.stream.TcpClient('localhost', SIM_DATA_PORT + (0x00 <<4 | index)*2)
+                self.addInterface(srpStream, dataStream)            
             else:
                 srpStream = srpUdp.application(dest=index)
-                dataStream = [dataUdp.application(dest=x) for x in range(256)]
+                dataStream = dataUdp.application(dest=index)
 
 #                 srpLoopDest = srpUdp.application(dest = 0x10)
 #                 dataLoopDest = dataUdp.application(dest = 0x10)
@@ -77,10 +79,14 @@ class HardwareGroup(pyrogue.Device):
             self.add(warm_tdm.ColumnModule(name=f'ColumnBoard[{index}]', memBase=srp, expand=True))
 
             # Link the data stream to the DataWriter
-            for ds in dataStream:
-                debug = warm_tdm.StreamDebug()
-                ds >> debug
-                self.addInterface(debug)
+            dataWriterChannel = (groupId << 3) | index
+            dataStream >> self.root.DataWriter.getChannel(dataWriterChannel)
+            
+            #debug = warm_tdm.StreamDebug()
+            if plots:
+                plotter = warm_tdm.Scope()
+                dataStream >> plotter
+                self.addInterface(plotter)
 
         for rowIndex, boardIndex in enumerate(range(colBoards, colBoards+rowBoards)):
             # Create streams to each board
