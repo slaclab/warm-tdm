@@ -176,7 +176,7 @@ class Group(pr.Device):
                                  linkedGet=self._saOffsetGet,
                                  description=""))
 
-        deps = [self.HardwareGroup.ColumnBoard[m.board].DataPath.Ad9249Readout.AdcVoltage[m.channel]
+        deps = [self.HardwareGroup.ColumnBoard[m.board].DataPath.Ad9681Readout.AdcVoltage[m.channel]
                 for m in self._config.columnMap]
 
         # SA Out values, accessed with column index value
@@ -381,7 +381,7 @@ class Group(pr.Device):
             ret = np.ndarray((len(self._config.columnMap),),np.float)
 
             for idx, board, chan in self.__colGetLoopHelper(index):
-                ret[idx] = self.HardwareGroup.ColumnBoard[board].DataPath.Ad9249Readout.AdcVoltage[chan].get(read=read)
+                ret[idx] = self.HardwareGroup.ColumnBoard[board].DataPath.Ad9681Readout.AdcVoltage[chan].get(read=read)
 
             if index != -1:
                 return ret[index]
