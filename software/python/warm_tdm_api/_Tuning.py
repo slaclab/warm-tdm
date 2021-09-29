@@ -21,6 +21,8 @@ def saOffset(*, group, precision=1.0):
 
     control = group.SaOffset.get()
 
+    mult = np.array([1 if en else 0 for en in group._config.ColumnEnable],np.float32)
+
     while True:
 
         # Limit convergance to 1 minute
@@ -28,13 +30,14 @@ def saOffset(*, group, precision=1.0):
             raise Exception("saOffset PID loop failed to converge after 60 seconds")
 
         current = group.SaOut.get()
+        masked = current * mult
 
         # All channels have converged
-        if (max(current) < precision) and (min(current) > (-1.0*precision)):
+        if (max(masked) < precision) and (min(masked) > (-1.0*precision)):
             break
 
         for i, p in enumerate(pid):
-            control[i] = p(current[i])
+            control[i] = p(masked[i])
 
         group.SaOffset.set(control)
 
