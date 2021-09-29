@@ -17,10 +17,13 @@ class GroupRoot(pyrogue.Root):
 
         super().__init__(**kwargs)
 
-        self.add(warm_tdm_api.Group(groupConfig=groupConfig,
-                                    simulation=simulation,
-                                    emulate=emulate))
-
         # Add the data writer
         self.add(pyrogue.utilities.fileio.StreamWriter(name='DataWriter'))
         self >> self.DataWriter.getChannel(100)
+
+        self.add(warm_tdm_api.Group(groupConfig=groupConfig,
+                                    groupId=0,
+                                    dataWriter=self.DataWriter,
+                                    simulation=simulation,
+                                    emulate=emulate))
+

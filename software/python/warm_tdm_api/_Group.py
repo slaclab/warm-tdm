@@ -5,7 +5,7 @@ import numpy as np
 
 
 class Group(pr.Device):
-    def __init__(self, groupConfig, simulation=False, emulate=False, **kwargs):
+    def __init__(self, groupConfig, groupId, dataWriter, simulation=False, emulate=False, **kwargs):
         """
         Warm TDM Device
         Parameters
@@ -23,7 +23,15 @@ class Group(pr.Device):
         # Configuration
         self._config = groupConfig
 
-        self.add(warm_tdm.HardwareGroup(simulation=simulation, emulate=emulate, groups='Hardware', expand=True))
+        self.add(warm_tdm.HardwareGroup(groupId=groupId,
+                                        dataWriter=dataWriter,
+                                        simulation=simulation,
+                                        emulate=emulate,
+                                        host=groupConfig.host,
+                                        colBoards=groupConfig.columnBoards,
+                                        rowBoards=groupConfig.rowBoards,
+                                        groups=['Hardware'],
+                                        expand=True))
 
         # Row Map
         self.add(pr.LocalVariable(name='RowMap',
