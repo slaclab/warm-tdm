@@ -5,7 +5,7 @@ import numpy as np
 
 
 class Group(pr.Device):
-    def __init__(self, groupConfig, simulation=False, emulate=False, **kwargs):
+    def __init__(self, groupConfig, groupId, dataWriter, simulation=False, emulate=False, **kwargs):
         """
         Warm TDM Device
         Parameters
@@ -23,7 +23,15 @@ class Group(pr.Device):
         # Configuration
         self._config = groupConfig
 
-        self.add(warm_tdm.HardwareGroup(simulation=simulation, emulate=emulate, groups='Hardware', expand=True))
+        self.add(warm_tdm.HardwareGroup(groupId=groupId,
+                                        dataWriter=dataWriter,
+                                        simulation=simulation,
+                                        emulate=emulate,
+                                        host=groupConfig.host,
+                                        colBoards=groupConfig.columnBoards,
+                                        rowBoards=groupConfig.rowBoards,
+                                        groups=['Hardware'],
+                                        expand=True))
 
         # Row Map
         self.add(pr.LocalVariable(name='RowMap',
@@ -168,7 +176,7 @@ class Group(pr.Device):
                                  linkedGet=self._saOffsetGet,
                                  description=""))
 
-        deps = [self.HardwareGroup.ColumnBoard[m.board].DataPath.Ad9249Readout.AdcVoltage[m.channel]
+        deps = [self.HardwareGroup.ColumnBoard[m.board].DataPath.Ad9681Readout.AdcVoltage[m.channel]
                 for m in self._config.columnMap]
 
         # SA Out values, accessed with column index value
@@ -373,7 +381,7 @@ class Group(pr.Device):
             ret = np.ndarray((len(self._config.columnMap),),np.float)
 
             for idx, board, chan in self.__colGetLoopHelper(index):
-                ret[idx] = self.HardwareGroup.ColumnBoard[board].DataPath.Ad9249Readout.AdcVoltage[chan].get(read=read)
+                ret[idx] = self.HardwareGroup.ColumnBoard[board].DataPath.Ad9681Readout.AdcVoltage[chan].get(read=read)
 
             if index != -1:
                 return ret[index]
