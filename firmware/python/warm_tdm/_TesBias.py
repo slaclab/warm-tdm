@@ -3,7 +3,7 @@ import pyrogue as pr
 class TesBias(pr.Device):
     def __init__(self, dac, **kwargs):
         super().__init__(**kwargs)
-        
+
         self._dac = dac
 
         for i in range(8):
@@ -18,12 +18,12 @@ class TesBias(pr.Device):
         def _setChannel(value, write):
             #dacChannels = [self._dac.InpVoltage[channel], self._dac.InpVoltage[channel+8]]
             v1 = ((value * 1000) / .5)
-            
+
             if v1 > 0:
                 self._dac.setVoltages([i, i+8], [v1, 0])
             else:
                 self._dac.setVoltages([i, i+8], [0, v1])
-                
+
         return _setChannel
 
     def _getChannelFunc(self, channel):
@@ -34,4 +34,4 @@ class TesBias(pr.Device):
             iOut = (v1*.5) / 1000
             return iOut
         return _getChannel
-    
+

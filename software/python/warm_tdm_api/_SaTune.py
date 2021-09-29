@@ -1,6 +1,7 @@
 
 import pyrogue as pr
 import warm_tdm_api
+import numpy as np
 
 class SaTuneProcess(pr.Process):
 
@@ -45,12 +46,84 @@ class SaTuneProcess(pr.Process):
                                   mode='RW',
                                   description="Number of steps for SA Bias Tuning"))
 
+        # Select Channel
+        self.add(pr.LocalVariable(name='PlotColumn',
+                                  value=0,
+                                 hidden=True,
+                                  mode='RW',
+                                  description="Channel Number To Plot"))
+
         # SA Tuning Results
         self.add(pr.LocalVariable(name='SaTuneOutput',
                                   hidden=True,
-                                  value={},
+                                  value=[],
                                   mode='RO',
                                   description="Results Data From SA Tuning"))
+
+        self.add(pr.LinkVariable(name='SaFb',
+                                 mode='RO',
+                                 hidden=True,
+                                 dependencies=[self.PlotColumn,self.SaTuneOutput],
+                                 linkedGet=self._saFbGet,
+                                 description=""))
+
+        self.add(pr.LinkVariable(name='SaBias',
+                                 mode='RO',
+                                 hidden=True,
+                                 dependencies=[self.PlotColumn,self.SaTuneOutput],
+                                 linkedGet=self._saBiasGet,
+                                 description=""))
+
+        self.add(pr.LinkVariable(name='PlotXData',
+                                 mode='RO',
+                                 hidden=True,
+                                 dependencies=[self.PlotColumn,self.SaTuneOutput],
+                                 linkedGet=self._plotXGet,
+                                 description=""))
+
+        for i in range(10):
+            self.add(pr.LinkVariable(name=f'PlotYData[{i}]',
+                                     mode='RO',
+                                     hidden=True,
+                                     dependencies=[self.PlotColumn,self.SaTuneOutput],
+                                     linkedGet=lambda i=i: self._plotYGet(i),
+                                     description=""))
+
+    def _plotXGet(self):
+        with self.root.updateGroup():
+            col = self.PlotColumn.value()
+
+            if col >= len(self.SaTuneOutput.value()):
+                return np.array([0.0])
+            else:
+                return np.array(self.SaTuneOutput.value()[col].xValues_)
+
+    def _plotYGet(self,i):
+        with self.root.updateGroup():
+            col = self.PlotColumn.value()
+
+            if col >= len(self.SaTuneOutput.value()):
+                return np.array([0.0])
+            elif i >= len(self.SaTuneOutput.value()[col].curveList_):
+                return np.array([0.0] * len(self.SaTuneOutput.value()[col].xValues_))
+            else:
+                return np.array(self.SaTuneOutput.value()[col].curveList_[i].points_)
+
+    def _saFbGet(self):
+        with self.root.updateGroup():
+            col = self.PlotColumn.value()
+            if col >= len(self.SaTuneOutput.value()):
+                return 0.0
+            else:
+                return self.SaTuneOutput.value()[col].fbOut
+
+    def _saBiasGet(self):
+        with self.root.updateGroup():
+            col = self.PlotColumn.value()
+            if col >= len(self.SaTuneOutput.value()):
+                return 0.0
+            else:
+                return self.SaTuneOutput.value()[col].biasOut
 
     def _saTuneWrap(self):
         with self.root.updateGroup(0.25):
