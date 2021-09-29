@@ -18,7 +18,8 @@ class HardwareGroup(pyrogue.Device):
 
     def __init__(
             self,
-            groupId = 0,
+            groupId,
+            dataWriter,
             simulation=False,
             emulate=False,
             host='192.168.3.11',
@@ -40,55 +41,55 @@ class HardwareGroup(pyrogue.Device):
 
         # Instantiate and link each board in the Group
         for index in range(colBoards):
-            # Create streams to each board
-            if simulation is True:
+
+            if emulate is True:
+                srp =  pyrogue.interfaces.simulation.MemEmulate()
+
+            elif simulation is True:
                 srpStream = rogue.interfaces.stream.TcpClient('localhost', SIM_SRP_PORT + (0x00 <<4 | index)*2)
                 dataStream = rogue.interfaces.stream.TcpClient('localhost', SIM_DATA_PORT + (0x00 <<4 | index)*2)
                 self.addInterface(srpStream, dataStream)            
+                srp = rogue.protocols.srp.SrpV3()
+                srp == srpStream
+
             else:
                 srpStream = srpUdp.application(dest=index)
                 dataStream = dataUdp.application(dest=index)
-
-
-#   
-            # Create SRP and link to SRP stream
-            if emulate is False:
-                srp = rogue.protocols.srp.SrpV3() #board['name'])
+                srp = rogue.protocols.srp.SrpV3()
                 srp == srpStream
-            else:
-                srp = pyrogue.interfaces.simulation.MemEmulate()
 
             # Instantiate the board Device tree and link it to the SRP
             self.add(warm_tdm.ColumnModule(name=f'ColumnBoard[{index}]', memBase=srp, expand=True))
 
             # Link the data stream to the DataWriter
-            dataWriterChannel = (groupId << 3) | index
-            dataStream >> self.root.DataWriter.getChannel(dataWriterChannel)
+            if emulate is False:
+                dataWriterChannel = (groupId << 3) | index
+                dataStream >> dataWriter.getChannel(dataWriterChannel)
             
-            #debug = warm_tdm.StreamDebug()
-            if plots:
-                plotter = warm_tdm.Scope()
-                dataStream >> plotter
-                self.addInterface(plotter)
+                #debug = warm_tdm.StreamDebug()
+                if plots:
+                    plotter = warm_tdm.Scope()
+                    dataStream >> plotter
+                    self.addInterface(plotter)
 
         for rowIndex, boardIndex in enumerate(range(colBoards, colBoards+rowBoards)):
             # Create streams to each board
-            if simulation is True:
-                srpStream = rogue.interfaces.stream.TcpClient('localhost', SIM_SRP_PORT + (0x00 <<4 | boardIndex)*2)
-                dataStream = rogue.interfaces.stream.TcpClient('localhost', SIM_DATA_PORT + (0x00 <<4 | boardIndex)*2)
-                self.addInterface(srpStream, dataStream)
-            elif emulate is False:
-                srpStream = srpUdp.application(dest=boardIndex)
-                dataStream = dataUdp.application(dest=boardIndex)
-
-
-            # Create SRP and link to SRP stream
-            if emulate is False:
-                srp = rogue.protocols.srp.SrpV3() #board['name'])
-                srp == srpStream
-            else:
+            if emulate is True:
                 srp = pyrogue.interfaces.simulation.MemEmulate()
 
+            elif simulation is True:
+                srpStream = rogue.interfaces.stream.TcpClient('localhost', SIM_SRP_PORT + (0x00 <<4 | boardIndex)*2)
+                dataStream = rogue.interfaces.stream.TcpClient('localhost', SIM_DATA_PORT + (0x00 <<4 | boardIndex)*2)
+                self.addInterface(srpStream, dataStream)            
+                srp = rogue.protocols.srp.SrpV3()
+                srp == srpStream
+
+            else:
+                srpStream = srpUdp.application(dest=boardIndex)
+                dataStream = dataUdp.application(dest=boardIndex)
+                srp = rogue.protocols.srp.SrpV3()
+                srp == srpStream
+            
             # Instantiate the board Device tree and link it to the SRP
             self.add(warm_tdm.RowModule(name=f'RowBoard[{rowIndex}]', memBase=srp, expand=True))
 

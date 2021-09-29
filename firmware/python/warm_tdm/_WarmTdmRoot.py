@@ -104,7 +104,7 @@ class WarmTdmRoot(pyrogue.Root):
         self >> self.DataWriter.getChannel(len(groups))
 
         for i, s in enumerate(groups):
-            self.add(warm_tdm.HardwareGroup(groupId=i, simulation=simulation, expand=True, plots=plots, **s))
+            self.add(warm_tdm.HardwareGroup(groupId=i, dataWriter=self.DataWriter, simulation=simulation, expand=True, plots=plots, **s))
 
 
 

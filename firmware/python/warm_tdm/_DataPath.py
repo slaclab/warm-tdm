@@ -13,6 +13,7 @@ class DataPath(pr.Device):
 
         self.add(surf.devices.analog_devices.Ad9681Readout(
             enabled = True,
+            name = 'Ad9681Readout',
             offset = 0x00000000))
 
         for i in range(8):

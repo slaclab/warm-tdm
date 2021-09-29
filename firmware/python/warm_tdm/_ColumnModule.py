@@ -47,5 +47,5 @@ class ColumnModule(pr.Device):
             offset = 0xC0600000))
             
         self.add(surf.devices.analog_devices.Ad9681Config(
-            enabled = False,
+            enabled = True,
             offset = 0xC0200000))
