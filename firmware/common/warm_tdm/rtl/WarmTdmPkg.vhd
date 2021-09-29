@@ -35,7 +35,7 @@ package WarmTdmPkg is
 
    constant APP_BASE_ADDR_C : slv(31 downto 0) := X"C0000000";
 
-   constant DATA_AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 8, tDestBits => 8);
+   constant DATA_AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 8, tDestBits => 8, tUserBits => 8);
 
 end package;
 

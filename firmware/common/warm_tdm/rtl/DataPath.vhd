@@ -17,7 +17,9 @@
 -------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
+use ieee.std_logic_arith.all;
+use ieee.std_logic_unsigned.all;
+
 
 library unisim;
 use unisim.vcomponents.all;
@@ -75,16 +77,19 @@ architecture rtl of DataPath is
       dataBytes => 16,
       tKeepMode => TKEEP_FIXED_C,
       tUserMode => TUSER_FIRST_LAST_C,
+      tUserBits => 8,
       tDestBits => 8);
 
    type RegType is record
-      doRawAdc     : sl;
-      rawAdcMaster : AxiStreamMasterType;
+      doRawAdc           : sl;
+      invertedAdcStreams : AxiStreamMasterArray(7 downto 0);
+      rawAdcMaster       : AxiStreamMasterType;
    end record RegType;
 
    constant REG_INIT_C : RegType := (
-      doRawAdc     => '0',
-      rawAdcMaster => axiStreamMasterInit(INT_AXIS_CONFIG_C));
+      doRawAdc           => '0',
+      invertedAdcStreams => (others => axiStreamMasterInit(AD9681_AXIS_CFG_G)),
+      rawAdcMaster       => axiStreamMasterInit(INT_AXIS_CONFIG_C));
 
    signal r   : RegType := REG_INIT_C;
    signal rin : RegType;
@@ -93,7 +98,6 @@ architecture rtl of DataPath is
 
    constant FILTER_COEFFICIENTS_C : IntegerArray(0 to 20)            := (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21);
    signal adcStreams              : AxiStreamMasterArray(7 downto 0) := (others => axiStreamMasterInit(AD9681_AXIS_CFG_G));
-   signal filteredAdcStreams      : AxiStreamMasterArray(7 downto 0) := (others => axiStreamMasterInit(AD9681_AXIS_CFG_G));
 
    signal fifoAxisSlave : AxiStreamSlaveType;
 
@@ -187,7 +191,7 @@ begin
             timingRxClk125  => timingRxClk125,            -- [in]
             timingRxRst125  => timingRxRst125,            -- [in]
             timingRxData    => timingRxData,              -- [in]
-            adcAxisMaster   => adcStreams(i),             -- [in]
+            adcAxisMaster   => r.invertedAdcStreams(i),   -- [in]
             axilClk         => axilClk,                   -- [in]
             axilRst         => axilRst,                   -- [in]
             axilReadMaster  => locAxilReadMasters(i+1),   -- [in]
@@ -203,6 +207,12 @@ begin
    begin
       v := r;
 
+      v.invertedAdcStreams := adcStreams;
+      for i in 7 downto 0 loop
+         v.invertedAdcStreams(i).tData(15 downto 0) := not(adcStreams(i).tData(15 downto 0)) + 1;
+      end loop;
+
+
       v.rawAdcMaster.tDest := "00001000";
 
       if (timingRxData.rawAdc = '1') then
@@ -212,7 +222,7 @@ begin
 
       if (r.doRawAdc = '1') then
          for i in 7 downto 0 loop
-            v.rawAdcMaster.tData(i*16+15 downto i*16) := adcStreams(i).tData(15 downto 0);
+            v.rawAdcMaster.tData(i*16+15 downto i*16) := r.invertedAdcStreams(i).tData(15 downto 0);
          end loop;
          v.rawAdcMaster.tValid := '1';
 
@@ -254,8 +264,8 @@ begin
          VALID_THOLD_G       => 0,
          SLAVE_READY_EN_G    => false,
          GEN_SYNC_FIFO_G     => false,
-         FIFO_ADDR_WIDTH_G   => 11,
-         FIFO_PAUSE_THRESH_G => 2**11-8,
+         FIFO_ADDR_WIDTH_G   => 14,
+         FIFO_PAUSE_THRESH_G => 2**14-8,
 --           SYNTH_MODE_G           => SYNTH_MODE_G,
 --           MEMORY_TYPE_G          => MEMORY_TYPE_G,
 --           INT_WIDTH_SELECT_G     => INT_WIDTH_SELECT_G,

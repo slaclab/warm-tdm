@@ -34,11 +34,13 @@ class Ad5679R(pr.Device):
                 bitSize = 16,
                 bitOffset = 0,
                 base = pr.UInt,
-                hidden = True))
+                hidden = False))
 
             self.add(pr.LinkVariable(
                 name = f'InpVoltage[{i}]',
                 mode = 'RW',
+                disp = '{:1.3f}',
+                units = 'V',
                 dependencies = [self.Inp[i]],
                 linkedSet = self._setVoltageFunc(self.Inp[i]),
                 linkedGet = self._getVoltageFunc(self.Inp[i])))
@@ -55,6 +57,8 @@ class Ad5679R(pr.Device):
             self.add(pr.LinkVariable(
                 name = f'DacVoltage[{i}]',
                 mode = 'RW',
+                disp = '{:1.3f}',
+                units = 'V',
                 dependencies = [self.Dac[i]],
                 linkedSet = self._setVoltageFunc(self.Dac[i]),
                 linkedGet = self._getVoltageFunc(self.Dac[i])))
@@ -92,4 +96,10 @@ class Ad5679R(pr.Device):
         for ch in channels:
             value |= 2**ch
         self.DacUpdate(value)
+
+        # For display only
+        for ch, v in zip(channels, voltages):
+            self.DacVoltage[ch].set(v, write=True)
+        
+
 

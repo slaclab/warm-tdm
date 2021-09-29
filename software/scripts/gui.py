@@ -18,10 +18,16 @@ import warm_tdm
 
 #rogue.Logging.setFilter('pyrogue.batcher', rogue.Logging.Debug)
 #rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
-rogue.Logging.setFilter('pyrogue.rssi.Application', rogue.Logging.Debug)
-rogue.Logging.setFilter('pyrogue.udp.Server', rogue.Logging.Debug)
-rogue.Logging.setFilter('pyrogue.udp.Client', rogue.Logging.Debug)
-rogue.Logging.setFilter('pyrogue.packetizer.Application', rogue.Logging.Debug)
+# rogue.Logging.setLevel(rogue.Logging.Warning)
+# rogue.Logging.setLevel(rogue.Logging.Debug)
+# rogue.Logging.setFilter("pyrogue.rssi",rogue.Logging.Info)
+# rogue.Logging.setFilter("pyrogue.packetizer",rogue.Logging.Info)
+# rogue.Logging.setLevel(rogue.Logging.Debug)
+
+#rogue.Logging.setFilter('pyrogue.rssi', rogue.Logging.Debug)
+#rogue.Logging.setFilter('pyrogue.udp', rogue.Logging.Debug)
+#rogue.Logging.setFilter('pyrogue.udp', rogue.Logging.Debug)
+#rogue.Logging.setFilter('pyrogue.packetizer', rogue.Logging.Debug)
 
 #rogue.Logging.setFilter('pyrogue.stream.TcpCore.localhost.Client.10000', rogue.Logging.Debug)
 #rogue.Logging.setFilter('pyrogue.stream.TcpCore.localhost.Client.10002', rogue.Logging.Debug)
@@ -58,6 +64,12 @@ parser.add_argument(
     type     = int,
     help     = "Number of column modules")
 
+parser.add_argument(
+    "--plots",
+    action = 'store_true',
+    default = False)
+    
+
 args = parser.parse_known_args()[0]
 print(args)
 
@@ -77,6 +89,7 @@ groups = [{
 kwargs = {}
 kwargs['simulation'] = args.sim
 kwargs['groups'] = groups
+kwargs['plots'] = args.plots
 
 print(kwargs)
 
