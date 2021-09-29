@@ -24,7 +24,7 @@ class ColumnModule(pr.Device):
 
         self.add(warm_tdm.SaBiasOffset(
             dac = self.SaBiasDac))
-        
+
         self.add(warm_tdm.Ad5679R(
             name = 'TesBiasDac',
             hidden = False,
@@ -32,20 +32,31 @@ class ColumnModule(pr.Device):
 
         self.add(warm_tdm.TesBias(
             dac = self.TesBiasDac))
-        
+
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Bais',
             offset = 0xC0400000))
-            
+
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Fb',
             offset =0xC0500000))
-        
+
         self.add(warm_tdm.FastDacDriver(
             name = 'SAFb',
             offset = 0xC0600000))
-            
+
         self.add(surf.devices.analog_devices.Ad9681Config(
             enabled = True,
             offset = 0xC0200000))
+
+    def hardReset(self):
+        self.Ad9681Config.enable.set(True)
+        self.Ad9681Config.ReadDevice()
+        self.Ad9681Config.InternalPdwnMode.setDisp('Full Power Down')
+        self.Ad9681Config.InternalPdwnMode.setDisp('Chip Run')
+        self.Ad9681Config.InternalPdwnMode.setDisp('Digital Reset')
+        self.Ad9681Config.InternalPdwnMode.setDisp('Chip Run')
+
+        self.SaBiasDac.ZeroVoltages()
+        self.TesBiasDac.ZeroVoltages()
