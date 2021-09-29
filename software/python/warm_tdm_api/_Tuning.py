@@ -21,7 +21,7 @@ def saOffset(*, group, precision=1.0):
 
     control = group.SaOffset.get()
 
-    mult = np.array([1 if en else 0 for en in group._config.ColumnEnable],np.float32)
+    mult = np.array([1 if en else 0 for en in group._config.columnEnable],np.float32)
 
     while True:
 
