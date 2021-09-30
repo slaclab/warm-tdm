@@ -121,18 +121,16 @@ class SaTuneProcess(pr.Process):
             if col >= len(self.SaTuneOutput.value()):
                 return np.array([0.0])
             else:
-                return np.array(self.SaTuneOutput.value()[col]['xValues'])
+                return self.SaTuneOutput.value()[col]['xValues']
 
     def _plotYGet(self,i):
         with self.root.updateGroup():
             col = self.PlotColumn.value()
 
-            if col >= len(self.SaTuneOutput.value()):
+            if col >= len(self.SaTuneOutput.value()) or i >= len(self.SaTuneOutput.value()[col]['curves']):
                 return np.array([0.0])
-            elif i >= len(self.SaTuneOutput.value()[col]['curves']):
-                return np.array([0.0] * len(self.SaTuneOutput.value()[col]['xValues']))
             else:
-                return np.array(self.SaTuneOutput.value()[col]['curves'][i])
+                return self.SaTuneOutput.value()[col]['curves'][i]
 
     def _saFbGet(self):
         with self.root.updateGroup():
@@ -165,7 +163,4 @@ class SaTuneProcess(pr.Process):
 
     def _saveData(self,arg):
         if arg != '':
-            with open(arg,'w') as f:
-                f.write(pr.dataToYaml(self.SaTuneOutput.value()))
-
-
+            np.save(arg,self.SaTuneOutput.value())

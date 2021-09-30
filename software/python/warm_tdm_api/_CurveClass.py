@@ -57,9 +57,9 @@ class CurveData():
         self.xValues_.append(fb)
 
     def asDict(self):
-        return {'xValues':self.xValues_,
-                'biasValues':[c.bias_ for c in self.curveList_],
-                'curves':[c.points_ for c in self.curveList_],
+        return {'xValues':np.array(self.xValues_,np.float32),
+                'biasValues':np.array([c.bias_ for c in self.curveList_],np.float32),
+                'curves':[np.array(c.points_,np.float32) for c in self.curveList_],
                 'biasOut':self.biasOut,
                 'fbOut':self.fbOut,
                 'offsetOut':self.offsetOut}
@@ -68,7 +68,7 @@ class CurveData():
         return str(self.asDict())
 
 class Curve():
-#plotting offset as a function of FB, with each curve being a different bias
+    #plotting offset as a function of FB, with each curve being a different bias
     def __init__(self,bias,points = []):
         self.bias_ = bias
         self.points_ = points[:]
