@@ -5,7 +5,8 @@ import numpy as np
 
 class SaTuneProcess(pr.Process):
 
-    def __init__(self, **kwargs):
+    def __init__(self, *, config, maxBiasSteps=10, **kwargs):
+        self._maxBiasSteps=maxBiasSteps
 
         # Init master class
         pr.Process.__init__(self, function=self._saTuneWrap, **kwargs)
@@ -24,6 +25,8 @@ class SaTuneProcess(pr.Process):
 
         # Step size for SA FB Tuning
         self.add(pr.LocalVariable(name='SaFbNumSteps',
+                                  minimum=1,
+                                  maximum=1000,
                                   value=10,
                                   mode='RW',
                                   description="Number of steps for SA FB Tuning"))
@@ -42,36 +45,53 @@ class SaTuneProcess(pr.Process):
 
         # Step size for SA Bias Tuning
         self.add(pr.LocalVariable(name='SaBiasNumSteps',
+                                  minimum=1,
+                                  maximum=self._maxBiasSteps,
                                   value=10,
                                   mode='RW',
                                   description="Number of steps for SA Bias Tuning"))
 
+        # Set values after finish
+        self.add(pr.LocalVariable(name='SetAfterFinish',
+                                  value=False,
+                                  mode='RW',
+                                  description="Set the values after finish"))
+
         # Select Channel
         self.add(pr.LocalVariable(name='PlotColumn',
                                   value=0,
-                                 hidden=True,
+                                  minimum=0,
+                                  maximum=len(config.columnMap)-1,
+                                  hidden=True,
                                   mode='RW',
                                   description="Channel Number To Plot"))
 
         # SA Tuning Results
         self.add(pr.LocalVariable(name='SaTuneOutput',
                                   hidden=True,
-                                  value=[],
+                                  value={},
                                   mode='RO',
                                   description="Results Data From SA Tuning"))
 
-        self.add(pr.LinkVariable(name='SaFb',
+        self.add(pr.LinkVariable(name='FittedSaFb',
                                  mode='RO',
                                  hidden=True,
                                  dependencies=[self.PlotColumn,self.SaTuneOutput],
                                  linkedGet=self._saFbGet,
                                  description=""))
 
-        self.add(pr.LinkVariable(name='SaBias',
+        self.add(pr.LinkVariable(name='FittedSaBias',
                                  mode='RO',
                                  hidden=True,
                                  dependencies=[self.PlotColumn,self.SaTuneOutput],
                                  linkedGet=self._saBiasGet,
+                                 description=""))
+
+        self.add(pr.LinkVariable(name='FittedSaOffset',
+                                 mode='RO',
+                                 hidden=True,
+                                 dependencies=[self.PlotColumn,self.SaTuneOutput],
+                                 linkedGet=self._saOffsetGet,
                                  description=""))
 
         self.add(pr.LinkVariable(name='PlotXData',
@@ -81,13 +101,18 @@ class SaTuneProcess(pr.Process):
                                  linkedGet=self._plotXGet,
                                  description=""))
 
-        for i in range(10):
+        for i in range(self._maxBiasSteps):
             self.add(pr.LinkVariable(name=f'PlotYData[{i}]',
                                      mode='RO',
                                      hidden=True,
                                      dependencies=[self.PlotColumn,self.SaTuneOutput],
                                      linkedGet=lambda i=i: self._plotYGet(i),
                                      description=""))
+
+        self.add(pr.LocalCommand(name='SavePlotData',
+                                 value='',
+                                 function=self._saveData,
+                                 description=""))
 
     def _plotXGet(self):
         with self.root.updateGroup():
@@ -96,7 +121,7 @@ class SaTuneProcess(pr.Process):
             if col >= len(self.SaTuneOutput.value()):
                 return np.array([0.0])
             else:
-                return np.array(self.SaTuneOutput.value()[col].xValues_)
+                return np.array(self.SaTuneOutput.value()[col]['xValues'])
 
     def _plotYGet(self,i):
         with self.root.updateGroup():
@@ -104,10 +129,10 @@ class SaTuneProcess(pr.Process):
 
             if col >= len(self.SaTuneOutput.value()):
                 return np.array([0.0])
-            elif i >= len(self.SaTuneOutput.value()[col].curveList_):
-                return np.array([0.0] * len(self.SaTuneOutput.value()[col].xValues_))
+            elif i >= len(self.SaTuneOutput.value()[col]['curves']):
+                return np.array([0.0] * len(self.SaTuneOutput.value()[col]['xValues']))
             else:
-                return np.array(self.SaTuneOutput.value()[col].curveList_[i].points_)
+                return np.array(self.SaTuneOutput.value()[col]['curves'][i])
 
     def _saFbGet(self):
         with self.root.updateGroup():
@@ -115,7 +140,7 @@ class SaTuneProcess(pr.Process):
             if col >= len(self.SaTuneOutput.value()):
                 return 0.0
             else:
-                return self.SaTuneOutput.value()[col].fbOut
+                return self.SaTuneOutput.value()[col]['fbOut']
 
     def _saBiasGet(self):
         with self.root.updateGroup():
@@ -123,10 +148,24 @@ class SaTuneProcess(pr.Process):
             if col >= len(self.SaTuneOutput.value()):
                 return 0.0
             else:
-                return self.SaTuneOutput.value()[col].biasOut
+                return self.SaTuneOutput.value()[col]['biasOut']
+
+    def _saOffsetGet(self):
+        with self.root.updateGroup():
+            col = self.PlotColumn.value()
+            if col >= len(self.SaTuneOutput.value()):
+                return 0.0
+            else:
+                return self.SaTuneOutput.value()[col]['offsetOut']
 
     def _saTuneWrap(self):
         with self.root.updateGroup(0.25):
-            ret = warm_tdm_api.saTune(group=self.parent,process=self)
-            self.SaTuneOutput.set(value=ret)
+            ret = warm_tdm_api.saTune(group=self.parent,process=self,doSet=self.SetAfterFinish.value())
+            self.SaTuneOutput.set(value=[r.asDict() for r in ret])
+
+    def _saveData(self,arg):
+        if arg != '':
+            with open(arg,'w') as f:
+                f.write(pr.dataToYaml(self.SaTuneOutput.value()))
+
 

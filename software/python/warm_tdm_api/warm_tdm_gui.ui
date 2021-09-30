@@ -23,7 +23,7 @@
       <string/>
      </property>
      <property name="currentIndex">
-      <number>0</number>
+      <number>2</number>
      </property>
      <property name="alarmChannels">
       <stringlist>
@@ -638,17 +638,7 @@
             <string/>
            </property>
            <property name="channel" stdset="0">
-            <string>rogue://0/GroupRoot.Group.SaTuneProcess.SaFb/name</string>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="0">
-          <widget class="PyDMLabel" name="PyDMLabel_23">
-           <property name="toolTip">
-            <string/>
-           </property>
-           <property name="channel" stdset="0">
-            <string>rogue://0/GroupRoot.Group.SaTuneProcess.SaBias/name</string>
+            <string>rogue://0/GroupRoot.Group.SaTuneProcess.FittedSaFb/name</string>
            </property>
           </widget>
          </item>
@@ -658,7 +648,17 @@
             <string/>
            </property>
            <property name="channel" stdset="0">
-            <string>rogue://0/GroupRoot.Group.SaTuneProcess.SaFb/disp</string>
+            <string>rogue://0/GroupRoot.Group.SaTuneProcess.FittedSaFb/disp</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="PyDMLabel" name="PyDMLabel_23">
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="channel" stdset="0">
+            <string>rogue://0/GroupRoot.Group.SaTuneProcess.FittedSaBias/name</string>
            </property>
           </widget>
          </item>
@@ -668,7 +668,27 @@
             <string/>
            </property>
            <property name="channel" stdset="0">
-            <string>rogue://0/GroupRoot.Group.SaTuneProcess.SaBias/disp</string>
+            <string>rogue://0/GroupRoot.Group.SaTuneProcess.FittedSaBias/disp</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="0">
+          <widget class="PyDMLabel" name="PyDMLabel_24">
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="channel" stdset="0">
+            <string>rogue://0/GroupRoot.Group.SaTuneProcess.FittedSaOffset/name</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1">
+          <widget class="PyRogueLineEdit" name="PyRogueLineEdit_12">
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="channel" stdset="0">
+            <string>rogue://0/GroupRoot.Group.SaTuneProcess.FittedSaOffset/disp</string>
            </property>
           </widget>
          </item>

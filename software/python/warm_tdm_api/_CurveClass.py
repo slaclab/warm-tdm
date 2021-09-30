@@ -57,10 +57,12 @@ class CurveData():
         self.xValues_.append(fb)
 
     def asDict(self):
-        curvedict = {}
-        for curve in self.curveList_:
-            curvedict[curve.bias_] = curve.points_[:]
-        return {'xValues':self.xValues_, 'curves':curvedict}
+        return {'xValues':self.xValues_,
+                'biasValues':[c.bias_ for c in self.curveList_],
+                'curves':[c.points_ for c in self.curveList_],
+                'biasOut':self.biasOut,
+                'fbOut':self.fbOut,
+                'offsetOut':self.offsetOut}
 
     def __repr__(self):
         return str(self.asDict())

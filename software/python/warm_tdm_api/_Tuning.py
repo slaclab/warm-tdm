@@ -125,7 +125,7 @@ def saFluxBias(*,group,process):
 
     return datalist
 
-def saTune(*,group,process=None):
+def saTune(*,group,process=None, doSet=True):
     """
     Initializes group, runs saFluxBias and collects and sets SaFb, SaOffset, and SaBias
     Returns a list of CurveData objects
@@ -146,12 +146,13 @@ def saTune(*,group,process=None):
     group.RowForceEn.set(True)
     saFluxBiasResults = saFluxBias(group=group,process=process)
 
-    for col in range(len(group.ColumnMap.get())):
-        for row in range(len(group.RowMap.get())):
-            group.SaFb.set(index=(col,row),value=saFluxBiasResults[col].fbOut)
-        group.SaOffset.set(index=col,value=saFluxBiasResults[col].offsetOut)
-        group.SaBias.set(index=col,value=saFluxBiasResults[col].biasOut)
-    group.RowForceEn.set(False)
+    if doSet:
+        for col in range(len(group.ColumnMap.get())):
+            for row in range(len(group.RowMap.get())):
+                group.SaFb.set(index=(col,row),value=saFluxBiasResults[col].fbOut)
+            group.SaOffset.set(index=col,value=saFluxBiasResults[col].offsetOut)
+            group.SaBias.set(index=col,value=saFluxBiasResults[col].biasOut)
+        group.RowForceEn.set(False)
     return saFluxBiasResults
 
 
