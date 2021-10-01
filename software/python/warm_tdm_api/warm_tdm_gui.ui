@@ -51,7 +51,7 @@
        <item>
         <widget class="QGroupBox" name="groupBox_2">
          <property name="title">
-          <string>Generic Configuration</string>
+          <string>General Configuration</string>
          </property>
          <layout class="QHBoxLayout" name="horizontalLayout_3">
           <item>
