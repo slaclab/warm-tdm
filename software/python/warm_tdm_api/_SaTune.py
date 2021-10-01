@@ -11,6 +11,11 @@ class SaTuneProcess(pr.Process):
         # Init master class
         pr.Process.__init__(self, function=self._saTuneWrap, **kwargs)
 
+        self.add(pr.LocalVariable(name='TestString',
+                                  value='',
+                                  mode='RW',
+                                  description=""))
+
         # Low offset for SA FB Tuning
         self.add(pr.LocalVariable(name='SaFbLowOffset',
                                   value=0.0,
@@ -162,5 +167,6 @@ class SaTuneProcess(pr.Process):
             self.SaTuneOutput.set(value=[r.asDict() for r in ret])
 
     def _saveData(self,arg):
+        print(f"Save data called with {arg}")
         if arg != '':
             np.save(arg,self.SaTuneOutput.value())

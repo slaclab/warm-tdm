@@ -23,11 +23,10 @@
       <string/>
      </property>
      <property name="currentIndex">
-      <number>2</number>
+      <number>3</number>
      </property>
      <property name="alarmChannels">
       <stringlist>
-       <string></string>
        <string></string>
        <string></string>
        <string></string>
@@ -698,28 +697,11 @@
      </widget>
      <widget class="QWidget" name="tab_5">
       <attribute name="title">
-       <string>Debug Variables</string>
+       <string>Debug Tree</string>
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout_6">
        <item>
-        <widget class="VariableTree" name="VariableTree_2">
-         <property name="toolTip">
-          <string/>
-         </property>
-         <property name="channel" stdset="0">
-          <string>rogue://0/root</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
-     <widget class="QWidget" name="tab_7">
-      <attribute name="title">
-       <string>Debug Commands</string>
-      </attribute>
-      <layout class="QVBoxLayout" name="verticalLayout_8">
-       <item>
-        <widget class="CommandTree" name="CommandTree_2">
+        <widget class="DebugTree" name="DebugTree_2">
          <property name="toolTip">
           <string/>
          </property>
@@ -735,16 +717,6 @@
   </layout>
  </widget>
  <customwidgets>
-  <customwidget>
-   <class>VariableTree</class>
-   <extends>PyDMFrame</extends>
-   <header>pyrogue.pydm.widgets.variable_tree</header>
-  </customwidget>
-  <customwidget>
-   <class>CommandTree</class>
-   <extends>PyDMFrame</extends>
-   <header>pyrogue.pydm.widgets.command_tree</header>
-  </customwidget>
   <customwidget>
    <class>SystemWindow</class>
    <extends>PyDMFrame</extends>
@@ -800,6 +772,12 @@
    <class>PyDMSpinbox</class>
    <extends>QDoubleSpinBox</extends>
    <header>pydm.widgets.spinbox</header>
+  </customwidget>
+  <customwidget>
+   <class>DebugTree</class>
+   <extends>PyDMFrame</extends>
+   <header>pyrogue.pydm.widgets.debug_tree</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
  <resources/>
