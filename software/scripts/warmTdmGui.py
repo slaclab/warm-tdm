@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import argparse
 
 import pyrogue
 import pyrogue.pydm
@@ -12,10 +13,42 @@ import warm_tdm_api
 
 from warm_tdm_api import PhysicalMap as pm
 
+parser = argparse.ArgumentParser()
+
+parser.add_argument(
+    "--sim",
+    action = 'store_true',
+    default = False)
+
+parser.add_argument(
+    "--ip",
+    type     = str,
+    required = False,
+    default = '192.168.3.12',
+    help     = "IP address")
+
+parser.add_argument(
+    "--rows",
+    type     = int,
+    help     = "Number of row modules")
+
+parser.add_argument(
+    "--cols",
+    type     = int,
+    help     = "Number of column modules")
+
+args = parser.parse_known_args()[0]
+print(args)
+
+groups = [{
+    'host': args.ip,
+    'colBoards': args.cols,
+    'rowBoards': args.rows}]
+
 # Setup configuration
-columnBoards = 4
+columnBoards = groups[0]['colBoards']
 columnChannels = 8
-rowBoards = 2
+rowBoards = groups[0]['rowBoards']
 rowChannels = 32
 
 columnMap = [pm(i,j) for j in range(columnChannels) for i in range(columnBoards)]
@@ -25,13 +58,13 @@ config = warm_tdm_api.GroupConfig(columnMap=columnMap,
                                   columnEnable=[True] * len(columnMap),
                                   rowMap=rowMap,
                                   rowOrder=[i for i in range(len(rowMap))],
-                                  host='192.168.3.11',
+                                  host=groups[0]['host'],
                                   columnBoards=columnBoards,
                                   rowBoards=rowBoards)
 
 #print(config)
 
-with warm_tdm_api.GroupRoot(groupConfig=config, emulate=True) as root:
+with warm_tdm_api.GroupRoot(groupConfig=config, emulate=False) as root:
 
     pyrogue.pydm.runPyDM(root=root,title='Warm TDM',sizeX=1000,sizeY=800,ui=warm_tdm_api.pydmUi)
 
