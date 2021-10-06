@@ -255,6 +255,12 @@ begin
          axilReadMaster  => srpAxilReadMaster,   -- [out]
          axilReadSlave   => srpAxilReadSlave,    -- [in]
          timingRxClk125  => timingRxClk125,      -- [out]
+         axisClk          => axisClk,             -- [out]
+         axisRst          => axisRst,             -- [out]
+         dataTxAxisMaster => dataTxAxisMaster,    -- [in]
+         dataTxAxisSlave  => dataTxAxisSlave,     -- [out]
+         dataRxAxisMaster => dataRxAxisMaster,    -- [out]
+         dataRxAxisSlave  => dataRxAxisSlave,     -- [in]         
          timingRxRst125  => timingRxRst125,      -- [out]
          timingRxData    => timingRxData);       -- [out]
 
@@ -320,14 +326,14 @@ begin
          TPD_G                     => TPD_G,
          STATUS_CNT_WIDTH_G        => 32,
          SLAVE_READY_EN_G          => true,
-         GEN_SYNC_FIFO_G           => true,
+         GEN_SYNC_FIFO_G           => false,  -- really axil and axis clock are the same
          SYNTH_MODE_G              => "inferred",
 --          MEMORY_TYPE_G             => MEMORY_TYPE_G,
          SLAVE_AXI_STREAM_CONFIG_G => AXIS_CONFIG_C,
          SLAVE_AXI_PIPE_STAGES_G   => 1)
       port map (
-         sAxisClk       => axilClk,                              -- [in]
-         sAxisRst       => axilRst,                              -- [in]
+         sAxisClk       => axisClk,                              -- [in]
+         sAxisRst       => axisRst,                              -- [in]
          sAxisMaster    => dataRxAxisMaster,                     -- [in]
          sAxisSlave     => dataRxAxisSlave,                      -- [out]
          axiClk         => axilClk,                              -- [in]
@@ -341,13 +347,13 @@ begin
       generic map (
          TPD_G                      => TPD_G,
 --          MEMORY_TYPE_G              => MEMORY_TYPE_G,
-         GEN_SYNC_FIFO_G            => true,
+         GEN_SYNC_FIFO_G            => false,
          SYNTH_MODE_G               => "inferred",
          MASTER_AXI_STREAM_CONFIG_G => AXIS_CONFIG_C,
          MASTER_AXI_PIPE_STAGES_G   => 1)
       port map (
-         mAxisClk        => axilClk,                              -- [in]
-         mAxisRst        => axilRst,                              -- [in]
+         mAxisClk        => axisClk,                              -- [in]
+         mAxisRst        => axisRst,                              -- [in]
          mAxisMaster     => dataTxAxisMaster,                     -- [out]
          mAxisSlave      => dataTxAxisSlave,                      -- [in]
          locClk          => axilClk,                              -- [in]
