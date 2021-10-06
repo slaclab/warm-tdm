@@ -73,43 +73,17 @@ end entity DataPath;
 
 architecture rtl of DataPath is
 
-   constant INT_AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(
-      dataBytes => 16,
-      tKeepMode => TKEEP_FIXED_C,
-      tUserMode => TUSER_FIRST_LAST_C,
-      tUserBits => 8,
-      tDestBits => 8);
+   constant FILTER_COEFFICIENTS_C : IntegerArray(0 to 20) := (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21);
 
-   type RegType is record
-      doRawAdc           : sl;
-      invertedAdcStreams : AxiStreamMasterArray(7 downto 0);
-      rawAdcMaster       : AxiStreamMasterType;
-   end record RegType;
-
-   constant REG_INIT_C : RegType := (
-      doRawAdc           => '0',
-      invertedAdcStreams => (others => axiStreamMasterInit(AD9681_AXIS_CFG_G)),
-      rawAdcMaster       => axiStreamMasterInit(INT_AXIS_CONFIG_C));
-
-   signal r   : RegType := REG_INIT_C;
-   signal rin : RegType;
-
-   signal rawAdcCtrl : AxiStreamCtrlType;
-
-   constant FILTER_COEFFICIENTS_C : IntegerArray(0 to 20)            := (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21);
-   signal adcStreams              : AxiStreamMasterArray(7 downto 0) := (others => axiStreamMasterInit(AD9681_AXIS_CFG_G));
-
-   signal fifoAxisSlave : AxiStreamSlaveType;
-
-
-   constant NUM_AXIL_MASTERS_C : integer := 9;
-
-   constant XBAR_COFNIG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_MASTERS_C, AXIL_BASE_ADDR_G, 20, 16);
+   constant NUM_AXIL_MASTERS_C : integer                                                         := 10;
+   constant XBAR_COFNIG_C      : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_MASTERS_C, AXIL_BASE_ADDR_G, 20, 16);
 
    signal locAxilWriteMasters : AxiLiteWriteMasterArray(NUM_AXIL_MASTERS_C-1 downto 0);
    signal locAxilWriteSlaves  : AxiLiteWriteSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0);
    signal locAxilReadMasters  : AxiLiteReadMasterArray(NUM_AXIL_MASTERS_C-1 downto 0);
    signal locAxilReadSlaves   : AxiLiteReadSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0);
+
+   signal adcStreams : AxiStreamMasterArray(7 downto 0);
 
 
 begin
@@ -158,6 +132,25 @@ begin
          adcStreamClk    => timingRxClk125,          -- [in]
          adcStreams      => adcStreams);             -- [out]
 
+   U_WaveformCapture_1 : entity warm_tdm.WaveformCapture
+      generic map (
+         TPD_G => TPD_G)
+      port map (
+         timingRxClk125  => timingRxClk125,          -- [in]
+         timingRxRst125  => timingRxRst125,          -- [in]
+         timingRxData    => timingRxData,            -- [in]
+         adcStreams      => adcStreams,              -- [in]
+         axisClk         => axisClk,                 -- [in]
+         axisRst         => axisRst,                 -- [in]
+         axisMaster      => axisMaster,              -- [out]
+         axisSlave       => axisSlave,               -- [in]
+         axilClk         => axilClk,                 -- [in]
+         axilRst         => axilRst,                 -- [in]
+         axilReadMaster  => locAxilReadMasters(9),   -- [in]
+         axilReadSlave   => locAxilReadSlaves(9),    -- [out]
+         axilWriteMaster => locAxilWriteMasters(9),  -- [in]
+         axilWriteSlave  => locAxilWriteSlaves(9));  -- [out]
+
 --    FIR_FILTER_GEN : for i in 7 downto 0 generate
 --       U_FirFilterSingleChannel_1 : entity surf.FirFilterSingleChannel
 --          generic map (
@@ -191,7 +184,7 @@ begin
             timingRxClk125  => timingRxClk125,            -- [in]
             timingRxRst125  => timingRxRst125,            -- [in]
             timingRxData    => timingRxData,              -- [in]
-            adcAxisMaster   => r.invertedAdcStreams(i),   -- [in]
+            adcAxisMaster   => adcStreams(i),             -- [in]
             axilClk         => axilClk,                   -- [in]
             axilRst         => axilRst,                   -- [in]
             axilReadMaster  => locAxilReadMasters(i+1),   -- [in]
@@ -201,87 +194,5 @@ begin
 
 
    end generate;
-
-   comb : process (adcStreams, r, rawAdcCtrl, timingRxData, timingRxRst125) is
-      variable v : RegType;
-   begin
-      v := r;
-
-      v.invertedAdcStreams := adcStreams;
-      for i in 7 downto 0 loop
-         v.invertedAdcStreams(i).tData(15 downto 0) := not(adcStreams(i).tData(15 downto 0)) + 1;
-      end loop;
-
-
-      v.rawAdcMaster.tDest := "00001000";
-
-      if (timingRxData.rawAdc = '1') then
-         v.doRawAdc := '1';
-         ssiSetUserSof(INT_AXIS_CONFIG_C, v.rawAdcMaster, '1');
-      end if;
-
-      if (r.doRawAdc = '1') then
-         for i in 7 downto 0 loop
-            v.rawAdcMaster.tData(i*16+15 downto i*16) := r.invertedAdcStreams(i).tData(15 downto 0);
-         end loop;
-         v.rawAdcMaster.tValid := '1';
-
-         if (r.rawAdcMaster.tvalid = '1') then
-            ssiSetUserSof(INT_AXIS_CONFIG_C, v.rawAdcMaster, '0');
-         end if;
-
-         if (rawAdcCtrl.pause = '1') then
-            v.rawAdcMaster.tLast := '1';
-         end if;
-
-         if (r.rawAdcMaster.tLast = '1') then
-            v.doRawAdc            := '0';
-            v.rawAdcMaster.tValid := '0';
-            v.rawAdcMaster.tLast  := '0';
-         end if;
-      end if;
-
-      if (timingRxRst125 = '1') then
-         v := REG_INIT_C;
-      end if;
-
-      rin <= v;
-
-   end process;
-
-   seq : process (timingRxClk125) is
-   begin
-      if (rising_edge(timingRxClk125)) then
-         r <= rin after TPD_G;
-      end if;
-   end process seq;
-
-   U_AxiStreamFifoV2_1 : entity surf.AxiStreamFifoV2
-      generic map (
-         TPD_G               => TPD_G,
-         INT_PIPE_STAGES_G   => 1,
-         PIPE_STAGES_G       => 0,
-         VALID_THOLD_G       => 0,
-         SLAVE_READY_EN_G    => false,
-         GEN_SYNC_FIFO_G     => false,
-         FIFO_ADDR_WIDTH_G   => 14,
-         FIFO_PAUSE_THRESH_G => 2**14-8,
---           SYNTH_MODE_G           => SYNTH_MODE_G,
---           MEMORY_TYPE_G          => MEMORY_TYPE_G,
---           INT_WIDTH_SELECT_G     => INT_WIDTH_SELECT_G,
---           INT_DATA_WIDTH_G       => INT_DATA_WIDTH_G,
-         SLAVE_AXI_CONFIG_G  => INT_AXIS_CONFIG_C,
-         MASTER_AXI_CONFIG_G => DATA_AXIS_CONFIG_C)
-      port map (
-         sAxisClk    => timingRxClk125,  -- [in]
-         sAxisRst    => timingRxRst125,  -- [in]
-         sAxisMaster => r.rawAdcMaster,  -- [in]
---       sAxisSlave  => fifoAxisSlave,  -- [out]
-         sAxisCtrl   => rawAdcCtrl,      -- [out]
-         mAxisClk    => axisClk,         -- [in]
-         mAxisRst    => axisRst,         -- [in]
-         mAxisMaster => axisMaster,      -- [out]
-         mAxisSlave  => axisSlave);      -- [in]
-
 
 end architecture rtl;
