@@ -42,7 +42,7 @@ class CurveData():
         ax.plot(self.xValues_[self.bestCurve.lowindex_],self.bestCurve.points_[self.bestCurve.lowindex_],"v")#plot the min point
         ax.plot(self.fbOut,self.offsetOut,"s") #plot the midpoint
         plt.show()
-    
+
     def midPoint(self):
         curve = self.bestCurve
         midY = (curve.points_[curve.highindex_] + curve.points_[curve.lowindex_]) / 2
@@ -57,16 +57,18 @@ class CurveData():
         self.xValues_.append(fb)
 
     def asDict(self):
-        curvedict = {}
-        for curve in self.curveList_:
-            curvedict[curve.bias_] = curve.points_[:]
-        return {'xValues':self.xValues_, 'curves':curvedict}
+        return {'xValues':np.array(self.xValues_,np.float32),
+                'biasValues':np.array([c.bias_ for c in self.curveList_],np.float32),
+                'curves':[np.array(c.points_,np.float32) for c in self.curveList_],
+                'biasOut':self.biasOut,
+                'fbOut':self.fbOut,
+                'offsetOut':self.offsetOut}
 
     def __repr__(self):
         return str(self.asDict())
 
 class Curve():
-#plotting offset as a function of FB, with each curve being a different bias
+    #plotting offset as a function of FB, with each curve being a different bias
     def __init__(self,bias,points = []):
         self.bias_ = bias
         self.points_ = points[:]
@@ -85,6 +87,6 @@ class Curve():
 
     def addPoint(self,point):
         self.points_.append(point)
-    
+
     def __repr__(self):
         return(str(self.bias_) + ": " + str(self.points_))

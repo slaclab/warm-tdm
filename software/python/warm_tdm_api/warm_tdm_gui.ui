@@ -1,0 +1,858 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>WarmTDMGui</class>
+ <widget class="QWidget" name="WarmTDMGui">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1158</width>
+    <height>954</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Warm TDM Gui</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout_2">
+   <item>
+    <widget class="PyDMTabWidget" name="PyDMTabWidget">
+     <property name="toolTip">
+      <string/>
+     </property>
+     <property name="whatsThis">
+      <string/>
+     </property>
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <property name="alarmChannels">
+      <stringlist>
+       <string></string>
+       <string></string>
+       <string></string>
+       <string></string>
+      </stringlist>
+     </property>
+     <widget class="QWidget" name="tab_2">
+      <attribute name="title">
+       <string>Control</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout">
+       <item>
+        <widget class="RootControl" name="RootControl">
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="channel" stdset="0">
+          <string>rogue://0/GroupRoot</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupBox_2">
+         <property name="title">
+          <string>General Configuration</string>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout">
+            <property name="sizeConstraint">
+             <enum>QLayout::SetNoConstraint</enum>
+            </property>
+            <item>
+             <layout class="QFormLayout" name="formLayout">
+              <property name="labelAlignment">
+               <set>Qt::AlignCenter</set>
+              </property>
+              <item row="2" column="0">
+               <widget class="PyDMLabel" name="PyDMLabel_3">
+                <property name="toolTip">
+                 <string/>
+                </property>
+                <property name="channel" stdset="0">
+                 <string>rogue://0/GroupRoot.Group.RowForceEn/name</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="1">
+               <widget class="PyDMEnumComboBox" name="PyDMEnumComboBox">
+                <property name="toolTip">
+                 <string/>
+                </property>
+                <property name="channel" stdset="0">
+                 <string>rogue://0/GroupRoot.Group.RowForceEn</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="0">
+               <widget class="PyDMLabel" name="PyDMLabel_7">
+                <property name="toolTip">
+                 <string/>
+                </property>
+                <property name="channel" stdset="0">
+                 <string>rogue://0/GroupRoot.Group.RowForceIndex/name</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="PyDMSpinbox" name="PyDMSpinbox">
+                <property name="toolTip">
+                 <string/>
+                </property>
+                <property name="channel" stdset="0">
+                 <string>rogue://0/GroupRoot.Group.RowForceIndex</string>
+                </property>
+                <property name="showStepExponent" stdset="0">
+                 <bool>false</bool>
+                </property>
+                <property name="writeOnPress" stdset="0">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="0">
+               <widget class="PyDMLabel" name="PyDMLabel_4">
+                <property name="toolTip">
+                 <string/>
+                </property>
+                <property name="channel" stdset="0">
+                 <string>rogue://0/GroupRoot.Group.FllEnable/name</string>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="1">
+               <widget class="PyDMEnumComboBox" name="PyDMEnumComboBox_2">
+                <property name="toolTip">
+                 <string/>
+                </property>
+                <property name="channel" stdset="0">
+                 <string>rogue://0/GroupRoot.Group.FllEnable</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <layout class="QFormLayout" name="formLayout_3">
+              <property name="labelAlignment">
+               <set>Qt::AlignCenter</set>
+              </property>
+              <property name="formAlignment">
+               <set>Qt::AlignRight|Qt::AlignTop|Qt::AlignTrailing</set>
+              </property>
+              <item row="1" column="0">
+               <widget class="PyDMLabel" name="PyDMLabel_5">
+                <property name="toolTip">
+                 <string/>
+                </property>
+                <property name="channel" stdset="0">
+                 <string>rogue://0/GroupRoot.Group.NumColumns/name</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="PyDMLineEdit" name="PyDMLineEdit_5">
+                <property name="toolTip">
+                 <string/>
+                </property>
+                <property name="readOnly">
+                 <bool>true</bool>
+                </property>
+                <property name="channel" stdset="0">
+                 <string>rogue://0/GroupRoot.Group.NumColumns/disp</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="0">
+               <widget class="PyDMLabel" name="PyDMLabel_6">
+                <property name="toolTip">
+                 <string/>
+                </property>
+                <property name="channel" stdset="0">
+                 <string>rogue://0/GroupRoot.Group.NumRows/name</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="PyDMLineEdit" name="PyDMLineEdit_7">
+                <property name="toolTip">
+                 <string/>
+                </property>
+                <property name="readOnly">
+                 <bool>true</bool>
+                </property>
+                <property name="channel" stdset="0">
+                 <string>rogue://0/GroupRoot.Group.NumRows/disp</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="0">
+               <widget class="PyDMLabel" name="PyDMLabel">
+                <property name="toolTip">
+                 <string/>
+                </property>
+                <property name="channel" stdset="0">
+                 <string>rogue://0/GroupRoot.Group.NumColumnBoards/name</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="PyDMLineEdit" name="PyDMLineEdit">
+                <property name="toolTip">
+                 <string/>
+                </property>
+                <property name="readOnly">
+                 <bool>true</bool>
+                </property>
+                <property name="channel" stdset="0">
+                 <string>rogue://0/GroupRoot.Group.NumColumnBoards/disp</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="0">
+               <widget class="PyDMLabel" name="PyDMLabel_2">
+                <property name="toolTip">
+                 <string/>
+                </property>
+                <property name="channel" stdset="0">
+                 <string>rogue://0/GroupRoot.Group.NumRowBoards/name</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="1">
+               <widget class="PyDMLineEdit" name="PyDMLineEdit_2">
+                <property name="toolTip">
+                 <string/>
+                </property>
+                <property name="readOnly">
+                 <bool>true</bool>
+                </property>
+                <property name="channel" stdset="0">
+                 <string>rogue://0/GroupRoot.Group.NumRowBoards/disp</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupBox">
+         <property name="title">
+          <string>Row / Column Configuration</string>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout_2">
+          <item>
+           <layout class="QVBoxLayout" name="verticalLayout_7">
+            <item>
+             <layout class="QFormLayout" name="formLayout_2">
+              <item row="0" column="0">
+               <widget class="PyDMLabel" name="PyDMLabel_8">
+                <property name="toolTip">
+                 <string/>
+                </property>
+                <property name="channel" stdset="0">
+                 <string>rogue://0/GroupRoot.Group.ConfigSelect.ColumnSelect/name</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="PyDMSpinbox" name="PyDMSpinbox_2">
+                <property name="toolTip">
+                 <string/>
+                </property>
+                <property name="channel" stdset="0">
+                 <string>rogue://0/GroupRoot.Group.ConfigSelect.ColumnSelect</string>
+                </property>
+                <property name="showStepExponent" stdset="0">
+                 <bool>false</bool>
+                </property>
+                <property name="writeOnPress" stdset="0">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="0">
+               <widget class="PyDMLabel" name="PyDMLabel_9">
+                <property name="toolTip">
+                 <string/>
+                </property>
+                <property name="channel" stdset="0">
+                 <string>rogue://0/GroupRoot.Group.ConfigSelect.RowSelect/name</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="PyDMSpinbox" name="PyDMSpinbox_3">
+                <property name="toolTip">
+                 <string/>
+                </property>
+                <property name="channel" stdset="0">
+                 <string>rogue://0/GroupRoot.Group.ConfigSelect.RowSelect</string>
+                </property>
+                <property name="showStepExponent" stdset="0">
+                 <bool>false</bool>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="1">
+               <widget class="PyDMPushButton" name="PyDMPushButton">
+                <property name="toolTip">
+                 <string/>
+                </property>
+                <property name="text">
+                 <string>Read All</string>
+                </property>
+                <property name="checkable">
+                 <bool>false</bool>
+                </property>
+                <property name="channel" stdset="0">
+                 <string>rogue://0/root.ReadAll</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <spacer name="horizontalSpacer">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>20</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <widget class="QTextEdit" name="textEdit">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="readOnly">
+               <bool>true</bool>
+              </property>
+              <property name="html">
+               <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Sans Serif'; font-size:9pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Each of the variables to the right is specific to the row column selected above. Some values are specific to a row, column or row/column combination:&lt;/span&gt; &lt;/p&gt;
+&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;br /&gt;&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; color:#aa5500;&quot;&gt;- TesBias = Per Column&lt;/span&gt;&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; color:#aa5500;&quot;&gt;- SaBias  = Per Column&lt;/span&gt;&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; color:#aa5500;&quot;&gt;- SaOffset = Per Column&lt;/span&gt;&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; color:#aa5500;&quot;&gt;- SaOut = Per Column&lt;/span&gt;&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; color:#aa557f;&quot;&gt;- SaFb = Per Column / Row&lt;/span&gt;&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; color:#aa557f;&quot;&gt;- Sq1Bias = Per Column / Row&lt;/span&gt;&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; color:#aa557f;&quot;&gt;- Sq1Fb = Per Column / Row&lt;/span&gt;&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; color:#0000ff;&quot;&gt;- FasFluxOn = Per Row&lt;/span&gt;&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; color:#0000ff;&quot;&gt;- FaxFluxOff = Per Row&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QFormLayout" name="formLayout_4">
+            <item row="0" column="0">
+             <widget class="PyDMLabel" name="PyDMLabel_10">
+              <property name="toolTip">
+               <string/>
+              </property>
+              <property name="channel" stdset="0">
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.ColTuneEnable/name</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="PyDMEnumComboBox" name="PyDMEnumComboBox_3">
+              <property name="toolTip">
+               <string/>
+              </property>
+              <property name="channel" stdset="0">
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.ColTuneEnable/string</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="PyDMLabel" name="PyDMLabel_11">
+              <property name="toolTip">
+               <string/>
+              </property>
+              <property name="channel" stdset="0">
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.RowTuneEnable/name</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="PyDMEnumComboBox" name="PyDMEnumComboBox_4">
+              <property name="toolTip">
+               <string/>
+              </property>
+              <property name="channel" stdset="0">
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.RowTuneEnable</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0">
+             <widget class="PyDMLabel" name="PyDMLabel_12">
+              <property name="toolTip">
+               <string/>
+              </property>
+              <property name="channel" stdset="0">
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.TesBias/name</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="PyRogueLineEdit" name="PyRogueLineEdit">
+              <property name="toolTip">
+               <string/>
+              </property>
+              <property name="channel" stdset="0">
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.TesBias/disp</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="0">
+             <widget class="PyDMLabel" name="PyDMLabel_13">
+              <property name="toolTip">
+               <string/>
+              </property>
+              <property name="channel" stdset="0">
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.SaBias/name</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="1">
+             <widget class="PyRogueLineEdit" name="PyRogueLineEdit_2">
+              <property name="toolTip">
+               <string/>
+              </property>
+              <property name="channel" stdset="0">
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.SaBias/disp</string>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="0">
+             <widget class="PyDMLabel" name="PyDMLabel_14">
+              <property name="toolTip">
+               <string/>
+              </property>
+              <property name="channel" stdset="0">
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.SaOffset/name</string>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="1">
+             <widget class="PyRogueLineEdit" name="PyRogueLineEdit_3">
+              <property name="toolTip">
+               <string/>
+              </property>
+              <property name="channel" stdset="0">
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.SaOffset/disp</string>
+              </property>
+             </widget>
+            </item>
+            <item row="6" column="0">
+             <widget class="PyDMLabel" name="PyDMLabel_16">
+              <property name="toolTip">
+               <string/>
+              </property>
+              <property name="channel" stdset="0">
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.SaFb/name</string>
+              </property>
+             </widget>
+            </item>
+            <item row="6" column="1">
+             <widget class="PyRogueLineEdit" name="PyRogueLineEdit_5">
+              <property name="toolTip">
+               <string/>
+              </property>
+              <property name="channel" stdset="0">
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.SaFb/disp</string>
+              </property>
+             </widget>
+            </item>
+            <item row="7" column="0">
+             <widget class="PyDMLabel" name="PyDMLabel_17">
+              <property name="toolTip">
+               <string/>
+              </property>
+              <property name="channel" stdset="0">
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.Sq1Bias/name</string>
+              </property>
+             </widget>
+            </item>
+            <item row="7" column="1">
+             <widget class="PyRogueLineEdit" name="PyRogueLineEdit_6">
+              <property name="toolTip">
+               <string/>
+              </property>
+              <property name="channel" stdset="0">
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.Sq1Bias/disp</string>
+              </property>
+             </widget>
+            </item>
+            <item row="8" column="0">
+             <widget class="PyDMLabel" name="PyDMLabel_18">
+              <property name="toolTip">
+               <string/>
+              </property>
+              <property name="channel" stdset="0">
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.Sq1Fb/name</string>
+              </property>
+             </widget>
+            </item>
+            <item row="8" column="1">
+             <widget class="PyRogueLineEdit" name="PyRogueLineEdit_7">
+              <property name="toolTip">
+               <string/>
+              </property>
+              <property name="channel" stdset="0">
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.Sq1Fb/disp</string>
+              </property>
+             </widget>
+            </item>
+            <item row="9" column="0">
+             <widget class="PyDMLabel" name="PyDMLabel_19">
+              <property name="toolTip">
+               <string/>
+              </property>
+              <property name="channel" stdset="0">
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.FasFluxOff/name</string>
+              </property>
+             </widget>
+            </item>
+            <item row="9" column="1">
+             <widget class="PyRogueLineEdit" name="PyRogueLineEdit_8">
+              <property name="toolTip">
+               <string/>
+              </property>
+              <property name="channel" stdset="0">
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.FasFluxOff/disp</string>
+              </property>
+             </widget>
+            </item>
+            <item row="10" column="0">
+             <widget class="PyDMLabel" name="PyDMLabel_20">
+              <property name="toolTip">
+               <string/>
+              </property>
+              <property name="channel" stdset="0">
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.FasFluxOn/name</string>
+              </property>
+             </widget>
+            </item>
+            <item row="10" column="1">
+             <widget class="PyRogueLineEdit" name="PyRogueLineEdit_9">
+              <property name="toolTip">
+               <string/>
+              </property>
+              <property name="channel" stdset="0">
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.FasFluxOn/disp</string>
+              </property>
+             </widget>
+            </item>
+            <item row="11" column="1">
+             <spacer name="verticalSpacer">
+              <property name="orientation">
+               <enum>Qt::Vertical</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>20</width>
+                <height>40</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item row="12" column="0">
+             <widget class="PyDMLabel" name="PyDMLabel_15">
+              <property name="toolTip">
+               <string/>
+              </property>
+              <property name="channel" stdset="0">
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.SaOut/name</string>
+              </property>
+             </widget>
+            </item>
+            <item row="12" column="1">
+             <widget class="PyRogueLineEdit" name="PyRogueLineEdit_4">
+              <property name="toolTip">
+               <string/>
+              </property>
+              <property name="channel" stdset="0">
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.SaOut/disp</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tab_6">
+      <attribute name="title">
+       <string>SA Tuning</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_3">
+       <item>
+        <widget class="Process" name="Process">
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="channel" stdset="0">
+          <string>rogue://0/GroupRoot.Group.SaTuneProcess</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="PyDMWaveformPlot" name="PyDMWaveformPlot">
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="curves">
+          <stringlist>
+           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[0]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[1]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;red&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[2]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;dodgerblue&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[3]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;forestgreen&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[4]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;yellow&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[5]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;magenta&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[6]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;turquoise&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[7]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;deeppink&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[8]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;lime&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[9]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;orange&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+          </stringlist>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QFormLayout" name="formLayout_5">
+         <item row="0" column="0">
+          <widget class="PyDMLabel" name="PyDMLabel_21">
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="channel" stdset="0">
+            <string>rogue://0/GroupRoot.Group.SaTuneProcess.PlotColumn/name</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="PyDMSpinbox" name="PyDMSpinbox_4">
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="channel" stdset="0">
+            <string>rogue://0/GroupRoot.Group.SaTuneProcess.PlotColumn</string>
+           </property>
+           <property name="showStepExponent" stdset="0">
+            <bool>false</bool>
+           </property>
+           <property name="writeOnPress" stdset="0">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="PyDMLabel" name="PyDMLabel_22">
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="channel" stdset="0">
+            <string>rogue://0/GroupRoot.Group.SaTuneProcess.FittedSaFb/name</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="PyRogueLineEdit" name="PyRogueLineEdit_10">
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="channel" stdset="0">
+            <string>rogue://0/GroupRoot.Group.SaTuneProcess.FittedSaFb/disp</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="PyDMLabel" name="PyDMLabel_23">
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="channel" stdset="0">
+            <string>rogue://0/GroupRoot.Group.SaTuneProcess.FittedSaBias/name</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="PyRogueLineEdit" name="PyRogueLineEdit_11">
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="channel" stdset="0">
+            <string>rogue://0/GroupRoot.Group.SaTuneProcess.FittedSaBias/disp</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="0">
+          <widget class="PyDMLabel" name="PyDMLabel_24">
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="channel" stdset="0">
+            <string>rogue://0/GroupRoot.Group.SaTuneProcess.FittedSaOffset/name</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1">
+          <widget class="PyRogueLineEdit" name="PyRogueLineEdit_12">
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="channel" stdset="0">
+            <string>rogue://0/GroupRoot.Group.SaTuneProcess.FittedSaOffset/disp</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tab_3">
+      <attribute name="title">
+       <string>System</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_8">
+       <item>
+        <widget class="DataWriter" name="DataWriter">
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="channel" stdset="0">
+          <string>rogue://0/GroupRoot.DataWriter</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="SystemLog" name="SystemLog">
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="channel" stdset="0">
+          <string>rogue://0/GroupRoot.SystemLog</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tab_5">
+      <attribute name="title">
+       <string>Debug Tree</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_6">
+       <item>
+        <widget class="DebugTree" name="DebugTree_2">
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="channel" stdset="0">
+          <string>rogue://0/root</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>DebugTree</class>
+   <extends>PyDMFrame</extends>
+   <header>pyrogue.pydm.widgets.debug_tree</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>RootControl</class>
+   <extends>PyDMFrame</extends>
+   <header>pyrogue.pydm.widgets.root_control</header>
+  </customwidget>
+  <customwidget>
+   <class>SystemLog</class>
+   <extends>PyDMFrame</extends>
+   <header>pyrogue.pydm.widgets.system_log</header>
+  </customwidget>
+  <customwidget>
+   <class>DataWriter</class>
+   <extends>PyDMFrame</extends>
+   <header>pyrogue.pydm.widgets.data_writer</header>
+  </customwidget>
+  <customwidget>
+   <class>PyRogueLineEdit</class>
+   <extends>PyDMLineEdit</extends>
+   <header>pyrogue.pydm.widgets.line_edit</header>
+  </customwidget>
+  <customwidget>
+   <class>Process</class>
+   <extends>PyDMFrame</extends>
+   <header>pyrogue.pydm.widgets.process</header>
+  </customwidget>
+  <customwidget>
+   <class>PyDMTabWidget</class>
+   <extends>QTabWidget</extends>
+   <header>pydm.widgets.tab_bar</header>
+  </customwidget>
+  <customwidget>
+   <class>PyDMLabel</class>
+   <extends>QLabel</extends>
+   <header>pydm.widgets.label</header>
+  </customwidget>
+  <customwidget>
+   <class>PyDMWaveformPlot</class>
+   <extends>QGraphicsView</extends>
+   <header>pydm.widgets.waveformplot</header>
+  </customwidget>
+  <customwidget>
+   <class>PyDMEnumComboBox</class>
+   <extends>QComboBox</extends>
+   <header>pydm.widgets.enum_combo_box</header>
+  </customwidget>
+  <customwidget>
+   <class>PyDMFrame</class>
+   <extends>QFrame</extends>
+   <header>pydm.widgets.frame</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>PyDMLineEdit</class>
+   <extends>QLineEdit</extends>
+   <header>pydm.widgets.line_edit</header>
+  </customwidget>
+  <customwidget>
+   <class>PyDMPushButton</class>
+   <extends>QPushButton</extends>
+   <header>pydm.widgets.pushbutton</header>
+  </customwidget>
+  <customwidget>
+   <class>PyDMSpinbox</class>
+   <extends>QDoubleSpinBox</extends>
+   <header>pydm.widgets.spinbox</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>
