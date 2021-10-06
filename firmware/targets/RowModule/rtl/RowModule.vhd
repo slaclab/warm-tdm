@@ -177,6 +177,8 @@ architecture rtl of RowModule is
 
 
    -- Debug streams
+   signal axisClk          : sl;
+   signal axisRst          : sl;
    signal dataTxAxisMaster : AxiStreamMasterType;
    signal dataTxAxisSlave  : AxiStreamSlaveType;
    signal dataRxAxisMaster : AxiStreamMasterType;
@@ -211,58 +213,58 @@ begin
          IP_ADDR_G               => IP_ADDR_G,
          MAC_ADDR_G              => MAC_ADDR_G)
       port map (
-         gtRefClk0P      => gtRefClk0P,          -- [in]
-         gtRefClk0N      => gtRefClk0N,          -- [in]
-         gtRefClk1P      => gtRefClk1P,          -- [in]
-         gtRefClk1N      => gtRefClk1N,          -- [in]
-         pgpTxP          => pgpTxP,              -- [out]
-         pgpTxN          => pgpTxN,              -- [out]
-         pgpRxP          => pgpRxP,              -- [in]
-         pgpRxN          => pgpRxN,              -- [in]
-         xbarDataSel     => xbarDataSel,         -- [out]
-         xbarClkSel      => xbarClkSel,          -- [out]
-         xbarMgtSel      => xbarMgtSel,          -- [out]
-         timingRxClkP    => timingRxClkP,        -- [in]
-         timingRxClkN    => timingRxClkN,        -- [in]
-         timingRxDataP   => timingRxDataP,       -- [in]
-         timingRxDataN   => timingRxDataN,       -- [in]
-         timingTxClkP    => timingTxClkP,        -- [out]
-         timingTxClkN    => timingTxClkN,        -- [out]
-         timingTxDataP   => timingTxDataP,       -- [out]
-         timingTxDataN   => timingTxDataN,       -- [out]
-         sfp0TxP         => sfp0TxP,             -- [out]
-         sfp0TxN         => sfp0TxN,             -- [out]
-         sfp0RxP         => sfp0RxP,             -- [in]
-         sfp0RxN         => sfp0RxN,             -- [in]
-         bootCsL         => bootCsL,             -- [out]
-         bootMosi        => bootMosi,            -- [out]
-         bootMiso        => bootMiso,            -- [in]
-         promScl         => promScl,             -- [inout]
-         promSda         => promSda,             -- [inout]
-         pwrScl          => pwrScl,              -- [inout]
-         pwrSda          => pwrSda,              -- [inout]
-         leds            => leds,                -- [out]
-         conRxGreenLed   => conRxGreenLed,       -- [out]
-         conRxYellowLed  => conRxYellowLed,      -- [out]
-         conTxGreenLed   => conTxGreenLed,       -- [out]
-         conTxYellowLed  => conTxYellowLed,      -- [out]
-         vAuxP           => vAuxP,               -- [in]
-         vAuxN           => vAuxN,               -- [in]
-         axilClk         => axilClk,             -- [out]
-         axilRst         => axilRst,             -- [out]
-         axilWriteMaster => srpAxilWriteMaster,  -- [out]
-         axilWriteSlave  => srpAxilWriteSlave,   -- [in]
-         axilReadMaster  => srpAxilReadMaster,   -- [out]
-         axilReadSlave   => srpAxilReadSlave,    -- [in]
-         timingRxClk125  => timingRxClk125,      -- [out]
+         gtRefClk0P       => gtRefClk0P,          -- [in]
+         gtRefClk0N       => gtRefClk0N,          -- [in]
+         gtRefClk1P       => gtRefClk1P,          -- [in]
+         gtRefClk1N       => gtRefClk1N,          -- [in]
+         pgpTxP           => pgpTxP,              -- [out]
+         pgpTxN           => pgpTxN,              -- [out]
+         pgpRxP           => pgpRxP,              -- [in]
+         pgpRxN           => pgpRxN,              -- [in]
+         xbarDataSel      => xbarDataSel,         -- [out]
+         xbarClkSel       => xbarClkSel,          -- [out]
+         xbarMgtSel       => xbarMgtSel,          -- [out]
+         timingRxClkP     => timingRxClkP,        -- [in]
+         timingRxClkN     => timingRxClkN,        -- [in]
+         timingRxDataP    => timingRxDataP,       -- [in]
+         timingRxDataN    => timingRxDataN,       -- [in]
+         timingTxClkP     => timingTxClkP,        -- [out]
+         timingTxClkN     => timingTxClkN,        -- [out]
+         timingTxDataP    => timingTxDataP,       -- [out]
+         timingTxDataN    => timingTxDataN,       -- [out]
+         sfp0TxP          => sfp0TxP,             -- [out]
+         sfp0TxN          => sfp0TxN,             -- [out]
+         sfp0RxP          => sfp0RxP,             -- [in]
+         sfp0RxN          => sfp0RxN,             -- [in]
+         bootCsL          => bootCsL,             -- [out]
+         bootMosi         => bootMosi,            -- [out]
+         bootMiso         => bootMiso,            -- [in]
+         promScl          => promScl,             -- [inout]
+         promSda          => promSda,             -- [inout]
+         pwrScl           => pwrScl,              -- [inout]
+         pwrSda           => pwrSda,              -- [inout]
+         leds             => leds,                -- [out]
+         conRxGreenLed    => conRxGreenLed,       -- [out]
+         conRxYellowLed   => conRxYellowLed,      -- [out]
+         conTxGreenLed    => conTxGreenLed,       -- [out]
+         conTxYellowLed   => conTxYellowLed,      -- [out]
+         vAuxP            => vAuxP,               -- [in]
+         vAuxN            => vAuxN,               -- [in]
+         axilClk          => axilClk,             -- [out]
+         axilRst          => axilRst,             -- [out]
+         axilWriteMaster  => srpAxilWriteMaster,  -- [out]
+         axilWriteSlave   => srpAxilWriteSlave,   -- [in]
+         axilReadMaster   => srpAxilReadMaster,   -- [out]
+         axilReadSlave    => srpAxilReadSlave,    -- [in]
+         timingRxClk125   => timingRxClk125,      -- [out]
          axisClk          => axisClk,             -- [out]
          axisRst          => axisRst,             -- [out]
          dataTxAxisMaster => dataTxAxisMaster,    -- [in]
          dataTxAxisSlave  => dataTxAxisSlave,     -- [out]
          dataRxAxisMaster => dataRxAxisMaster,    -- [out]
          dataRxAxisSlave  => dataRxAxisSlave,     -- [in]         
-         timingRxRst125  => timingRxRst125,      -- [out]
-         timingRxData    => timingRxData);       -- [out]
+         timingRxRst125   => timingRxRst125,      -- [out]
+         timingRxData     => timingRxData);       -- [out]
 
    -------------------------------------------------------------------------------------------------
    -- Main crosbar
@@ -295,7 +297,7 @@ begin
       generic map (
          TPD_G            => TPD_G,
          SIMULATION_G     => SIMULATION_G,
-         AXIL_CLK_FREQ_G => AXIL_CLK_FREQ_C,
+         AXIL_CLK_FREQ_G  => AXIL_CLK_FREQ_C,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_DACS_C).baseAddr)
       port map (
          axilClk         => axilClk,                           -- [in]
@@ -332,12 +334,12 @@ begin
          SLAVE_AXI_STREAM_CONFIG_G => AXIS_CONFIG_C,
          SLAVE_AXI_PIPE_STAGES_G   => 1)
       port map (
-         sAxisClk       => axisClk,                              -- [in]
-         sAxisRst       => axisRst,                              -- [in]
-         sAxisMaster    => dataRxAxisMaster,                     -- [in]
-         sAxisSlave     => dataRxAxisSlave,                      -- [out]
-         axiClk         => axilClk,                              -- [in]
-         axiRst         => axilRst,                              -- [in]
+         sAxisClk       => axisClk,     -- [in]
+         sAxisRst       => axisRst,     -- [in]
+         sAxisMaster    => dataRxAxisMaster,  -- [in]
+         sAxisSlave     => dataRxAxisSlave,   -- [out]
+         axiClk         => axilClk,     -- [in]
+         axiRst         => axilRst,     -- [in]
          axiReadMaster  => locAxilReadMasters(AXIL_PRBS_RX_C),   -- [in]
          axiReadSlave   => locAxilReadSlaves(AXIL_PRBS_RX_C),    -- [out]
          axiWriteMaster => locAxilWriteMasters(AXIL_PRBS_RX_C),  -- [in]
