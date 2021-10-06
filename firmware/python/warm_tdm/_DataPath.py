@@ -22,6 +22,10 @@ class DataPath(pr.Device):
                 offset = (i+1) << 16,
                 enabled = False))
 
+        self.add(warm_tdm.WaveformCapture(
+            offset = 9 << 16,
+            enabled = True))
+
 #         for i in range(8):
 #             self.add(surf.dsp.fixed.FirFilterSingleChannel(
 #                 name = f'FirFilter[{i}]',

@@ -18,3 +18,4 @@ from warm_tdm._HardwareGroup import *
 from warm_tdm._SaBiasOffset import *
 from warm_tdm._TesBias import *
 from warm_tdm._Plotter import *
+from warm_tdm._WaveformCapture import *
