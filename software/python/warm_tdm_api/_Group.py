@@ -381,7 +381,10 @@ class Group(pr.Device):
             ret = np.ndarray((len(self._config.columnMap),),np.float)
 
             for idx, board, chan in self.__colGetLoopHelper(index):
-                ret[idx] = self.HardwareGroup.ColumnBoard[board].DataPath.Ad9681Readout.AdcVoltage[chan].get(read=read)
+                tmp = np.zeros(1000, np.float)
+                for sample in range(1000):
+                    tmp[sample] = self.HardwareGroup.ColumnBoard[board].DataPath.Ad9681Readout.AdcVoltage[chan].get(read=read)
+                ret[idx] = tmp.mean()
 
             if index != -1:
                 return ret[index]
