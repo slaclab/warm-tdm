@@ -21,6 +21,12 @@ parser.add_argument(
     default = False)
 
 parser.add_argument(
+    "--emulate",
+    action = 'store_true',
+    default = False)
+
+
+parser.add_argument(
     "--ip",
     type     = str,
     required = False,
@@ -64,7 +70,7 @@ config = warm_tdm_api.GroupConfig(columnMap=columnMap,
 
 #print(config)
 
-with warm_tdm_api.GroupRoot(groupConfig=config, emulate=False) as root:
+with warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=args.emulate) as root:
 
-    pyrogue.pydm.runPyDM(root=root,title='Warm TDM',sizeX=1000,sizeY=800,ui=warm_tdm_api.pydmUi)
+    pyrogue.pydm.runPyDM(root=root,title='Warm TDM',sizeX=2000,sizeY=2000,ui=warm_tdm_api.pydmUi)
 
