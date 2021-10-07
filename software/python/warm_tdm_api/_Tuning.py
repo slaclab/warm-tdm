@@ -5,21 +5,21 @@ from simple_pid import PID
 import warm_tdm_api
 
 
-def saOffset(*, group, precision=1.0):
+def saOffset(*, group, kp=1.0, ki=0.1, kd=0.05, precision=0.001, timeout=60.0):
     """Returns float.
     Calls pidLoop using saOffset as the input variable.
     """
     # Setup PID controller
-    pid = [PID(1, .1, .05)] * len(group.ColumnMap.get())
+    pid = [PID(kp, ki, kd)] * len(group.ColumnMap.get())
 
     for p in pid:
         p.setpoint = 0  # want to zero out SaOut
-        p.output_limits = (0.0, 1.0)
-        p.sample_time = 0.1
+        p.output_limits = (0.0, 2.5)
 
     stime = time.time()
 
-    control = group.SaOffset.get()
+    # Final output should be near SaBias, so start there.
+    control = group.SaBias.get()
 
     mult = np.array([1 if en else 0 for en in group._config.columnEnable],np.float32)
 
@@ -38,10 +38,14 @@ def saOffset(*, group, precision=1.0):
 
         for i, p in enumerate(pid):
             control[i] = p(masked[i])
+            print(f'saOffset PID loop - saOut {masked} - offset {control}')
 
         group.SaOffset.set(control)
 
     return control
+
+
+
 
 #SA TUNING
 def saFlux(*,group,bias,pctLow,pctRange,process):

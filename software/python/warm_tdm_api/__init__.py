@@ -3,6 +3,7 @@ from warm_tdm_api._FasTune import *
 from warm_tdm_api._Group import *
 from warm_tdm_api._GroupRoot import *
 from warm_tdm_api._Mapping import *
+from warm_tdm_api._SaOffset import *
 from warm_tdm_api._SaTune import *
 from warm_tdm_api._Sq1Diag import *
 from warm_tdm_api._Sq1Tune import *
