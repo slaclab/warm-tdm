@@ -86,6 +86,8 @@ architecture rtl of PgpCore is
 
    constant GTX_CFG_C : Gtx7CPllCfgType := getGtx7CPllCfg(REF_CLK_FREQ_G, 1.25E9);
 
+   constant PACKET_SIZE_BYTES_C : integer := 512;
+
    signal pgpClk       : sl;
    signal pgpRst       : sl;
    signal pgpTxIn      : Pgp2bTxInArray(1 downto 0)       := (others => PGP2B_TX_IN_HALF_DUPLEX_C);
@@ -444,13 +446,13 @@ begin
             FILTER_G            => true,
             INT_PIPE_STAGES_G   => 1,
             PIPE_STAGES_G       => 0,
-            VALID_THOLD_G       => 64,
+            VALID_THOLD_G       => PACKET_SIZE_BYTES_C/8,
             VALID_BURST_MODE_G  => true,
             SYNTH_MODE_G        => "inferred",
             MEMORY_TYPE_G       => "block",
             GEN_SYNC_FIFO_G     => false,
             FIFO_ADDR_WIDTH_G   => 10,
-            FIFO_PAUSE_THRESH_G => 64,
+            FIFO_PAUSE_THRESH_G => PACKET_SIZE_BYTES_C/4,
             PHY_AXI_CONFIG_G    => SSI_PGP2B_CONFIG_C,
             APP_AXI_CONFIG_G    => AXIS_CONFIG_C)
          port map (
@@ -484,7 +486,8 @@ begin
 
       U_RingRouter_1 : entity warm_tdm.RingRouter
          generic map (
-            TPD_G => TPD_G)
+            TPD_G => TPD_G,
+            PACKET_SIZE_BYTES_G => PACKET_SIZE_BYTES_C)
          port map (
             axisClk          => iAxiClk,                -- [in]
             axisRst          => iAxiRst,                -- [in]
@@ -510,7 +513,7 @@ begin
             SYNTH_MODE_G       => "inferred",
             MEMORY_TYPE_G      => "block",
             GEN_SYNC_FIFO_G    => false,
-            FIFO_ADDR_WIDTH_G  => 11,
+            FIFO_ADDR_WIDTH_G  => 8,
             APP_AXI_CONFIG_G   => AXIS_CONFIG_C,
             PHY_AXI_CONFIG_G   => SSI_PGP2B_CONFIG_C)
          port map (

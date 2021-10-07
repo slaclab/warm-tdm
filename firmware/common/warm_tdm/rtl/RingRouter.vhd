@@ -29,7 +29,8 @@ use surf.AxiStreamPacketizer2Pkg.all;
 
 entity RingRouter is
    generic (
-      TPD_G : time := 1 ns);
+      TPD_G               : time    := 1 ns;
+      PACKET_SIZE_BYTES_G : integer := 512);
    port (
       -- Clock and Reset
       axisClk : in sl;
@@ -188,7 +189,7 @@ begin
          MEMORY_TYPE_G        => "distributed",
          REG_EN_G             => false,
          CRC_MODE_G           => "NONE",
-         MAX_PACKET_BYTES_G   => 1024,     -- Check this
+         MAX_PACKET_BYTES_G   => PACKET_SIZE_BYTES_G,
          TDEST_BITS_G         => 8,
          INPUT_PIPE_STAGES_G  => 0,
          OUTPUT_PIPE_STAGES_G => 0)

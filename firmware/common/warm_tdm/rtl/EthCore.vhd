@@ -120,7 +120,7 @@ architecture rtl of EthCore is
    constant AXIL_RSSI_SRP_C  : integer := 2;
    constant AXIL_RSSI_DATA_C : integer := 3;
 
- 
+
    constant AXIL_XBAR_CONFIG_C : AxiLiteCrossbarMasterConfigArray(AXIL_NUM_C-1 downto 0) := (
       AXIL_ETH_C       => (
          baseAddr      => AXIL_BASE_ADDR_G + X"000000",
@@ -606,11 +606,13 @@ begin
 
       U_AxiStreamMux_SRP : entity surf.AxiStreamMux
          generic map (
-            TPD_G          => TPD_G,
-            NUM_SLAVES_G   => RSSI_ROUTES_C'length,
-            MODE_G         => "ROUTED",
-            TDEST_ROUTES_G => RSSI_ROUTES_C,
-            ILEAVE_EN_G    => false)
+            TPD_G                => TPD_G,
+            NUM_SLAVES_G         => RSSI_ROUTES_C'length,
+            MODE_G               => "ROUTED",
+            TDEST_ROUTES_G       => RSSI_ROUTES_C,
+            ILEAVE_EN_G          => true,
+            ILEAVE_ON_NOTVALID_G => true,
+            ILEAVE_REARB_G       => (512/8)-3)
          port map (
             axisClk      => ethClk,                            -- [in]
             axisRst      => ethRst,                            -- [in]
@@ -651,11 +653,13 @@ begin
 
       U_AxiStreamMux_DATA : entity surf.AxiStreamMux
          generic map (
-            TPD_G          => TPD_G,
-            NUM_SLAVES_G   => RSSI_ROUTES_C'length,
-            MODE_G         => "ROUTED",
-            TDEST_ROUTES_G => RSSI_ROUTES_C,
-            ILEAVE_EN_G    => false)
+            TPD_G                => TPD_G,
+            NUM_SLAVES_G         => RSSI_ROUTES_C'length,
+            MODE_G               => "ROUTED",
+            TDEST_ROUTES_G       => RSSI_ROUTES_C,
+            ILEAVE_EN_G          => true,
+            ILEAVE_ON_NOTVALID_G => true,
+            ILEAVE_REARB_G       => (512/8)-3)
          port map (
             axisClk      => ethClk,                             -- [in]
             axisRst      => ethRst,                             -- [in]
