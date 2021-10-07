@@ -55,13 +55,13 @@ def saFlux(*,group,bias,pctLow,pctRange,process):
     numSteps = group.SaTuneProcess.SaFbNumSteps.get()
     curves = [warm_tdm_api.Curve(bias[i]) for i in range(colCount)]
 
-    # Get full array of column/row data to improve register access performance
-    saFbArray = group.SaFb.get()
+    # Get current values for row 0
+    saFbArray = [group.SaFb.get(index=(col, row)) for col in range(colCount)]
 
     # setup ranges which can vary form column to column
     for col in range(colCount):
-        low = saFbArray[col][row] + group.SaTuneProcess.SaFbLowOffset.get()
-        high = saFbArray[col][row] + group.SaTuneProcess.SaFbHighOffset.get()
+        low = saFbArray[col] + group.SaTuneProcess.SaFbLowOffset.get()
+        high = saFbArray[col] + group.SaTuneProcess.SaFbHighOffset.get()
         saFbOffsetRange.append(np.linspace(low,high,numSteps,endpoint=True))
 
     # Iterate through the steps
@@ -69,10 +69,10 @@ def saFlux(*,group,bias,pctLow,pctRange,process):
 
         # Setup data
         for col in range(colCount):
-            saFbArray[col][row] = saFbOffsetRange[col][idx]
+            saFbArray[col] = saFbOffsetRange[col][idx]
 
         # large burse transaction of write data
-        group.SaFb.set(value=saFbArray)
+        group.SaFbForce.set(value=saFbArray)
 
         if process is not None:
             process.Progress.set(pctLow + pctRange*(idx/numSteps))

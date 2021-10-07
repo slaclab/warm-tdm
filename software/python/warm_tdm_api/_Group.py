@@ -200,9 +200,22 @@ class Group(pr.Device):
                                  linkedGet=self._saFbGet,
                                  description=""))
 
+        deps = [self.HardwareGroup.ColumnBoard[m.board].SAFb.Override[m.channel]
+                for m in self._config.columnMap]
+        
+        self.add(pr.LinkVariable(name = 'SaFbForce',
+                                 mode = 'RW',
+                                 groups = 'TopApi',
+                                 dependencies = deps,
+                                 linkedSet = self._saFbForceSet,
+                                 linkedGet = self._saFbForceGet))
+        
+
         deps = [self.HardwareGroup.ColumnBoard[m.board].SAFb.node(f'Col{m.channel}_Row[{row}]')
                 for m in self._config.columnMap
                 for row in range(len(self._config.rowMap))]
+
+                                 
 
         # SQ1 Bias values, accessed with index tuple (column, row)
         self.add(pr.LinkVariable(name='Sq1Bias',
@@ -255,6 +268,7 @@ class Group(pr.Device):
 
         self.add(warm_tdm_api.ConfigSelect(self))
 
+        self.add(warm_tdm_api.SaOffsetProcess())
         self.add(warm_tdm_api.SaTuneProcess(config=self._config))
         self.add(warm_tdm_api.Sq1TuneProcess())
         self.add(warm_tdm_api.FasTuneProcess())
@@ -288,15 +302,28 @@ class Group(pr.Device):
                 pass
 
             for row in self.HardwareGroup.RowBoard:
-                #row.RowForceEn.set(value,write=write)  # Waiting on force variables
                 pass
+                #row.RowForceEn.set(value,write=write)  # Waiting on force variables
+
+#                 for dac in row.RowModuleDacs.Ad9106.values():
+#                     dac.node(f'PRESTORE_SEL{i}').setDisp('Constant')
+#                     dac.node(f'WAVE_SEL{i}').setDisp('Prestored')
+#                     dac.node(f'DAC{i}_CONST').set(0) # Check this, might be offset binary
+
 
     # Get Row Tune Override
     def _rowForceEnGet(self, read):
-        with self.root.updateGroup():
+        return False
+    
+#         with self.root.updateGroup():
+#             for row in self.HardwareGroup.RowBoard:
+#                 for dac in row.RowModuleDacs.Ad9106.values():
+#                     if (dac.node(f'PRESTORE_SEL{i}').getDisp() != 'Constant' or
+#                         dac.node(f'WAVE_SEL{i}').getDisp() != 'Prestored'):
+#                         return False
 
-            #return self.HardwareGroup.RowBoard[0].RowForceEn.get(read=read) # Waiting on force variables
-            return False
+#                 return True
+
 
     # Set Row Tune Index
     def _rowForceIdxSet(self, value, write):
@@ -448,6 +475,54 @@ class Group(pr.Device):
                         ret[colIndex][rowIndex] = self.HardwareGroup.ColumnBoard[colBoard].SAFb.node(f'Col{colChan}_Row[{rowIndex}]').get(read=False)
 
                 return ret
+
+                 
+    # Force the SA Feedback DACs to value
+    def _saFbForceSet(self, value, write, index):
+        with self.root.updateGroup():
+
+            # index access
+            if index != -1:
+                colIndex = index
+                colBoard = self._config.columnMap[colIndex].board
+                colChan = self._config.columnMap[colIndex].channel
+
+                self.HardwareGroup.ColumnBoard[colBoard].SAFb.Override[colChan].set(value=value,write=write)
+
+            # Full array access
+            else:
+
+                for colIndex in range(len(self._config.columnMap)):
+                    colBoard = self._config.columnMap[colIndex].board
+                    colChan = self._config.columnMap[colIndex].channel
+
+                    self.HardwareGroup.ColumnBoard[colBoard].SAFb.Override[colIndex].set(value=value[colIndex],write=write)
+
+    # Get the last forced SA Feedback DAC value
+    def _saFbForceGet(self, read, index):
+        with self.root.updateGroup():
+
+            # index access
+            if index != -1:
+                colIndex = index
+                colBoard = self._config.columnMap[colIndex].board
+                colChan = self._config.columnMap[colIndex].channel
+
+                return self.HardwareGroup.ColumnBoard[colBoard].SAFb.Override[colChan].get(read=read)
+
+            # Full array access
+            else:
+                ret = np.ndarray((len(self._config.columnMap),len(self._config.rowMap)),np.float)
+
+                for colIndex in range(len(self._config.columnMap)):
+                    colBoard = self._config.columnMap[colIndex].board
+                    colChan = self._config.columnMap[colIndex].channel
+
+                    ret[colIndex] =  self.HardwareGroup.ColumnBoard[colBoard].SAFb.Override[colChan].get()
+
+                return ret
+                 
+                 
 
     # Set per row value, index is (column, row) tuple
     def _fastDacSet(self, name, value, write, index):
