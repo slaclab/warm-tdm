@@ -17,6 +17,14 @@ class SaBiasOffset(pr.Device):
                 name = f'Offset[{i}]',
                 variable = self._dac.DacVoltage[i+8]))
 
+        @self.command()
+        def SetAll(arg):
+            for bias, offset in zip(self.Bias.values(), self.Offset.values()):
+                bias.set(arg)
+                offset.set(arg)
+
+
+
 #     def _setChannelFunc(self, channel):
 #         def _setChannel(value, write):
 #             dacChannel = self._dac.DacVoltage[channel]
