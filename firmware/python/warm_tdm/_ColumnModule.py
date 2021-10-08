@@ -35,7 +35,7 @@ class ColumnModule(pr.Device):
 
 
         self.add(warm_tdm.FastDacDriver(
-            name = 'SQ1Bais',
+            name = 'SQ1Bias',
             offset = 0xC0400000))
 
         self.add(warm_tdm.FastDacDriver(

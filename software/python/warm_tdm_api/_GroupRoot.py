@@ -15,6 +15,10 @@ class GroupRoot(pyrogue.Root):
            Flag to determine if emulation mode should be used
         """
 
+        if simulation:
+            kwargs['pollEn'] = False
+            kwargs['timeout'] = 1000
+
         super().__init__(**kwargs)
 
         # Add the data writer

@@ -1,3 +1,5 @@
+import numpy as np
+
 import pyrogue as pr
 
 import warm_tdm
@@ -72,14 +74,21 @@ class FastDacDriver(pr.Device):
 
         for i in range(8):
 
-            for j in range(64):
-                self.add(pr.LinkVariable(
-                    name = f'Col{i}_Row[{j}]',
-                    guiGroup = f'ColumnVoltages[{i}]',
-#                    value = 0.0,
-                    disp = '{:0.03f}',
-                    linkedGet = self._getChannelFunc(i, j),
-                    linkedSet = self._setChannelFunc(i, j)))
+            self.add(pr.LinkVariable(
+                name = f'ColumnVoltages[{i}]',
+                dependencies = [self.Column[i]],
+                disp = '{:0.03f}',                
+                linkedGet = self._getVoltageFunc(i),
+                linkedSet = self._setVoltageFunc(i)))
+
+#             for j in range(64):
+#                 self.add(pr.LinkVariable(
+#                     name = f'Col{i}_Row[{j}]',
+#                     guiGroup = f'ColumnVoltages[{i}]',
+#                     disp = '{:0.03f}',
+#                     dependencies = [self.Column[i]],
+#                     linkedGet = self._getChannelFunc(i, j),
+#                     linkedSet = self._setChannelFunc(i, j)))
 
         @self.command()
         def RamTest():
@@ -110,25 +119,42 @@ class FastDacDriver(pr.Device):
         dacCurrent = voltage / (self.dacLoad * self.ampGain)
 #        print(f'dacCurrent = {dacCurrent}')
 
-        dac = int(((dacCurrent/self.iOutFs)*8192)+8192)
+        dac = int(((dacCurrent/self.iOutFs)*8192)+8191)
         dac = max(min(2**14-1, dac), 0)
 #        print(f'_squidVoltageToDac({voltage}) = {dac}')
         return dac
 
 
     def _getChannelFunc(self, column, row):
-        def _getChannel(index, read):
-            #print(f'_getChannel - Column[{column}].get(row={row}, read={read})')
-            dacValue = self.Column[column].get(row, read)
+        def _getChannel(read, index):
+#            print(f'{self.path}._getChannel - Column[{column}].get(row={row}, read={read})')
+            dacValue = self.Column[column].get(index=row, read=read)
             return self._dacToSquidVoltage(dacValue)
         return _getChannel
 
     def _setChannelFunc(self, column, row):
-        def _setChannel(value, index, write):
+        def _setChannel(value, write, index):
             dacValue= self._squidVoltageToDac(value)
             #print(f'_setChannel - Column[{column}].set(value={dacValue}, index={row}, write={write}')
             self.Column[column].set(value=dacValue, index=row, write=write)
-
         return _setChannel
+
+    def _getVoltageFunc(self, column):
+        def _getVoltage(read, index):
+            ret = self.Column[column].get(read=read, index=index)
+            if index == -1:
+                return np.vectorize(self._dacToSquidVoltage)(ret)
+            else:
+                return self._dacToSquidVoltage(ret)
+        return _getVoltage
+
+    def _setVoltageFunc(self, column):
+        def _setVoltage(value, write, index):
+            if index == -1:
+                dacValue = np.array([self._squidVoltageToDac(v) for v in value], np.uint32)
+            else:
+                dacValue = self._squidVoltageToDac(value)
+            self.Column[column].set(value=dacValue, index=index, write=write)
+        return _setVoltage
 
 

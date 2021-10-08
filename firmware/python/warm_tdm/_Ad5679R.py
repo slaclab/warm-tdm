@@ -80,7 +80,7 @@ class Ad5679R(pr.Device):
 
     def _getVoltageFunc(self, chVar):
         def _getVoltage(read):
-            dacValue = chVar.get(read)
+            dacValue = chVar.get(read=read)
             return (dacValue / 2**16) * (self.gain * 2.5)
 
         return _getVoltage

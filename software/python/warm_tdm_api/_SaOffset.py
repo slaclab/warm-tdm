@@ -59,8 +59,8 @@ class SaOffsetProcess(pr.Process):
                 kp=self.Kp.get(),
                 ki=self.Ki.get(),
                 kd=self.Kd.get(),
-                precision=self.precision.get(),
-                timeout=self.timeout.get())
+                precision=self.Precision.get(),
+                timeout=self.Timeout.get())
 
             self.SaOffsetOutput.set(ret)
 

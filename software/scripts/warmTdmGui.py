@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import logging
 
 import pyrogue
 import pyrogue.pydm
@@ -12,6 +13,12 @@ pyrogue.addLibraryPath(f'../../firmware/submodules/surf/python')
 import warm_tdm_api
 
 from warm_tdm_api import PhysicalMap as pm
+
+#rogue.Logging.setFilter('pyrogue.memory.block', rogue.Logging.Debug)
+#rogue.Logging.setFilter('pyrogue.stream.TcpCore', rogue.Logging.Debug)
+rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
+#logging.getLogger('pyrogue.Device').setLevel(logging.DEBUG)
+#logging.getLogger('pyrogue.Variable').setLevel(logging.DEBUG)
 
 parser = argparse.ArgumentParser()
 
