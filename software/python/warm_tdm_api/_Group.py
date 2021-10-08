@@ -408,7 +408,6 @@ class Group(pr.Device):
         with self.root.updateGroup():
             ret = np.ndarray((len(self._config.columnMap),),np.float)
 
-            print('Sending read commands')
             for idx, board, chan in self.__colGetLoopHelper(index):
                 self.HardwareGroup.ColumnBoard[board].DataPath.Ad9681Readout.AdcVoltage[chan].get(read=read, check=False)
 #                tmp = np.zeros(1000, np.float)
@@ -416,12 +415,9 @@ class Group(pr.Device):
 #                    tmp[sample] = -1 * self.HardwareGroup.ColumnBoard[board].DataPath.Ad9681Readout.AdcVoltage[chan].get(read=read)
 #                ret[idx] = tmp.mean()
 
-            print('Running checkBlocks')
             self.checkBlocks(recurse=True)
-            print('Gathering Results')
             for idx, board, chan in self.__colGetLoopHelper(index):
                 ret[idx] = -1 * self.HardwareGroup.ColumnBoard[board].DataPath.Ad9681Readout.AdcVoltage[chan].get(read=False)
-            print('Done')
 
             if index != -1:
                 return ret[index]
