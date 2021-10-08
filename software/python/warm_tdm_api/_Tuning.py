@@ -21,6 +21,8 @@ def saOffset(*, group, kp=1.0, ki=0.1, kd=0.05, precision=0.001, timeout=60.0):
     # Final output should be near SaBias, so start there.
     control = group.SaBias.get()
 
+    group.saOffset.set(control)
+
     mult = np.array([1 if en else 0 for en in group._config.columnEnable],np.float32)
 
     while True:
