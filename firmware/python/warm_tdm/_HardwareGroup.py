@@ -25,10 +25,13 @@ class HardwareGroup(pyrogue.Device):
             host='192.168.3.11',
             colBoards=4,
             rowBoards=2,
+            rows=64,
             plots=False,
             **kwargs):
 
         super().__init__(**kwargs)
+
+        print(f'HardwareGroup with {rows} rows')
 
         # Open rUDP connections to the Manager board
         if simulation is False and emulate is False:
@@ -59,7 +62,7 @@ class HardwareGroup(pyrogue.Device):
                 srp == srpStream
 
             # Instantiate the board Device tree and link it to the SRP
-            self.add(warm_tdm.ColumnModule(name=f'ColumnBoard[{index}]', memBase=srp, expand=True))
+            self.add(warm_tdm.ColumnModule(name=f'ColumnBoard[{index}]', memBase=srp, expand=True, rows=rows))
 
             # Link the data stream to the DataWriter
             if emulate is False:

@@ -30,6 +30,7 @@ class Group(pr.Device):
                                         host=groupConfig.host,
                                         colBoards=groupConfig.columnBoards,
                                         rowBoards=groupConfig.rowBoards,
+                                        rows=len(groupConfig.rowMap),
                                         groups=['Hardware'],
                                         expand=True))
 

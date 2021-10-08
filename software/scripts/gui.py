@@ -17,7 +17,7 @@ if '--local' in sys.argv:
 import warm_tdm
 
 #rogue.Logging.setFilter('pyrogue.batcher', rogue.Logging.Debug)
-rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
+#rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
 # rogue.Logging.setLevel(rogue.Logging.Warning)
 # rogue.Logging.setLevel(rogue.Logging.Debug)
 # rogue.Logging.setFilter("pyrogue.rssi",rogue.Logging.Info)

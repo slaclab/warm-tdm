@@ -6,7 +6,7 @@ import surf.devices.analog_devices
 import warm_tdm
 
 class ColumnModule(pr.Device):
-    def __init__(self, **kwargs):
+    def __init__(self, rows=64, **kwargs):
         super().__init__(**kwargs)
 
         self.add(warm_tdm.WarmTdmCore(
@@ -36,15 +36,18 @@ class ColumnModule(pr.Device):
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Bias',
-            offset = 0xC0400000))
+            offset = 0xC0400000,
+            rows = rows))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Fb',
-            offset =0xC0500000))
+            offset =0xC0500000,
+            rows = rows))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SAFb',
-            offset = 0xC0600000))
+            offset = 0xC0600000,
+            rows = rows))
 
         self.add(surf.devices.analog_devices.Ad9681Config(
             enabled = True,
