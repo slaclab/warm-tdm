@@ -16,7 +16,7 @@ from warm_tdm_api import PhysicalMap as pm
 
 #rogue.Logging.setFilter('pyrogue.memory.block', rogue.Logging.Debug)
 #rogue.Logging.setFilter('pyrogue.stream.TcpCore', rogue.Logging.Debug)
-rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
+#rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
 #logging.getLogger('pyrogue.Device').setLevel(logging.DEBUG)
 #logging.getLogger('pyrogue.Variable').setLevel(logging.DEBUG)
 
@@ -75,7 +75,6 @@ config = warm_tdm_api.GroupConfig(columnMap=columnMap,
                                   columnBoards=columnBoards,
                                   rowBoards=rowBoards)
 
-#print(config)
 
 with warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=args.emulate) as root:
 
