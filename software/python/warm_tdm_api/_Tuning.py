@@ -26,7 +26,7 @@ def saOffset(*, group, kp=1.0, ki=0.1, kd=0.05, precision=0.001, timeout=60.0):
     while True:
 
         # Limit convergance to 1 minute
-        if (time.time() - stime) > 60:
+        if (time.time() - stime) > timeout:
             raise Exception("saOffset PID loop failed to converge after 60 seconds")
 
         current = group.SaOut.get()
@@ -38,7 +38,8 @@ def saOffset(*, group, kp=1.0, ki=0.1, kd=0.05, precision=0.001, timeout=60.0):
 
         for i, p in enumerate(pid):
             control[i] = p(masked[i])
-            print(f'saOffset PID loop - saOut {masked} - offset {control}')
+
+        print(f'saOffset PID loop - saOut {masked} - offset {control}')
 
         group.SaOffset.set(control)
 
