@@ -196,7 +196,7 @@ class Group(pr.Device):
         self.add(pr.LinkVariable(name='SaFb',
                                  mode='RW',
                                  groups='TopApi',
-                                 disp = '{:0.03f}',                                 
+                                 disp = '{:0.03f}',
                                  dependencies=deps,
                                  linkedSet=self._saFbSet,
                                  linkedGet=self._saFbGet,
@@ -204,25 +204,25 @@ class Group(pr.Device):
 
         deps = [self.HardwareGroup.ColumnBoard[m.board].SAFb.Override[m.channel]
                 for m in self._config.columnMap]
-        
+
         self.add(pr.LinkVariable(name = 'SaFbForce',
                                  mode = 'RW',
                                  groups = 'TopApi',
-                                 disp = '{:0.03f}',                                 
+                                 disp = '{:0.03f}',
                                  dependencies = deps,
                                  linkedSet = self._saFbForceSet,
                                  linkedGet = self._saFbForceGet))
-        
+
 
         deps = [self.HardwareGroup.ColumnBoard[m.board].SQ1Bias.ColumnVoltages[m.channel]
                 for m in self._config.columnMap]
-                                 
+
 
         # SQ1 Bias values, accessed with index tuple (column, row)
         self.add(pr.LinkVariable(name='Sq1Bias',
                                  mode='RW',
                                  groups='TopApi',
-                                 disp = '{:0.03f}',                                 
+                                 disp = '{:0.03f}',
                                  dependencies=deps,
                                  linkedSet=self._sq1BiasSet,
                                  linkedGet=self._sq1BiasGet,
@@ -235,13 +235,13 @@ class Group(pr.Device):
         self.add(pr.LinkVariable(name='Sq1Fb',
                                  mode='RW',
                                  groups='TopApi',
-                                 disp = '{:0.03f}',                                 
+                                 disp = '{:0.03f}',
 #                                dependencies=deps,
                                  linkedSet=self._sq1FbSet,
                                  linkedGet=self._sq1FbGet,
                                  description=""))
 
- 
+
         # FAS Flux off values, accessed with row index
         self.add(pr.LinkVariable(name='FasFluxOff',
                                  mode='RW',
@@ -313,7 +313,7 @@ class Group(pr.Device):
     # Get Row Tune Override
     def _rowForceEnGet(self, read):
         return False
-    
+
 #         with self.root.updateGroup():
 #             for row in self.HardwareGroup.RowBoard:
 #                 for dac in row.RowModuleDacs.Ad9106.values():
@@ -407,19 +407,27 @@ class Group(pr.Device):
         with self.root.updateGroup():
             ret = np.ndarray((len(self._config.columnMap),),np.float)
 
+            print('Sending read commands')
             for idx, board, chan in self.__colGetLoopHelper(index):
-                ret[idx] = -1 * self.HardwareGroup.ColumnBoard[board].DataPath.Ad9681Readout.AdcVoltage[chan].get(read=read, check=False)
+                self.HardwareGroup.ColumnBoard[board].DataPath.Ad9681Readout.AdcVoltage[chan].get(read=read, check=False)
 #                tmp = np.zeros(1000, np.float)
 #                for sample in range(1000):
 #                    tmp[sample] = -1 * self.HardwareGroup.ColumnBoard[board].DataPath.Ad9681Readout.AdcVoltage[chan].get(read=read)
 #                ret[idx] = tmp.mean()
+
+            print('Running checkBlocks')
             self.checkBlocks(recurse=True)
+            print('Gathering Results')
+            for idx, board, chan in self.__colGetLoopHelper(index):
+                ret[idx] = -1 * self.HardwareGroup.ColumnBoard[board].DataPath.Ad9681Readout.AdcVoltage[chan].get(read=False)
+            print('Done')
+
             if index != -1:
                 return ret[index]
             else:
                 return ret
 
-                 
+
     # Force the SA Feedback DACs to value
     def _saFbForceSet(self, value, write, index):
         with self.root.updateGroup():
@@ -511,10 +519,10 @@ class Group(pr.Device):
                     ret[colIndex] = self.HardwareGroup.ColumnBoard[colBoard].node(name).ColumnVoltages[colChan].get(read=read, index=-1)
 
                 return ret
-            
+
     # Set SA Feedback value, index is (column, row) tuple
     def _saFbSet(self, value, write, index):
-        self._fastDacSet('SAFb', value, write, index)            
+        self._fastDacSet('SAFb', value, write, index)
 
     # Get SA Feedback value, index is (column, row) tuple
     def _saFbGet(self, read, index):
@@ -653,4 +661,3 @@ class Group(pr.Device):
 
         # Drive high TES bias currents?????
         pass
-
