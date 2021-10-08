@@ -410,10 +410,6 @@ class Group(pr.Device):
 
             for idx, board, chan in self.__colGetLoopHelper(index):
                 self.HardwareGroup.ColumnBoard[board].DataPath.Ad9681Readout.AdcVoltage[chan].get(read=read, check=False)
-#                tmp = np.zeros(1000, np.float)
-#                for sample in range(1000):
-#                    tmp[sample] = -1 * self.HardwareGroup.ColumnBoard[board].DataPath.Ad9681Readout.AdcVoltage[chan].get(read=read)
-#                ret[idx] = tmp.mean()
 
             self.checkBlocks(recurse=True)
             for idx, board, chan in self.__colGetLoopHelper(index):

@@ -10,11 +10,12 @@ def saOffset(*, group, kp=1.0, ki=0.1, kd=0.05, precision=0.001, timeout=60.0):
     Calls pidLoop using saOffset as the input variable.
     """
     # Setup PID controller
-    pid = [PID(kp, ki, kd)] * len(group.ColumnMap.get())
+    pid = [PID(kp, ki, kd) for _ in range(len(group.ColumnMap.get()))]
 
     for p in pid:
         p.setpoint = 0  # want to zero out SaOut
-        p.output_limits = (0.0, 2.5)
+        p.output_limits = (-0.5, 0.5)
+        p.sample_time = None
 
     stime = time.time()
 
@@ -22,6 +23,12 @@ def saOffset(*, group, kp=1.0, ki=0.1, kd=0.05, precision=0.001, timeout=60.0):
     control = group.SaBias.get()
 
     group.SaOffset.set(control)
+    current = group.SaOut.get()
+    masked = current 
+    # print('Initial Values')
+    # for i in range(len(control)):
+    #     print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}')            
+    # print()
 
     mult = np.array([1 if en else 0 for en in group._config.columnEnable],np.float32)
 
@@ -39,9 +46,11 @@ def saOffset(*, group, kp=1.0, ki=0.1, kd=0.05, precision=0.001, timeout=60.0):
             break
 
         for i, p in enumerate(pid):
-            control[i] = p(masked[i])
+            change = p(masked[i])
+            control[i] = max(min(control[i] + change, 2.499),0)
+            #print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')            
 
-        print(f'saOffset PID loop - \n saOut {masked} - \n offset {control}')
+        #print(f'Done with loop\n')
 
         group.SaOffset.set(control)
 
