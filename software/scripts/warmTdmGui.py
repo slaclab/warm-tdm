@@ -66,9 +66,11 @@ rowChannels = 32
 
 columnMap = [pm(i,j) for j in range(columnChannels) for i in range(columnBoards)]
 rowMap = [pm(i,j) for j in range(rowChannels) for i in range(rowBoards)]
+colEn = [True for _ in range(len(columnMap))]
+colEn[0] = False
 
 config = warm_tdm_api.GroupConfig(columnMap=columnMap,
-                                  columnEnable=[True] * len(columnMap),
+                                  columnEnable=colEn,
                                   rowMap=rowMap,
                                   rowOrder=[i for i in range(len(rowMap))],
                                   host=groups[0]['host'],
