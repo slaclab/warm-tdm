@@ -451,7 +451,7 @@ begin
             SYNTH_MODE_G        => "inferred",
             MEMORY_TYPE_G       => "block",
             GEN_SYNC_FIFO_G     => false,
-            FIFO_ADDR_WIDTH_G   => 10,
+            FIFO_ADDR_WIDTH_G   => 8,
             FIFO_PAUSE_THRESH_G => PACKET_SIZE_BYTES_C/4,
             PHY_AXI_CONFIG_G    => SSI_PGP2B_CONFIG_C,
             APP_AXI_CONFIG_G    => AXIS_CONFIG_C)
