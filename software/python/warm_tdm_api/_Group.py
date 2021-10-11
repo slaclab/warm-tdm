@@ -405,17 +405,14 @@ class Group(pr.Device):
 
     # Get SA Out value, index is column
     def _saOutGet(self, read, index):
-        print(f'_SaOutGet(read={read}, index={index}')        
         with self.root.updateGroup():
             ret = np.ndarray((len(self._config.columnMap),),np.float)
 
             for board in range(self._config.columnBoards):
-                print(f'self.HardwareGroup.ColumnBoard[{board}].DataPath.WaveformCapture.AdcAverage.get(read={read}, check=False)')
                 self.HardwareGroup.ColumnBoard[board].DataPath.WaveformCapture.AdcAverage.get(read=read, check=False)
 
             self.checkBlocks(recurse=True)
             for idx, board, chan in self.__colGetLoopHelper(index):
-                print(f'self.HardwareGroup.ColumnBoard[{board}].DataPath.WaveformCapture.AdcAverage.get(index={chan}, read=False)')                
                 ret[idx] = -1 * self.HardwareGroup.ColumnBoard[board].DataPath.WaveformCapture.AdcAverage.get(index=chan, read=False)
 
             if index != -1:

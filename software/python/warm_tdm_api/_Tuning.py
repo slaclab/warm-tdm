@@ -5,7 +5,7 @@ from simple_pid import PID
 import warm_tdm_api
 
 
-def saOffset(*, group, kp=1.0, ki=0.1, kd=0.05, precision=0.001, timeout=60.0):
+def saOffset(*, group, kp=-0.25, ki=0.0, kd=0.0, precision=0.0005, timeout=5.0):
     """Returns float.
     Calls pidLoop using saOffset as the input variable.
     """
