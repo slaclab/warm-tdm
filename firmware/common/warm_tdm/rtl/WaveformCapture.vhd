@@ -196,7 +196,7 @@ begin
       variable axilEp          : AxiLiteEndpointType;
       variable average         : signed(31 downto 0);
       variable avgDiv          : signed(31 downto 0);
-      variable sample          : signed(15 downto 0);
+      variable sample          : signed(31 downto 0);
       variable alpha           : integer range 0 to 15;
    begin
       v := r;
