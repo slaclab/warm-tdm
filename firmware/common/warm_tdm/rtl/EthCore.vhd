@@ -112,10 +112,17 @@ architecture rtl of EthCore is
    constant DEST_REMOTE_LOOPBACK_C : integer := 3;
 
    constant RSSI_ROUTES_C : Slv8Array(RSSI_SIZE_C-1 downto 0) := (
-      0 => X"00",                       -- Local SRP/DATA
-      1 => X"10",                       -- Local Loopback
-      2 => "0000----",  -- REMOTE SRP/Data
-      3 => "0001----");  -- REMOTE Loopback
+      DEST_LOCAL_SRP_DATA_C  => X"00",
+      DEST_LOCAL_LOOPBACK_C  => X"10",
+      DEST_REMOTE_SRP_DATA_C => "0000----",
+      DEST_REMOTE_LOOPBACK_C => "0001----");
+
+   constant RSSI_PRIORITY_C : IntegerArray(RSSI_SIZE_C-1 downto 0) := (
+      DEST_LOCAL_SRP_DATA_C  => 1,
+      DEST_LOCAL_LOOPBACK_C  => 0,
+      DEST_REMOTE_SRP_DATA_C => 2,
+      DEST_REMOTE_LOOPBACK_C => 0);
+
 
    constant AXIL_NUM_C       : integer := 4;
    constant AXIL_ETH_C       : integer := 0;
@@ -458,23 +465,24 @@ begin
       ------------------------------------------
       U_RssiServer_SRP : entity surf.RssiCoreWrapper
          generic map (
-            TPD_G                => TPD_G,
-            APP_ILEAVE_EN_G      => true,
-            ILEAVE_ON_NOTVALID_G => true,
-            MAX_SEG_SIZE_G       => 1024,
-            SEGMENT_ADDR_SIZE_G  => 7,
-            APP_STREAMS_G        => RSSI_SIZE_C,
-            APP_STREAM_ROUTES_G  => RSSI_ROUTES_C,
-            APP_AXIS_CONFIG_G    => RSSI_AXIS_CONFIG_C,
-            CLK_FREQUENCY_G      => ETH_CLK_FREQ_C,
-            TIMEOUT_UNIT_G       => 1.0E-3,  -- In units of seconds
-            SERVER_G             => true,
-            RETRANSMIT_ENABLE_G  => true,
-            BYPASS_CHUNKER_G     => false,
-            WINDOW_ADDR_SIZE_G   => 3,
-            PIPE_STAGES_G        => 0,
-            TSP_AXIS_CONFIG_G    => EMAC_AXIS_CONFIG_C,
-            INIT_SEQ_N_G         => 16#80#)
+            TPD_G                 => TPD_G,
+            APP_ILEAVE_EN_G       => true,
+            ILEAVE_ON_NOTVALID_G  => true,
+            MAX_SEG_SIZE_G        => 1024,
+            SEGMENT_ADDR_SIZE_G   => 7,
+            APP_STREAMS_G         => RSSI_SIZE_C,
+            APP_STREAM_ROUTES_G   => RSSI_ROUTES_C,
+            APP_STREAM_PRIORITY_G => RSSI_PRIORITY_C,
+            APP_AXIS_CONFIG_G     => RSSI_AXIS_CONFIG_C,
+            CLK_FREQUENCY_G       => ETH_CLK_FREQ_C,
+            TIMEOUT_UNIT_G        => 1.0E-3,  -- In units of seconds
+            SERVER_G              => true,
+            RETRANSMIT_ENABLE_G   => true,
+            BYPASS_CHUNKER_G      => false,
+            WINDOW_ADDR_SIZE_G    => 3,
+            PIPE_STAGES_G         => 0,
+            TSP_AXIS_CONFIG_G     => EMAC_AXIS_CONFIG_C,
+            INIT_SEQ_N_G          => 16#80#)
          port map (
             clk_i             => ethClk,
             rst_i             => ethRst,
@@ -501,23 +509,24 @@ begin
 
       U_RssiServer_DATA : entity surf.RssiCoreWrapper
          generic map (
-            TPD_G                => TPD_G,
-            APP_ILEAVE_EN_G      => true,
-            ILEAVE_ON_NOTVALID_G => true,
-            MAX_SEG_SIZE_G       => 1024,
-            SEGMENT_ADDR_SIZE_G  => 7,
-            APP_STREAMS_G        => RSSI_SIZE_C,
-            APP_STREAM_ROUTES_G  => RSSI_ROUTES_C,
-            APP_AXIS_CONFIG_G    => RSSI_AXIS_CONFIG_C,
-            CLK_FREQUENCY_G      => ETH_CLK_FREQ_C,
-            TIMEOUT_UNIT_G       => 1.0E-3,  -- In units of seconds
-            SERVER_G             => true,
-            RETRANSMIT_ENABLE_G  => true,
-            BYPASS_CHUNKER_G     => false,
-            WINDOW_ADDR_SIZE_G   => 3,
-            PIPE_STAGES_G        => 0,
-            TSP_AXIS_CONFIG_G    => EMAC_AXIS_CONFIG_C,
-            INIT_SEQ_N_G         => 16#80#)
+            TPD_G                 => TPD_G,
+            APP_ILEAVE_EN_G       => true,
+            ILEAVE_ON_NOTVALID_G  => true,
+            MAX_SEG_SIZE_G        => 1024,
+            SEGMENT_ADDR_SIZE_G   => 7,
+            APP_STREAMS_G         => RSSI_SIZE_C,
+            APP_STREAM_ROUTES_G   => RSSI_ROUTES_C,
+            APP_STREAM_PRIORITY_G => RSSI_PRIORITY_C,
+            APP_AXIS_CONFIG_G     => RSSI_AXIS_CONFIG_C,
+            CLK_FREQUENCY_G       => ETH_CLK_FREQ_C,
+            TIMEOUT_UNIT_G        => 1.0E-3,  -- In units of seconds
+            SERVER_G              => true,
+            RETRANSMIT_ENABLE_G   => true,
+            BYPASS_CHUNKER_G      => false,
+            WINDOW_ADDR_SIZE_G    => 3,
+            PIPE_STAGES_G         => 0,
+            TSP_AXIS_CONFIG_G     => EMAC_AXIS_CONFIG_C,
+            INIT_SEQ_N_G          => 16#80#)
          port map (
             clk_i             => ethClk,
             rst_i             => ethRst,
@@ -621,6 +630,7 @@ begin
             NUM_SLAVES_G         => RSSI_ROUTES_C'length,
             MODE_G               => "ROUTED",
             TDEST_ROUTES_G       => RSSI_ROUTES_C,
+            PRIORITY_G           => RSSI_PRIORITY_C,
             ILEAVE_EN_G          => true,
             ILEAVE_ON_NOTVALID_G => true,
             ILEAVE_REARB_G       => (512/8)-3)
@@ -695,6 +705,7 @@ begin
             NUM_SLAVES_G         => RSSI_ROUTES_C'length,
             MODE_G               => "ROUTED",
             TDEST_ROUTES_G       => RSSI_ROUTES_C,
+            PRIORITY_G           => RSSI_PRIORITY_C,
             ILEAVE_EN_G          => true,
             ILEAVE_ON_NOTVALID_G => true,
             ILEAVE_REARB_G       => (512/8)-3)
