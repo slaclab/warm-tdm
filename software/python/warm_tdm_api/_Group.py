@@ -177,8 +177,8 @@ class Group(pr.Device):
                                  linkedGet=self._saOffsetGet,
                                  description=""))
 
-        deps = [self.HardwareGroup.ColumnBoard[m.board].DataPath.Ad9681Readout.AdcVoltage[m.channel]
-                for m in self._config.columnMap]
+        deps = [self.HardwareGroup.ColumnBoard[board].DataPath.WaveformCapture.AdcAverage
+                for board in range(self._config.columnBoards)]
 
         # SA Out values, accessed with column index value
         self.add(pr.LinkVariable(name='SaOut',
@@ -405,15 +405,18 @@ class Group(pr.Device):
 
     # Get SA Out value, index is column
     def _saOutGet(self, read, index):
+        print(f'_SaOutGet(read={read}, index={index}')        
         with self.root.updateGroup():
             ret = np.ndarray((len(self._config.columnMap),),np.float)
 
-            for idx, board, chan in self.__colGetLoopHelper(index):
-                self.HardwareGroup.ColumnBoard[board].DataPath.Ad9681Readout.AdcVoltage[chan].get(read=read, check=False)
+            for board in range(self._config.columnBoards):
+                print(f'self.HardwareGroup.ColumnBoard[{board}].DataPath.WaveformCapture.AdcAverage.get(read={read}, check=False)')
+                self.HardwareGroup.ColumnBoard[board].DataPath.WaveformCapture.AdcAverage.get(read=read, check=False)
 
             self.checkBlocks(recurse=True)
             for idx, board, chan in self.__colGetLoopHelper(index):
-                ret[idx] = -1 * self.HardwareGroup.ColumnBoard[board].DataPath.Ad9681Readout.AdcVoltage[chan].get(read=False)
+                print(f'self.HardwareGroup.ColumnBoard[{board}].DataPath.WaveformCapture.AdcAverage.get(index={chan}, read=False)')                
+                ret[idx] = -1 * self.HardwareGroup.ColumnBoard[board].DataPath.WaveformCapture.AdcAverage.get(index=chan, read=False)
 
             if index != -1:
                 return ret[index]
