@@ -48,11 +48,21 @@ parser.add_argument(
     default = False)
 
 parser.add_argument(
+    "--emulate",
+    action = 'store_true',
+    default = False)
+
+parser.add_argument(
     "--ip",
     type     = str,
     required = False,
     default = '192.168.3.12',
     help     = "IP address")
+
+parser.add_argument(
+    "--groups",
+    type     = int,
+    help     = "Number of hardware groups")
 
 parser.add_argument(
     "--rows",
@@ -76,7 +86,7 @@ print(args)
 groups = [{
     'host': args.ip,
     'colBoards': args.cols,
-    'rowBoards': args.rows}]
+    'rowBoards': args.rows} for _ in range(args.groups)]
 
 
 # parser.add_argument(
@@ -88,6 +98,7 @@ groups = [{
 
 kwargs = {}
 kwargs['simulation'] = args.sim
+kwargs['emulate'] = args.emulate
 kwargs['groups'] = groups
 kwargs['plots'] = args.plots
 

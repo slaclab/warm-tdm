@@ -87,6 +87,7 @@ class WarmTdmRoot(pyrogue.Root):
     def __init__(
             self,
             simulation=False,
+            emulate=False,
             plots=False,
             groups=[NORMAL_GROUP],
             **kwargs):
@@ -104,7 +105,16 @@ class WarmTdmRoot(pyrogue.Root):
         self >> self.DataWriter.getChannel(len(groups))
 
         for i, s in enumerate(groups):
-            self.add(warm_tdm.HardwareGroup(groupId=i, dataWriter=self.DataWriter, simulation=simulation, expand=True, plots=plots, rows=32*s['rowBoards'], **s))
+            self.add(warm_tdm.HardwareGroup(
+                name=f'HardwareGroup[{i}]',
+                groupId=i,
+                dataWriter=self.DataWriter,
+                simulation=simulation,
+                emulate=emulate,
+                expand=True,
+                plots=plots,
+                rows=32*s['rowBoards'],
+                **s))
 
 
 
