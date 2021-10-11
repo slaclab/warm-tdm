@@ -81,3 +81,60 @@ class WaveformCapture(pr.Device):
             dependencies = [self.AdcAverageRaw],
             disp = '{:0.06f}',
             linkedGet = _get))
+
+class WaveformCaptureReceiver(rogue.interfaces.stream.Slave, pr.Device):
+
+    def __init__(self, **kwargs):
+        rogue.interfaces.stream.Slave.__init__(self)
+        pr.Device.__init__(self, **kwargs)
+
+        self.conv = np.vectorize(self._conv)
+        
+    def _conv(self, adc):
+        return (adc//4)/2**13
+    
+    def _acceptFrame(self, frame):
+        if frame.getError():
+            print('Frame Error!')
+            return
+
+        data = frame.getNumpy(0, frame.getPayload())
+        numBytes = data.size
+        print(f'Got Frame on channel {frame.getChannel()}: {numBytes} bytes')
+
+        # Create a view of ADC values
+        frame = data.view(np.unt16)
+
+        # Process header
+        channel = adcs[0]
+        decimation = adcs[1]
+
+        # Construct a view of the adc data
+        adcs = data[8:].view(np.int16)
+        adcs.resize(adc.size//8, 8)
+
+        # Convert adc values to voltages
+        voltages = self.conv(adcs)
+
+        print(adcs)
+        print(voltages)        
+
+        # Determine pedastals
+        adcChMeans = adcs.mean(0)
+        voltageChMeans = voltages.mean(0)
+
+        # Subtract pedastales
+        normalizedAdcs = adcs - adcChMeans
+        normalizedVoltages = voltages - voltageChMeans
+
+        # Calculate common mode waveform
+        commonVoltages = normalizedVoltages.mean(1)[:,np.newaxis]
+        commonAdcs = normalizedAdcs.mean(1)[:,np.newaxis]
+        print(commonVoltages)
+
+        # Subtract common mode waveform
+        adjustedVoltages = voltages-commonVoltages
+        adjustedAdcs = (adcs-commonAdcs).astype(int)
+        print(adjustedAdcs)
+
+        
