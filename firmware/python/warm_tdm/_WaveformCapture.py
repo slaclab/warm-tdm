@@ -52,7 +52,7 @@ class WaveformCapture(pr.Device):
             
 
         self.add(pr.RemoteVariable(
-            name = 'PedastalRaw',
+            name = 'AdcAverageRaw',
             offset = 0x10,
             base = pr.Int,
             mode = 'RO',
@@ -67,17 +67,17 @@ class WaveformCapture(pr.Device):
 
         convVector = np.vectorize(conv)
 
-        def _get(*, read, index):
-            ret = self.PedastalRaw.get(read=read, index=index)
-            ret = ret.astype(np.int32)            
-            print(f'ret={ret}')
+        def _get(*, read, index, check):
+            print(f'_get(read={read}, index={index}, check={check}')
+            ret = self.AdcAverageRaw.get(read=read, index=index, check=check)
             if index == -1:
+                ret = ret.astype(np.int32)                            
                 return np.array([conv(v) for v in ret], np.float64)
             else:
                 return conv(ret)
 
         self.add(pr.LinkVariable(
-            name = 'Pedastal',
-            dependencies = [self.PedastalRaw],
+            name = 'AdcAverage',
+            dependencies = [self.AdcAverageRaw],
             disp = '{:0.06f}',
             linkedGet = _get))
