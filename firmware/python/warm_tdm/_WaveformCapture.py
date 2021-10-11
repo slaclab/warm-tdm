@@ -1,4 +1,5 @@
 import pyrogue as pr
+import rogue
 
 import warm_tdm
 import numpy as np
