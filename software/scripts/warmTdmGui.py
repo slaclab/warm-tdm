@@ -64,8 +64,8 @@ columnChannels = 8
 rowBoards = groups[0]['rowBoards']
 rowChannels = 32
 
-columnMap = [pm(i,j) for j in range(columnChannels) for i in range(columnBoards)]
-rowMap = [pm(i,j) for j in range(rowChannels) for i in range(rowBoards)]
+columnMap = [pm(board,chan) for board in range(columnBoards) for chan in range(columnChannels)]
+rowMap = [pm(board,chan)  for board in range(rowBoards) for chan in range(rowChannels)]
 colEn = [True for _ in range(len(columnMap))]
 colEn[0] = False
 
