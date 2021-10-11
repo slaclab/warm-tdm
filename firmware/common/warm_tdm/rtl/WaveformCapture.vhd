@@ -94,12 +94,8 @@ architecture rtl of WaveformCapture is
    type signed16array is array (natural range <>) of signed(31 downto 0);
 
    type RegType is record
-      reset    : sl;
-      average  : slv32Array(7 downto 0);
-      averageS : signed32Array(7 downto 0);
-      avgDiv   : signed32Array(7 downto 0);
-      sample   : signed32Array(7 downto 0);
-
+      reset            : sl;
+      average          : slv32Array(7 downto 0);
       alpha            : slv(3 downto 0);
       waveformTrigger  : sl;
       doWaveform       : sl;
@@ -118,9 +114,6 @@ architecture rtl of WaveformCapture is
    constant REG_INIT_C : RegType := (
       reset            => '0',
       average          => (others => (others => '0')),
-      averageS         => (others => (others => '0')),
-      avgDiv           => (others => (others => '0')),
-      sample           => (others => (others => '0')),
       alpha            => toSlv(8, 4),
       waveformTrigger  => '0',
       doWaveform       => '0',
@@ -233,12 +226,12 @@ begin
       alpha := to_integer(unsigned(r.alpha));
       if (adcStreams(0).tValid = '1') then
          for i in 7 downto 0 loop
-            average := signed(r.average(i));
-            avgDiv   := shift_right(average, alpha);
-            sample   := resize(signed(adcStreams(i).tData(15 downto 0)), 32);
-            sample   := shift_right(shift_left(sample, 16), alpha);
-            average := average - avgDiv + sample;
-            v.average(i)  := slv(average);
+            average      := signed(r.average(i));
+            avgDiv       := shift_right(average, alpha);
+            sample       := resize(signed(adcStreams(i).tData(15 downto 0)), 32);
+            sample       := shift_right(shift_left(sample, 16), alpha);
+            average      := average - avgDiv + sample;
+            v.average(i) := slv(average);
          end loop;
       end if;
       if (r.reset = '1') then
@@ -268,7 +261,7 @@ begin
       ----------------------------------------------------------------------------------------------
       selectedChannel        := to_integer(unsigned(r.selectedChannel));
       v.selectedStream       := r.decimatedStreams(selectedChannel);
-      v.selectedStream.tDest := resize(r.selectedChannel, 8);
+      v.selectedStream.tDest := toSlv(8, 8);  --resize(r.selectedChannel, 8);
 
       ----------------------------------------------------------------------------------------------
       -- Create a combined stream of all channels
@@ -284,7 +277,11 @@ begin
       -- Multiplex combined or resized channel streams
       ----------------------------------------------------------------------------------------------
       if (timingRxData.rawAdc = '1' or r.waveformTrigger = '1') then
-         v.doWaveform := '1';
+         v.doWaveform                     := '1';
+         v.bufferStream.tValid            := '1';
+         v.bufferStream.tData(2 downto 0) := r.selectedChannel;
+         v.bufferStream.tData(3)          := r.allChannels;
+         v.bufferStream.tData(31 downto 16) := r.decimation;
          ssiSetUserSof(INT_AXIS_CONFIG_C, v.bufferStream, '1');
       end if;
 
