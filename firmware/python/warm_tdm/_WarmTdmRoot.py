@@ -15,45 +15,6 @@ NORMAL_GROUP =  {
     'colBoards': 4,
     'rowBoards': 2}
 
-# CONFIGS = {
-#     'sim': {
-#         'group': {
-#             'groups': [{
-#                 'host': 'localhost',
-#                 'colBoards': 4,
-#                 'rowBoards': 2}]},
-#         'row': {
-#             'groups': [{
-#                 'host': 'localhost',
-#                 'colBoards': 0,
-#                 'rowBoards': 1}],
-#         'col': {
-#             'groups': [{
-#                 'host': 'localhost',
-#                 'colBoards': 0,
-#                 'rowBoards': 1}],
-#     'hw': {
-#         'group': {
-#             'groups': [NORMAL_GROUP]},
-#         'test': {
-#             'groups': [{
-#                 'host': '192.168.3.11',
-#                 'colBoards': 3,
-#                 'rowBoards': 2
-
-#         'row': {
-#             'pollEn': False,
-#             'host': '192.168.3.12',
-#             'srpPort': 8192,
-#             'dataPort': 8193,
-#             'group': [{'cls': warm_tdm.RowModule, 'name': 'RowModule[0]'}]},
-#         'col': {
-
-#             'host': '192.168.3.11',
-#             'srpPort': 8192,
-#             'dataPort': 8193,
-#             'simPorts': None,
-#             'group': [{'cls': warm_tdm.ColumnModule, 'name': 'ColumnModule[0]'}]}}}
 
 class StreamDebug(rogue.interfaces.stream.Slave):
     def __init__(self, ):
