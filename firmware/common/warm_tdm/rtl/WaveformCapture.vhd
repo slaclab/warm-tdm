@@ -17,8 +17,7 @@
 -------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.std_logic_arith.all;
-use ieee.std_logic_unsigned.all;
+use ieee.numeric_std.all;
 
 
 library unisim;
@@ -91,7 +90,17 @@ architecture rtl of WaveformCapture is
       tUserBits => 2,
       tDestBits => 4);
 
+   type signed32array is array (natural range <>) of signed(31 downto 0);
+   type signed16array is array (natural range <>) of signed(31 downto 0);
+
    type RegType is record
+      reset    : sl;
+      average  : slv32Array(7 downto 0);
+      averageS : signed32Array(7 downto 0);
+      avgDiv   : signed32Array(7 downto 0);
+      sample   : signed32Array(7 downto 0);
+
+      alpha            : slv(3 downto 0);
       waveformTrigger  : sl;
       doWaveform       : sl;
       decimation       : slv(15 downto 0);
@@ -107,6 +116,12 @@ architecture rtl of WaveformCapture is
    end record RegType;
 
    constant REG_INIT_C : RegType := (
+      reset            => '0',
+      average          => (others => (others => '0')),
+      averageS         => (others => (others => '0')),
+      avgDiv           => (others => (others => '0')),
+      sample           => (others => (others => '0')),
+      alpha            => toSlv(8, 4),
       waveformTrigger  => '0',
       doWaveform       => '0',
       decimation       => (others => '0'),
@@ -179,10 +194,15 @@ begin
       variable v               : RegType;
       variable selectedChannel : integer;
       variable axilEp          : AxiLiteEndpointType;
+      variable average         : signed(31 downto 0);
+      variable avgDiv          : signed(31 downto 0);
+      variable sample          : signed(15 downto 0);
+      variable alpha           : integer range 0 to 15;
    begin
       v := r;
 
       v.waveformTrigger := '0';
+      v.reset           := '0';
 
       ----------------------------------------------------------------------------------------------
       -- AXI-Lite Registers
@@ -192,19 +212,50 @@ begin
       axiSlaveRegister(axilEp, X"00", 0, v.selectedChannel);
       axiSlaveRegister(axilEp, X"00", 3, v.allChannels);
       axiSlaveRegister(axilEp, X"04", 0, v.waveformTrigger);
+      axiSlaveRegister(axilEp, X"04", 1, v.reset);
       axiSlaveRegister(axilEp, X"08", 0, v.decimation);
+      axiSlaveRegister(axilEp, X"0C", 0, v.alpha);
+
+      axiSlaveRegisterR(axilEp, X"10", 0, r.average(0));
+      axiSlaveRegisterR(axilEp, X"14", 0, r.average(1));
+      axiSlaveRegisterR(axilEp, X"18", 0, r.average(2));
+      axiSlaveRegisterR(axilEp, X"1C", 0, r.average(3));
+      axiSlaveRegisterR(axilEp, X"20", 0, r.average(4));
+      axiSlaveRegisterR(axilEp, X"24", 0, r.average(5));
+      axiSlaveRegisterR(axilEp, X"28", 0, r.average(6));
+      axiSlaveRegisterR(axilEp, X"2C", 0, r.average(7));
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
+
+      ----------------------------------------------------------------------------------------------
+      -- Pedastal
+      ----------------------------------------------------------------------------------------------
+      alpha := to_integer(unsigned(r.alpha));
+      if (adcStreams(0).tValid = '1') then
+         for i in 7 downto 0 loop
+            average := signed(r.average(i));
+            avgDiv   := shift_right(average, alpha);
+            sample   := resize(signed(adcStreams(i).tData(15 downto 0)), 32);
+            sample   := shift_right(shift_left(sample, 16), alpha);
+            average := average - avgDiv + sample;
+            v.average(i)  := slv(average);
+         end loop;
+      end if;
+      if (r.reset = '1') then
+         v.average := (others => (others => '0'));
+      end if;
+
+
 
       ----------------------------------------------------------------------------------------------
       -- Decimator
       ----------------------------------------------------------------------------------------------
       if (adcStreams(0).tValid = '1') then
-         v.decCnt := r.decCnt + 1;
+         v.decCnt := slv(unsigned(r.decCnt) + 1);
 
          for i in 7 downto 0 loop
             v.decimatedStreams(i).tValid := '0';
-            if (adcStreams(i).tValid = '1' and (r.decCnt = r.decimation-1 or r.decimation = 0)) then
+            if (adcStreams(i).tValid = '1' and (unsigned(r.decCnt) = unsigned(r.decimation)-1 or unsigned(r.decimation) = 0)) then
                v.decimatedStreams(i).tValid             := '1';
                v.decimatedStreams(i).tData(15 downto 0) := adcStreams(i).tData(15 downto 0);
                v.decCnt                                 := (others => '0');
@@ -215,7 +266,7 @@ begin
       ----------------------------------------------------------------------------------------------
       -- Multiplex decimated stream to resizer
       ----------------------------------------------------------------------------------------------
-      selectedChannel        := conv_integer(r.selectedChannel);
+      selectedChannel        := to_integer(unsigned(r.selectedChannel));
       v.selectedStream       := r.decimatedStreams(selectedChannel);
       v.selectedStream.tDest := resize(r.selectedChannel, 8);
 
