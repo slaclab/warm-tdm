@@ -31,8 +31,10 @@ def saOffset(*, group, kp=-0.25, ki=0.0, kd=0.0, precision=0.0005, timeout=5.0):
     # print()
 
     mult = np.array([1 if en else 0 for en in group._config.columnEnable],np.float32)
+    count = 0
 
     while True:
+        count += 1
 
         # Limit convergance to 1 minute
         if (time.time() - stime) > timeout:
@@ -53,6 +55,8 @@ def saOffset(*, group, kp=-0.25, ki=0.0, kd=0.0, precision=0.0005, timeout=5.0):
         #print(f'Done with loop\n')
 
         group.SaOffset.set(control)
+
+    print(f'Converged after {count} loops')
 
     return control
 

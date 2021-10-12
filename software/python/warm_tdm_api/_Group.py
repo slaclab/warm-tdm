@@ -199,8 +199,8 @@ class Group(pr.Device):
                                  groups='TopApi',
                                  disp = '{:0.03f}',
                                  dependencies=deps,
-                                 linkedSet=self._saFbSet,
-                                 linkedGet=self._saFbGet,
+                                 linkedSet=self._fastDacSetFunc('SAFb'),
+                                 linkedGet=self._fastDacGetFunc('SAFb'),
                                  description=""))
 
         deps = [self.HardwareGroup.ColumnBoard[m.board].SAFb.Override[m.channel]
@@ -211,8 +211,8 @@ class Group(pr.Device):
                                  groups = 'TopApi',
                                  disp = '{:0.03f}',
                                  dependencies = deps,
-                                 linkedSet = self._saFbForceSet,
-                                 linkedGet = self._saFbForceGet))
+                                 linkedSet = self._fastDacForceSetFunc('SAFb'),
+                                 linkedGet = self._fastDacForceGetFunc('SAFb')))
 
 
         deps = [self.HardwareGroup.ColumnBoard[m.board].SQ1Bias.ColumnVoltages[m.channel]
@@ -225,9 +225,21 @@ class Group(pr.Device):
                                  groups='TopApi',
                                  disp = '{:0.03f}',
                                  dependencies=deps,
-                                 linkedSet=self._sq1BiasSet,
-                                 linkedGet=self._sq1BiasGet,
+                                 linkedSet=self._fastDacSetFunc('SQ1Bias'),
+                                 linkedGet=self._fastDacGetFunc('SQ1Bias'),
                                  description=""))
+
+        deps = [self.HardwareGroup.ColumnBoard[m.board].SQ1Bias.Override[m.channel]
+                for m in self._config.columnMap]
+
+        self.add(pr.LinkVariable(name = 'Sq1BiasForce',
+                                 mode = 'RW',
+                                 groups = 'TopApi',
+                                 disp = '{:0.03f}',
+                                 dependencies = deps,
+                                 linkedSet = self._fastDacForceSetFunc('SQ1Bias'),
+                                 linkedGet = self._fastDacForceGetFunc('SQ1Bias')))
+                 
 
         deps = [self.HardwareGroup.ColumnBoard[m.board].SQ1Fb.ColumnVoltages[m.channel]
                 for m in self._config.columnMap]
@@ -238,9 +250,20 @@ class Group(pr.Device):
                                  groups='TopApi',
                                  disp = '{:0.03f}',
 #                                dependencies=deps,
-                                 linkedSet=self._sq1FbSet,
-                                 linkedGet=self._sq1FbGet,
+                                 linkedSet=self._fastDacSetFunc('SQ1Bias'),
+                                 linkedGet=self._fastDacGetFunc('SQ1Bias'),
                                  description=""))
+
+        deps = [self.HardwareGroup.ColumnBoard[m.board].SQ1Fb.Override[m.channel]
+                for m in self._config.columnMap]
+
+        self.add(pr.LinkVariable(name = 'Sq1FbForce',
+                                 mode = 'RW',
+                                 groups = 'TopApi',
+                                 disp = '{:0.03f}',
+                                 dependencies = deps,
+                                 linkedSet = self._fastDacForceSetFunc('SQ1Fb'),
+                                 linkedGet = self._fastDacForceGetFunc('SQ1Fb')))
 
 
         # FAS Flux off values, accessed with row index
@@ -422,120 +445,106 @@ class Group(pr.Device):
 
 
     # Force the SA Feedback DACs to value
-    def _saFbForceSet(self, value, write, index):
-        with self.root.updateGroup():
+    def _fastDacForceSetFunc(self, name):
+        def _fastDacForceSet(value, *, write, index):
+            with self.root.updateGroup():
 
             # index access
-            if index != -1:
-                colIndex = index
-                colBoard = self._config.columnMap[colIndex].board
-                colChan = self._config.columnMap[colIndex].channel
-
-                self.HardwareGroup.ColumnBoard[colBoard].SAFb.Override[colChan].set(value=value,write=write)
-
-            # Full array access
-            else:
-
-                for colIndex in range(len(self._config.columnMap)):
+                if index != -1:
+                    colIndex = index
                     colBoard = self._config.columnMap[colIndex].board
                     colChan = self._config.columnMap[colIndex].channel
 
-                    self.HardwareGroup.ColumnBoard[colBoard].SAFb.Override[colIndex].set(value=value[colIndex],write=write)
+                    self.HardwareGroup.ColumnBoard[colBoard].node(name).Override[colChan].set(value=value,write=write)
+
+                # Full array access
+                else:
+
+                    for colIndex in range(len(self._config.columnMap)):
+                        colBoard = self._config.columnMap[colIndex].board
+                        colChan = self._config.columnMap[colIndex].channel
+
+                        self.HardwareGroup.ColumnBoard[colBoard].node(name).Override[colIndex].set(value=value[colIndex],write=write)
+                        
+        return _fastDacForceSet
 
     # Get the last forced SA Feedback DAC value
-    def _saFbForceGet(self, read, index):
-        with self.root.updateGroup():
-
-            # index access
-            if index != -1:
-                colIndex = index
-                colBoard = self._config.columnMap[colIndex].board
-                colChan = self._config.columnMap[colIndex].channel
-
-                return self.HardwareGroup.ColumnBoard[colBoard].SAFb.Override[colChan].get(read=read)
-
-            # Full array access
-            else:
-                ret = np.ndarray((len(self._config.columnMap),len(self._config.rowMap)),np.float)
-
-                for colIndex in range(len(self._config.columnMap)):
+    def _fastDacForceGetFunc(self, name):
+        def _fastDacForceGet(*, read, index):
+            with self.root.updateGroup():
+                # index access
+                if index != -1:
+                    colIndex = index
                     colBoard = self._config.columnMap[colIndex].board
                     colChan = self._config.columnMap[colIndex].channel
+                    
+                    return self.HardwareGroup.ColumnBoard[colBoard].node(name).Override[colChan].get(read=read)
+                else:
+                    # Full array access                    
+                    ret = np.zeros(len(self._config.columnMap), np.float)
 
-                    ret[colIndex] =  self.HardwareGroup.ColumnBoard[colBoard].SAFb.Override[colChan].get()
+                    for colIndex in range(len(self._config.columnMap)):
+                        colBoard = self._config.columnMap[colIndex].board
+                        colChan = self._config.columnMap[colIndex].channel
 
-                return ret
+                        ret[colIndex] =  self.HardwareGroup.ColumnBoard[colBoard].node(name).Override[colChan].get()
+
+                    return ret
+                                   
+        return _fastDacForceGet
 
     # Set fast dac value, index is (column, row) tuple
-    def _fastDacSet(self, name, value, write, index):
-        with self.root.updateGroup():
+    def _fastDacSetFunc(self, name):
+        def _fastDacSet(value, *, write, index):
+            with self.root.updateGroup():
 
-            # index access
-            if index != -1:
-                colIndex = index[0]
-                rowIndex = index[1]
-                colBoard = self._config.columnMap[colIndex].board
-                colChan = self._config.columnMap[colIndex].channel
-
-                self.HardwareGroup.ColumnBoard[colBoard].node(name).ColumnVoltages[colChan].set(value=value, write=write, index=rowIndex)
-
-            # Full array access
-            else:
-                for colIndex in range(len(self._config.columnMap)):
+                # index access
+                if index != -1:
+                    colIndex = index[0]
+                    rowIndex = index[1]
                     colBoard = self._config.columnMap[colIndex].board
                     colChan = self._config.columnMap[colIndex].channel
 
-                    self.HardwareGroup.ColumnBoard[colBoard].node(name).ColumnVoltages[colChan].set(value=value[colIndex], write=write, index=-1)
+                    self.HardwareGroup.ColumnBoard[colBoard].node(name).ColumnVoltages[colChan].set(value=value, write=write, index=rowIndex)
+
+                # Full array access
+                else:
+                    for colIndex in range(len(self._config.columnMap)):
+                        colBoard = self._config.columnMap[colIndex].board
+                        colChan = self._config.columnMap[colIndex].channel
+
+                        self.HardwareGroup.ColumnBoard[colBoard].node(name).ColumnVoltages[colChan].set(value=value[colIndex], write=write, index=-1)
+        return _fastDacSet
 
 
     # Get fast dac value, index is (column, row) tuple
-    def _fastDacGet(self, name, read, index):
-        with self.root.updateGroup():
+    def _fastDacGetFunc(self, name):
+        def _fastDacGet(*, read, index):
+            with self.root.updateGroup():
 
-            # index access
-            if index != -1:
-                colIndex = index[0]
-                rowIndex = index[1]
-                colBoard = self._config.columnMap[colIndex].board
-                colChan = self._config.columnMap[colIndex].channel
-
-                return self.HardwareGroup.ColumnBoard[colBoard].node(name).ColumnVoltages[colChan].get(read=read, index=rowIndex)
-
-            # Full array access
-            else:
-                ret = np.ndarray((len(self._config.columnMap),len(self._config.rowMap)),np.float)
-
-                for colIndex in range(len(self._config.columnMap)):
+                # index access
+                if index != -1:
+                    colIndex = index[0]
+                    rowIndex = index[1]
                     colBoard = self._config.columnMap[colIndex].board
                     colChan = self._config.columnMap[colIndex].channel
 
-                    ret[colIndex] = self.HardwareGroup.ColumnBoard[colBoard].node(name).ColumnVoltages[colChan].get(read=read, index=-1)
+                    return self.HardwareGroup.ColumnBoard[colBoard].node(name).ColumnVoltages[colChan].get(read=read, index=rowIndex)
 
-                return ret
+                # Full array access
+                else:
+                    ret = np.ndarray((len(self._config.columnMap),len(self._config.rowMap)),np.float)
 
-    # Set SA Feedback value, index is (column, row) tuple
-    def _saFbSet(self, value, write, index):
-        self._fastDacSet('SAFb', value, write, index)
+                    for colIndex in range(len(self._config.columnMap)):
+                        colBoard = self._config.columnMap[colIndex].board
+                        colChan = self._config.columnMap[colIndex].channel
 
-    # Get SA Feedback value, index is (column, row) tuple
-    def _saFbGet(self, read, index):
-        return self._fastDacGet('SAFb', read, index)
+                        ret[colIndex] = self.HardwareGroup.ColumnBoard[colBoard].node(name).ColumnVoltages[colChan].get(read=read, index=-1)
 
-    # Set SQ1 Bias value, index is (column, row) tuple
-    def _sq1BiasSet(self, value, write, index):
-        self._fastDacSet('SQ1Bias', value, write, index)
+                    return ret
+                
+        return _fastDacGet
 
-    # Get SQ1 Bias value, index is (column, row) tuple
-    def _sq1BiasGet(self, read, index):
-        return self._fastDacGet('SQ1Bias', read, index)
-
-    # Set SQ1 FB value, index is (column, row) tuple
-    def _sq1FbSet(self, value, write, index):
-        self._fastDacSet('SQ1Fb', value, write, index)
-
-    # Get SQ1 FB value, index is (column, row) tuple
-    def _sq1FbGet(self, read, index):
-        return self._fastDacGet('SQ1Fb', read, index)
 
     # Set FAS Flux Off value, index is row
     def _fasFluxOffSet(self, value, write, index):
