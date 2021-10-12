@@ -13,7 +13,7 @@ class SaOffsetProcess(pr.Process):
 
         self.add(pr.LocalVariable(
             name='Kp',
-            value=-.25,
+            value=-.75,
             mode='RW',
             description="Proportional PID coefficient"))
 
@@ -31,7 +31,7 @@ class SaOffsetProcess(pr.Process):
 
         self.add(pr.LocalVariable(
             name='Precision',
-            value=0.005,
+            value=0.0002,
             mode='RW',
             description="Convergance precision"))
                  
