@@ -19,7 +19,7 @@ class DacMemory(pr.Device):
 
 class FastDacDriver(pr.Device):
 
-    def __init__(self, rows=64, rfsadj=4.02E3, dacLoad=49.9, ampGain=4.7, **kwargs):
+    def __init__(self, rows=64, rfsadj=4.02E3, dacLoad=49.9, ampGain=-4.7, **kwargs):
         super().__init__(**kwargs)
 
         self.iOutFs = (1.2 / rfsadj) * 32
