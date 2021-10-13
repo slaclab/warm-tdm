@@ -53,13 +53,15 @@ class ColumnModule(pr.Device):
             enabled = True,
             offset = 0xC0200000))
 
-    def hardReset(self):
-        self.Ad9681Config.enable.set(True)
-        self.Ad9681Config.ReadDevice()
-        self.Ad9681Config.InternalPdwnMode.setDisp('Full Power Down')
-        self.Ad9681Config.InternalPdwnMode.setDisp('Chip Run')
-        self.Ad9681Config.InternalPdwnMode.setDisp('Digital Reset')
-        self.Ad9681Config.InternalPdwnMode.setDisp('Chip Run')
+        @self.command()
+        def InitDacAdc():
+            self.Ad9681Config.enable.set(True)
+            self.Ad9681Config.ReadDevice()
+            self.Ad9681Config.InternalPdwnMode.setDisp('Full Power Down')
+            self.Ad9681Config.InternalPdwnMode.setDisp('Chip Run')
+            self.Ad9681Config.InternalPdwnMode.setDisp('Digital Reset')
+            self.Ad9681Config.InternalPdwnMode.setDisp('Chip Run')
 
-        self.SaBiasDac.ZeroVoltages()
-        self.TesBiasDac.ZeroVoltages()
+            self.SaBiasDac.ZeroVoltages()
+            self.TesBiasDac.ZeroVoltages()
+            self.SAFb.Override.set(value=np.zeros(8), write=True)
