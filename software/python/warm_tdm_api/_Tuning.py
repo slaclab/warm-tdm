@@ -64,26 +64,23 @@ def saOffset(*, group, kp=-0.75, ki=0.0, kd=0.0, precision=0.0002, timeout=5.0):
 
 
 #SA TUNING
-def saFlux(*,group,bias,pctLow,pctRange,process):
+def saFlux(*,group,bias,saFbOffsetRange,pctLow,pctRange,process):
     """Returns a list of Curves objects.
     Iterates through SaFb values determined by lowoffset,highoffset,steps and
     calls SaOffset to generate points
     """
     row = 0
-    saFbOffsetRange = []
     colCount = len(group.ColumnMap.get())
-    numSteps = group.SaTuneProcess.SaFbNumSteps.get()
     curves = [warm_tdm_api.Curve(bias[i]) for i in range(colCount)]
 
-    # Get current values for row 0
-    saFbArray = [group.SaFb.get(index=(col, row)) for col in range(colCount)]
+    saFbArray = np.zeros(colCount, np.float)
 
-    # setup ranges which can vary form column to column
-    for col in range(colCount):
-        low = saFbArray[col] + group.SaTuneProcess.SaFbLowOffset.get()
-        high = saFbArray[col] + group.SaTuneProcess.SaFbHighOffset.get()
-        saFbOffsetRange.append(np.linspace(low,high,numSteps,endpoint=True))
+    print(saFbArray)
 
+    print(saFbOffsetRange)
+
+    numSteps = len(saFbOffsetRange[0])
+    
     # Iterate through the steps
     for idx in range(numSteps):
 
@@ -91,7 +88,7 @@ def saFlux(*,group,bias,pctLow,pctRange,process):
         for col in range(colCount):
             saFbArray[col] = saFbOffsetRange[col][idx]
 
-        # large burse transaction of write data
+        # large burst transaction of write data
         group.SaFbForce.set(value=saFbArray)
 
         if process is not None:
@@ -99,9 +96,13 @@ def saFlux(*,group,bias,pctLow,pctRange,process):
 
         points = saOffset(group=group)
 
+        print(f'saFb step {idx} - {saFbArray[5]} - {points[5]}')        
+
         for col in range(colCount):
             curves[col].addPoint(points[col])
 
+    #Temporary - Reset SaFb back to 0 when done
+    #group.SaFbForce.set(value=np.zeros(len(colCount), np.float))
     return curves
 
 def saFluxBias(*,group,process):
@@ -115,33 +116,48 @@ def saFluxBias(*,group,process):
 
     datalist = []
     saBiasRange = []
+    saFbOffsetRange = []    
     colCount = len(group.ColumnMap.get())
-    numSteps = group.SaTuneProcess.SaFbNumSteps.get()
-    pctRange = 1.0/numSteps
+    numBiasSteps = group.SaTuneProcess.SaBiasNumSteps.get()
+    numFbSteps = group.SaTuneProcess.SaFbNumSteps.get()    
+    pctRange = 1.0/numBiasSteps
 
     # Get current sabias values
     bias = group.SaBias.get()
+    start = bias.copy()
 
     for col in range(colCount):
-        low = bias[col] + group.SaTuneProcess.SaBiasLowOffset.get()
-        high = bias[col] + group.SaTuneProcess.SaBiasHighOffset.get()
-        saBiasRange.append(np.linspace(low,high,numSteps,endpoint=True))
-        datalist.append(warm_tdm_api.CurveData(xvalues=saBiasRange[col]))
+        low = group.SaTuneProcess.SaBiasLowOffset.get()
+        high = group.SaTuneProcess.SaBiasHighOffset.get()
+        saBiasRange.append(np.linspace(low,high,numBiasSteps,endpoint=True))
 
-    for idx in range(numSteps):
+        low = group.SaTuneProcess.SaFbLowOffset.get()
+        high = group.SaTuneProcess.SaFbHighOffset.get()
+        saFbOffsetRange.append(np.linspace(low,high,numFbSteps,endpoint=True))
+
+        datalist.append(warm_tdm_api.CurveData(xvalues=saFbOffsetRange[col]))
+
+    for idx in range(numBiasSteps):
         bias = [saBiasRange[col][idx] for col in range(colCount)]
         group.SaBias.set(bias)
 
-        if process is not None:
-            process.Message.set(f'SaBias step {idx} out of {numSteps}')
+        print(f'saBias step {idx} - {bias[5]}')
 
-        curves = saFlux(group=group,bias=bias,pctLow=idx/numSteps,pctRange=pctRange,process=process)
+        if process is not None:
+            process.Message.set(f'SaBias step {idx} out of {numBiasSteps}')
+
+        curves = saFlux(group=group,bias=bias,saFbOffsetRange=saFbOffsetRange, pctLow=idx/numBiasSteps,pctRange=pctRange,process=process)
 
         for col in range(colCount):
             datalist[col].addCurve(curves[col])
 
     for d in datalist:
         d.update()
+
+    # Return SaBias back to initial values
+    #group.SaBias.set(start)
+    #saOffset(group)
+    
 
     return datalist
 
