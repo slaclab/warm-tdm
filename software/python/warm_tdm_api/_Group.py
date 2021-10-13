@@ -239,7 +239,7 @@ class Group(pr.Device):
                                  dependencies = deps,
                                  linkedSet = self._fastDacForceSetFunc('SQ1Bias'),
                                  linkedGet = self._fastDacForceGetFunc('SQ1Bias')))
-                 
+
 
         deps = [self.HardwareGroup.ColumnBoard[m.board].SQ1Fb.ColumnVoltages[m.channel]
                 for m in self._config.columnMap]
@@ -464,8 +464,8 @@ class Group(pr.Device):
                         colBoard = self._config.columnMap[colIndex].board
                         colChan = self._config.columnMap[colIndex].channel
 
-                        self.HardwareGroup.ColumnBoard[colBoard].node(name).Override[colIndex].set(value=value[colIndex],write=write)
-                        
+                        self.HardwareGroup.ColumnBoard[colBoard].node(name).Override[colChan].set(value=value[colIndex],write=write)
+
         return _fastDacForceSet
 
     # Get the last forced SA Feedback DAC value
@@ -477,10 +477,10 @@ class Group(pr.Device):
                     colIndex = index
                     colBoard = self._config.columnMap[colIndex].board
                     colChan = self._config.columnMap[colIndex].channel
-                    
+
                     return self.HardwareGroup.ColumnBoard[colBoard].node(name).Override[colChan].get(read=read)
                 else:
-                    # Full array access                    
+                    # Full array access
                     ret = np.zeros(len(self._config.columnMap), np.float)
 
                     for colIndex in range(len(self._config.columnMap)):
@@ -490,7 +490,7 @@ class Group(pr.Device):
                         ret[colIndex] =  self.HardwareGroup.ColumnBoard[colBoard].node(name).Override[colChan].get()
 
                     return ret
-                                   
+
         return _fastDacForceGet
 
     # Set fast dac value, index is (column, row) tuple
@@ -542,7 +542,7 @@ class Group(pr.Device):
                         ret[colIndex] = self.HardwareGroup.ColumnBoard[colBoard].node(name).ColumnVoltages[colChan].get(read=read, index=-1)
 
                     return ret
-                
+
         return _fastDacGet
 
 
