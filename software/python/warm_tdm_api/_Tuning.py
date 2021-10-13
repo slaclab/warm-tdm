@@ -75,10 +75,6 @@ def saFlux(*,group,bias,saFbOffsetRange,pctLow,pctRange,process):
 
     saFbArray = np.zeros(colCount, np.float)
 
-    print(saFbArray)
-
-    print(saFbOffsetRange)
-
     numSteps = len(saFbOffsetRange[0])
     
     # Iterate through the steps
@@ -94,7 +90,7 @@ def saFlux(*,group,bias,saFbOffsetRange,pctLow,pctRange,process):
         if process is not None:
             process.Progress.set(pctLow + pctRange*(idx/numSteps))
 
-        points = saOffset(group=group)
+        points = group.SaOut.get()
 
         print(f'saFb step {idx} - {saFbArray[5]} - {points[5]}')        
 
@@ -124,7 +120,6 @@ def saFluxBias(*,group,process):
 
     # Get current sabias values
     bias = group.SaBias.get()
-    start = bias.copy()
 
     for col in range(colCount):
         low = group.SaTuneProcess.SaBiasLowOffset.get()
@@ -140,6 +135,7 @@ def saFluxBias(*,group,process):
     for idx in range(numBiasSteps):
         bias = [saBiasRange[col][idx] for col in range(colCount)]
         group.SaBias.set(bias)
+        saOffset(group=group)        
 
         print(f'saBias step {idx} - {bias[5]}')
 

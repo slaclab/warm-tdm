@@ -14,6 +14,7 @@ class PgpCore(pr.Device):
 
         self.add(surf.protocols.pgp.Pgp2bAxi(
             name = 'Pgp2bAxi[0]',
+            writeEn = False,            
             offset=0x00000000,
             errorCountBits=16))
 
@@ -21,17 +22,20 @@ class PgpCore(pr.Device):
         self.add(surf.xilinx.Gtxe2Channel(
             name = 'Gtxe2Channel[0]',
             enabled = False,
+            hidden = True,
             offset = 0x0001000))
 
         self.add(surf.protocols.pgp.Pgp2bAxi(
             name = 'Pgp2bAxi[1]',
             offset=0x00002000,
+            writeEn = False,
             errorCountBits=16))
 
         #GTX
         self.add(surf.xilinx.Gtxe2Channel(
             name = 'Gtxe2Channel[1]',
             enabled = False,
+            hidden = True,
             offset = 0x0003000))
         
 

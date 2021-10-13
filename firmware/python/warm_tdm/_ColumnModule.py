@@ -64,4 +64,6 @@ class ColumnModule(pr.Device):
 
             self.SaBiasDac.ZeroVoltages()
             self.TesBiasDac.ZeroVoltages()
-            self.SAFb.Override.set(value=np.zeros(8), write=True)
+            
+            for v in self.SAFb.Override.values():
+                v.set(value=0.0, write=True)
