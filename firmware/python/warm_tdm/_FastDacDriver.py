@@ -4,23 +4,13 @@ import pyrogue as pr
 
 import warm_tdm
 
-class DacMemory(pr.Device):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-        for i in range(64):
-            self.add(pr.RemoteVariable(
-                name = f'Row[{i}]',
-                offset = i*4,
-                bitSize = 16,
-                mode = 'RW'))
-
-
-
 class FastDacDriver(pr.Device):
 
     def __init__(self, rows=64, rfsadj=4.02E3, dacLoad=49.9, ampGain=-4.7, **kwargs):
         super().__init__(**kwargs)
+
+        if rows == 0:
+            rows = 64
 
         self.iOutFs = (1.2 / rfsadj) * 32
         self.dacLoad = dacLoad
@@ -53,14 +43,7 @@ class FastDacDriver(pr.Device):
                 linkedSet = _overSet))
 
 
-
         for i in range(8):
-#             self.add(pr.MemoryDevice(
-#                 name = f'Channel[{i}]',
-#                 offset = i<<8,
-#                 size = 64*4))
-
-
 
             self.add(pr.RemoteVariable(
                 name = f'Column[{i}]',
@@ -80,15 +63,6 @@ class FastDacDriver(pr.Device):
                 disp = '{:0.03f}',                
                 linkedGet = self._getVoltageFunc(i),
                 linkedSet = self._setVoltageFunc(i)))
-
-#             for j in range(64):
-#                 self.add(pr.LinkVariable(
-#                     name = f'Col{i}_Row[{j}]',
-#                     guiGroup = f'ColumnVoltages[{i}]',
-#                     disp = '{:0.03f}',
-#                     dependencies = [self.Column[i]],
-#                     linkedGet = self._getChannelFunc(i, j),
-#                     linkedSet = self._setChannelFunc(i, j)))
 
         @self.command()
         def RamTest():
