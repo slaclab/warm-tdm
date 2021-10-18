@@ -133,7 +133,7 @@ class WaveformCaptureReceiver(rogue.interfaces.stream.Slave, pr.Device):
         print(f'Got Frame on channel {frame.getChannel()}: {numBytes} bytes')
 
         # Create a view of ADC values
-        frame = data.view(np.unt16)
+        frame = data.view(np.unit16)
 
         # Process header
         channel = adcs[0] & 0b1111
