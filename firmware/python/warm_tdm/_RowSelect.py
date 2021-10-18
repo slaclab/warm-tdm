@@ -1,10 +1,8 @@
 import pyrogue as pr
 
 class PhysicalRowSelect(pr.Device):
-
-
     
-    def __init__(self, index, dacDevice, dacChannel, **kwargs):
+    def __init__(self, index, dacDevice, dacChannel, fsRange=4.0e-3, dacLoad=100, gain=6, **kwargs):
         super().__init__(**kwargs)
 
         self.SRAM_START_ADDRS = [0x000, 0x400, 0x800, 0xC00]
@@ -14,8 +12,15 @@ class PhysicalRowSelect(pr.Device):
         self._dacStopAddrVar = self._dacDevice.node(f'STOP_ADDR{dacChannel+1}')
         self._dacStartAddrVar = self._dacDevice.node(f'START_ADDR{dacChannel+1}')
 
+        # These assume certain DAC gain settings
+        def convVoltage(adc):
+            pass
+
+        def convAdc(voltage):
+            pass
+
         self.add(pr.LocalVariable(
-            name = 'ActiveValue',
+            name = 'OnValue',
             disp = '0x{:04x}',
             value = 0x7ff))
 
@@ -25,7 +30,7 @@ class PhysicalRowSelect(pr.Device):
             value = 0x800))
 
         self.add(pr.LocalVariable(
-            name = 'VirtualRow',
+            name = 'LogicalRow',
             value = index))
         
 
@@ -54,26 +59,6 @@ class PhysicalRowSelect(pr.Device):
         self._dacDevice.SRAM.set(start, sramList, write=True)
 
 
-    def setDacSram(self):
-        # Create list of sequence values with everything set to OffValue at first
-        values = [self.OffValue.value() for x in range(64)]
-
-        print(f'Sequence: {self.Sequence.value()}')
-
-        # Set the Sequence index to the active value
-        values[self.Sequence.value()] = self.ActiveValue.value()
-
-        # Determine where to write the list into SRAM
-        start = self.SRAM_START_ADDRS[self._dacChannel]*4
-
-        # Set the configuration
-        print(f'Setting SRAM start={start}, values = {values}')
-        self._dacDevice.SRAM.set(start, values, write=True)
-        
-
-#    def writeBlocks(self, **kwargs):
-#        print(f'{self.path}.writeBlocks()')
-#        self.setDacSram()
 
 class RowSelectArray(pr.Device):
     def __init__(self, rowModules, **kwargs):
