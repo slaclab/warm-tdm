@@ -24,10 +24,10 @@ def saOffset(*, group, kp=-0.75, ki=0.0, kd=0.0, precision=0.0002, timeout=5.0):
 
     group.SaOffset.set(control)
     current = group.SaOut.get()
-    masked = current 
+    masked = current
     # print('Initial Values')
     # for i in range(len(control)):
-    #     print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}')            
+    #     print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}')
     # print()
 
     mult = np.array([1 if en else 0 for en in group._config.columnEnable],np.float32)
@@ -50,13 +50,13 @@ def saOffset(*, group, kp=-0.75, ki=0.0, kd=0.0, precision=0.0002, timeout=5.0):
         for i, p in enumerate(pid):
             change = p(masked[i])
             control[i] = max(min(control[i] + change, 2.499),0)
-            #print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')            
+            #print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')
 
         #print(f'Done with loop\n')
 
         group.SaOffset.set(control)
 
-    print(f'Converged after {count} loops')
+    print(f'saOffset PID loop Converged after {count} loops')
 
     return control
 
@@ -76,7 +76,7 @@ def saFlux(*,group,bias,saFbOffsetRange,pctLow,pctRange,process):
     saFbArray = np.zeros(colCount, np.float)
 
     numSteps = len(saFbOffsetRange[0])
-    
+
     # Iterate through the steps
     for idx in range(numSteps):
 
@@ -92,7 +92,7 @@ def saFlux(*,group,bias,saFbOffsetRange,pctLow,pctRange,process):
 
         points = group.SaOut.get()
 
-        print(f'saFb step {idx} - {saFbArray[5]} - {points[5]}')        
+#        print(f'saFb step {idx} - {saFbArray[5]} - {points[5]}')
 
         for col in range(colCount):
             curves[col].addPoint(points[col])
@@ -112,10 +112,10 @@ def saFluxBias(*,group,process):
 
     datalist = []
     saBiasRange = []
-    saFbOffsetRange = []    
+    saFbOffsetRange = []
     colCount = len(group.ColumnMap.get())
     numBiasSteps = group.SaTuneProcess.SaBiasNumSteps.get()
-    numFbSteps = group.SaTuneProcess.SaFbNumSteps.get()    
+    numFbSteps = group.SaTuneProcess.SaFbNumSteps.get()
     pctRange = 1.0/numBiasSteps
 
     # Get current sabias values
@@ -135,9 +135,9 @@ def saFluxBias(*,group,process):
     for idx in range(numBiasSteps):
         bias = [saBiasRange[col][idx] for col in range(colCount)]
         group.SaBias.set(bias)
-        saOffset(group=group)        
+        saOffset(group=group)
 
-        print(f'saBias step {idx} - {bias[5]}')
+        print(f'saBias step {idx} - {bias}')
 
         if process is not None:
             process.Message.set(f'SaBias step {idx} out of {numBiasSteps}')
@@ -153,7 +153,7 @@ def saFluxBias(*,group,process):
     # Return SaBias back to initial values
     #group.SaBias.set(start)
     #saOffset(group)
-    
+
 
     return datalist
 

@@ -239,7 +239,7 @@ class Group(pr.Device):
                                  dependencies = deps,
                                  linkedSet = self._fastDacForceSetFunc('SQ1Bias'),
                                  linkedGet = self._fastDacForceGetFunc('SQ1Bias')))
-                 
+
 
         deps = [self.HardwareGroup.ColumnBoard[m.board].SQ1Fb.ColumnVoltages[m.channel]
                 for m in self._config.columnMap]
@@ -448,8 +448,9 @@ class Group(pr.Device):
     def _fastDacForceSetFunc(self, name):
         def _fastDacForceSet(value, *, write, index):
             with self.root.updateGroup():
+                # print(f'Forcing {name} to {value}, index={index}, write={write}')
 
-            # index access
+                # index access
                 if index != -1:
                     colIndex = index
                     colBoard = self._config.columnMap[colIndex].board
@@ -465,32 +466,37 @@ class Group(pr.Device):
                         colChan = self._config.columnMap[colIndex].channel
 
                         self.HardwareGroup.ColumnBoard[colBoard].node(name).Override[colIndex].set(value=value[colIndex],write=write)
-                        
+
         return _fastDacForceSet
 
     # Get the last forced SA Feedback DAC value
     def _fastDacForceGetFunc(self, name):
         def _fastDacForceGet(*, read, index):
             with self.root.updateGroup():
+
                 # index access
                 if index != -1:
                     colIndex = index
                     colBoard = self._config.columnMap[colIndex].board
                     colChan = self._config.columnMap[colIndex].channel
-                    
-                    return self.HardwareGroup.ColumnBoard[colBoard].node(name).Override[colChan].get(read=read)
+
+                    tmp = self.HardwareGroup.ColumnBoard[colBoard].node(name).Override[colChan].get(read=read)
+                    # print(f'Getting {name} - index={index}, read={read} - value= {tmp}')
+                    return tmp
+
                 else:
-                    # Full array access                    
+                    # Full array access
                     ret = np.zeros(len(self._config.columnMap), np.float)
 
                     for colIndex in range(len(self._config.columnMap)):
                         colBoard = self._config.columnMap[colIndex].board
                         colChan = self._config.columnMap[colIndex].channel
 
-                        ret[colIndex] =  self.HardwareGroup.ColumnBoard[colBoard].node(name).Override[colChan].get()
+                        ret[colIndex] =  self.HardwareGroup.ColumnBoard[colBoard].node(name).Override[colChan].get(read=read)
+                        # print(f'Getting {name} - index={index}, read={read} - value= {ret[colIndex]}')
 
                     return ret
-                                   
+
         return _fastDacForceGet
 
     # Set fast dac value, index is (column, row) tuple
@@ -542,7 +548,7 @@ class Group(pr.Device):
                         ret[colIndex] = self.HardwareGroup.ColumnBoard[colBoard].node(name).ColumnVoltages[colChan].get(read=read, index=-1)
 
                     return ret
-                
+
         return _fastDacGet
 
 
