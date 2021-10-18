@@ -92,6 +92,7 @@ class Group(pr.Device):
                                   groups='TopApi',
                                   description="Number of row boards"))
 
+
         # Enable Row Tune Override
         self.add(pr.LinkVariable(name='RowForceEn',
                                  value=False,
@@ -115,8 +116,9 @@ class Group(pr.Device):
                                  description="Row Tune Index"))
 
         # Tuning row enables
+        rtsize = len(self._config.rowMap) if self._config.rowBoards > 0 else 1
         self.add(pr.LocalVariable(name='RowTuneEnable',
-                                  value=np.array([True] * len(self._config.rowMap),np.bool),
+                                  value=np.array([True] * rtsize,np.bool),
                                   groups='TopApi',
                                   mode='RW',
                                   description="Tune enable for each row"))
@@ -189,19 +191,6 @@ class Group(pr.Device):
                                  description=""))
 
 
-        deps = [self.HardwareGroup.ColumnBoard[m.board].SAFb.ColumnVoltages[m.channel]
-                for m in self._config.columnMap]
-
-
-        # SA FB values, accessed with index tuple (column, row)
-        self.add(pr.LinkVariable(name='SaFb',
-                                 mode='RW',
-                                 groups='TopApi',
-                                 disp = '{:0.03f}',
-                                 dependencies=deps,
-                                 linkedSet=self._fastDacSetFunc('SAFb'),
-                                 linkedGet=self._fastDacGetFunc('SAFb'),
-                                 description=""))
 
         deps = [self.HardwareGroup.ColumnBoard[m.board].SAFb.Override[m.channel]
                 for m in self._config.columnMap]
@@ -213,6 +202,44 @@ class Group(pr.Device):
                                  dependencies = deps,
                                  linkedSet = self._fastDacForceSetFunc('SAFb'),
                                  linkedGet = self._fastDacForceGetFunc('SAFb')))
+
+        deps = [self.HardwareGroup.ColumnBoard[m.board].SQ1Bias.Override[m.channel]
+                for m in self._config.columnMap]
+
+        self.add(pr.LinkVariable(name = 'Sq1BiasForce',
+                                 mode = 'RW',
+                                 groups = 'TopApi',
+                                 disp = '{:0.03f}',
+                                 dependencies = deps,
+                                 linkedSet = self._fastDacForceSetFunc('SQ1Bias'),
+                                 linkedGet = self._fastDacForceGetFunc('SQ1Bias')))
+
+
+        deps = [self.HardwareGroup.ColumnBoard[m.board].SQ1Fb.Override[m.channel]
+                for m in self._config.columnMap]
+
+        self.add(pr.LinkVariable(name = 'Sq1FbForce',
+                                 mode = 'RW',
+                                 groups = 'TopApi',
+                                 disp = '{:0.03f}',
+                                 dependencies = deps,
+                                 linkedSet = self._fastDacForceSetFunc('SQ1Fb'),
+                                 linkedGet = self._fastDacForceGetFunc('SQ1Fb')))
+
+
+
+        deps = [self.HardwareGroup.ColumnBoard[m.board].SAFb.ColumnVoltages[m.channel]
+                for m in self._config.columnMap]
+
+        # SA FB values, accessed with index tuple (column, row)
+        self.add(pr.LinkVariable(name='SaFb',
+                                 mode='RW',
+                                 groups='TopApi',
+                                 disp = '{:0.03f}',
+                                 dependencies=deps,
+                                 linkedSet=self._fastDacSetFunc('SAFb'),
+                                 linkedGet=self._fastDacGetFunc('SAFb'),
+                                 description=""))
 
 
         deps = [self.HardwareGroup.ColumnBoard[m.board].SQ1Bias.ColumnVoltages[m.channel]
@@ -229,17 +256,6 @@ class Group(pr.Device):
                                  linkedGet=self._fastDacGetFunc('SQ1Bias'),
                                  description=""))
 
-        deps = [self.HardwareGroup.ColumnBoard[m.board].SQ1Bias.Override[m.channel]
-                for m in self._config.columnMap]
-
-        self.add(pr.LinkVariable(name = 'Sq1BiasForce',
-                                 mode = 'RW',
-                                 groups = 'TopApi',
-                                 disp = '{:0.03f}',
-                                 dependencies = deps,
-                                 linkedSet = self._fastDacForceSetFunc('SQ1Bias'),
-                                 linkedGet = self._fastDacForceGetFunc('SQ1Bias')))
-
 
         deps = [self.HardwareGroup.ColumnBoard[m.board].SQ1Fb.ColumnVoltages[m.channel]
                 for m in self._config.columnMap]
@@ -253,17 +269,6 @@ class Group(pr.Device):
                                  linkedSet=self._fastDacSetFunc('SQ1Bias'),
                                  linkedGet=self._fastDacGetFunc('SQ1Bias'),
                                  description=""))
-
-        deps = [self.HardwareGroup.ColumnBoard[m.board].SQ1Fb.Override[m.channel]
-                for m in self._config.columnMap]
-
-        self.add(pr.LinkVariable(name = 'Sq1FbForce',
-                                 mode = 'RW',
-                                 groups = 'TopApi',
-                                 disp = '{:0.03f}',
-                                 dependencies = deps,
-                                 linkedSet = self._fastDacForceSetFunc('SQ1Fb'),
-                                 linkedGet = self._fastDacForceGetFunc('SQ1Fb')))
 
 
         # FAS Flux off values, accessed with row index
@@ -282,6 +287,7 @@ class Group(pr.Device):
                                  linkedSet=self._fasFluxOnSet,
                                  linkedGet=self._fasFluxOnGet,
                                  description=""))
+
 
         # Initialize System
         self.add(pr.LocalCommand(name='Init',
@@ -320,11 +326,13 @@ class Group(pr.Device):
     def _rowForceEnSet(self, value, write):
         with self.root.updateGroup():
 
-            for col in self.HardwareGroup.ColumnBoard:
+            for colIdx in range(self._config.columnBoards):
+                #self.HardwareGroup.ColumnBoard[colIdx]
                 #col.RowForceEn.set(value,write=write)  # Waiting on force variables
                 pass
 
-            for row in self.HardwareGroup.RowBoard:
+            for rowIdx in range(self._config.rowBoards):
+                # self.HardwareGroup.RowBoard:
                 pass
                 #row.RowForceEn.set(value,write=write)  # Waiting on force variables
 
@@ -352,11 +360,11 @@ class Group(pr.Device):
     def _rowForceIdxSet(self, value, write):
         with self.root.updateGroup():
 
-            for col in self.HardwareGroup.ColumnBoard:
+            for col in range(self._config.columnBoards): # self.HardwareGroup.ColumnBoard:
                 pass
                 #col.RowTuneIdx.set(value,write=write) # Waiting on force variables
 
-            for row in self.HardwareGroup.RowBoard:
+            for row in range(self._config.rowBoards): #self.HardwareGroup.RowBoard:
                 pass
                 #row.RowTuneIdx.set(value,write=write) # Waiting on force variables
 
@@ -578,8 +586,9 @@ class Group(pr.Device):
 
             # index access
             if index != -1:
-                board = self._config.rowMap[index].board
-                chan = self._config.rowMap[index].channel
+                # Uncomment these when implementing for real
+                #board = self._config.rowMap[index].board
+                #chan = self._config.rowMap[index].channel
 
                 #return self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].OffValue.get(index=index, read=read)
                 return 0.0
@@ -623,8 +632,8 @@ class Group(pr.Device):
 
             # index access
             if index != -1:
-                board = self._config.rowMap[index].board
-                chan = self._config.rowMap[index].channel
+                #board = self._config.rowMap[index].board
+                #chan = self._config.rowMap[index].channel
 
                 #return self.HardwareGroup.RowBoard[board].FasFluxOn[chan].get(index= index, read=read)
                 return 0.0
