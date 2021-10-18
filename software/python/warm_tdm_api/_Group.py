@@ -465,7 +465,7 @@ class Group(pr.Device):
                         colBoard = self._config.columnMap[colIndex].board
                         colChan = self._config.columnMap[colIndex].channel
 
-                        self.HardwareGroup.ColumnBoard[colBoard].node(name).Override[colIndex].set(value=value[colIndex],write=write)
+                        self.HardwareGroup.ColumnBoard[colBoard].node(name).Override[colChan].set(value=value[colIndex],write=write)
 
         return _fastDacForceSet
 
