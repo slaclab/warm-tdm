@@ -28,21 +28,13 @@ class StreamDebug(rogue.interfaces.stream.Slave):
             print('Frame Error!')
             return
 
-        ba = bytearray(frame.getPayload())
-        frame.read(ba, 0)
-        numBytes = len(ba)
+        data = frame.getNumpy(0, frame.getPayload())
+        numBytes = data.size
         print(f'Got Frame on channel {frame.getChannel()}: {numBytes} bytes')
-        adcs = np.frombuffer(ba, dtype=np.int16)
-        voltages = np.array([self._conv(adc) for adc in adcs], dtype=np.float64)
-        adcs.resize(numBytes//16, 8)
-        voltages.resize(numBytes//16, 8)        
+        frame = data.copy()
+        adcs = frame.view(np.int16)
+        adcs.resize(adcs.size//8, 8)
         print(adcs)
-        print(voltages)        
-
-        means = [np.mean(voltages[:,i]) for i in range(8)]
-        print(f'Mean: {means}')
-        noises = [np.std(adcs[:,i]) for i in range(8)]
-        print(f'Noise: {noises}')
 
 class WarmTdmRoot(pyrogue.Root):
     def __init__(

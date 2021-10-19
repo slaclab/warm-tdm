@@ -76,6 +76,11 @@ class HardwareGroup(pyrogue.Device):
                     dataStream >> plotter
                     self.addInterface(plotter)
 
+                else:
+                    debug = warm_tdm.StreamDebug()
+                    dataStream >> debug
+                    self.addInterface(debug)
+
         for rowIndex, boardIndex in enumerate(range(colBoards, colBoards+rowBoards)):
             # Create streams to each board
             if emulate is True:
