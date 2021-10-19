@@ -97,6 +97,7 @@ architecture rtl of WaveformCapture is
       reset            : sl;
       average          : slv32Array(7 downto 0);
       alpha            : slv(3 downto 0);
+      pauseThresh      : slv(13 downto 0);
       waveformTrigger  : sl;
       doWaveform       : sl;
       decimation       : slv(15 downto 0);
@@ -115,6 +116,7 @@ architecture rtl of WaveformCapture is
       reset            => '0',
       average          => (others => (others => '0')),
       alpha            => toSlv(8, 4),
+      pauseThresh      => toSlv(2**14-8, 14),
       waveformTrigger  => '0',
       doWaveform       => '0',
       decimation       => (others => '0'),
@@ -207,6 +209,7 @@ begin
       axiSlaveRegister(axilEp, X"04", 0, v.waveformTrigger);
       axiSlaveRegister(axilEp, X"04", 1, v.reset);
       axiSlaveRegister(axilEp, X"08", 0, v.decimation);
+      axiSlaveRegister(axilEp, X"08", 16, v.pauseThresh);
       axiSlaveRegister(axilEp, X"0C", 0, v.alpha);
 
       axiSlaveRegisterR(axilEp, X"10", 0, r.average(0));
@@ -277,11 +280,16 @@ begin
       -- Multiplex combined or resized channel streams
       ----------------------------------------------------------------------------------------------
       if (timingRxData.rawAdc = '1' or r.waveformTrigger = '1') then
-         v.doWaveform                     := '1';
-         v.bufferStream.tValid            := '1';
-         v.bufferStream.tData(2 downto 0) := r.selectedChannel;
-         v.bufferStream.tData(3)          := r.allChannels;
+         v.doWaveform                       := '1';
+         v.bufferStream.tValid              := '1';
+         v.bufferStream.tData(2 downto 0)   := r.selectedChannel;
+         v.bufferStream.tData(3)            := r.allChannels;
          v.bufferStream.tData(31 downto 16) := r.decimation;
+
+         for i in 7 downto 0 loop
+            v.bufferStream.tdata(16*i+15 downto 16*i) := toSlv(i, 16);
+         end loop;
+
          ssiSetUserSof(INT_AXIS_CONFIG_C, v.bufferStream, '1');
       end if;
 
@@ -334,6 +342,7 @@ begin
          VALID_THOLD_G       => 0,
          SLAVE_READY_EN_G    => false,
          GEN_SYNC_FIFO_G     => false,
+         FIFO_FIXED_THRESH_G => false,
          FIFO_ADDR_WIDTH_G   => 14,
          FIFO_PAUSE_THRESH_G => 2**14-8,
 --           SYNTH_MODE_G           => SYNTH_MODE_G,
@@ -343,14 +352,15 @@ begin
          SLAVE_AXI_CONFIG_G  => INT_AXIS_CONFIG_C,
          MASTER_AXI_CONFIG_G => DATA_AXIS_CONFIG_C)
       port map (
-         sAxisClk    => timingRxClk125,  -- [in]
-         sAxisRst    => timingRxRst125,  -- [in]
-         sAxisMaster => r.bufferStream,  -- [in]
-         sAxisCtrl   => bufferCtrl,      -- [out]
-         mAxisClk    => axisClk,         -- [in]
-         mAxisRst    => axisRst,         -- [in]
-         mAxisMaster => axisMaster,      -- [out]
-         mAxisSlave  => axisSlave);      -- [in]
+         sAxisClk        => timingRxClk125,  -- [in]
+         sAxisRst        => timingRxRst125,  -- [in]
+         sAxisMaster     => r.bufferStream,  -- [in]
+         sAxisCtrl       => bufferCtrl,      -- [out]
+         fifoPauseThresh => r.pauseThresh,   -- [in]
+         mAxisClk        => axisClk,         -- [in]
+         mAxisRst        => axisRst,         -- [in]
+         mAxisMaster     => axisMaster,      -- [out]
+         mAxisSlave      => axisSlave);      -- [in]
 end architecture rtl;
 
 

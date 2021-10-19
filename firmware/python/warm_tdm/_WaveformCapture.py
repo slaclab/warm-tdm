@@ -54,6 +54,12 @@ class WaveformCapture(pr.Device):
             bitOffset = 0,
             mode = 'RW',
             base = pr.UInt))
+
+        self.add(pr.RemoteVariable(
+            name = 'BufferDepth',
+            offset = 0x08,
+            bitOffset = 16,
+            bitSize = 14))
             
 
         self.add(pr.RemoteVariable(
@@ -66,6 +72,8 @@ class WaveformCapture(pr.Device):
             numValues = 8,
             valueBits = 32,
             valueStride = 32))
+
+            
 
         def conv(value):
             return 2*(value >> 18)/2**14
