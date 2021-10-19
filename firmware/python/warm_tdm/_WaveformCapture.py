@@ -3,6 +3,7 @@ import rogue
 
 import warm_tdm
 import time
+import os
 import numpy as np
 from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
@@ -163,7 +164,7 @@ class WaveformCaptureReceiver(rogue.interfaces.stream.Slave, pr.Device):
         channel = frame[0] & 0b1111
         decimation = frame[1]
 
-        adcs = data[8:].view(np.int16).copy()
+        adcs = frame[8:].view(np.int16).copy()
         
         if channel == 8:
             # Construct a view of the adc data
