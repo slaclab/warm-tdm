@@ -147,7 +147,7 @@ class WaveformCaptureReceiver(rogue.interfaces.stream.Slave, pr.Device):
 
 
     def _conv(self, adc):
-        return (adc//4)/2**13
+        return adc/2**13
 
     def _acceptFrame(self, frame):
         if frame.getError():
@@ -166,6 +166,7 @@ class WaveformCaptureReceiver(rogue.interfaces.stream.Slave, pr.Device):
         decimation = frame[1]
 
         adcs = frame[8:].view(np.int16).copy()
+        adcs = adcs//4
 
         if channel == 8:
             # Construct a view of the adc data
@@ -282,10 +283,10 @@ class FftPlotter(object):
         freqs = np.fft.rfftfreq(N,T)
         yf = 20*np.log10(np.fft.rfft(data))
         ax.plot(freqs, yf)
-        self.fig.convas.draw()
+        self.fig.canvas.draw()
 
     def updateFfts(self, frame, channel):
-        if channe == 8:
+        if channel == 8:
             for i in range(8):
                 self.drawFft(self.ax[i], frame[:,i])
         else:
