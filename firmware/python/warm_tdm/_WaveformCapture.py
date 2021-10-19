@@ -2,6 +2,7 @@ import pyrogue as pr
 import rogue
 
 import warm_tdm
+import time
 import numpy as np
 from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
@@ -32,6 +33,20 @@ class WaveformCapture(pr.Device):
             bitOffset = 0,
             bitSize = 1,
             function = pr.RemoteCommand.toggle))
+
+        @self.command()
+        def CaptureIterative():
+            startAll = self.AllChannels.get()
+            startSel = self.SelectedChannel.get()            
+            self.AllChannels.set(False)
+            for i in range(8):
+                self.SelectedChannel.set(i)
+                self.CaptureWaveform()
+                time.sleep(.05)
+
+            self.AllChannels.set(startAll)
+            self.SelectedChannel.set(startSel)            
+                
         
         self.add(pr.RemoteCommand(
             name = 'ResetPedastals',
@@ -141,23 +156,23 @@ class WaveformCaptureReceiver(rogue.interfaces.stream.Slave, pr.Device):
         print(f'Got Frame on channel {frame.getChannel()}: {numBytes} bytes')
 
         # Create a view of ADC values
-        frame = data.view(np.unit16)
+        frame = data.view(np.uint16)
 
         # Process header
-        channel = adcs[0] & 0b1111
-        decimation = adcs[1]
+        channel = frame[0] & 0b1111
+        decimation = frame[1]
 
-        adcs = data[8:].view(np.int16)
+        adcs = data[8:].view(np.int16).copy()
         
         if channel == 8:
             # Construct a view of the adc data
-            adcs.resize(adc.size//8, 8)
+            adcs.resize(adcs.size//8, 8)
 
         # Convert adc values to voltages
         voltages = self.conv(adcs)
 
-        print(adcs)
-        print(voltages)
+#        print(adcs)
+#        print(voltages)
 
         if channel == 8:
 
@@ -178,7 +193,7 @@ class WaveformCaptureReceiver(rogue.interfaces.stream.Slave, pr.Device):
             adjustedAdcs = (adcs-commonAdcs).astype(int)
 
             self.hist_plotter.updateHists(adcs, channel)
-            self.sub_hist_plotter.updateHists(adcs, channel)
+            self.sub_hist_plotter.updateHists(adjustedAdcs, channel)
 #            self.hist_queue.put((adcs, channel))
 #            self.sub_hist_queue.put((adjustedAdcs, channel))
 
@@ -231,7 +246,7 @@ class HistogramPlotter(object):
         
 
     def updateHists(self, frame, channel):
-        print(frame)
+#        print(frame)
         if channel == 8:
             for i in range(8):
                 self.drawHist(self.ax[i], frame[:,i])
