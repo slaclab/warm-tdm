@@ -39,7 +39,7 @@ class WaveformCapture(pr.Device):
         @self.command()
         def CaptureIterative():
             startAll = self.AllChannels.get()
-            startSel = self.SelectedChannel.get()            
+            startSel = self.SelectedChannel.get()
             self.AllChannels.set(False)
             for i in range(8):
                 self.SelectedChannel.set(i)
@@ -47,16 +47,16 @@ class WaveformCapture(pr.Device):
                 time.sleep(.05)
 
             self.AllChannels.set(startAll)
-            self.SelectedChannel.set(startSel)            
-                
-        
+            self.SelectedChannel.set(startSel)
+
+
         self.add(pr.RemoteCommand(
             name = 'ResetPedastals',
             offset = 0x04,
             bitOffset = 1,
             bitSize = 1,
             function = pr.RemoteCommand.toggle))
-        
+
         self.add(pr.RemoteVariable(
             name = 'Decimation',
             offset = 0x08,
@@ -77,7 +77,7 @@ class WaveformCapture(pr.Device):
             offset = 0x08,
             bitOffset = 16,
             bitSize = 14))
-            
+
 
         self.add(pr.RemoteVariable(
             name = 'AdcAverageRaw',
@@ -90,7 +90,7 @@ class WaveformCapture(pr.Device):
             valueBits = 32,
             valueStride = 32))
 
-            
+
 
         def conv(value):
             return 2*(value >> 18)/2**14
@@ -100,7 +100,7 @@ class WaveformCapture(pr.Device):
         def _get(*, read, index, check):
             ret = self.AdcAverageRaw.get(read=read, index=index, check=check)
             if index == -1:
-                ret = ret.astype(np.int32)                            
+                ret = ret.astype(np.int32)
                 return np.array([conv(v) for v in ret], np.float64)
             else:
                 return conv(ret)
@@ -126,28 +126,29 @@ class WaveformCaptureReceiver(rogue.interfaces.stream.Slave, pr.Device):
         def TestChannel(arg):
             frame = np.random.normal(0, scale=150, size=16000*8).round().astype(np.int16)
             self.hist_plotter.updateHists(frame, int(arg))
-        
+
 
         self.conv = np.vectorize(self._conv)
-        
+
 #        self.hist_queue = mp.SimpleQueue()
         self.hist_plotter = HistogramPlotter(title='Raw Histogram')
+        self.fft_plotter = FftPlotter()
  #       self.hist_process = mp.Process(
  #           target = self.hist_plotter, args=(self.hist_queue, ), daemon=True)
-        
 
-#        self.sub_hist_queue = mp.SimpleQueue()        
-        self.sub_hist_plotter = HistogramPlotter(title='Subtracted Histogram')
+
+#        self.sub_hist_queue = mp.SimpleQueue()
+        #self.sub_hist_plotter = HistogramPlotter(title='Subtracted Histogram')
 #        self.sub_hist_process = mp.Process(
 #            target = self.sub_hist_plotter, args=(self.sub_hist_queue, ), daemon=True)
 
 #        self.hist_process.start()
 #        self.sub_hist_process.start()
-        
-        
+
+
     def _conv(self, adc):
         return (adc//4)/2**13
-    
+
     def _acceptFrame(self, frame):
         if frame.getError():
             print('Frame Error!')
@@ -165,7 +166,7 @@ class WaveformCaptureReceiver(rogue.interfaces.stream.Slave, pr.Device):
         decimation = frame[1]
 
         adcs = frame[8:].view(np.int16).copy()
-        
+
         if channel == 8:
             # Construct a view of the adc data
             adcs.resize(adcs.size//8, 8)
@@ -199,16 +200,19 @@ class WaveformCaptureReceiver(rogue.interfaces.stream.Slave, pr.Device):
             adjustedAdcs = (adcs-commonAdcs).astype(int)
 
             self.hist_plotter.updateHists(adcs, channel)
-            self.sub_hist_plotter.updateHists(adjustedAdcs, channel)
+            self.fft_plotter.updateFfts(voltages, channel)
+            #self.sub_hist_plotter.updateHists(adjustedAdcs, channel)
 #            self.hist_queue.put((adcs, channel))
 #            self.sub_hist_queue.put((adjustedAdcs, channel))
+
 
         else:
 
             self.hist_plotter.updateHists(adcs, channel)
+            self.fft_plotter.updateFfts(voltages, channel)
 
 
-        
+
 class HistogramPlotter(object):
 
     def __init__(self, title='Channel Histograms'):
@@ -216,12 +220,12 @@ class HistogramPlotter(object):
         self.title = title
         self.fig, self.ax = plt.subplots(8)
         self.fig.suptitle(self.title)
-        
+
         self.barpath = [None for _ in range(8)]
         self.patch = [None for _ in range(8)]
 
 
-        plt.show(block=False)                
+        plt.show(block=False)
 
     def drawHist(self, ax, data):
         mean = np.int32(data.mean())
@@ -240,7 +244,7 @@ class HistogramPlotter(object):
         barpath = path.Path.make_compound_path_from_polys(xy)
         patch = patches.PathPatch(barpath)
 
-        ax.clear()            
+        ax.clear()
         ax.add_patch(patch)
 
         ax.text(0.1, 0.7, f'\u03C3: {np.std(data):1.3f}', transform=ax.transAxes)
@@ -249,7 +253,7 @@ class HistogramPlotter(object):
         ax.set_ylim(bottom.min(), top.max())
 
         self.fig.canvas.draw()
-        
+
 
     def updateHists(self, frame, channel):
 #        print(frame)
@@ -259,5 +263,30 @@ class HistogramPlotter(object):
 
         else:
             self.drawHist(self.ax[channel], frame)
-            
+
         #plt.draw()
+
+class FftPlotter(object):
+
+    def __init__(self, title='Channel Relative Power'):
+
+        self.title = title
+        self.fig, self.ax = plt.subplots(8)
+        self.fig.suptitle(self.title)
+        plt.show(block=False)
+
+    def drawFft(self, ax, data):
+        ax.clear()
+        N = data.size
+        T = 8.0E-9
+        freqs = np.fft.rfftfreq(N,T)
+        yf = 20*np.log10(np.fft.rfft(data))
+        ax.plot(freqs, yf)
+        self.fig.convas.draw()
+
+    def updateFfts(self, frame, channel):
+        if channe == 8:
+            for i in range(8):
+                self.drawFft(self.ax[i], frame[:,i])
+        else:
+            self.drawFft(self.ax[channel], frame)
