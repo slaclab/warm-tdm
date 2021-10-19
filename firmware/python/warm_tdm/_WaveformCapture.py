@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import matplotlib.patches as patches
 import matplotlib.path as path
+import datetime
 
 class WaveformCapture(pr.Device):
     def __init__(self, **kwargs):
@@ -167,6 +168,10 @@ class WaveformCaptureReceiver(rogue.interfaces.stream.Slave, pr.Device):
         if channel == 8:
             # Construct a view of the adc data
             adcs.resize(adcs.size//8, 8)
+
+        # Save the data to a file
+        filepath = os.path.abspath(f'CH_{channel}_' + datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
+        np.save(filepath, data)
 
         # Convert adc values to voltages
         voltages = self.conv(adcs)
