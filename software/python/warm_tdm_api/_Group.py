@@ -547,7 +547,10 @@ class Group(pr.Device):
 
                 # Full array access
                 else:
-                    ret = np.ndarray((len(self._config.columnMap),len(self._config.rowMap)),np.float)
+                    rows = len(self._config.rowMap)
+                    if rows == 0:
+                        rows = 64
+                    ret = np.ndarray((len(self._config.columnMap),rows),np.float64)
 
                     for colIndex in range(len(self._config.columnMap)):
                         colBoard = self._config.columnMap[colIndex].board
