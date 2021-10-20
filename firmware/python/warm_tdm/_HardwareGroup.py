@@ -72,7 +72,7 @@ class HardwareGroup(pyrogue.Device):
                 #debug = warm_tdm.StreamDebug()
                 if plots:
                     plotter = warm_tdm.WaveformCaptureReceiver()
-                    self.add(plotter)
+                    #self.add(plotter)
                     dataStream >> plotter
                     self.addInterface(plotter)
 
