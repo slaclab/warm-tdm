@@ -50,6 +50,12 @@ parser.add_argument(
     type     = int,
     help     = "Number of column modules")
 
+parser.add_argument(
+    "--plots",
+    action = 'store_true',
+    default = False)
+
+
 args = parser.parse_known_args()[0]
 print(args)
 
@@ -79,7 +85,7 @@ config = warm_tdm_api.GroupConfig(columnMap=columnMap,
                                   rowBoards=rowBoards)
 
 
-with warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=args.emulate) as root:
+with warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=args.emulate, plots=args.plots) as root:
 
     pyrogue.pydm.runPyDM(root=root,title='Warm TDM',sizeX=2000,sizeY=2000,ui=warm_tdm_api.pydmUi)
 

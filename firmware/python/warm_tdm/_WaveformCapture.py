@@ -1,6 +1,11 @@
 import pyrogue as pr
 import rogue
 
+import scipy
+import scipy.signal
+import scipy.fftpack
+from scipy.signal import wiener
+
 import warm_tdm
 import time
 import os
@@ -132,7 +137,9 @@ class WaveformCaptureReceiver(rogue.interfaces.stream.Slave, pr.Device):
 
 #        self.hist_queue = mp.SimpleQueue()
         self.hist_plotter = HistogramPlotter(title='Raw Histogram')
-        self.fft_plotter = ShawnPlotter()
+        self.fft_plotter = ShawnPlotter(title='Raw Noise')
+        self.hist_plotter2 = HistogramPlotter(title='Subtracted Histogram')
+        self.fft_plotter2 = ShawnPlotter(title='Subtracted Noise')
  #       self.hist_process = mp.Process(
  #           target = self.hist_plotter, args=(self.hist_queue, ), daemon=True)
 
@@ -202,7 +209,8 @@ class WaveformCaptureReceiver(rogue.interfaces.stream.Slave, pr.Device):
 
             self.hist_plotter.updateHists(adcs, channel)
             self.fft_plotter.updateFfts(voltages, channel)
-            #self.sub_hist_plotter.updateHists(adjustedAdcs, channel)
+            self.hist_plotter2.updateHists(adjustedAdcs, channel)
+            self.fft_plotter2.updateFfts(adjustedVoltages, channel)            
 #            self.hist_queue.put((adcs, channel))
 #            self.sub_hist_queue.put((adjustedAdcs, channel))
 
@@ -291,7 +299,7 @@ class FftPlotter(object):
                 self.drawFft(self.ax[i], frame[:,i])
         else:
             self.drawFft(self.ax[channel], frame)
-            
+
 class ShawnPlotter(object):
 
     def __init__(self, title='Noise'):
@@ -299,24 +307,26 @@ class ShawnPlotter(object):
         self.title = title
         self.fig, self.ax = plt.subplots(8)
         self.fig.suptitle(self.title)
+        
         plt.show(block=False)
 
     def drawFft(self, ax, data):
         ax.clear()
 
-        print(f'RMS = {np.std(adcs_volts):.3e} ADU')
+        print(f'RMS = {np.std(data):.3e} ADU')
 
         freq=125.e6 # 125MHz
-        mean_subtracted_TOD = adcs_volts - np.mean(adcs_volts)
+        mean_subtracted_TOD = data - np.mean(data)
         freqs,Pxx_den=scipy.signal.periodogram(mean_subtracted_TOD,freq,scaling='density')
 
         preamp_chain_gain=200.
 
         ax.loglog(freqs,1e9*np.sqrt(Pxx_den)/preamp_chain_gain)
-        ax.ylim(1e-3,100)
+        ax.set_ylim(1e-3,100)
 
-        ax.xlabel('Frequency (Hz)')
-        ax.ylabel('ASD (nV/rt.Hz)')
+        ax.set_xlabel('Frequency (Hz)')
+        ax.set_ylabel('ASD (nV/rt.Hz)')
+
 
         ax.plot([freqs[0],freqs[-1]],[3,3],label='3 nV/rt.Hz',color='r',linestyle='dashed')
 
@@ -326,7 +336,7 @@ class ShawnPlotter(object):
 
         # check std
         print(f'RMS from periodogram = {np.sqrt(np.sum(Pxx_den)*(freqs[1]-freqs[0])):.3e} ADU')
-        
+
         self.fig.canvas.draw()
 
     def updateFfts(self, frame, channel):
@@ -335,47 +345,3 @@ class ShawnPlotter(object):
                 self.drawFft(self.ax[i], frame[:,i])
         else:
             self.drawFft(self.ax[channel], frame)
-
-
-import scipy
-import scipy.signal
-import scipy.fftpack
-from scipy.signal import wiener
-
-import numpy as np
-import matplotlib.pylab as plt
-
-plt.ion()
-
-data_path='CH_5_20211019_110934.npy'
-
-data = np.load(data_path)
-adcs = data.view(np.int16)[8:]
-adcs_volts = (adcs//4)/2**13
-
-print(f'RMS = {np.std(adcs_volts):.3e} ADU')
-
-#plt.plot(adcs)
-
-freq=125.e6 # 125MHz
-mean_subtracted_TOD = adcs_volts - np.mean(adcs_volts)
-freqs,Pxx_den=scipy.signal.periodogram(mean_subtracted_TOD,freq,scaling='density')
-
-preamp_chain_gain=200.
-
-plt.loglog(freqs,1e9*np.sqrt(Pxx_den)/preamp_chain_gain)
-plt.ylim(1e-3,100)
-
-plt.xlabel('Frequency (Hz)')
-plt.ylabel('ASD (nV/rt.Hz)')
-
-plt.plot([freqs[0],freqs[-1]],[3,3],label='3 nV/rt.Hz',color='r',linestyle='dashed')
-
-plt.loglog(freqs,wiener(1e9*np.sqrt(Pxx_den)/preamp_chain_gain,mysize=100),label='Wiener filtered')
-
-plt.legend()
-
-# check std
-print(f'RMS from periodogram = {np.sqrt(np.sum(Pxx_den)*(freqs[1]-freqs[0])):.3e} ADU')
-
-#plt.show()            
