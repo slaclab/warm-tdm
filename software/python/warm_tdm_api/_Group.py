@@ -5,7 +5,7 @@ import numpy as np
 
 
 class Group(pr.Device):
-    def __init__(self, groupConfig, groupId, dataWriter, simulation=False, emulate=False, **kwargs):
+    def __init__(self, groupConfig, groupId, dataWriter, simulation=False, emulate=False, plots=False, **kwargs):
         """
         Warm TDM Device
         Parameters
@@ -31,6 +31,7 @@ class Group(pr.Device):
                                         colBoards=groupConfig.columnBoards,
                                         rowBoards=groupConfig.rowBoards,
                                         rows=len(groupConfig.rowMap),
+                                        plots=plots,
                                         groups=['Hardware'],
                                         expand=True))
 
