@@ -163,6 +163,7 @@ class Group(pr.Device):
         self.add(pr.LinkVariable(name='SaBias',
                                  mode='RW',
                                  groups='TopApi',
+                                 disp = '{:0.03f}',                                 
                                  dependencies=deps,
                                  linkedSet=self._saBiasSet,
                                  linkedGet=self._saBiasGet,
@@ -175,6 +176,7 @@ class Group(pr.Device):
         self.add(pr.LinkVariable(name='SaOffset',
                                  mode='RW',
                                  groups='TopApi',
+                                 disp = '{:0.03f}',                                 
                                  dependencies=deps,
                                  linkedSet=self._saOffsetSet,
                                  linkedGet=self._saOffsetGet,
@@ -187,6 +189,7 @@ class Group(pr.Device):
         self.add(pr.LinkVariable(name='SaOut',
                                  mode='RO',
                                  groups='TopApi',
+                                 disp = '{:0.06f}',
                                  dependencies=deps,
                                  linkedGet=self._saOutGet,
                                  description=""))
