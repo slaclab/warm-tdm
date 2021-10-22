@@ -1,4 +1,3 @@
-
 import pyrogue as pr
 import warm_tdm_api
 import numpy as np
@@ -31,10 +30,17 @@ class SaTuneProcess(pr.Process):
         # Step size for SA FB Tuning
         self.add(pr.LocalVariable(name='SaFbNumSteps',
                                   minimum=1,
-                                  maximum=1000,
-                                  value=10,
+                                  maximum=10000,
+                                  value=1000,
                                   mode='RW',
                                   description="Number of steps for SA FB Tuning"))
+
+        # Wait time between FB set and output sampling
+        self.add(pr.LocalVariable(name='SaFbSampleDelay',
+                                  value=.001,
+                                  mode='RW',
+                                  description="Wait time between FB set and SA Out sampling in seconds"))
+
 
         # Low offset for SA Bias Tuning
         self.add(pr.LocalVariable(name='SaBiasLowOffset',
