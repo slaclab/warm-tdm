@@ -77,21 +77,23 @@ architecture rtl of FastDacDriver is
       CLK_1_RISE_S);
 
    type RegType is record
-      state  : StateType;
-      dacNum : slv(2 downto 0);
-      dacDb  : slv(13 downto 0);
-      dacWrt : slv(3 downto 0);
-      dacClk : slv(3 downto 0);
-      dacSel : slv(3 downto 0);
+      startup : sl;
+      state   : StateType;
+      dacNum  : slv(2 downto 0);
+      dacDb   : slv(13 downto 0);
+      dacWrt  : slv(3 downto 0);
+      dacClk  : slv(3 downto 0);
+      dacSel  : slv(3 downto 0);
    end record RegType;
 
    constant REG_INIT_C : RegType := (
-      state  => WAIT_ROW_STROBE_S,
-      dacNum => (others => '0'),
-      dacDb  => (others => '0'),
-      dacWrt => (others => '0'),
-      dacClk => (others => '0'),
-      dacSel => (others => '0'));
+      startup => '1',
+      state   => WAIT_ROW_STROBE_S,
+      dacNum  => (others => '0'),
+      dacDb   => (others => '0'),
+      dacWrt  => (others => '0'),
+      dacClk  => (others => '0'),
+      dacSel  => (others => '0'));
 
    signal r   : RegType := REG_INIT_C;
    signal rin : RegType;
@@ -136,7 +138,7 @@ begin
             COMMON_CLK_G     => false,
             ADDR_WIDTH_G     => 6,
             DATA_WIDTH_G     => 16,
-            INIT_G           => X"2000")                     -- init to midscale for DAC
+            INIT_G           => X"2000")                        -- init to midscale for DAC
          port map (
             axiClk         => axilClk,                          -- [in]
             axiRst         => axilRst,                          -- [in]
@@ -165,7 +167,7 @@ begin
          COMMON_CLK_G     => false,
          ADDR_WIDTH_G     => 3,
          DATA_WIDTH_G     => 16,
-         INIT_G           => X"2000")            -- init to midscale for DAC         )
+         INIT_G           => X"2000")               -- init to midscale for DAC         )
       port map (
          axiClk         => axilClk,                 -- [in]
          axiRst         => axilRst,                 -- [in]
@@ -199,8 +201,9 @@ begin
       case r.state is
          when WAIT_ROW_STROBE_S =>
             v.dacNum := (others => '0');
-            if (timingRxData.rowStrobe = '1') then
-               v.state := DATA_S;
+            if (timingRxData.rowStrobe = '1' or r.startup = '1') then
+               v.startup := '0';
+               v.state   := DATA_S;
             end if;
 
             if (overrideWrValid = '1') then
@@ -210,7 +213,7 @@ begin
             end if;
 
          when DATA_S =>
-            v.dacSel(dacChip) := r.dacNum(0);
+            v.dacSel(dacChip) := not r.dacNum(0);
             v.dacDb           := ramDout(dacInt)(13 downto 0);
             v.state           := WRITE_S;
 
@@ -228,7 +231,7 @@ begin
             end if;
 
          when OVER_SEL_S =>
-            v.dacSel(dacChip) := r.dacNum(0);
+            v.dacSel(dacChip) := not r.dacNum(0);
             v.state           := OVER_WRITE_S;
 
          when OVER_WRITE_S =>
