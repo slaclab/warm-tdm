@@ -41,12 +41,12 @@ class ColumnModule(pr.Device):
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Fb',
-            offset =0xC0600000,
+            offset =0xC0500000,
             rows = rows))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SAFb',
-            offset = 0xC0500000,
+            offset = 0xC0600000,
             rows = rows))
 
         self.add(surf.devices.analog_devices.Ad9681Config(
