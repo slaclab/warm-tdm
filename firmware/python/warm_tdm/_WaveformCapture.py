@@ -180,7 +180,7 @@ class WaveformCaptureReceiver(rogue.interfaces.stream.Slave, pr.Device):
             adcs.resize(adcs.size//8, 8)
 
         # Save the data to a file
-        filepath = os.path.abspath(f'CH_{channel}_' + datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
+        filepath = os.path.abspath(f'../data/CH_{channel}_' + datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
         np.save(filepath, data)
 
         # Convert adc values to voltages
