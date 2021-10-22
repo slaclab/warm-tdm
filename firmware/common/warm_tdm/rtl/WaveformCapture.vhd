@@ -115,7 +115,7 @@ architecture rtl of WaveformCapture is
    constant REG_INIT_C : RegType := (
       reset            => '0',
       average          => (others => (others => '0')),
-      alpha            => toSlv(8, 4),
+      alpha            => toSlv(15, 4),
       pauseThresh      => toSlv(2**14-8, 14),
       waveformTrigger  => '0',
       doWaveform       => '0',
