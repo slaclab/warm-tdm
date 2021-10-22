@@ -77,12 +77,15 @@ def saFlux(*,group,bias,saFbOffsetRange,pctLow,pctRange,process):
 
     numSteps = len(saFbOffsetRange[0])
 
+    sleep = group.SaTuneProcess.SaFbSampleDelay.get()
+
     # Iterate through the steps
     for idx in range(numSteps):
 
         # Setup data
         for col in range(colCount):
-            saFbArray[col] = saFbOffsetRange[col][idx]
+            if group._config.columnEnable[col] is True:
+                saFbArray[col] = saFbOffsetRange[col][idx]
 
         # large burst transaction of write data
         group.SaFbForce.set(value=saFbArray)
@@ -90,6 +93,7 @@ def saFlux(*,group,bias,saFbOffsetRange,pctLow,pctRange,process):
         if process is not None:
             process.Progress.set(pctLow + pctRange*(idx/numSteps))
 
+        time.sleep(sleep)
         points = group.SaOut.get()
 
 #        print(f'saFb step {idx} - {saFbArray[5]} - {points[5]}')
@@ -133,7 +137,10 @@ def saFluxBias(*,group,process):
         datalist.append(warm_tdm_api.CurveData(xvalues=saFbOffsetRange[col]))
 
     for idx in range(numBiasSteps):
-        bias = [saBiasRange[col][idx] for col in range(colCount)]
+        for col in range(colCount):
+            if group._config.columnEnable[col] is True:
+                bias[col] = saBiasRange[col][idx]
+
         group.SaBias.set(bias)
         saOffset(group=group)
 
