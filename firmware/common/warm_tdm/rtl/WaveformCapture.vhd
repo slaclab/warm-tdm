@@ -286,10 +286,6 @@ begin
          v.bufferStream.tData(3)            := r.allChannels;
          v.bufferStream.tData(31 downto 16) := r.decimation;
 
-         for i in 7 downto 0 loop
-            v.bufferStream.tdata(16*i+15 downto 16*i) := toSlv(i, 16);
-         end loop;
-
          ssiSetUserSof(INT_AXIS_CONFIG_C, v.bufferStream, '1');
       end if;
 
