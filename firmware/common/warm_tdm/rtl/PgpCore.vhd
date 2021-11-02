@@ -47,8 +47,8 @@ entity PgpCore is
       refRst    : in  sl;
       gtRefClk  : in  sl;
       fabRefClk : in  sl;
-      pgpTxP    : out slv(1 downto 0);
-      pgpTxN    : out slv(1 downto 0);
+      pgpTxP    : out slv(1 downto 0) := (others => '0');
+      pgpTxN    : out slv(1 downto 0) := (others => '1');
       pgpRxP    : in  slv(1 downto 0);
       pgpRxN    : in  slv(1 downto 0);
 
@@ -150,10 +150,10 @@ architecture rtl of PgpCore is
          addrBits     => 12,
          connectivity => X"FFFF"));
 
-   signal locAxilWriteMasters : AxiLiteWriteMasterArray(NUM_AXIL_MASTERS_C-1 downto 0);
-   signal locAxilWriteSlaves  : AxiLiteWriteSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0);
-   signal locAxilReadMasters  : AxiLiteReadMasterArray(NUM_AXIL_MASTERS_C-1 downto 0);
-   signal locAxilReadSlaves   : AxiLiteReadSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0);
+   signal locAxilWriteMasters : AxiLiteWriteMasterArray(NUM_AXIL_MASTERS_C-1 downto 0) := (others => AXI_LITE_WRITE_MASTER_INIT_C);
+   signal locAxilWriteSlaves  : AxiLiteWriteSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0)  := (others => AXI_LITE_WRITE_SLAVE_EMPTY_DECERR_C);
+   signal locAxilReadMasters  : AxiLiteReadMasterArray(NUM_AXIL_MASTERS_C-1 downto 0)  := (others => AXI_LITE_READ_MASTER_INIT_C);
+   signal locAxilReadSlaves   : AxiLiteReadSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0)   := (others => AXI_LITE_READ_SLAVE_EMPTY_DECERR_C);
 
 
 begin
@@ -186,7 +186,7 @@ begin
    axiClk <= iAxiClk;
    axiRst <= iAxiRst;
 
-   REAL_PGP_GEN : if (true) generate
+   REAL_PGP_GEN : if (SIM_PORT_NUM_G = 0) generate
       Pgp2bGtx7VarLat_Inst_0 : entity surf.Pgp2bGtx7VarLat
          generic map (
             TPD_G                 => TPD_G,
@@ -355,29 +355,29 @@ begin
             axilWriteMaster  => locAxilWriteMasters(AXIL_GTX_1_C),
             axilWriteSlave   => locAxilWriteSlaves(AXIL_GTX_1_C));
 
-   end generate REAL_PGP_GEN;
+   end generate;
 
-   SIM_GEN : if (false) generate
+   SIM_GEN : if (SIM_PORT_NUM_G > 0) generate
 
       U_RoguePgp2bSim_1 : entity surf.RoguePgp2bSim
          generic map (
             TPD_G         => TPD_G,
-            PORT_NUM_G    => SIM_PORT_NUM_G,
+            PORT_NUM_G    => 7000,         --SIM_PORT_NUM_G,
             NUM_VC_G      => 4,
             EN_SIDEBAND_G => true)
          port map (
             pgpClk       => pgpClk,        -- [in]
             pgpClkRst    => pgpRst,        -- [in]
-            pgpRxIn      => pgpRxIn,       -- [in]
-            pgpRxOut     => pgpRxOut,      -- [out]
-            pgpTxIn      => pgpTxIn,       -- [in]
-            pgpTxOut     => pgpTxOut,      -- [out]
+            pgpRxIn      => pgpRxIn(0),    -- [in]
+            pgpRxOut     => pgpRxOut(0),   -- [out]
+            pgpTxIn      => pgpTxIn(0),    -- [in]
+            pgpTxOut     => pgpTxOut(0),   -- [out]
             pgpTxMasters => pgpTxMasters,  -- [in]
             pgpTxSlaves  => pgpTxSlaves,   -- [out]
             pgpRxMasters => pgpRxMasters,  -- [out]
             pgpRxSlaves  => pgpRxSlaves);  -- [in]
 
-   end generate SIM_GEN;
+   end generate;
 
    U_Pgp2bAxi_0 : entity surf.Pgp2bAxi
       generic map (
@@ -486,7 +486,7 @@ begin
 
       U_RingRouter_1 : entity warm_tdm.RingRouter
          generic map (
-            TPD_G => TPD_G,
+            TPD_G               => TPD_G,
             PACKET_SIZE_BYTES_G => PACKET_SIZE_BYTES_C)
          port map (
             axisClk          => iAxiClk,                -- [in]
@@ -620,7 +620,7 @@ begin
          NUM_SLAVE_SLOTS_G  => 1,
          NUM_MASTER_SLOTS_G => NUM_AXIL_MASTERS_C,
          MASTERS_CONFIG_G   => AXIL_XBAR_CFG_C,
-         DEBUG_G            => false)
+         DEBUG_G            => true)
       port map (
          axiClk              => iAxiClk,              -- [in]
          axiClkRst           => iAxiRst,              -- [in]

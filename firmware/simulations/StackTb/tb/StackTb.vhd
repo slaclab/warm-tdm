@@ -48,7 +48,7 @@ begin
       generic map (
          TPD_G                   => TPD_G,
          RING_ADDR_0_G           => true,
-         SIM_PGP_PORT_NUM_G      => 7000,
+         SIM_PGP_PORT_NUM_G      => 0, --7000,
          SIM_ETH_SRP_PORT_NUM_G  => 10000,
          SIM_ETH_DATA_PORT_NUM_G => 20000)
       port map (
@@ -74,7 +74,7 @@ begin
       generic map (
          TPD_G                   => TPD_G,
          RING_ADDR_0_G           => false,
-         SIM_PGP_PORT_NUM_G      => 7000 + 10,
+         SIM_PGP_PORT_NUM_G      => 0, --7000 + 10,
          SIM_ETH_SRP_PORT_NUM_G  => 10000 + 1000,  -- Not used
          SIM_ETH_DATA_PORT_NUM_G => 20000 + 1000)  -- Not used
       port map (
@@ -99,7 +99,7 @@ begin
       generic map (
          TPD_G                   => TPD_G,
          RING_ADDR_0_G           => false,
-         SIM_PGP_PORT_NUM_G      => 7000 + 20,
+         SIM_PGP_PORT_NUM_G      => 0, --7000 + 20,
          SIM_ETH_SRP_PORT_NUM_G  => 10000 + 2000,  -- Not used
          SIM_ETH_DATA_PORT_NUM_G => 20000 + 2000)  -- Not used
       port map (
@@ -124,7 +124,7 @@ begin
       generic map (
          TPD_G                   => TPD_G,
          RING_ADDR_0_G           => false,
-         SIM_PGP_PORT_NUM_G      => 7000 + 30,
+         SIM_PGP_PORT_NUM_G      => 0, --7000 + 30,
          SIM_ETH_SRP_PORT_NUM_G  => 10000 + 3000,  -- Not used
          SIM_ETH_DATA_PORT_NUM_G => 20000 + 3000)  -- Not used
       port map (
@@ -149,7 +149,7 @@ begin
       generic map (
          TPD_G                   => TPD_G,
          RING_ADDR_0_G           => false,
-         SIM_PGP_PORT_NUM_G      => 7000 + 40,
+         SIM_PGP_PORT_NUM_G      => 0, --7000 + 40,
          SIM_ETH_SRP_PORT_NUM_G  => 10000 + 4000,  -- Not used
          SIM_ETH_DATA_PORT_NUM_G => 20000 + 4000)  -- Not used
       port map (
@@ -174,7 +174,7 @@ begin
       generic map (
          TPD_G                   => TPD_G,
          RING_ADDR_0_G           => false,
-         SIM_PGP_PORT_NUM_G      => 7000 + 50,
+         SIM_PGP_PORT_NUM_G      => 0, --7000 + 50,
          SIM_ETH_SRP_PORT_NUM_G  => 10000 + 5000,  -- Not used
          SIM_ETH_DATA_PORT_NUM_G => 20000 + 5000)  -- Not used
       port map (

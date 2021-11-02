@@ -50,7 +50,7 @@ begin
          generic map (
             TPD_G              => TPD_G,
             RING_ADDR_0_G      => (i =0),
-            SIM_PGP_PORT_NUM_G => 7000 + (10*i),
+            SIM_PGP_PORT_NUM_G => 0, --7000 + (10*i),
             SIM_ETH_SRP_PORT_NUM_G => 10000 + (1000*i))
          port map (
             rj45TimingRxClkP  => rj45TimingClkP(ite(i = 0, NUM_ROW_MODULES_C-1, i-1)),   -- [in]

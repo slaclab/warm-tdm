@@ -32,9 +32,9 @@ entity RowModuleBoard is
    generic (
       TPD_G                   : time     := 1 ns;
       RING_ADDR_0_G           : boolean  := false;
-      SIM_PGP_PORT_NUM_G      : positive := 7000;
-      SIM_ETH_SRP_PORT_NUM_G  : positive := 8000;
-      SIM_ETH_DATA_PORT_NUM_G : positive := 9000);
+      SIM_PGP_PORT_NUM_G      : integer := 7000;
+      SIM_ETH_SRP_PORT_NUM_G  : integer := 8000;
+      SIM_ETH_DATA_PORT_NUM_G : integer := 9000);
    port (
       rj45TimingRxClkP  : in  sl;          -- [in]
       rj45TimingRxClkN  : in  sl;          -- [in]
