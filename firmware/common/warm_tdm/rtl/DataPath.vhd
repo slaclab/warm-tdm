@@ -132,8 +132,8 @@ begin
          MASTERS_CONFIG_G   => XBAR_COFNIG_C,
          DEBUG_G            => false)
       port map (
-         axiClk              => axilClk,              -- [in]
-         axiClkRst           => axilRst,              -- [in]
+         axiClk              => timingRxClk125,       -- [in]
+         axiClkRst           => timingRxRst125,       -- [in]
          sAxiWriteMasters(0) => syncAxilWriteMaster,  -- [in]
          sAxiWriteSlaves(0)  => syncAxilWriteSlave,   -- [out]
          sAxiReadMasters(0)  => syncAxilReadMaster,   -- [in]
@@ -176,16 +176,16 @@ begin
          MASTERS_CONFIG_G   => FILTER_XBAR_CFG_C,
          DEBUG_G            => false)
       port map (
-         axiClk              => axilClk,              -- [in]
-         axiClkRst           => axilRst,              -- [in]
+         axiClk              => timingRxClk125,           -- [in]
+         axiClkRst           => timingRxRst125,           -- [in]
          sAxiWriteMasters(0) => locAxilWriteMasters(10),  -- [in]
          sAxiWriteSlaves(0)  => locAxilWriteSlaves(10),   -- [out]
          sAxiReadMasters(0)  => locAxilReadMasters(10),   -- [in]
          sAxiReadSlaves(0)   => locAxilReadSlaves(10),    -- [out]
-         mAxiWriteMasters    => filterAxilWriteMasters,  -- [out]
-         mAxiWriteSlaves     => filterAxilWriteSlaves,   -- [in]
-         mAxiReadMasters     => filterAxilReadMasters,   -- [out]
-         mAxiReadSlaves      => filterAxilReadSlaves);   -- [in]
+         mAxiWriteMasters    => filterAxilWriteMasters,   -- [out]
+         mAxiWriteSlaves     => filterAxilWriteSlaves,    -- [in]
+         mAxiReadMasters     => filterAxilReadMasters,    -- [out]
+         mAxiReadSlaves      => filterAxilReadSlaves);    -- [in]
 
 
    FIR_FILTER_GEN : for i in 7 downto 0 generate
