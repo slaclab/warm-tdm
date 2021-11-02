@@ -17,6 +17,7 @@
 -------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.math_real.all;
 
 library surf;
 use surf.StdRtlPkg.all;
@@ -147,6 +148,9 @@ architecture sim of ColumnModuleBoard is
    signal clk : sl;
    signal rst : sl;
 
+   signal saSig : RealArray(7 downto 0);
+   signal noise : RealArray(7 downto 0);
+
    signal adcVin : RealArray(7 downto 0) := (
       0 => -0.001,
       1 => -0.010,
@@ -160,7 +164,8 @@ architecture sim of ColumnModuleBoard is
    signal tesDacVout : RealArray(15 downto 0) := (others => 0.0);
    signal tesBias    : RealArray(7 downto 0)  := (others => 0.0);
 
-   signal saDacVout : RealArray(15 downto 0) := (others => 0.0);
+   signal vBias : RealArray(7 downto 0) := (others => 0.0);
+   signal vOffset : RealArray(7 downto 0) := (others => 0.0);   
 
 begin
 
@@ -409,7 +414,31 @@ begin
          syncB  => saDacSyncB,          -- [in]
          ldacB  => saDacLdacB,          -- [in]
          resetB => saDacResetB,         -- [in]
-         vout   => saDacVout);          -- [out]
+         vout(7 downto 0)   => vBias,
+         vout(15 downto 8) => vOffset);          -- [out]
+
+
+   GEN_NOISE: process (timingRxClkP) is
+      variable rand : real;
+      variable seed1, seed2 : positive;
+      variable tmp : RealArray(7 downto 0);
+   begin
+      if (rising_edge(timingRxClkP)) then
+         for i in 7 downto 0 loop
+            uniform(seed1, seed2, rand);
+            tmp(i) := rand * 1.0E-5;     
+         end loop;
+         noise <= tmp;
+      end if;
+   end process;
+
+
+   GEN_AMPLIFIER: for i in 7 downto 0 generate
+      saSig(i) <= noise(i);             -- for now
+      
+      adcVin(i) <= 0.080044 * (vBias(i)-1.08288*(vOffset(i)-138.621*saSig(i))) * 11 * 1.5;      
+   end generate;
+
 
 end architecture sim;
 
