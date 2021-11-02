@@ -1,6 +1,7 @@
 import pyrogue as pr
 
 import surf
+import scipy
 #mport surf.dsp.fixed
 
 import warm_tdm
@@ -26,12 +27,31 @@ class DataPath(pr.Device):
             offset = 9 << 16,
             enabled = True))
 
-#         for i in range(8):
-#             self.add(surf.dsp.fixed.FirFilterSingleChannel(
-#                 name = f'FirFilter[{i}]',
-#                 offset = (i+1) << 8,
-#                 numberTaps = 21,
-#                 dataWordBitSize = 16))
+        self.add(AdcFilters(
+            offset = (10 << 16),
+            numberTaps = 41))
+
+class AdcFilters(pr.Device):
+    def __init__(self, numberTaps, **kwargs):
+        super().__init__(**kwargs)
+
+        for i in range(8):
+            self.add(surf.dsp.fixed.FirFilterSingleChannel(
+                name = f'FirFilter[{i}]',
+                offset = i << 12,
+                numberTaps = numberTaps,
+                dataWordBitSize = 16))
+
+        def setFirTaps(value, write):
+            taps = scipy.signal.firwin(numberTaps, value, fs=125.0e6, window='hamming')
+            for i in range(8):
+                self.FirFilter[i].Taps.set(taps, write=write)
+
+        self.add(pr.LinkVariable(
+            name = 'FilterCuttoffFreq',
+            linkedSet = setFirTaps,
+            value = 10.0e6))
+
 
 
         
