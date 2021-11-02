@@ -2,7 +2,7 @@
 -- File       : RceSimTb.vhd
 -- Company    : SLAC National Accelerator Laboratory
 -- Created    : 2018-06-23
--- Last update: 2021-05-24
+-- Last update: 2021-10-28
 -------------------------------------------------------------------------------
 -- Description: Simulation Testbed for testing the SimpleRogueSim module
 -------------------------------------------------------------------------------

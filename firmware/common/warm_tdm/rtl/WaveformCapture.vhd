@@ -47,19 +47,17 @@ entity WaveformCapture is
       -- Adc Streams
       adcStreams : in AxiStreamMasterArray(7 downto 0);
 
+      axilReadMaster  : in  AxiLiteReadMasterType;
+      axilReadSlave   : out AxiLiteReadSlaveType  := AXI_LITE_READ_SLAVE_EMPTY_DECERR_C;
+      axilWriteMaster : in  AxiLiteWriteMasterType;
+      axilWriteSlave  : out AxiLiteWriteSlaveType := AXI_LITE_WRITE_SLAVE_EMPTY_DECERR_C;
+
       -- Captured Waveform Stream
       axisClk    : in  sl;
       axisRst    : in  sl;
       axisMaster : out AxiStreamMasterType;
-      axisSlave  : in  AxiStreamSlaveType;
+      axisSlave  : in  AxiStreamSlaveType);
 
-      -- Local register access
-      axilClk         : in  sl;
-      axilRst         : in  sl;
-      axilReadMaster  : in  AxiLiteReadMasterType;
-      axilReadSlave   : out AxiLiteReadSlaveType  := AXI_LITE_READ_SLAVE_EMPTY_DECERR_C;
-      axilWriteMaster : in  AxiLiteWriteMasterType;
-      axilWriteSlave  : out AxiLiteWriteSlaveType := AXI_LITE_WRITE_SLAVE_EMPTY_DECERR_C);
 
 end entity WaveformCapture;
 
@@ -136,32 +134,8 @@ architecture rtl of WaveformCapture is
    signal bufferCtrl    : AxiStreamCtrlType;
    signal resizedStream : AxiStreamMasterType := axiStreamMasterInit(RESIZE_MASTER_CFG_C);
 
-   signal syncAxilReadMaster  : AxiLiteReadMasterType;
-   signal syncAxilReadSlave   : AxiLiteReadSlaveType;
-   signal syncAxilWriteMaster : AxiLiteWriteMasterType;
-   signal syncAxilWriteSlave  : AxiLiteWriteSlaveType;
-
 begin
 
-   -------------------------------------------------------------------------------------------------
-   -- Synchronize AXI-Lite bus to timing clock
-   -------------------------------------------------------------------------------------------------
-   U_AxiLiteAsync_1 : entity surf.AxiLiteAsync
-      generic map (
-         TPD_G => TPD_G)
-      port map (
-         sAxiClk         => axilClk,              -- [in]
-         sAxiClkRst      => axilRst,              -- [in]
-         sAxiReadMaster  => axilReadMaster,       -- [in]
-         sAxiReadSlave   => axilReadSlave,        -- [out]
-         sAxiWriteMaster => axilWriteMaster,      -- [in]
-         sAxiWriteSlave  => axilWriteSlave,       -- [out]
-         mAxiClk         => timingRxClk125,       -- [in]
-         mAxiClkRst      => timingRxRst125,       -- [in]
-         mAxiReadMaster  => syncAxilReadMaster,   -- [out]
-         mAxiReadSlave   => syncAxilReadSlave,    -- [in]
-         mAxiWriteMaster => syncAxilWriteMaster,  -- [out]
-         mAxiWriteSlave  => syncAxilWriteSlave);  -- [in]
 
    -------------------------------------------------------------------------------------------------
    -- Resize channel ADC stream to 8 samples wide (16 bytes)
@@ -184,8 +158,8 @@ begin
    -------------------------------------------------------------------------------------------------
    -- Main Logic
    -------------------------------------------------------------------------------------------------
-   comb : process (adcStreams, bufferCtrl, r, resizedStream, syncAxilReadMaster,
-                   syncAxilWriteMaster, timingRxData, timingRxRst125) is
+   comb : process (adcStreams, axilReadMaster, axilWriteMaster, bufferCtrl, r, resizedStream,
+                   timingRxData, timingRxRst125) is
       variable v               : RegType;
       variable selectedChannel : integer;
       variable axilEp          : AxiLiteEndpointType;
@@ -202,7 +176,7 @@ begin
       ----------------------------------------------------------------------------------------------
       -- AXI-Lite Registers
       ----------------------------------------------------------------------------------------------
-      axiSlaveWaitTxn(axilEp, syncAxilWriteMaster, syncAxilReadMaster, v.axilWriteSlave, v.axilReadSlave);
+      axiSlaveWaitTxn(axilEp, axilWriteMaster, axilReadMaster, v.axilWriteSlave, v.axilReadSlave);
 
       axiSlaveRegister(axilEp, X"00", 0, v.selectedChannel);
       axiSlaveRegister(axilEp, X"00", 3, v.allChannels);
@@ -318,8 +292,8 @@ begin
 
       rin <= v;
 
-      syncAxilReadSlave  <= r.axilReadSlave;
-      syncAxilWriteSlave <= r.axilWriteSlave;
+      axilReadSlave  <= r.axilReadSlave;
+      axilWriteSlave <= r.axilWriteSlave;
 
    end process;
 
