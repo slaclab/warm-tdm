@@ -14,7 +14,7 @@ class ColumnModule(pr.Device):
             expand = True))
 
         self.add(warm_tdm.DataPath(
-            offset = 0xC0300000,
+            offset = 0xC1000000,
             expand = True))
 
         self.add(warm_tdm.Ad5679R(

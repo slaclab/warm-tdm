@@ -198,8 +198,8 @@ architecture rtl of ColumnModule is
          addrBits         => 16,
          connectivity     => X"FFFF"),
       AXIL_DATA_PATH_C    => (
-         baseAddr         => APP_BASE_ADDR_C + X"00300000",
-         addrBits         => 20,
+         baseAddr         => APP_BASE_ADDR_C + X"01000000",
+         addrBits         => 24,
          connectivity     => X"FFFF"),
       AXIL_SQ1_BIAS_DAC_C => (
          baseAddr         => APP_BASE_ADDR_C + X"00400000",
