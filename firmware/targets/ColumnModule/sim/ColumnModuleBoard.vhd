@@ -437,7 +437,7 @@ begin
       saSig(i) <= noise(i);             -- for now
 
       -- board has accidental plarity inversion, hence the (-)1.5
-      adcVin(i) <= 0.080044 * (vBias(i)-1.08288*(vOffset(i)-138.621*saSig(i))) * 11 * -1.5;  
+      adcVin(i) <= 0.080044 * (vBias(i)-1.08288*(vOffset(i)-138.621*saSig(i))) * 11 * (-1.5);  
 
    end generate;
 
