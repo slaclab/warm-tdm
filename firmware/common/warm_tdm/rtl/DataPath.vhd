@@ -154,8 +154,8 @@ begin
          DEFAULT_DELAY_G => 12,
          IODELAY_GROUP_G => IODELAY_GROUP_G)
       port map (
-         axilClk         => axilClk,                 -- [in]
-         axilRst         => axilRst,                 -- [in]
+         axilClk         => timingRxClk125,                 -- [in]
+         axilRst         => timingRxRst125,                 -- [in]
          axilWriteMaster => locAxilWriteMasters(0),  -- [in]
          axilWriteSlave  => locAxilWriteSlaves(0),   -- [out]
          axilReadMaster  => locAxilReadMasters(0),   -- [in]
