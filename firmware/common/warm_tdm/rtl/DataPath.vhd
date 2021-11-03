@@ -152,7 +152,8 @@ begin
          TPD_G           => TPD_G,
 --         SIMULATION_G    => SIMULATION_G,
          DEFAULT_DELAY_G => 12,
-         IODELAY_GROUP_G => IODELAY_GROUP_G)
+         IODELAY_GROUP_G => IODELAY_GROUP_G,
+         NEGATE_G => true)
       port map (
          axilClk         => timingRxClk125,                 -- [in]
          axilRst         => timingRxRst125,                 -- [in]

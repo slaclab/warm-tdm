@@ -448,7 +448,7 @@ class Group(pr.Device):
 
             self.checkBlocks(recurse=True)
             for idx, board, chan in self.__colGetLoopHelper(index):
-                ret[idx] = -1 * self.HardwareGroup.ColumnBoard[board].DataPath.WaveformCapture.AdcAverage.get(index=chan, read=False)
+                ret[idx] = self.HardwareGroup.ColumnBoard[board].DataPath.WaveformCapture.AdcAverage.get(index=chan, read=False)
 
             if index != -1:
                 return ret[index]
