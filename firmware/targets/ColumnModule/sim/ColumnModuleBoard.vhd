@@ -435,8 +435,10 @@ begin
 
    GEN_AMPLIFIER: for i in 7 downto 0 generate
       saSig(i) <= noise(i);             -- for now
-      
-      adcVin(i) <= 0.080044 * (vBias(i)-1.08288*(vOffset(i)-138.621*saSig(i))) * 11 * 1.5;      
+
+      -- board has accidental plarity inversion, hence the (-)1.5
+      adcVin(i) <= 0.080044 * (vBias(i)-1.08288*(vOffset(i)-138.621*saSig(i))) * 11 * -1.5;  
+
    end generate;
 
 
