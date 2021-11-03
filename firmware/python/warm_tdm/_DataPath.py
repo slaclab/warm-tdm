@@ -44,6 +44,7 @@ class AdcFilters(pr.Device):
 
         def setFirTaps(value, write):
             taps = scipy.signal.firwin(numberTaps, value, fs=125.0e6, window='hamming')
+            print(f'Applying filter at {value} with taps {taps}')
             for i in range(8):
                 self.FirFilter[i].Taps.set(taps, write=write)
 
