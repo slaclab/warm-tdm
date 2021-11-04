@@ -195,7 +195,7 @@ begin
             TPD_G          => TPD_G,
             PIPE_STAGES_G  => 0,
             COMMON_CLK_G   => true,
-            TAP_SIZE_G     => 41,
+            TAP_SIZE_G     => 127,
             WIDTH_G        => 16,
             COEFFICIENTS_G => FILTER_COEFFICIENTS_C)
          port map (
