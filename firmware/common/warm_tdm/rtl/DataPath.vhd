@@ -73,7 +73,7 @@ end entity DataPath;
 
 architecture rtl of DataPath is
 
-   constant FILTER_COEFFICIENTS_C : IntegerArray(0 to 41) := (others => 0);
+   constant FILTER_COEFFICIENTS_C : IntegerArray(0 to 126) := (others => 0);
 
    constant NUM_AXIL_MASTERS_C : integer                                                         := 11;
    constant XBAR_COFNIG_C      : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_MASTERS_C, AXIL_BASE_ADDR_G, 20, 16);
