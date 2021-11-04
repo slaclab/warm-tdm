@@ -138,8 +138,8 @@ class WaveformCaptureReceiver(rogue.interfaces.stream.Slave, pr.Device):
 #        self.hist_queue = mp.SimpleQueue()
         self.hist_plotter = HistogramPlotter(title='Raw Histogram')
         self.fft_plotter = ShawnPlotter(title='Raw Noise')
-        self.hist_plotter2 = HistogramPlotter(title='Subtracted Histogram')
-        self.fft_plotter2 = ShawnPlotter(title='Subtracted Noise')
+#        self.hist_plotter2 = HistogramPlotter(title='Subtracted Histogram')
+#        self.fft_plotter2 = ShawnPlotter(title='Subtracted Noise')
  #       self.hist_process = mp.Process(
  #           target = self.hist_plotter, args=(self.hist_queue, ), daemon=True)
 
@@ -209,8 +209,8 @@ class WaveformCaptureReceiver(rogue.interfaces.stream.Slave, pr.Device):
 
             self.hist_plotter.updateHists(adcs, channel)
             self.fft_plotter.updateFfts(voltages, channel)
-            self.hist_plotter2.updateHists(adjustedAdcs, channel)
-            self.fft_plotter2.updateFfts(adjustedVoltages, channel)            
+            #self.hist_plotter2.updateHists(adjustedAdcs, channel)
+            #self.fft_plotter2.updateFfts(adjustedVoltages, channel)            
 #            self.hist_queue.put((adcs, channel))
 #            self.sub_hist_queue.put((adjustedAdcs, channel))
 
