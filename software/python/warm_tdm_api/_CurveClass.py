@@ -29,8 +29,9 @@ class CurveData():
             curve.updatePeak()
 
     def populateXValues(self,low,high,step):
-        for xvalue in np.arange(low,high,step):
-            self.addFb(xvalue)
+        self.addFb(np.arange(low,high,step))
+        #for xvalue in np.arange(low,high,step):
+        #    self.addFb(xvalue)
 
     def plot(self):
         self.update() #might not want to call this here
@@ -51,10 +52,10 @@ class CurveData():
         self.fbOut = midX
 
     def addCurve(self,curve):
-        self.curveList_.append(curve)
+        self.curveList_ = np.append(self.curveList_,curve)
 
-    def addFb(self,fb):
-        self.xValues_.append(fb)
+    def addFb(self,fb): #can take an np array
+        self.xValues_ = np.append(self.xValues_,fb)
 
     def asDict(self):
         return {'xValues':np.array(self.xValues_,np.float32),

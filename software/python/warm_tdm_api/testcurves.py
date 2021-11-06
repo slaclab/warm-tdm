@@ -8,4 +8,4 @@ c = CurveData(np.array([1,2,3,4]),curvelist)
 
 print("\n" + str(c))
 
-#c.plot()
+c.plot()
