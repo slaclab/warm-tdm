@@ -78,15 +78,19 @@ class Curve():
         self.midpoint_ = 0 #not used
 
     def updatePeak(self):
-        for i in range(len(self.points_)):
-            if self.points_[i] < self.points_[self.lowindex_]:
-                self.lowindex_ = i
-            elif self.points_[i] > self.points_[self.highindex_]:
-                self.highindex_ = i
+        self.lowindex_ = self.points_.argmin()
+        self.highindex_ = self.points_.argmax()
+        #for i in range(len(self.points_)):
+        #    if self.points_[i] < self.points_[self.lowindex_]:
+        #        self.lowindex_ = i
+        #    elif self.points_[i] > self.points_[self.highindex_]:
+        #        self.highindex_ = i
         self.peakheight_ = self.points_[self.highindex_] - self.points_[self.lowindex_]
 
     def addPoint(self,point):
-        self.points_.append(point)
+        self.points_ = np.append(self.points_,point)
+        #self.points_.append(point)
 
     def __repr__(self):
         return(str(self.bias_) + ": " + str(self.points_))
+
