@@ -29,7 +29,7 @@ class DataPath(pr.Device):
 
         self.add(AdcFilters(
             offset = (10 << 16),
-            numberTaps = 127))
+            numberTaps = 41))
 
 class AdcFilters(pr.Device):
     def __init__(self, numberTaps, **kwargs):

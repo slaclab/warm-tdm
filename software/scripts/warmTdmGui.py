@@ -73,7 +73,7 @@ rowChannels = 32
 columnMap = [pm(board,chan) for board in range(columnBoards) for chan in range(columnChannels)]
 #columnMap = [pm(0, 5)]
 rowMap = [pm(board,chan)  for board in range(rowBoards) for chan in range(rowChannels)]
-colEn = [False for _ in range(len(columnMap))]
+colEn = [True for _ in range(len(columnMap))]
 colEn[5] = True
 
 config = warm_tdm_api.GroupConfig(columnMap=columnMap,

@@ -14,7 +14,7 @@ def saOffset(*, group, kp=-0.75, ki=0.0, kd=0.0, precision=0.0002, timeout=5.0):
 
     for p in pid:
         p.setpoint = 0  # want to zero out SaOut
-        p.output_limits = (-0.5, 0.5)
+        #p.output_limits = (-0.5, 0.5)
         p.sample_time = None
 
     stime = time.time()
@@ -47,6 +47,7 @@ def saOffset(*, group, kp=-0.75, ki=0.0, kd=0.0, precision=0.0002, timeout=5.0):
         if (max(masked) < precision) and (min(masked) > (-1.0*precision)):
             break
 
+        print('Loop')
         for i, p in enumerate(pid):
             change = p(masked[i])
             control[i] = max(min(control[i] + change, 2.499),0)
@@ -100,6 +101,9 @@ def saFlux(*,group,bias,saFbOffsetRange,pctLow,pctRange,process):
 
         for col in range(colCount):
             curves[col].addPoint(points[col])
+
+    # Reset FB to zero after sweep
+    group.SaFbForce.set(value=np.zeros(colCount, np.float))
 
     #Temporary - Reset SaFb back to 0 when done
     #group.SaFbForce.set(value=np.zeros(len(colCount), np.float))
