@@ -14,7 +14,7 @@ def saOffset(*, group, kp=-0.75, ki=0.0, kd=0.0, precision=0.0002, timeout=5.0):
 
     for p in pid:
         p.setpoint = 0  # want to zero out SaOut
-        #p.output_limits = (-0.5, 0.5)
+        p.output_limits = (-0.5, 0.5)
         p.sample_time = None
 
     stime = time.time()
@@ -25,10 +25,10 @@ def saOffset(*, group, kp=-0.75, ki=0.0, kd=0.0, precision=0.0002, timeout=5.0):
     group.SaOffset.set(control)
     current = group.SaOut.get()
     masked = current
-    # print('Initial Values')
-    # for i in range(len(control)):
-    #     print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}')
-    # print()
+    print('Initial Values')
+    for i in range(len(control)):
+        print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}')
+    print()
 
     mult = np.array([1 if en else 0 for en in group._config.columnEnable],np.float32)
     count = 0
@@ -47,11 +47,11 @@ def saOffset(*, group, kp=-0.75, ki=0.0, kd=0.0, precision=0.0002, timeout=5.0):
         if (max(masked) < precision) and (min(masked) > (-1.0*precision)):
             break
 
-        print('Loop')
+#        print('Loop')
         for i, p in enumerate(pid):
             change = p(masked[i])
             control[i] = max(min(control[i] + change, 2.499),0)
-            #print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')
+            print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')
 
         #print(f'Done with loop\n')
 
