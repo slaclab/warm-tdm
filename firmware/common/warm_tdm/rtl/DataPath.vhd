@@ -96,8 +96,8 @@ architecture rtl of DataPath is
    signal filterAxilReadSlaves   : AxiLiteReadSlaveArray(7 downto 0);
 
 
-   signal adcStreams         : AxiStreamMasterArray(7 downto 0);
-   signal filteredAdcStreams : AxiStreamMasterArray(7 downto 0);
+   signal adcStreams         : AxiStreamMasterArray(7 downto 0) := (others => AXI_STREAM_MASTER_INIT_C);
+   signal filteredAdcStreams : AxiStreamMasterArray(7 downto 0) := (others => AXI_STREAM_MASTER_INIT_C);
 
 
 begin
@@ -153,10 +153,10 @@ begin
 --         SIMULATION_G    => SIMULATION_G,
          DEFAULT_DELAY_G => 12,
          IODELAY_GROUP_G => IODELAY_GROUP_G,
-         NEGATE_G => true)
+         NEGATE_G        => true)
       port map (
-         axilClk         => timingRxClk125,                 -- [in]
-         axilRst         => timingRxRst125,                 -- [in]
+         axilClk         => timingRxClk125,          -- [in]
+         axilRst         => timingRxRst125,          -- [in]
          axilWriteMaster => locAxilWriteMasters(0),  -- [in]
          axilWriteSlave  => locAxilWriteSlaves(0),   -- [out]
          axilReadMaster  => locAxilReadMasters(0),   -- [in]
@@ -195,8 +195,9 @@ begin
             TPD_G          => TPD_G,
             PIPE_STAGES_G  => 0,
             COMMON_CLK_G   => true,
-            TAP_SIZE_G     => 127,
-            WIDTH_G        => 16,
+            NUM_TAPS_G     => 41,
+            DIN_WIDTH_G    => 16,
+            COEFF_WIDTH_G  => 25,
             COEFFICIENTS_G => FILTER_COEFFICIENTS_C)
          port map (
             clk             => timingRxClk125,                            -- [in]
