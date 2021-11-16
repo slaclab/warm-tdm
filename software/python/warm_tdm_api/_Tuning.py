@@ -5,10 +5,19 @@ from simple_pid import PID
 import warm_tdm_api
 
 
-def saOffset(*, group, kp=-0.75, ki=0.0, kd=0.0, precision=0.0002, timeout=5.0):
+def saOffset(*, group)
     """Returns float.
-    Calls pidLoop using saOffset as the input variable.
+    Run PID loops to determine saOffset that properly offsets saBias
     """
+
+    # Get parameters from the Process
+    process = group.SaOffsetProcess
+    kp = process.Kp.get()
+    ki = process.Ki.get()
+    kd = process.Kd.get()
+    precision = process.Precision.get()
+    timeout = process.Timeout.get()
+
     # Setup PID controller
     pid = [PID(kp, ki, kd) for _ in range(len(group.ColumnMap.get()))]
 
@@ -47,13 +56,10 @@ def saOffset(*, group, kp=-0.75, ki=0.0, kd=0.0, precision=0.0002, timeout=5.0):
         if (max(masked) < precision) and (min(masked) > (-1.0*precision)):
             break
 
-#        print('Loop')
         for i, p in enumerate(pid):
             change = p(masked[i])
-            control[i] = max(min(control[i] + change, 2.499),0)
+            control[i] = np.clip(control[i] + change, 0,0, 2.499)
             print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')
-
-        #print(f'Done with loop\n')
 
         group.SaOffset.set(control)
 
