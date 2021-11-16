@@ -65,7 +65,7 @@ def saOffset(*, group, kp=-0.75, ki=0.0, kd=0.0, precision=0.0002, timeout=5.0):
 
 
 #SA TUNING
-def saFlux(*,group,bias,saFbOffsetRange,pctLow,pctRange,process):
+def saFbSweep(*, group, bias, saFbRange, pctLow, pctRange, process):
     """Returns a list of Curves objects.
     Iterates through SaFb values determined by lowoffset,highoffset,steps and
     calls SaOffset to generate points
@@ -76,7 +76,7 @@ def saFlux(*,group,bias,saFbOffsetRange,pctLow,pctRange,process):
 
     saFbArray = np.zeros(colCount, np.float)
 
-    numSteps = len(saFbOffsetRange[0])
+    numSteps = len(saFbRange[0])
 
     sleep = group.SaTuneProcess.SaFbSampleDelay.get()
 
@@ -86,7 +86,7 @@ def saFlux(*,group,bias,saFbOffsetRange,pctLow,pctRange,process):
         # Setup data
         for col in range(colCount):
             if group._config.columnEnable[col] is True:
-                saFbArray[col] = saFbOffsetRange[col][idx]
+                saFbArray[col] = saFbRange[col][idx]
 
         # large burst transaction of write data
         group.SaFbForce.set(value=saFbArray)
@@ -105,22 +105,20 @@ def saFlux(*,group,bias,saFbOffsetRange,pctLow,pctRange,process):
     # Reset FB to zero after sweep
     group.SaFbForce.set(value=np.zeros(colCount, np.float))
 
-    #Temporary - Reset SaFb back to 0 when done
-    #group.SaFbForce.set(value=np.zeros(len(colCount), np.float))
     return curves
 
-def saFluxBias(*,group,process):
+def saBiasSweep(*, group, process):
     """Returns a list of CurveData objects.
     Creates a list of CurveData objects, corresponding to each
     column
     Iterates through SaBias values determined by low,high,
-    steps and calls saFlux to generate curves, adding them
+    steps and calls saFbSweep to generate curves, adding them
     to their corresponding data objects
     """
 
     datalist = []
     saBiasRange = []
-    saFbOffsetRange = []
+    saFbRange = []
     colCount = len(group.ColumnMap.get())
     numBiasSteps = group.SaTuneProcess.SaBiasNumSteps.get()
     numFbSteps = group.SaTuneProcess.SaFbNumSteps.get()
@@ -136,9 +134,9 @@ def saFluxBias(*,group,process):
 
         low = group.SaTuneProcess.SaFbLowOffset.get()
         high = group.SaTuneProcess.SaFbHighOffset.get()
-        saFbOffsetRange.append(np.linspace(low,high,numFbSteps,endpoint=True))
+        saFbRange.append(np.linspace(low,high,numFbSteps,endpoint=True))
 
-        datalist.append(warm_tdm_api.CurveData(xvalues=saFbOffsetRange[col]))
+        datalist.append(warm_tdm_api.CurveData(xvalues=saFbRange[col]))
 
     for idx in range(numBiasSteps):
         for col in range(colCount):
@@ -153,7 +151,7 @@ def saFluxBias(*,group,process):
         if process is not None:
             process.Message.set(f'SaBias step {idx} out of {numBiasSteps}')
 
-        curves = saFlux(group=group,bias=bias,saFbOffsetRange=saFbOffsetRange, pctLow=idx/numBiasSteps,pctRange=pctRange,process=process)
+        curves = saFbSweep(group=group,bias=bias,saFbRange=saFbRange, pctLow=idx/numBiasSteps,pctRange=pctRange,process=process)
 
         for col in range(colCount):
             datalist[col].addCurve(curves[col])
@@ -168,7 +166,7 @@ def saFluxBias(*,group,process):
 
     return datalist
 
-def saTune(*,group,process=None, doSet=True):
+def saTune(*, group, process=None, doSet=True):
     """
     Initializes group, runs saFluxBias and collects and sets SaFb, SaOffset, and SaBias
     Returns a list of CurveData objects
@@ -187,16 +185,16 @@ def saTune(*,group,process=None, doSet=True):
     group.Init()
     group.RowForceIndex.set(0)
     group.RowForceEn.set(True)
-    saFluxBiasResults = saFluxBias(group=group,process=process)
+    saBiasResults = saBiasSweep(group=group,process=process)
 
     if doSet:
         for col in range(len(group.ColumnMap.get())):
             for row in range(len(group.RowMap.get())):
-                group.SaFb.set(index=(col,row),value=saFluxBiasResults[col].fbOut)
-            group.SaOffset.set(index=col,value=saFluxBiasResults[col].offsetOut)
-            group.SaBias.set(index=col,value=saFluxBiasResults[col].biasOut)
+                group.SaFb.set(index=(col,row),value=saBiasResults[col].fbOut)
+            group.SaOffset.set(index=col,value=saBiasResults[col].offsetOut)
+            group.SaBias.set(index=col,value=saBiasResults[col].biasOut)
         group.RowForceEn.set(False)
-    return saFluxBiasResults
+    return saBiasResults
 
 
 #FAS TUNING
