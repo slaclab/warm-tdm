@@ -129,39 +129,39 @@ class WaveformCapturePyDM(rogue.interfaces.stream.Slave, pr.Device):
 
         self.add(pr.LocalVariable(
             name='RawPeriodogram',
-            hidden=True,
-            value = {},
+#            hidden=True,
+            value = [(None, None) for _ in range(8)],
             mode='RO'))
 
         self.add(pr.LocalVariable(
             name='RawHistogram',
-            hidden=True,
-            value = {},
+            #hidden=True,
+            value = [(None, None) for _ in range(8)],
             mode='RO'))
         
 
         for i in range(8):
             self.add(pr.LinkVariable(
-                name='PeriodigramX[{i}]',
-                hidden=True,
+                name=f'PeriodigramX[{i}]',
+                #hidden=True,
                 dependencies=[self.RawPeriodogram],
                 linkedGet=lambda ch=i: self.RawPeriodogram.value()[ch][1]))
 
             self.add(pr.LinkVariable(
-                name='PeriodigramY[{i}]',
-                hidden=True,
+                name=f'PeriodigramY[{i}]',
+                #hidden=True,
                 dependencies=[self.RawPeriodogram],
                 linkedGet=lambda ch=i: self.RawPeriodogram.value()[ch][0]))
 
             self.add(pr.LinkVariable(
-                name='HistogramX[{i}]',
-                hidden=True,
+                name=f'HistogramX[{i}]',
+                #hidden=True,
                 dependencies=[self.RawHistogram],
                 linkedGet=lambda ch=i: self.RawHistogram.value()[ch][1]))
 
             self.add(pr.LinkVariable(
-                name='HistogramY[{i}]',
-                hidden=True,
+                name=f'HistogramY[{i}]',
+                #hidden=True,
                 dependencies=[self.RawHistogram],
                 linkedGet=lambda ch=i: self.RawHistogram.value()[ch][0]))            
                 
@@ -212,7 +212,7 @@ class WaveformCapturePyDM(rogue.interfaces.stream.Slave, pr.Device):
         # Convert adc values to voltages
         voltages = self.conv(adcs)
         
-        if channel == 8:
+        if channel >= 8:
             for i in range(8):
                 self.RawHistogram.set(value=self.histogram(adcs[:,i]), index=i)
                 self.RawPeriodogram.set(value=self.periodogram(voltages[:,i]), index=i)
