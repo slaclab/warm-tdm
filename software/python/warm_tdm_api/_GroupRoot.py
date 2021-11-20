@@ -27,6 +27,7 @@ class GroupRoot(pyrogue.Root):
 
         self.add(warm_tdm_api.Group(groupConfig=groupConfig,
                                     groupId=0,
+                                    expand=True,
                                     dataWriter=self.DataWriter,
                                     simulation=simulation,
                                     emulate=emulate,

@@ -40,10 +40,11 @@ class AdcFilters(pr.Device):
                 name = f'FirFilter[{i}]',
                 offset = i << 12,
                 numberTaps = numberTaps,
-                dataWordBitSize = 16))
+                coeffWordBitSize = 25))
 
         def setFirTaps(value, write):
             taps = scipy.signal.firwin(numberTaps, value, fs=125.0e6, window='hamming')
+            print(f'Applying filter at {value} with taps {taps}')
             for i in range(8):
                 self.FirFilter[i].Taps.set(taps, write=write)
 

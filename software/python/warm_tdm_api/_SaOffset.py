@@ -1,4 +1,3 @@
-
 import pyrogue as pr
 import warm_tdm_api
 
@@ -13,7 +12,7 @@ class SaOffsetProcess(pr.Process):
 
         self.add(pr.LocalVariable(
             name='Kp',
-            value=-.75,
+            value=-.1,
             mode='RW',
             description="Proportional PID coefficient"))
 
@@ -34,7 +33,7 @@ class SaOffsetProcess(pr.Process):
             value=0.0002,
             mode='RW',
             description="Convergance precision"))
-                 
+
 
         self.add(pr.LocalVariable(
             name='Timeout',
@@ -42,8 +41,8 @@ class SaOffsetProcess(pr.Process):
             units = 'Seconds',
             mode='RW',
             description="Timeout for PID convergance"))
-                 
-        
+
+
         # FAS Tuning Results
         self.add(pr.LocalVariable(
             name='SaOffsetOutput',
@@ -55,12 +54,6 @@ class SaOffsetProcess(pr.Process):
     def _saOffsetWrap(self):
         with self.root.updateGroup(0.25):
             ret = warm_tdm_api.saOffset(
-                group=self.parent,
-                kp=self.Kp.get(),
-                ki=self.Ki.get(),
-                kd=self.Kd.get(),
-                precision=self.Precision.get(),
-                timeout=self.Timeout.get())
+                group=self.parent)
 
             self.SaOffsetOutput.set(ret)
-

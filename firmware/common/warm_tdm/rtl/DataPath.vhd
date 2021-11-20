@@ -73,7 +73,7 @@ end entity DataPath;
 
 architecture rtl of DataPath is
 
-   constant FILTER_COEFFICIENTS_C : IntegerArray(0 to 41) := (others => 0);
+   constant FILTER_COEFFICIENTS_C : IntegerArray(0 to 126) := (others => 0);
 
    constant NUM_AXIL_MASTERS_C : integer                                                         := 11;
    constant XBAR_COFNIG_C      : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_MASTERS_C, AXIL_BASE_ADDR_G, 20, 16);
@@ -96,8 +96,8 @@ architecture rtl of DataPath is
    signal filterAxilReadSlaves   : AxiLiteReadSlaveArray(7 downto 0);
 
 
-   signal adcStreams         : AxiStreamMasterArray(7 downto 0);
-   signal filteredAdcStreams : AxiStreamMasterArray(7 downto 0);
+   signal adcStreams         : AxiStreamMasterArray(7 downto 0) := (others => AXI_STREAM_MASTER_INIT_C);
+   signal filteredAdcStreams : AxiStreamMasterArray(7 downto 0) := (others => AXI_STREAM_MASTER_INIT_C);
 
 
 begin
@@ -132,8 +132,8 @@ begin
          MASTERS_CONFIG_G   => XBAR_COFNIG_C,
          DEBUG_G            => false)
       port map (
-         axiClk              => axilClk,              -- [in]
-         axiClkRst           => axilRst,              -- [in]
+         axiClk              => timingRxClk125,       -- [in]
+         axiClkRst           => timingRxRst125,       -- [in]
          sAxiWriteMasters(0) => syncAxilWriteMaster,  -- [in]
          sAxiWriteSlaves(0)  => syncAxilWriteSlave,   -- [out]
          sAxiReadMasters(0)  => syncAxilReadMaster,   -- [in]
@@ -152,10 +152,11 @@ begin
          TPD_G           => TPD_G,
 --         SIMULATION_G    => SIMULATION_G,
          DEFAULT_DELAY_G => 12,
-         IODELAY_GROUP_G => IODELAY_GROUP_G)
+         IODELAY_GROUP_G => IODELAY_GROUP_G,
+         NEGATE_G        => true)
       port map (
-         axilClk         => axilClk,                 -- [in]
-         axilRst         => axilRst,                 -- [in]
+         axilClk         => timingRxClk125,          -- [in]
+         axilRst         => timingRxRst125,          -- [in]
          axilWriteMaster => locAxilWriteMasters(0),  -- [in]
          axilWriteSlave  => locAxilWriteSlaves(0),   -- [out]
          axilReadMaster  => locAxilReadMasters(0),   -- [in]
@@ -176,16 +177,16 @@ begin
          MASTERS_CONFIG_G   => FILTER_XBAR_CFG_C,
          DEBUG_G            => false)
       port map (
-         axiClk              => axilClk,              -- [in]
-         axiClkRst           => axilRst,              -- [in]
+         axiClk              => timingRxClk125,           -- [in]
+         axiClkRst           => timingRxRst125,           -- [in]
          sAxiWriteMasters(0) => locAxilWriteMasters(10),  -- [in]
          sAxiWriteSlaves(0)  => locAxilWriteSlaves(10),   -- [out]
          sAxiReadMasters(0)  => locAxilReadMasters(10),   -- [in]
          sAxiReadSlaves(0)   => locAxilReadSlaves(10),    -- [out]
-         mAxiWriteMasters    => filterAxilWriteMasters,  -- [out]
-         mAxiWriteSlaves     => filterAxilWriteSlaves,   -- [in]
-         mAxiReadMasters     => filterAxilReadMasters,   -- [out]
-         mAxiReadSlaves      => filterAxilReadSlaves);   -- [in]
+         mAxiWriteMasters    => filterAxilWriteMasters,   -- [out]
+         mAxiWriteSlaves     => filterAxilWriteSlaves,    -- [in]
+         mAxiReadMasters     => filterAxilReadMasters,    -- [out]
+         mAxiReadSlaves      => filterAxilReadSlaves);    -- [in]
 
 
    FIR_FILTER_GEN : for i in 7 downto 0 generate
@@ -194,8 +195,9 @@ begin
             TPD_G          => TPD_G,
             PIPE_STAGES_G  => 0,
             COMMON_CLK_G   => true,
-            TAP_SIZE_G     => 41,
-            WIDTH_G        => 16,
+            NUM_TAPS_G     => 41,
+            DIN_WIDTH_G    => 16,
+            COEFF_WIDTH_G  => 25,
             COEFFICIENTS_G => FILTER_COEFFICIENTS_C)
          port map (
             clk             => timingRxClk125,                            -- [in]

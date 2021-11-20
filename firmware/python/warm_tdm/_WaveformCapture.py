@@ -116,6 +116,112 @@ class WaveformCapture(pr.Device):
             disp = '{:0.06f}',
             linkedGet = _get))
 
+class WaveformCapturePyDM(rogue.interfaces.stream.Slave, pr.Device):
+
+    def __init__(self, **kwargs):
+        rogue.interfaces.stream.Slave.__init__(self)
+        pr.Device.__init__(self, **kwargs)
+
+        def _conv(adc):
+            return adc/2**13
+        
+        self.conv = np.vectorize(_conv)
+
+        self.add(pr.LocalVariable(
+            name='RawPeriodogram',
+#            hidden=True,
+            value = [(None, None) for _ in range(8)],
+            mode='RO'))
+
+        self.add(pr.LocalVariable(
+            name='RawHistogram',
+            #hidden=True,
+            value = [(None, None) for _ in range(8)],
+            mode='RO'))
+        
+
+        for i in range(8):
+            self.add(pr.LinkVariable(
+                name=f'PeriodigramX[{i}]',
+                #hidden=True,
+                dependencies=[self.RawPeriodogram],
+                linkedGet=lambda ch=i: self.RawPeriodogram.value()[ch][1]))
+
+            self.add(pr.LinkVariable(
+                name=f'PeriodigramY[{i}]',
+                #hidden=True,
+                dependencies=[self.RawPeriodogram],
+                linkedGet=lambda ch=i: self.RawPeriodogram.value()[ch][0]))
+
+            self.add(pr.LinkVariable(
+                name=f'HistogramX[{i}]',
+                #hidden=True,
+                dependencies=[self.RawHistogram],
+                linkedGet=lambda ch=i: self.RawHistogram.value()[ch][1]))
+
+            self.add(pr.LinkVariable(
+                name=f'HistogramY[{i}]',
+                #hidden=True,
+                dependencies=[self.RawHistogram],
+                linkedGet=lambda ch=i: self.RawHistogram.value()[ch][0]))            
+                
+
+    def histogram(self, data):
+        mean = np.int32(data.mean())
+        low = np.int32(data.min())
+        high = np.int32(data.max())
+
+        return np.histogram(data, np.arange(low-10, high+10, 1))
+
+    def periodigram(self, data):
+        freq=125.e6 # 125MHz
+        mean_subtracted_TOD = data - np.mean(data)
+        freqs,Pxx_den=scipy.signal.periodogram(mean_subtracted_TOD,freq,scaling='density')
+
+        preamp_chain_gain=200.
+
+        Pxx_den = 1e9*np.sqrt(Pxx_den)/preamp_chain_gain
+
+        return (Pxx_den, freqs)
+        
+
+                 
+    def _acceptFrame(self, frame):
+        if frame.getError():
+            print('Frame Error!')
+            return
+
+        data = frame.getNumpy(0, frame.getPayload())
+        numBytes = data.size
+        print(f'Got Frame on channel {frame.getChannel()}: {numBytes} bytes')
+
+        # Create a view of ADC values
+        frame = data.view(np.uint16)
+
+        # Process header
+        channel = frame[0] & 0b1111
+        decimation = frame[1]
+
+        adcs = frame[8:].view(np.int16).copy()
+        adcs = adcs//4
+
+        if channel == 8:
+            # Construct a view of the adc data
+            adcs.resize(adcs.size//8, 8)
+
+        # Convert adc values to voltages
+        voltages = self.conv(adcs)
+        
+        if channel >= 8:
+            for i in range(8):
+                self.RawHistogram.set(value=self.histogram(adcs[:,i]), index=i)
+                self.RawPeriodogram.set(value=self.periodogram(voltages[:,i]), index=i)
+        else:
+            self.RawHistogram.set(value=self.histogram(adcs), index=channel)
+            self.RawPeriodogram.set(value=self.periodogram(voltages), index=channel)
+                
+
+
 class WaveformCaptureReceiver(rogue.interfaces.stream.Slave, pr.Device):
 
     def __init__(self, **kwargs):
@@ -138,8 +244,8 @@ class WaveformCaptureReceiver(rogue.interfaces.stream.Slave, pr.Device):
 #        self.hist_queue = mp.SimpleQueue()
         self.hist_plotter = HistogramPlotter(title='Raw Histogram')
         self.fft_plotter = ShawnPlotter(title='Raw Noise')
-        self.hist_plotter2 = HistogramPlotter(title='Subtracted Histogram')
-        self.fft_plotter2 = ShawnPlotter(title='Subtracted Noise')
+#        self.hist_plotter2 = HistogramPlotter(title='Subtracted Histogram')
+#        self.fft_plotter2 = ShawnPlotter(title='Subtracted Noise')
  #       self.hist_process = mp.Process(
  #           target = self.hist_plotter, args=(self.hist_queue, ), daemon=True)
 
@@ -209,8 +315,8 @@ class WaveformCaptureReceiver(rogue.interfaces.stream.Slave, pr.Device):
 
             self.hist_plotter.updateHists(adcs, channel)
             self.fft_plotter.updateFfts(voltages, channel)
-            self.hist_plotter2.updateHists(adjustedAdcs, channel)
-            self.fft_plotter2.updateFfts(adjustedVoltages, channel)            
+            #self.hist_plotter2.updateHists(adjustedAdcs, channel)
+            #self.fft_plotter2.updateFfts(adjustedVoltages, channel)            
 #            self.hist_queue.put((adcs, channel))
 #            self.sub_hist_queue.put((adjustedAdcs, channel))
 
