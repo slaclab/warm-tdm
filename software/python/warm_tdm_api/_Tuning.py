@@ -316,6 +316,7 @@ def sq1Flux(group,bias,row):
     Iterates through Sq1Fb values determined by lowoffset,
     highoffset,step. Generates curve points with saOffset()
     """
+
     curves = []
     Sq1FbOffsetRange = []
 
@@ -384,7 +385,58 @@ def sq1FluxRowBias(group,row):
         datalist.append(data)
     return datalist
 
-def sq1Tune(group,column):
+def sq1BiasSweep(*, group, process):
+    datalist = []
+    sq1BiasRange = []
+    sq1FbRange = []
+    colCount = len(group.ColumnMap.get())
+    rowCount = len(group.RowMap.get())
+    numBiasSteps = group.Sq1TuneProcess.Sq1BiasNumSteps.get()  # Not sure about these, need to understand processes better
+    numFbSteps = group.Sq1TuneProcess.Sq1FbNumSteps.get()      # "   "
+    pctRange = 1.0/numBiasSteps
+
+    bias = group.Sq1Bias.get()
+
+    for col in range(colCount):
+        low = group.Sq1TuneProcess.Sq1BiasLowOffset.get()
+        high = group.Sq1TuneProcess.Sq1BiasHighOffset.get()
+        sq1BiasRange.append(np.linspace(low,high,numBiasSteps,endpoint=True))
+
+        low = group.Sq1TuneProcess.Sq1FbLowOffset.get()
+        high = group.Sq1TuneProcess.Sq1FbHighOffset.get()
+        saFbRange.append(np.linspace(low,high,numFbSteps,endpoint=True))
+
+        datalist.append(warm_tdm_api.CurveData(xvalues=saFbRange[col]))
+
+    # for idx in range(numBiasSteps): #Need to understand and repurpose this
+    #     for col in range(colCount):
+    #         if group._config.columnEnable[col] is True:
+    #             bias[col] = saBiasRange[col][idx]
+
+    #     group.SaBias.set(bias)
+    #     saOffset(group=group)
+
+    #     print(f'saBias step {idx} - {bias}')
+
+    #     if process is not None:
+    #         process.Message.set(f'SaBias step {idx} out of {numBiasSteps}')
+
+    #     curves = saFbSweep(group=group,bias=bias,saFbRange=saFbRange, pctLow=idx/numBiasSteps,pctRange=pctRange,process=process)
+
+    #     for col in range(colCount):
+    #         datalist[col].addCurve(curves[col])
+
+    # for d in datalist:
+    #     d.update()
+
+    # # Return SaBias back to initial values
+    # #group.SaBias.set(start)
+    # #saOffset(group)
+
+
+    # return datalist
+
+def sq1Tune(*, group,column, process = None, doSet = True):
     """
     Runs Sq1FluxRowBias for each row, collecting CurveData objects.
     During this loop, sets the resulting Sq1Bias and Sq1Fb values
@@ -402,17 +454,25 @@ def sq1Tune(group,column):
         sq1Bias, and each CurveData object in the list corresponds
         with a different row
     """
-    outputs = []
-    group.RowForceEn.set(True)
-    for row in range(group.NumRows.get()):
-        results = sq1FluxRowBias(group,row)
-        for data in results:
-            data.update()
 
-        group.Sq1Bias.set(index=(row,column),value=results.biasOut)
-        group.Sq1Fb.set(index=(row,column),value=results.fbOut)
-        outputs.append(results)
-    return outputs
+
+    outputs = []
+
+    group.RowForceIndex.set(0)
+    group.RowForceEn.set(True)
+
+    sq1BiasResults = sq1BiasSweep(group=group,process=process)
+
+    if doSet:
+        # for row in range(group.RowMap.get()):
+        #     results = sq1FluxRowBias(group,row)
+        #     for data in results:
+        #         data.update()
+
+            group.Sq1Bias.set(index=(row,column),value=results.biasOut)
+            group.Sq1Fb.set(index=(row,column),value=results.fbOut)
+            outputs.append(results)
+    return sq1BiasResults
 
 
 
