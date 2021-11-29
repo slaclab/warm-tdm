@@ -131,7 +131,7 @@ def saBiasSweep(*, group, process):
     pctRange = 1.0/numBiasSteps
 
     # Get current sabias values
-    bias = group.SaBias.get()
+    bias = group.SaBias.get() #Does this need to be accessed with col idx?
 
     for col in range(colCount):
         low = group.SaTuneProcess.SaBiasLowOffset.get()
@@ -385,16 +385,20 @@ def sq1FluxRowBias(group,row):
         datalist.append(data)
     return datalist
 
+def sq1FbSweep():
+    pass #Is this going to be the right function?
+
 def sq1BiasSweep(*, group, process):
     datalist = []
     sq1BiasRange = []
     sq1FbRange = []
-    colCount = len(group.ColumnMap.get())
+    colCount = len(group.ColMap.get())
     rowCount = len(group.RowMap.get())
     numBiasSteps = group.Sq1TuneProcess.Sq1BiasNumSteps.get()  # Not sure about these, need to understand processes better
     numFbSteps = group.Sq1TuneProcess.Sq1FbNumSteps.get()      # "   "
     pctRange = 1.0/numBiasSteps
 
+    # Get current Sq1 bias
     bias = group.Sq1Bias.get()
 
     for col in range(colCount):
@@ -407,6 +411,29 @@ def sq1BiasSweep(*, group, process):
         saFbRange.append(np.linspace(low,high,numFbSteps,endpoint=True))
 
         datalist.append(warm_tdm_api.CurveData(xvalues=saFbRange[col]))
+
+
+    for idx in range(numBiasSteps):
+        for col in range(colCount):
+            if group._config.columnEnable[col]:
+                bias[col] = saBiasRange[col][idx]
+
+        group.SaBias.get(index=(col,row)) #What row and column should we pass to this?
+
+        saOffset(group=group)
+
+        print(f'sq1Bias step {idx} - {bias}')
+
+        if process is not None:
+            process.Message.set(f'Sq1Bias step {idx} out of {numBiasSteps}')
+
+        curves = sq1FbSweep(group=group,bias=bias)
+
+        for col in range(colCount):
+            datalist[col].addCurve(curves[col])
+
+    for d in datalist:
+        d.update()
 
     # for idx in range(numBiasSteps): #Need to understand and repurpose this
     #     for col in range(colCount):
@@ -455,9 +482,6 @@ def sq1Tune(*, group,column, process = None, doSet = True):
         with a different row
     """
 
-
-    outputs = []
-
     group.RowForceIndex.set(0)
     group.RowForceEn.set(True)
 
@@ -468,10 +492,12 @@ def sq1Tune(*, group,column, process = None, doSet = True):
         #     results = sq1FluxRowBias(group,row)
         #     for data in results:
         #         data.update()
-
-            group.Sq1Bias.set(index=(row,column),value=results.biasOut)
-            group.Sq1Fb.set(index=(row,column),value=results.fbOut)
-            outputs.append(results)
+        for col in range(len(group.ColMap.get())):
+            for row in range(len(group.RowMap.get())):
+                group.Sq1Fb.set(index=(col,row),value=sq1BiasResults[col].fbOut)
+            group.Sq1Offset.set(index=col,value=sq1BiasResults[col].offsetOut)
+            group.Sq1Bias.set(index=col,value=sq1BiasResults[col].biasOut)
+        group.RowForceEn.set(False)
     return sq1BiasResults
 
 
