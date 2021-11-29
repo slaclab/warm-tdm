@@ -88,4 +88,3 @@ config = warm_tdm_api.GroupConfig(columnMap=columnMap,
 with warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=args.emulate, plots=args.plots) as root:
 
     pyrogue.pydm.runPyDM(root=root,title='Warm TDM',sizeX=2000,sizeY=2000,ui=warm_tdm_api.pydmUi)
-

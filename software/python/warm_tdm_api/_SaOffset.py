@@ -57,14 +57,14 @@ class SaOffsetProcess(pr.Process):
                 group=self.parent)
 
             self.SaOffsetOutput.set(ret)
-            
+
 class SaOffsetSweepProcess(pr.Process):
 
     def __init__(self, config, **kwargs):
 
         # Init master class
         pr.Process.__init__(self, function=self._saOffsetSweep, **kwargs)
-        
+
         # Low offset for SA Bias Tuning
         self.add(pr.LocalVariable(name='SaBiasLow',
                                   value=0.0,
@@ -83,18 +83,18 @@ class SaOffsetSweepProcess(pr.Process):
                                   value=100,
                                   mode='RW',
                                   description="Number of steps for SA Bias Tuning"))
-        
+
         self.add(pr.LocalVariable(name='PlotXData',
                                  mode='RO',
                                  hidden=True,
                                  value = np.zeros(10)))
-        
+
         for i in range(len(config.columnMap)):
             self.add(pr.LocalVariable(name=f'PlotYData[{i}]',
                                      mode='RO',
                                      hidden=True,
                                      value = np.zeros(10)))
-            
+
     def _saOffsetSweep(self):
         with self.root.updateGroup(.25):
             group = self.parent
@@ -126,7 +126,7 @@ class SaOffsetSweepProcess(pr.Process):
                 offset = group.SaOffset.get()
 
                 print(f'Got saOffset - {offset}')
-                
+
                 curves[i] = offset
 
                 self.Progress.set(i/steps)
@@ -134,5 +134,3 @@ class SaOffsetSweepProcess(pr.Process):
             self.PlotXData.set(biasRange)
             for i in range(colCount):
                 self.PlotYData[i].set(curves[:, i])
-
-        
