@@ -66,6 +66,8 @@ architecture rtl of AdcDsp is
    constant SUM_BITS_C    : integer := 18;
    constant RESULT_BITS_C : integer := 32;
 
+   constant FILTER_COEFFICIENTS_C : IntegerArray(0 to 10) := (5 => 2**15-1, others => 0);
+
    type RegType is record
       accumValid : sl;
       pidStep    : integer range 0 to 2;
@@ -316,13 +318,15 @@ begin
    -- PID results streamed through and FIR filter
    U_FirFilterMultiChannel_1 : entity surf.FirFilterMultiChannel
       generic map (
-         TPD_G         => TPD_G,
-         TAP_SIZE_G    => 10,
-         CH_SIZE_G     => NUM_ROWS_G,
-         PARALLEL_G    => 1,
-         WIDTH_G       => 16,                                    --RESULT_BITS_C,
-         MEMORY_TYPE_G => "block",
-         SYNTH_MODE_G  => "inferred")
+         TPD_G          => TPD_G,
+         NUM_TAPS_G     => 11,
+         NUM_CHANNELS_G => 64,
+         PARALLEL_G     => 1,
+         DATA_WIDTH_G   => 16,                                   --RESULT_BITS_C,
+         COEFF_WIDTH_G  => 16,
+         COEFFICIENTS_G => FILTER_COEFFICIENTS_C,
+         MEMORY_TYPE_G  => "distributed",
+         SYNTH_MODE_G   => "xpm")
       port map (
          axisClk         => timingRxClk125,                      -- [in]
          axisRst         => timingRxRst125,                      -- [in]
@@ -383,7 +387,8 @@ begin
       if (timingRxData.sample = '1') then
          if timingRxData.firstSample = '1' then
             v.accumError := (others => '0');
-            v.accumRow   := timingRxData.rowNum(5 downto 0);
+            -- Fix this
+            v.accumRow   := adcAxisMaster.tData(21 downto 16);  --timingRxData.rowNum(5 downto 0);
          end if;
 --         if adcAxisMaster.tValid = '1' then
          v.accumError := (adcValueSigned - adcOffsetSigned) + v.accumError;
