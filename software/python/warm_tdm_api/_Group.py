@@ -302,6 +302,7 @@ class Group(pr.Device):
         self.add(warm_tdm_api.ConfigSelect(self))
 
         self.add(warm_tdm_api.SaOffsetProcess())
+        self.add(warm_tdm_api.SaOffsetSweepProcess(config=self._config))        
         self.add(warm_tdm_api.SaTuneProcess(config=self._config))
         self.add(warm_tdm_api.Sq1TuneProcess())
         self.add(warm_tdm_api.FasTuneProcess())
