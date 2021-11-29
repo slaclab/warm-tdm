@@ -41,6 +41,7 @@ class HardwareGroup(pyrogue.Device):
             self.add(dataUdp)
             self.addInterface(srpUdp, dataUdp)
 
+        waveGui = warm_tdm.WaveformCapturePyDM(hidden=True)            
 
         # Instantiate and link each board in the Group
         for index in range(colBoards):
@@ -70,16 +71,18 @@ class HardwareGroup(pyrogue.Device):
                 dataStream >> dataWriter.getChannel(dataWriterChannel)
             
                 #debug = warm_tdm.StreamDebug()
+
+                dataStream >> waveGui
                 if plots:
                     plotter = warm_tdm.WaveformCaptureReceiver()
                     #self.add(plotter)
                     dataStream >> plotter
                     self.addInterface(plotter)
 
-                else:
-                    debug = warm_tdm.StreamDebug()
-                    dataStream >> debug
-                    self.addInterface(debug)
+#                 else:
+#                     debug = warm_tdm.StreamDebug()
+#                     dataStream >> debug
+#                     self.addInterface(debug)
 
         for rowIndex, boardIndex in enumerate(range(colBoards, colBoards+rowBoards)):
             # Create streams to each board
@@ -109,6 +112,8 @@ class HardwareGroup(pyrogue.Device):
 
         self.add(warm_tdm.RowSelectArray(
             rowModules = [self.RowBoard[i] for i in range(rowBoards)]))
+
+        self.add(waveGui)
 
 
     def writeBlocks(self, **kwargs):
