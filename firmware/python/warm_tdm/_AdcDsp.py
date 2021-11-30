@@ -2,7 +2,11 @@ import pyrogue as pr
 
 import surf.dsp.fixed
 
+import scipy.signal
+import numpy as np
+
 import warm_tdm
+
 
 
 
@@ -186,8 +190,25 @@ class AdcDsp(pr.Device):
             valueBits = 16,
             valueStride = 32))
 
-#         self.add(surf.dsp.fixed.FirFilterMultiChannel(
-#             offset = 0x8000,
-#             numberTaps = 10,
-#             numberChannels = 64,
-#             dataWordBitSize = 16))
+        self.add(surf.dsp.fixed.FirFilterMultiChannel(
+            name = 'FirFilter',
+            offset = 0x8000,
+            numberTaps = 11,
+            coeffWordBitSize = 16))
+
+        self.filterFreq = 1000.0
+        
+        def setFirTaps(value, write):
+            self.filterFreq = value
+            taps = scipy.signal.firwin(11, value, fs=7812.5, window='hamming')
+            print(f'Applying filter at {value} with taps {taps}')
+            ftaps = np.array([int(np.round(x * 2**15)) for x in taps], dtype=np.uint16)
+            print([f'{t:04x}' for t in ftaps])
+            self.FirFilter.Taps.set(taps, write=write)
+
+        self.add(pr.LinkVariable(
+            name = 'FilterCuttoffFreq',
+            linkedSet = setFirTaps,
+            linkedGet = lambda: self.filterFreq,
+            value = self.filterFreq))
+        

@@ -73,7 +73,7 @@ end entity DataPath;
 
 architecture rtl of DataPath is
 
-   constant FILTER_COEFFICIENTS_C : IntegerArray(0 to 126) := (others => 0);
+   constant FILTER_COEFFICIENTS_C : IntegerArray(0 to 40) := (20 => 2**24-1, others => 0);
 
    constant NUM_AXIL_MASTERS_C : integer                                                         := 11;
    constant XBAR_COFNIG_C      : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_MASTERS_C, AXIL_BASE_ADDR_G, 20, 16);
@@ -192,26 +192,28 @@ begin
    FIR_FILTER_GEN : for i in 7 downto 0 generate
       U_FirFilterSingleChannel_1 : entity surf.FirFilterSingleChannel
          generic map (
-            TPD_G          => TPD_G,
-            PIPE_STAGES_G  => 0,
-            COMMON_CLK_G   => true,
-            NUM_TAPS_G     => 41,
-            DIN_WIDTH_G    => 16,
-            COEFF_WIDTH_G  => 25,
-            COEFFICIENTS_G => FILTER_COEFFICIENTS_C)
+            TPD_G            => TPD_G,
+            COMMON_CLK_G     => true,
+            NUM_TAPS_G       => 41,
+            SIDEBAND_WIDTH_G => 16,
+            DATA_WIDTH_G     => 16,
+            COEFF_WIDTH_G    => 25,
+            COEFFICIENTS_G   => FILTER_COEFFICIENTS_C)
          port map (
-            clk             => timingRxClk125,                            -- [in]
-            rst             => timingRxRst125,                            -- [in]
-            ibValid         => adcStreams(i).tvalid,                      -- [in]
-            din             => adcStreams(i).tData(15 downto 0),          -- [in]
-            obValid         => filteredAdcStreams(i).tvalid,              -- [out]
-            dout            => filteredAdcStreams(i).tData(15 downto 0),  -- [out]
-            axilClk         => timingRxClk125,                            -- [in]
-            axilRst         => timingRxRst125,                            -- [in]
-            axilReadMaster  => filterAxilReadMasters(i),                  -- [in]
-            axilReadSlave   => filterAxilReadSlaves(i),                   -- [out]
-            axilWriteMaster => filterAxilWriteMasters(i),                 -- [in]
-            axilWriteSlave  => filterAxilWriteSlaves(i));                 -- [out]
+            clk             => timingRxClk125,                             -- [in]
+            rst             => timingRxRst125,                             -- [in]
+            ibValid         => adcStreams(i).tvalid,                       -- [in]
+            din             => adcStreams(i).tData(15 downto 0),           -- [in]
+            sbIn            => timingRxData.rowNum,                        -- [in]
+            obValid         => filteredAdcStreams(i).tvalid,               -- [out]
+            dout            => filteredAdcStreams(i).tData(15 downto 0),   -- [out]
+            sbOut           => filteredAdcStreams(i).tData(31 downto 16),  -- [out]
+            axilClk         => timingRxClk125,                             -- [in]
+            axilRst         => timingRxRst125,                             -- [in]
+            axilReadMaster  => filterAxilReadMasters(i),                   -- [in]
+            axilReadSlave   => filterAxilReadSlaves(i),                    -- [out]
+            axilWriteMaster => filterAxilWriteMasters(i),                  -- [in]
+            axilWriteSlave  => filterAxilWriteSlaves(i));                  -- [out]
    end generate FIR_FILTER_GEN;
 
 

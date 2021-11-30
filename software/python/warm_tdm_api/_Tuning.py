@@ -5,7 +5,7 @@ from simple_pid import PID
 import warm_tdm_api
 
 
-def saOffset(*, group)
+def saOffset(*, group):
     """Returns float.
     Run PID loops to determine saOffset that properly offsets saBias
     """
@@ -35,9 +35,9 @@ def saOffset(*, group)
     current = group.SaOut.get()
     masked = current
     print('Initial Values')
-    for i in range(len(control)):
-        print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}')
-    print()
+#    for i in range(len(control)):
+        #print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}')
+    #print()
 
     mult = np.array([1 if en else 0 for en in group._config.columnEnable],np.float32)
     count = 0
@@ -58,8 +58,8 @@ def saOffset(*, group)
 
         for i, p in enumerate(pid):
             change = p(masked[i])
-            control[i] = np.clip(control[i] + change, 0,0, 2.499)
-            print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')
+            control[i] = np.clip(control[i] + change, 0.0, 2.499)
+            #print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')
 
         group.SaOffset.set(control)
 
