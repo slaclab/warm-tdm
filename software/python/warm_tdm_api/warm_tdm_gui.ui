@@ -23,7 +23,7 @@
       <string/>
      </property>
      <property name="currentIndex">
-      <number>4</number>
+      <number>0</number>
      </property>
      <property name="alarmChannels">
       <stringlist>
@@ -72,7 +72,7 @@
                  <string/>
                 </property>
                 <property name="channel" stdset="0">
-                 <string>rogue://0/GroupRoot.Group.RowForceEn/name</string>
+                 <string>rogue://0/GroupRoot.Group.RowTuneEn/name</string>
                 </property>
                </widget>
               </item>
@@ -82,27 +82,27 @@
                  <string/>
                 </property>
                 <property name="channel" stdset="0">
-                 <string>rogue://0/GroupRoot.Group.RowForceEn</string>
+                 <string>rogue://0/GroupRoot.Group.RowTuneEn</string>
                 </property>
                </widget>
               </item>
-              <item row="3" column="0">
+              <item row="4" column="0">
                <widget class="PyDMLabel" name="PyDMLabel_7">
                 <property name="toolTip">
                  <string/>
                 </property>
                 <property name="channel" stdset="0">
-                 <string>rogue://0/GroupRoot.Group.RowForceIndex/name</string>
+                 <string>rogue://0/GroupRoot.Group.RowTuneIndex/name</string>
                 </property>
                </widget>
               </item>
-              <item row="3" column="1">
+              <item row="4" column="1">
                <widget class="PyDMSpinbox" name="PyDMSpinbox">
                 <property name="toolTip">
                  <string/>
                 </property>
                 <property name="channel" stdset="0">
-                 <string>rogue://0/GroupRoot.Group.RowForceIndex</string>
+                 <string>rogue://0/GroupRoot.Group.RowTuneIndex</string>
                 </property>
                 <property name="showStepExponent" stdset="0">
                  <bool>false</bool>
@@ -112,7 +112,7 @@
                 </property>
                </widget>
               </item>
-              <item row="4" column="0">
+              <item row="8" column="0">
                <widget class="PyDMLabel" name="PyDMLabel_4">
                 <property name="toolTip">
                  <string/>
@@ -122,7 +122,7 @@
                 </property>
                </widget>
               </item>
-              <item row="4" column="1">
+              <item row="8" column="1">
                <widget class="PyDMEnumComboBox" name="PyDMEnumComboBox_2">
                 <property name="toolTip">
                  <string/>
@@ -131,6 +131,19 @@
                  <string>rogue://0/GroupRoot.Group.FllEnable</string>
                 </property>
                </widget>
+              </item>
+              <item row="9" column="1">
+               <spacer name="horizontalSpacer_2">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
               </item>
              </layout>
             </item>
@@ -783,6 +796,16 @@ p, li { white-space: pre-wrap; }
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout_9">
        <item>
+        <widget class="Device" name="Device">
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="channel" stdset="0">
+          <string>rogue://0/root.Group.HardwareGroup.ColumnBoard[0].DataPath.WaveformCapture</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="DebugTree" name="DebugTree">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -1063,16 +1086,24 @@ p, li { white-space: pre-wrap; }
    <class>RootControl</class>
    <extends>PyDMFrame</extends>
    <header>pyrogue.pydm.widgets.root_control</header>
+   <container>1</container>
   </customwidget>
   <customwidget>
    <class>SystemLog</class>
    <extends>PyDMFrame</extends>
    <header>pyrogue.pydm.widgets.system_log</header>
+   <container>1</container>
   </customwidget>
   <customwidget>
    <class>DataWriter</class>
    <extends>PyDMFrame</extends>
    <header>pyrogue.pydm.widgets.data_writer</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>Device</class>
+   <extends>PyDMFrame</extends>
+   <header>pyrogue.pydm.widgets.device</header>
   </customwidget>
   <customwidget>
    <class>PyRogueLineEdit</class>
@@ -1083,6 +1114,7 @@ p, li { white-space: pre-wrap; }
    <class>Process</class>
    <extends>PyDMFrame</extends>
    <header>pyrogue.pydm.widgets.process</header>
+   <container>1</container>
   </customwidget>
   <customwidget>
    <class>PyDMTabWidget</class>
