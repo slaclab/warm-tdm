@@ -19,10 +19,14 @@ class RowModule(pr.Device):
             enabled = True))
 
         self.add(surf.protocols.ssi.SsiPrbsRx(
+            hidden = True,
             offset = 0xC0200000))
         
         self.add(surf.protocols.ssi.SsiPrbsTx(
+            hidden = True,
             offset = 0xC0201000))
+
+        self.add(warm_tdm.RowSelectArray(rowModule=self))
 
         @self.command()
         def Run():

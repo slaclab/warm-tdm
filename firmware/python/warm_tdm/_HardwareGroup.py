@@ -110,9 +110,6 @@ class HardwareGroup(pyrogue.Device):
             typeStr = 'int',
             value = [0,1,2,3] )) #list(range(48))))
 
-        self.add(warm_tdm.RowSelectArray(
-            rowModules = [self.RowBoard[i] for i in range(rowBoards)]))
-
         self.add(waveGui)
 
 

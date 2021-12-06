@@ -52,9 +52,25 @@ class GroupConfig:
             Row order list for sequence
         host: str
             Host IP address
-        columnBoards: str
+        columnBoards: int
             Number of column boards
-        rowBoards: str
+        rowBoards: int
             Number of row boards
     """
+
+    def colSetIter(self, value, index):
+        # Construct a generator to loop over
+        if index != -1:
+            return ((idx, self.columnMap[idx].board, self.columnMap[idx].channel, val) for idx, val in zip(range(index, index+1), [value]))
+        else:
+            return ((idx, self.columnMap[idx].board, self.columnMap[idx].channel, val) for idx, val in enumerate(value))
+
+    def colGetIter(self, index):
+        # Construct a generator to loop over
+        if index != -1:
+            ra = range(index, index+1)
+        else:
+            ra = range(len(self.columnMap))
+
+        return ((idx, self.columnMap[idx].board, self.columnMap[idx].channel) for idx in ra)    
 
