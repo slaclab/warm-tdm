@@ -54,6 +54,18 @@ class ColumnModule(pr.Device):
             offset = 0xC0200000))
 
         @self.command()
+        def AllFastDacs(arg):
+            for v in self.SAFb.Override.values():
+                v.set(value=arg, write=True)
+
+            for v in self.SQ1Fb.Override.values():
+                v.set(value=arg, write=True)
+
+            for v in self.SQ1Bias.Override.values():
+                v.set(value=arg, write=True)
+                
+
+        @self.command()
         def InitDacAdc():
             self.Ad9681Config.enable.set(True)
             self.Ad9681Config.ReadDevice()
@@ -65,5 +77,3 @@ class ColumnModule(pr.Device):
             self.SaBiasDac.ZeroVoltages()
             self.TesBiasDac.ZeroVoltages()
             
-            for v in self.SAFb.Override.values():
-                v.set(value=0.0, write=True)
