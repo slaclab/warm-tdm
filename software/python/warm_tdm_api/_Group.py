@@ -3,6 +3,16 @@ import warm_tdm
 import warm_tdm_api
 import numpy as np
 
+class ArrayVariableDevice(pr.Device):
+    def __init__(self, *, variable, size, **kwargs):
+        super().__init__(**kwargs)
+
+        for i in range(size):
+            self.add(pr.LinkVariable(
+                name=f'idx[{i}]',
+                linkedGet = lambda read, ch=i: variable.get(index=ch, read=read),
+                linkedSet = lambda value, write, ch=i: variable.set(value=value, index=ch, write=write)))
+
 # Generic LinkVariable class for accessing a set of
 # Variables across multiple boards as a single array.
 # Dependencies must be passed in Column order for generic
@@ -18,6 +28,8 @@ class GroupLinkVariable(pr.LinkVariable):
 
     # Set group values, index is column or row
     def _set(self, *, value, index, write):
+        if len(self.dependencies) == 0:
+            return
         # Dependencies represent the channel values in channel order
         # So just use those references to do the set accesses
         with self.parent.root.updateGroup():
@@ -29,6 +41,9 @@ class GroupLinkVariable(pr.LinkVariable):
 
     # Get group values, index is column or row
     def _get(self, *, index, read):
+        #print(f'{self.path}._get(index={index}, read={read}) - deps={self.dependencies}')
+        if len(self.dependencies) == 0:
+            return 0
         with self.parent.root.updateGroup():
             if index != -1:
                 return self.dependencies[index].get(read=read)
@@ -58,12 +73,21 @@ class RowTuneEnVariable(GroupLinkVariable):
             return self._value
 
 class RowTuneIndexVariable(GroupLinkVariable):
-    def __init__(self, **kwargs):
+    def __init__(self, config, **kwargs):
 
         self._value = 0
+        self._config = config
+        self._rows = len(config.rowMap)
+        
         super().__init__(**kwargs)
 
     def _set(self, *, value, write):
+
+        # Corner case of no row boards in group
+        if self._rows == 0:
+            self._value = value
+            return
+        
         with self.parent.root.updateGroup():
             # First turn off any channel that is on
             for var in self.dependencies:
@@ -312,6 +336,7 @@ class Group(pr.Device):
             name='RowTuneIndex',
             typeStr='int',
             value=0,
+            config=self._config,
             dependencies=[self.HardwareGroup.RowBoard[m.board].RowSelectArray.RowSelect[m.channel].Active
                           for m in self._config.rowMap]))
 
