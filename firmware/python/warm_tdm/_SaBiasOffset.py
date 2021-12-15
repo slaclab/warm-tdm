@@ -1,7 +1,7 @@
 import pyrogue as pr
 
 class SaBiasOffset(pr.Device):
-    def __init__(self, dac, **kwargs):
+    def __init__(self, dac, resistor=15e3, **kwargs):
         super().__init__(**kwargs)
         
         self._dac = dac
@@ -9,13 +9,23 @@ class SaBiasOffset(pr.Device):
         for i in range(8):
             self.add(pr.LinkVariable(
                 name = f'Bias[{i}]',
-                variable = self._dac.DacVoltage[i]))
+                variable = self._dac.DacVoltage[i],
+                units = 'V'))
 
 
         for i in range(8):            
             self.add(pr.LinkVariable(
                 name = f'Offset[{i}]',
-                variable = self._dac.DacVoltage[i+8]))
+                variable = self._dac.DacVoltage[i+8],
+                units = 'V'))
+
+        for i in range(8):
+            self.add(pr.LinkVariable(
+                name = f'BiasCurrent[{i}]',
+                dependencies = [self.Bias[i]],
+                linkedGet = lambda read, ch=i: self.Bias[ch].get(read=read) * 1000 / resistor,
+                linkedSet = lambda value, write, ch=i: self.Bias[ch].set( (value/1000.0)*resistor  , write=write),
+                units = 'mA'))
 
         @self.command()
         def SetAll(arg):

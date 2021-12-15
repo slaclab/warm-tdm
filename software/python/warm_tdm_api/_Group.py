@@ -334,10 +334,24 @@ class Group(pr.Device):
         #####################################
 
         self.add(SaOutVariable(
-            name='SaOut',
+            name='SaOutAdc',
+            units='V',
             config=self._config,
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].DataPath.WaveformCapture.AdcAverage
                             for m in self._config.columnMap]))
+
+        self.add(ArrayVariableDevice(
+            name='SaOutAdcDev',
+            size=len(self._config.columnMap),
+            variable = self.SaOutAdc))
+
+        # Remove amplifier gain
+        self.add(pr.LinkVariable(
+            name='SaOut',
+            dependencies = [self.SaOutAdc],
+            units = 'mV',
+            disp = '{:0.06f}',
+            linkedGet = lambda index, read: 1e3 * self.SaOutAdc.get(index=index, read=read)/200))
 
         self.add(GroupLinkVariable(
             name='SaBias',

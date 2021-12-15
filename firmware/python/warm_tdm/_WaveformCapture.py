@@ -115,6 +115,7 @@ class WaveformCapture(pr.Device):
             name = 'AdcAverage',
             dependencies = [self.AdcAverageRaw],
             disp = '{:0.06f}',
+            units = 'V',
             linkedGet = _get))
 
 class WaveformCapturePyDM(pr.Device, rogue.interfaces.stream.Slave):
