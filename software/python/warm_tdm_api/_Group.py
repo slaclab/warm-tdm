@@ -131,8 +131,8 @@ class SaOutVariable(GroupLinkVariable):
 
                 # Iterate through all the channel values now held in shadow memory and assign to array
                 ret = np.zeros((len(self._config.columnMap)), np.float)
-                for (idx, board, chan), dep in zip(self._config.colGetIter(index), self.dependencies):
-                    ret[idx] = dep.get(index=chan, read=False)
+                for idx, board, chan in self._config.colGetIter(index):
+                    ret[idx] = self.dependencies[board].get(index=chan, read=False)
 
                 return ret
 
