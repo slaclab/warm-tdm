@@ -115,6 +115,7 @@ class WaveformCapture(pr.Device):
             name = 'AdcAverage',
             dependencies = [self.AdcAverageRaw],
             disp = '{:0.06f}',
+            units = 'V',
             linkedGet = _get))
 
 class WaveformCapturePyDM(pr.Device, rogue.interfaces.stream.Slave):
@@ -131,12 +132,14 @@ class WaveformCapturePyDM(pr.Device, rogue.interfaces.stream.Slave):
         self.add(pr.LocalVariable(
             name='RawPeriodogram',
 #            hidden=True,
+            bulkOpEn = False,
             value = [(np.zeros(10), np.zeros(10)) for _ in range(8)],
             mode='RO'))
 
         self.add(pr.LocalVariable(
             name='RawHistogram',
             #hidden=True,
+            bulkOpEn = False,
             value = [(np.zeros(10), np.zeros(10)) for _ in range(8)],
             mode='RO'))
 
@@ -144,28 +147,32 @@ class WaveformCapturePyDM(pr.Device, rogue.interfaces.stream.Slave):
         for i in range(8):
             self.add(pr.LocalVariable(
                 name=f'PeriodogramX[{i}]',
-                value = np.zeros(10)))
+                value = np.zeros(10),
+                bulkOpEn = False))
                 #hidden=True,
 #                dependencies=[self.RawPeriodogram],
 #                linkedGet=lambda ch=i: self.RawPeriodogram.value()[ch][1]))
 
             self.add(pr.LocalVariable(
                 name=f'PeriodogramY[{i}]',
-                value = np.zeros(10)))
+                value = np.zeros(10),
+                bulkOpEn = False))
                 #hidden=True,
  #               dependencies=[self.RawPeriodogram],
  #               linkedGet=lambda ch=i: self.RawPeriodogram.value()[ch][0]))
 
             self.add(pr.LocalVariable(
                 name=f'HistogramX[{i}]',
-                value = np.zeros(10)))
+                value = np.zeros(10),
+                bulkOpEn = False))
                 #hidden=True,
  #               dependencies=[self.RawHistogram],
  #               linkedGet=lambda ch=i: self.RawHistogram.value()[ch][1]))
 
             self.add(pr.LocalVariable(
                 name=f'HistogramY[{i}]',
-                value = np.zeros(10)))
+                value = np.zeros(10),
+                bulkOpEn = False))
                 #hidden=True,
 #                dependencies=[self.RawHistogram],
 #                linkedGet=lambda ch=i: self.RawHistogram.value()[ch][0]))

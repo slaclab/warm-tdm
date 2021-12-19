@@ -3,6 +3,188 @@ import warm_tdm
 import warm_tdm_api
 import numpy as np
 
+class ArrayVariableDevice(pr.Device):
+    def __init__(self, *, variable, size, **kwargs):
+        super().__init__(**kwargs)
+
+        for i in range(size):
+            self.add(pr.LinkVariable(
+                name=f'idx[{i}]',
+                linkedGet = lambda read, ch=i: variable.get(index=ch, read=read),
+                linkedSet = lambda value, write, ch=i: variable.set(value=value, index=ch, write=write)))
+
+# Generic LinkVariable class for accessing a set of
+# Variables across multiple boards as a single array.
+# Dependencies must be passed in Column order for generic
+# get and set functions to work.
+class GroupLinkVariable(pr.LinkVariable):
+    def __init__(self, groups='TopApi', disp='{:0.4f}', **kwargs):
+        super().__init__(
+            linkedSet=self._set,
+            linkedGet=self._get,
+            groups=groups,
+            disp=disp,
+            **kwargs)
+
+    # Set group values, index is column or row
+    def _set(self, *, value, index, write):
+        if len(self.dependencies) == 0:
+            return
+        # Dependencies represent the channel values in channel order
+        # So just use those references to do the set accesses
+        with self.parent.root.updateGroup():
+            if index != -1:
+                self.dependencies[index].set(value=value, write=write)
+            else:
+                for var, val in zip(self.dependencies, value):
+                    var.set(value=val, write=write)
+
+    # Get group values, index is column or row
+    def _get(self, *, index, read):
+        #print(f'{self.path}._get(index={index}, read={read}) - deps={self.dependencies}')
+        if len(self.dependencies) == 0:
+            return 0
+        with self.parent.root.updateGroup():
+            if index != -1:
+                return self.dependencies[index].get(read=read)
+            else:
+                ret = np.zeros(len(self.dependencies), np.float)
+
+                for idx, var in enumerate(self.dependencies):
+                    ret[idx] = var.get(read=read)
+
+                return ret
+
+class RowTuneEnVariable(GroupLinkVariable):
+    def __init__(self, **kwargs):
+
+        self._value = False
+        super().__init__(**kwargs)
+
+    def _set(self, *, value, write):
+        with self.parent.root.updateGroup():
+            mode = 'Tune' if value is True else 'Run'
+            for var in self.dependencies:
+                var.set(value=mode, write=write)
+            self._value = value
+
+    def _get(self, read):
+        with self.parent.root.updateGroup():
+            return self._value
+
+class RowTuneIndexVariable(GroupLinkVariable):
+    def __init__(self, config, **kwargs):
+
+        self._value = 0
+        self._config = config
+        self._rows = len(config.rowMap)
+        
+        super().__init__(**kwargs)
+
+    def _set(self, *, value, write):
+
+        # Corner case of no row boards in group
+        if self._rows == 0:
+            self._value = value
+            return
+        
+        with self.parent.root.updateGroup():
+            # First turn off any channel that is on
+            for var in self.dependencies:
+                if var.get() is True:
+                    var.set(value=False, write=write)
+            #Then turn on the selected channel
+            self.dependencies[value].set(value=True, write=write)
+            self._value = value
+
+    def _get(self, read):
+        with self.parent.root.updateGroup():
+            return self._value
+
+
+
+class SaOutVariable(GroupLinkVariable):
+    def __init__(self, config, **kwargs):
+
+        self._config = config
+
+        super().__init__(
+            mode='RO',
+            disp = '{:0.06f}',
+            **kwargs)
+
+    # Get SA Out value, index is column
+    def _get(self, read, index):
+        with self.parent.root.updateGroup():
+            if index != -1:
+                col = self._config.columnMap[index]
+                board, chan = col.board, col.channel
+                return self.dependencies[board].get(index=chan, read=read)
+            else:
+
+                # Issue a read to all boards and wait for response
+                for dep in self.dependencies:
+                    dep.get(read=read, check=False)
+
+                for dep in self.dependencies:
+                    dep.parent.checkBlocks()
+
+                # Iterate through all the channel values now held in shadow memory and assign to array
+                ret = np.zeros((len(self._config.columnMap)), np.float)
+                for idx, board, chan in self._config.colGetIter(index):
+                    ret[idx] = self.dependencies[board].get(index=chan, read=False)
+
+                return ret
+
+class FastDacVariable(GroupLinkVariable):
+    def __init__(self, config, **kwargs):
+
+        self._config = config
+        super().__init__(**kwargs)
+
+    def _set(self, value, index, write):
+        with self.parent.root.updateGroup():
+
+            # index access
+            if index != -1:
+                colIndex = index[0]
+                rowIndex = index[1]
+                self.dependencies[colIndex].set(value=value, index=rowIndex, write=write)
+
+            # Full array access
+            else:
+                for colIndex in range(len(self._config.columnMap)):
+                    colBoard = self._config.columnMap[colIndex].board
+                    colChan = self._config.columnMap[colIndex].channel
+                    self.dependencies[colIndex].set(value=value[colIndex], index=-1, write=write)
+
+
+    def _get(self, index, read):
+        with self.parent.root.updateGroup():
+
+            # index access
+            if index != -1:
+                colIndex = index[0]
+                rowIndex = index[1]
+                return self.dependencies[colIndex].get(index=rowIndex, read=read)
+
+            # Full array access
+            else:
+                rows = len(self._config.rowMap)
+                cols = len(self._config.columnMap)
+
+                # Handle corner case of now row boards in group
+                # Just pretend there are 64 channels
+                if rows == 0:
+                    rows = 64
+
+                ret = np.zeros((cols, rows), np.float64)
+                for colIndex in range(cols):
+                    ret[colIndex] = self.dependencies[colIndex].get(index=-1, read=read)
+
+                return ret
+
+
 
 class Group(pr.Device):
     def __init__(self, groupConfig, groupId, dataWriter, simulation=False, emulate=False, plots=False, **kwargs):
@@ -23,274 +205,241 @@ class Group(pr.Device):
         # Configuration
         self._config = groupConfig
 
-        self.add(warm_tdm.HardwareGroup(groupId=groupId,
-                                        dataWriter=dataWriter,
-                                        simulation=simulation,
-                                        emulate=emulate,
-                                        host=groupConfig.host,
-                                        colBoards=groupConfig.columnBoards,
-                                        rowBoards=groupConfig.rowBoards,
-                                        rows=len(groupConfig.rowMap),
-                                        plots=plots,
-                                        groups=['Hardware'],
-                                        expand=True))
+        # Add the Hardware Device tree
+        self.add(warm_tdm.HardwareGroup(
+            groupId=groupId,
+            dataWriter=dataWriter,
+            simulation=simulation,
+            emulate=emulate,
+            host=groupConfig.host,
+            colBoards=groupConfig.columnBoards,
+            rowBoards=groupConfig.rowBoards,
+            rows=len(groupConfig.rowMap),
+            plots=plots,
+            groups=['Hardware'],
+            expand=True))
+
+        ############################################
+        # Local Variables describing configuration
+        ############################################
 
         # Row Map
-        self.add(pr.LocalVariable(name='RowMap',
-                                  localGet=lambda: self._config.rowMap,
-                                  mode='RO',
-                                  typeStr='PhysicalMap[]',
-                                  hidden=True,
-                                  description="Row Map"))
+        self.add(pr.LocalVariable(
+            name='RowMap',
+            localGet=lambda: self._config.rowMap,
+            mode='RO',
+            typeStr='PhysicalMap[]',
+            hidden=True))
 
         # Col Map
-        self.add(pr.LocalVariable(name='ColumnMap',
-                                  localGet=lambda: self._config.columnMap,
-                                  mode='RO',
-                                  typeStr='PhysicalMap[]',
-                                  hidden=True,
-                                  description="Column Map"))
+        self.add(pr.LocalVariable(
+            name='ColumnMap',
+            localGet=lambda: self._config.columnMap,
+            mode='RO',
+            typeStr='PhysicalMap[]',
+            hidden=True))
 
         # Row Order
-        self.add(pr.LocalVariable(name='RowOrder',
-                                  localGet=lambda: self._config.rowOrder,
-                                  mode='RO',
-                                  typeStr='int[]',
-                                  hidden=True,
-                                  description="Row Order"))
+        self.add(pr.LocalVariable(
+            name='RowOrder',
+            localGet=lambda: self._config.rowOrder,
+            mode='RO',
+            typeStr='int[]',
+            hidden=True))
 
         # Col Enable
-        self.add(pr.LocalVariable(name='ColumnEnable',
-                                  localGet=lambda: self._config.columnEnable,
-                                  mode='RO',
-                                  typeStr='bool[]',
-                                  hidden=True,
-                                  description="Column Enable"))
+        self.add(pr.LocalVariable(
+            name='ColumnEnable',
+            localGet=lambda: self._config.columnEnable,
+            mode='RO',
+            typeStr='bool[]',
+            hidden=True))
 
         # Number of columns supported in this group
-        self.add(pr.LocalVariable(name='NumColumns',
-                                  value=len(self._config.columnMap),
-                                  mode='RO',
-                                  groups='TopApi',
-                                  description="Number of columns"))
+        self.add(pr.LocalVariable(
+            name='NumColumns',
+            value=len(self._config.columnMap),
+            mode='RO',
+            groups='TopApi'))
 
-        self.add(pr.LocalVariable(name='NumColumnBoards',
-                                  value=self._config.columnBoards,
-                                  mode='RO',
-                                  groups='TopApi',
-                                  description="Number of column boards"))
+        self.add(pr.LocalVariable(
+            name='NumColumnBoards',
+            value=self._config.columnBoards,
+            mode='RO',
+            groups='TopApi'))
 
         # Number of rows supported in this group
-        self.add(pr.LocalVariable(name='NumRows',
-                                  value=len(self._config.rowMap),
-                                  mode='RO',
-                                  groups='TopApi',
-                                  description="Number of rows"))
+        self.add(pr.LocalVariable(
+            name='NumRows',
+            value=len(self._config.rowMap),
+            mode='RO',
+            groups='TopApi'))
 
-        self.add(pr.LocalVariable(name='NumRowBoards',
-                                  value=self._config.rowBoards,
-                                  mode='RO',
-                                  groups='TopApi',
-                                  description="Number of row boards"))
+        self.add(pr.LocalVariable(
+            name='NumRowBoards',
+            value=self._config.rowBoards,
+            mode='RO',
+            groups='TopApi'))
 
 
-        # Enable Row Tune Override
-        self.add(pr.LinkVariable(name='RowForceEn',
-                                 value=False,
-                                 mode='RW',
-                                 typeStr='bool',
-                                 groups='TopApi',
-                                 #dependencies=[self.HardwareGroup.RowBoard[0].RowForceEn],
-                                 linkedSet=self._rowForceEnSet,
-                                 linkedGet=self._rowForceEnGet,
-                                 description="Row Tune Enable"))
-
-        # Row Tune Channel
-        self.add(pr.LinkVariable(name='RowForceIndex',
-                                 value=0,
-                                 groups='TopApi',
-                                 #dependencies=[self.HardwareGroup.RowBoard[0].RowForceIndex],
-                                 mode='RW',
-                                 typeStr='int',
-                                 linkedSet=self._rowForceIdxSet,
-                                 linkedGet=self._rowForceIdxGet,
-                                 description="Row Tune Index"))
+        ##################################
+        # Tuning enables
+        ##################################
 
         # Tuning row enables
+        # Determines if a given row is activated
+        # during the tuning process
         rtsize = len(self._config.rowMap) if self._config.rowBoards > 0 else 1
-        self.add(pr.LocalVariable(name='RowTuneEnable',
-                                  value=np.array([True] * rtsize,np.bool),
-                                  groups='TopApi',
-                                  mode='RW',
-                                  description="Tune enable for each row"))
+        self.add(pr.LocalVariable(
+            name='RowTuneEnable',
+            value=np.ones(rtsize, np.bool),
+            groups='TopApi',
+            mode='RW',
+            description="Tune enable for each row"))
 
         # Tuning column enables
-        self.add(pr.LocalVariable(name='ColTuneEnable',
-                                  value=np.array([True] * len(self._config.columnMap),np.bool),
-                                  groups='TopApi',
-                                  mode='RW',
-                                  description="Tune enable for each column"))
-
-        #deps = [self.HardwareGroup.ColumnBoard[].SaBiasOffset.Bias[chan]
-                #for board in range(self._config.columnBoards)
-                #for chan in range(8)]
-
-        # FLL Enable value
-        self.add(pr.LinkVariable(name='FllEnable',
-                                 value=False,
-                                 mode='RW',
-                                 groups='TopApi',
-                                 #dependencies=deps,
-                                 linkedSet=self._fllEnableSet,
-                                 linkedGet=self._fllEnableGet,
-                                 description="FLL Enable Control"))
-
-        deps = [self.HardwareGroup.ColumnBoard[m.board].TesBias.BiasCurrent[m.channel]
-                for m in self._config.columnMap]
-
-        # TES Bias values, accessed with column index value
-        self.add(pr.LinkVariable(name='TesBias',
-                                 mode='RW',
-                                 groups='TopApi',
-                                 linkedSet=self._tesBiasSet,
-                                 linkedGet=self._tesBiasGet,
-                                 description=""))
-
-        deps = [self.HardwareGroup.ColumnBoard[m.board].SaBiasOffset.Bias[m.channel]
-                for m in self._config.columnMap]
-
-        # SA Bias values, accessed with column index value
-        self.add(pr.LinkVariable(name='SaBias',
-                                 mode='RW',
-                                 groups='TopApi',
-                                 disp = '{:0.03f}',
-                                 dependencies=deps,
-                                 linkedSet=self._saBiasSet,
-                                 linkedGet=self._saBiasGet,
-                                 description=""))
-
-        deps = [self.HardwareGroup.ColumnBoard[m.board].SaBiasOffset.Offset[m.channel]
-                for m in self._config.columnMap]
-
-        # SA Offset values, accessed with column index value
-        self.add(pr.LinkVariable(name='SaOffset',
-                                 mode='RW',
-                                 groups='TopApi',
-                                 disp = '{:0.03f}',
-                                 dependencies=deps,
-                                 linkedSet=self._saOffsetSet,
-                                 linkedGet=self._saOffsetGet,
-                                 description=""))
-
-        deps = [self.HardwareGroup.ColumnBoard[board].DataPath.WaveformCapture.AdcAverage
-                for board in range(self._config.columnBoards)]
-
-        # SA Out values, accessed with column index value
-        self.add(pr.LinkVariable(name='SaOut',
-                                 mode='RO',
-                                 groups='TopApi',
-                                 disp = '{:0.06f}',
-                                 dependencies=deps,
-                                 linkedGet=self._saOutGet,
-                                 description=""))
+        # Determines if a column is activated
+        # during the tuning process
+        self.add(pr.LocalVariable(
+            name='ColTuneEnable',
+            value=np.ones(len(self._config.columnMap), np.bool),
+            groups='TopApi',
+            mode='RW',
+            description="Tune enable for each column"))
 
 
 
-        deps = [self.HardwareGroup.ColumnBoard[m.board].SAFb.Override[m.channel]
-                for m in self._config.columnMap]
+        ##################################
+        # Row board access variables
+        ##################################
 
-        self.add(pr.LinkVariable(name = 'SaFbForce',
-                                 mode = 'RW',
-                                 groups = 'TopApi',
-                                 disp = '{:0.03f}',
-                                 dependencies = deps,
-                                 linkedSet = self._fastDacForceSetFunc('SAFb'),
-                                 linkedGet = self._fastDacForceGetFunc('SAFb')))
+        # Enable Row Tune Override
+        # Puts all hardware row selects into tuning mode
+#         self.add(pr.LocalVariable(
+#             name='RowTuneEn',
+#             value=False,
+#             groups='TopApi',
+#             mode='RW'))
 
-        deps = [self.HardwareGroup.ColumnBoard[m.board].SQ1Bias.Override[m.channel]
-                for m in self._config.columnMap]
-
-        self.add(pr.LinkVariable(name = 'Sq1BiasForce',
-                                 mode = 'RW',
-                                 groups = 'TopApi',
-                                 disp = '{:0.03f}',
-                                 dependencies = deps,
-                                 linkedSet = self._fastDacForceSetFunc('SQ1Bias'),
-                                 linkedGet = self._fastDacForceGetFunc('SQ1Bias')))
+        self.add(RowTuneEnVariable(
+            name='RowTuneEn',
+            typeStr='bool',
+            value=False,
+            dependencies=[self.HardwareGroup.RowBoard[m.board].RowSelectArray.RowSelect[m.channel].Mode
+                          for m in self._config.rowMap]))
 
 
-        deps = [self.HardwareGroup.ColumnBoard[m.board].SQ1Fb.Override[m.channel]
-                for m in self._config.columnMap]
-
-        self.add(pr.LinkVariable(name = 'Sq1FbForce',
-                                 mode = 'RW',
-                                 groups = 'TopApi',
-                                 disp = '{:0.03f}',
-                                 dependencies = deps,
-                                 linkedSet = self._fastDacForceSetFunc('SQ1Fb'),
-                                 linkedGet = self._fastDacForceGetFunc('SQ1Fb')))
-
-
-
-        deps = [self.HardwareGroup.ColumnBoard[m.board].SAFb.ColumnVoltages[m.channel]
-                for m in self._config.columnMap]
-
-        # SA FB values, accessed with index tuple (column, row)
-        self.add(pr.LinkVariable(name='SaFb',
-                                 mode='RW',
-                                 groups='TopApi',
-                                 disp = '{:0.03f}',
-                                 dependencies=deps,
-                                 linkedSet=self._fastDacSetFunc('SAFb'),
-                                 linkedGet=self._fastDacGetFunc('SAFb'),
-                                 description=""))
-
-
-        deps = [self.HardwareGroup.ColumnBoard[m.board].SQ1Bias.ColumnVoltages[m.channel]
-                for m in self._config.columnMap]
-
-
-        # SQ1 Bias values, accessed with index tuple (column, row)
-        self.add(pr.LinkVariable(name='Sq1Bias',
-                                 mode='RW',
-                                 groups='TopApi',
-                                 disp = '{:0.03f}',
-                                 dependencies=deps,
-                                 linkedSet=self._fastDacSetFunc('SQ1Bias'),
-                                 linkedGet=self._fastDacGetFunc('SQ1Bias'),
-                                 description=""))
-
-
-        deps = [self.HardwareGroup.ColumnBoard[m.board].SQ1Fb.ColumnVoltages[m.channel]
-                for m in self._config.columnMap]
-
-        # SQ1 Fb values, accessed with index tuple (column, row)
-        self.add(pr.LinkVariable(name='Sq1Fb',
-                                 mode='RW',
-                                 groups='TopApi',
-                                 disp = '{:0.03f}',
-#                                dependencies=deps,
-                                 linkedSet=self._fastDacSetFunc('SQ1Bias'),
-                                 linkedGet=self._fastDacGetFunc('SQ1Bias'),
-                                 description=""))
+        # Row Tune Channel
+        # Sets the selected channel to its ON value
+        # Sets all other channels to OFF
+        self.add(RowTuneIndexVariable(
+            name='RowTuneIndex',
+            typeStr='int',
+            value=0,
+            config=self._config,
+            dependencies=[self.HardwareGroup.RowBoard[m.board].RowSelectArray.RowSelect[m.channel].Active
+                          for m in self._config.rowMap]))
 
 
         # FAS Flux off values, accessed with row index
-        self.add(pr.LinkVariable(name='FasFluxOff',
-                                 mode='RW',
-                                 groups='TopApi',
-#                                 dependencies=deps,
-                                 linkedSet=self._fasFluxOffSet,
-                                 linkedGet=self._fasFluxOffGet,
-                                 description=""))
+        self.add(GroupLinkVariable(
+            name='FasFluxOff',
+            dependencies=[self.HardwareGroup.RowBoard[m.board].RowSelectArray.RowSelect[m.channel].OffValue
+                          for m in self._config.rowMap]))
 
         # FAS Flux on values, accessed with row index
-        self.add(pr.LinkVariable(name='FasFluxOn',
-                                 mode='RW',
-                                 groups='TopApi',
-                                 linkedSet=self._fasFluxOnSet,
-                                 linkedGet=self._fasFluxOnGet,
-                                 description=""))
+        self.add(GroupLinkVariable(
+            name='FasFluxOn',
+            dependencies=[self.HardwareGroup.RowBoard[m.board].RowSelectArray.RowSelect[m.channel].OnValue
+                          for m in self._config.rowMap]))
+
+
+        #####################################
+        # Column board acces variables
+        #####################################
+
+        self.add(SaOutVariable(
+            name='SaOutAdc',
+            units='V',
+            config=self._config,
+            dependencies = [self.HardwareGroup.ColumnBoard[m.board].DataPath.WaveformCapture.AdcAverage
+                            for m in self._config.columnMap]))
+
+        self.add(ArrayVariableDevice(
+            name='SaOutAdcDev',
+            size=len(self._config.columnMap),
+            variable = self.SaOutAdc))
+
+        # Remove amplifier gain
+        self.add(pr.LinkVariable(
+            name='SaOut',
+            dependencies = [self.SaOutAdc],
+            units = 'mV',
+            disp = '{:0.06f}',
+            linkedGet = lambda index, read: 1e3 * self.SaOutAdc.get(index=index, read=read)/200))
+
+        self.add(GroupLinkVariable(
+            name='SaBias',
+            dependencies = [self.HardwareGroup.ColumnBoard[m.board].SaBiasOffset.Bias[m.channel]
+                            for m in self._config.columnMap]))
+
+        self.add(GroupLinkVariable(
+            name='SaOffset',
+            dependencies = [self.HardwareGroup.ColumnBoard[m.board].SaBiasOffset.Offset[m.channel]
+                            for m in self._config.columnMap]))
+
+        self.add(GroupLinkVariable(
+            name='SaFbForce',
+            dependencies = [self.HardwareGroup.ColumnBoard[m.board].SAFb.Override[m.channel]
+                            for m in self._config.columnMap]))
+
+        self.add(GroupLinkVariable(
+            name='Sq1BiasForce',
+            dependencies = [self.HardwareGroup.ColumnBoard[m.board].SQ1Bias.Override[m.channel]
+                            for m in self._config.columnMap]))
+
+        self.add(GroupLinkVariable(
+            name='Sq1FbForce',
+            dependencies = [self.HardwareGroup.ColumnBoard[m.board].SQ1Fb.Override[m.channel]
+                            for m in self._config.columnMap]))
+
+        self.add(FastDacVariable(
+            name='SaFb',
+            config = self._config,
+            dependencies = [self.HardwareGroup.ColumnBoard[m.board].SAFb.ColumnVoltages[m.channel]
+                            for m in self._config.columnMap]))
+
+        self.add(FastDacVariable(
+            name='Sq1Bias',
+            config = self._config,
+            dependencies = [self.HardwareGroup.ColumnBoard[m.board].SQ1Bias.ColumnVoltages[m.channel]
+                            for m in self._config.columnMap]))
+
+        self.add(FastDacVariable(
+            name='Sq1Fb',
+            config = self._config,
+            dependencies = [self.HardwareGroup.ColumnBoard[m.board].SQ1Fb.ColumnVoltages[m.channel]
+                            for m in self._config.columnMap]))
+
+        self.add(GroupLinkVariable(
+            name = 'TesBias',
+            dependencies = [self.HardwareGroup.ColumnBoard[m.board].TesBias.BiasCurrent[m.channel]
+                            for m in self._config.columnMap]))
+
+        # FLL Enable value
+        # Not yet implemented
+        self.add(pr.LocalVariable(
+            name='FllEnable',
+            value=False,
+            mode='RW',
+            groups='TopApi',
+            #dependencies=deps,
+#            linkedSet=self._fllEnableSet,
+#            linkedGet=self._fllEnableGet,
+            description="FLL Enable Control"))
+
+
+
 
 
         # Initialize System
@@ -301,6 +450,9 @@ class Group(pr.Device):
 
         self.add(warm_tdm_api.ConfigSelect(self))
 
+        #############################################
+        # Tuning and diagnostic Processes
+        #############################################
         self.add(warm_tdm_api.SaOffsetProcess())
         self.add(warm_tdm_api.SaOffsetSweepProcess(config=self._config))
         self.add(warm_tdm_api.SaTuneProcess(config=self._config))
@@ -310,354 +462,6 @@ class Group(pr.Device):
         self.add(warm_tdm_api.TesRampProcess())
 
 
-    def __colSetLoopHelper(self, value, index):
-        # Construct a generator to loop over
-        if index != -1:
-            return ((idx, self._config.columnMap[idx].board, self._config.columnMap[idx].channel, val) for idx, val in zip(range(index, index+1), [value]))
-        else:
-            return ((idx, self._config.columnMap[idx].board, self._config.columnMap[idx].channel, val) for idx, val in enumerate(value))
-
-    def __colGetLoopHelper(self, index):
-        # Construct a generator to loop over
-
-        if index != -1:
-            ra = range(index, index+1)
-        else:
-            ra = range(len(self._config.columnMap))
-
-        return ((idx, self._config.columnMap[idx].board, self._config.columnMap[idx].channel) for idx in ra)
-
-    # Set Row Tune Override
-    def _rowForceEnSet(self, value, write):
-        with self.root.updateGroup():
-
-            for colIdx in range(self._config.columnBoards):
-                #self.HardwareGroup.ColumnBoard[colIdx]
-                #col.RowForceEn.set(value,write=write)  # Waiting on force variables
-                pass
-
-            for rowIdx in range(self._config.rowBoards):
-                # self.HardwareGroup.RowBoard:
-                pass
-                #row.RowForceEn.set(value,write=write)  # Waiting on force variables
-
-#                 for dac in row.RowModuleDacs.Ad9106.values():
-#                     dac.node(f'PRESTORE_SEL{i}').setDisp('Constant')
-#                     dac.node(f'WAVE_SEL{i}').setDisp('Prestored')
-#                     dac.node(f'DAC{i}_CONST').set(0) # Check this, might be offset binary
-
-
-    # Get Row Tune Override
-    def _rowForceEnGet(self, read):
-        return False
-
-#         with self.root.updateGroup():
-#             for row in self.HardwareGroup.RowBoard:
-#                 for dac in row.RowModuleDacs.Ad9106.values():
-#                     if (dac.node(f'PRESTORE_SEL{i}').getDisp() != 'Constant' or
-#                         dac.node(f'WAVE_SEL{i}').getDisp() != 'Prestored'):
-#                         return False
-
-#                 return True
-
-
-    # Set Row Tune Index
-    def _rowForceIdxSet(self, value, write):
-        with self.root.updateGroup():
-
-            for col in range(self._config.columnBoards): # self.HardwareGroup.ColumnBoard:
-                pass
-                #col.RowTuneIdx.set(value,write=write) # Waiting on force variables
-
-            for row in range(self._config.rowBoards): #self.HardwareGroup.RowBoard:
-                pass
-                #row.RowTuneIdx.set(value,write=write) # Waiting on force variables
-
-    # Get Row Tune Index
-    def _rowForceIdxGet(self, read):
-        with self.root.updateGroup():
-
-            #return self.HardwareGroup.RowBoard[0].RowTuneIdx.get(read=read) # Waiting on force variables
-            return 0
-
-    # Set TES bias value, index is column
-    def _tesBiasSet(self, value, write, index):
-        with self.root.updateGroup():
-            for idx, board, chan, val in self.__colSetLoopHelper(value, index):
-
-                self.HardwareGroup.ColumnBoard[board].TesBias.BiasCurrent[chan].set(value=val, write=write)
-
-    # Get TES bias value, index is column
-    def _tesBiasGet(self, read, index):
-        with self.root.updateGroup():
-            ret = np.ndarray((len(self._config.columnMap),),np.float)
-
-            for idx, board, chan in self.__colGetLoopHelper(index):
-                ret[idx] = self.HardwareGroup.ColumnBoard[board].TesBias.BiasCurrent[chan].get(read=read)
-
-            if index != -1:
-                return ret[index]
-            else:
-                return ret
-
-    # Set SA Bias value, index is column
-    def _saBiasSet(self, value, write, index):
-        with self.root.updateGroup():
-            for idx, board, chan, val in self.__colSetLoopHelper(value, index):
-                self.HardwareGroup.ColumnBoard[board].SaBiasOffset.Bias[chan].set(value=val, write=write)
-
-    # Get SA Bias value, index is column
-    def _saBiasGet(self, read, index):
-        with self.root.updateGroup():
-            ret = np.ndarray((len(self._config.columnMap),),np.float)
-
-            for idx, board, chan in self.__colGetLoopHelper(index):
-                ret[idx] = self.HardwareGroup.ColumnBoard[board].SaBiasOffset.Bias[chan].get(read=read)
-
-            if index != -1:
-                return ret[index]
-            else:
-                return ret
-
-    # Set SA Offset value, index is column
-    def _saOffsetSet(self, value, write, index):
-        with self.root.updateGroup():
-            for idx, board, chan, val in self.__colSetLoopHelper(value, index):
-                self.HardwareGroup.ColumnBoard[board].SaBiasOffset.Offset[chan].set(value=val, write=write)
-
-    # Get SA Offset value, index is column
-    def _saOffsetGet(self, read, index):
-        with self.root.updateGroup():
-            ret = np.ndarray((len(self._config.columnMap),),np.float)
-
-            for idx, board, chan in self.__colGetLoopHelper(index):
-                ret[idx] = self.HardwareGroup.ColumnBoard[board].SaBiasOffset.Offset[chan].get(read=read)
-
-
-            if index != -1:
-                return ret[index]
-            else:
-                return ret
-
-    # Get SA Out value, index is column
-    def _saOutGet(self, read, index):
-        with self.root.updateGroup():
-            ret = np.ndarray((len(self._config.columnMap),),np.float)
-
-            for board in range(self._config.columnBoards):
-                self.HardwareGroup.ColumnBoard[board].DataPath.WaveformCapture.AdcAverage.get(read=read, check=False)
-
-            self.checkBlocks(recurse=True)
-            for idx, board, chan in self.__colGetLoopHelper(index):
-                ret[idx] = self.HardwareGroup.ColumnBoard[board].DataPath.WaveformCapture.AdcAverage.get(index=chan, read=False)
-
-            if index != -1:
-                return ret[index]
-            else:
-                return ret
-
-
-    # Force the SA Feedback DACs to value
-    def _fastDacForceSetFunc(self, name):
-        def _fastDacForceSet(value, *, write, index):
-            with self.root.updateGroup():
-                # print(f'Forcing {name} to {value}, index={index}, write={write}')
-
-                # index access
-                if index != -1:
-                    colIndex = index
-                    colBoard = self._config.columnMap[colIndex].board
-                    colChan = self._config.columnMap[colIndex].channel
-
-                    self.HardwareGroup.ColumnBoard[colBoard].node(name).Override[colChan].set(value=value,write=write)
-
-                # Full array access
-                else:
-
-                    for colIndex in range(len(self._config.columnMap)):
-                        colBoard = self._config.columnMap[colIndex].board
-                        colChan = self._config.columnMap[colIndex].channel
-
-                        self.HardwareGroup.ColumnBoard[colBoard].node(name).Override[colChan].set(value=value[colIndex],write=write)
-
-        return _fastDacForceSet
-
-    # Get the last forced SA Feedback DAC value
-    def _fastDacForceGetFunc(self, name):
-        def _fastDacForceGet(*, read, index):
-            with self.root.updateGroup():
-
-                # index access
-                if index != -1:
-                    colIndex = index
-                    colBoard = self._config.columnMap[colIndex].board
-                    colChan = self._config.columnMap[colIndex].channel
-
-                    tmp = self.HardwareGroup.ColumnBoard[colBoard].node(name).Override[colChan].get(read=read)
-                    # print(f'Getting {name} - index={index}, read={read} - value= {tmp}')
-                    return tmp
-
-                else:
-                    # Full array access
-                    ret = np.zeros(len(self._config.columnMap), np.float)
-
-                    for colIndex in range(len(self._config.columnMap)):
-                        colBoard = self._config.columnMap[colIndex].board
-                        colChan = self._config.columnMap[colIndex].channel
-
-                        ret[colIndex] =  self.HardwareGroup.ColumnBoard[colBoard].node(name).Override[colChan].get(read=read)
-                        # print(f'Getting {name} - index={index}, read={read} - value= {ret[colIndex]}')
-
-                    return ret
-
-        return _fastDacForceGet
-
-    # Set fast dac value, index is (column, row) tuple
-    def _fastDacSetFunc(self, name):
-        def _fastDacSet(value, *, write, index):
-            with self.root.updateGroup():
-
-                # index access
-                if index != -1:
-                    colIndex = index[0]
-                    rowIndex = index[1]
-                    colBoard = self._config.columnMap[colIndex].board
-                    colChan = self._config.columnMap[colIndex].channel
-
-                    self.HardwareGroup.ColumnBoard[colBoard].node(name).ColumnVoltages[colChan].set(value=value, write=write, index=rowIndex)
-
-                # Full array access
-                else:
-                    for colIndex in range(len(self._config.columnMap)):
-                        colBoard = self._config.columnMap[colIndex].board
-                        colChan = self._config.columnMap[colIndex].channel
-
-                        self.HardwareGroup.ColumnBoard[colBoard].node(name).ColumnVoltages[colChan].set(value=value[colIndex], write=write, index=-1)
-        return _fastDacSet
-
-
-    # Get fast dac value, index is (column, row) tuple
-    def _fastDacGetFunc(self, name):
-        def _fastDacGet(*, read, index):
-            with self.root.updateGroup():
-
-                # index access
-                if index != -1:
-                    colIndex = index[0]
-                    rowIndex = index[1]
-                    colBoard = self._config.columnMap[colIndex].board
-                    colChan = self._config.columnMap[colIndex].channel
-
-                    return self.HardwareGroup.ColumnBoard[colBoard].node(name).ColumnVoltages[colChan].get(read=read, index=rowIndex)
-
-                # Full array access
-                else:
-                    rows = len(self._config.rowMap)
-                    if rows == 0:
-                        rows = 64
-                    ret = np.ndarray((len(self._config.columnMap),rows),np.float64)
-
-                    for colIndex in range(len(self._config.columnMap)):
-                        colBoard = self._config.columnMap[colIndex].board
-                        colChan = self._config.columnMap[colIndex].channel
-
-                        ret[colIndex] = self.HardwareGroup.ColumnBoard[colBoard].node(name).ColumnVoltages[colChan].get(read=read, index=-1)
-
-                    return ret
-
-        return _fastDacGet
-
-
-    # Set FAS Flux Off value, index is row
-    def _fasFluxOffSet(self, value, write, index):
-        with self.root.updateGroup():
-
-            # index access
-            if index != -1:
-                board = self._config.rowMap[index].board
-                chan = self._config.rowMap[index].channel
-
-                #self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].OffValue.set(value=value, write=write)
-
-            # Full array access
-            else:
-
-                for idx in range(len(self._config.rowMap)):
-                    board = self._config.rowMap[index].board
-                    chan = self._config.rowMap[index].channel
-
-                    #self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].OffValue.set(value=value[idx], write=write)
-
-    # Get FAS Flux value
-    def _fasFluxOffGet(self, read, index):
-        with self.root.updateGroup():
-
-            # index access
-            if index != -1:
-                # Uncomment these when implementing for real
-                #board = self._config.rowMap[index].board
-                #chan = self._config.rowMap[index].channel
-
-                #return self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].OffValue.get(index=index, read=read)
-                return 0.0
-
-            # Full array access
-            else:
-                ret = np.ndarray((len(self._config.rowMap),),np.float)
-
-                for idx in range(len(self._config.rowMap)):
-                    board = self._config.rowMap[index].board
-                    chan = self._config.rowMap[index].channel
-
-                    #ret[idx] = self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].OffValue.get(index=idx, read = read) #BEN
-                    ret[idx] = 0.0
-
-                return ret
-
-    # Set FAS Flux Off value, index is row
-    def _fasFluxOnSet(self, value, write, index):
-        with self.root.updateGroup():
-
-            # index access
-            if index != -1:
-                board = self._config.rowMap[index].board
-                chan = self._config.rowMap[index].channel
-
-                #return self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].ActiveValue.set(value=value, write=write)
-
-            # Full array access
-            else:
-
-                for idx in range(len(self._config.rowMap)):
-                    board = self._config.rowMap[index].board
-                    chan = self._config.rowMap[index].channel
-
-                    #self.HardwareGroup.RowBoard[board].RowSelectMap.LogicalRowSelect[chan].ActiveValue.set(value=value[idx],write=write)
-
-    # Get FAS Flux value
-    def _fasFluxOnGet(self, read, index):
-        with self.root.updateGroup():
-
-            # index access
-            if index != -1:
-                #board = self._config.rowMap[index].board
-                #chan = self._config.rowMap[index].channel
-
-                #return self.HardwareGroup.RowBoard[board].FasFluxOn[chan].get(index= index, read=read)
-                return 0.0
-
-            # Full array access
-            else:
-                ret = np.ndarray((len(self._config.rowMap),),np.float)
-
-                for idx in range(len(self._config.rowMap)):
-                    board = self._config.rowMap[index].board
-                    chan = self._config.rowMap[index].channel
-
-                    #ret[idx] = self.HardwareGroup.RowBoard[board].FasFluxOn[chan].get(index=index, read=read) #BEN
-                    ret[idx] = 0.0
-
-                return ret
 
     # Set FLL Enable value
     def _fllEnableSet(self, value, write):
@@ -682,7 +486,7 @@ class Group(pr.Device):
         pass
 
         # Disable FLL
-        self.FllEnable.set(value=False)
+        #self.FllEnable.set(value=False)
 
         # Drive high TES bias currents?????
-        pass
+        #pass
