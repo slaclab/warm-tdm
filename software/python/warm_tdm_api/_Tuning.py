@@ -485,8 +485,8 @@ def sq1Tune(*, group,column, process = None, doSet = True):
     group.RowForceIndex.set(0)
     group.RowForceEn.set(True)
 
-    sq1BiasResults = sq1BiasSweep(group=group,process=process)
-
+    sq1BiasResults = sq1BiasSweep(group=group,process=process) #A list of CurveData objects (?)
+    maxpeakheight = max(curvedata.bestCurve.peakheight_ for curvedata in sq1BiasResults) #The maximum peakheight
     if doSet:
         # for row in range(group.RowMap.get()):
         #     results = sq1FluxRowBias(group,row)
