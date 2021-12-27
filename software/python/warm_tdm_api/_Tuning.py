@@ -383,10 +383,22 @@ def sq1FluxRowBias(group,row):
         for bias in np.arange(low,high+step,step):
             data.addCurve(sq1FluxRow(group,row,bias))
         datalist.append(data)
+
     return datalist
 
-def sq1FbSweep():
-    pass #Is this going to be the right function?
+def sq1FbSweep(*,group,bias,sq1FbRange,pctlow,pctRange,process):
+    """Returns a list of Curve objects."""
+    row = 0
+    colCount = len(group.ColumnMap.get())
+    curves = [Curve(bias[i]) for i in range(colCount)]#make list of curve objects using bias array
+    
+    sq1FbArray = np.zeros(colCount, np.float)
+
+  
+
+    
+
+
 
 def sq1BiasSweep(*, group, process):
     datalist = []
@@ -395,7 +407,7 @@ def sq1BiasSweep(*, group, process):
     colCount = len(group.ColMap.get())
     rowCount = len(group.RowMap.get())
     numBiasSteps = group.Sq1TuneProcess.Sq1BiasNumSteps.get()  # Not sure about these, need to understand processes better
-    numFbSteps = group.Sq1TuneProcess.Sq1FbNumSteps.get()      # "   "
+    numFbSteps = group.Sq1TuneProcess.Sq1FbNumSteps.get()      # "  "
     pctRange = 1.0/numBiasSteps
 
     # Get current Sq1 bias
@@ -427,7 +439,7 @@ def sq1BiasSweep(*, group, process):
         if process is not None:
             process.Message.set(f'Sq1Bias step {idx} out of {numBiasSteps}')
 
-        curves = sq1FbSweep(group=group,bias=bias)
+        curves = sq1FbSweep(group=group,bias=bias,sq1FbRange=sq1FbRange,pctlow=idx/numBiasSteps,pctRange=pctRange,process=process)
 
         for col in range(colCount):
             datalist[col].addCurve(curves[col])
@@ -484,8 +496,9 @@ def sq1Tune(*, group,column, process = None, doSet = True):
 
     group.RowForceIndex.set(0)
     group.RowForceEn.set(True)
-
+    #Need to figure out dimensions of the output
     sq1BiasResults = sq1BiasSweep(group=group,process=process) #A list of CurveData objects (?)
+    #maxpeakheightindex = sq1BiasResults.index([max(curvedata.bestCurve.peakheight_ for curvedata in sq1BiasResults)]) #might need a way to get the curve
     maxpeakheight = max(curvedata.bestCurve.peakheight_ for curvedata in sq1BiasResults) #The maximum peakheight
     if doSet:
         # for row in range(group.RowMap.get()):
