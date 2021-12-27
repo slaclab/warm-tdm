@@ -394,9 +394,17 @@ def sq1FbSweep(*,group,bias,sq1FbRange,pctlow,pctRange,process):
     
     sq1FbArray = np.zeros(colCount, np.float)
 
-  
+    numSteps = len(saFbRange[0])
 
-    
+    sleep = group.Sq1TuneProcess.Sq1FbSampleDelay.get
+
+    for idx in range(numSteps):
+
+        for col in range(colCount):
+            if group._config.columnEnable[col]:
+                sq1FbArray[col] = sq1FbRange[col][idx]
+
+        group.Sq1FbForce.
 
 
 
