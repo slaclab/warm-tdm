@@ -10,8 +10,9 @@ This is currently a work in progress
    :maxdepth: 1
    :caption: Contents:
 
-   gui/index
+   client/index
    structure
+   gui/index
 
 Please email rherbst@slac.stanford.edu if you see any errors or have any
 questions about anything in the current documentation. We are still adding
