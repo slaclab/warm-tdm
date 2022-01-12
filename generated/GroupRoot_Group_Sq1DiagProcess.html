@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sq1DiagProcess &mdash; Warm TDM v1.0.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="TesRampProcess" href="GroupRoot_Group_TesRampProcess.html" />
+    <link rel="prev" title="FasTuneProcess" href="GroupRoot_Group_FasTuneProcess.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> Warm TDM
+          </a>
+              <div class="version">
+                v1.0.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="GroupRoot.html">GroupRoot</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="GroupRoot_DataWriter.html">DataWriter</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="GroupRoot_Group.html">Group</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="GroupRoot_Group_SaOffsetProcess.html">SaOffsetProcess</a></li>
+<li class="toctree-l3"><a class="reference internal" href="GroupRoot_Group_SaOffsetSweepProcess.html">SaOffsetSweepProcess</a></li>
+<li class="toctree-l3"><a class="reference internal" href="GroupRoot_Group_SaTuneProcess.html">SaTuneProcess</a></li>
+<li class="toctree-l3"><a class="reference internal" href="GroupRoot_Group_Sq1TuneProcess.html">Sq1TuneProcess</a></li>
+<li class="toctree-l3"><a class="reference internal" href="GroupRoot_Group_FasTuneProcess.html">FasTuneProcess</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Sq1DiagProcess</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#summary">Summary</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#details">Details</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="GroupRoot_Group_TesRampProcess.html">TesRampProcess</a></li>
+<li class="toctree-l3"><a class="reference internal" href="GroupRoot_Group.html#summary">Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="GroupRoot_Group.html#details">Details</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="GroupRoot.html#summary">Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="GroupRoot.html#details">Details</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Warm TDM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="GroupRoot.html">GroupRoot</a> &raquo;</li>
+          <li><a href="GroupRoot_Group.html">Group</a> &raquo;</li>
+      <li>Sq1DiagProcess</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/generated/GroupRoot_Group_Sq1DiagProcess.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="sq1diagprocess">
+<h1>Sq1DiagProcess<a class="headerlink" href="#sq1diagprocess" title="Permalink to this headline"></a></h1>
+<section id="summary">
+<h2>Summary<a class="headerlink" href="#summary" title="Permalink to this headline"></a></h2>
+<section id="variable-list">
+<h3>Variable List<a class="headerlink" href="#variable-list" title="Permalink to this headline"></a></h3>
+<ul class="simple">
+<li><p>Running</p></li>
+<li><p>Progress</p></li>
+<li><p>Message</p></li>
+<li><p>Sq1DiagOutput</p></li>
+</ul>
+</section>
+<section id="command-list">
+<h3>Command List<a class="headerlink" href="#command-list" title="Permalink to this headline"></a></h3>
+<ul class="simple">
+<li><p>ReadDevice</p></li>
+<li><p>WriteDevice</p></li>
+<li><p>Start</p></li>
+<li><p>Stop</p></li>
+</ul>
+</section>
+</section>
+<section id="details">
+<h2>Details<a class="headerlink" href="#details" title="Permalink to this headline"></a></h2>
+<section id="variables">
+<h3>Variables<a class="headerlink" href="#variables" title="Permalink to this headline"></a></h3>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.Sq1DiagProcess.Running</p>
+<div class="line-block">
+<div class="line">Operation is running.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Running</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.Sq1DiagProcess.Running</p></td>
+</tr>
+<tr class="row-even"><td><p>enum</p></td>
+<td><p>{False: ‘False’, True: ‘True’}</p></td>
+</tr>
+<tr class="row-odd"><td><p>typeStr</p></td>
+<td><p>bool</p></td>
+</tr>
+<tr class="row-even"><td><p>disp</p></td>
+<td><p>enum</p></td>
+</tr>
+<tr class="row-odd"><td><p>precision</p></td>
+<td><p>0</p></td>
+</tr>
+<tr class="row-even"><td><p>mode</p></td>
+<td><p>RO</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.Sq1DiagProcess.Progress</p>
+<div class="line-block">
+<div class="line">Percent complete: 0.</div>
+<div class="line">0 - 1.</div>
+<div class="line">0.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Progress</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.Sq1DiagProcess.Progress</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>float</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{:1.2f}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>2</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RO</p></td>
+</tr>
+<tr class="row-even"><td><p>units</p></td>
+<td><p>Pct</p></td>
+</tr>
+<tr class="row-odd"><td><p>minimum</p></td>
+<td><p>0.0</p></td>
+</tr>
+<tr class="row-even"><td><p>maximum</p></td>
+<td><p>1.0</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.Sq1DiagProcess.Message</p>
+<div class="line-block">
+<div class="line">Process status message.</div>
+<div class="line">Prefix with Error: if an error occurred.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Message</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.Sq1DiagProcess.Message</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>str</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>0</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RO</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.Sq1DiagProcess.Sq1DiagOutput</p>
+<div class="line-block">
+<div class="line">Results Data From SQ1 Diagnostic.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Sq1DiagOutput</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.Sq1DiagProcess.Sq1DiagOutput</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>dict</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>0</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RO</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="commands">
+<h3>Commands<a class="headerlink" href="#commands" title="Permalink to this headline"></a></h3>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.Sq1DiagProcess.ReadDevice</p>
+<div class="line-block">
+<div class="line">Force read of device without recursion.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>ReadDevice</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.Sq1DiagProcess.ReadDevice</p></td>
+</tr>
+<tr class="row-even"><td><p>enum</p></td>
+<td><p>{False: ‘False’, True: ‘True’}</p></td>
+</tr>
+<tr class="row-odd"><td><p>typeStr</p></td>
+<td><p>bool</p></td>
+</tr>
+<tr class="row-even"><td><p>disp</p></td>
+<td><p>enum</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.Sq1DiagProcess.WriteDevice</p>
+<div class="line-block">
+<div class="line">Force write of device without recursion.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>WriteDevice</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.Sq1DiagProcess.WriteDevice</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>str</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{}</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.Sq1DiagProcess.Start</p>
+<div class="line-block">
+<div class="line">Start process.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Start</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.Sq1DiagProcess.Start</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>int</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{}</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.Sq1DiagProcess.Stop</p>
+<div class="line-block">
+<div class="line">Stop process.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Stop</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.Sq1DiagProcess.Stop</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>int</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{}</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="GroupRoot_Group_FasTuneProcess.html" class="btn btn-neutral float-left" title="FasTuneProcess" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="GroupRoot_Group_TesRampProcess.html" class="btn btn-neutral float-right" title="TesRampProcess" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, SLAC National Accelerator Laboratory.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

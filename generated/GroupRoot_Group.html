@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Group &mdash; Warm TDM v1.0.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="SaOffsetProcess" href="GroupRoot_Group_SaOffsetProcess.html" />
+    <link rel="prev" title="DataWriter" href="GroupRoot_DataWriter.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> Warm TDM
+          </a>
+              <div class="version">
+                v1.0.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="GroupRoot.html">GroupRoot</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="GroupRoot_DataWriter.html">DataWriter</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Group</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="GroupRoot_Group_SaOffsetProcess.html">SaOffsetProcess</a></li>
+<li class="toctree-l3"><a class="reference internal" href="GroupRoot_Group_SaOffsetSweepProcess.html">SaOffsetSweepProcess</a></li>
+<li class="toctree-l3"><a class="reference internal" href="GroupRoot_Group_SaTuneProcess.html">SaTuneProcess</a></li>
+<li class="toctree-l3"><a class="reference internal" href="GroupRoot_Group_Sq1TuneProcess.html">Sq1TuneProcess</a></li>
+<li class="toctree-l3"><a class="reference internal" href="GroupRoot_Group_FasTuneProcess.html">FasTuneProcess</a></li>
+<li class="toctree-l3"><a class="reference internal" href="GroupRoot_Group_Sq1DiagProcess.html">Sq1DiagProcess</a></li>
+<li class="toctree-l3"><a class="reference internal" href="GroupRoot_Group_TesRampProcess.html">TesRampProcess</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#summary">Summary</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#variable-list">Variable List</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#details">Details</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#variables">Variables</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="GroupRoot.html#summary">Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="GroupRoot.html#details">Details</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Warm TDM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="GroupRoot.html">GroupRoot</a> &raquo;</li>
+      <li>Group</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/generated/GroupRoot_Group.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="group">
+<h1>Group<a class="headerlink" href="#group" title="Permalink to this headline"></a></h1>
+<div class="line-block">
+<div class="line">Interface to a WarmTDM ‘Flange Group’ consisting of multiple Row and Column boards.</div>
+<div class="line">This class contains the top level configuration variables as well as a number of tuning and run control processes.</div>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Sub Devices:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="GroupRoot_Group_SaOffsetProcess.html">SaOffsetProcess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="GroupRoot_Group_SaOffsetSweepProcess.html">SaOffsetSweepProcess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="GroupRoot_Group_SaTuneProcess.html">SaTuneProcess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="GroupRoot_Group_Sq1TuneProcess.html">Sq1TuneProcess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="GroupRoot_Group_FasTuneProcess.html">FasTuneProcess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="GroupRoot_Group_Sq1DiagProcess.html">Sq1DiagProcess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="GroupRoot_Group_TesRampProcess.html">TesRampProcess</a></li>
+</ul>
+</div>
+<section id="summary">
+<h2>Summary<a class="headerlink" href="#summary" title="Permalink to this headline"></a></h2>
+<section id="variable-list">
+<h3>Variable List<a class="headerlink" href="#variable-list" title="Permalink to this headline"></a></h3>
+<ul class="simple">
+<li><p>NumRowBoards</p></li>
+<li><p>NumRows</p></li>
+<li><p>NumColumnBoards</p></li>
+<li><p>NumColumns</p></li>
+<li><p>RowOrder</p></li>
+<li><p>RowMap</p></li>
+<li><p>ColumnMap</p></li>
+<li><p>RowTuneEnable</p></li>
+<li><p>ColTuneEnable</p></li>
+<li><p>RowTuneIndex</p></li>
+<li><p>FasFluxOff</p></li>
+<li><p>FasFluxOn</p></li>
+<li><p>SaOutAdc</p></li>
+<li><p>SaOut</p></li>
+<li><p>SaBias</p></li>
+<li><p>SaOffset</p></li>
+<li><p>SaFb</p></li>
+<li><p>SaFbForce</p></li>
+<li><p>Sq1Bias</p></li>
+<li><p>Sq1BiasForce</p></li>
+<li><p>Sq1Fb</p></li>
+<li><p>Sq1FbForce</p></li>
+<li><p>TesBias</p></li>
+<li><p>FllEnable</p></li>
+</ul>
+</section>
+</section>
+<section id="details">
+<h2>Details<a class="headerlink" href="#details" title="Permalink to this headline"></a></h2>
+<section id="variables">
+<h3>Variables<a class="headerlink" href="#variables" title="Permalink to this headline"></a></h3>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.NumRowBoards</p>
+<div class="line-block">
+<div class="line">Number of row boards in the Group.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>NumRowBoards</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.NumRowBoards</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>int</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>0</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RO</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.NumRows</p>
+<div class="line-block">
+<div class="line">Total number of rows in the Group.</div>
+<div class="line">NumRowBoards * 32.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>NumRows</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.NumRows</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>int</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>0</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RO</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.NumColumnBoards</p>
+<div class="line-block">
+<div class="line">Number of colmumn boards in the Group.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>NumColumnBoards</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.NumColumnBoards</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>int</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>0</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RO</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.NumColumns</p>
+<div class="line-block">
+<div class="line">Total number of columns in the Group.</div>
+<div class="line">NumColumnBoards * 8.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>NumColumns</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.NumColumns</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>int</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>0</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RO</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.RowOrder</p>
+<div class="line-block">
+<div class="line">Order row readout.</div>
+<div class="line">Each position is a point in time containing the row index to readout.</div>
+<div class="line">Values can be accessed as a full array or as single values using an index key.</div>
+<div class="line">Max number of values is TBD.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>RowOrder</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.RowOrder</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>int[]</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>0</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RO</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.RowMap</p>
+<div class="line-block">
+<div class="line">Contains the conversion between row index and (board,channel).</div>
+<div class="line">Values can be accessed as a full array or as single values using an index key.</div>
+<div class="line">Each value is a PhysicalMap object containg board and channel attributes.</div>
+<div class="line">Total length = RowBoards * 32.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>RowMap</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.RowMap</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>PhysicalMap[]</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>0</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RO</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.ColumnMap</p>
+<div class="line-block">
+<div class="line">Contains the conversion between column index and (board,channel).</div>
+<div class="line">Values can be accessed as a full array or as single values using an index key.</div>
+<div class="line">Each value is a PhysicalMap object containg board and channel attributes.</div>
+<div class="line">Total length = ColumnBoards * 8.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>ColumnMap</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.ColumnMap</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>PhysicalMap[]</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>0</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RO</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.RowTuneEnable</p>
+<div class="line-block">
+<div class="line">Array of booleans which enable the tuning of each row.</div>
+<div class="line">Total length = RowBoards * 32.</div>
+<div class="line">Values can be accessed as a full array or as single values using an index key.</div>
+<div class="line">Not yet implemented in the tuning routines.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>RowTuneEnable</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.RowTuneEnable</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>bool(64,)</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>8</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RW</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.ColTuneEnable</p>
+<div class="line-block">
+<div class="line">Array of booleans which enable the tuning of each column.</div>
+<div class="line">Total length = ColumnBoards * 8.</div>
+<div class="line">Values can be accessed as a full array or as single values using the an index key.</div>
+<div class="line">Not yet implemented in the tuning routines.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>ColTuneEnable</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.ColTuneEnable</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>bool(32,)</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>8</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RW</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.RowTuneIndex</p>
+<div class="line-block">
+<div class="line">Manual selection of row for tuning.</div>
+<div class="line">When RowTunEn is true the FasFluxOn value for this row is output.</div>
+<div class="line">All other rows are set to FasFluxOff.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>RowTuneIndex</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.RowTuneIndex</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>int</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{:0.4f}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>0</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RW</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.FasFluxOff</p>
+<div class="line-block">
+<div class="line">FasFluxOff value for each row.</div>
+<div class="line">Total length = RowBoards * 32.</div>
+<div class="line">Values can be accessed as a full array or as single values using an index key.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>FasFluxOff</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.FasFluxOff</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>float64(64,)</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{:0.4f}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RW</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.FasFluxOn</p>
+<div class="line-block">
+<div class="line">FasFluxOn value for each row.</div>
+<div class="line">Total length = RowBoards * 32.</div>
+<div class="line">Values can be accessed as a full array or as single values using an index key.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>FasFluxOn</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.FasFluxOn</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>float64(64,)</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{:0.4f}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RW</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.SaOutAdc</p>
+<div class="line-block">
+<div class="line">Current ADC value in Volts for each column.</div>
+<div class="line">Total length = ColumnBoards * 8.</div>
+<div class="line">Values can be accessed as a full array or as single values using an index key.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>SaOutAdc</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.SaOutAdc</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>float64(32,)</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{:0.06f}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>6</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RO</p></td>
+</tr>
+<tr class="row-even"><td><p>units</p></td>
+<td><p>V</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.SaOut</p>
+<div class="line-block">
+<div class="line">Current ADC value in mV for each column.</div>
+<div class="line">Total length = ColumnBoards * 8.</div>
+<div class="line">Values can be accessed as a full array or as single values using an index key.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>SaOut</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.SaOut</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>float64(32,)</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{:0.06f}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>6</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RO</p></td>
+</tr>
+<tr class="row-even"><td><p>units</p></td>
+<td><p>mV</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.SaBias</p>
+<div class="line-block">
+<div class="line">SaBias value for each column.</div>
+<div class="line">1D array with total length = ColumnBoards * 8.</div>
+<div class="line">Values can be accessed as a full array or as single values using an index key.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>SaBias</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.SaBias</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>float64(32,)</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{:0.4f}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RW</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.SaOffset</p>
+<div class="line-block">
+<div class="line">SaOffset value for each column.</div>
+<div class="line">1D array with total length = ColumnBoards * 8.</div>
+<div class="line">Values can be accessed as a full array or as single values using an index key.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>SaOffset</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.SaOffset</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>float64(32,)</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{:0.4f}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RW</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.SaFb</p>
+<div class="line-block">
+<div class="line">SaFb value for each column/row used during readout.</div>
+<div class="line">2D array with total length = (ColumnBoards * 8) * (RowBoards * 32).</div>
+<div class="line">Values can be accessed as a full 2D array or pass a (col, row) tuple for the index key to access each value.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>SaFb</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.SaFb</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>float64(32, 64)</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{:0.4f}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RW</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.SaFbForce</p>
+<div class="line-block">
+<div class="line">SaFb value for each column used during tuning.</div>
+<div class="line">1D array with total length ColumnBoards * 8.</div>
+<div class="line">Values can be accessed as a full array or as single values using an index key.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>SaFbForce</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.SaFbForce</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>float64(32,)</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{:0.4f}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RW</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.Sq1Bias</p>
+<div class="line-block">
+<div class="line">Sq1Bias value for each column/row used during readout.</div>
+<div class="line">2D array with total length = (ColumnBoards * 8) * (RowBoards * 32).</div>
+<div class="line">Values can be accessed as a full 2D array or pass a (col, row) tuple for the index key to access each value.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Sq1Bias</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.Sq1Bias</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>float64(32, 64)</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{:0.4f}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RW</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.Sq1BiasForce</p>
+<div class="line-block">
+<div class="line">Sq1Bias value for each column used during tuning.</div>
+<div class="line">1D array with total length ColumnBoards * 8.</div>
+<div class="line">Values can be accessed as a full array or as single values using an index key.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Sq1BiasForce</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.Sq1BiasForce</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>float64(32,)</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{:0.4f}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RW</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.Sq1Fb</p>
+<div class="line-block">
+<div class="line">Sq1Fb value for each column/row used during readout.</div>
+<div class="line">2D array with total length = (ColumnBoards * 8) * (RowBoards * 32).</div>
+<div class="line">Values can be accessed as a full 2D array or pass a (col, row) tuple for the index key to access each value.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Sq1Fb</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.Sq1Fb</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>float64(32, 64)</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{:0.4f}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RW</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.Sq1FbForce</p>
+<div class="line-block">
+<div class="line">Sq1Fb value for each column used during tuning.</div>
+<div class="line">1D array with total length ColumnBoards * 8.</div>
+<div class="line">Values can be accessed as a full array or as single values using an index key.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Sq1FbForce</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.Sq1FbForce</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>float64(32,)</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{:0.4f}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RW</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.TesBias</p>
+<div class="line-block">
+<div class="line">TesValue value for each column.</div>
+<div class="line">1D array with total length ColumnBoards * 8.</div>
+<div class="line">Values can be accessed as a full array or as single values using an index key.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>TesBias</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.TesBias</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>float64(32,)</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{:0.4f}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RW</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="topic">
+<p class="topic-title">GroupRoot.Group.FllEnable</p>
+<div class="line-block">
+<div class="line">FLL Enable Control.</div>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>FllEnable</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.FllEnable</p></td>
+</tr>
+<tr class="row-even"><td><p>enum</p></td>
+<td><p>{False: ‘False’, True: ‘True’}</p></td>
+</tr>
+<tr class="row-odd"><td><p>typeStr</p></td>
+<td><p>bool</p></td>
+</tr>
+<tr class="row-even"><td><p>disp</p></td>
+<td><p>enum</p></td>
+</tr>
+<tr class="row-odd"><td><p>precision</p></td>
+<td><p>0</p></td>
+</tr>
+<tr class="row-even"><td><p>mode</p></td>
+<td><p>RW</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="GroupRoot_DataWriter.html" class="btn btn-neutral float-left" title="DataWriter" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="GroupRoot_Group_SaOffsetProcess.html" class="btn btn-neutral float-right" title="SaOffsetProcess" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, SLAC National Accelerator Laboratory.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
