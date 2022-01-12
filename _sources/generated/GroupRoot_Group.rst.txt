@@ -8,7 +8,7 @@ Group
 
 .. toctree::
    :maxdepth: 1
-   :caption: Sub Devices:
+   :caption: Processes:
 
    GroupRoot_Group_SaOffsetProcess
    GroupRoot_Group_SaOffsetSweepProcess
