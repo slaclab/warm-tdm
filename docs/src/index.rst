@@ -10,7 +10,8 @@ This is currently a work in progress
    :maxdepth: 1
    :caption: Contents:
 
-   generated/GroupRoot
+   gui/index
+   structure
 
 Please email rherbst@slac.stanford.edu if you see any errors or have any
 questions about anything in the current documentation. We are still adding
