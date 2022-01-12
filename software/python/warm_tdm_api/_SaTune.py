@@ -125,6 +125,9 @@ class SaTuneProcess(pr.Process):
                                  function=self._saveData,
                                  description=""))
 
+        self.ReadDevice.addToGroup('NoDoc')
+        self.WriteDevice.addToGroup('NoDoc')
+
     def _plotXGet(self):
         with self.root.updateGroup():
             col = self.PlotColumn.value()
