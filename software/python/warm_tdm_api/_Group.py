@@ -219,7 +219,7 @@ class Group(pr.Device):
             rowBoards=groupConfig.rowBoards,
             rows=len(groupConfig.rowMap),
             plots=plots,
-            groups=['Hardware','NoDoc'],
+            groups=['Hardware'],
             expand=True))
 
         self.ReadDevice.addToGroup('NoDoc')
@@ -496,10 +496,10 @@ class Group(pr.Device):
         self.add(warm_tdm_api.SaOffsetProcess())
         self.add(warm_tdm_api.SaOffsetSweepProcess(config=self._config))
         self.add(warm_tdm_api.SaTuneProcess(config=self._config))
-        self.add(warm_tdm_api.Sq1TuneProcess(groups='NoDoc'))
-        self.add(warm_tdm_api.FasTuneProcess(groups='NoDoc'))
-        self.add(warm_tdm_api.Sq1DiagProcess(groups='NoDoc'))
-        self.add(warm_tdm_api.TesRampProcess(groups='NoDoc'))
+        self.add(warm_tdm_api.Sq1TuneProcess(groups=['NoDoc']))
+        self.add(warm_tdm_api.FasTuneProcess(groups=['NoDoc']))
+        self.add(warm_tdm_api.Sq1DiagProcess(groups=['NoDoc']))
+        self.add(warm_tdm_api.TesRampProcess(groups=['NoDoc']))
 
 
     # Set FLL Enable value
