@@ -139,8 +139,6 @@
 <section id="command-list">
 <h3>Command List<a class="headerlink" href="#command-list" title="Permalink to this headline"></a></h3>
 <ul class="simple">
-<li><p>ReadDevice</p></li>
-<li><p>WriteDevice</p></li>
 <li><p>Start</p></li>
 <li><p>Stop</p></li>
 </ul>
@@ -153,7 +151,7 @@
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.Running</p>
 <div class="line-block">
-<div class="line">Operation is running.</div>
+<div class="line">Status values indicating if operation is running.</div>
 </div>
 <table class="docutils align-default">
 <colgroup>
@@ -193,9 +191,7 @@
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.Progress</p>
 <div class="line-block">
-<div class="line">Percent complete: 0.</div>
-<div class="line">0 - 1.</div>
-<div class="line">0.</div>
+<div class="line">Percent complete: 0 - 100 %.</div>
 </div>
 <table class="docutils align-default">
 <colgroup>
@@ -242,7 +238,7 @@
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.Message</p>
 <div class="line-block">
 <div class="line">Process status message.</div>
-<div class="line">Prefix with Error: if an error occurred.</div>
+<div class="line">Prefixed with ‘Error:’ if an error occurred.</div>
 </div>
 <table class="docutils align-default">
 <colgroup>
@@ -279,7 +275,7 @@
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.SaBiasLow</p>
 <div class="line-block">
-<div class="line">Starting point offset for SA Bias Tuning.</div>
+<div class="line">Starting point offset for SA Bias Sweep.</div>
 </div>
 <table class="docutils align-default">
 <colgroup>
@@ -316,7 +312,7 @@
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.SaBiasHigh</p>
 <div class="line-block">
-<div class="line">Ending point offset for SA Bias Tuning.</div>
+<div class="line">Ending point offset for SA Bias Sweep.</div>
 </div>
 <table class="docutils align-default">
 <colgroup>
@@ -353,7 +349,7 @@
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.SaBiasNumSteps</p>
 <div class="line-block">
-<div class="line">Number of steps for SA Bias Tuning.</div>
+<div class="line">Number of steps for SA Bias Sweep.</div>
 </div>
 <table class="docutils align-default">
 <colgroup>
@@ -392,6 +388,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotXData</p>
+<div class="line-block">
+<div class="line">X axis data for the SaOffset vs SaBias curve.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -426,6 +425,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[0]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 0.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -460,6 +462,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[1]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 1.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -494,6 +499,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[2]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 2.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -528,6 +536,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[3]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 3.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -562,6 +573,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[4]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 4.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -596,6 +610,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[5]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 5.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -630,6 +647,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[6]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 6.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -664,6 +684,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[7]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 7.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -698,6 +721,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[8]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 8.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -732,6 +758,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[9]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 9.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -766,6 +795,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[10]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 10.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -800,6 +832,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[11]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 11.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -834,6 +869,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[12]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 12.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -868,6 +906,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[13]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 13.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -902,6 +943,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[14]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 14.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -936,6 +980,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[15]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 15.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -970,6 +1017,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[16]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 16.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -1004,6 +1054,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[17]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 17.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -1038,6 +1091,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[18]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 18.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -1072,6 +1128,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[19]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 19.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -1106,6 +1165,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[20]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 20.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -1140,6 +1202,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[21]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 21.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -1174,6 +1239,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[22]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 22.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -1208,6 +1276,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[23]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 23.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -1242,6 +1313,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[24]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 24.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -1276,6 +1350,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[25]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 25.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -1310,6 +1387,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[26]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 26.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -1344,6 +1424,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[27]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 27.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -1378,6 +1461,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[28]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 28.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -1412,6 +1498,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[29]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 29.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -1446,6 +1535,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[30]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 30.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -1480,6 +1572,9 @@
 </div>
 <div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.PlotYData[31]</p>
+<div class="line-block">
+<div class="line">Y axis data for the SaOffset vs SaBias curve, for column 31.</div>
+</div>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 50%" />
@@ -1516,74 +1611,10 @@
 <section id="commands">
 <h3>Commands<a class="headerlink" href="#commands" title="Permalink to this headline"></a></h3>
 <div class="topic">
-<p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.ReadDevice</p>
-<div class="line-block">
-<div class="line">Force read of device without recursion.</div>
-</div>
-<table class="docutils align-default">
-<colgroup>
-<col style="width: 50%" />
-<col style="width: 50%" />
-</colgroup>
-<thead>
-<tr class="row-odd"><th class="head"><p>Field</p></th>
-<th class="head"><p>Value</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>name</p></td>
-<td><p>ReadDevice</p></td>
-</tr>
-<tr class="row-odd"><td><p>path</p></td>
-<td><p>GroupRoot.Group.SaOffsetSweepProcess.ReadDevice</p></td>
-</tr>
-<tr class="row-even"><td><p>enum</p></td>
-<td><p>{False: ‘False’, True: ‘True’}</p></td>
-</tr>
-<tr class="row-odd"><td><p>typeStr</p></td>
-<td><p>bool</p></td>
-</tr>
-<tr class="row-even"><td><p>disp</p></td>
-<td><p>enum</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="topic">
-<p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.WriteDevice</p>
-<div class="line-block">
-<div class="line">Force write of device without recursion.</div>
-</div>
-<table class="docutils align-default">
-<colgroup>
-<col style="width: 50%" />
-<col style="width: 50%" />
-</colgroup>
-<thead>
-<tr class="row-odd"><th class="head"><p>Field</p></th>
-<th class="head"><p>Value</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>name</p></td>
-<td><p>WriteDevice</p></td>
-</tr>
-<tr class="row-odd"><td><p>path</p></td>
-<td><p>GroupRoot.Group.SaOffsetSweepProcess.WriteDevice</p></td>
-</tr>
-<tr class="row-even"><td><p>typeStr</p></td>
-<td><p>str</p></td>
-</tr>
-<tr class="row-odd"><td><p>disp</p></td>
-<td><p>{}</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.Start</p>
 <div class="line-block">
 <div class="line">Start process.</div>
+<div class="line">No Args.</div>
 </div>
 <table class="docutils align-default">
 <colgroup>
@@ -1615,6 +1646,7 @@
 <p class="topic-title">GroupRoot.Group.SaOffsetSweepProcess.Stop</p>
 <div class="line-block">
 <div class="line">Stop process.</div>
+<div class="line">No Args.</div>
 </div>
 <table class="docutils align-default">
 <colgroup>
