@@ -30,14 +30,14 @@ class SaOffsetProcess(pr.Process):
 
         self.add(pr.LocalVariable(
             name='Precision',
-            value=0.0002,
+            value=0.02,
             mode='RW',
             description="Convergance precision"))
 
 
         self.add(pr.LocalVariable(
             name='Timeout',
-            value=5.0,
+            value=0.1,
             units = 'Seconds',
             mode='RW',
             description="Timeout for PID convergance"))
@@ -114,7 +114,7 @@ class SaOffsetSweepProcess(pr.Process):
             for i, b in enumerate(biasRange):
                 saBias = mask * b
 
-                print(f'Setting saBias - {saBias}')
+                #print(f'Setting saBias - {saBias}')
 
                 group.SaBias.set(saBias)
 
@@ -125,7 +125,7 @@ class SaOffsetSweepProcess(pr.Process):
 
                 offset = group.SaOffset.get()
 
-                print(f'Got saOffset - {offset}')
+                #print(f'Got saOffset - {offset}')
 
                 curves[i] = offset
 
