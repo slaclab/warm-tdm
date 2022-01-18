@@ -34,7 +34,7 @@ def saOffset(*, group):
     group.SaOffset.set(control)
     current = group.SaOut.get()
     masked = current
-    print('Initial Values')
+#    print('Initial Values')
 #    for i in range(len(control)):
         #print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}')
     #print()
