@@ -189,8 +189,8 @@ def saTune(*, group, process=None, doSet=True):
      representing a different bias.
     """
     group.Init()
-    group.RowForceIndex.set(0)
-    group.RowForceEn.set(True)
+    group.RowTuneIndex.set(0)
+    group.RowTuneEn.set(True)
     saBiasResults = saBiasSweep(group=group,process=process)
 
     if doSet:
