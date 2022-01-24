@@ -152,7 +152,7 @@ def saBiasSweep(*, group, process):
         group.SaBias.set(bias)
         saOffset(group=group)
 
-        print(f'saBias step {idx} - {bias}')
+        #print(f'saBias step {idx} - {bias}')
 
         if process is not None:
             process.Message.set(f'SaBias step {idx} out of {numBiasSteps}')
