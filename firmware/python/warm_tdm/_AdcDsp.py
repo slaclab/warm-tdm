@@ -201,9 +201,9 @@ class AdcDsp(pr.Device):
         def setFirTaps(value, write):
             self.filterFreq = value
             taps = scipy.signal.firwin(11, value, fs=7812.5, window='hamming')
-            print(f'Applying filter at {value} with taps {taps}')
+            #print(f'Applying filter at {value} with taps {taps}')
             ftaps = np.array([int(np.round(x * 2**15)) for x in taps], dtype=np.uint16)
-            print([f'{t:04x}' for t in ftaps])
+            #print([f'{t:04x}' for t in ftaps])
             self.FirFilter.Taps.set(taps, write=write)
 
         self.add(pr.LinkVariable(
