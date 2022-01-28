@@ -23,7 +23,7 @@ class SaStripChartProcess(pr.Process):
         self.add(pr.LocalVariable(
             name = 'Data',
             mode = 'RO',
-            hidden = 'True',
+            hidden = True,
             value = np.zeros((1,8), np.float64)))
 
         self.add(pr.LinkVariable(
