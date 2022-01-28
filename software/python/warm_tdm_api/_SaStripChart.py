@@ -21,10 +21,18 @@ class SaStripChartProcess(pr.Process):
             value = 100.0))
 
         self.add(pr.LocalVariable(
-            name = 'SampleDataY',
+            name = 'Data',
+            mode = 'RO',
+            hidden = 'True',
+            value = np.zeros((1,8), np.float64)))
+
+        self.add(pr.LinkVariable(
+            name = f'SampleDataY',
             mode = 'RO',
             hidden = True,
-            value = np.zeros(1, np.float64)))
+            dependencies =[self.Channel, self.Data],
+            linkedGet = lambda: self.Data.value()[:,self.Channel.value()]))
+
 
         self.add(pr.LocalVariable(
             name = 'SampleDataX',
@@ -44,12 +52,12 @@ class SaStripChartProcess(pr.Process):
         stop_time = start_time + run_time
         while time.time() < stop_time:
             times.append(time.time()-start_time)
-            samples.append(saOutVar.get(index=channel, read=True))
+            samples.append(saOutVar.get(index=-1, read=True))
             self.Progress.set(times[-1]/run_time)
             time.sleep(sleep)
 
         self.Progress.set(1.0)
 
-        self.SampleDataY.set(np.array(samples))
+        self.Data.set(np.array(samples))
         self.SampleDataX.set(np.array(times))
     
