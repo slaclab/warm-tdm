@@ -39,7 +39,7 @@ class SaStripChartProcess(pr.Process):
         samples = []
         times = []
         start_time = time.time()
-        stop_time = start_time() + run_time
+        stop_time = start_time + run_time
         while time.time() < stop_time:
             times.append(time.time()-start_time)
             samples.append(saOutVar.get(index=channel, read=True))
