@@ -145,7 +145,7 @@ class WaveformCapturePyDM(pr.Device, rogue.interfaces.stream.Slave):
 
         self.add(pr.LocalVariable(
             name='RmsNoise',
-            value = np.zeros(8, np.float64)
+            value = np.zeros(8, np.float64),
             mode = 'RO'))
 
 
