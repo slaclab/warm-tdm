@@ -23,7 +23,7 @@
       <string/>
      </property>
      <property name="currentIndex">
-      <number>3</number>
+      <number>6</number>
      </property>
      <property name="alarmChannels">
       <stringlist>
@@ -1081,6 +1081,11 @@ p, li { white-space: pre-wrap; }
         <widget class="PyDMWaveformPlot" name="PyDMWaveformPlot_19">
          <property name="toolTip">
           <string/>
+         </property>
+         <property name="curves">
+          <stringlist>
+           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaStripChartProcess.SampleDataY&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaStripChartProcess.SampleDataX&quot;, &quot;name&quot;: &quot;mV&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+          </stringlist>
          </property>
         </widget>
        </item>

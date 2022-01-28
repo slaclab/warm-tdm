@@ -23,11 +23,13 @@ class SaStripChartProcess(pr.Process):
         self.add(pr.LocalVariable(
             name = 'SampleDataY',
             mode = 'RO',
+            hidden = True,
             value = np.zeros(1, np.float64)))
 
         self.add(pr.LocalVariable(
             name = 'SampleDataX',
             mode = 'RO',
+            hidden = True,
             value = np.zeros(1, np.float64))) 
        
 
