@@ -460,6 +460,7 @@ class Group(pr.Device):
         self.add(warm_tdm_api.FasTuneProcess())
         self.add(warm_tdm_api.Sq1DiagProcess())
         self.add(warm_tdm_api.TesRampProcess())
+        self.add(warm_tdm_api.SaStripChartProcess())
 
 
 

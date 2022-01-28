@@ -23,10 +23,11 @@
       <string/>
      </property>
      <property name="currentIndex">
-      <number>4</number>
+      <number>3</number>
      </property>
      <property name="alarmChannels">
       <stringlist>
+       <string></string>
        <string></string>
        <string></string>
        <string></string>
@@ -1056,6 +1057,30 @@ p, li { white-space: pre-wrap; }
            <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotYData[6]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;turquoise&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
            <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotYData[7]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;deeppink&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
           </stringlist>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="sa_stripchart">
+      <attribute name="title">
+       <string>SA Strip Chart</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_4">
+       <item>
+        <widget class="Process" name="Process_3">
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="channel" stdset="0">
+          <string>rogue://0/GroupRoot.Group.SaStripChartProcess</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="PyDMWaveformPlot" name="PyDMWaveformPlot_19">
+         <property name="toolTip">
+          <string/>
          </property>
         </widget>
        </item>
