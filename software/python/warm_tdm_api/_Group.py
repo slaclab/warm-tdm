@@ -500,7 +500,7 @@ class Group(pr.Device):
         self.add(warm_tdm_api.FasTuneProcess(groups=['NoDoc']))
         self.add(warm_tdm_api.Sq1DiagProcess(groups=['NoDoc']))
         self.add(warm_tdm_api.TesRampProcess(groups=['NoDoc']))
-
+        self.add(warm_tdm_api.SaStripChartProcess(groups=['NoDoc']))
 
     # Set FLL Enable value
     def _fllEnableSet(self, value, write):

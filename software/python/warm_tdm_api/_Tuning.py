@@ -34,7 +34,7 @@ def saOffset(*, group):
     group.SaOffset.set(control)
     current = group.SaOut.get()
     masked = current
-    print('Initial Values')
+#    print('Initial Values')
 #    for i in range(len(control)):
         #print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}')
     #print()
@@ -101,7 +101,7 @@ def saFbSweep(*, group, bias, saFbRange, pctLow, pctRange, process):
             process.Progress.set(pctLow + pctRange*(idx/numSteps))
 
         time.sleep(sleep)
-        points = group.SaOut.get()
+        points = group.HardwareGroup.ColumnBoard[0].DataPath.WaveformCapture.AdcAverage.get() #group.SaOut.get()
 
 #        print(f'saFb step {idx} - {saFbArray[5]} - {points[5]}')
 
@@ -152,7 +152,7 @@ def saBiasSweep(*, group, process):
         group.SaBias.set(bias)
         saOffset(group=group)
 
-        print(f'saBias step {idx} - {bias}')
+        #print(f'saBias step {idx} - {bias}')
 
         if process is not None:
             process.Message.set(f'SaBias step {idx} out of {numBiasSteps}')
@@ -189,8 +189,8 @@ def saTune(*, group, process=None, doSet=True):
      representing a different bias.
     """
     group.Init()
-    group.RowForceIndex.set(0)
-    group.RowForceEn.set(True)
+    group.RowTuneIndex.set(0)
+    group.RowTuneEn.set(True)
     saBiasResults = saBiasSweep(group=group,process=process)
 
     if doSet:

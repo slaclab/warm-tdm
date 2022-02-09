@@ -143,6 +143,11 @@ class WaveformCapturePyDM(pr.Device, rogue.interfaces.stream.Slave):
             value = [(np.zeros(10), np.zeros(10)) for _ in range(8)],
             mode='RO'))
 
+        self.add(pr.LocalVariable(
+            name='RmsNoise',
+            value = np.zeros(8, np.float64),
+            mode = 'RO'))
+
 
         for i in range(8):
             self.add(pr.LocalVariable(
@@ -220,6 +225,8 @@ class WaveformCapturePyDM(pr.Device, rogue.interfaces.stream.Slave):
         if channel == 8:
             # Construct a view of the adc data
             adcs.resize(adcs.size//8, 8)
+
+        self.RmsNoise.set(adcs.std(0))
 
         # Convert adc values to voltages
         voltages = self.conv(adcs)
