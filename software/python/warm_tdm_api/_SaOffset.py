@@ -126,7 +126,7 @@ class SaOffsetSweepProcess(pr.Process):
             curves = np.zeros((steps, colCount))
 
             saBias = np.full(colCount, low)
-            mask = np.array([1.0 if en else 0 for en in group.ColTuneEnablen.value()])
+            mask = np.array([1.0 if en else 0 for en in group.ColTuneEnable.value()])
 
             for i, b in enumerate(biasRange):
                 saBias = mask * b
