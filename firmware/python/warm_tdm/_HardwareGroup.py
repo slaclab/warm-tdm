@@ -41,7 +41,7 @@ class HardwareGroup(pyrogue.Device):
             self.add(dataUdp)
             self.addInterface(srpUdp, dataUdp)
 
-        waveGui = warm_tdm.WaveformCapturePyDM(hidden=True)            
+
 
         # Instantiate and link each board in the Group
         for index in range(colBoards):
@@ -63,7 +63,8 @@ class HardwareGroup(pyrogue.Device):
                 srp == srpStream
 
             # Instantiate the board Device tree and link it to the SRP
-            self.add(warm_tdm.ColumnModule(name=f'ColumnBoard[{index}]', memBase=srp, expand=True, rows=rows))
+            self.add(warm_tdm.ColumnModule(name=f'ColumnBoard[{index}]', memBase=srp, expand=True, rows=rows, waveform_stream=dataStream))
+            waveGui = warm_tdm.WaveformCaptureReceiver(hidden=True, live_plots=plots)                        
 
             # Link the data stream to the DataWriter
             if emulate is False:
@@ -73,11 +74,6 @@ class HardwareGroup(pyrogue.Device):
                 #debug = warm_tdm.StreamDebug()
 
                 dataStream >> waveGui
-                if plots:
-                    plotter = warm_tdm.WaveformCaptureReceiver()
-                    #self.add(plotter)
-                    dataStream >> plotter
-                    self.addInterface(plotter)
 
 #                 else:
 #                     debug = warm_tdm.StreamDebug()

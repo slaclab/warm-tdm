@@ -3,10 +3,12 @@ import pyrogue as pr
 import surf
 import surf.devices.analog_devices
 
+import numpy as np
+
 import warm_tdm
 
 class ColumnModule(pr.Device):
-    def __init__(self, rows=64, **kwargs):
+    def __init__(self, waveform_stream, rows=64, **kwargs):
         super().__init__(**kwargs)
 
         self.add(warm_tdm.WarmTdmCore(
@@ -15,7 +17,8 @@ class ColumnModule(pr.Device):
 
         self.add(warm_tdm.DataPath(
             offset = 0xC0300000,
-            expand = True))
+            expand = True,
+            waveform_stream = waveform_stream))
 
         self.add(warm_tdm.Ad5679R(
             name = 'SaBiasDac',
@@ -52,6 +55,25 @@ class ColumnModule(pr.Device):
         self.add(surf.devices.analog_devices.Ad9681Config(
             enabled = True,
             offset = 0xC0200000))
+
+#         self.add(pr.RemoteVariable(
+#             name = f'TestRam',
+#             offset = 0xC0800000,
+#             base = pr.UInt,
+#             mode = 'RW',
+#             bitSize = 8*2**14,
+#             numValues = 1024*4,
+#             valueBits = 32,
+#             valueStride = 32))
+
+#         @self.command()
+#         def SetTestRam(arg):
+#             print(arg)
+#             offset, size = arg
+# #            ram = np.linspace(0, 2**32-1, 2**13-25, endpoint=False, dtype=np.uint32)
+#             ram = np.linspace(0, 2**32-1, size, endpoint=False, dtype=np.uint32)            
+#             self.TestRam.set(value=ram, index=offset, write=True)
+
 
         @self.command()
         def AllFastDacs(arg):
