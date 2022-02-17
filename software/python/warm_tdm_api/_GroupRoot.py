@@ -19,11 +19,27 @@ class GroupRoot(pyrogue.Root):
             kwargs['pollEn'] = False
             kwargs['timeout'] = 1000
 
-        super().__init__(**kwargs)
+        super().__init__(description = "Top level Rogue Root for the WarmTDM System."
+                                       "Each Root will support one or more WarmTDM 'Groups'."
+                                       "This interface supports configuration load and save as well as the top level reset control.",
+                         **kwargs)
+
+        self.LoadConfig.addToGroup('DocApi')
+        self.SaveConfig.addToGroup('DocApi')
+        self.GetYamlConfig.addToGroup('DocApi')
+        self.SetYamlConfig.addToGroup('DocApi')
+        self.HardReset.addToGroup('DocApi')
+        self.CountReset.addToGroup('DocApi')
+        self.Initialize.addToGroup('DocApi')
 
         # Add the data writer
-        self.add(pyrogue.utilities.fileio.StreamWriter(name='DataWriter'))
+        self.add(pyrogue.utilities.fileio.StreamWriter(name='DataWriter',groups='DocApi'))
         self >> self.DataWriter.getChannel(100)
+        self.DataWriter.ReadDevice.addToGroup('NoDoc')
+        self.DataWriter.WriteDevice.addToGroup('NoDoc')
+        self.DataWriter.BufferSize.addToGroup('NoDoc')
+        self.DataWriter.MaxFileSize.addToGroup('NoDoc')
+        self.DataWriter.CurrentSize.addToGroup('NoDoc')
 
         self.add(warm_tdm_api.Group(groupConfig=groupConfig,
                                     groupId=0,

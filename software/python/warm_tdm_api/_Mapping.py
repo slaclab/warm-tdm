@@ -15,37 +15,12 @@ class PhysicalMap:
             Channel index of the board
     """
 
-
-@dataclass
-class VirtualMap:
-    row: int
-    column: int
-    """ Virtual Detector Mapping
-        Attributes
-        ----------
-        row : int
-            Physical Row
-        column : int
-            Physical Column
-    """
-
-
-@dataclass
-class GroupConfig:
-    columnMap: PhysicalMap
-    columnEnable: [bool]
-    rowMap: PhysicalMap
-    rowOrder: [bool]
-    host: str
-    columnBoards: int
-    rowBoards: int
+class GroupConfig(object):
     """ Group Configuration
         Attributes
         ----------
         columnMap : PhysicalMapping
             Column map
-        columnEnable : [bool]
-            Enable flag for each column
         rowMap : PhysicalMapping
             Row map
         rowOrder : int
@@ -57,6 +32,21 @@ class GroupConfig:
         rowBoards: int
             Number of row boards
     """
+
+
+    def __init__(self, *, rowBoards, columnBoards, host, rowOrder=None):
+
+        self.rowBoards = rowBoards
+        self.columnBoards = columnBoards
+        self.host = host
+
+        # Init row and column map
+        self.columnMap = [PhysicalMap(board,chan) for board in range(columnBoards) for chan in range(8)]
+        self.rowMap = [PhysicalMap(board,chan) for board in range(rowBoards) for chan in range(32)]
+
+        self.rowOrder = rowOrder
+        if self.rowOrder is None:
+            self.rowOrder = [i for i in range(len(self.rowMap))],
 
     def colSetIter(self, value, index):
         # Construct a generator to loop over
@@ -72,5 +62,7 @@ class GroupConfig:
         else:
             ra = range(len(self.columnMap))
 
-        return ((idx, self.columnMap[idx].board, self.columnMap[idx].channel) for idx in ra)    
+        return ((idx, self.columnMap[idx].board, self.columnMap[idx].channel) for idx in ra)
+
+
 

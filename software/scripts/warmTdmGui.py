@@ -58,6 +58,13 @@ parser.add_argument(
     action = 'store_true',
     default = False)
 
+parser.add_argument(
+    "--docs",
+    type     = str,
+    required = False,
+    default = '',
+    help     = "Path To Store Docs")
+
 
 args = parser.parse_known_args()[0]
 print(args)
@@ -68,26 +75,14 @@ groups = [{
     'rowBoards': args.rows}]
 
 # Setup configuration
-columnBoards = groups[0]['colBoards']
-columnChannels = 8
-rowBoards = groups[0]['rowBoards']
-rowChannels = 32
-
-columnMap = [pm(board,chan) for board in range(columnBoards) for chan in range(columnChannels)]
-#columnMap = [pm(0, 5)]
-rowMap = [pm(board,chan)  for board in range(rowBoards) for chan in range(rowChannels)]
-colEn = [True for _ in range(len(columnMap))]
-colEn[5] = True
-
-config = warm_tdm_api.GroupConfig(columnMap=columnMap,
-                                  columnEnable=colEn,
-                                  rowMap=rowMap,
-                                  rowOrder=[i for i in range(len(rowMap))],
+config = warm_tdm_api.GroupConfig(rowBoards=groups[0]['rowBoards'],
+                                  columnBoards=groups[0]['colBoards'],
                                   host=groups[0]['host'],
-                                  columnBoards=columnBoards,
-                                  rowBoards=rowBoards)
-
+                                  rowOrder=None)
 
 with warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=args.emulate, plots=args.plots) as root:
+
+    if args.docs != '':
+        root.genDocuments(path=args.docs,incGroups=['DocApi'],excGroups=['NoDoc','Enable','Hardware'])
 
     pyrogue.pydm.runPyDM(root=root,title='Warm TDM',sizeX=2000,sizeY=2000,ui=warm_tdm_api.pydmUi)
