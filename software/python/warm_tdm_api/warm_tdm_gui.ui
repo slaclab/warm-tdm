@@ -23,10 +23,11 @@
       <string/>
      </property>
      <property name="currentIndex">
-      <number>4</number>
+      <number>6</number>
      </property>
      <property name="alarmChannels">
       <stringlist>
+       <string></string>
        <string></string>
        <string></string>
        <string></string>
@@ -826,7 +827,7 @@ p, li { white-space: pre-wrap; }
            </property>
            <property name="curves">
             <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.PeriodogramY[0]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.PeriodogramX[0]&quot;, &quot;name&quot;: &quot;CH 0&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramY[0]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramX[0]&quot;, &quot;name&quot;: &quot;CH 0&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
             </stringlist>
            </property>
           </widget>
@@ -838,7 +839,7 @@ p, li { white-space: pre-wrap; }
            </property>
            <property name="curves">
             <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.PeriodogramY[6]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.PeriodogramX[6]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramY[6]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramX[6]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
             </stringlist>
            </property>
           </widget>
@@ -856,7 +857,7 @@ p, li { white-space: pre-wrap; }
            </property>
            <property name="curves">
             <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.PeriodogramY[1]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.PeriodogramX[1]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramY[1]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramX[1]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
             </stringlist>
            </property>
           </widget>
@@ -868,7 +869,7 @@ p, li { white-space: pre-wrap; }
            </property>
            <property name="curves">
             <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.PeriodogramY[5]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.PeriodogramX[5]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramY[5]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramX[5]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
             </stringlist>
            </property>
           </widget>
@@ -880,7 +881,7 @@ p, li { white-space: pre-wrap; }
            </property>
            <property name="curves">
             <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.PeriodogramY[3]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.PeriodogramX[3]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramY[3]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramX[3]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
             </stringlist>
            </property>
           </widget>
@@ -892,7 +893,7 @@ p, li { white-space: pre-wrap; }
            </property>
            <property name="curves">
             <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.PeriodogramY[7]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.PeriodogramX[7]&quot;, &quot;name&quot;: &quot;CH 7&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramY[7]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramX[7]&quot;, &quot;name&quot;: &quot;CH 7&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
             </stringlist>
            </property>
           </widget>
@@ -904,7 +905,7 @@ p, li { white-space: pre-wrap; }
            </property>
            <property name="curves">
             <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.PeriodogramY[2]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.PeriodogramX[2]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramY[2]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramX[2]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
             </stringlist>
            </property>
           </widget>
@@ -916,7 +917,7 @@ p, li { white-space: pre-wrap; }
            </property>
            <property name="curves">
             <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.PeriodogramY[4]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.PeriodogramX[4]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramY[4]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramX[4]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
             </stringlist>
            </property>
           </widget>
@@ -932,7 +933,7 @@ p, li { white-space: pre-wrap; }
            </property>
            <property name="curves">
             <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.HistogramY[4]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.HistogramX[4]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramY[4]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramX[4]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
             </stringlist>
            </property>
           </widget>
@@ -944,7 +945,7 @@ p, li { white-space: pre-wrap; }
            </property>
            <property name="curves">
             <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.HistogramY[0]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.HistogramX[0]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramY[0]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramX[0]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
             </stringlist>
            </property>
           </widget>
@@ -956,7 +957,7 @@ p, li { white-space: pre-wrap; }
            </property>
            <property name="curves">
             <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.HistogramY[2]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.HistogramX[2]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramY[2]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramX[2]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
             </stringlist>
            </property>
           </widget>
@@ -968,7 +969,7 @@ p, li { white-space: pre-wrap; }
            </property>
            <property name="curves">
             <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.HistogramY[6]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.HistogramX[6]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramY[6]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramX[6]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
             </stringlist>
            </property>
           </widget>
@@ -980,7 +981,7 @@ p, li { white-space: pre-wrap; }
            </property>
            <property name="curves">
             <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.HistogramY[5]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.HistogramX[5]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramY[5]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramX[5]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
             </stringlist>
            </property>
           </widget>
@@ -992,7 +993,7 @@ p, li { white-space: pre-wrap; }
            </property>
            <property name="curves">
             <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.HistogramY[7]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.HistogramX[7]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramY[7]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramX[7]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
             </stringlist>
            </property>
           </widget>
@@ -1004,7 +1005,7 @@ p, li { white-space: pre-wrap; }
            </property>
            <property name="curves">
             <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.HistogramY[3]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.HistogramX[3]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramY[3]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramX[3]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
             </stringlist>
            </property>
           </widget>
@@ -1016,7 +1017,7 @@ p, li { white-space: pre-wrap; }
            </property>
            <property name="curves">
             <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.HistogramY[1]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCapturePyDM.HistogramX[1]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramY[1]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramX[1]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
             </stringlist>
            </property>
           </widget>
@@ -1055,6 +1056,35 @@ p, li { white-space: pre-wrap; }
            <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotYData[5]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;magenta&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
            <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotYData[6]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;turquoise&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
            <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotYData[7]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;deeppink&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+          </stringlist>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="sa_stripchart">
+      <attribute name="title">
+       <string>SA Strip Chart</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_4">
+       <item>
+        <widget class="Process" name="Process_3">
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="channel" stdset="0">
+          <string>rogue://0/GroupRoot.Group.SaStripChartProcess</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="PyDMWaveformPlot" name="PyDMWaveformPlot_19">
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="curves">
+          <stringlist>
+           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaStripChartProcess.SampleDataY&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaStripChartProcess.SampleDataX&quot;, &quot;name&quot;: &quot;mV&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
           </stringlist>
          </property>
         </widget>

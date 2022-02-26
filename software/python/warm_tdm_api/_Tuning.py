@@ -19,7 +19,7 @@ def saOffset(*, group):
     timeout = process.Timeout.get()
 
     # Setup PID controller
-    pid = [PID(kp, ki, kd) for _ in range(len(group.ColumnMap.get()))]
+    pid = [PID(kp, ki, kd) for _ in range(len(group.ColumnMap.value()))]
 
     for p in pid:
         p.setpoint = 0  # want to zero out SaOut
@@ -39,7 +39,7 @@ def saOffset(*, group):
         #print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}')
     #print()
 
-    mult = np.array([1 if en else 0 for en in group._config.columnEnable],np.float32)
+    mult = np.array([1 if en else 0 for en in group.ColTuneEnable.value()],np.float32)
     count = 0
 
     while True:
@@ -91,7 +91,7 @@ def saFbSweep(*, group, bias, saFbRange, pctLow, pctRange, process):
 
         # Setup data
         for col in range(colCount):
-            if group._config.columnEnable[col] is True:
+            if group.ColTuneEnable.value()[col] is True:
                 saFbArray[col] = saFbRange[col][idx]
 
         # large burst transaction of write data
@@ -146,7 +146,7 @@ def saBiasSweep(*, group, process):
 
     for idx in range(numBiasSteps):
         for col in range(colCount):
-            if group._config.columnEnable[col] is True:
+            if group.ColTuneEnable.value()[col] is True:
                 bias[col] = saBiasRange[col][idx]
 
         group.SaBias.set(bias)

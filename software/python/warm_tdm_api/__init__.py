@@ -10,6 +10,7 @@ from warm_tdm_api._Sq1Tune import *
 from warm_tdm_api._TesRamp import *
 from warm_tdm_api._Tuning import *
 from warm_tdm_api._ConfigSelect import *
+from warm_tdm_api._SaStripChart import *
 
 import os.path
 pydmUi = os.path.dirname(__file__) + '/warm_tdm_gui.ui'
