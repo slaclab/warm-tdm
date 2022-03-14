@@ -31,8 +31,8 @@ library warm_tdm;
 
 entity ColumnModuleBoard is
    generic (
-      TPD_G                   : time     := 1 ns;
-      RING_ADDR_0_G           : boolean  := false;
+      TPD_G                   : time    := 1 ns;
+      RING_ADDR_0_G           : boolean := false;
       SIM_PGP_PORT_NUM_G      : integer := 7000;
       SIM_ETH_SRP_PORT_NUM_G  : integer := 8000;
       SIM_ETH_DATA_PORT_NUM_G : integer := 9000);
@@ -164,8 +164,8 @@ architecture sim of ColumnModuleBoard is
    signal tesDacVout : RealArray(15 downto 0) := (others => 0.0);
    signal tesBias    : RealArray(7 downto 0)  := (others => 0.0);
 
-   signal vBias : RealArray(7 downto 0) := (others => 0.0);
-   signal vOffset : RealArray(7 downto 0) := (others => 0.0);   
+   signal vBias   : RealArray(7 downto 0) := (others => 0.0);
+   signal vOffset : RealArray(7 downto 0) := (others => 0.0);
 
 begin
 
@@ -408,36 +408,57 @@ begin
       generic map (
          TPD_G => TPD_G)
       port map (
-         sclk   => saDacSclk,           -- [in]
-         sdi    => saDacMosi,           -- [in]
-         sdo    => saDacMiso,           -- [out]
-         syncB  => saDacSyncB,          -- [in]
-         ldacB  => saDacLdacB,          -- [in]
-         resetB => saDacResetB,         -- [in]
-         vout(7 downto 0)   => vBias,
-         vout(15 downto 8) => vOffset);          -- [out]
+         sclk              => saDacSclk,    -- [in]
+         sdi               => saDacMosi,    -- [in]
+         sdo               => saDacMiso,    -- [out]
+         syncB             => saDacSyncB,   -- [in]
+         ldacB             => saDacLdacB,   -- [in]
+         resetB            => saDacResetB,  -- [in]
+         vout(7 downto 0)  => vBias,
+         vout(15 downto 8) => vOffset);     -- [out]
 
 
-   GEN_NOISE: process (timingRxClkP) is
-      variable rand : real;
+   GEN_NOISE : process (timingRxClkP) is
+      variable rand         : real;
       variable seed1, seed2 : positive;
-      variable tmp : RealArray(7 downto 0);
+      variable tmp          : RealArray(7 downto 0);
    begin
       if (rising_edge(timingRxClkP)) then
          for i in 7 downto 0 loop
             uniform(seed1, seed2, rand);
-            tmp(i) := rand * 1.0E-5;     
+            tmp(i) := rand * 1.0E-5;
          end loop;
          noise <= tmp;
       end if;
    end process;
 
 
-   GEN_AMPLIFIER: for i in 7 downto 0 generate
+   GEN_AMPLIFIER : for i in 7 downto 0 generate
+      constant R_BIAS_C   : real := 15.0e3;
+      constant R_OFFSET_C : real := 4.7e3;
+      constant R_GAIN_C   : real := 100.0;
+      constant R_FB_C     : real := 1.1e3;
+      constant R_CABLE_C  : real := 200.0;
+
+      constant G_BIAS_C   : real := 1.0/R_BIAS_C;
+      constant G_OFFSET_C : real := 1.0/R_OFFSET_C;
+      constant G_GAIN_C   : real := 1.0/R_GAIN_C;
+      constant G_FB_C     : real := 1.0/R_FB_C;
+
+      constant G2_C : real := 11.0;
+      constant G3_C : real := 1.5;
+
+      signal ampInP : real := 0.0;
+   begin
+
       saSig(i) <= noise(i);             -- for now
 
       -- board has accidental plarity inversion, hence the (-)1.5
-      adcVin(i) <= 0.080044 * (vBias(i)-1.08288*(vOffset(i)-138.621*saSig(i))) * 11 * (-1.5);  
+      ampInP <= vBias(i) * R_CABLE_C/(R_BIAS_C+R_CABLE_C);
+
+      adcVin(i) <= R_FB_C * (ampInP * (G_GAIN_C + G_OFFSET_C + G_FB_C) - (vOffset(i) * G_OFFSET_C)) * G2_C * G3_C * -1.0
+                   
+      --adcVin(i) <= 0.080044 * (vBias(i)-1.08288*(vOffset(i)-138.621*saSig(i))) * 11 * (-1.5);
 
    end generate;
 
