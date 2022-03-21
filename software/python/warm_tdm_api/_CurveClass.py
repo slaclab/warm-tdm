@@ -5,32 +5,27 @@ import matplotlib.backends.backend_pdf
 
 class CurveData():
 
-    def __init__(self,xvalues = [],curves = []):
-        self.xValues_ = xvalues[:]
-        self.curveList_ = curves[:]
+    def __init__(self, xvalues):
+        self.xValues_ = xvalues
+        self.curveList_ = []
         self.bestCurve = None
+        self.bestIndex = None
         self.biasOut = None
         self.offsetOut = None
         self.fbOut = None
 
     def update(self):
-        self.maxPeak()
-        self.midPoint()
-
-    def maxPeak(self):
-        self.updateCurves()
-        for curve in self.curveList_:
-            if self.bestCurve is None or curve.peakheight_ > self.bestCurve.peakheight_:
-                self.bestCurve = curve
-        self.biasOut = self.bestCurve.bias_
-
-    def updateCurves(self):
-        for curve in self.curveList_:
+        # Find the best curve
+        for i, curve in enumerate(self.curveList_):
             curve.updatePeak()
+            if self.bestCurve is None or curve.peakheight > self.bestCurve.peakheight:
+                self.bestCurve = curve
+                self.bestIndex = i
 
-    def populateXValues(self,low,high,step):
-        for xvalue in np.arange(low,high,step):
-            self.addFb(xvalue)
+        self.biasOut = self.bestCurve.bias
+        self.offsetOut = (self.bestCurve.lowpoint + self.bestCurve.highpoint) / 2
+        self.fbOut = (self.xValues_[self.bestCurve.lowindex] + self.xValues_[self.bestCurve.highindex]) / 2
+            
 
     def plot(self):
         self.update() #might not want to call this here
@@ -43,23 +38,15 @@ class CurveData():
         ax.plot(self.fbOut,self.offsetOut,"s") #plot the midpoint
         plt.show()
 
-    def midPoint(self):
-        curve = self.bestCurve
-        midY = (curve.points_[curve.highindex_] + curve.points_[curve.lowindex_]) / 2
-        self.offsetOut = midY
-        midX = (curve.highindex_ + curve.lowindex_) / 2
-        self.fbOut = midX
-
     def addCurve(self,curve):
         self.curveList_.append(curve)
 
-    def addFb(self,fb):
-        self.xValues_.append(fb)
-
     def asDict(self):
         return {'xValues':np.array(self.xValues_,np.float32),
-                'biasValues':np.array([c.bias_ for c in self.curveList_],np.float32),
+                'biasValues':np.array([c.bias for c in self.curveList_],np.float32),
                 'curves':[np.array(c.points_,np.float32) for c in self.curveList_],
+                'bestIndex' : self.bestIndex,
+                'bestPeak' : self.bestCurve.peakheight,
                 'biasOut':self.biasOut,
                 'fbOut':self.fbOut,
                 'offsetOut':self.offsetOut}
@@ -69,24 +56,24 @@ class CurveData():
 
 class Curve():
     #plotting offset as a function of FB, with each curve being a different bias
-    def __init__(self,bias,points = []):
-        self.bias_ = bias
-        self.points_ = points[:]
-        self.lowindex_ = 0
-        self.highindex_ = 0
-        self.peakheight_ = 0
-        self.midpoint_ = 0 #not used
+    def __init__(self, bias, points=None):
+        self.bias = bias
+        self.points_ = [] if points is None else points
+        self.lowindex = 0
+        self.highindex = 0
+        self.peakheight = 0
 
     def updatePeak(self):
-        for i in range(len(self.points_)):
-            if self.points_[i] < self.points_[self.lowindex_]:
-                self.lowindex_ = i
-            elif self.points_[i] > self.points_[self.highindex_]:
-                self.highindex_ = i
-        self.peakheight_ = self.points_[self.highindex_] - self.points_[self.lowindex_]
+        np_points = np.array(self.points_)
+
+        self.lowindex = np.argmin(np_points)
+        self.lowpoint = np_points[self.lowindex]
+        self.highindex = np.argmax(np_points)
+        self.highpoint = np_points[self.highindex]
+        self.peakheight = self.highpoint - self.lowpoint
 
     def addPoint(self,point):
         self.points_.append(point)
 
     def __repr__(self):
-        return(str(self.bias_) + ": " + str(self.points_))
+        return(str(self.bias) + ": " + str(self.points_))

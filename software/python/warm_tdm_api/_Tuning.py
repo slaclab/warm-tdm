@@ -29,10 +29,11 @@ def saOffset(*, group):
     stime = time.time()
 
     # Final output should be near SaBias, so start there.
-    control = group.SaBias.get()
+    # Start at 0 to avoid overflow.
+    control = np.zeros(len(group.ColumnMap.value()))# group.SaBias.get()
 
     group.SaOffset.set(control)
-    current = group.SaOut.get()
+    current = group.SaOutAdc.get()
     masked = current
 #    print('Initial Values')
 #    for i in range(len(control)):
@@ -49,7 +50,7 @@ def saOffset(*, group):
         if (time.time() - stime) > timeout:
             raise Exception(f"saOffset PID loop failed to converge after {timeout} seconds")
 
-        current = group.SaOut.get()
+        current = group.SaOutAdc.get()
         masked = current * mult
 
         # All channels have converged
@@ -91,17 +92,18 @@ def saFbSweep(*, group, bias, saFbRange, pctLow, pctRange, process):
 
         # Setup data
         for col in range(colCount):
-            if group.ColTuneEnable.value()[col] is True:
+            if group.ColTuneEnable.value()[col] == True:
                 saFbArray[col] = saFbRange[col][idx]
 
         # large burst transaction of write data
+        print(f'Setting saFb = {saFbArray}')
         group.SaFbForce.set(value=saFbArray)
 
         if process is not None:
             process.Progress.set(pctLow + pctRange*(idx/numSteps))
 
         time.sleep(sleep)
-        points = group.HardwareGroup.ColumnBoard[0].DataPath.WaveformCapture.AdcAverage.get() #group.SaOut.get()
+        points = group.SaOut.get() #HardwareGroup.ColumnBoard[0].DataPath.WaveformCapture.AdcAverage.get() #group.SaOut.get()
 
 #        print(f'saFb step {idx} - {saFbArray[5]} - {points[5]}')
 
@@ -144,18 +146,23 @@ def saBiasSweep(*, group, process):
 
         datalist.append(warm_tdm_api.CurveData(xvalues=saFbRange[col]))
 
+    print(f'Bias sweep - {saBiasRange}')
+    print(f'Fb sweep = {saFbRange}')
     for idx in range(numBiasSteps):
+
+        # Only set bias for enabled columns
         for col in range(colCount):
-            if group.ColTuneEnable.value()[col] is True:
+            if (group.ColTuneEnable.value()[col]) == True:
                 bias[col] = saBiasRange[col][idx]
 
+        print(f'Setting bias - {bias}')
         group.SaBias.set(bias)
         saOffset(group=group)
 
-        #print(f'saBias step {idx} - {bias}')
-
         if process is not None:
             process.Message.set(f'SaBias step {idx} out of {numBiasSteps}')
+            if process.Running.value() == False:
+                return datalist
 
         curves = saFbSweep(group=group,bias=bias,saFbRange=saFbRange, pctLow=idx/numBiasSteps,pctRange=pctRange,process=process)
 
@@ -188,7 +195,7 @@ def saTune(*, group, process=None, doSet=True):
      is plotted against SaFb values, which each curve
      representing a different bias.
     """
-    group.Init()
+#    group.Init()
     group.RowTuneIndex.set(0)
     group.RowTuneEn.set(True)
     saBiasResults = saBiasSweep(group=group,process=process)
@@ -376,8 +383,7 @@ def sq1FluxRowBias(group,row):
         highFb = group.Sq1Fb.get(index=(col,row)) + group.Sq1FbHighOffset.get()
         stepFb= group.Sq1FbStepSize.get()
 
-        data = warm_tdp_api.CurveData()
-        data.populateXValues(lowFb,highFb+stepFb,stepFb)
+        data = warm_tdp_api.CurveData(xvalues=np.arange(lowFb, highFb+stepFb, stepFb))
 
         for bias in np.arange(low,high+step,step):
             data.addCurve(sq1FluxRow(group,row,bias))

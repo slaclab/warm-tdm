@@ -1,11 +1,14 @@
 import pyrogue as pr
 import warm_tdm_api
 import numpy as np
+import matplotlib.pyplot as plt
 
 class SaTuneProcess(pr.Process):
 
     def __init__(self, *, config, maxBiasSteps=10, **kwargs):
         self._maxBiasSteps=maxBiasSteps
+
+        self._fig = None
 
         # Init master class
         pr.Process.__init__(self, function=self._saTuneWrap,
@@ -136,6 +139,19 @@ class SaTuneProcess(pr.Process):
                                      linkedGet=lambda i=i: self._plotYGet(i),
                                      description="Y-Axis data for each SaBias value for the column selected via the PlotColumn variable above. "))
 
+        self.add(pr.LinkVariable(name='Plot',
+                                 mode='RO',
+                                 hidden=True,
+                                 dependencies = [self.SaTuneOutput, self.PlotColumn],
+                                 linkedGet = self._singlePlot,
+                                 description = 'A matplotlib figure of all the curves'))
+
+        @self.command(hidden=True)
+        def AllPlots():
+            for i in range(SaBiasNumSteps.value()):
+                sefl.PlotColumn.set(i)
+                self.Plot.get()
+
         self.add(pr.LocalCommand(name='SavePlotData',
                                  value='',
                                  function=self._saveData,
@@ -195,3 +211,57 @@ class SaTuneProcess(pr.Process):
         print(f"Save data called with {arg}")
         if arg != '':
             np.save(arg,self.SaTuneOutput.value())
+
+    def _singlePlot(self, read):
+        if self._fig is not None:
+            plt.close(self._fig)
+
+        if self.SaTuneOutput.get(read=read) == {}:
+            self._fig, ax = plt.subplots()
+            ax.plot([0],[0])
+            return self._fig
+
+        self._fig, ax = plt.subplots()
+
+        for bias_step in range(self.SaBiasNumSteps.get(read=read)):
+            bias = self.SaTuneOutput.get(read=read)[self.PlotColumn.value()]['biasValues'][bias_step]
+            ax.plot(self.PlotXData.get(read=read), self.PlotYData[bias_step].get(read=read), label=bias)
+
+        ax.set_title(f'SA Tune, channel {self.PlotColumn.value()}')
+        ax.legend()
+        ax.set_xlabel('SA FB DAC (V)')
+        ax.set_ylabel('SA OUT (mV)')
+
+        return self._fig
+            
+
+    def _makeAllPlots(self, read):
+        print(f'_makePlots(read={read})')
+        if self._fig is not None:
+            plt.close(self._fig)
+        
+        curve_data = self.SaTuneOutput.get(read=read)
+        channel_count = len(curve_data)
+
+        if channel_count == 0:
+            self._fig, ax = plt.subplots()
+            ax.plot([1,2,3],[4,5,6])
+            return self._fig
+            
+        self._fig, ax = plt.subplots(2, channel_count//2)
+
+        for ch, a in enumerate(ax.reshape(channel_count)):
+            curves = curve_data[ch]
+            for i, bias in enumerate(curves['biasValues']):
+                a.plot(curves['xValues'], curves['curves'][i], label=f'{bias}')
+
+            a.legend()
+            a.set_xlabel('SA FB DAC (V)')
+            a.set_ylabel('SA OUT (mV)')
+
+            bestBias = curves['biasOut']
+            bestPeak = curves['bestPeak']
+
+            a.text(0, 0, f'Best Bias = {bestBias}, Peak = {bestPeak}')
+
+        return self._fig

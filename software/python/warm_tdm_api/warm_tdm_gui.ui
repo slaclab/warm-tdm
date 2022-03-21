@@ -23,7 +23,7 @@
       <string/>
      </property>
      <property name="currentIndex">
-      <number>6</number>
+      <number>1</number>
      </property>
      <property name="alarmChannels">
       <stringlist>
@@ -635,23 +635,18 @@ p, li { white-space: pre-wrap; }
         </widget>
        </item>
        <item>
-        <widget class="PyDMWaveformPlot" name="PyDMWaveformPlot">
+        <widget class="Plotter" name="Plotter">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
          <property name="toolTip">
           <string/>
          </property>
-         <property name="curves">
-          <stringlist>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[0]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[1]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;red&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[2]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;dodgerblue&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[3]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;forestgreen&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[4]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;yellow&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[5]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;magenta&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[6]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;turquoise&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[7]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;deeppink&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[8]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;lime&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[9]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;orange&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-          </stringlist>
+         <property name="channel" stdset="0">
+          <string>rogue://0/GroupRoot.Group.SaTuneProcess.Plot</string>
          </property>
         </widget>
        </item>
@@ -1033,6 +1028,12 @@ p, li { white-space: pre-wrap; }
       <layout class="QVBoxLayout" name="verticalLayout_5">
        <item>
         <widget class="Process" name="Process_2">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
          <property name="toolTip">
           <string/>
          </property>
@@ -1042,21 +1043,12 @@ p, li { white-space: pre-wrap; }
         </widget>
        </item>
        <item>
-        <widget class="PyDMWaveformPlot" name="PyDMWaveformPlot_11">
+        <widget class="Plotter" name="Plotter_2">
          <property name="toolTip">
           <string/>
          </property>
-         <property name="curves">
-          <stringlist>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotYData[0]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotYData[1]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;red&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotYData[2]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;dodgerblue&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotYData[3]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;forestgreen&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotYData[4]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;yellow&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotYData[5]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;magenta&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotYData[6]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;turquoise&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotYData[7]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;deeppink&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-          </stringlist>
+         <property name="channel" stdset="0">
+          <string>rogue://0/GroupRoot.Group.SaOffsetSweepProcess.Plot</string>
          </property>
         </widget>
        </item>
@@ -1119,6 +1111,11 @@ p, li { white-space: pre-wrap; }
    <extends>PyDMFrame</extends>
    <header>pyrogue.pydm.widgets.data_writer</header>
    <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>Plotter</class>
+   <extends>PyDMFrame</extends>
+   <header>pyrogue.pydm.widgets.plot</header>
   </customwidget>
   <customwidget>
    <class>PyRogueLineEdit</class>

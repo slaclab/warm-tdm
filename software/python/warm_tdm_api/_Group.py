@@ -101,6 +101,31 @@ class RowTuneIndexVariable(GroupLinkVariable):
         with self.parent.root.updateGroup():
             return self._value
 
+class Amplifier(object):
+    def __init__(self):
+
+        self.Rbias = 15e3
+        self.Roff = 4.22e3
+        self.Rgain = 100
+        self.Rfb = 1.1e3
+        self.Rcable = 200
+
+        self.Gbias = 1.0/self.Rbias
+        self.Goff = 1.0/self.Roff
+        self.Ggain = 1.0/self.Rgain
+        self.Gfb = 1.0/self.Rfb
+
+        self.G2 = 11
+        self.G3 = 1.5
+
+    def Vout(self, Vin, Voff):
+        return self.Rfb * (Vin*(self.Ggain + self.Goff + self.Gfb) - Voff*self.Goff) * self.G2 *self.G3
+
+    def Vin(self, Vout, Voffset):
+        return ((Vout/(self.G2*self.G3)) * self.Gfb + Voffset * self.Goff) / (self.Ggain + self.Goff + self.Gfb)
+
+    def SaOut(self, Vout, Vbias, Voffset):
+        return self.Vin(Vout, Voffset) * (self.Rcable/self.Rbias + 1) - Vbias * (self.Rcable/self.Rbias)
 
 
 class SaOutVariable(GroupLinkVariable):
@@ -392,15 +417,6 @@ class Group(pr.Device):
             size=len(self._config.columnMap),
             variable = self.SaOutAdc))
 
-        # Remove amplifier gain
-        self.add(pr.LinkVariable(
-            name='SaOut',
-            description='Current ADC value in mV for each column. Total length = ColumnBoards * 8.'
-                        'Values can be accessed as a full array or as single values using an index key.',
-            dependencies = [self.SaOutAdc],
-            units = 'mV',
-            disp = '{:0.06f}',
-            linkedGet = lambda index, read: 1e3 * self.SaOutAdc.get(index=index, read=read)/200))
 
         self.add(GroupLinkVariable(
             name='SaBias',
@@ -415,6 +431,30 @@ class Group(pr.Device):
                         'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SaBiasOffset.Offset[m.channel]
                             for m in self._config.columnMap]))
+
+        # Remove amplifier gain and bias
+        amp = Amplifier()
+        def _saOutGet(*, read, index, check):
+            adc = self.SaOutAdc.get(read=read, index=index, check=check)
+            bias= self.SaBias.get(read=read, index=index, check=check)
+            offset = self.SaOffset.get(read=read, index=index, check=check)
+            if index == -1:
+                return np.array([amp.SaOut(a, b, o) * 1e3 for a, b, o in zip(adc, bias, offset)])
+            else:
+                return amp.SaOut(adc, bias, offset) * 1e3               
+
+            
+        self.add(pr.LinkVariable(
+            name='SaOut',
+            description='Current SA_OUT value in mV for each column before amplifier gain, bias and offset applied.'
+            'Total length = ColumnBoards * 8. '
+            'Values can be accessed as a full array or as single values using an index key.',
+            dependencies = [self.SaOutAdc, self.SaBias, self.SaOffset],
+            mode = 'RO',
+            units = 'mV',
+            disp = '{:0.06f}',
+            linkedGet = _saOutGet))
+        
 
         self.add(FastDacVariable(
             name='SaFb',
