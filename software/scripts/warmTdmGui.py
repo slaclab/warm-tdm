@@ -80,9 +80,15 @@ config = warm_tdm_api.GroupConfig(rowBoards=groups[0]['rowBoards'],
                                   host=groups[0]['host'],
                                   rowOrder=None)
 
+# root = warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=args.emulate, plots=args.plots)
+# root.start()
+# #pyrogue.waitCntrlC()
+
 with warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=args.emulate, plots=args.plots) as root:
 
     if args.docs != '':
         root.genDocuments(path=args.docs,incGroups=['DocApi'],excGroups=['NoDoc','Enable','Hardware'])
 
     pyrogue.pydm.runPyDM(root=root,title='Warm TDM',sizeX=2000,sizeY=2000,ui=warm_tdm_api.pydmUi)
+
+    pyrogue.waitCntrlC()
