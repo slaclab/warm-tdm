@@ -95,9 +95,9 @@ architecture rtl of TimingTx is
    end record RegType;
 
    constant REG_INIT_C : RegType := (
-      xbarDataSel       => ite(RING_ADDR_0_G, "11", "00"),
-      xbarClkSel        => ite(RING_ADDR_0_G, "11", "00"),
-      xbarMgtSel        => "01",
+      xbarDataSel       => "10", -- ite(RING_ADDR_0_G, "11", "00"), -- Temporary loopback only
+      xbarClkSel        => "10", -- ite(RING_ADDR_0_G, "11", "00"),
+      xbarMgtSel        => "10", -- "01",
       runMode           => SOFTWARE_C,
       softwareRowStrobe => '0',
       rowPeriod         => toSlv(256, 16),  -- 125 MHz / 256 = 488 kHz
