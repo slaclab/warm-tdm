@@ -452,11 +452,11 @@ begin
 
       signal ampInP : real := 0.0;
 
-      variable biasCurrent : real := 0.0;
-      variable fbCurrent   : real := 0.0;
-      variable amplitude   : real := 0.0;
+      shared variable biasCurrent : real := 0.0;
+      shared variable fbCurrent   : real := 0.0;
+      shared variable amplitude   : real := 0.0;
    begin
-      biasCurrent := vBias(i) / (R_BIAS_C + R_CABLE_C);
+      --biasCurrent := vBias(i) / (R_BIAS_C + R_CABLE_C);
 
       --saSig(i) <= A * sin(fbCurrent * PHI_NOT_C/ (2 * MATH_PI);             -- for now
 
