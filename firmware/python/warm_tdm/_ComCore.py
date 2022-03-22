@@ -25,18 +25,18 @@ class PgpCore(pr.Device):
             hidden = True,
             offset = 0x0001000))
 
-        self.add(surf.protocols.pgp.Pgp2bAxi(
-            name = 'Pgp2bAxi[1]',
-            offset=0x00002000,
-            writeEn = False,
-            errorCountBits=16))
+#         self.add(surf.protocols.pgp.Pgp2bAxi(
+#             name = 'Pgp2bAxi[1]',
+#             offset=0x00002000,
+#             writeEn = False,
+#             errorCountBits=16))
 
-        #GTX
-        self.add(surf.xilinx.Gtxe2Channel(
-            name = 'Gtxe2Channel[1]',
-            enabled = False,
-            hidden = True,
-            offset = 0x0003000))
+#         #GTX
+#         self.add(surf.xilinx.Gtxe2Channel(
+#             name = 'Gtxe2Channel[1]',
+#             enabled = False,
+#             hidden = True,
+#             offset = 0x0003000))
         
 
 class EthCore(pr.Device):

@@ -279,81 +279,81 @@ begin
 
       end process PGP_RX_CTRL;
 
-      Pgp2bGtx7VarLat_Inst_1 : entity surf.Pgp2bGtx7VarLat
-         generic map (
-            TPD_G                 => TPD_G,
-            SIM_GTRESET_SPEEDUP_G => "TRUE",
-            SIM_VERSION_G         => "4.0",
-            -- CPLL Configurations
-            TX_PLL_G              => "CPLL",
-            RX_PLL_G              => "CPLL",
-            CPLL_FBDIV_G          => GTX_CFG_C.CPLL_FBDIV_G,
-            CPLL_FBDIV_45_G       => GTX_CFG_C.CPLL_FBDIV_45_G,
-            CPLL_REFCLK_DIV_G     => GTX_CFG_C.CPLL_REFCLK_DIV_G,
-            RXOUT_DIV_G           => GTX_CFG_C.OUT_DIV_G,
-            TXOUT_DIV_G           => GTX_CFG_C.OUT_DIV_G,
-            RX_CLK25_DIV_G        => GTX_CFG_C.CLK25_DIV_G,
-            TX_CLK25_DIV_G        => GTX_CFG_C.CLK25_DIV_G,
-            -- MGT Configurations
-            RX_OS_CFG_G           => "0000010000000",        --RX_OS_CFG_G,
-            RXCDR_CFG_G           => X"03000023ff10100020",  -- RXCDR_CFG_G,
-            RXDFEXYDEN_G          => '1',                    --RXDFEXYDEN_G,
-            PMA_RSV_G             => x"00018480",
-            RX_DFE_KL_CFG2_G      => X"301148AC",
-            -- VC Configuration
-            VC_INTERLEAVE_G       => 1,
-            PAYLOAD_CNT_TOP_G     => 7,
-            NUM_VC_EN_G           => 1)
-         port map (
-            -- GT Clocking
-            stableClk        => fabRefClk,
-            gtCPllRefClk     => gtRefClk,
-            gtCPllLock       => open,
-            gtQPllRefClk     => '0',
-            gtQPllClk        => '0',
-            gtQPllLock       => '1',
-            gtQPllRefClkLost => '0',
-            gtQPllReset      => open,
-            -- GT Serial IO
-            gtTxP            => pgpTxP(1),
-            gtTxN            => pgpTxN(1),
-            gtRxP            => pgpRxP(1),
-            gtRxN            => pgpRxN(1),
-            -- Tx Clocking
-            pgpTxReset       => pgpRst,
-            pgpTxRecClk      => open,
-            pgpTxClk         => pgpClk,
-            pgpTxMmcmReset   => open,
-            pgpTxMmcmLocked  => '1',
-            -- Rx clocking
-            pgpRxReset       => pgpRst,
-            pgpRxRecClk      => open,
-            pgpRxClk         => pgpClk,
-            pgpRxMmcmReset   => open,
-            pgpRxMmcmLocked  => '1',
-            -- Non VC TX Signals
-            pgpTxIn          => pgpTxIn(1),
-            pgpTxOut         => pgpTxOut(1),
-            -- Non VC RX Signals
-            pgpRxIn          => pgpRxIn(1),
-            pgpRxOut         => pgpRxOut(1),
-            -- Frame TX Interface
-            pgpTxMasters     => (others => AXI_STREAM_MASTER_INIT_C),
-            pgpTxSlaves      => open,
-            -- Frame RX Interface
-            pgpRxMasters     => open,
-            pgpRxCtrl        => (others => AXI_STREAM_CTRL_UNUSED_C),
-            -- Debug Interface
---             txPreCursor      => txPreCursor,
---             txPostCursor     => txPostCursor,
---             txDiffCtrl       => txDiffCtrl,
-            -- AXI-Lite Interface
-            axilClk          => iAxiClk,
-            axilRst          => iAxiRst,
-            axilReadMaster   => locAxilReadMasters(AXIL_GTX_1_C),
-            axilReadSlave    => locAxilReadSlaves(AXIL_GTX_1_C),
-            axilWriteMaster  => locAxilWriteMasters(AXIL_GTX_1_C),
-            axilWriteSlave   => locAxilWriteSlaves(AXIL_GTX_1_C));
+--       Pgp2bGtx7VarLat_Inst_1 : entity surf.Pgp2bGtx7VarLat
+--          generic map (
+--             TPD_G                 => TPD_G,
+--             SIM_GTRESET_SPEEDUP_G => "TRUE",
+--             SIM_VERSION_G         => "4.0",
+--             -- CPLL Configurations
+--             TX_PLL_G              => "CPLL",
+--             RX_PLL_G              => "CPLL",
+--             CPLL_FBDIV_G          => GTX_CFG_C.CPLL_FBDIV_G,
+--             CPLL_FBDIV_45_G       => GTX_CFG_C.CPLL_FBDIV_45_G,
+--             CPLL_REFCLK_DIV_G     => GTX_CFG_C.CPLL_REFCLK_DIV_G,
+--             RXOUT_DIV_G           => GTX_CFG_C.OUT_DIV_G,
+--             TXOUT_DIV_G           => GTX_CFG_C.OUT_DIV_G,
+--             RX_CLK25_DIV_G        => GTX_CFG_C.CLK25_DIV_G,
+--             TX_CLK25_DIV_G        => GTX_CFG_C.CLK25_DIV_G,
+--             -- MGT Configurations
+--             RX_OS_CFG_G           => "0000010000000",        --RX_OS_CFG_G,
+--             RXCDR_CFG_G           => X"03000023ff10100020",  -- RXCDR_CFG_G,
+--             RXDFEXYDEN_G          => '1',                    --RXDFEXYDEN_G,
+--             PMA_RSV_G             => x"00018480",
+--             RX_DFE_KL_CFG2_G      => X"301148AC",
+--             -- VC Configuration
+--             VC_INTERLEAVE_G       => 1,
+--             PAYLOAD_CNT_TOP_G     => 7,
+--             NUM_VC_EN_G           => 1)
+--          port map (
+--             -- GT Clocking
+--             stableClk        => fabRefClk,
+--             gtCPllRefClk     => gtRefClk,
+--             gtCPllLock       => open,
+--             gtQPllRefClk     => '0',
+--             gtQPllClk        => '0',
+--             gtQPllLock       => '1',
+--             gtQPllRefClkLost => '0',
+--             gtQPllReset      => open,
+--             -- GT Serial IO
+--             gtTxP            => pgpTxP(1),
+--             gtTxN            => pgpTxN(1),
+--             gtRxP            => pgpRxP(1),
+--             gtRxN            => pgpRxN(1),
+--             -- Tx Clocking
+--             pgpTxReset       => pgpRst,
+--             pgpTxRecClk      => open,
+--             pgpTxClk         => pgpClk,
+--             pgpTxMmcmReset   => open,
+--             pgpTxMmcmLocked  => '1',
+--             -- Rx clocking
+--             pgpRxReset       => pgpRst,
+--             pgpRxRecClk      => open,
+--             pgpRxClk         => pgpClk,
+--             pgpRxMmcmReset   => open,
+--             pgpRxMmcmLocked  => '1',
+--             -- Non VC TX Signals
+--             pgpTxIn          => pgpTxIn(1),
+--             pgpTxOut         => pgpTxOut(1),
+--             -- Non VC RX Signals
+--             pgpRxIn          => pgpRxIn(1),
+--             pgpRxOut         => pgpRxOut(1),
+--             -- Frame TX Interface
+--             pgpTxMasters     => (others => AXI_STREAM_MASTER_INIT_C),
+--             pgpTxSlaves      => open,
+--             -- Frame RX Interface
+--             pgpRxMasters     => open,
+--             pgpRxCtrl        => (others => AXI_STREAM_CTRL_UNUSED_C),
+--             -- Debug Interface
+-- --             txPreCursor      => txPreCursor,
+-- --             txPostCursor     => txPostCursor,
+-- --             txDiffCtrl       => txDiffCtrl,
+--             -- AXI-Lite Interface
+--             axilClk          => iAxiClk,
+--             axilRst          => iAxiRst,
+--             axilReadMaster   => locAxilReadMasters(AXIL_GTX_1_C),
+--             axilReadSlave    => locAxilReadSlaves(AXIL_GTX_1_C),
+--             axilWriteMaster  => locAxilWriteMasters(AXIL_GTX_1_C),
+--             axilWriteSlave   => locAxilWriteSlaves(AXIL_GTX_1_C));
 
    end generate;
 
@@ -407,33 +407,33 @@ begin
          axilWriteMaster => locAxilWriteMasters(AXIL_PGP_0_C),  -- [in]
          axilWriteSlave  => locAxilWriteSlaves(AXIL_PGP_0_C));  -- [out]
 
-   U_Pgp2bAxi_1 : entity surf.Pgp2bAxi
-      generic map (
-         TPD_G             => TPD_G,
-         COMMON_TX_CLK_G   => false,
-         COMMON_RX_CLK_G   => false,
-         WRITE_EN_G        => true,
-         AXI_CLK_FREQ_G    => 125.0E6,
-         ERROR_CNT_WIDTH_G => 16)
-      port map (
-         pgpTxClk        => pgpClk,                             -- [in]
-         pgpTxClkRst     => pgpRst,                             -- [in]
-         pgpTxIn         => pgpTxIn(1),                         -- [out]
-         pgpTxOut        => pgpTxOut(1),                        -- [in]
-         locTxIn         => locPgpTxIn(1),                      -- [in]
-         pgpRxClk        => pgpClk,                             -- [in]
-         pgpRxClkRst     => pgpRst,                             -- [in]
-         pgpRxIn         => pgpRxIn(1),                         -- [out]
-         pgpRxOut        => pgpRxOut(1),                        -- [in]
---         locRxIn         => locRxIn,          -- [in]
---          statusWord      => statusWord,       -- [out]
---          statusSend      => statusSend,       -- [out]
-         axilClk         => iAxiClk,                            -- [in]
-         axilRst         => iAxiRst,                            -- [in]
-         axilReadMaster  => locAxilReadMasters(AXIL_PGP_1_C),   -- [in]
-         axilReadSlave   => locAxilReadSlaves(AXIL_PGP_1_C),    -- [out]
-         axilWriteMaster => locAxilWriteMasters(AXIL_PGP_1_C),  -- [in]
-         axilWriteSlave  => locAxilWriteSlaves(AXIL_PGP_1_C));  -- [out]
+--    U_Pgp2bAxi_1 : entity surf.Pgp2bAxi
+--       generic map (
+--          TPD_G             => TPD_G,
+--          COMMON_TX_CLK_G   => false,
+--          COMMON_RX_CLK_G   => false,
+--          WRITE_EN_G        => true,
+--          AXI_CLK_FREQ_G    => 125.0E6,
+--          ERROR_CNT_WIDTH_G => 16)
+--       port map (
+--          pgpTxClk        => pgpClk,                             -- [in]
+--          pgpTxClkRst     => pgpRst,                             -- [in]
+--          pgpTxIn         => pgpTxIn(1),                         -- [out]
+--          pgpTxOut        => pgpTxOut(1),                        -- [in]
+--          locTxIn         => locPgpTxIn(1),                      -- [in]
+--          pgpRxClk        => pgpClk,                             -- [in]
+--          pgpRxClkRst     => pgpRst,                             -- [in]
+--          pgpRxIn         => pgpRxIn(1),                         -- [out]
+--          pgpRxOut        => pgpRxOut(1),                        -- [in]
+-- --         locRxIn         => locRxIn,          -- [in]
+-- --          statusWord      => statusWord,       -- [out]
+-- --          statusSend      => statusSend,       -- [out]
+--          axilClk         => iAxiClk,                            -- [in]
+--          axilRst         => iAxiRst,                            -- [in]
+--          axilReadMaster  => locAxilReadMasters(AXIL_PGP_1_C),   -- [in]
+--          axilReadSlave   => locAxilReadSlaves(AXIL_PGP_1_C),    -- [out]
+--          axilWriteMaster => locAxilWriteMasters(AXIL_PGP_1_C),  -- [in]
+--          axilWriteSlave  => locAxilWriteSlaves(AXIL_PGP_1_C));  -- [out]
 
 
 
