@@ -435,7 +435,7 @@ begin
 
    GEN_AMPLIFIER : for i in 7 downto 0 generate
       constant R_BIAS_C   : real := 15.0e3;
-      constant R_OFFSET_C : real := 4.7e3;
+      constant R_OFFSET_C : real := 4.22e3;
       constant R_GAIN_C   : real := 100.0;
       constant R_FB_C     : real := 1.1e3;
       constant R_CABLE_C  : real := 200.0;
@@ -448,16 +448,23 @@ begin
       constant G2_C : real := 11.0;
       constant G3_C : real := 1.5;
 
-      signal ampInP : real := 0.0;
-   begin
+      constant PHI_NOT_C : real := 15.0e-6;  -- 15 uA
 
-      saSig(i) <= noise(i);             -- for now
+      signal ampInP : real := 0.0;
+
+      variable biasCurrent : real := 0.0;
+      variable fbCurrent   : real := 0.0;
+      variable amplitude   : real := 0.0;
+   begin
+      biasCurrent := vBias(i) / (R_BIAS_C + R_CABLE_C);
+
+      --saSig(i) <= A * sin(fbCurrent * PHI_NOT_C/ (2 * MATH_PI);             -- for now
 
       -- board has accidental plarity inversion, hence the (-)1.5
       ampInP <= vBias(i) * R_CABLE_C/(R_BIAS_C+R_CABLE_C);
 
-      adcVin(i) <= R_FB_C * (ampInP * (G_GAIN_C + G_OFFSET_C + G_FB_C) - (vOffset(i) * G_OFFSET_C)) * G2_C * G3_C * -1.0
-                   
+      adcVin(i) <= R_FB_C * (ampInP * (G_GAIN_C + G_OFFSET_C + G_FB_C) - (vOffset(i) * G_OFFSET_C)) * G2_C * G3_C * (-1.0);
+
       --adcVin(i) <= 0.080044 * (vBias(i)-1.08288*(vOffset(i)-138.621*saSig(i))) * 11 * (-1.5);
 
    end generate;
