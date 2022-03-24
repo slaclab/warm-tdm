@@ -165,6 +165,9 @@ class FastDacVariable(GroupLinkVariable):
     def __init__(self, config, **kwargs):
 
         self._config = config
+        if 'hidden' not in kwargs:
+            kwargs['hidden'] = True
+            
         super().__init__(**kwargs)
 
     def _set(self, value, index, write):
@@ -402,20 +405,7 @@ class Group(pr.Device):
         # Column board acces variables
         #####################################
 
-        self.add(SaOutVariable(
-            name='SaOutAdc',
-            description='Current ADC value in Volts for each column. Total length = ColumnBoards * 8.'
-                        'Values can be accessed as a full array or as single values using an index key.',
-            units='V',
-            config=self._config,
-            dependencies = [self.HardwareGroup.ColumnBoard[m.board].DataPath.WaveformCapture.AdcAverage
-                            for m in self._config.columnMap]))
 
-        self.add(ArrayVariableDevice(
-            name='SaOutAdcDev',
-            groups='NoDoc',
-            size=len(self._config.columnMap),
-            variable = self.SaOutAdc))
 
 
         self.add(GroupLinkVariable(
@@ -432,10 +422,27 @@ class Group(pr.Device):
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SaBiasOffset.Offset[m.channel]
                             for m in self._config.columnMap]))
 
+        self.add(SaOutVariable(
+            name='SaOutAdc',
+            description='Current ADC value in Volts for each column. Total length = ColumnBoards * 8.'
+                        'Values can be accessed as a full array or as single values using an index key.',
+            units='V',
+            config=self._config,
+            dependencies = [self.HardwareGroup.ColumnBoard[m.board].DataPath.WaveformCapture.AdcAverage
+                            for m in self._config.columnMap]))
+
+        self.add(ArrayVariableDevice(
+            name='SaOutAdcDev',
+            groups='NoDoc',
+            size=len(self._config.columnMap),
+            variable = self.SaOutAdc))
+        
+
         # Remove amplifier gain and bias
         amp = Amplifier()
         def _saOutGet(*, read, index, check):
             adc = self.SaOutAdc.get(read=read, index=index, check=check)
+            return 1.0e3*adc/200
             bias= self.SaBias.get(read=read, index=index, check=check)
             offset = self.SaOffset.get(read=read, index=index, check=check)
             if index == -1:
