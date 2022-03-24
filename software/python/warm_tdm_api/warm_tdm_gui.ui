@@ -13,6 +13,10 @@
   <property name="windowTitle">
    <string>Warm TDM Gui</string>
   </property>
+  <property name="styleSheet">
+   <string notr="true">*[dirty='true']{background-color: orange;}
+</string>
+  </property>
   <layout class="QVBoxLayout" name="verticalLayout_2">
    <item>
     <widget class="PyDMTabWidget" name="PyDMTabWidget">
