@@ -2,6 +2,7 @@ import pyrogue as pr
 import warm_tdm
 import warm_tdm_api
 import numpy as np
+import dataclasses
 
 class ArrayVariableDevice(pr.Device):
     def __init__(self, *, variable, size, **kwargs):
@@ -167,7 +168,7 @@ class FastDacVariable(GroupLinkVariable):
         self._config = config
         if 'hidden' not in kwargs:
             kwargs['hidden'] = True
-            
+
         super().__init__(**kwargs)
 
     def _set(self, value, index, write):
@@ -302,7 +303,7 @@ class Group(pr.Device):
                         'Values can be accessed as a full array or as single values using an index key.'
                         'Each value is a PhysicalMap object containg board and channel attributes.'
                         'Total length = RowBoards * 32.',
-            localGet=lambda: self._config.rowMap,
+            localGet=lambda: [dataclasses.asdict(m) for m in self._config.rowMap],
             mode='RO',
             typeStr='PhysicalMap[]',
             hidden=True))
@@ -313,7 +314,7 @@ class Group(pr.Device):
                         'Values can be accessed as a full array or as single values using an index key.'
                         'Each value is a PhysicalMap object containg board and channel attributes.'
                         'Total length = ColumnBoards * 8.',
-            localGet=lambda: self._config.columnMap,
+            localGet=lambda: [dataclasses.asdict(d) for d in self._config.columnMap],
             mode='RO',
             typeStr='PhysicalMap[]',
             hidden=True))
@@ -436,7 +437,7 @@ class Group(pr.Device):
             groups='NoDoc',
             size=len(self._config.columnMap),
             variable = self.SaOutAdc))
-        
+
 
         # Remove amplifier gain and bias
         amp = Amplifier()
@@ -448,9 +449,9 @@ class Group(pr.Device):
             if index == -1:
                 return np.array([amp.SaOut(a, b, o) * 1e3 for a, b, o in zip(adc, bias, offset)])
             else:
-                return amp.SaOut(adc, bias, offset) * 1e3               
+                return amp.SaOut(adc, bias, offset) * 1e3
 
-            
+
         self.add(pr.LinkVariable(
             name='SaOut',
             description='Current SA_OUT value in mV for each column before amplifier gain, bias and offset applied.'
@@ -461,7 +462,7 @@ class Group(pr.Device):
             units = 'mV',
             disp = '{:0.06f}',
             linkedGet = _saOutGet))
-        
+
 
         self.add(FastDacVariable(
             name='SaFb',
