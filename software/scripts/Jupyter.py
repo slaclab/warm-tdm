@@ -124,6 +124,36 @@ def getSaOut(channel=-1):
 
 def getSaOutAdc(channel=-1):
     print(group.SaOutAdc.get(index=channel))
+
+def test(biasHigh, biasLow, biasSteps):
+    print('Capturing Waveforms')
+    wc = group.HardwareGroup.ColumnBoard[0].DataPath.WaveformCapture
+    wcr = group.HardwareGroup.WaveformCaptureReceiver
+    wc.AllChannels.set(True)
+    wc.SelectedChannel.set(0)
+    wc.CaptureWaveform()
+    time.sleep(2)
+
+    print('Running Offset Sweep')
+    group.SaOffsetSweepProcess.Start()
+    time.sleep(1)
+    while group.SaOffsetSweepProcess.Running.get():
+        time.sleep(1)
+
+    print('Running SA Tune')
+    group.SaTuneProcess.SaBiasLowOffset.set(biasLow)
+    group.SaTuneProcess.SaBiasHighOffset.set(biasHigh)
+    group.SaTuneProcess.SaBiasNumSteps.set(biasSteps)
+    group.SaTuneProcess.Start()
+
+    time.sleep(1)
+    while group.SaTuneProcess.Running.get():
+        time.sleep(1)
+
+    wcr.HistogramPlot.get()
+    wcr.PeriodogramPlot.get()
+    group.SaOffsetSweepProcess.Plot.get()
+    group.SaTuneProcess.Plot.get()
     
 #os.system("python -m pyrogue gui --server='localhost:9099' &")
 

@@ -29,7 +29,7 @@ class SaOffsetProcess(pr.Process):
 
         self.add(pr.LocalVariable(
             name='Kp',
-            value=-.25,
+            value=-.1,
             mode='RW',
             description="Proportional PID coefficient"))
 
@@ -54,7 +54,7 @@ class SaOffsetProcess(pr.Process):
 
         self.add(pr.LocalVariable(
             name='Timeout',
-            value=100.0,
+            value=1,
             units = 'Seconds',
             mode='RW',
             description="Timeout for PID convergance"))
@@ -91,7 +91,8 @@ class SaOffsetSweepProcess(pr.Process):
 
         self.columns = len(config.columnMap)
 
-        self._fig = None        
+        self._fig = plt.Figure()
+        self._ax = self._fig.add_subplot()        
 
         # Low offset for SA Bias Tuning
         self.add(pr.LocalVariable(name='SaBiasLow',
@@ -138,6 +139,9 @@ class SaOffsetSweepProcess(pr.Process):
         with self.root.updateGroup(.25):
             group = self.parent
 
+            startBias = group.SaBias.get()
+            startOffset = group.SaOffset.get()            
+
             low = self.SaBiasLow.get()
             high = self.SaBiasHigh.get()
             steps = self.SaBiasNumSteps.get()
@@ -152,9 +156,6 @@ class SaOffsetSweepProcess(pr.Process):
 
             for i, b in enumerate(biasRange):
                 saBias = mask * b
-
-                #print(f'Setting saBias - {saBias}')
-
                 group.SaBias.set(saBias)
 
                 try:
@@ -162,11 +163,7 @@ class SaOffsetSweepProcess(pr.Process):
                 except:
                     print('saOffset timed out')
 
-                offset = group.SaOffset.get()
-
-                #print(f'Got saOffset - {offset}')
-
-                curves[i] = offset
+                curves[i] = group.SaOffset.get()
 
                 self.Progress.set(i/steps)
                 if self._runEn is False:
@@ -177,20 +174,18 @@ class SaOffsetSweepProcess(pr.Process):
             for i in range(colCount):
                 self.PlotYData[i].set(curves[:, i])
 
-    def _plot(self, read):
-        
-        if self._fig is not None:
-            plt.close(self._fig)
+            # Set bias and offset back to where they were before the sweep
+            group.SaBias.set(startBias)
+            group.SaOffset.set(startOffset)
 
-        self._fig = plt.Figure()
-        ax = self._fig.add_subplot()
-
-        ax.set_xlabel('Bias Voltage')
-        ax.set_ylabel('Offset Voltage')
-        ax.set_title('Offset Sweep')
+    def _plot(self):
+        self._ax.clear()
+        self._ax.set_xlabel('Bias Voltage')
+        self._ax.set_ylabel('Offset Voltage')
+        self._ax.set_title('Offset Sweep')
 
         for i in range(self.columns):
-            ax.plot(self.PlotXData.get(), self.PlotYData[i].get(read=read), label=f'Ch {i}')
+            self._ax.plot(self.PlotXData.value(), self.PlotYData[i].value(), label=f'Ch {i}')
 
-        ax.legend()
+        self._ax.legend()
         return self._fig

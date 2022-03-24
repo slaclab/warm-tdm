@@ -96,7 +96,7 @@ def saFbSweep(*, group, bias, saFbRange, pctLow, pctRange, process):
                 saFbArray[col] = saFbRange[col][idx]
 
         # large burst transaction of write data
-        print(f'Setting saFb = {saFbArray}')
+        #print(f'Setting saFb = {saFbArray}')
         group.SaFbForce.set(value=saFbArray)
 
         if process is not None:
@@ -146,8 +146,8 @@ def saBiasSweep(*, group, process):
 
         datalist.append(warm_tdm_api.CurveData(xvalues=saFbRange[col]))
 
-    print(f'Bias sweep - {saBiasRange}')
-    print(f'Fb sweep = {saFbRange}')
+    #print(f'Bias sweep - {saBiasRange}')
+    #print(f'Fb sweep = {saFbRange}')
     for idx in range(numBiasSteps):
 
         # Only set bias for enabled columns
@@ -155,7 +155,7 @@ def saBiasSweep(*, group, process):
             if (group.ColTuneEnable.value()[col]) == True:
                 bias[col] = saBiasRange[col][idx]
 
-        print(f'Setting bias - {bias}')
+        #print(f'Setting bias - {bias}')
         group.SaBias.set(bias)
         saOffset(group=group)
 
