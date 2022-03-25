@@ -9,12 +9,11 @@ class SaTuneProcess(pr.Process):
     def __init__(self, *, config, maxBiasSteps=10, **kwargs):
         self._maxBiasSteps=maxBiasSteps
 
-        plt.rcParams['figure.figsize'] = [20, 10]
-        self._single_fig = plt.Figure(tight_layout=True)
+        self._single_fig = plt.Figure(tight_layout=True, figsize=(20,10))
         self._single_ax = self._single_fig.add_subplot()
         self._single_fig.suptitle('SA FB (DAC V) vs. SA OUT (mV@ADC)')                
         
-        self._multi_fig = plt.Figure(tight_layout=True)
+        self._multi_fig = plt.Figure(tight_layout=True, figsize=(20, 20))
         self._multi_ax = self._multi_fig.subplots(4, 2, sharey=True)
         self._multi_fig.suptitle('SA FB (DAC V) vs. SA OUT (mV@ADC)')        
         

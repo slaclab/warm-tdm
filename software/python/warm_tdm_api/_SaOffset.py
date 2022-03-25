@@ -2,7 +2,6 @@ import pyrogue as pr
 import numpy as np
 
 import matplotlib.pyplot as plt
-import mpld3
 
 import warm_tdm_api
 
@@ -91,7 +90,7 @@ class SaOffsetSweepProcess(pr.Process):
 
         self.columns = len(config.columnMap)
 
-        self._fig = plt.Figure(tight_layout=True)
+        self._fig = plt.Figure(tight_layout=True, figsize=(20,10))
         self._ax = self._fig.add_subplot()        
 
         # Low offset for SA Bias Tuning
