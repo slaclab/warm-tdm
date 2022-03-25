@@ -300,7 +300,7 @@ class HistogramPlotter(object):
         ax.set_xlim(left[0], right[-1])
         ax.set_ylim(bottom.min(), top.max())
 
-        ax.text(0.1, 0.7, f'Ch {ch} - \u03C3: {rms:1.3f}', transform=ax.transAxes)
+        ax.text(0.1, 0.8, f'Ch {ch} \u03C3: {rms:1.3f}', transform=ax.transAxes)
         #ax.set_title(f'Channel {ch}')
 
         ax.set_xlabel('ADC counts')
@@ -315,7 +315,7 @@ class HistogramPlotter(object):
         ax.clear()
         ax.hist(adcs, bins, histtype='bar', density=True)
         ax.yaxis.set_ticklabels([])
-        ax.text(0.1, 0.7, f'Ch {ch} - \u03C3: {rms:1.3f}', transform=ax.transAxes)
+        ax.text(0.05, 0.8, f'\u03C3: {rms:1.3f}', transform=ax.transAxes)
 
         ax.xaxis.set_ticks_position('bottom')
         ax.yaxis.set_ticks_position('left')        
@@ -371,7 +371,7 @@ class PeriodogramPlotter(object):
         ax.loglog(freqs,[3 for _ in freqs],label='3 nV/rt.Hz',color='r', linestyle='dashed')
         #ax.legend()
 
-        ax.text(0.1, 0.5, f'Ch {ch}', transform=ax.transAxes)        
+        #ax.text(0.05, 0.8, f'Ch {ch}', transform=ax.transAxes)        
 
         ax.xaxis.set_ticks_position('bottom')
         ax.yaxis.set_ticks_position('left')        

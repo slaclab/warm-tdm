@@ -47,7 +47,7 @@ class SaOffsetProcess(pr.Process):
 
         self.add(pr.LocalVariable(
             name='Precision',
-            value=0.02,
+            value=0.001,
             mode='RW',
             description="Convergance precision"))
 
@@ -91,7 +91,7 @@ class SaOffsetSweepProcess(pr.Process):
 
         self.columns = len(config.columnMap)
 
-        self._fig = plt.Figure()
+        self._fig = plt.Figure(tight_layout=True)
         self._ax = self._fig.add_subplot()        
 
         # Low offset for SA Bias Tuning

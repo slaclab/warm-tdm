@@ -45,6 +45,7 @@ class CurveData():
         return {'xValues':np.array(self.xValues_,np.float32),
                 'biasValues':np.array([c.bias for c in self.curveList_],np.float32),
                 'curves':[np.array(c.points_,np.float32) for c in self.curveList_],
+                'peaks':np.array([c.peakheight for c in self.curveList_], np.float32),
                 'bestIndex' : self.bestIndex,
                 'bestPeak' : self.bestCurve.peakheight,
                 'biasOut':self.biasOut,

@@ -153,7 +153,7 @@ def test(biasHigh, biasLow, biasSteps):
     wcr.HistogramPlot.get()
     wcr.PeriodogramPlot.get()
     group.SaOffsetSweepProcess.Plot.get()
-    group.SaTuneProcess.Plot.get()
+    group.SaTuneProcess.PlotMulti.get()
     
 #os.system("python -m pyrogue gui --server='localhost:9099' &")
 

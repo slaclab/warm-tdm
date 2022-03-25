@@ -10,11 +10,13 @@ class SaTuneProcess(pr.Process):
         self._maxBiasSteps=maxBiasSteps
 
         plt.rcParams['figure.figsize'] = [20, 10]
-        self._single_fig = plt.Figure()
+        self._single_fig = plt.Figure(tight_layout=True)
         self._single_ax = self._single_fig.add_subplot()
+        self._single_fig.suptitle('SA FB (DAC V) vs. SA OUT (mV@ADC)')                
         
-        self._multi_fig = plt.Figure()
-        self._multi_ax = self._multi_fig.subplots(4, 2)
+        self._multi_fig = plt.Figure(tight_layout=True)
+        self._multi_ax = self._multi_fig.subplots(4, 2, sharey=True)
+        self._multi_fig.suptitle('SA FB (DAC V) vs. SA OUT (mV@ADC)')        
         
         self._columns = len(config.columnMap)
 
@@ -230,12 +232,26 @@ class SaTuneProcess(pr.Process):
         if arg != '':
             np.save(arg,self.SaTuneOutput.value())
 
+    def _plot_ax(self, ax, col, curves):
+        ax.clear()
+        for step, value in enumerate(curves['biasValues']):
+            linewidth = 1.0
+            if step == curves['bestIndex']:
+                linewidth = 2.0
+            peak = curves['peaks'][step]
+            label = f'{value:1.3f} - Peak: {peak:1.3f}'
+            ax.plot(curves['xValues'], curves['curves'][step], label=label, linewidth=linewidth)
+
+        ax.set_title(f'SA Tune, col {col}')
+        ax.legend(title='SA BIAS')
+        
+
     def _singlePlot(self, index=-1, read=False):
         print(f'_singlePlot(index={index}, read={read})')
 #        if self._single_fig is not None:
 #            plt.close(self._single_fig)
         tune = self.SaTuneOutput.value()
-
+        
         if tune == {}:
             return self._single_fig
 
@@ -243,14 +259,7 @@ class SaTuneProcess(pr.Process):
         if col == -1:
             col = self.PlotColumn.value()
 
-        self._single_ax.clear()
-        for b_step, b_value in enumerate(tune[col]['biasValues']):
-            self._single_ax.plot(tune[col]['xValues'], tune[col]['curves'][b_step], label=b_value)
-
-        self._single_ax.set_title(f'SA Tune, col {col}')
-        self._single_ax.legend(title='SA BIAS (V)')
-        self._single_ax.set_xlabel('SA FB DAC (V)')
-        self._single_ax.set_ylabel('SA OUT (mV)')
+        self._plot_ax(self._single_ax, col, tune[col])
 
         return self._single_fig
             
@@ -262,20 +271,8 @@ class SaTuneProcess(pr.Process):
             return self._multi_fig
 
         axes = self._multi_ax.reshape(8)
-        for ch, ax in enumerate(axes):
-            ax.clear()
-            curves = tune[ch]
-            for step, bias in enumerate(curves['biasValues']):
-                ax.plot(curves['xValues'], curves['curves'][step], label=bias)
+        for col, ax in enumerate(axes):
+            self._plot_ax(ax, col, tune[col])
 
-            ax.legend()
-            ax.set_xlabel('SA FB DAC (V)')
-            ax.set_ylabel('SA OUT (mV @ ADC)')
-
-            bestBias = curves['biasOut']
-            bestPeak = curves['bestPeak']
-
-            ax.text(0, .7, f'Best Bias = {bestBias}', transform=ax.transAxes)
-            ax.text(0, .6, f'Best Peak = {bestPeak}', transform=ax.transAxes)            
 
         return self._multi_fig
