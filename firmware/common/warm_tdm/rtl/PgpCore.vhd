@@ -186,83 +186,83 @@ begin
    axiClk <= iAxiClk;
    axiRst <= iAxiRst;
 
---    REAL_PGP_GEN : if (SIM_PORT_NUM_G = 0) generate
---       Pgp2bGtx7VarLat_Inst_0 : entity surf.Pgp2bGtx7VarLat
---          generic map (
---             TPD_G                 => TPD_G,
---             SIM_GTRESET_SPEEDUP_G => "TRUE",
---             SIM_VERSION_G         => "4.0",
---             -- CPLL Configurations
---             TX_PLL_G              => "CPLL",
---             RX_PLL_G              => "CPLL",
---             CPLL_FBDIV_G          => GTX_CFG_C.CPLL_FBDIV_G,
---             CPLL_FBDIV_45_G       => GTX_CFG_C.CPLL_FBDIV_45_G,
---             CPLL_REFCLK_DIV_G     => GTX_CFG_C.CPLL_REFCLK_DIV_G,
---             RXOUT_DIV_G           => GTX_CFG_C.OUT_DIV_G,
---             TXOUT_DIV_G           => GTX_CFG_C.OUT_DIV_G,
---             RX_CLK25_DIV_G        => GTX_CFG_C.CLK25_DIV_G,
---             TX_CLK25_DIV_G        => GTX_CFG_C.CLK25_DIV_G,
---             -- MGT Configurations
---             RX_OS_CFG_G           => "0000010000000",        --RX_OS_CFG_G,
---             RXCDR_CFG_G           => X"03000023FF10100020",  -- X"0000107FE106001041010",  --x"03000023ff10100020",  -- RXCDR_CFG_G,
+    REAL_PGP_GEN : if (false) generate --SIM_PORT_NUM_G = 0) generate
+      Pgp2bGtx7VarLat_Inst_0 : entity surf.Pgp2bGtx7VarLat
+         generic map (
+            TPD_G                 => TPD_G,
+            SIM_GTRESET_SPEEDUP_G => "TRUE",
+            SIM_VERSION_G         => "4.0",
+            -- CPLL Configurations
+            TX_PLL_G              => "CPLL",
+            RX_PLL_G              => "CPLL",
+            CPLL_FBDIV_G          => GTX_CFG_C.CPLL_FBDIV_G,
+            CPLL_FBDIV_45_G       => GTX_CFG_C.CPLL_FBDIV_45_G,
+            CPLL_REFCLK_DIV_G     => GTX_CFG_C.CPLL_REFCLK_DIV_G,
+            RXOUT_DIV_G           => GTX_CFG_C.OUT_DIV_G,
+            TXOUT_DIV_G           => GTX_CFG_C.OUT_DIV_G,
+            RX_CLK25_DIV_G        => GTX_CFG_C.CLK25_DIV_G,
+            TX_CLK25_DIV_G        => GTX_CFG_C.CLK25_DIV_G,
+            -- MGT Configurations
+            RX_OS_CFG_G           => "0000010000000",        --RX_OS_CFG_G,
+            RXCDR_CFG_G           => X"03000023FF10100020",  -- X"0000107FE106001041010",  --x"03000023ff10100020",  -- RXCDR_CFG_G,
 
---             RXDFEXYDEN_G      => '1',   --RXDFEXYDEN_G,
---             PMA_RSV_G         => x"00018480",
---             RX_DFE_KL_CFG2_G  => X"301148AC",
---             -- VC Configuration
---             VC_INTERLEAVE_G   => 1,
---             PAYLOAD_CNT_TOP_G => 7,
---             NUM_VC_EN_G       => 4)
---          port map (
---             -- GT Clocking
---             stableClk        => fabRefClk,
---             gtCPllRefClk     => gtRefClk,
---             gtCPllLock       => open,
---             gtQPllRefClk     => '0',
---             gtQPllClk        => '0',
---             gtQPllLock       => '1',
---             gtQPllRefClkLost => '0',
---             gtQPllReset      => open,
---             -- GT Serial IO
---             gtTxP            => pgpTxP(0),
---             gtTxN            => pgpTxN(0),
---             gtRxP            => pgpRxP(0),
---             gtRxN            => pgpRxN(0),
---             -- Tx Clocking
---             pgpTxReset       => pgpRst,
---             pgpTxRecClk      => open,
---             pgpTxClk         => pgpClk,
---             pgpTxMmcmReset   => open,
---             pgpTxMmcmLocked  => '1',
---             -- Rx clocking
---             pgpRxReset       => pgpRst,
---             pgpRxRecClk      => open,
---             pgpRxClk         => pgpClk,
---             pgpRxMmcmReset   => open,
---             pgpRxMmcmLocked  => '1',
---             -- Non VC TX Signals
---             pgpTxIn          => pgpTxIn(0),
---             pgpTxOut         => pgpTxOut(0),
---             -- Non VC RX Signals
---             pgpRxIn          => pgpRxIn(0),
---             pgpRxOut         => pgpRxOut(0),
---             -- Frame TX Interface
---             pgpTxMasters     => pgpTxMasters,
---             pgpTxSlaves      => pgpTxSlaves,
---             -- Frame RX Interface
---             pgpRxMasters     => pgpRxMasters,
---             pgpRxCtrl        => pgpRxCtrl,
---             -- Debug Interface
--- --             txPreCursor      => txPreCursor,
--- --             txPostCursor     => txPostCursor,
--- --             txDiffCtrl       => txDiffCtrl,
---             -- AXI-Lite Interface
---             axilClk          => iAxiClk,
---             axilRst          => iAxiRst,
---             axilReadMaster   => locAxilReadMasters(AXIL_GTX_0_C),
---             axilReadSlave    => locAxilReadSlaves(AXIL_GTX_0_C),
---             axilWriteMaster  => locAxilWriteMasters(AXIL_GTX_0_C),
---             axilWriteSlave   => locAxilWriteSlaves(AXIL_GTX_0_C));
+            RXDFEXYDEN_G      => '1',   --RXDFEXYDEN_G,
+            PMA_RSV_G         => x"00018480",
+            RX_DFE_KL_CFG2_G  => X"301148AC",
+            -- VC Configuration
+            VC_INTERLEAVE_G   => 1,
+            PAYLOAD_CNT_TOP_G => 7,
+            NUM_VC_EN_G       => 4)
+         port map (
+            -- GT Clocking
+            stableClk        => fabRefClk,
+            gtCPllRefClk     => gtRefClk,
+            gtCPllLock       => open,
+            gtQPllRefClk     => '0',
+            gtQPllClk        => '0',
+            gtQPllLock       => '1',
+            gtQPllRefClkLost => '0',
+            gtQPllReset      => open,
+            -- GT Serial IO
+            gtTxP            => pgpTxP(0),
+            gtTxN            => pgpTxN(0),
+            gtRxP            => pgpRxP(0),
+            gtRxN            => pgpRxN(0),
+            -- Tx Clocking
+            pgpTxReset       => pgpRst,
+            pgpTxRecClk      => open,
+            pgpTxClk         => pgpClk,
+            pgpTxMmcmReset   => open,
+            pgpTxMmcmLocked  => '1',
+            -- Rx clocking
+            pgpRxReset       => pgpRst,
+            pgpRxRecClk      => open,
+            pgpRxClk         => pgpClk,
+            pgpRxMmcmReset   => open,
+            pgpRxMmcmLocked  => '1',
+            -- Non VC TX Signals
+            pgpTxIn          => pgpTxIn(0),
+            pgpTxOut         => pgpTxOut(0),
+            -- Non VC RX Signals
+            pgpRxIn          => pgpRxIn(0),
+            pgpRxOut         => pgpRxOut(0),
+            -- Frame TX Interface
+            pgpTxMasters     => pgpTxMasters,
+            pgpTxSlaves      => pgpTxSlaves,
+            -- Frame RX Interface
+            pgpRxMasters     => pgpRxMasters,
+            pgpRxCtrl        => pgpRxCtrl,
+            -- Debug Interface
+--             txPreCursor      => txPreCursor,
+--             txPostCursor     => txPostCursor,
+--             txDiffCtrl       => txDiffCtrl,
+            -- AXI-Lite Interface
+            axilClk          => iAxiClk,
+            axilRst          => iAxiRst,
+            axilReadMaster   => locAxilReadMasters(AXIL_GTX_0_C),
+            axilReadSlave    => locAxilReadSlaves(AXIL_GTX_0_C),
+            axilWriteMaster  => locAxilWriteMasters(AXIL_GTX_0_C),
+            axilWriteSlave   => locAxilWriteSlaves(AXIL_GTX_0_C));
 
       PGP_RX_CTRL : process (locPgpRxCtrl, pgpRxOut) is
          variable tmp : AxiStreamCtrlArray(3 downto 0);
@@ -279,83 +279,83 @@ begin
 
       end process PGP_RX_CTRL;
 
---       Pgp2bGtx7VarLat_Inst_1 : entity surf.Pgp2bGtx7VarLat
---          generic map (
---             TPD_G                 => TPD_G,
---             SIM_GTRESET_SPEEDUP_G => "TRUE",
---             SIM_VERSION_G         => "4.0",
---             -- CPLL Configurations
---             TX_PLL_G              => "CPLL",
---             RX_PLL_G              => "CPLL",
---             CPLL_FBDIV_G          => GTX_CFG_C.CPLL_FBDIV_G,
---             CPLL_FBDIV_45_G       => GTX_CFG_C.CPLL_FBDIV_45_G,
---             CPLL_REFCLK_DIV_G     => GTX_CFG_C.CPLL_REFCLK_DIV_G,
---             RXOUT_DIV_G           => GTX_CFG_C.OUT_DIV_G,
---             TXOUT_DIV_G           => GTX_CFG_C.OUT_DIV_G,
---             RX_CLK25_DIV_G        => GTX_CFG_C.CLK25_DIV_G,
---             TX_CLK25_DIV_G        => GTX_CFG_C.CLK25_DIV_G,
---             -- MGT Configurations
---             RX_OS_CFG_G           => "0000010000000",        --RX_OS_CFG_G,
---             RXCDR_CFG_G           => X"03000023ff10100020",  -- RXCDR_CFG_G,
---             RXDFEXYDEN_G          => '1',                    --RXDFEXYDEN_G,
---             PMA_RSV_G             => x"00018480",
---             RX_DFE_KL_CFG2_G      => X"301148AC",
---             -- VC Configuration
---             VC_INTERLEAVE_G       => 1,
---             PAYLOAD_CNT_TOP_G     => 7,
---             NUM_VC_EN_G           => 1)
---          port map (
---             -- GT Clocking
---             stableClk        => fabRefClk,
---             gtCPllRefClk     => gtRefClk,
---             gtCPllLock       => open,
---             gtQPllRefClk     => '0',
---             gtQPllClk        => '0',
---             gtQPllLock       => '1',
---             gtQPllRefClkLost => '0',
---             gtQPllReset      => open,
---             -- GT Serial IO
---             gtTxP            => pgpTxP(1),
---             gtTxN            => pgpTxN(1),
---             gtRxP            => pgpRxP(1),
---             gtRxN            => pgpRxN(1),
---             -- Tx Clocking
---             pgpTxReset       => pgpRst,
---             pgpTxRecClk      => open,
---             pgpTxClk         => pgpClk,
---             pgpTxMmcmReset   => open,
---             pgpTxMmcmLocked  => '1',
---             -- Rx clocking
---             pgpRxReset       => pgpRst,
---             pgpRxRecClk      => open,
---             pgpRxClk         => pgpClk,
---             pgpRxMmcmReset   => open,
---             pgpRxMmcmLocked  => '1',
---             -- Non VC TX Signals
---             pgpTxIn          => pgpTxIn(1),
---             pgpTxOut         => pgpTxOut(1),
---             -- Non VC RX Signals
---             pgpRxIn          => pgpRxIn(1),
---             pgpRxOut         => pgpRxOut(1),
---             -- Frame TX Interface
---             pgpTxMasters     => (others => AXI_STREAM_MASTER_INIT_C),
---             pgpTxSlaves      => open,
---             -- Frame RX Interface
---             pgpRxMasters     => open,
---             pgpRxCtrl        => (others => AXI_STREAM_CTRL_UNUSED_C),
---             -- Debug Interface
--- --             txPreCursor      => txPreCursor,
--- --             txPostCursor     => txPostCursor,
--- --             txDiffCtrl       => txDiffCtrl,
---             -- AXI-Lite Interface
---             axilClk          => iAxiClk,
---             axilRst          => iAxiRst,
---             axilReadMaster   => locAxilReadMasters(AXIL_GTX_1_C),
---             axilReadSlave    => locAxilReadSlaves(AXIL_GTX_1_C),
---             axilWriteMaster  => locAxilWriteMasters(AXIL_GTX_1_C),
---             axilWriteSlave   => locAxilWriteSlaves(AXIL_GTX_1_C));
+      Pgp2bGtx7VarLat_Inst_1 : entity surf.Pgp2bGtx7VarLat
+         generic map (
+            TPD_G                 => TPD_G,
+            SIM_GTRESET_SPEEDUP_G => "TRUE",
+            SIM_VERSION_G         => "4.0",
+            -- CPLL Configurations
+            TX_PLL_G              => "CPLL",
+            RX_PLL_G              => "CPLL",
+            CPLL_FBDIV_G          => GTX_CFG_C.CPLL_FBDIV_G,
+            CPLL_FBDIV_45_G       => GTX_CFG_C.CPLL_FBDIV_45_G,
+            CPLL_REFCLK_DIV_G     => GTX_CFG_C.CPLL_REFCLK_DIV_G,
+            RXOUT_DIV_G           => GTX_CFG_C.OUT_DIV_G,
+            TXOUT_DIV_G           => GTX_CFG_C.OUT_DIV_G,
+            RX_CLK25_DIV_G        => GTX_CFG_C.CLK25_DIV_G,
+            TX_CLK25_DIV_G        => GTX_CFG_C.CLK25_DIV_G,
+            -- MGT Configurations
+            RX_OS_CFG_G           => "0000010000000",        --RX_OS_CFG_G,
+            RXCDR_CFG_G           => X"03000023ff10100020",  -- RXCDR_CFG_G,
+            RXDFEXYDEN_G          => '1',                    --RXDFEXYDEN_G,
+            PMA_RSV_G             => x"00018480",
+            RX_DFE_KL_CFG2_G      => X"301148AC",
+            -- VC Configuration
+            VC_INTERLEAVE_G       => 1,
+            PAYLOAD_CNT_TOP_G     => 7,
+            NUM_VC_EN_G           => 1)
+         port map (
+            -- GT Clocking
+            stableClk        => fabRefClk,
+            gtCPllRefClk     => gtRefClk,
+            gtCPllLock       => open,
+            gtQPllRefClk     => '0',
+            gtQPllClk        => '0',
+            gtQPllLock       => '1',
+            gtQPllRefClkLost => '0',
+            gtQPllReset      => open,
+            -- GT Serial IO
+            gtTxP            => pgpTxP(1),
+            gtTxN            => pgpTxN(1),
+            gtRxP            => pgpRxP(1),
+            gtRxN            => pgpRxN(1),
+            -- Tx Clocking
+            pgpTxReset       => pgpRst,
+            pgpTxRecClk      => open,
+            pgpTxClk         => pgpClk,
+            pgpTxMmcmReset   => open,
+            pgpTxMmcmLocked  => '1',
+            -- Rx clocking
+            pgpRxReset       => pgpRst,
+            pgpRxRecClk      => open,
+            pgpRxClk         => pgpClk,
+            pgpRxMmcmReset   => open,
+            pgpRxMmcmLocked  => '1',
+            -- Non VC TX Signals
+            pgpTxIn          => pgpTxIn(1),
+            pgpTxOut         => pgpTxOut(1),
+            -- Non VC RX Signals
+            pgpRxIn          => pgpRxIn(1),
+            pgpRxOut         => pgpRxOut(1),
+            -- Frame TX Interface
+            pgpTxMasters     => (others => AXI_STREAM_MASTER_INIT_C),
+            pgpTxSlaves      => open,
+            -- Frame RX Interface
+            pgpRxMasters     => open,
+            pgpRxCtrl        => (others => AXI_STREAM_CTRL_UNUSED_C),
+            -- Debug Interface
+--             txPreCursor      => txPreCursor,
+--             txPostCursor     => txPostCursor,
+--             txDiffCtrl       => txDiffCtrl,
+            -- AXI-Lite Interface
+            axilClk          => iAxiClk,
+            axilRst          => iAxiRst,
+            axilReadMaster   => locAxilReadMasters(AXIL_GTX_1_C),
+            axilReadSlave    => locAxilReadSlaves(AXIL_GTX_1_C),
+            axilWriteMaster  => locAxilWriteMasters(AXIL_GTX_1_C),
+            axilWriteSlave   => locAxilWriteSlaves(AXIL_GTX_1_C));
 
-   end generate;
+  end generate;
 
    SIM_GEN : if (SIM_PORT_NUM_G > 0) generate
 
