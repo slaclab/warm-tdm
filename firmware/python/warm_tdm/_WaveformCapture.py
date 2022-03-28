@@ -155,8 +155,9 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
         rogue.interfaces.stream.Slave.__init__(self)
         pr.Device.__init__(self, **kwargs)
         
-        self.hist_plotter = HistogramPlotter()
-        self.periodogram_plotter = PeriodogramPlotter()
+        #self.hist_plotter = HistogramPlotter()
+        #self.periodogram_plotter = PeriodogramPlotter()
+        self.multi_plotter = MultiPlotter()
 
         def _conv(adc):
             return adc/2**13
@@ -176,21 +177,27 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
             mode = 'RO'))
 
 
-        self.add(pr.LinkVariable(
-            name='HistogramPlot',
-            mode='RO',
-            dependencies = [self.RawData],
-            linkedGet = self._getHistPlot,
-            hidden=True))
+#         self.add(pr.LinkVariable(
+#             name='HistogramPlot',
+#             mode='RO',
+#             dependencies = [self.RawData],
+#             linkedGet = self._getHistPlot,
+#             hidden=True))
             
+#         self.add(pr.LinkVariable(
+#             name='PeriodogramPlot',
+#             mode='RO',
+#             hidden=True,
+#             dependencies = [self.RawData],
+#             linkedGet=self._getPeriodigramPlot))
+
+
         self.add(pr.LinkVariable(
-            name='PeriodogramPlot',
+            name='MultiPlot',
             mode='RO',
             hidden=True,
             dependencies = [self.RawData],
-            linkedGet=self._getPeriodigramPlot))
-
-
+            linkedGet=self._getMultiPlot))
 
 
 
@@ -258,10 +265,65 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
         self.periodogram_plotter.update(rawData['channel'], rawData['voltages'])
         print(f'_getPeriPlot(read={read}) - Done')                
         return self.periodogram_plotter.fig
+
+    def _getMultiPlot(self, read):
+        print(f'_getPeriPlot(read={read})')        
+        rawData = self.RawData.value()
+        if rawData == {}:
+            return self.multi_plotter.fig
+
+        self.multi_plotter.update(rawData['channel'], rawData['voltages'])
+        print(f'_getPeriPlot(read={read}) - Done')                
+        return self.multi_plotter.fig
+    
                  
 
             
+def plot_histogram_channel(ax, ch, adcs):
+    print(f'plot_histogram_channel(ch={ch})')    
+    mean = np.int32(adcs.mean())
+    low = np.int32(adcs.min())
+    high = np.int32(adcs.max())
+    bins = np.arange(low-10, high+10, 1)
+    rms = adcs.std()
 
+    ax.clear()
+    ax.hist(adcs, bins, histtype='bar', density=True)
+    ax.yaxis.set_ticklabels([])
+    ax.text(0.05, 0.8, f'\u03C3: {rms:1.3f}', transform=ax.transAxes)
+
+    ax.xaxis.set_ticks_position('bottom')
+    ax.yaxis.set_ticks_position('left')        
+    if ch == 7:
+        ax.set_xlabel('ADC counts')          
+
+def plot_psd_channel(self, ch, ax, voltages): 
+    print(f'plot_psd_channel(ch={ch})')
+
+    # Calculate the PSD
+    freq=125.e6 # 125MHz
+    mean_subtracted_TOD = voltages - np.mean(voltages)
+    freqs,Pxx_den=scipy.signal.periodogram(mean_subtracted_TOD,freq,scaling='density')
+    preamp_chain_gain=200.
+    pxx = 1e9*np.sqrt(Pxx_den)/preamp_chain_gain
+
+
+    # Plot the PSD
+    ax.clear()
+    ax.set_ylim(1e-3,100)
+    ax.loglog(freqs, pxx, label='PSD')
+    #ax.loglog(freqs,wiener(pxx,mysize=100),label='Wiener filtered PSD')
+    ax.loglog(freqs,[3 for _ in freqs],label='3 nV/rt.Hz',color='r', linestyle='dashed')
+    #ax.legend()
+
+    #ax.text(0.05, 0.8, f'Ch {ch}', transform=ax.transAxes)        
+
+    ax.xaxis.set_ticks_position('bottom')
+    ax.yaxis.set_ticks_position('left')        
+    if ch == 7:
+        ax.set_xlabel('Frequency (Hz)')
+    else:
+        ax.xaxis.set_ticklabels([])
         
 class HistogramPlotter(object):
 
@@ -271,11 +333,6 @@ class HistogramPlotter(object):
         self.ax = self.fig.subplots(8, sharey=True ) #, constrained_layout=True)
         self.fig.suptitle('ADC Histograms')
 
-        self.n = [None for x in range(8)]
-        self.b = [None for x in range(8)]
-        self.rms = [0.0 for x in range(0)]
-
-        #plt.show(block=False)
 
     def histogram(self, data):
         mean = np.int32(data.mean())
@@ -305,22 +362,7 @@ class HistogramPlotter(object):
 
         ax.set_xlabel('ADC counts')
 
-    def plot_histogram2(self, ax, ch, adcs):
-        mean = np.int32(adcs.mean())
-        low = np.int32(adcs.min())
-        high = np.int32(adcs.max())
-        bins = np.arange(low-10, high+10, 1)
-        rms = adcs.std()
-
-        ax.clear()
-        ax.hist(adcs, bins, histtype='bar', density=True)
-        ax.yaxis.set_ticklabels([])
-        ax.text(0.05, 0.8, f'\u03C3: {rms:1.3f}', transform=ax.transAxes)
-
-        ax.xaxis.set_ticks_position('bottom')
-        ax.yaxis.set_ticks_position('left')        
-        if ch == 7:
-            ax.set_xlabel('ADC counts')        
+      
 
     def update(self, channel, values):
         ax = self.ax.reshape(8)
@@ -334,7 +376,6 @@ class HistogramPlotter(object):
 
 
 
-
 class PeriodogramPlotter(object):
 
     def __init__(self):
@@ -343,51 +384,35 @@ class PeriodogramPlotter(object):
         self.ax = self.fig.subplots(8) #, sharex=True, sharey=True)
         self.fig.suptitle('PSD (nV/rt.Hz)')
 
-        self.freqs = [None for x in range(8)]
-        self.pxx = [None for x in range(8)]        
+        #self.freqs = [None for x in range(8)]
+        #self.pxx = [None for x in range(8)]        
 
         #plt.show(block=False)
-
-    def periodogram(self, data):
-        freq=125.e6 # 125MHz
-        mean_subtracted_TOD = data - np.mean(data)
-        freqs,Pxx_den=scipy.signal.periodogram(mean_subtracted_TOD,freq,scaling='density')
-
-        preamp_chain_gain=200.
-
-        Pxx_den = 1e9*np.sqrt(Pxx_den)/preamp_chain_gain
-
-        return (Pxx_den, freqs)
-        
-
-    def plot_periodogram(self, ch, ax, freqs, pxx):
-        print(f'plot_periodogram(ch={ch})')
-        ax.clear()
-
-        ax.set_ylim(1e-3,100)
-
-        ax.loglog(freqs, pxx, label='PSD')
-        #ax.loglog(freqs,wiener(pxx,mysize=100),label='Wiener filtered PSD')
-        ax.loglog(freqs,[3 for _ in freqs],label='3 nV/rt.Hz',color='r', linestyle='dashed')
-        #ax.legend()
-
-        #ax.text(0.05, 0.8, f'Ch {ch}', transform=ax.transAxes)        
-
-        ax.xaxis.set_ticks_position('bottom')
-        ax.yaxis.set_ticks_position('left')        
-        if ch == 7:
-            ax.set_xlabel('Frequency (Hz)')
-        else:
-            ax.xaxis.set_ticklabels([])
-        
         
 
     def update(self, channel, values):
         ax = self.ax.reshape(8)
         for ch, voltages in array_iter(channel, values):
-            self.pxx[ch], self.freqs[ch] = self.periodogram(voltages)
-            self.plot_periodogram(ch, ax[ch], self.freqs[ch], self.pxx[ch])
-
-        #self.fig.canvas.draw()
+            #self.pxx[ch], self.freqs[ch] = self.periodogram(voltages)
+            plot_psd_channel(ch, ax[ch], voltages) #self.freqs[ch], self.pxx[ch])
 
 
+
+class MultiPlotter(object):
+
+    def __init__(self):
+    
+        self.fig = plt.Figure(tight_layout=True, figsize=(10,10))
+        self.ax = self.fig.subplots(8, 2, sharey='col')
+        #self.fig.suptitle('PSD (nV/rt.Hz)')
+        self.fig.suptitle('Waveform Noise')
+
+    def update(self, channel, adcs, voltages):
+        # Do histograms
+        for ch, ch_adcs in array_iter(channel, adcs):
+            plot_histogram_channel(ch, self.ax[ch, 0], ch_adcs)
+
+        for ch, ch_adcs in array_iter(channel, voltages):
+            plot_psd_channel(ch, self.ax[ch, 1], ch_adcs)
+        
+    
