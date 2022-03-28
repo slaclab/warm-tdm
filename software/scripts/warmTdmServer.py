@@ -80,7 +80,7 @@ config = warm_tdm_api.GroupConfig(rowBoards=groups[0]['rowBoards'],
                                   host=groups[0]['host'],
                                   rowOrder=None)
 
-root = warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=args.emulate, plots=args.plots)
+root = warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=args.emulate, plots=args.plots, pollEn=False)
 root.start()
 #pyrogue.waitCntrlC()
 
