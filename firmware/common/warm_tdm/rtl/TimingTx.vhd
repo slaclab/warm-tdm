@@ -305,7 +305,7 @@ begin
          CLKOUT1_DIVIDE_G => 10)
       port map (
          clkIn     => timingRefClk,     -- [in]
-         rstIn     => '1', -- timingRefRst,     -- [in]
+         rstIn     => timingRefRst,     -- [in]
          clkOut(0) => bitClk,           -- [out]
          clkOut(1) => wordClk,          -- [out]         
          rstOut(0) => bitRst,           -- [out]
