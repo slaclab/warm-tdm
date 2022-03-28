@@ -98,4 +98,7 @@ class ColumnModule(pr.Device):
 
             self.SaBiasDac.ZeroVoltages()
             self.TesBiasDac.ZeroVoltages()
+
+    def initialize(self):
+        self.InitDacAdc()
             

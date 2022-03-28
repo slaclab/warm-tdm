@@ -272,14 +272,14 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
         if rawData == {}:
             return self.multi_plotter.fig
 
-        self.multi_plotter.update(rawData['channel'], rawData['voltages'])
+        self.multi_plotter.update(rawData['channel'], rawData['adcs'], rawData['voltages'])
         print(f'_getPeriPlot(read={read}) - Done')                
         return self.multi_plotter.fig
     
                  
 
             
-def plot_histogram_channel(ax, ch, adcs):
+def plot_histogram_channel(ch, ax, adcs):
     print(f'plot_histogram_channel(ch={ch})')    
     mean = np.int32(adcs.mean())
     low = np.int32(adcs.min())
@@ -295,9 +295,11 @@ def plot_histogram_channel(ax, ch, adcs):
     ax.xaxis.set_ticks_position('bottom')
     ax.yaxis.set_ticks_position('left')        
     if ch == 7:
-        ax.set_xlabel('ADC counts')          
+        ax.set_xlabel('ADC counts')
+    elif ch == 0:
+        ax.set_title('ADC histograms')
 
-def plot_psd_channel(self, ch, ax, voltages): 
+def plot_psd_channel(ch, ax, voltages): 
     print(f'plot_psd_channel(ch={ch})')
 
     # Calculate the PSD
@@ -322,6 +324,8 @@ def plot_psd_channel(self, ch, ax, voltages):
     ax.yaxis.set_ticks_position('left')        
     if ch == 7:
         ax.set_xlabel('Frequency (Hz)')
+    elif ch == 0:
+        ax.set_title('PSD (nV/rt.Hz)')
     else:
         ax.xaxis.set_ticklabels([])
         
@@ -402,10 +406,10 @@ class MultiPlotter(object):
 
     def __init__(self):
     
-        self.fig = plt.Figure(tight_layout=True, figsize=(10,10))
+        self.fig = plt.Figure(tight_layout=True, figsize=(20,20))
         self.ax = self.fig.subplots(8, 2, sharey='col')
         #self.fig.suptitle('PSD (nV/rt.Hz)')
-        self.fig.suptitle('Waveform Noise')
+
 
     def update(self, channel, adcs, voltages):
         # Do histograms
@@ -414,5 +418,7 @@ class MultiPlotter(object):
 
         for ch, ch_adcs in array_iter(channel, voltages):
             plot_psd_channel(ch, self.ax[ch, 1], ch_adcs)
+
+#        self.fig.suptitle('Waveform Noise')            
         
     

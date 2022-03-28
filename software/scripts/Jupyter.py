@@ -125,6 +125,45 @@ def getSaOut(channel=-1):
 def getSaOutAdc(channel=-1):
     print(group.SaOutAdc.get(index=channel))
 
+def setColTuneEnable(column, enable):
+    group.ColTuneEnable.set(index=columm, value=enable)
+
+def Waveforms():
+    wc = group.HardwareGroup.ColumnBoard[0].DataPath.WaveformCapture
+    wcr = group.HardwareGroup.WaveformCaptureReceiver
+    wc.AllChannels.set(True)
+    wc.SelectedChannel.set(0)
+    wc.CaptureWaveform()
+    time.sleep(2)
+
+    return wcr.MultiPlot.get()
+
+def SaTune(low=.4, high=.8, steps=5):
+    group.SaTuneProcess.SaBiasLowOffset.set(low)
+    group.SaTuneProcess.SaBiasHighOffset.set(high)
+    group.SaTuneProcess.SaBiasNumSteps.set(steps)
+    group.SaTuneProcess.Start()
+
+    time.sleep(1)
+    while group.SaTuneProcess.Running.get():
+        time.sleep(1)
+
+    return group.SaTuneProcess.PlotMulti.get()
+
+def OffsetSweep(low=0.0, high=2.499, steps=100):
+    group.SaOffsetSweepProcess.SaBiasLow.set(low)
+    group.SaOffsetSweepProcess.SaBiasHigh.set(high)
+    group.SaOffsetSweepProcess.SaBiasNumSteps.set(steps)
+    group.SaOffsetSweepProcess.Start()
+    
+    time.sleep(1)
+    while group.SaOffsetSweepProcess.Running.get():
+        time.sleep(1)
+
+    return group.SaOffsetSweepProcess.Plot.get()
+
+    
+
 def test(biasHigh, biasLow, biasSteps):
     print('Capturing Waveforms')
     wc = group.HardwareGroup.ColumnBoard[0].DataPath.WaveformCapture

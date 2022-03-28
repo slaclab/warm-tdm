@@ -11,11 +11,11 @@ class SaTuneProcess(pr.Process):
 
         self._single_fig = plt.Figure(tight_layout=True, figsize=(20,10))
         self._single_ax = self._single_fig.add_subplot()
-        self._single_fig.suptitle('SA FB (DAC V) vs. SA OUT (mV@ADC)')                
+        self._single_fig.suptitle('SA FB (DAC V) vs. SA OUT (V@ADC)')                
         
         self._multi_fig = plt.Figure(tight_layout=True, figsize=(20, 20))
         self._multi_ax = self._multi_fig.subplots(4, 2, sharey=True)
-        self._multi_fig.suptitle('SA FB (DAC V) vs. SA OUT (mV@ADC)')        
+        self._multi_fig.suptitle('SA FB (DAC V) vs. SA OUT (V@ADC)')        
         
         self._columns = len(config.columnMap)
 
@@ -241,7 +241,7 @@ class SaTuneProcess(pr.Process):
             label = f'{value:1.3f} - Peak: {peak:1.3f}'
             ax.plot(curves['xValues'], curves['curves'][step], label=label, linewidth=linewidth)
 
-        ax.set_title(f'SA Tune, col {col}')
+        ax.set_title(f'Channel {col}')
         ax.legend(title='SA BIAS')
         
 
