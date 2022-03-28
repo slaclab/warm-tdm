@@ -13,10 +13,6 @@
   <property name="windowTitle">
    <string>Warm TDM Gui</string>
   </property>
-  <property name="styleSheet">
-   <string notr="true">*[dirty='true']{background-color: orange;}
-</string>
-  </property>
   <layout class="QVBoxLayout" name="verticalLayout_2">
    <item>
     <widget class="PyDMTabWidget" name="PyDMTabWidget">
@@ -825,17 +821,7 @@ p, li { white-space: pre-wrap; }
             <string/>
            </property>
            <property name="channel" stdset="0">
-            <string>rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramPlot</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="Plotter" name="Plotter_4">
-           <property name="toolTip">
-            <string/>
-           </property>
-           <property name="channel" stdset="0">
-            <string>rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramPlot</string>
+            <string>rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.MultiPlot</string>
            </property>
           </widget>
          </item>
