@@ -1,0 +1,29 @@
+channels:
+  - tidair-packages
+  - conda-forge
+dependencies:
+  - python
+  - gcc_linux-64
+  - gxx_linux-64
+  - make
+  - git
+  - git-lfs
+  - ipython
+  - cmake
+  - pyyaml
+  - pyzmq
+  - parse
+  - click
+  - numpy
+  - pyqt
+  - boost
+  - bzip2
+  - zeromq
+  - sphinx
+  - sphinx_rtd_theme
+  - breathe
+  - pyserial
+  - p4p
+  - sqlalchemy
+  - pydm
+  - matplotlib
