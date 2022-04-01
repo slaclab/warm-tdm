@@ -1,6 +1,6 @@
 channels:
-  - tidair-packages
   - conda-forge
+  - tidair-dev
 dependencies:
   - python
   - gcc_linux-64
@@ -28,3 +28,5 @@ dependencies:
   - pydm
   - matplotlib
   - rogue
+  - jupyterlab
+  - simple-pid
