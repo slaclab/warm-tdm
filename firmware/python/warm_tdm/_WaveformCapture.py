@@ -157,18 +157,17 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
         
         #self.hist_plotter = HistogramPlotter()
         #self.periodogram_plotter = PeriodogramPlotter()
-        self.multi_plotter = MultiPlotter()
 
         def _conv(adc):
             return adc/2**13
 
         self.conv = np.vectorize(_conv)
 
-        self.add(pr.LocalVariable(
-            name = 'RawData',
-            value = {},
-            mode = 'RO',
-            hidden = True))
+#         self.add(pr.LocalVariable(
+#             name = 'RawData',
+#             value = {},
+#             mode = 'RO',
+#             hidden = True))
 
 
         self.add(pr.LocalVariable(
@@ -192,13 +191,10 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
 #             linkedGet=self._getPeriodigramPlot))
 
 
-        self.add(pr.LinkVariable(
+        self.add(MultiPlot(
             name='MultiPlot',
             mode='RO',
-            hidden=True,
-            dependencies = [self.RawData],
-            linkedGet=self._getMultiPlot))
-
+            hidden=True))
 
 
 
@@ -236,45 +232,47 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
 
         #print(adcs)
         #print(voltages)
-        self.RawData.set({
-            'channel': channel,
-            'decimation': decimation,
-            'adcs': adcs,
-            'voltages': voltages})
+#         self.RawData.set({
+#             'channel': channel,
+#             'decimation': decimation,
+#             'adcs': adcs,
+#             'voltages': voltages})
+
+        self.MultiPlot.set(value=adcs, index=channel)
 
 
         print('_acceptFrame() - done')
 
 
-    def _getHistPlot(self, read):
-        print(f'_getHistPlot(read={read})')
-        rawData = self.RawData.value()
-        if rawData == {}:
-            return self.hist_plotter.fig
+#     def _getHistPlot(self, read):
+#         print(f'_getHistPlot(read={read})')
+#         rawData = self.RawData.value()
+#         if rawData == {}:
+#             return self.hist_plotter.fig
 
-        self.hist_plotter.update(rawData['channel'], rawData['adcs'])
-        print(f'_getHistPlot(read={read}) - Done')        
-        return self.hist_plotter.fig
+#         self.hist_plotter.update(rawData['channel'], rawData['adcs'])
+#         print(f'_getHistPlot(read={read}) - Done')        
+#         return self.hist_plotter.fig
 
-    def _getPeriodigramPlot(self, read):
-        print(f'_getPeriPlot(read={read})')        
-        rawData = self.RawData.value()
-        if rawData == {}:
-            return self.periodogram_plotter.fig
+#     def _getPeriodigramPlot(self, read):
+#         print(f'_getPeriPlot(read={read})')        
+#         rawData = self.RawData.value()
+#         if rawData == {}:
+#             return self.periodogram_plotter.fig
 
-        self.periodogram_plotter.update(rawData['channel'], rawData['voltages'])
-        print(f'_getPeriPlot(read={read}) - Done')                
-        return self.periodogram_plotter.fig
+#         self.periodogram_plotter.update(rawData['channel'], rawData['voltages'])
+#         print(f'_getPeriPlot(read={read}) - Done')                
+#         return self.periodogram_plotter.fig
 
-    def _getMultiPlot(self, read):
-        print(f'_getPeriPlot(read={read})')        
-        rawData = self.RawData.value()
-        if rawData == {}:
-            return self.multi_plotter.fig
+#     def _getMultiPlot(self, read):
+#         print(f'_getPeriPlot(read={read})')        
+#         rawData = self.RawData.value()
+#         if rawData == {}:
+#             return self.multi_plotter.fig
 
-        self.multi_plotter.update(rawData['channel'], rawData['adcs'], rawData['voltages'])
-        print(f'_getPeriPlot(read={read}) - Done')                
-        return self.multi_plotter.fig
+#         self.multi_plotter.update(rawData['channel'], rawData['adcs'], rawData['voltages'])
+#         print(f'_getPeriPlot(read={read}) - Done')                
+#         return self.multi_plotter.fig
     
                  
 
@@ -402,22 +400,37 @@ class PeriodogramPlotter(object):
 
 
 
-class MultiPlotter(object):
+class MultiPlot(pr.BaseVariable):
 
-    def __init__(self):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
     
         self.fig = plt.Figure(tight_layout=True, figsize=(20,20))
         self.ax = self.fig.subplots(8, 2, sharey='col')
         #self.fig.suptitle('PSD (nV/rt.Hz)')
 
+        def _conv(adc):
+            return adc/2**13
 
-    def update(self, channel, adcs, voltages):
+        self.conv = np.vectorize(_conv)
+        
+
+    def set(self, value, index):
+        channel = index
+        adcs = value
+        voltages = self.conv(adcs)
+
         # Do histograms
         for ch, ch_adcs in array_iter(channel, adcs):
             plot_histogram_channel(ch, self.ax[ch, 0], ch_adcs)
 
         for ch, ch_adcs in array_iter(channel, voltages):
             plot_psd_channel(ch, self.ax[ch, 1], ch_adcs)
+
+        self._queueUpdate()
+
+    def get(self, read):
+        return self.fig
 
 #        self.fig.suptitle('Waveform Noise')            
         

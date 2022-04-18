@@ -4,18 +4,74 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 
+class SinglePlot(pr.LinkVariable):
+
+    def __init__(self, **kwargs):
+        super().__init__(
+            linkedGet=self.linkedGet,
+            **kwargs)
+
+        self._fig = plt.Figure(tight_layout=True, figsize=(20,10))
+        self._ax = self._fig.add_subplot()
+        self._fig.suptitle('SA FB (DAC V) vs. SA OUT (V@ADC)')
+
+    def _plot_ax(self, ax, col, curves):
+        ax.clear()
+        for step, value in enumerate(curves['biasValues']):
+            linewidth = 1.0
+            if step == curves['bestIndex']:
+                linewidth = 2.0
+            peak = curves['peaks'][step]
+            label = f'{value:1.3f} - Peak: {peak:1.3f}'
+            ax.plot(curves['xValues'], curves['curves'][step], label=label, linewidth=linewidth)
+
+        ax.set_title(f'Channel {col}')
+        ax.legend(title='SA BIAS')
+        
+
+    def linkedGet(self, index=-1, read=False):
+        tune = self.parent.SaTuneOutput.value()
+        
+        if tune == {}:
+            return self._fig
+
+        col = index
+        if col == -1:
+            col = self.PlotColumn.value()
+
+        self._plot_ax(self._ax, col, tune[col])
+
+        return self._fig
+
+class MultiPlot(SinglePlot):
+
+    def __init__(self, **kwargs):
+        pr.LinkVariable.__init__(
+            self,
+            linkedGet = self.linkedGet,
+            **kwargs)
+        
+        self._fig = plt.Figure(tight_layout=True, figsize=(20, 20))
+        self._ax = self._fig.subplots(4, 2, sharey=True)
+        self._fig.suptitle('SA FB (DAC V) vs. SA OUT (V@ADC)')
+
+    def linkedGet(self):
+        tune = self.parent.SaTuneOutput.value()
+
+        if tune == {}:
+            return self._fig
+
+        axes = self._ax.reshape(8)
+        for col, ax in enumerate(axes):
+            self._plot_ax(ax, col, tune[col])
+
+        return self._fig
+
+
 class SaTuneProcess(pr.Process):
 
     def __init__(self, *, config, maxBiasSteps=10, **kwargs):
-        self._maxBiasSteps=maxBiasSteps
-
-        self._single_fig = plt.Figure(tight_layout=True, figsize=(20,10))
-        self._single_ax = self._single_fig.add_subplot()
-        self._single_fig.suptitle('SA FB (DAC V) vs. SA OUT (V@ADC)')                
-        
-        self._multi_fig = plt.Figure(tight_layout=True, figsize=(20, 20))
-        self._multi_ax = self._multi_fig.subplots(4, 2, sharey=True)
-        self._multi_fig.suptitle('SA FB (DAC V) vs. SA OUT (V@ADC)')        
+        self._maxBiasSteps = maxBiasSteps
         
         self._columns = len(config.columnMap)
 
@@ -133,43 +189,18 @@ class SaTuneProcess(pr.Process):
                                  linkedGet=self._saOffsetGet,
                                  description="Fitted SaOffset value for the column selected via the PlotColumn variable above. "))
 
-#         self.add(pr.LinkVariable(name='PlotXData',
-#                                  mode='RO',
-#                                  hidden=True,
-#                                  dependencies=[self.PlotColumn,self.SaTuneOutput],
-#                                  linkedGet=self._plotXGet,
-#                                  description="X-Axis data for the column selected via the PlotColumn variable above. "))
+        self.add(SinglePlot(name='Plot',
+                            mode='RO',
+                            hidden=True,
+                            dependencies = [self.SaTuneOutput, self.PlotColumn],
+                            description = 'A matplotlib figure of a selected column'))
 
-#         for i in range(self._maxBiasSteps):
-#             self.add(pr.LinkVariable(name=f'PlotYData[{i}]',
-#                                      mode='RO',
-#                                      hidden=True,
-#                                      dependencies=[self.PlotColumn,self.SaTuneOutput],
-#                                      linkedGet=lambda i=i: self._plotYGet(i),
-#                                      description="Y-Axis data for each SaBias value for the column selected via the PlotColumn variable above. "))
-
-        self.add(pr.LinkVariable(name='Plot',
-                                 mode='RO',
-                                 hidden=True,
-                                 dependencies = [self.SaTuneOutput, self.PlotColumn],
-                                 linkedGet = self._singlePlot,
-                                 description = 'A matplotlib figure of all the curves'))
-
-        self.add(pr.LinkVariable(name='PlotMulti',
-                                 mode='RO',
-                                 hidden=True,
-                                 dependencies = [self.SaTuneOutput],
-                                 linkedGet = self._multiPlot,
-                                 description = 'A matplotlib figure of all the curves'))
+        self.add(MultiPlot(name='MultiPlot',
+                           mode='RO',
+                           hidden=True,
+                           dependencies = [self.SaTuneOutput],
+                           description = 'A matplotlib figure of all the curves'))
         
-
-        @self.command(hidden=True)
-        def AllPlots():
-            for i in range(self._columns):
-                self.PlotColumn.set(i)
-                time.sleep(.5)
-                self.Plot.get()
-                time.sleep(.5)
 
         self.add(pr.LocalCommand(name='SavePlotData',
                                  value='',
@@ -179,23 +210,6 @@ class SaTuneProcess(pr.Process):
         self.ReadDevice.addToGroup('NoDoc')
         self.WriteDevice.addToGroup('NoDoc')
 
-    def _plotXGet(self):
-        with self.root.updateGroup():
-            col = self.PlotColumn.value()
-
-            if col >= len(self.SaTuneOutput.value()):
-                return np.array([0.0])
-            else:
-                return self.SaTuneOutput.value()[col]['xValues']
-
-    def _plotYGet(self, index):
-        with self.root.updateGroup():
-            col = index #self.PlotColumn.value()
-
-            if col >= len(self.SaTuneOutput.value()) or i >= len(self.SaTuneOutput.value()[col]['curves']):
-                return np.array([0.0])
-            else:
-                return self.SaTuneOutput.value()[col]['curves'][i]
 
     def _saFbGet(self):
         with self.root.updateGroup():
@@ -231,47 +245,3 @@ class SaTuneProcess(pr.Process):
         if arg != '':
             np.save(arg,self.SaTuneOutput.value())
 
-    def _plot_ax(self, ax, col, curves):
-        ax.clear()
-        for step, value in enumerate(curves['biasValues']):
-            linewidth = 1.0
-            if step == curves['bestIndex']:
-                linewidth = 2.0
-            peak = curves['peaks'][step]
-            label = f'{value:1.3f} - Peak: {peak:1.3f}'
-            ax.plot(curves['xValues'], curves['curves'][step], label=label, linewidth=linewidth)
-
-        ax.set_title(f'Channel {col}')
-        ax.legend(title='SA BIAS')
-        
-
-    def _singlePlot(self, index=-1, read=False):
-        print(f'_singlePlot(index={index}, read={read})')
-#        if self._single_fig is not None:
-#            plt.close(self._single_fig)
-        tune = self.SaTuneOutput.value()
-        
-        if tune == {}:
-            return self._single_fig
-
-        col = index
-        if col == -1:
-            col = self.PlotColumn.value()
-
-        self._plot_ax(self._single_ax, col, tune[col])
-
-        return self._single_fig
-            
-
-    def _multiPlot(self):
-        tune = self.SaTuneOutput.value()
-
-        if tune == {}:
-            return self._multi_fig
-
-        axes = self._multi_ax.reshape(8)
-        for col, ax in enumerate(axes):
-            self._plot_ax(ax, col, tune[col])
-
-
-        return self._multi_fig
