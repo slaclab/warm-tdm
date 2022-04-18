@@ -34,6 +34,7 @@ entity WarmTdmCommon is
 
    generic (
       TPD_G            : time             := 1 ns;
+      SIMULATION_G     : boolean          := false;
       BUILD_INFO_G     : BuildInfoType;
       AXIL_BASE_ADDR_G : slv(31 downto 0) := (others => '0');
       AXIL_CLK_FREQ_G  : real             := 125.0E6);
@@ -91,8 +92,8 @@ architecture rtl of WarmTdmCommon is
          addrBits     => 16,
          connectivity => X"FFFF"),
       AXIL_EEPROM_C   => (
-         baseAddr     => AXIL_BASE_ADDR_G + X"00020000",
-         addrBits     => 16,
+         baseAddr     => AXIL_BASE_ADDR_G + X"00080000",
+         addrBits     => 19,
          connectivity => X"FFFF"));
 
    signal locAxilWriteMasters : AxiLiteWriteMasterArray(NUM_AXIL_MASTERS_C-1 downto 0);
@@ -261,8 +262,8 @@ begin
                dataSize   => 8,
                addrSize   => 8,
                endianness => '1')),
-         I2C_SCL_FREQ_G   => 100.0E+3,
-         I2C_MIN_PULSE_G  => 100.0E-9,
+         I2C_SCL_FREQ_G   => ite(SIMULATION_G, 2.0e6, 100.0E+3),
+         I2C_MIN_PULSE_G  => ite(SIMULATION_G, 50.0e-9, 100.0E-9),
          AXI_CLK_FREQ_G   => AXIL_CLK_FREQ_G)                --156.25E+6)
       port map (
          axiClk         => axilClk,                          -- [in]
@@ -291,8 +292,8 @@ begin
                dataSize   => 8,
                addrSize   => 8,
                endianness => '1')),
-         I2C_SCL_FREQ_G   => 100.0E+3,
-         I2C_MIN_PULSE_G  => 100.0E-9,
+         I2C_SCL_FREQ_G   => ite(SIMULATION_G, 2.0e6, 100.0E+3),
+         I2C_MIN_PULSE_G  => ite(SIMULATION_G, 50.0e-9, 100.0E-9),
          AXI_CLK_FREQ_G   => AXIL_CLK_FREQ_G)
       port map (
          axiClk         => axilClk,                             -- [in]

@@ -30,7 +30,7 @@ class WarmTdmCommon(pr.Device):
 
         self.add(surf.devices.microchip.Axi24LC64FT(
             enabled = False,
-            offset = 0x00020000))
+            offset = 0x00080000))
 
         self.add(warm_tdm.Ad5263(
-            offset = 0x00240000))
+            offset = 0x000C0000))

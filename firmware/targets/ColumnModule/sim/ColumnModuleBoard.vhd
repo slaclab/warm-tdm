@@ -337,6 +337,16 @@ begin
          i2cSda => promSda,             -- [inout]
          i2cScl => promScl);            -- [inout]
 
+   U_Ad5263_1 : entity warm_tdm.Ad5263
+      generic map (
+         TPD_G        => TPD_G,
+         RESISTANCE_G => 20.0e3,
+         ADDR_G       => "00")
+      port map (
+         sda => promSda,                -- [inout]
+         scl => promScl,                -- [inout]
+         w   => open);                  -- [out]
+
    -------------------------------------------------------------------------------------------------
    -- SA56004atk
    -------------------------------------------------------------------------------------------------
