@@ -36,7 +36,7 @@ entity WarmTdmCommon is
       TPD_G            : time             := 1 ns;
       BUILD_INFO_G     : BuildInfoType;
       AXIL_BASE_ADDR_G : slv(31 downto 0) := (others => '0');
-      AXIL_CLK_FREQ_G : real := 125.0E6);
+      AXIL_CLK_FREQ_G  : real             := 125.0E6);
 
    port (
       axilClk         : in  sl;
@@ -134,7 +134,7 @@ begin
       generic map (
          TPD_G           => TPD_G,
          BUILD_INFO_G    => BUILD_INFO_G,
-         CLK_PERIOD_G    => (1.0/AXIL_CLK_FREQ_G), --6.4E-9,
+         CLK_PERIOD_G    => (1.0/AXIL_CLK_FREQ_G),               --6.4E-9,
          XIL_DEVICE_G    => "7SERIES",
          EN_DEVICE_DNA_G => true,
          EN_DS2411_G     => false,
@@ -213,8 +213,8 @@ begin
    U_SpiProm : entity surf.AxiMicronN25QCore
       generic map (
          TPD_G          => TPD_G,
-         AXI_CLK_FREQ_G => AXIL_CLK_FREQ_G, --125.0E+6,
-         SPI_CLK_FREQ_G => (AXIL_CLK_FREQ_G/12)) --(125.0E+6/12.0))
+         AXI_CLK_FREQ_G => AXIL_CLK_FREQ_G,       --125.0E+6,
+         SPI_CLK_FREQ_G => (AXIL_CLK_FREQ_G/12))  --(125.0E+6/12.0))
       port map (
          -- FLASH Memory Ports
          csL            => bootCsL,
@@ -263,7 +263,7 @@ begin
                endianness => '1')),
          I2C_SCL_FREQ_G   => 100.0E+3,
          I2C_MIN_PULSE_G  => 100.0E-9,
-         AXI_CLK_FREQ_G   => AXIL_CLK_FREQ_G) --156.25E+6)
+         AXI_CLK_FREQ_G   => AXIL_CLK_FREQ_G)                --156.25E+6)
       port map (
          axiClk         => axilClk,                          -- [in]
          axiRst         => axilRst,                          -- [in]
@@ -285,8 +285,13 @@ begin
                i2cAddress => "1010000",
                dataSize   => 8,
                addrSize   => 16,
+               endianness => '1'),
+            1             => MakeI2cAxiLiteDevType(
+               i2cAddress => "0101100",
+               dataSize   => 8,
+               addrSize   => 8,
                endianness => '1')),
-         I2C_SCL_FREQ_G   => 400.0E+3,
+         I2C_SCL_FREQ_G   => 100.0E+3,
          I2C_MIN_PULSE_G  => 100.0E-9,
          AXI_CLK_FREQ_G   => AXIL_CLK_FREQ_G)
       port map (
