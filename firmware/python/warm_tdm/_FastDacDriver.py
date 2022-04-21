@@ -6,7 +6,7 @@ import warm_tdm
 
 class FastDacDriver(pr.Device):
 
-    def __init__(self, rows=64, rfsadj=4.02E3, dacLoad=49.9, ampGain=-4.7, **kwargs):
+    def __init__(self, rows=64, rfsadj=2.0E3, dacLoad=25.0, ampGain=-4.7, **kwargs):
         super().__init__(**kwargs)
 
         if rows == 0:
