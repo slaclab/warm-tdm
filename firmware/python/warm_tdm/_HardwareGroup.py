@@ -115,6 +115,6 @@ class HardwareGroup(pyrogue.Device):
         super().writeBlocks(**kwargs)
 
         #Then configure the row selects according to the ReadoutList
-        self.RowSelectArray.configure(self.ReadoutList.value())
+        #self.RowSelectArray.configure(self.ReadoutList.value())
 
 
