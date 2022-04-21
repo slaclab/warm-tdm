@@ -429,7 +429,7 @@ class MultiPlot(pr.BaseVariable):
 
         self._queueUpdate()
 
-    def get(self, read):
+    def get(self, read, index=-1):
         return self.fig
 
 #        self.fig.suptitle('Waveform Noise')            
