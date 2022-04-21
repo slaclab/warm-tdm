@@ -37,7 +37,7 @@ class SinglePlot(pr.LinkVariable):
 
         col = index
         if col == -1:
-            col = self.PlotColumn.value()
+            col = self.parent.PlotColumn.value()
 
         self._plot_ax(self._ax, col, tune[col])
 
