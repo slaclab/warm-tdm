@@ -30,8 +30,11 @@ class SaBiasOffset(pr.Device):
         @self.command()
         def SetAll(arg):
             for bias, offset in zip(self.Bias.values(), self.Offset.values()):
-                bias.set(arg)
-                offset.set(arg)
+                bias.set(arg, write=False)
+                offset.set(arg, write=False)
+
+            self.writeAndVerifyBlocks()
+            self._dac.writeAndVerifyBlocks()
 
 
 
