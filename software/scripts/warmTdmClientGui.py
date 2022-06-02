@@ -30,3 +30,4 @@ args = parser.parse_known_args()[0]
 
 pyrogue.pydm.runPyDM(serverList=args.server,title='Warm TDM',sizeX=2000,sizeY=2000,ui=warm_tdm_api.pydmUi)
 
+pyrogue.waitCntrlC()
