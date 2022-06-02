@@ -52,11 +52,11 @@ class SaOffsetProcess(pr.Process):
 
 
         self.add(pr.LocalVariable(
-            name='Timeout',
-            value=1,
-            units = 'Seconds',
+            name='MaxLoops',
+            value=100,
+#            units = 'Seconds',
             mode='RW',
-            description="Timeout for PID convergance"))
+            description="Max number of loops for PID convergance"))
 
 
         # FAS Tuning Results

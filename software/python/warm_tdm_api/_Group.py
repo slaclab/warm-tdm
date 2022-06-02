@@ -19,30 +19,35 @@ class ArrayVariableDevice(pr.Device):
 # Dependencies must be passed in Column order for generic
 # get and set functions to work.
 class GroupLinkVariable(pr.LinkVariable):
-    def __init__(self, groups='TopApi', disp='{:0.4f}', **kwargs):
+    def __init__(self, tuneEnVar=None, groups='TopApi', disp='{:0.4f}', **kwargs):
         super().__init__(
             linkedSet=self._set,
             linkedGet=self._get,
             groups=groups,
             disp=disp,
             **kwargs)
+        self.tuneEnVar = tuneEnVar
 
     # Set group values, index is column or row
     def _set(self, *, value, index, write):
         if len(self.dependencies) == 0:
             return
         # Dependencies represent the channel values in channel order
-        # So just use those references to do the set accesses
+        # So just use those references to do thtre set accesses
         with self.parent.root.updateGroup():
             if index != -1:
-                self.dependencies[index].set(value=value, write=write)
+                if self.tuneEnVar.get(index=index):
+                    self.dependencies[index].set(value=value, write=write)
             else:
-                for var, val in zip(self.dependencies, value):
-                    var.set(value=val, write=write)
+                for idx, (var, val) in enumerate(zip(self.dependencies, value)):
+                    if self.tuneEnVar is not None and self.tuneEnVar.get(index=idx):
+                        print(f'Setting {self.path}[{idx}] = {val}')                        
+                        var.set(value=val, write=False)
+
+                pr.writeAndVerifyBlocks(self.depBlocks)
 
     # Get group values, index is column or row
     def _get(self, *, index, read):
-        #print(f'{self.path}._get(index={index}, read={read}) - deps={self.dependencies}')
         if len(self.dependencies) == 0:
             return 0
         with self.parent.root.updateGroup():
@@ -51,9 +56,21 @@ class GroupLinkVariable(pr.LinkVariable):
             else:
                 ret = np.zeros(len(self.dependencies), np.float)
 
-                for idx, var in enumerate(self.dependencies):
-                    ret[idx] = var.get(read=read)
+                if read is True:
+                    # Read only enabled blocks
+                    for idx, var in enumerate(self.dependencies):
+                        if self.tuneEnVar.get(index=idx):
+                            var.get(read=True, check=False)
 
+                    # Wait for read transactions
+                    for b in self.depBlocks:
+                        pr.checkTransaction(b)
+
+                # Assign results to return variable
+                for idx, var in enumerate(self.dependencies):
+                    ret[idx] = var.get(read=False)
+
+                print(f'{self.path}.get() - {ret}')                            
                 return ret
 
 class RowTuneEnVariable(GroupLinkVariable):
@@ -140,6 +157,7 @@ class SaOutVariable(GroupLinkVariable):
             **kwargs)
 
     # Get SA Out value, index is column
+    # Each dep is an array variable of 8 channels for each board
     def _get(self, read, index):
         with self.parent.root.updateGroup():
             if index != -1:
@@ -368,6 +386,7 @@ class Group(pr.Device):
             typeStr='bool',
             groups='NoDoc',
             value=False,
+            tuneEnVar = self.RowTuneEnable,
             dependencies=[self.HardwareGroup.RowBoard[m.board].RowSelectArray.RowSelect[m.channel].Mode
                           for m in self._config.rowMap]))
 
@@ -381,6 +400,7 @@ class Group(pr.Device):
             typeStr='int',
             value=0,
             config=self._config,
+            tuneEnVar = self.RowTuneEnable,            
             dependencies=[self.HardwareGroup.RowBoard[m.board].RowSelectArray.RowSelect[m.channel].Active
                           for m in self._config.rowMap]))
 
@@ -391,7 +411,8 @@ class Group(pr.Device):
             description='FasFluxOff value for each row. Total length = RowBoards * 32.'
                         'Values can be accessed as a full array or as single values using an index key.',
             dependencies=[self.HardwareGroup.RowBoard[m.board].RowSelectArray.RowSelect[m.channel].OffValue
-                          for m in self._config.rowMap]))
+                          for m in self._config.rowMap],
+            tuneEnVar = self.RowTuneEnable))
 
         # FAS Flux on values, accessed with row index
         self.add(GroupLinkVariable(
@@ -399,7 +420,8 @@ class Group(pr.Device):
             description='FasFluxOn value for each row. Total length = RowBoards * 32.'
                         'Values can be accessed as a full array or as single values using an index key.',
             dependencies=[self.HardwareGroup.RowBoard[m.board].RowSelectArray.RowSelect[m.channel].OnValue
-                          for m in self._config.rowMap]))
+                          for m in self._config.rowMap],
+            tuneEnVar = self.RowTuneEnable))
 
 
         #####################################
@@ -414,14 +436,16 @@ class Group(pr.Device):
             description='SaBias value for each column. 1D array with total length = ColumnBoards * 8.'
                         'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SaBiasOffset.Bias[m.channel]
-                            for m in self._config.columnMap]))
+                            for m in self._config.columnMap],
+            tuneEnVar = self.ColTuneEnable))
 
         self.add(GroupLinkVariable(
             name='SaOffset',
             description='SaOffset value for each column. 1D array with total length = ColumnBoards * 8.'
                         'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SaBiasOffset.Offset[m.channel]
-                            for m in self._config.columnMap]))
+                            for m in self._config.columnMap],
+            tuneEnVar = self.ColTuneEnable))            
 
         self.add(SaOutVariable(
             name='SaOutAdc',
@@ -430,7 +454,8 @@ class Group(pr.Device):
             units='V',
             config=self._config,
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].DataPath.WaveformCapture.AdcAverage
-                            for m in self._config.columnMap]))
+                            for m in self._config.columnMap],
+            tuneEnVar = self.ColTuneEnable))
 
 #         self.add(ArrayVariableDevice(
 #             name='SaOutAdcDev',
@@ -478,7 +503,9 @@ class Group(pr.Device):
                          '1D array with total length ColumnBoards * 8.'
                          'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SAFb.Override[m.channel]
-                            for m in self._config.columnMap]))
+                            for m in self._config.columnMap],
+            tuneEnVar = self.ColTuneEnable))            
+
 
         self.add(FastDacVariable(
             name='Sq1Bias',
@@ -496,7 +523,8 @@ class Group(pr.Device):
                          '1D array with total length ColumnBoards * 8.'
                          'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SQ1Bias.Override[m.channel]
-                            for m in self._config.columnMap]))
+                            for m in self._config.columnMap],
+            tuneEnVar = self.ColTuneEnable))
 
         self.add(FastDacVariable(
             name='Sq1Fb',
@@ -513,7 +541,8 @@ class Group(pr.Device):
                          '1D array with total length ColumnBoards * 8.'
                          'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SQ1Fb.Override[m.channel]
-                            for m in self._config.columnMap]))
+                            for m in self._config.columnMap],
+            tuneEnVar = self.ColTuneEnable))
 
         self.add(GroupLinkVariable(
             name = 'TesBias',
@@ -521,7 +550,8 @@ class Group(pr.Device):
                          '1D array with total length ColumnBoards * 8.'
                          'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].TesBias.BiasCurrent[m.channel]
-                            for m in self._config.columnMap]))
+                            for m in self._config.columnMap],
+            tuneEnVar = self.ColTuneEnable))
 
         # FLL Enable value
         # Not yet implemented

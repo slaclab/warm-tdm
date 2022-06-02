@@ -16,7 +16,8 @@ def saOffset(*, group):
     ki = process.Ki.get()
     kd = process.Kd.get()
     precision = process.Precision.get()
-    timeout = process.Timeout.get()
+    maxLoops = process.MaxLoops.get()
+    colCount = len(group.ColumnMap.get())    
 
     # Setup PID controller
     pid = [PID(kp, ki, kd) for _ in range(len(group.ColumnMap.value()))]
@@ -26,13 +27,12 @@ def saOffset(*, group):
         p.output_limits = (-0.5, 0.5)
         p.sample_time = None
 
-    stime = time.time()
+    # Final output should be near SaBias, so start near there
+    # Start at half the current bias
+    control =  group.SaBias.get()/2.0 #np.zeros(len(group.ColumnMap.value()))
 
-    # Final output should be near SaBias, so start there.
-    # Start at 0 to avoid overflow.
-    control = np.zeros(len(group.ColumnMap.value()))# group.SaBias.get()
+    group.SaOffset.set(value=control)
 
-    group.SaOffset.set(control)
     current = group.SaOutAdc.get()
     masked = current
 #    print('Initial Values')
@@ -43,12 +43,8 @@ def saOffset(*, group):
     mult = np.array([1 if en else 0 for en in group.ColTuneEnable.value()],np.float32)
     count = 0
 
-    while True:
+    while count < maxLoops:
         count += 1
-
-        # Limit convergance to 1 minute
-        if (time.time() - stime) > timeout:
-            raise Exception(f"saOffset PID loop failed to converge after {timeout} seconds")
 
         current = group.SaOutAdc.get()
         masked = current * mult
@@ -64,7 +60,13 @@ def saOffset(*, group):
 
         group.SaOffset.set(control)
 
-    print(f'saOffset PID loop Converged after {count} loops')
+        if process._runEn is False:
+            return control
+
+    if count == maxLoops:
+        raise Exception(f"saOffset PID loop failed to converge after {maxLoops} loops")
+    else:
+        print(f'saOffset PID loop Converged after {count} loops')
 
     return control
 
@@ -90,25 +92,21 @@ def saFbSweep(*, group, bias, saFbRange, pctLow, pctRange, process):
     # Iterate through the steps
     for idx in range(numSteps):
 
-        # Setup data
-        for col in range(colCount):
-            if group.ColTuneEnable.value()[col] == True:
-                saFbArray[col] = saFbRange[col][idx]
-
-        # large burst transaction of write data
-        #print(f'Setting saFb = {saFbArray}')
-        group.SaFbForce.set(value=saFbArray)
-
         if process is not None:
-            process.Progress.set(pctLow + pctRange*(idx/numSteps))
+            process.Progress.set(pctLow + pctRange*((idx+1)/numSteps))
+
+        # Setup data
+        print(f'Writing SaFbForce values = {saFbRange[:, idx]}')
+        group.SaFbForce.set(saFbRange[:, idx])
 
         time.sleep(sleep)
-        points = group.HardwareGroup.ColumnBoard[0].DataPath.WaveformCapture.AdcAverage.get() #group.SaOut.get()
-
-#        print(f'saFb step {idx} - {saFbArray[5]} - {points[5]}')
+        points = group.SaOutAdc.get() #group.HardwareGroup.ColumnBoard[0].DataPath.WaveformCapture.AdcAverage.get() #group.SaOut.get()
+        
+        print(f'saFb step {idx} - {points}')
 
         for col in range(colCount):
             curves[col].addPoint(points[col])
+
 
     # Reset FB to zero after sweep
     group.SaFbForce.set(value=np.zeros(colCount, np.float))
@@ -125,11 +123,12 @@ def saBiasSweep(*, group, process):
     """
 
     datalist = []
-    saBiasRange = []
-    saFbRange = []
     colCount = len(group.ColumnMap.get())
     numBiasSteps = group.SaTuneProcess.SaBiasNumSteps.get()
     numFbSteps = group.SaTuneProcess.SaFbNumSteps.get()
+    saBiasRange = np.zeros((colCount, numBiasSteps), np.float64)
+    saFbRange = np.zeros((colCount, numFbSteps), np.float64)
+            
     pctRange = 1.0/numBiasSteps
 
     # Get current sabias values
@@ -138,11 +137,11 @@ def saBiasSweep(*, group, process):
     for col in range(colCount):
         low = group.SaTuneProcess.SaBiasLowOffset.get()
         high = group.SaTuneProcess.SaBiasHighOffset.get()
-        saBiasRange.append(np.linspace(low,high,numBiasSteps,endpoint=True))
+        saBiasRange[col] = np.linspace(low,high,numBiasSteps,endpoint=True)
 
         low = group.SaTuneProcess.SaFbLowOffset.get()
         high = group.SaTuneProcess.SaFbHighOffset.get()
-        saFbRange.append(np.linspace(low,high,numFbSteps,endpoint=True))
+        saFbRange[col] = np.linspace(low,high,numFbSteps,endpoint=True)
 
         datalist.append(warm_tdm_api.CurveData(xvalues=saFbRange[col]))
 
@@ -150,24 +149,25 @@ def saBiasSweep(*, group, process):
     #print(f'Fb sweep = {saFbRange}')
     for idx in range(numBiasSteps):
 
-        # Only set bias for enabled columns
-        for col in range(colCount):
-            if (group.ColTuneEnable.value()[col]) == True:
-                bias[col] = saBiasRange[col][idx]
+        # Update process message 
+        if process is not None:
+            process.Message.set(f'SaBias step {idx+1} out of {numBiasSteps}')
+        
 
-        #print(f'Setting bias - {bias}')
-        group.SaBias.set(bias)
+        # Only set bias for enabled columns
+        print(f'Setting SaBias values = {saBiasRange[:, idx]}')
+        group.SaBias.set(saBiasRange[:, idx])
         saOffset(group=group)
 
-        if process is not None:
-            process.Message.set(f'SaBias step {idx} out of {numBiasSteps}')
-            if process.Running.value() == False:
-                return datalist
-
-        curves = saFbSweep(group=group,bias=bias,saFbRange=saFbRange, pctLow=idx/numBiasSteps,pctRange=pctRange,process=process)
+        curves = saFbSweep(group=group,bias=saBiasRange[:, idx], saFbRange=saFbRange, pctLow=idx/numBiasSteps,pctRange=pctRange,process=process)
 
         for col in range(colCount):
             datalist[col].addCurve(curves[col])
+
+        # check for stopped process
+        if process is not None and process._runEn == False:
+            print('Process stopped, exiting saBiasSweep')
+            break
 
     for d in datalist:
         d.update()
