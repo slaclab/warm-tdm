@@ -147,10 +147,10 @@ begin
    -------------------------------------------------------------------------------------------------
    -- ADC Deserializers
    -------------------------------------------------------------------------------------------------
-   U_Ad9681Readout_1 : entity surf.Ad9681Readout
+   U_Ad9681Readout_1 : entity surf.Ad9681ReadoutManual
       generic map (
          TPD_G           => TPD_G,
-         SIMULATION_G    => SIMULATION_G,
+--         SIMULATION_G    => SIMULATION_G,
          DEFAULT_DELAY_G => 12,
          IODELAY_GROUP_G => IODELAY_GROUP_G,
          NEGATE_G        => true)
