@@ -12,7 +12,7 @@ class DataPath(pr.Device):
     def __init__(self, waveform_stream, **kwargs):
         super().__init__(**kwargs)
 
-        self.add(surf.devices.analog_devices.Ad9681ReadoutManual(
+        self.add(surf.devices.analog_devices.Ad9681Readout(
             enabled = True,
             name = 'Ad9681Readout',
             offset = 0x00000000))
