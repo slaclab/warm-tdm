@@ -96,6 +96,9 @@ class ColumnModule(pr.Device):
             self.Ad9681Config.InternalPdwnMode.setDisp('Digital Reset')
             self.Ad9681Config.InternalPdwnMode.setDisp('Chip Run')
 
+            self.DataPath.Ad9681Readout.Relock()
+            self.DataPath.Ad9681Readout.LostLockCountReset()            
+
             self.SaBiasDac.ZeroVoltages()
             self.TesBiasDac.ZeroVoltages()
 
