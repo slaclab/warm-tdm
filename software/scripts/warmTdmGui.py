@@ -40,17 +40,19 @@ parser.add_argument(
     "--ip",
     type     = str,
     required = False,
-    default = '192.168.3.12',
+    default = '192.168.3.11',
     help     = "IP address")
 
 parser.add_argument(
     "--rows",
     type     = int,
+    default  = 0,
     help     = "Number of row modules")
 
 parser.add_argument(
     "--cols",
     type     = int,
+    default  = 1,
     help     = "Number of column modules")
 
 parser.add_argument(
