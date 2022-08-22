@@ -41,7 +41,7 @@ class GroupLinkVariable(pr.LinkVariable):
             else:
                 for idx, (var, val) in enumerate(zip(self.dependencies, value)):
                     if self.tuneEnVar is not None and self.tuneEnVar.get(index=idx):
-                        print(f'Setting {self.path}[{idx}] = {val}')                        
+                        print(f'Setting {self.path}[{idx}] = {val}')
                         var.set(value=val, write=False)
 
                 pr.writeAndVerifyBlocks(self.depBlocks)
@@ -70,7 +70,7 @@ class GroupLinkVariable(pr.LinkVariable):
                 for idx, var in enumerate(self.dependencies):
                     ret[idx] = var.get(read=False)
 
-                print(f'{self.path}.get() - {ret}')                            
+                print(f'{self.path}.get() - {ret}')
                 return ret
 
 class RowTuneEnVariable(GroupLinkVariable):
@@ -119,31 +119,31 @@ class RowTuneIndexVariable(GroupLinkVariable):
         with self.parent.root.updateGroup():
             return self._value
 
-# class Amplifier(object):
-#     def __init__(self):
+class Amplifier(object):
+    def __init__(self):
 
-#         self.Rbias = 15e3
-#         self.Roff = 4.22e3
-#         self.Rgain = 100
-#         self.Rfb = 1.1e3
-#         self.Rcable = 200
+        self.Rbias = 15e3
+        self.Roff = 4.22e3
+        self.Rgain = 100
+        self.Rfb = 1.1e3
+        self.Rcable = 200
 
-#         self.Gbias = 1.0/self.Rbias
-#         self.Goff = 1.0/self.Roff
-#         self.Ggain = 1.0/self.Rgain
-#         self.Gfb = 1.0/self.Rfb
+        self.Gbias = 1.0/self.Rbias
+        self.Goff = 1.0/self.Roff
+        self.Ggain = 1.0/self.Rgain
+        self.Gfb = 1.0/self.Rfb
 
-#         self.G2 = 11
-#         self.G3 = 1.5
+        self.G2 = 11
+        self.G3 = 1.5
 
-#     def Vout(self, Vin, Voff):
-#         return self.Rfb * (Vin*(self.Ggain + self.Goff + self.Gfb) - Voff*self.Goff) * self.G2 *self.G3
+    def Vout(self, Vin, Voff):
+        return self.Rfb * (Vin*(self.Ggain + self.Goff + self.Gfb) - Voff*self.Goff) * self.G2 *self.G3
 
-#     def Vin(self, Vout, Voffset):
-#         return ((Vout/(self.G2*self.G3)) * self.Gfb + Voffset * self.Goff) / (self.Ggain + self.Goff + self.Gfb)
+    def Vin(self, Vout, Voffset):
+        return ((Vout/(self.G2*self.G3)) * self.Gfb + Voffset * self.Goff) / (self.Ggain + self.Goff + self.Gfb)
 
-#     def SaOut(self, Vout, Vbias, Voffset):
-#         return self.Vin(Vout, Voffset) * (self.Rcable/self.Rbias + 1) - Vbias * (self.Rcable/self.Rbias)
+    def SaOut(self, Vout, Vbias, Voffset):
+        return self.Vin(Vout, Voffset) * (self.Rcable/self.Rbias + 1) - Vbias * (self.Rcable/self.Rbias)
 
 
 class SaOutVariable(GroupLinkVariable):
@@ -400,7 +400,7 @@ class Group(pr.Device):
             typeStr='int',
             value=0,
             config=self._config,
-            tuneEnVar = self.RowTuneEnable,            
+            tuneEnVar = self.RowTuneEnable,
             dependencies=[self.HardwareGroup.RowBoard[m.board].RowSelectArray.RowSelect[m.channel].Active
                           for m in self._config.rowMap]))
 
@@ -445,7 +445,7 @@ class Group(pr.Device):
                         'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SaBiasOffset.Offset[m.channel]
                             for m in self._config.columnMap],
-            tuneEnVar = self.ColTuneEnable))            
+            tuneEnVar = self.ColTuneEnable))
 
         self.add(SaOutVariable(
             name='SaOutAdc',
@@ -465,16 +465,21 @@ class Group(pr.Device):
 
 
         # Remove amplifier gain and bias
-#        amp = Amplifier()
+        amp = Amplifier()
         def _saOutGet(*, read, index, check):
-            adc = self.SaOutAdc.get(read=read, index=index, check=check)
-            return 1.0e3*adc/200
-#             bias= self.SaBias.get(read=read, index=index, check=check)
-#             offset = self.SaOffset.get(read=read, index=index, check=check)
-#             if index == -1:
-#                 return np.array([amp.SaOut(a, b, o) * 1e3 for a, b, o in zip(adc, bias, offset)])
-#             else:
-#                 return amp.SaOut(adc, bias, offset) * 1e3               
+            print(f'_saOutGet({read=}, {index=}, {check=})')
+            with self.root.updateGroup():
+                print('SaOutAdc.get()')
+                adc = self.SaOutAdc.get(read=read, index=index, check=check)
+                #return 1.0e3*adc/200
+                print('SaBias.get()')
+                bias= self.SaBias.get(read=read, index=index, check=check)
+                print('SaOffset.get()')
+                offset = self.SaOffset.get(read=read, index=index, check=check)
+                if index == -1:
+                    return np.array([amp.SaOut(a, b, o) * 1e3 for a, b, o in zip(adc, bias, offset)])
+                else:
+                    return amp.SaOut(adc, bias, offset) * 1e3
 
         self.add(pr.LinkVariable(
             name='SaOut',
@@ -484,7 +489,7 @@ class Group(pr.Device):
             dependencies = [self.SaOutAdc, self.SaBias, self.SaOffset],
             mode = 'RO',
             units = 'mV',
-            disp = '{:0.06f}',
+            disp = '{:0.04f}',
             linkedGet = _saOutGet))
 
 
@@ -504,7 +509,7 @@ class Group(pr.Device):
                          'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SAFb.Override[m.channel]
                             for m in self._config.columnMap],
-            tuneEnVar = self.ColTuneEnable))            
+            tuneEnVar = self.ColTuneEnable))
 
 
         self.add(FastDacVariable(
@@ -593,4 +598,3 @@ class Group(pr.Device):
 
             #return self.HardwareGroup.ColumnBoard[0].FllEnable.get(read=read) # Does not exist yet
             return False
-
