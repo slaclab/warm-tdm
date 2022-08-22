@@ -13,7 +13,7 @@ class SinglePlot(pr.LinkVariable):
 
         self._fig = plt.Figure(tight_layout=True, figsize=(20,10))
         self._ax = self._fig.add_subplot()
-        self._fig.suptitle('SA FB (DAC V) vs. SA OUT (V@ADC)')
+        self._fig.suptitle('SA OUT (mV) vs. SA FB (DAC V)')
 
     def _plot_ax(self, ax, col, curves):
         ax.clear()
@@ -26,7 +26,7 @@ class SinglePlot(pr.LinkVariable):
             ax.plot(curves['xValues'], curves['curves'][step], label=label, linewidth=linewidth)
 
         ax.set_title(f'Channel {col}')
-        ax.legend(title='SA BIAS')
+        ax.legend(title='SA BIAS (V) - SA OUT P-P (mv)')
         
 
     def linkedGet(self, index=-1, read=False):
@@ -53,7 +53,7 @@ class MultiPlot(SinglePlot):
         
         self._fig = plt.Figure(tight_layout=True, figsize=(20, 20))
         self._ax = self._fig.subplots(4, 2, sharey=True)
-        self._fig.suptitle('SA FB (DAC V) vs. SA OUT (V@ADC)')
+        self._fig.suptitle('SA OUT (mV) vs. SA FB (DAC V)')
 
     def linkedGet(self):
         tune = self.parent.SaTuneOutput.value()
