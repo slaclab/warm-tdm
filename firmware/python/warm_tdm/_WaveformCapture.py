@@ -332,7 +332,7 @@ class HistogramPlotter(object):
     def __init__(self):
 
         self.fig = plt.Figure(tight_layout=True, figsize=(10,10))
-        self.ax = self.fig.subplots(8, sharey=True ) #, constrained_layout=True)
+        self.ax = self.fig.subplots(8, sharey=False ) #, constrained_layout=True)
         self.fig.suptitle('ADC Histograms')
 
 
@@ -406,7 +406,7 @@ class MultiPlot(pr.BaseVariable):
         super().__init__(**kwargs)
     
         self.fig = plt.Figure(tight_layout=True, figsize=(20,20))
-        self.ax = self.fig.subplots(8, 2, sharey='col')
+        self.ax = self.fig.subplots(8, 2, )#sharey='col')
         #self.fig.suptitle('PSD (nV/rt.Hz)')
 
         def _conv(adc):
