@@ -29,9 +29,10 @@ def saOffset(*, group):
 
     # Final output should be near SaBias, so start near there
     # Start at half the current bias
-    control =  group.SaBias.get()/2.0 #np.zeros(len(group.ColumnMap.value()))
+    control =  group.SaBias.get()/2.0  #np.zeros(len(group.ColumnMap.value()))
 
     group.SaOffset.set(value=control)
+
 
     current = group.SaOutAdc.get()
     masked = current
@@ -100,7 +101,7 @@ def saFbSweep(*, group, bias, saFbRange, pctLow, pctRange, process):
         group.SaFbForce.set(saFbRange[:, idx])
 
         time.sleep(sleep)
-        points = group.SaOutAdc.get() #group.HardwareGroup.ColumnBoard[0].DataPath.WaveformCapture.AdcAverage.get() #group.SaOut.get()
+        points = group.SaOut.get() #group.HardwareGroup.ColumnBoard[0].DataPath.WaveformCapture.AdcAverage.get() #group.SaOut.get()
         
         print(f'saFb step {idx} - {points}')
 
@@ -196,6 +197,8 @@ def saTune(*, group, process=None, doSet=True):
      representing a different bias.
     """
 #    group.Init()
+
+    time.sleep(5.0)
     group.RowTuneIndex.set(0)
     group.RowTuneEn.set(True)
     saBiasResults = saBiasSweep(group=group,process=process)
