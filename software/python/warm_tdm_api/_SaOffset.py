@@ -112,24 +112,33 @@ class SaOffsetSweepProcess(pr.Process):
                                   mode='RW',
                                   description="Number of steps for SA Bias Sweep"))
 
-        self.add(pr.LocalVariable(name='PlotXData',
-                                 description="X axis data for the SaOffset vs SaBias curve",
-                                 mode='RO',
-                                 hidden=True,
-                                 value = np.zeros(10)))
+        self.add(pr.LocalVariable(name='SaFbPoints',
+                                  value = [0.0, 0.15],
+                                  mode = 'RW'))
 
-        for i in range(self.columns):
-            self.add(pr.LocalVariable(name=f'PlotYData[{i}]',
-                                     description=f"Y axis data for the SaOffset vs SaBias curve, for column {i}.",
-                                     mode='RO',
-                                     hidden=True,
-                                     value = np.zeros(10)))
+        self.add(pr.LocalVariable(name='PlotXData',
+                                  description='X axis data',
+                                  mode='RO',
+                                  hidden=True,
+                                  value = np.zeros(10)))
+
+        self.add(pr.LocalVariable(name=f'PlotYData',
+                                  description=f'Y axis data',
+                                  mode='RO',
+                                  hidden=True,
+                                  value = np.zeros([10, 2, self.columns])))
+
+        self.add(pr.LocalVariable(name='PlotChannel',
+                                  value = 0,
+                                  minimum = 0,
+                                  maximum = self.columns,
+                                  mode = 'RW'))
 
         self.add(pr.LinkVariable(name='Plot',
                                  mode='RO',
                                  hidden=True,
                                  linkedGet = self._plot,
-                                 dependencies = [self.PlotYData[i] for i in range(self.columns)]))
+                                 dependencies = [self.PlotYData, self.PlotChannel]))
 
         self.ReadDevice.addToGroup('NoDoc')
         self.WriteDevice.addToGroup('NoDoc')
@@ -143,48 +152,62 @@ class SaOffsetSweepProcess(pr.Process):
 
             low = self.SaBiasLow.get()
             high = self.SaBiasHigh.get()
-            steps = self.SaBiasNumSteps.get()
+            biasSteps = self.SaBiasNumSteps.get()
             colCount = len(group.ColumnMap.get())
 
-            biasRange = np.linspace(low, high, steps, endpoint=True)
+            biasRange = np.linspace(low, high, biasSteps, endpoint=True)
 
-            curves = np.zeros((steps, colCount))
+            fbPoints = self.SaFbPoints.get()
+
+            curves = np.zeros((biasSteps, len(fbPoints), colCount))
 
             saBias = np.full(colCount, low)
             mask = np.array([1.0 if en else 0 for en in group.ColTuneEnable.value()])
 
-            for i, b in enumerate(biasRange):
-                saBias = mask * b
+            totalSteps = len(fbPoints) * biasRange.size            
+
+            for i, bias in enumerate(biasRange):
+                saBias = mask * bias
                 group.SaBias.set(saBias)
+                
+                
+                for j, fb in enumerate(fbPoints):
+                    saFb = mask * fb
+                    group.SaFbForce.set(saFb)
 
-                try:
-                    warm_tdm_api.saOffset(group=group)
-                except:
-                    print('saOffset timed out')
+                    try:
+                        warm_tdm_api.saOffset(group=group)
+                    except:
+                        print('saOffset timed out')
+                    
+                    #curves[i, j] = group.SaOut.get() #group.SaOffset.get()
+                    curves[i, j] = group.SaOffset.get()                    
 
-                curves[i] = group.SaOffset.get()
+                    self.Progress.set((i*biasSteps + j) / totalSteps)
+                    if self._runEn is False:
+                        self.Message.set('Stopped by user')
+                        return
 
-                self.Progress.set(i/steps)
-                if self._runEn is False:
-                    self.Message.set('Stopped by user')
-                    return
-
-            self.PlotXData.set(biasRange)
-            for i in range(colCount):
-                self.PlotYData[i].set(curves[:, i])
+            self.PlotXData.set(biasRange/15)
+            self.PlotYData.set(curves)
 
             # Set bias and offset back to where they were before the sweep
             group.SaBias.set(startBias)
             group.SaOffset.set(startOffset)
 
     def _plot(self):
+
+        xdata = self.PlotXData.value()
+        ydata = self.PlotYData.value()
+        chan = self.PlotChannel.value()
+
         self._ax.clear()
-        self._ax.set_xlabel('Bias Voltage')
-        self._ax.set_ylabel('Offset Voltage')
-        self._ax.set_title('Offset Sweep')
+        self._ax.set_xlabel('SA Bias Current (mA)')
+        self._ax.set_ylabel('SA Out Voltage (mV)')
+        self._ax.set_title(f'SA Bias Sweep - Channel {chan}')
 
-        for i in range(self.columns):
-            self._ax.plot(self.PlotXData.value(), self.PlotYData[i].value(), label=f'Ch {i}')
+        for i, fb in enumerate(self.SaFbPoints.value()):
+            self._ax.plot(xdata, ydata[:,i,chan], label=f'{fb}')
 
-        self._ax.legend()
+        self._ax.legend(title='SA FB (V)')
         return self._fig
