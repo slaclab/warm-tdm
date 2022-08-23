@@ -288,7 +288,8 @@ def plot_histogram_channel(ch, ax, adcs):
     ax.clear()
     ax.hist(adcs, bins, histtype='bar', density=True)
     ax.yaxis.set_ticklabels([])
-    ax.text(0.05, 0.8, f'\u03C3: {rms:1.3f}', transform=ax.transAxes)
+    ax.text(0.05, 0.8, f'\u03C3: {rms:1.3f}, pk-pk: {high-low} ADC', transform=ax.transAxes)
+    ax.text(0.05, 0.7, f'\u03C3: {(1.0e3*rms)/2**13:1.3f}, pk-pk: {(1.0e3*(high-low))/2**13} ADC', transform=ax.transAxes)    
 
     ax.xaxis.set_ticks_position('bottom')
     ax.yaxis.set_ticks_position('left')        
