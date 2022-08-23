@@ -520,6 +520,7 @@ begin
       constant G_OFFSET_C : real := 1.0/R_OFFSET_C;
       constant G_GAIN_C   : real := 1.0/R_GAIN_C;
       constant G_FB_C     : real := 1.0/R_FB_C;
+      constant G_CABLE_C : real := 1.0/R_CABLE_C;
 
       constant G2_C : real := 11.0;
       constant G3_C : real := 1.5;
@@ -535,8 +536,8 @@ begin
 
       saSig(i) <= amplitude * sin((saFbOut(i)/4.0e3) * (2 * MATH_PI) / (PHI_NOT_C));
 
-      -- board has accidental plarity inversion, hence the (-)1.5
-      ampInP <= saBias(i) * R_CABLE_C/(R_BIAS_C+R_CABLE_C) + saSig(i);
+      ampInP <= ((saSig(i) * G_CABLE_C) + (saBias(i) * G_BIAS_C)) / (G_BIAS_C + G_CABLE_C);
+--      ampInP <= saBias(i) * R_CABLE_C/(R_BIAS_C+R_CABLE_C) + saSig(i);
 
       adcVin(i) <= R_FB_C * (ampInP * (G_GAIN_C + G_OFFSET_C + G_FB_C) - (saOffset(i) * G_OFFSET_C)) * G2_C * G3_C * (-1.0);
 
