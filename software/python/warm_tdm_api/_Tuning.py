@@ -57,7 +57,7 @@ def saOffset(*, group):
         for i, p in enumerate(pid):
             change = p(masked[i])
             control[i] = np.clip(control[i] + change, 0.0, 2.499)
-            #print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')
+            print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')
 
         group.SaOffset.set(control)
 

@@ -32,6 +32,8 @@ class GroupLinkVariable(pr.LinkVariable):
     def _set(self, *, value, index, write):
         if len(self.dependencies) == 0:
             return
+
+        print(f'{self.path}.set({value=}, {index=}, {write=})')
         # Dependencies represent the channel values in channel order
         # So just use those references to do thtre set accesses
         with self.parent.root.updateGroup():
@@ -52,7 +54,7 @@ class GroupLinkVariable(pr.LinkVariable):
             return 0
         with self.parent.root.updateGroup():
             if index != -1:
-                return self.dependencies[index].get(read=read)
+                ret = self.dependencies[index].get(read=read)
             else:
                 ret = np.zeros(len(self.dependencies), np.float)
 
@@ -70,8 +72,8 @@ class GroupLinkVariable(pr.LinkVariable):
                 for idx, var in enumerate(self.dependencies):
                     ret[idx] = var.get(read=False)
 
-                print(f'{self.path}.get() - {ret}')
-                return ret
+            print(f'{self.path}.get({index=}, {read=}) - {ret}')
+            return ret
 
 class RowTuneEnVariable(GroupLinkVariable):
     def __init__(self, **kwargs):
@@ -158,12 +160,12 @@ class SaOutVariable(GroupLinkVariable):
 
     # Get SA Out value, index is column
     # Each dep is an array variable of 8 channels for each board
-    def _get(self, read, index):
+    def _get(self, read=True, index=-1):
         with self.parent.root.updateGroup():
             if index != -1:
                 col = self._config.columnMap[index]
                 board, chan = col.board, col.channel
-                return self.dependencies[board].get(index=chan, read=read)
+                ret = self.dependencies[board].get(index=chan, read=read)
             else:
 
                 # Issue a read to all boards and wait for response
@@ -178,7 +180,8 @@ class SaOutVariable(GroupLinkVariable):
                 for idx, board, chan in self._config.colGetIter(index):
                     ret[idx] = self.dependencies[board].get(index=chan, read=False)
 
-                return ret
+            print(f'{self.path}.get({index=}, {read=}) - {ret}'),         
+            return ret
 
 class FastDacVariable(GroupLinkVariable):
     def __init__(self, config, **kwargs):
@@ -466,7 +469,7 @@ class Group(pr.Device):
 
         # Remove amplifier gain and bias
         amp = Amplifier()
-        def _saOutGet(*, read, index, check):
+        def _saOutGet(*, read=True, index=-1, check=True):
             print(f'_saOutGet({read=}, {index=}, {check=})')
             with self.root.updateGroup():
                 print('SaOutAdc.get()')
