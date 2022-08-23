@@ -286,10 +286,10 @@ def plot_histogram_channel(ch, ax, adcs):
     rms = adcs.std()
 
     ax.clear()
-    ax.hist(adcs, bins, histtype='bar', density=True)
+    ax.hist(adcs, bins, histtype='bar')#, density=True)
     ax.yaxis.set_ticklabels([])
     ax.text(0.05, 0.8, f'\u03C3: {rms:1.3f}, pk-pk: {high-low} ADC', transform=ax.transAxes)
-    ax.text(0.05, 0.7, f'\u03C3: {(1.0e3*rms)/2**13:1.3f}, pk-pk: {(1.0e3*(high-low))/2**13} ADC', transform=ax.transAxes)    
+    ax.text(0.05, 0.5, f'\u03C3: {(1.0e3*rms)/2**13:1.3f}, pk-pk: {(1.0e3*(high-low))/2**13} mV', transform=ax.transAxes)    
 
     ax.xaxis.set_ticks_position('bottom')
     ax.yaxis.set_ticks_position('left')        
@@ -311,7 +311,7 @@ def plot_psd_channel(ch, ax, voltages):
 
     # Plot the PSD
     ax.clear()
-    ax.set_ylim(1e-3,100)
+    ax.set_ylim(1e-3,1000)
     ax.loglog(freqs, pxx, label='PSD')
     #ax.loglog(freqs,wiener(pxx,mysize=100),label='Wiener filtered PSD')
     ax.loglog(freqs,[3 for _ in freqs],label='3 nV/rt.Hz',color='r', linestyle='dashed')
