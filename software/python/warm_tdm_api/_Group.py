@@ -146,7 +146,8 @@ class Amplifier(object):
         return ((Vout/(self.G2*self.G3)) * self.Gfb + Voffset * self.Goff) / (self.Ggain + self.Goff + self.Gfb)
 
     def SaOut(self, Vout, Vbias, Voffset):
-        return (self.Vin(Vout, Voffset) * (self.Gbias + self.Gcable) - Vbias * self.Gbias) / self.Gcable
+        return self.Vin(Vout, Voffset)
+    #return (self.Vin(Vout, Voffset) * (self.Gbias + self.Gcable) - Vbias * self.Gbias) / self.Gcable
 
 
 class SaOutVariable(GroupLinkVariable):

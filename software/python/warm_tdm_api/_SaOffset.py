@@ -180,8 +180,8 @@ class SaOffsetSweepProcess(pr.Process):
                     except:
                         print('saOffset timed out')
                     
-                    #curves[i, j] = group.SaOut.get() #group.SaOffset.get()
-                    curves[i, j] = group.SaOffset.get()                    
+                    curves[i, j] = group.SaOut.get() #group.SaOffset.get()
+                    #curves[i, j] = group.SaOffset.get()                    
 
                     self.Progress.set((i*biasSteps + j) / totalSteps)
                     if self._runEn is False:
