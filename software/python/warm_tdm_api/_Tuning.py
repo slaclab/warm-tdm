@@ -101,7 +101,7 @@ def saFbSweep(*, group, bias, saFbRange, pctLow, pctRange, process):
         group.SaFbForceCurrent.set(saFbRange[:, idx])
 
         time.sleep(sleep)
-        points = group.SaOut.get() #group.HardwareGroup.ColumnBoard[0].DataPath.WaveformCapture.AdcAverage.get() #group.SaOut.get()
+        points = group.SaOutNorm.get() #group.HardwareGroup.ColumnBoard[0].DataPath.WaveformCapture.AdcAverage.get() #group.SaOut.get()
         
         #print(f'saFb step {idx} - {points}')
 
