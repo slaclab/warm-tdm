@@ -33,4 +33,5 @@ class WarmTdmCommon(pr.Device):
             offset = 0x00080000))
 
         self.add(warm_tdm.Ad5263(
+            enabled = False,
             offset = 0x000C0000))

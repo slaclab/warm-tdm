@@ -29,7 +29,7 @@ def saOffset(*, group):
 
     # Final output should be near SaBias, so start near there
     # Start at half the current bias
-    control =  group.SaBias.get()/2.0  #np.zeros(len(group.ColumnMap.value()))
+    control =  group.SaBiasVoltage.get()/2.0  #np.zeros(len(group.ColumnMap.value()))
 
     group.SaOffset.set(value=control)
 
@@ -57,7 +57,7 @@ def saOffset(*, group):
         for i, p in enumerate(pid):
             change = p(masked[i])
             control[i] = np.clip(control[i] + change, 0.0, 2.499)
-            print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')
+            #print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')
 
         group.SaOffset.set(control)
 
@@ -97,20 +97,20 @@ def saFbSweep(*, group, bias, saFbRange, pctLow, pctRange, process):
             process.Progress.set(pctLow + pctRange*((idx+1)/numSteps))
 
         # Setup data
-        print(f'Writing SaFbForce values = {saFbRange[:, idx]}')
-        group.SaFbForce.set(saFbRange[:, idx])
+        #print(f'Writing SaFbForce values = {saFbRange[:, idx]}')
+        group.SaFbForceCurrent.set(saFbRange[:, idx])
 
         time.sleep(sleep)
         points = group.SaOut.get() #group.HardwareGroup.ColumnBoard[0].DataPath.WaveformCapture.AdcAverage.get() #group.SaOut.get()
         
-        print(f'saFb step {idx} - {points}')
+        #print(f'saFb step {idx} - {points}')
 
         for col in range(colCount):
             curves[col].addPoint(points[col])
 
 
     # Reset FB to zero after sweep
-    group.SaFbForce.set(value=np.zeros(colCount, np.float))
+    group.SaFbForceCurrent.set(value=np.zeros(colCount, np.float))
 
     return curves
 
@@ -133,7 +133,7 @@ def saBiasSweep(*, group, process):
     pctRange = 1.0/numBiasSteps
 
     # Get current sabias values
-    bias = group.SaBias.get()
+    bias = group.SaBiasCurrent.get()
 
     for col in range(colCount):
         low = group.SaTuneProcess.SaBiasLowOffset.get()
@@ -150,15 +150,15 @@ def saBiasSweep(*, group, process):
     #print(f'Fb sweep = {saFbRange}')
 
     for idx in range(numBiasSteps):
-        group.SaFbForce.set(np.zeros(colCount, np.float64))
+        group.SaFbForceCurrent.set(np.zeros(colCount, np.float64))
         # Update process message 
         if process is not None:
             process.Message.set(f'SaBias step {idx+1} out of {numBiasSteps}')
         
 
         # Only set bias for enabled columns
-        print(f'Setting SaBias values = {saBiasRange[:, idx]}')
-        group.SaBias.set(saBiasRange[:, idx])
+        #print(f'Setting SaBias values = {saBiasRange[:, idx]}')
+        group.SaBiasCurrent.set(saBiasRange[:, idx])
         saOffset(group=group)
 
         curves = saFbSweep(group=group,bias=saBiasRange[:, idx], saFbRange=saFbRange, pctLow=idx/numBiasSteps,pctRange=pctRange,process=process)
@@ -199,7 +199,6 @@ def saTune(*, group, process=None, doSet=True):
     """
 #    group.Init()
 
-    time.sleep(5.0)
     group.RowTuneIndex.set(0)
     group.RowTuneEn.set(True)
     saBiasResults = saBiasSweep(group=group,process=process)

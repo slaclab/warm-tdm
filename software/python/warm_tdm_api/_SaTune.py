@@ -13,20 +13,30 @@ class SinglePlot(pr.LinkVariable):
 
         self._fig = plt.Figure(tight_layout=True, figsize=(20,10))
         self._ax = self._fig.add_subplot()
-        self._fig.suptitle('SA OUT (mV) vs. SA FB (DAC V)')
+        self._fig.suptitle(u'SA OUT (mV) vs. SA FB (\u03bcA)')
 
-    def _plot_ax(self, ax, col, curves):
+    def _plot_ax(self, ax, col, curves, shunt):
         ax.clear()
+        ax.set_ylabel('SA Out (mV)')
+        ax.set_xlabel(u'SA FB (\u03bcA)')
+        
         for step, value in enumerate(curves['biasValues']):
             linewidth = 1.0
             if step == curves['bestIndex']:
                 linewidth = 2.0
-            peak = curves['peaks'][step]
-            label = f'{value:1.3f} - Peak: {peak:1.3f}'
+            peak = curves['peaks'][step] 
+            label = f'{value:1.3f} - P-P: {peak:1.3f}'
             ax.plot(curves['xValues'], curves['curves'][step], label=label, linewidth=linewidth)
 
-        ax.set_title(f'Channel {col}')
-        ax.legend(title='SA BIAS (V) - SA OUT P-P (mv)')
+        A, w, p, c = curves['bestfit'] 
+        fitfunc = lambda t: A * np.sin(w*t + p) + c
+        r = np.linspace(min(curves['xValues']), max(curves['xValues']), 1000)
+        fitline = np.array([fitfunc(t) for t in r])
+        label = f'fitted - P-P: {A*2:0.03f} - ' + u'\u03A6o: ' + f'{(2.0*np.pi)/w:0.01f}'
+        ax.plot(r, fitline, label=label, linestyle='dashed')
+            
+        ax.set_title(f'Channel {col} - FB Shunt = {shunt/1000} kOhms')
+        ax.legend(title=u'SA BIAS (\u03bcA) - SA OUT P-P (mV)')
         
 
     def linkedGet(self, index=-1, read=False):
@@ -39,7 +49,9 @@ class SinglePlot(pr.LinkVariable):
         if col == -1:
             col = self.parent.PlotColumn.value()
 
-        self._plot_ax(self._ax, col, tune[col])
+        shunt = self.parent.parent.SA_FB_SHUNT_R.value()            
+
+        self._plot_ax(self._ax, col, tune[col], shunt)
 
         return self._fig
 
@@ -53,17 +65,18 @@ class MultiPlot(SinglePlot):
         
         self._fig = plt.Figure(tight_layout=True, figsize=(20, 20))
         self._ax = self._fig.subplots(4, 2, sharey=True)
-        self._fig.suptitle('SA OUT (mV) vs. SA FB (DAC V)')
+        self._fig.suptitle('SA OUT (mV) vs. SA FB (\u03bcA)')
 
     def linkedGet(self):
         tune = self.parent.SaTuneOutput.value()
+        shunt = self.parent.parent.SA_FB_SHUNT_R.value()        
 
         if tune == {}:
             return self._fig
 
         axes = self._ax.reshape(8)
         for col, ax in enumerate(axes):
-            self._plot_ax(ax, col, tune[col])
+            self._plot_ax(ax, col, tune[col], shunt)
 
         return self._fig
 
@@ -89,12 +102,14 @@ class SaTuneProcess(pr.Process):
         self.add(pr.LocalVariable(name='SaFbLowOffset',
                                   value=0.0,
                                   mode='RW',
+                                  units = 'uA',
                                   description='Starting point offset for SA FB Tuning. This value is an offset from the currently configured '
                                               'SaFb value. (well not in the current code, but it should be). '))
 
         # High offset for SA FB Tuning
         self.add(pr.LocalVariable(name='SaFbHighOffset',
-                                  value=1.0,
+                                  value=300.0,
+                                  units='uA',
                                   mode='RW',
                                   description='Ending point offset for SA FB Tuning. This value is an offset from the currently configured '
                                               'SaFb value. (well not in the current code, but it should be). '))
@@ -116,15 +131,17 @@ class SaTuneProcess(pr.Process):
 
         # Low offset for SA Bias Tuning
         self.add(pr.LocalVariable(name='SaBiasLowOffset',
-                                  value=0.0,
+                                  value=20.0,
                                   mode='RW',
+                                  units = 'uA',
                                   description='Starting point offset for SA Bias Tuning. This value is an offset from the currently configured '
                                               'SaBias value. (well not in the current code, but it should be). '))
 
         # High offset for SA Bias Tuning
         self.add(pr.LocalVariable(name='SaBiasHighOffset',
-                                  value=1.0,
+                                  value=60.0,
                                   mode='RW',
+                                  units = 'uA',
                                   description='Ending point offset for SA Bias Tuning. This value is an offset from the currently configured '
                                               'SaBias value. (well not in the current code, but it should be). '))
 
@@ -132,7 +149,7 @@ class SaTuneProcess(pr.Process):
         self.add(pr.LocalVariable(name='SaBiasNumSteps',
                                   minimum=1,
                                   maximum=self._maxBiasSteps,
-                                  value=10,
+                                  value=5,
                                   mode='RW',
                                   description='Number of steps between the SaBiasLowOffset and SaBiasHighOffset, inclusively.'))
 

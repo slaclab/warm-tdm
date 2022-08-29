@@ -275,7 +275,9 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
 #         return self.multi_plotter.fig
     
                  
-
+def plot_waveform_channel(ch, ax, voltages):
+    ax.clear()
+    ax.plot(voltages)
             
 def plot_histogram_channel(ch, ax, adcs):
     print(f'plot_histogram_channel(ch={ch})')    
@@ -328,76 +330,76 @@ def plot_psd_channel(ch, ax, voltages):
     else:
         ax.xaxis.set_ticklabels([])
         
-class HistogramPlotter(object):
+# class HistogramPlotter(object):
 
-    def __init__(self):
+#     def __init__(self):
 
-        self.fig = plt.Figure(tight_layout=True, figsize=(10,10))
-        self.ax = self.fig.subplots(8, sharey=False ) #, constrained_layout=True)
-        self.fig.suptitle('ADC Histograms')
+#         self.fig = plt.Figure(tight_layout=True, figsize=(10,10))
+#         self.ax = self.fig.subplots(8, sharey=False ) #, constrained_layout=True)
+#         self.fig.suptitle('ADC Histograms')
 
 
-    def histogram(self, data):
-        mean = np.int32(data.mean())
-        low = np.int32(data.min())
-        high = np.int32(data.max())
+#     def histogram(self, data):
+#         mean = np.int32(data.mean())
+#         low = np.int32(data.min())
+#         high = np.int32(data.max())
 
-        return np.histogram(data, np.arange(low-10, high+10, 1))
+#         return np.histogram(data, np.arange(low-10, high+10, 1))
         
 
-    def plot_histogram(self, ch, ax, n, b, rms):
-        left = b[:-1]
-        right = b[1:]
-        bottom = np.zeros(len(left))
-        top = bottom + n
-        xy = np.array([[left, left, right, right], [bottom, top, top, bottom]]).T
+#     def plot_histogram(self, ch, ax, n, b, rms):
+#         left = b[:-1]
+#         right = b[1:]
+#         bottom = np.zeros(len(left))
+#         top = bottom + n
+#         xy = np.array([[left, left, right, right], [bottom, top, top, bottom]]).T
 
-        barpath = path.Path.make_compound_path_from_polys(xy)
-        patch = patches.PathPatch(barpath)
-        ax.clear()
-        ax.add_patch(patch)
+#         barpath = path.Path.make_compound_path_from_polys(xy)
+#         patch = patches.PathPatch(barpath)
+#         ax.clear()
+#         ax.add_patch(patch)
 
-        ax.set_xlim(left[0], right[-1])
-        ax.set_ylim(bottom.min(), top.max())
+#         ax.set_xlim(left[0], right[-1])
+#         ax.set_ylim(bottom.min(), top.max())
 
-        ax.text(0.1, 0.8, f'Ch {ch} \u03C3: {rms:1.3f}', transform=ax.transAxes)
-        #ax.set_title(f'Channel {ch}')
+#         ax.text(0.1, 0.8, f'Ch {ch} \u03C3: {rms:1.3f}', transform=ax.transAxes)
+#         #ax.set_title(f'Channel {ch}')
 
-        ax.set_xlabel('ADC counts')
+#         ax.set_xlabel('ADC counts')
 
       
 
-    def update(self, channel, values):
-        ax = self.ax.reshape(8)
-        for ch, adcs in array_iter(channel, values):
-            self.plot_histogram2(ax[ch], ch, adcs)
-#            self.n[ch] , self.b[ch] = self.histogram(adcs)
-            #rms = self.parent.RmsNoise.get(index=ch, read=False)
- #           self.plot_histogram(ch, ax[ch], self.n[ch], self.b[ch], adcs.std())
+#     def update(self, channel, values):
+#         ax = self.ax.reshape(8)
+#         for ch, adcs in array_iter(channel, values):
+#             self.plot_histogram2(ax[ch], ch, adcs)
+# #            self.n[ch] , self.b[ch] = self.histogram(adcs)
+#             #rms = self.parent.RmsNoise.get(index=ch, read=False)
+#  #           self.plot_histogram(ch, ax[ch], self.n[ch], self.b[ch], adcs.std())
                 
-        #self.fig.canvas.draw()
+#         #self.fig.canvas.draw()
 
 
 
-class PeriodogramPlotter(object):
+# class PeriodogramPlotter(object):
 
-    def __init__(self):
+#     def __init__(self):
 
-        self.fig = plt.Figure(tight_layout=True, figsize=(10,10))
-        self.ax = self.fig.subplots(8) #, sharex=True, sharey=True)
-        self.fig.suptitle('PSD (nV/rt.Hz)')
+#         self.fig = plt.Figure(tight_layout=True, figsize=(10,10))
+#         self.ax = self.fig.subplots(8) #, sharex=True, sharey=True)
+#         self.fig.suptitle('PSD (nV/rt.Hz)')
 
-        #self.freqs = [None for x in range(8)]
-        #self.pxx = [None for x in range(8)]        
+#         #self.freqs = [None for x in range(8)]
+#         #self.pxx = [None for x in range(8)]        
 
-        #plt.show(block=False)
+#         #plt.show(block=False)
         
 
-    def update(self, channel, values):
-        ax = self.ax.reshape(8)
-        for ch, voltages in array_iter(channel, values):
-            #self.pxx[ch], self.freqs[ch] = self.periodogram(voltages)
-            plot_psd_channel(ch, ax[ch], voltages) #self.freqs[ch], self.pxx[ch])
+#     def update(self, channel, values):
+#         ax = self.ax.reshape(8)
+#         for ch, voltages in array_iter(channel, values):
+#             #self.pxx[ch], self.freqs[ch] = self.periodogram(voltages)
+#             plot_psd_channel(ch, ax[ch], voltages) #self.freqs[ch], self.pxx[ch])
 
 
 
@@ -407,7 +409,7 @@ class MultiPlot(pr.BaseVariable):
         super().__init__(**kwargs)
     
         self.fig = plt.Figure(tight_layout=True, figsize=(20,20))
-        self.ax = self.fig.subplots(8, 2, )#sharey='col')
+        self.ax = self.fig.subplots(8, 3, )#sharey='col')
         #self.fig.suptitle('PSD (nV/rt.Hz)')
 
         def _conv(adc):
@@ -427,6 +429,9 @@ class MultiPlot(pr.BaseVariable):
 
         for ch, ch_adcs in array_iter(channel, voltages):
             plot_psd_channel(ch, self.ax[ch, 1], ch_adcs)
+
+        for ch, ch_adcs in array_iter(channel, voltages):
+            plot_waveform_channel(ch, self.ax[ch, 2], ch_adcs)
 
         self._queueUpdate()
 

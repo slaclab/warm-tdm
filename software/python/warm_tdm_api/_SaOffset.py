@@ -95,13 +95,13 @@ class SaOffsetSweepProcess(pr.Process):
 
         # Low offset for SA Bias Tuning
         self.add(pr.LocalVariable(name='SaBiasLow',
-                                  value=0.0,
+                                  value=1.0,
                                   mode='RW',
                                   description="Starting point offset for SA Bias Sweep"))
 
         # High offset for SA Bias Tuning
         self.add(pr.LocalVariable(name='SaBiasHigh',
-                                  value=2.4999,
+                                  value=100.0,
                                   mode='RW',
                                   description="Ending point offset for SA Bias Sweep"))
 
@@ -147,7 +147,7 @@ class SaOffsetSweepProcess(pr.Process):
         with self.root.updateGroup(.25):
             group = self.parent
 
-            startBias = group.SaBias.get()
+            startBias = group.SaBiasCurrent.get()
             startOffset = group.SaOffset.get()            
 
             low = self.SaBiasLow.get()
@@ -168,17 +168,16 @@ class SaOffsetSweepProcess(pr.Process):
 
             for i, bias in enumerate(biasRange):
                 saBias = mask * bias
-                group.SaBias.set(saBias)
-                
+                group.SaBiasCurrent.set(saBias)
+                try:
+                    warm_tdm_api.saOffset(group=group)
+                except:
+                    print('saOffset timed out')
                 
                 for j, fb in enumerate(fbPoints):
                     saFb = mask * fb
-                    group.SaFbForce.set(saFb)
+                    group.SaFbForceCurrent.set(saFb)
 
-                    try:
-                        warm_tdm_api.saOffset(group=group)
-                    except:
-                        print('saOffset timed out')
                     
                     curves[i, j] = group.SaOut.get() #group.SaOffset.get()
                     #curves[i, j] = group.SaOffset.get()                    
@@ -188,11 +187,11 @@ class SaOffsetSweepProcess(pr.Process):
                         self.Message.set('Stopped by user')
                         return
 
-            self.PlotXData.set(biasRange/15)
+            self.PlotXData.set(biasRange)
             self.PlotYData.set(curves)
 
             # Set bias and offset back to where they were before the sweep
-            group.SaBias.set(startBias)
+            group.SaBiasCurrent.set(startBias)
             group.SaOffset.set(startOffset)
 
     def _plot(self):
@@ -202,12 +201,12 @@ class SaOffsetSweepProcess(pr.Process):
         chan = self.PlotChannel.value()
 
         self._ax.clear()
-        self._ax.set_xlabel('SA Bias Current (mA)')
+        self._ax.set_xlabel(u'SA Bias Current (\u03bcA)')
         self._ax.set_ylabel('SA Out Voltage (mV)')
         self._ax.set_title(f'SA Bias Sweep - Channel {chan}')
 
         for i, fb in enumerate(self.SaFbPoints.value()):
             self._ax.plot(xdata, ydata[:,i,chan], label=f'{fb}')
 
-        self._ax.legend(title='SA FB (V)')
+        self._ax.legend(title=u'SA FB (\u03bcA)')
         return self._fig

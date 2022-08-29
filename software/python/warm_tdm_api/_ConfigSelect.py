@@ -51,7 +51,8 @@ class ConfigSelect(pr.Device):
         self.add(pr.LinkVariable(name='SaBias',
                                  mode='RW',
                                  disp='{:.3f}',
-                                 dependencies=[self.ColumnSelect,group.SaBias],
+                                 units = 'uA',
+                                 dependencies=[self.ColumnSelect,group.SaBiasCurrent],
                                  linkedSet=self._saBiasSet,
                                  linkedGet=self._saBiasGet,
                                  description=""))
@@ -74,7 +75,7 @@ class ConfigSelect(pr.Device):
         self.add(pr.LinkVariable(name='SaFb',
                                  mode='RW',
                                  disp='{:.3f}',
-                                 dependencies=[self.ColumnSelect,self.RowSelect,group.SaFb],
+                                 dependencies=[self.ColumnSelect,self.RowSelect,group.SaFbCurrent],
                                  linkedSet=self._saFbSet,
                                  linkedGet=self._saFbGet,
                                  description=""))
@@ -144,12 +145,12 @@ class ConfigSelect(pr.Device):
     def _saBiasGet(self, read):
         with self.root.updateGroup():
             col = self.ColumnSelect.value()
-            return self.parent.SaBias.get(read=read,index=col)
+            return self.parent.SaBiasCurrent.get(read=read,index=col)
 
     def _saBiasSet(self, value, write):
         with self.root.updateGroup():
             col = self.ColumnSelect.value()
-            return self.parent.SaBias.set(value=value,write=write,index=col)
+            return self.parent.SaBiasCurrent.set(value=value,write=write,index=col)
 
     def _saOffsetGet(self, read):
         with self.root.updateGroup():
@@ -170,13 +171,13 @@ class ConfigSelect(pr.Device):
         with self.root.updateGroup():
             row = self.RowSelect.value()
             col = self.ColumnSelect.value()
-            return self.parent.SaFb.get(read=read,index=(col,row))
+            return self.parent.SaFbCurrent.get(read=read,index=(col,row))
 
     def _saFbSet(self, value, write):
         with self.root.updateGroup():
             row = self.ColumnSelect.value()
             col = self.ColumnSelect.value()
-            return self.parent.SaFb.set(value=value,write=write,index=(col,row))
+            return self.parent.SaFbCurrent.set(value=value,write=write,index=(col,row))
 
     def _sq1BiasGet(self, read):
         with self.root.updateGroup():
