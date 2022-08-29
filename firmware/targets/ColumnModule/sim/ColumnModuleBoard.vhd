@@ -534,7 +534,7 @@ begin
       amplitudeTmp <= (-0.0244) * (saBias(i)-0.3) * (saBias(i)-1.0);
       amplitude <= ite(amplitudeTmp < 0.0, 0.0, amplitudeTmp);
 
-      saSig(i) <= amplitude * sin((saFbOut(i)/4.0e3) * (2 * MATH_PI) / (PHI_NOT_C));
+      saSig(i) <= amplitude * sin((saFbOut(i)/7.0e3) * (2 * MATH_PI) / (PHI_NOT_C));
 
       ampInP <= ((saSig(i) * G_CABLE_C) + (saBias(i) * G_BIAS_C)) / (G_BIAS_C + G_CABLE_C);
 --      ampInP <= saBias(i) * R_CABLE_C/(R_BIAS_C+R_CABLE_C) + saSig(i);
