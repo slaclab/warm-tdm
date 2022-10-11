@@ -130,7 +130,7 @@ class ColumnModule(pr.Device):
 
 
         lo = self.LoadingOptions            
-        ampGain =  (lo.SA_AMP_GAIN_R + lo.SA_AMP_FB_R) / lo.SA_AMP_GAIN_R
+        ampGain =  ((lo.SA_AMP_GAIN_R + lo.SA_AMP_FB_R) / lo.SA_AMP_GAIN_R) * lo.SA_AMP_GAIN_2 * lo.SA_AMP_GAIN_3
         
 
         def _saOutGet(*, read=True, index=-1, check=True):
