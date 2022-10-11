@@ -515,6 +515,7 @@ begin
       constant R_GAIN_C   : real := 100.0;
       constant R_FB_C     : real := 1.1e3;
       constant R_CABLE_C  : real := 200.0;
+      constant R_FB_SHUNT_C : real := 7.15e3;
 
       constant G_BIAS_C   : real := 1.0/R_BIAS_C;
       constant G_OFFSET_C : real := 1.0/R_OFFSET_C;
@@ -534,7 +535,7 @@ begin
       amplitudeTmp <= (-0.0244) * (saBias(i)-0.3) * (saBias(i)-1.0);
       amplitude <= ite(amplitudeTmp < 0.0, 0.0, amplitudeTmp);
 
-      saSig(i) <= amplitude * sin((saFbOut(i)/7.0e3) * (2 * MATH_PI) / (PHI_NOT_C));
+      saSig(i) <= amplitude * sin((saFbOut(i)/R_FB_SHUNT_C) * (2 * MATH_PI) / (PHI_NOT_C));
 
       ampInP <= ((saSig(i) * G_CABLE_C) + (saBias(i) * G_BIAS_C)) / (G_BIAS_C + G_CABLE_C);
 --      ampInP <= saBias(i) * R_CABLE_C/(R_BIAS_C+R_CABLE_C) + saSig(i);
