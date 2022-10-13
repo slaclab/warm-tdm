@@ -443,7 +443,7 @@ begin
          generic map (
             TPD_G               => TPD_G,
             ROGUE_SIM_EN_G      => SIMULATION_G,
-            FILTER_G            => true,
+--            FILTER_G            => true,
             INT_PIPE_STAGES_G   => 1,
             PIPE_STAGES_G       => 0,
             VALID_THOLD_G       => PACKET_SIZE_BYTES_C/8,
