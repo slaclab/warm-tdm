@@ -276,12 +276,12 @@ set_property -dict { PACKAGE_PIN U16  IOSTANDARD LVCMOS33 } [get_ports { tesDela
 # set_property -dict { PACKAGE_PIN V3 IOSTANDARD LVCMOS18 } [get_ports { asicDacLdacB }];
 # set_property -dict { PACKAGE_PIN W3 IOSTANDARD LVCMOS18 } [get_ports { asicDacResetB }];
 
-# set_property -dict { PACKAGE_PIN V4 IOSTANDARD LVDS } [get_ports { asicResetP }];
-# set_property -dict { PACKAGE_PIN W4 IOSTANDARD LVDS } [get_ports { asicResetN }];
-# set_property -dict { PACKAGE_PIN Y3 IOSTANDARD LVDS } [get_ports { asicCarryInP }];
-# set_property -dict { PACKAGE_PIN Y2 IOSTANDARD LVDS } [get_ports { asicCarryInN }];
-# set_property -dict { PACKAGE_PIN V2 IOSTANDARD LVDS } [get_ports { asicClkP }];
-# set_property -dict { PACKAGE_PIN V1 IOSTANDARD LVDS } [get_ports { asicClkN }];
+set_property -dict { PACKAGE_PIN V4 IOSTANDARD LVDS } [get_ports { asicResetP }];
+set_property -dict { PACKAGE_PIN W4 IOSTANDARD LVDS } [get_ports { asicResetN }];
+set_property -dict { PACKAGE_PIN Y3 IOSTANDARD LVDS } [get_ports { asicCarryInP }];
+set_property -dict { PACKAGE_PIN Y2 IOSTANDARD LVDS } [get_ports { asicCarryInN }];
+set_property -dict { PACKAGE_PIN V2 IOSTANDARD LVDS } [get_ports { asicClkP }];
+set_property -dict { PACKAGE_PIN V1 IOSTANDARD LVDS } [get_ports { asicClkN }];
 # set_property -dict { PACKAGE_PIN AB1 IOSTANDARD LVDS DIFF_TERM true} [get_ports { asicFbP }];
 # set_property -dict { PACKAGE_PIN AC1 IOSTANDARD LVDS DIFF_TERM true} [get_ports { asicFbN }];
 

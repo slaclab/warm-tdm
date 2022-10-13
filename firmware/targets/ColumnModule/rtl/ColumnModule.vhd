@@ -175,8 +175,14 @@ entity ColumnModule is
       adcSclk : out   sl;
       adcSdio : inout sl;
       adcCsb  : out   sl;
-      adcSync : out   sl
+      adcSync : out   sl;
 
+      asicResetP   : out sl;
+      asicResetN   : out sl;
+      asicCarryInP : out sl;
+      asicCarryInN : out sl;
+      asicClkP     : out sl;
+      asicClkN     : out sl
       );
 
 end entity ColumnModule;
@@ -531,4 +537,26 @@ begin
          axilWriteSlave  => locAxilWriteSlaves(AXIL_SA_FB_DAC_C),   -- [out]
          axilReadMaster  => locAxilReadMasters(AXIL_SA_FB_DAC_C),   -- [in]
          axilReadSlave   => locAxilReadSlaves(AXIL_SA_FB_DAC_C));   -- [out]
+
+   -------------------------------------------------------------------------------------------------
+   -- ASIC dummy drivers
+   -------------------------------------------------------------------------------------------------
+   OBUFDS_ASIC_RESET : OBUFDS
+      port map (
+         I  => '0',
+         O  => asicResetP,
+         OB => asicResetN);
+
+   OBUFDS_ASIC_CARRY_IN : OBUFDS
+      port map (
+         I  => '0',
+         O  => asicCarryInP,
+         OB => asicCarryInN);
+
+   OBUFDS_ASIC_CLK : OBUFDS
+      port map (
+         I  => '0',
+         O  => asicClkP,
+         OB => asicClkN);
+
 end architecture rtl;
