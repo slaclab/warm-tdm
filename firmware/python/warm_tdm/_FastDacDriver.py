@@ -6,15 +6,20 @@ import warm_tdm
 
 class FastDacDriver(pr.Device):
 
-    
-
-    def __init__(self, rows=64, rfsadj=2.0E3, dacLoad=25.0, ampGain=-4.7, outResistance=4.0e3, waveformTrigger=None, **kwargs):
+    def __init__(self,
+                 rows=64,
+                 rfsadj=[2.0E3]*8,
+                 dacLoad=[25.0]*8,
+                 ampGain=[-4.7]*8,
+                 outResistance=[4.0e3]*8,
+                 waveformTrigger=None,
+                 **kwargs):
         super().__init__(**kwargs)
 
         if rows == 0:
             rows = 64
 
-        self.iOutFs = (1.2 / rfsadj) * 32
+        self.iOutFs = 1.2 / r * 32 for r in rfsadj,
         self.dacLoad = dacLoad
         self.ampGain = ampGain
         self.outResistance = outResistance
@@ -51,43 +56,43 @@ class FastDacDriver(pr.Device):
             ####################
             # Current Conversion
             ####################
-            def _overGet(index, read, x=i):
-                ret = self._dacToSquidCurrent(self.Override[x].value()) * 1.0e6
+            def _overCurrentGet(index, read, x=i):
+                ret = self._dacToSquidCurrent(self.Override[x].value(), x) * 1.0e6
                 #print(f'_overGet - OverrideRaw[{x}].value() = {self.OverrideRaw[x].value()} - voltage = {voltage}')
                 return ret
 
-            def _overSet(value, index, write, x=i):
+            def _overCurrentSet(value, index, write, x=i):
                 #print(f'Override[{x}].set()')
-                self.Override[x].set(self._squidCurrentToDac(value*1.0e-6), write=write)
+                self.Override[x].set(self._squidCurrentToDac(value*1.0e-6, x), write=write)
 
             self.add(pr.LinkVariable(
                 name = f'OverrideCurrent[{i}]',
                 dependencies = [self.Override[i]],
                 units = u'\u03bcA',
                 disp = '{:0.03f}',
-                linkedGet = _overGet,
-                linkedSet = _overSet))
+                linkedGet = _overCurrentGet,
+                linkedSet = _overCurrentSet))
 
         for i in range(8):
             ####################
             # Voltage Conversion
             ####################
-            def _overGet(index, read, x=i):
-                ret = self._dacToSquidVoltage(self.Override[x].value())
+            def _overVoltageGet(index, read, x=i):
+                ret = self._dacToSquidVoltage(self.Override[x].value(), x)
                 #print(f'_overGet - OverrideRaw[{x}].value() = {self.OverrideRaw[x].value()} - voltage = {voltage}')
                 return ret
 
-            def _overSet(value, index, write, x=i):
+            def _overVoltageSet(value, index, write, x=i):
                 #print(f'Override[{x}].set()')
-                self.Override[x].set(self._squidVoltageToDac(value), write=write)
+                self.Override[x].set(self._squidVoltageToDac(value, x), write=write)
 
             self.add(pr.LinkVariable(
                 name = f'OverrideVoltage[{i}]',
                 dependencies = [self.Override[i]],
                 units = 'V',
                 disp = '{:0.03f}',
-                linkedGet = _overGet,
-                linkedSet = _overSet))
+                linkedGet = _overVoltageGet,
+                linkedSet = _overVoltageSet))
             
 
 
@@ -134,34 +139,34 @@ class FastDacDriver(pr.Device):
 
             self.writeAndVerifyBlocks()
 
-    def _dacToCurrent(self, dac):
-        iOutA = (dac/16384) * self.iOutFs
-        iOutB = ((16383-dac)/16384) * self.iOutFs
+    def _dacToCurrent(self, dac, column):
+        iOutA = (dac/16384) * self.iOutFs[column]
+        iOutB = ((16383-dac)/16384) * self.iOutFs[column]
         current = (iOutA, iOutB)
 #        print(f'_dacToCurrent({dac}) = {current}')
         return current
 
-    def _dacToSquidVoltage(self, dac):
-        current = self._dacToCurrent(dac)
-        voltage = (current[0]-current[1]) * self.dacLoad * self.ampGain
+    def _dacToSquidVoltage(self, dac, column):
+        current = self._dacToCurrent(dac, column)
+        voltage = (current[0]-current[1]) * self.dacLoad[column] * self.ampGain[column]
 #        print(f'_dacToSquidVoltage({dac}) = {voltage}')
         return voltage
 
-    def _dacToSquidCurrent(self, dac):
-        return self._dacToSquidVoltage(dac) / self.outResistance
+    def _dacToSquidCurrent(self, dac, column):
+        return self._dacToSquidVoltage(dac, column) / self.outResistance[column]
 
 
-    def _squidVoltageToDac(self, voltage):
-        dacCurrent = voltage / (self.dacLoad * self.ampGain)
+    def _squidVoltageToDac(self, voltage, column):
+        dacCurrent = voltage / (self.dacLoad[column] * self.ampGain[column])
 #        print(f'dacCurrent = {dacCurrent}')
 
-        dac = int(((dacCurrent/self.iOutFs)*8192)+8191)
+        dac = int(((dacCurrent/self.iOutFs[column])*8192)+8191)
         dac = max(min(2**14-1, dac), 0)
 #        print(f'_squidVoltageToDac({voltage}) = {dac}')
         return dac
 
-    def _squidCurrentToDac(self, current):
-        return self._squidVoltageToDac(current * self.outResistance)
+    def _squidCurrentToDac(self, current, column):
+        return self._squidVoltageToDac(current * self.outResistance[column])
     
 
 
@@ -183,17 +188,17 @@ class FastDacDriver(pr.Device):
         def _getVoltage(read, index):
             ret = self.ColumnRaw[column].get(read=read, index=index)
             if index == -1:
-                return np.vectorize(self._dacToSquidVoltage)(ret)
+                return np.vectorize(self._dacToSquidVoltage)(ret, column)
             else:
-                return self._dacToSquidVoltage(ret)
+                return self._dacToSquidVoltage(ret, column)
         return _getVoltage
 
     def _setVoltageFunc(self, column):
         def _setVoltage(value, write, index):
             if index == -1:
-                dacValue = np.array([self._squidVoltageToDac(v) for v in value], np.uint32)
+                dacValue = np.array([self._squidVoltageToDac(v, column) for v in value], np.uint32)
             else:
-                dacValue = self._squidVoltageToDac(value)
+                dacValue = self._squidVoltageToDac(value, column)
             self.ColumnRaw[column].set(value=dacValue, index=index, write=write)
         return _setVoltage
 
@@ -201,17 +206,17 @@ class FastDacDriver(pr.Device):
         def _getCurrent(read, index):
             ret = self.ColumnRaw[column].get(read=read, index=index)
             if index == -1:
-                return np.vectorize(self._dacToSquidCurrent)(ret)
+                return np.vectorize(self._dacToSquidCurrent)(ret, column)
             else:
-                return self._dacToSquidCurrent(ret)
+                return self._dacToSquidCurrent(ret, column)
         return _getCurrent
 
     def _setCurrentFunc(self, column):
         def _setCurrent(value, write, index):
             if index == -1:
-                dacValue = np.array([self._squidCurrentToDac(v) for v in value], np.uint32)
+                dacValue = np.array([self._squidCurrentToDac(v, column) for v in value], np.uint32)
             else:
-                dacValue = self._squidCurrentToDac(value)
+                dacValue = self._squidCurrentToDac(value, column)
             self.ColumnRaw[column].set(value=dacValue, index=index, write=write)
         return _setCurrent
 

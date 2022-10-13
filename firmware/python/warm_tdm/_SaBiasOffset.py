@@ -39,8 +39,8 @@ class SaBiasOffset(pr.Device):
             self.add(pr.LinkVariable(
                 name = f'BiasCurrent[{i}]',
                 dependencies = [self.BiasVoltage[i]],
-                linkedGet = lambda read, ch=i: self.BiasVoltage[ch].get(read=read) * 1e6 / loading.SA_BIAS_SHUNT_R,
-                linkedSet = lambda value, write, ch=i: self.BiasVoltage[ch].set( (value/1e6) * loading.SA_BIAS_SHUNT_R , write=write),
+                linkedGet = lambda read, ch=i: self.BiasVoltage[ch].get(read=read) * 1e6 / loading[ch]['SA_BIAS_SHUNT_R'],
+                linkedSet = lambda value, write, ch=i: self.BiasVoltage[ch].set( (value/1e6) * loading[ch]['SA_BIAS_SHUNT_R'] , write=write),
                 disp = '{:0.01f}',
                 units = u'\u03bcA'))
 

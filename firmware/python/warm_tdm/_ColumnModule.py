@@ -7,45 +7,88 @@ import numpy as np
 
 import warm_tdm
 
-class LoadingOptions(pr.Device):
-    def __init__(self,
-                 loading={
-                     'SA_BIAS_SHUNT_R':15.0e3,
-                     'SA_OFFSET_R':4.02e3,
-                     'SA_AMP_FB_R':1.1e3,
-                     'SA_AMP_GAIN_R':100,
-                     'SA_AMP_GAIN_2':11,
-                     'SA_AMP_GAIN_3':1.5,
-                     'SA_FB_FSADJ_R':2.0e3,
-                     'SA_FB_DAC_LOAD_R':25.0,
-                     'SA_FB_AMP_GAIN_R':-4.7,
-                     'SA_FB_SHUNT_R':7.15e3,
-                     'SQ1_FB_FSADJ_R':2.0e3,                     
-                     'SQ1_FB_DAC_LOAD_R':25.0,
-                     'SQ1_FB_AMP_GAIN_R':-4.7,
-                     'SQ1_FB_SHUNT_R':7.15e3,
-                     'SQ1_BIAS_FSADJ_R':2.0e3,                     
-                     'SQ1_BIAS_DAC_LOAD_R':25.0,
-                     'SQ1_BIAS_AMP_GAIN_R':-4.7,
-                     'SQ1_BIAS_SHUNT_R':7.15e3},
-                 **kwargs):
-        super().__init__(**kwargs)
 
-        for k,v in loading.items():
-#            setattr(self, k, np.full(8, v))
-            setattr(self, k, v)
-            self.add(pr.LocalVariable(
-                name = f'{k}_VAR',
-                value = v, #getattr(self, k),
-                mode = 'RO'))
+DEFAULT_LOADING = {ch: {
+    'SA_BIAS_SHUNT_R':15.0e3,
+    'SA_OFFSET_R':4.02e3,
+    'SA_AMP_FB_R':1.1e3,
+    'SA_AMP_GAIN_R':100,
+    'SA_AMP_GAIN_2':11,
+    'SA_AMP_GAIN_3':1.5,
+    'SA_FB_FSADJ_R':2.0e3,
+    'SA_FB_DAC_LOAD_R':25.0,
+    'SA_FB_AMP_GAIN_R':-4.7,
+    'SA_FB_SHUNT_R':7.15e3,
+    'SQ1_FB_FSADJ_R':2.0e3,                     
+    'SQ1_FB_DAC_LOAD_R':25.0,
+    'SQ1_FB_AMP_GAIN_R':-4.7,
+    'SQ1_FB_SHUNT_R':7.15e3,
+    'SQ1_BIAS_FSADJ_R':2.0e3,                     
+    'SQ1_BIAS_DAC_LOAD_R':25.0,
+    'SQ1_BIAS_AMP_GAIN_R':-4.7,
+    'SQ1_BIAS_SHUNT_R':7.15e3} for ch in range(8)},
+
+# class LoadingOptions(pr.Device):
+#     def __init__(self,
+#                  loading=[{
+#                      'SA_BIAS_SHUNT_R':15.0e3,
+#                      'SA_OFFSET_R':4.02e3,
+#                      'SA_AMP_FB_R':1.1e3,
+#                      'SA_AMP_GAIN_R':100,
+#                      'SA_AMP_GAIN_2':11,
+#                      'SA_AMP_GAIN_3':1.5,
+#                      'SA_FB_FSADJ_R':2.0e3,
+#                      'SA_FB_DAC_LOAD_R':25.0,
+#                      'SA_FB_AMP_GAIN_R':-4.7,
+#                      'SA_FB_SHUNT_R':7.15e3,
+#                      'SQ1_FB_FSADJ_R':2.0e3,                     
+#                      'SQ1_FB_DAC_LOAD_R':25.0,
+#                      'SQ1_FB_AMP_GAIN_R':-4.7,
+#                      'SQ1_FB_SHUNT_R':7.15e3,
+#                      'SQ1_BIAS_FSADJ_R':2.0e3,                     
+#                      'SQ1_BIAS_DAC_LOAD_R':25.0,
+#                      'SQ1_BIAS_AMP_GAIN_R':-4.7,
+#                      'SQ1_BIAS_SHUNT_R':7.15e3} for _ in range(8)],
+#                  **kwargs):
+#         super().__init__(**kwargs)
+
+#         self.loading = loading
+
+#         for i,d in enumerate(loading):
+#             for k,v in loading.items():
+                
+# #            setattr(self, k, v)
+#                 self.add(pr.LocalVariable(
+#                     name = f'CH[{i}]_{k}_VAR',
+#                     value = v, #getattr(self, k),
+#                     mode = 'RO'))
 
     
 
 class ColumnModule(pr.Device):
-    def __init__(self, waveform_stream, rows=64, **kwargs):
+    def __init__(self,
+                 # Channels 0 and 1 have FB attached after first stage
+                 loading={
+                     0: {
+                         'SA_AMP_FB_R': 1.0,
+                         'SA_OFFSET_R': 1.0e20,
+                         'SA_AMP_GAIN_R': 1.0e20},
+                     1: {
+                         'SA_AMP_FB_R': 1.0,
+                         'SA_OFFSET_R': 1.0e20,
+                         'SA_AMP_GAIN_R': 1.0e20}},                     
+                 waveform_stream,
+                 rows=64,
+                 **kwargs):
         super().__init__(**kwargs)
 
-        self.add(LoadingOptions())
+        # Write any entries in loading over top of the default loading values
+        self.loading = DEFAULT_LOADING
+        for ch, d in loading.items():
+            for k, v in d.items():
+                self.loading[d][k] = v
+
+#        self.add(LoadingOptions())
 
 
         self.add(warm_tdm.WarmTdmCore(
@@ -55,7 +98,6 @@ class ColumnModule(pr.Device):
         self.add(warm_tdm.DataPath(
             offset = 0xC0300000,
             expand = True,
-            loading = self.LoadingOptions,
             waveform_stream = waveform_stream))
 
         self.add(warm_tdm.Ad5679R(
@@ -65,7 +107,7 @@ class ColumnModule(pr.Device):
 
         self.add(warm_tdm.SaBiasOffset(
             dac = self.SaBiasDac,
-            loading = self.LoadingOptions,
+            loading = self.loading,
             waveformTrigger = self.DataPath.WaveformCapture.WaveformTrigger))
 
         self.add(warm_tdm.Ad5679R(
@@ -80,10 +122,10 @@ class ColumnModule(pr.Device):
             name = 'SAFb',
             offset = 0xC0600000,
             rows = rows,
-            rfsadj = self.LoadingOptions.SA_FB_FSADJ_R,
-            dacLoad = self.LoadingOptions.SA_FB_DAC_LOAD_R,
-            ampGain = self.LoadingOptions.SA_FB_AMP_GAIN_R,
-            outResistance = self.LoadingOptions.SA_FB_SHUNT_R,
+            rfsadj = {col: d['SA_FB_FSADJ_R'] for col, d in self.loading.items()},
+            dacLoad = {col: d['SA_FB_DAC_LOAD_R'] for col, d in self.loading.items()},
+            ampGain = {col: d['SA_FB_AMP_GAIN_R'] for col, d in self.loading.items()},
+            outResistance = {col: d['SA_FB_SHUNT_R'] for col, d in self.loading.items()},
             waveformTrigger = self.DataPath.WaveformCapture.WaveformTrigger
         ))
 
@@ -91,20 +133,20 @@ class ColumnModule(pr.Device):
             name = 'SQ1Bias',
             offset = 0xC0400000,
             rows = rows,
-            rfsadj = self.LoadingOptions.SQ1_BIAS_FSADJ_R,
-            dacLoad = self.LoadingOptions.SQ1_BIAS_DAC_LOAD_R,
-            ampGain = self.LoadingOptions.SQ1_BIAS_AMP_GAIN_R,
-            outResistance = self.LoadingOptions.SQ1_BIAS_SHUNT_R
+            rfsadj = {col: d['SQ1_BIAS_FSADJ_R'] for col, d in self.loading.items()},
+            dacLoad = {col: d['SQ1_BIAS_DAC_LOAD_R'] for col, d in self.loading.items()},
+            ampGain = {col: d['SQ1_BIAS_AMP_GAIN_R'] for col, d in self.loading.items()},
+            outResistance = {col: d['SQ1_BIAS_SHUNT_R'] for col, d in self.loading.items()},
         ))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Fb',
             offset =0xC0500000,
             rows = rows,
-            rfsadj = self.LoadingOptions.SQ1_FB_FSADJ_R,
-            dacLoad = self.LoadingOptions.SQ1_FB_DAC_LOAD_R,
-            ampGain = self.LoadingOptions.SQ1_FB_AMP_GAIN_R,
-            outResistance = self.LoadingOptions.SQ1_FB_SHUNT_R
+            rfsadj = {col: d['SQ1_FB_FSADJ_R'] for col, d in self.loading.items()},
+            dacLoad = {col: d['SQ1_FB_DAC_LOAD_R'] for col, d in self.loading.items()},
+            ampGain = {col: d['SQ1_FB_AMP_GAIN_R'] for col, d in self.loading.items()},
+            outResistance = {col: d['SQ1_FB_SHUNT_R'] for col, d in self.loading.items()},
         ))
 
 
@@ -122,26 +164,40 @@ class ColumnModule(pr.Device):
             disp = '{:0.03f}'))
 
 
-        def ampVin(Vout, Voffset):
-            lo = self.LoadingOptions
-            return ((Vout / (lo.SA_AMP_GAIN_2 * lo.SA_AMP_GAIN_3)) * (1.0/lo.SA_AMP_FB_R) + (Voffset / lo.SA_OFFSET_R)) / ((1.0/lo.SA_AMP_GAIN_R) + (1.0/lo.SA_OFFSET_R) + (1.0/lo.SA_AMP_FB_R))
+        def ampVin(Vout, Voffset, col):
+            lo = self.loading[col]
+            G_OFF = 1.0/lo['SA_OFFSET_R']
+            G_FB = 1.0/lo['SA_AMP_FB_R']
+            G_GAIN = 1.0/lo['SA_AMP_GAIN_R']
+
+            V_OUT_1 = Vout/(lo['SA_AMP_GAIN_2']*lo['SA_AMP_GAIN_3'])
+            
+            SA_OUT = ((G_OFF * Voffset) + (G_FB * V_OUT_1)) / (G_OFF + G_FB + G_GAIN)
+            return SA_OUT
 
         ampVinVec = np.vectorize(ampVin)
-
-
-        lo = self.LoadingOptions            
-        ampGain =  ((lo.SA_AMP_GAIN_R + lo.SA_AMP_FB_R) / lo.SA_AMP_GAIN_R) * lo.SA_AMP_GAIN_2 * lo.SA_AMP_GAIN_3
-        
+        cols = list(range(8))
 
         def _saOutGet(*, read=True, index=-1, check=True):
             with self.root.updateGroup():
                 adc = self.SaOutAdc.get(read=read, index=index, check=check)
                 offset = self.SaBiasOffset.OffsetVoltageArray.get(read=read, index=index, check=check)
                 if index == -1:
-                    ret = ampVinVec(adc, offset) * 1e3
+                    ret = ampVinVec(adc, offset, cols) * 1e3
                     return ret
                 else:
-                    ret = ampVin(adc, offset) * 1e3
+                    ret = ampVin(adc, offset, index) * 1e3
+                    return ret
+
+        def _saOutNormGet(*, read=True, index=-1, check=True):
+            with self.root.updateGroup():
+                adc = self.SaOutAdc.get(read=read, index=index, check=check)
+                offset = 0.0
+                if index == -1:
+                    ret = ampVinVec(adc, offset, cols) * 1e3
+                    return ret
+                else:
+                    ret = ampVin(adc, offset, index) * 1e3
                     return ret
                     
         
@@ -157,7 +213,7 @@ class ColumnModule(pr.Device):
             dependencies = [self.SaOutAdc],
             units = 'mV',
             disp = '{:0.03f}',            
-            linkedGet = lambda read, index: 1.0e3 * self.SaOutAdc.get(index=index, read=read) / ampGain))
+            linkedGet = _saOutNormGet)
             
         
 
