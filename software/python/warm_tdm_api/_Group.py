@@ -4,6 +4,8 @@ import warm_tdm_api
 import numpy as np
 import dataclasses
 
+
+
 class ArrayVariableDevice(pr.Device):
     def __init__(self, *, variable, size, **kwargs):
         super().__init__(**kwargs)
@@ -27,6 +29,9 @@ class GroupLinkVariable(pr.LinkVariable):
             disp=disp,
             **kwargs)
         self.tuneEnVar = tuneEnVar
+        deps =  kwargs['dependencies']
+        if len(deps) > 0:
+            self._units = deps[0].units
 
     # Set group values, index is column or row
     def _set(self, *, value, index, write):
@@ -239,6 +244,17 @@ class FastDacVariable(GroupLinkVariable):
 
 
 class Group(pr.Device):
+    def makeGuiGroup(self, arrVar):
+        for i in range(len(self._config.columnMap)):
+            self.add(pr.LinkVariable(
+                name = f'_{arrVar.name}[{i}]',
+                mode = 'RO',
+                disp = arrVar.disp,
+                units = arrVar.units,
+                guiGroup = arrVar.name,
+                dependencies = [arrVar],
+                linkedGet = lambda read, x=i: arrVar.get(read=read, index=i)))
+            
     def __init__(self, groupConfig, groupId, dataWriter, simulation=False, emulate=False, plots=False, **kwargs):
         """
         Warm TDM Device
@@ -449,6 +465,8 @@ class Group(pr.Device):
                             for m in self._config.columnMap],
             tuneEnVar = self.ColTuneEnable))
 
+        self.makeGuiGroup(self.SaBiasVoltage)
+
         self.add(GroupLinkVariable(
             name='SaBiasCurrent',
             description='SaBias value for each column. 1D array with total length = ColumnBoards * 8.'
@@ -456,6 +474,8 @@ class Group(pr.Device):
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SaBiasOffset.BiasCurrent[m.channel]
                             for m in self._config.columnMap],
             tuneEnVar = self.ColTuneEnable))
+
+        self.makeGuiGroup(self.SaBiasCurrent)
         
 
         self.add(GroupLinkVariable(
@@ -466,6 +486,8 @@ class Group(pr.Device):
                             for m in self._config.columnMap],
             tuneEnVar = self.ColTuneEnable))
 
+        self.makeGuiGroup(self.SaOffset)
+
         self.add(SaOutVariable(
             name='SaOutAdc',
             description='Current ADC value in Volts for each column. Total length = ColumnBoards * 8.'
@@ -475,6 +497,8 @@ class Group(pr.Device):
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].DataPath.WaveformCapture.AdcAverage
                             for m in self._config.columnMap],
             tuneEnVar = self.ColTuneEnable))
+
+        self.makeGuiGroup(self.SaOutAdc)
 
 #         self.add(ArrayVariableDevice(
 #             name='SaOutAdcDev',
@@ -492,8 +516,11 @@ class Group(pr.Device):
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SaOut
                             for m in self._config.columnMap],
             config = self._config,
-            disp = '{:0.03f}',
-            units = 'mV'))
+            disp = '{:0.03f}',))
+#            units = 'mV'))
+
+        self.makeGuiGroup(self.SaOut)
+
 
         self.add(SaOutVariable(
             name='SaOutNorm',
@@ -505,6 +532,8 @@ class Group(pr.Device):
             config = self._config,
             disp = '{:0.03f}',            
             units = 'mV'))
+
+        self.makeGuiGroup(self.SaOutNorm)
         
 
         self.add(FastDacVariable(

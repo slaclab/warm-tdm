@@ -65,7 +65,7 @@ class HardwareGroup(pyrogue.Device):
 
             # Instantiate the board Device tree and link it to the SRP
             self.add(warm_tdm.ColumnModule(name=f'ColumnBoard[{index}]', memBase=srp, expand=True, rows=rows, waveform_stream=dataStream))
-            waveGui = warm_tdm.WaveformCaptureReceiver(hidden=True, live_plots=plots)
+            waveGui = warm_tdm.WaveformCaptureReceiver(hidden=False, live_plots=plots)
 
             # Link the data stream to the DataWriter
             if emulate is False:

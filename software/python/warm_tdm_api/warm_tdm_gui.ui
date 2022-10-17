@@ -792,40 +792,44 @@ p, li { white-space: pre-wrap; }
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout_9">
        <item>
-        <widget class="DebugTree" name="DebugTree">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="minimumSize">
-          <size>
-           <width>0</width>
-           <height>300</height>
-          </size>
-         </property>
-         <property name="toolTip">
-          <string/>
-         </property>
-         <property name="channel" stdset="0">
-          <string>rogue://0/root.Group.HardwareGroup.ColumnBoard[0].DataPath.WaveformCapture</string>
-         </property>
-        </widget>
-       </item>
-       <item>
         <layout class="QHBoxLayout" name="horizontalLayout_4">
          <item>
-          <widget class="Plotter" name="Plotter_3">
+          <widget class="DebugTree" name="DebugTree">
            <property name="toolTip">
             <string/>
            </property>
            <property name="channel" stdset="0">
-            <string>rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.MultiPlot</string>
+            <string>rogue://0/root.Group.HardwareGroup.ColumnBoard[0].DataPath.WaveformCapture</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="DebugTree" name="DebugTree_3">
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>469</height>
+            </size>
+           </property>
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="channel" stdset="0">
+            <string>rogue://0/root.Group.HardwareGroup.WaveformCaptureReceiver</string>
            </property>
           </widget>
          </item>
         </layout>
+       </item>
+       <item>
+        <widget class="Plotter" name="Plotter_3">
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="channel" stdset="0">
+          <string>rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.MultiPlot</string>
+         </property>
+        </widget>
        </item>
       </layout>
      </widget>
@@ -884,7 +888,7 @@ p, li { white-space: pre-wrap; }
          </property>
          <property name="curves">
           <stringlist>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaStripChartProcess.SampleDataY&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaStripChartProcess.SampleDataX&quot;, &quot;name&quot;: &quot;mV&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
+           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaStripChartProcess.SampleDataY&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaStripChartProcess.SampleDataX&quot;, &quot;plot_style&quot;: null, &quot;name&quot;: &quot;mV&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;yAxisName&quot;: &quot;Axis 1&quot;, &quot;barWidth&quot;: null, &quot;upperThreshold&quot;: null, &quot;lowerThreshold&quot;: null, &quot;thresholdColor&quot;: &quot;white&quot;, &quot;redraw_mode&quot;: 2}</string>
           </stringlist>
          </property>
         </widget>
