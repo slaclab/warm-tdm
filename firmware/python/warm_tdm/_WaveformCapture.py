@@ -306,33 +306,28 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
         adcs = frame[8:].view(np.int16).copy()
         adcs = adcs//4
 
-        if channel >= 8:
-            # Construct a view of the adc data
-            adcs.resize(adcs.size//8, 8)
-            self.RmsNoiseRaw.set(adcs.std(0))
-        else:
-            self.RmsNoiseRaw.set(value=adcs.std(), index=channel)
+        with self.root.updateGroup():
+
+            if channel >= 8:
+                # Construct a view of the adc data
+                adcs.resize(adcs.size//8, 8)
+                self.RmsNoiseRaw.set(adcs.std(0))
+            else:
+                self.RmsNoiseRaw.set(value=adcs.std(), index=channel)
 
 
-        # Convert adc values to voltages
-        voltages = self.conv(adcs)
-        
+            voltages = self.conv(adcs)
+            d = self.RawData.get()
 
-        #print(adcs)
-        #print(voltages)
-        d = self.RawData.get()
-        
-        if channel >= 8:
-            d = {ch: {
-                'adcs': adcs[ch],
-                'voltages': voltages[ch]}
-                 for ch in range(8)}
-            pkpk = [max(voltages[ch])-min(voltages[ch]) for ch in range(8)]
-            self.SaOutPkPk.set(pkpk)
-        else:
-            d[channel]['adcs'] = adcs
-            d[channel]['voltages'] = voltages
-        self.RawData.set(d)
+            if channel >= 8:
+                d = {ch: {
+                    'adcs': adcs[ch],
+                    'voltages': voltages[ch]}
+                     for ch in range(8)}
+            else:
+                d[channel]['adcs'] = adcs
+                d[channel]['voltages'] = voltages
+            self.RawData.set(d)
 
 
             
