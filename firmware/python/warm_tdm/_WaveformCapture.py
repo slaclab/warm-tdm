@@ -190,6 +190,7 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
             name = 'RawData',
             value = {ch: {'adcs': tmpAdc[ch], 'voltages': tmpVoltage[ch]} for ch in range(8)},
             mode = 'RO',
+            groups = ['NoStream'],
             hidden = True))
 
         self.add(pr.LocalVariable(
@@ -315,11 +316,12 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
             else:
                 self.RmsNoiseRaw.set(value=adcs.std(), index=channel)
 
-
+            print(adcs)
             voltages = self.conv(adcs)
             d = self.RawData.get()
 
             if channel >= 8:
+                print(f'{adcs[ch]]}')
                 d = {ch: {
                     'adcs': adcs[ch],
                     'voltages': voltages[ch]}
