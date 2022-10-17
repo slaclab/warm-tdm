@@ -26,7 +26,7 @@ DEFAULT_LOADING = {ch: {
     'SQ1_BIAS_FSADJ_R':2.0e3,                     
     'SQ1_BIAS_DAC_LOAD_R':25.0,
     'SQ1_BIAS_AMP_GAIN_R':-4.7,
-    'SQ1_BIAS_SHUNT_R':7.15e3} for ch in range(8)},
+    'SQ1_BIAS_SHUNT_R':7.15e3} for ch in range(8)}
 
 # class LoadingOptions(pr.Device):
 #     def __init__(self,
@@ -68,6 +68,7 @@ DEFAULT_LOADING = {ch: {
 class ColumnModule(pr.Device):
     def __init__(self,
                  # Channels 0 and 1 have FB attached after first stage
+                 waveform_stream,                 
                  loading={
                      0: {
                          'SA_AMP_FB_R': 1.0,
@@ -77,16 +78,18 @@ class ColumnModule(pr.Device):
                          'SA_AMP_FB_R': 1.0,
                          'SA_OFFSET_R': 1.0e20,
                          'SA_AMP_GAIN_R': 1.0e20}},                     
-                 waveform_stream,
                  rows=64,
                  **kwargs):
         super().__init__(**kwargs)
 
         # Write any entries in loading over top of the default loading values
-        self.loading = DEFAULT_LOADING
+        self.loading = DEFAULT_LOADING.copy()
+        print(self.loading)
+        
         for ch, d in loading.items():
             for k, v in d.items():
-                self.loading[d][k] = v
+                print(f'{ch=}, {d=}, {k=}, {v=}')
+                self.loading[ch][k] = v
 
 #        self.add(LoadingOptions())
 
@@ -213,7 +216,7 @@ class ColumnModule(pr.Device):
             dependencies = [self.SaOutAdc],
             units = 'mV',
             disp = '{:0.03f}',            
-            linkedGet = _saOutNormGet)
+            linkedGet = _saOutNormGet))
             
         
 

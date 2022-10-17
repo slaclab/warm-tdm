@@ -19,7 +19,8 @@ class FastDacDriver(pr.Device):
         if rows == 0:
             rows = 64
 
-        self.iOutFs = 1.2 / r * 32 for r in rfsadj,
+        print(rfsadj)
+        self.iOutFs = [1.2 / r * 32 for r in rfsadj.values()]
         self.dacLoad = dacLoad
         self.ampGain = ampGain
         self.outResistance = outResistance

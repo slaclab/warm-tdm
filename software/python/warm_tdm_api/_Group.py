@@ -435,10 +435,11 @@ class Group(pr.Device):
         # Column board acces variables
         #####################################
 
-        self.add(pr.LinkVariable(
+        self.add(pr.LocalVariable(
             name = 'SA_FB_SHUNT_R',
             hidden = True,
-            variable = self.HardwareGroup.ColumnBoard[0].LoadingOptions.SA_FB_SHUNT_R_VAR))
+            mode = 'RO',
+            value = {k:v['SA_FB_SHUNT_R'] for k,v in self.HardwareGroup.ColumnBoard[0].loading.items()}))
 
         self.add(GroupLinkVariable(
             name='SaBiasVoltage',

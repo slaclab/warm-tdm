@@ -51,7 +51,7 @@ class SinglePlot(pr.LinkVariable):
 
         shunt = self.parent.parent.SA_FB_SHUNT_R.value()            
 
-        self._plot_ax(self._ax, col, tune[col], shunt)
+        self._plot_ax(self._ax, col, tune[col], shunt[col])
 
         return self._fig
 
@@ -76,7 +76,7 @@ class MultiPlot(SinglePlot):
 
         axes = self._ax.reshape(8)
         for col, ax in enumerate(axes):
-            self._plot_ax(ax, col, tune[col], shunt)
+            self._plot_ax(ax, col, tune[col], shunt[col])
 
         return self._fig
 
