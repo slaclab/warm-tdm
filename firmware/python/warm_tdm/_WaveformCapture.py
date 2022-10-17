@@ -309,9 +309,9 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
         if channel >= 8:
             # Construct a view of the adc data
             adcs.resize(adcs.size//8, 8)
-            self.RmsNoise.set(adcs.std(0))
+            self.RmsNoiseRaw.set(adcs.std(0))
         else:
-            self.RmsNoise.set(value=adcs.std(), index=channel)
+            self.RmsNoiseRaw.set(value=adcs.std(), index=channel)
 
 
         # Convert adc values to voltages
