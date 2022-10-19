@@ -91,6 +91,9 @@ with warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=arg
     if args.docs != '':
         root.genDocuments(path=args.docs,incGroups=['DocApi'],excGroups=['NoDoc','Enable','Hardware'])
 
+    root.Group.ColTuneEnable.set(False, index=0)
+    root.Group.ColTuneEnable.set(False, index=1)    
+
     pyrogue.pydm.runPyDM(root=root,title='Warm TDM',sizeX=2000,sizeY=2000,ui=warm_tdm_api.pydmUi)
 
-    pyrogue.waitCntrlC()
+

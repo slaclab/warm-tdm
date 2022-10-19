@@ -164,6 +164,7 @@ class ColumnModule(pr.Device):
             name = 'SaOutAdc',
             variable = self.DataPath.WaveformCapture.AdcAverage,
             units = 'V',
+            mode = 'RO',
             disp = '{:0.03f}'))
 
 

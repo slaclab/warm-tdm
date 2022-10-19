@@ -132,7 +132,7 @@ class WaveformCapture(pr.Device, rogue.interfaces.stream.Slave):
                 mode = 'RO',
                 dependencies = [self.AdcAverageRaw],
                 linkedGet = lambda read, x=i: self.AdcAverageRaw.get(read=read, index=x)))
-                
+
 
 
         # Convert fixed point average to volts at ADC
@@ -164,7 +164,7 @@ class WaveformCapture(pr.Device, rogue.interfaces.stream.Slave):
                 mode = 'RO',
                 dependencies = [self.AdcAverage],
                 linkedGet = lambda read, x=i: self.AdcAverage.get(read=read, index=x)))
-        
+
 
     def _acceptFrame(self, frame):
         self.WaveformState.set('Idle')
@@ -174,7 +174,7 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
     def __init__(self, live_plots=False, **kwargs):
         rogue.interfaces.stream.Slave.__init__(self)
         pr.Device.__init__(self, **kwargs)
-        
+
         #self.hist_plotter = HistogramPlotter()
         #self.periodogram_plotter = PeriodogramPlotter()
 
@@ -185,7 +185,7 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
 
         tmpAdc = np.array(np.random.default_rng().normal(1, 20, (8,0x2000)), dtype=np.int)
         tmpVoltage = self.conv(tmpAdc)
-        
+
         self.add(pr.LocalVariable(
             name = 'RawData',
             value = {ch: {'adcs': tmpAdc[ch], 'voltages': tmpVoltage[ch]} for ch in range(8)},
@@ -218,7 +218,7 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
         self.add(pr.LocalVariable(
             name = 'PlotWaveform',
             value = False))
-                 
+
 
         self.add(pr.LocalVariable(
             name='RmsNoiseRaw',
@@ -233,7 +233,7 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
                 name = f'RmsNoiseAdc[{i}]',
                 mode = 'RO',
                 units = 'ADC',
-                disp = '{:0.3f}',                
+                disp = '{:0.3f}',
                 guiGroup = 'RmsNoiseAdc',
                 dependencies = [self.RmsNoiseRaw],
                 linkedGet = lambda read, ch=i: self.RmsNoiseRaw.get(read=read, index=ch)))
@@ -243,11 +243,11 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
                 name = f'RmsNoiseV[{i}]',
                 mode = 'RO',
                 units = 'uV',
-                disp = '{:0.3f}',                
+                disp = '{:0.3f}',
                 guiGroup = 'RmsNoiseV',
                 dependencies = [self.RmsNoiseRaw],
                 linkedGet = lambda read, ch=i: 1.0e6*_conv(self.RmsNoiseRaw.get(read=read, index=ch))))
-            
+
         for i in range(8):
             self.add(pr.LinkVariable(
                 name = f'SaOutNoise[{i}]',
@@ -264,12 +264,12 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
                 v = d[x]['voltages']
                 r = v.max()-v.min()
                 return (r*1.0e3)/200
-            
+
             self.add(pr.LinkVariable(
                 name = f'SaOutPkPk[{i}]',
                 mode = 'RO',
                 units = 'mV',
-                disp = '{:0.3f}',                
+                disp = '{:0.3f}',
                 guiGroup = 'SaOutPkPk',
                 dependencies = [self.RawData],
                 linkedGet = _get))
@@ -282,7 +282,7 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
             psdEnVar = self.PlotPSD,
             waveEnVar = self.PlotWaveform,
             rawDataVar = self.RawData,
-            colVar = self.PlotColumn,            
+            colVar = self.PlotColumn,
             hidden=True))
 
 
@@ -321,18 +321,20 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
             d = self.RawData.get()
 
             if channel >= 8:
-                print(f'{adcs[ch]]}')
                 d = {ch: {
-                    'adcs': adcs[ch],
-                    'voltages': voltages[ch]}
+                    'adcs': adcs[:,ch],
+                    'voltages': voltages[:,ch]}
                      for ch in range(8)}
+
             else:
                 d[channel]['adcs'] = adcs
                 d[channel]['voltages'] = voltages
+
+            print(d)
             self.RawData.set(d)
 
 
-            
+
 
         #self.MultiPlot.set(value=adcs, index=channel)
 
@@ -340,13 +342,13 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
 
 
 
-                 
+
 def plot_waveform_channel(ch, ax, voltages):
     ax.clear()
     ax.plot(voltages)
-            
+
 def plot_histogram_channel(ch, ax, adcs):
-    print(f'plot_histogram_channel(ch={ch})')    
+    print(f'plot_histogram_channel(ch={ch})')
     mean = np.int32(adcs.mean())
     low = np.int32(adcs.min())
     high = np.int32(adcs.max())
@@ -357,17 +359,17 @@ def plot_histogram_channel(ch, ax, adcs):
     ax.hist(adcs, bins, histtype='bar')#, density=True)
     ax.yaxis.set_ticklabels([])
 #    ax.text(0.05, 0.8, f'\u03C3: {rms:1.3f}, pk-pk: {high-low} ADC', transform=ax.transAxes)
-#    ax.text(0.05, 0.5, f'\u03C3: {(1.0e3*rms)/(200*2**13):1.3f}, pk-pk: {(1.0e3*(high-low))/(200*2**13):1.3f} mV', transform=ax.transAxes)    
+#    ax.text(0.05, 0.5, f'\u03C3: {(1.0e3*rms)/(200*2**13):1.3f}, pk-pk: {(1.0e3*(high-low))/(200*2**13):1.3f} mV', transform=ax.transAxes)
 
     ax.xaxis.set_ticks_position('bottom')
-    ax.yaxis.set_ticks_position('left')        
+    ax.yaxis.set_ticks_position('left')
     if ch == 7:
         ax.set_xlabel('ADC counts')
     elif ch == 0:
         ax.set_title('ADC histograms')
 
 
-def plot_psd_channel(ch, ax, voltages): 
+def plot_psd_channel(ch, ax, voltages):
     print(f'plot_psd_channel(ch={ch})')
 
     # Calculate the PSD
@@ -386,17 +388,17 @@ def plot_psd_channel(ch, ax, voltages):
     ax.loglog(freqs,[3 for _ in freqs],label='3 nV/rt.Hz',color='r', linestyle='dashed')
     #ax.legend()
 
-    #ax.text(0.05, 0.8, f'Ch {ch}', transform=ax.transAxes)        
+    #ax.text(0.05, 0.8, f'Ch {ch}', transform=ax.transAxes)
 
     ax.xaxis.set_ticks_position('bottom')
-    ax.yaxis.set_ticks_position('left')        
+    ax.yaxis.set_ticks_position('left')
     if ch == 7:
         ax.set_xlabel('Frequency (Hz)')
     elif ch == 0:
         ax.set_title('PSD (nV/rt.Hz)')
     else:
         ax.xaxis.set_ticklabels([])
-        
+
 
 
 
@@ -419,7 +421,7 @@ class MultiPlot(pr.LinkVariable):
             histEnVar: (plot_histogram_channel, 'adcs'),
             psdEnVar: (plot_psd_channel, 'voltages'),
             waveEnVar: (plot_waveform_channel, 'voltages')}
-    
+
 
         self.fig = None
         #self.fig.suptitle('PSD (nV/rt.Hz)')
@@ -428,14 +430,14 @@ class MultiPlot(pr.LinkVariable):
             return adc/2**13
 
         self.conv = np.vectorize(_conv)
-        
+
 
     def linkedGet(self, read, index=-1):
         print(f'MultiPlot.linkedGet({read=}, {index=})')
         #if read is False and self.fig is not None:
         #    print('Return previous fig')
         #    return self.fig
-        
+
         if self.fig is not None:
             print('Closing old plot')
             plt.close(self.fig)
@@ -457,12 +459,9 @@ class MultiPlot(pr.LinkVariable):
                     func[0](ch, ax, data[ch][func[1]])
                     index += 1
         else:
-            ch = self.PlotColumn.get(read=read)            
+            ch = self.PlotColumn.get(read=read)
             for index, func in enumerate(enabled_plot_functions.values()):
                 ax = self.fig.add_subplot(num_plots, 1, index+1)
                 func[0](ch, ax, data[ch][func[1]])
 
         return self.fig
-
-        
-    

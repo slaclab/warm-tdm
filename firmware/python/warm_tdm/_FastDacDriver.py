@@ -167,7 +167,7 @@ class FastDacDriver(pr.Device):
         return dac
 
     def _squidCurrentToDac(self, current, column):
-        return self._squidVoltageToDac(current * self.outResistance[column])
+        return self._squidVoltageToDac(current * self.outResistance[column], column)
     
 
 
