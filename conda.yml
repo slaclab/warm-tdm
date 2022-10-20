@@ -1,6 +1,6 @@
 channels:
   - conda-forge
-  - tidair-dev
+  - tidair-tag
 dependencies:
   - python
   - gcc_linux-64
@@ -27,6 +27,6 @@ dependencies:
   - sqlalchemy
   - pydm
   - matplotlib
-  - rogue=v5.15.1
+  - rogue=v5.15.3
   - jupyterlab
   - simple-pid
