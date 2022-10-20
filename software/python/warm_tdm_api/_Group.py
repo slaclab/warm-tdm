@@ -253,8 +253,8 @@ class Group(pr.Device):
                 units = arrVar.units,
                 guiGroup = arrVar.name,
                 dependencies = [arrVar],
-                linkedGet = lambda read, x=i: arrVar.get(read=read, index=i),
-                linkedSet = None if arrVar.mode == 'RO' else lambda value, write, index=i: arrVar.set(value, write=write, index=i)))
+                linkedGet = lambda read, x=i: arrVar.get(read=read, index=x),
+                linkedSet = None if arrVar.mode == 'RO' else lambda value, write, x=i: arrVar.set(value, write=write, index=x)))
             
     def __init__(self, groupConfig, groupId, dataWriter, simulation=False, emulate=False, plots=False, **kwargs):
         """
