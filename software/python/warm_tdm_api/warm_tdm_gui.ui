@@ -167,7 +167,7 @@
                </widget>
               </item>
               <item row="1" column="1">
-               <widget class="PyDMLineEdit" name="PyDMLineEdit_5">
+               <widget class="PyRogueLineEdit" name="PyRogueLineEdit_5">
                 <property name="toolTip">
                  <string/>
                 </property>
@@ -190,7 +190,7 @@
                </widget>
               </item>
               <item row="3" column="1">
-               <widget class="PyDMLineEdit" name="PyDMLineEdit_7">
+               <widget class="PyRogueLineEdit" name="PyRogueLineEdit_7">
                 <property name="toolTip">
                  <string/>
                 </property>
@@ -213,7 +213,7 @@
                </widget>
               </item>
               <item row="0" column="1">
-               <widget class="PyDMLineEdit" name="PyDMLineEdit">
+               <widget class="PyRogueLineEdit" name="PyRogueLineEdit">
                 <property name="toolTip">
                  <string/>
                 </property>
@@ -236,7 +236,7 @@
                </widget>
               </item>
               <item row="2" column="1">
-               <widget class="PyDMLineEdit" name="PyDMLineEdit_2">
+               <widget class="PyRogueLineEdit" name="PyRogueLineEdit_2">
                 <property name="toolTip">
                  <string/>
                 </property>
