@@ -76,8 +76,10 @@ class WaveformCapture(pr.Device, rogue.interfaces.stream.Slave):
                 startSel = self.SelectedChannel.get()
                 self.AllChannels.set(False)
                 for i in range(8):
+                    print(f'Capturing channel {i}')
                     self.SelectedChannel.set(i)
-                    self.CaptureWaveform()
+                    self.WaveformTrigger()
+                    time.sleep(1)
 
                 self.AllChannels.set(startAll)
                 self.SelectedChannel.set(startSel)
@@ -327,6 +329,7 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
                      for ch in range(8)}
 
             else:
+                print(f'Setting data for channel {channel}')
                 d[channel]['adcs'] = adcs
                 d[channel]['voltages'] = voltages
 
@@ -343,11 +346,13 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
 
 
 
-def plot_waveform_channel(ch, ax, voltages):
+def plot_waveform_channel(ch, ax, voltages, multi_channel):
     ax.clear()
     ax.plot(voltages)
+    if not multi_channel:
+        ax.set_title(f'Channel {ch} waveform')
 
-def plot_histogram_channel(ch, ax, adcs):
+def plot_histogram_channel(ch, ax, adcs, multi_channel):
     print(f'plot_histogram_channel(ch={ch})')
     mean = np.int32(adcs.mean())
     low = np.int32(adcs.min())
@@ -357,19 +362,24 @@ def plot_histogram_channel(ch, ax, adcs):
 
     ax.clear()
     ax.hist(adcs, bins, histtype='bar')#, density=True)
-    ax.yaxis.set_ticklabels([])
+
 #    ax.text(0.05, 0.8, f'\u03C3: {rms:1.3f}, pk-pk: {high-low} ADC', transform=ax.transAxes)
 #    ax.text(0.05, 0.5, f'\u03C3: {(1.0e3*rms)/(200*2**13):1.3f}, pk-pk: {(1.0e3*(high-low))/(200*2**13):1.3f} mV', transform=ax.transAxes)
 
     ax.xaxis.set_ticks_position('bottom')
     ax.yaxis.set_ticks_position('left')
-    if ch == 7:
+    if multi_channel:
+        ax.yaxis.set_ticklabels([])        
+        if ch == 7:
+            ax.set_xlabel('ADC counts')
+        elif ch == 0:
+            ax.set_title('ADC histograms')
+    else:
         ax.set_xlabel('ADC counts')
-    elif ch == 0:
-        ax.set_title('ADC histograms')
+        ax.set_title(f'Channel {ch} ADC histogram')
 
 
-def plot_psd_channel(ch, ax, voltages):
+def plot_psd_channel(ch, ax, voltages, multi_channel):
     print(f'plot_psd_channel(ch={ch})')
 
     # Calculate the PSD
@@ -392,12 +402,16 @@ def plot_psd_channel(ch, ax, voltages):
 
     ax.xaxis.set_ticks_position('bottom')
     ax.yaxis.set_ticks_position('left')
-    if ch == 7:
-        ax.set_xlabel('Frequency (Hz)')
-    elif ch == 0:
-        ax.set_title('PSD (nV/rt.Hz)')
+    if multi_channel:
+        if ch == 7:
+            ax.set_xlabel('Frequency (Hz)')
+        elif ch == 0:
+            ax.set_title('PSD (nV/rt.Hz)')
+        else:
+            ax.xaxis.set_ticklabels([])
     else:
-        ax.xaxis.set_ticklabels([])
+        ax.set_xlabel('Frequency (Hz)')
+        ax.set_title(f'Channel {ch} PSD (nV/rt.Hz)')
 
 
 
@@ -456,12 +470,13 @@ class MultiPlot(pr.LinkVariable):
             for ch in range(8):
                 for func in enabled_plot_functions.values():
                     ax = self.fig.add_subplot(8, num_plots, index)
-                    func[0](ch, ax, data[ch][func[1]])
+                    func[0](ch, ax, data[ch][func[1]], multi_channel=True)
                     index += 1
         else:
             ch = self.PlotColumn.get(read=read)
+            #self.fig.suptitle(f'Channel {ch}')
             for index, func in enumerate(enabled_plot_functions.values()):
                 ax = self.fig.add_subplot(num_plots, 1, index+1)
-                func[0](ch, ax, data[ch][func[1]])
+                func[0](ch, ax, data[ch][func[1]], multi_channel=False)
 
         return self.fig
