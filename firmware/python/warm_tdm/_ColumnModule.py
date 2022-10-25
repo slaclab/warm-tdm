@@ -28,42 +28,6 @@ DEFAULT_LOADING = {ch: {
     'SQ1_BIAS_AMP_GAIN_R':-4.7,
     'SQ1_BIAS_SHUNT_R':7.15e3} for ch in range(8)}
 
-# class LoadingOptions(pr.Device):
-#     def __init__(self,
-#                  loading=[{
-#                      'SA_BIAS_SHUNT_R':15.0e3,
-#                      'SA_OFFSET_R':4.02e3,
-#                      'SA_AMP_FB_R':1.1e3,
-#                      'SA_AMP_GAIN_R':100,
-#                      'SA_AMP_GAIN_2':11,
-#                      'SA_AMP_GAIN_3':1.5,
-#                      'SA_FB_FSADJ_R':2.0e3,
-#                      'SA_FB_DAC_LOAD_R':25.0,
-#                      'SA_FB_AMP_GAIN_R':-4.7,
-#                      'SA_FB_SHUNT_R':7.15e3,
-#                      'SQ1_FB_FSADJ_R':2.0e3,                     
-#                      'SQ1_FB_DAC_LOAD_R':25.0,
-#                      'SQ1_FB_AMP_GAIN_R':-4.7,
-#                      'SQ1_FB_SHUNT_R':7.15e3,
-#                      'SQ1_BIAS_FSADJ_R':2.0e3,                     
-#                      'SQ1_BIAS_DAC_LOAD_R':25.0,
-#                      'SQ1_BIAS_AMP_GAIN_R':-4.7,
-#                      'SQ1_BIAS_SHUNT_R':7.15e3} for _ in range(8)],
-#                  **kwargs):
-#         super().__init__(**kwargs)
-
-#         self.loading = loading
-
-#         for i,d in enumerate(loading):
-#             for k,v in loading.items():
-                
-# #            setattr(self, k, v)
-#                 self.add(pr.LocalVariable(
-#                     name = f'CH[{i}]_{k}_VAR',
-#                     value = v, #getattr(self, k),
-#                     mode = 'RO'))
-
-    
 
 class ColumnModule(pr.Device):
     def __init__(self,
@@ -90,8 +54,6 @@ class ColumnModule(pr.Device):
             for k, v in d.items():
                 print(f'{ch=}, {d=}, {k=}, {v=}')
                 self.loading[ch][k] = v
-
-#        self.add(LoadingOptions())
 
 
         self.add(warm_tdm.WarmTdmCore(

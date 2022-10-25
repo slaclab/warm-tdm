@@ -171,19 +171,44 @@ class WaveformCapture(pr.Device, rogue.interfaces.stream.Slave):
     def _acceptFrame(self, frame):
         self.WaveformState.set('Idle')
 
+        
+
 class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
 
-    def __init__(self, live_plots=False, **kwargs):
+    def __init__(self, loading, **kwargs):
         rogue.interfaces.stream.Slave.__init__(self)
         pr.Device.__init__(self, **kwargs)
 
-        #self.hist_plotter = HistogramPlotter()
-        #self.periodogram_plotter = PeriodogramPlotter()
+        self.loading = loading
+
+        def ampVin(Vout, Voffset, col):
+            lo = self.loading[col]
+            G_OFF = 1.0/lo['SA_OFFSET_R']
+            G_FB = 1.0/lo['SA_AMP_FB_R']
+            G_GAIN = 1.0/lo['SA_AMP_GAIN_R']
+
+            V_OUT_1 = Vout/(lo['SA_AMP_GAIN_2']*lo['SA_AMP_GAIN_3'])
+            
+            SA_OUT = ((G_OFF * Voffset) + (G_FB * V_OUT_1)) / (G_OFF + G_FB + G_GAIN)
+            return SA_OUT
+
+        ampVinVec = np.vectorize(ampVin)
+
 
         def _conv(adc):
             return adc/2**13
 
         self.conv = np.vectorize(_conv)
+        cols = list(range(8))
+
+#         def ampVinGet(read=True, index=-1, check=True):
+#             with self.root.updateGroup():
+#                 adc_noise = self.RmsNoiseVADC.get(read=read, index=index, check=check)
+#                 if index == -1:
+#                     return ampVinVec(adc_noise, 0.0, cols)
+#                 else:
+#                     return ampVin(adc_noise, 0.0, index)
+        
 
         tmpAdc = np.array(np.random.default_rng().normal(1, 20, (8,0x2000)), dtype=np.int)
         tmpVoltage = self.conv(tmpAdc)
@@ -224,7 +249,7 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
 
         self.add(pr.LocalVariable(
             name='RmsNoiseRaw',
-            value = np.array([tmpAdc.std() for i in range(8)]),
+            value = tmpAdc.std(1),
             hidden = True,
             disp = '{:0.3f}',
             units = 'ADC',
@@ -242,37 +267,38 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
 
         for i in range(8):
             self.add(pr.LinkVariable(
-                name = f'RmsNoiseV[{i}]',
+                name = f'RmsNoiseVADC[{i}]',
                 mode = 'RO',
                 units = 'uV',
                 disp = '{:0.3f}',
-                guiGroup = 'RmsNoiseV',
+                guiGroup = 'RmsNoiseVADC',
                 dependencies = [self.RmsNoiseRaw],
                 linkedGet = lambda read, ch=i: 1.0e6*_conv(self.RmsNoiseRaw.get(read=read, index=ch))))
 
         for i in range(8):
             self.add(pr.LinkVariable(
-                name = f'SaOutNoise[{i}]',
+                name = f'RmsNoiseAmpIn[{i}]',
                 mode = 'RO',
                 units = 'uV',
                 disp = '{:0.3f}',
-                guiGroup = 'SaOutNoise',
-                dependencies = [self.RmsNoiseRaw],
-                linkedGet = lambda read, ch=i: (1.0e6/200)*_conv(self.RmsNoiseRaw.get(read=read, index=ch))))
+                guiGroup = 'RmsNoiseAmpInX',
+                dependencies = [self.RmsNoiseVADC[i]],
+                linkedGet = lambda read, ch=i: ampVin(self.RmsNoiseVADC[ch].get(read=read), 0.0, ch)))
 
         for i in range(8):
             def _get(read, x=i):
                 d = self.RawData.get(read=read)
                 v = d[x]['voltages']
+                v = np.array([ampVin(a, 0.0, x) for a in v])
                 r = v.max()-v.min()
-                return (r*1.0e3)/200
-
+                return r*1.0e3
+            
             self.add(pr.LinkVariable(
-                name = f'SaOutPkPk[{i}]',
+                name = f'PkPkAmpIn[{i}]',
                 mode = 'RO',
                 units = 'mV',
                 disp = '{:0.3f}',
-                guiGroup = 'SaOutPkPk',
+                guiGroup = 'PkPkAmpIn',
                 dependencies = [self.RawData],
                 linkedGet = _get))
 
