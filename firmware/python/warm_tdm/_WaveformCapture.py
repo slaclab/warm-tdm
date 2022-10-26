@@ -121,19 +121,20 @@ class WaveformCapture(pr.Device, rogue.interfaces.stream.Slave):
             base = pr.Int,
             mode = 'RO',
             disp = '0x{:08x}',
+            hidden = True,
             bitSize = 32*8,
             numValues = 8,
             valueBits = 32,
             valueStride = 32))
 
-        for i in range(8):
-            self.add(pr.LinkVariable(
-                name = f'A[{i}]',
-                guiGroup='AdcAverageRaw',
-                disp = '0x{:08x}',
-                mode = 'RO',
-                dependencies = [self.AdcAverageRaw],
-                linkedGet = lambda read, x=i: self.AdcAverageRaw.get(read=read, index=x)))
+#         for i in range(8):
+#             self.add(pr.LinkVariable(
+#                 name = f'A[{i}]',
+#                 guiGroup='AdcAverageRaw',
+#                 disp = '0x{:08x}',
+#                 mode = 'RO',
+#                 dependencies = [self.AdcAverageRaw],
+#                 linkedGet = lambda read, x=i: self.AdcAverageRaw.get(read=read, index=x)))
 
 
 
@@ -181,41 +182,23 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
 
         self.loading = loading
 
-        def ampVin(Vout, Voffset, col):
-            lo = self.loading[col]
-            G_OFF = 1.0/lo['SA_OFFSET_R']
-            G_FB = 1.0/lo['SA_AMP_FB_R']
-            G_GAIN = 1.0/lo['SA_AMP_GAIN_R']
-
-            V_OUT_1 = Vout/(lo['SA_AMP_GAIN_2']*lo['SA_AMP_GAIN_3'])
-            
-            SA_OUT = ((G_OFF * Voffset) + (G_FB * V_OUT_1)) / (G_OFF + G_FB + G_GAIN)
-            return SA_OUT
-
-        ampVinVec = np.vectorize(ampVin)
-
-
         def _conv(adc):
             return adc/2**13
 
         self.conv = np.vectorize(_conv)
         cols = list(range(8))
 
-#         def ampVinGet(read=True, index=-1, check=True):
-#             with self.root.updateGroup():
-#                 adc_noise = self.RmsNoiseVADC.get(read=read, index=index, check=check)
-#                 if index == -1:
-#                     return ampVinVec(adc_noise, 0.0, cols)
-#                 else:
-#                     return ampVin(adc_noise, 0.0, index)
-        
-
         tmpAdc = np.array(np.random.default_rng().normal(1, 20, (8,0x2000)), dtype=np.int)
         tmpVoltage = self.conv(tmpAdc)
+        tmpAmpVin = np.zeros_like(tmpVoltage)
+
+        for ch in range(len(tmpAmpVin)):
+            for sample in range(len(tmpAmpVin[0])):
+                tmpAmpVin[ch][sample] = self.loading.ampVin(tmpVoltage[ch][sample], 0.0, ch)
 
         self.add(pr.LocalVariable(
             name = 'RawData',
-            value = {ch: {'adcs': tmpAdc[ch], 'voltages': tmpVoltage[ch]} for ch in range(8)},
+            value = {ch: {'ADC Counts': tmpAdc[ch], 'V@ADC': tmpVoltage[ch], 'V@AmpIn': tmpAmpVin[ch]} for ch in range(8)},
             mode = 'RO',
             groups = ['NoStream'],
             hidden = True))
@@ -247,6 +230,26 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
             value = False))
 
 
+        src_enum = {
+                0: 'ADC Counts',
+                1: 'V@ADC',
+                2: 'V@AmpIn'}
+
+        self.add(pr.LocalVariable(
+            name = 'HistogramSrc',
+            enum = src_enum,
+            value = 0))
+
+        self.add(pr.LocalVariable(
+            name = 'PSDSrc',
+            enum = src_enum,
+            value = 2))
+
+        self.add(pr.LocalVariable(
+            name = 'WaveformSrc',
+            enum = src_enum,
+            value = 2))
+
         self.add(pr.LocalVariable(
             name='RmsNoiseRaw',
             value = tmpAdc.std(1),
@@ -262,14 +265,14 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
                 units = 'ADC',
                 disp = '{:0.3f}',
                 guiGroup = 'RmsNoiseAdc',
-                dependencies = [self.RmsNoiseRaw],
+                dependencies = [self.RawData],
                 linkedGet = lambda read, ch=i: self.RmsNoiseRaw.get(read=read, index=ch)))
 
         for i in range(8):
             self.add(pr.LinkVariable(
                 name = f'RmsNoiseVADC[{i}]',
                 mode = 'RO',
-                units = 'uV',
+                units = u'\u03bcV',
                 disp = '{:0.3f}',
                 guiGroup = 'RmsNoiseVADC',
                 dependencies = [self.RmsNoiseRaw],
@@ -279,24 +282,24 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
             self.add(pr.LinkVariable(
                 name = f'RmsNoiseAmpIn[{i}]',
                 mode = 'RO',
-                units = 'uV',
+                units = u'\u03bcV',
                 disp = '{:0.3f}',
                 guiGroup = 'RmsNoiseAmpInX',
                 dependencies = [self.RmsNoiseVADC[i]],
-                linkedGet = lambda read, ch=i: ampVin(self.RmsNoiseVADC[ch].get(read=read), 0.0, ch)))
+                linkedGet = lambda read, ch=i: self.loading.ampVin(self.RmsNoiseVADC[ch].get(read=read), 0.0, ch)))
 
         for i in range(8):
             def _get(read, x=i):
                 d = self.RawData.get(read=read)
-                v = d[x]['voltages']
-                v = np.array([ampVin(a, 0.0, x) for a in v])
+                v = d[x]['V@ADC']
+                v = np.array([self.loading.ampVin(a, 0.0, x) for a in v])
                 r = v.max()-v.min()
-                return r*1.0e3
+                return r*1.0e6
             
             self.add(pr.LinkVariable(
                 name = f'PkPkAmpIn[{i}]',
                 mode = 'RO',
-                units = 'mV',
+                units = u'\u03bcV',
                 disp = '{:0.3f}',
                 guiGroup = 'PkPkAmpIn',
                 dependencies = [self.RawData],
@@ -306,11 +309,7 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
         self.add(MultiPlot(
             name='MultiPlot',
             mode='RO',
-            histEnVar = self.PlotHistogram,
-            psdEnVar = self.PlotPSD,
-            waveEnVar = self.PlotWaveform,
-            rawDataVar = self.RawData,
-            colVar = self.PlotColumn,
+            parent = self,
             hidden=True))
 
 
@@ -336,6 +335,7 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
         adcs = adcs//4
 
         with self.root.updateGroup():
+            print('update Group open')
 
             if channel >= 8:
                 # Construct a view of the adc data
@@ -346,73 +346,90 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
 
             print(adcs)
             voltages = self.conv(adcs)
-            d = self.RawData.get()
+            ampVin = np.zeros_like(voltages)
+            
+            d = self.RawData.value()
 
             if channel >= 8:
+                for sample in range(len(voltages)):
+                    for ch in range(len(voltages[0])):
+                        ampVin[sample, ch] = self.loading.ampVin(voltages[sample, ch], 0.0, ch)
+                
                 d = {ch: {
-                    'adcs': adcs[:,ch],
-                    'voltages': voltages[:,ch]}
+                    'ADC Counts': adcs[:,ch],
+                    'V@ADC': voltages[:,ch],
+                    'V@AmpIn': ampVin[:,ch]}
                      for ch in range(8)}
 
             else:
                 print(f'Setting data for channel {channel}')
-                d[channel]['adcs'] = adcs
-                d[channel]['voltages'] = voltages
+                for sample in range(len(voltages)):
+                    ampVin[sample, channel] = self.loading.ampVin(voltages[sample, channel], 0.0, channel)
+                        
+                d[channel]['ADC Counts'] = adcs
+                d[channel]['V@ADC'] = voltages
+                d[channel]['V@AmpIn'] = ampVin
 
-            print(d)
+            #print(d)
             self.RawData.set(d)
 
+            print('update Group closed')
 
-
-
-        #self.MultiPlot.set(value=adcs, index=channel)
 
         print('_acceptFrame() - done')
 
-
-
-
-def plot_waveform_channel(ch, ax, voltages, multi_channel):
+def plot_waveform_channel(ch, ax, values, src, multi_channel):
     ax.clear()
-    ax.plot(voltages)
     if not multi_channel:
         ax.set_title(f'Channel {ch} waveform')
-
-def plot_histogram_channel(ch, ax, adcs, multi_channel):
+        ax.set_xlabel('Sample number')
+        if src == 'ADC Counts':
+            ax.set_ylabel(src)
+            plt_values = values
+        else:
+            ax.set_ylabel(f'{src} - \u03bcV')
+            plt_values = values * 1.0e6
+            
+    ax.plot(plt_values)
+def plot_histogram_channel(ch, ax, values, src, multi_channel):
     print(f'plot_histogram_channel(ch={ch})')
-    mean = np.int32(adcs.mean())
-    low = np.int32(adcs.min())
-    high = np.int32(adcs.max())
-    bins = np.arange(low-10, high+10, 1)
-    rms = adcs.std()
-
     ax.clear()
-    ax.hist(adcs, bins, histtype='bar')#, density=True)
-
-#    ax.text(0.05, 0.8, f'\u03C3: {rms:1.3f}, pk-pk: {high-low} ADC', transform=ax.transAxes)
-#    ax.text(0.05, 0.5, f'\u03C3: {(1.0e3*rms)/(200*2**13):1.3f}, pk-pk: {(1.0e3*(high-low))/(200*2**13):1.3f} mV', transform=ax.transAxes)
+    
+    if src == 'ADC Counts':
+        mean = np.int32(values.mean())
+        low = np.int32(values.min())
+        high = np.int32(values.max())
+        bins = np.arange(low-10, high+10, 1)
+        rms = values.std()
+        units = src
+        ax.hist(values, bins, histtype='bar')#, density=True)
+    else:
+        print('stepfilled')
+        values_uv = values * 1.0e6
+        units = f'{src} - \u03bcV'
+        ax.hist(values, bins=50, histtype='stepfilled')
 
     ax.xaxis.set_ticks_position('bottom')
     ax.yaxis.set_ticks_position('left')
     if multi_channel:
         ax.yaxis.set_ticklabels([])        
         if ch == 7:
-            ax.set_xlabel('ADC counts')
+            ax.set_xlabel(units)
         elif ch == 0:
-            ax.set_title('ADC histograms')
+            ax.set_title('Histograms')
     else:
-        ax.set_xlabel('ADC counts')
-        ax.set_title(f'Channel {ch} ADC histogram')
+        ax.set_xlabel(units)
+        ax.set_title(f'Channel {ch} Histogram')
 
 
-def plot_psd_channel(ch, ax, voltages, multi_channel):
+def plot_psd_channel(ch, ax, values, src, multi_channel):
     print(f'plot_psd_channel(ch={ch})')
 
     # Calculate the PSD
     freq=125.e6 # 125MHz
-    mean_subtracted_TOD = voltages - np.mean(voltages)
+    mean_subtracted_TOD = values - np.mean(values)
     freqs,Pxx_den=scipy.signal.periodogram(mean_subtracted_TOD,freq,scaling='density')
-    preamp_chain_gain=200.
+    preamp_chain_gain=1 #200.
     pxx = 1e9*np.sqrt(Pxx_den)/preamp_chain_gain
 
 
@@ -432,39 +449,41 @@ def plot_psd_channel(ch, ax, voltages, multi_channel):
         if ch == 7:
             ax.set_xlabel('Frequency (Hz)')
         elif ch == 0:
-            ax.set_title('PSD (nV/rt.Hz)')
+            ax.set_title(f'PSD (nV/rt.Hz) - {src}')
         else:
             ax.xaxis.set_ticklabels([])
     else:
         ax.set_xlabel('Frequency (Hz)')
-        ax.set_title(f'Channel {ch} PSD (nV/rt.Hz)')
+        ax.set_title(f'Channel {ch} PSD (nV/rt.Hz) - {src}')
 
 
 
 
 class MultiPlot(pr.LinkVariable):
 
-    def __init__(self, histEnVar, psdEnVar, waveEnVar, rawDataVar, colVar, **kwargs):
+    def __init__(self, parent, **kwargs):
         super().__init__(
             linkedGet = self.linkedGet,
-            dependencies = [histEnVar, psdEnVar, waveEnVar, rawDataVar, colVar],
+            dependencies = [
+                parent.PlotHistogram,
+                parent.PlotPSD,
+                parent.PlotWaveform,
+                parent.RawData,
+                parent.PlotColumn,
+                parent.HistogramSrc,
+                parent.PSDSrc,
+                parent.WaveformSrc],
             **kwargs)
 
-        self.PlotHistogram = histEnVar
-        self.PlotPSD = psdEnVar
-        self.PlotWaveform = waveEnVar
-        self.RawData = rawDataVar
-        self.PlotColumn = colVar
-        self.plotEnables = [histEnVar, psdEnVar, waveEnVar]
+        self.plotEnables = [parent.PlotHistogram, parent.PlotPSD, parent.PlotWaveform]
 
         self.plot_functions = {
-            histEnVar: (plot_histogram_channel, 'adcs'),
-            psdEnVar: (plot_psd_channel, 'voltages'),
-            waveEnVar: (plot_waveform_channel, 'voltages')}
+            parent.PlotHistogram: (plot_histogram_channel, parent.HistogramSrc),
+            parent.PlotPSD: (plot_psd_channel, parent.PSDSrc),
+            parent.PlotWaveform: (plot_waveform_channel, parent.WaveformSrc)}
 
 
         self.fig = None
-        #self.fig.suptitle('PSD (nV/rt.Hz)')
 
         def _conv(adc):
             return adc/2**13
@@ -489,20 +508,22 @@ class MultiPlot(pr.LinkVariable):
         print(f'{enabled_plot_functions=}')
         num_plots = len(enabled_plot_functions)
         print(f'{num_plots}')
-        data = self.RawData.get(read=read)
+        data = self.parent.RawData.get(read=read)
 
-        if self.PlotColumn.getDisp(read=read) == 'All':
+        if self.parent.PlotColumn.getDisp(read=read) == 'All':
             index = 1
             for ch in range(8):
                 for func in enabled_plot_functions.values():
                     ax = self.fig.add_subplot(8, num_plots, index)
-                    func[0](ch, ax, data[ch][func[1]], multi_channel=True)
+                    src = func[1].getDisp(read=read)
+                    func[0](ch, ax, data[ch][src], src, multi_channel=True)
                     index += 1
         else:
-            ch = self.PlotColumn.get(read=read)
+            ch = self.parent.PlotColumn.get(read=read)
             #self.fig.suptitle(f'Channel {ch}')
             for index, func in enumerate(enabled_plot_functions.values()):
                 ax = self.fig.add_subplot(num_plots, 1, index+1)
-                func[0](ch, ax, data[ch][func[1]], multi_channel=False)
+                src = func[1].getDisp(read=read)
+                func[0](ch, ax, data[ch][src], src, multi_channel=False)
 
         return self.fig

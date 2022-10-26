@@ -7,26 +7,55 @@ import numpy as np
 
 import warm_tdm
 
+class Loading(object):
+    
+    DEFAULT_LOADING = {ch: {
+        'SA_BIAS_SHUNT_R':15.0e3,
+        'SA_OFFSET_R':4.02e3,
+        'SA_AMP_FB_R':1.1e3,
+        'SA_AMP_GAIN_R':100,
+        'SA_AMP_GAIN_2':11,
+        'SA_AMP_GAIN_3':1.5,
+        'SA_FB_FSADJ_R':2.0e3,
+        'SA_FB_DAC_LOAD_R':25.0,
+        'SA_FB_AMP_GAIN_R':-4.7,
+        'SA_FB_SHUNT_R':7.15e3,
+        'SQ1_FB_FSADJ_R':2.0e3,                     
+        'SQ1_FB_DAC_LOAD_R':25.0,
+        'SQ1_FB_AMP_GAIN_R':-4.7,
+        'SQ1_FB_SHUNT_R':7.15e3,
+        'SQ1_BIAS_FSADJ_R':2.0e3,                     
+        'SQ1_BIAS_DAC_LOAD_R':25.0,
+        'SQ1_BIAS_AMP_GAIN_R':-4.7,
+        'SQ1_BIAS_SHUNT_R':7.15e3} for ch in range(8)}
 
-DEFAULT_LOADING = {ch: {
-    'SA_BIAS_SHUNT_R':15.0e3,
-    'SA_OFFSET_R':4.02e3,
-    'SA_AMP_FB_R':1.1e3,
-    'SA_AMP_GAIN_R':100,
-    'SA_AMP_GAIN_2':11,
-    'SA_AMP_GAIN_3':1.5,
-    'SA_FB_FSADJ_R':2.0e3,
-    'SA_FB_DAC_LOAD_R':25.0,
-    'SA_FB_AMP_GAIN_R':-4.7,
-    'SA_FB_SHUNT_R':7.15e3,
-    'SQ1_FB_FSADJ_R':2.0e3,                     
-    'SQ1_FB_DAC_LOAD_R':25.0,
-    'SQ1_FB_AMP_GAIN_R':-4.7,
-    'SQ1_FB_SHUNT_R':7.15e3,
-    'SQ1_BIAS_FSADJ_R':2.0e3,                     
-    'SQ1_BIAS_DAC_LOAD_R':25.0,
-    'SQ1_BIAS_AMP_GAIN_R':-4.7,
-    'SQ1_BIAS_SHUNT_R':7.15e3} for ch in range(8)}
+    def __init__(self, overrides={}):
+
+        self._dict = Loading.DEFAULT_LOADING.copy()
+        for ch, d in overrides.items():
+            for k, v in d.items():
+                print(f'{ch=}, {d=}, {k=}, {v=}')
+                self._dict[ch][k] = v
+
+        self.ampVinVec = np.vectorize(self.ampVin)
+
+    def __getitem__(self, key):
+        return self._dict[key]
+
+    def items(self):
+        return self._dict.items()
+
+    def ampVin(self, vout, voffset, col):
+        lo = self._dict[col]
+        G_OFF = 1.0/lo['SA_OFFSET_R']
+        G_FB = 1.0/lo['SA_AMP_FB_R']
+        G_GAIN = 1.0/lo['SA_AMP_GAIN_R']
+        
+        V_OUT_1 = vout/(lo['SA_AMP_GAIN_2']*lo['SA_AMP_GAIN_3'])
+            
+        SA_OUT = ((G_OFF * voffset) + (G_FB * V_OUT_1)) / (G_OFF + G_FB + G_GAIN)
+        return SA_OUT
+        
 
 
 class ColumnModule(pr.Device):
@@ -47,14 +76,7 @@ class ColumnModule(pr.Device):
         super().__init__(**kwargs)
 
         # Write any entries in loading over top of the default loading values
-        self.loading = DEFAULT_LOADING.copy()
-        print(self.loading)
-        
-        for ch, d in loading.items():
-            for k, v in d.items():
-                print(f'{ch=}, {d=}, {k=}, {v=}')
-                self.loading[ch][k] = v
-
+        self.loading = Loading(overrides=loading)
 
         self.add(warm_tdm.WarmTdmCore(
             offset = 0x00000000,
@@ -129,19 +151,6 @@ class ColumnModule(pr.Device):
             mode = 'RO',
             disp = '{:0.03f}'))
 
-
-        def ampVin(Vout, Voffset, col):
-            lo = self.loading[col]
-            G_OFF = 1.0/lo['SA_OFFSET_R']
-            G_FB = 1.0/lo['SA_AMP_FB_R']
-            G_GAIN = 1.0/lo['SA_AMP_GAIN_R']
-
-            V_OUT_1 = Vout/(lo['SA_AMP_GAIN_2']*lo['SA_AMP_GAIN_3'])
-            
-            SA_OUT = ((G_OFF * Voffset) + (G_FB * V_OUT_1)) / (G_OFF + G_FB + G_GAIN)
-            return SA_OUT
-
-        ampVinVec = np.vectorize(ampVin)
         cols = list(range(8))
 
         def _saOutGet(*, read=True, index=-1, check=True):
@@ -149,10 +158,10 @@ class ColumnModule(pr.Device):
                 adc = self.SaOutAdc.get(read=read, index=index, check=check)
                 offset = self.SaBiasOffset.OffsetVoltageArray.get(read=read, index=index, check=check)
                 if index == -1:
-                    ret = ampVinVec(adc, offset, cols) * 1e3
+                    ret = self.loading.ampVinVec(adc, offset, cols) * 1e3
                     return ret
                 else:
-                    ret = ampVin(adc, offset, index) * 1e3
+                    ret = self.loading.ampVin(adc, offset, index) * 1e3
                     return ret
 
         def _saOutNormGet(*, read=True, index=-1, check=True):
@@ -160,10 +169,10 @@ class ColumnModule(pr.Device):
                 adc = self.SaOutAdc.get(read=read, index=index, check=check)
                 offset = 0.0
                 if index == -1:
-                    ret = ampVinVec(adc, offset, cols) * 1e3
+                    ret = self.loading.ampVinVec(adc, offset, cols) * 1e3
                     return ret
                 else:
-                    ret = ampVin(adc, offset, index) * 1e3
+                    ret = self.loading.ampVin(adc, offset, index) * 1e3
                     return ret
                     
         
