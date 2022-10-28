@@ -320,6 +320,13 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
                 dependencies = [self.RawData],
                 linkedGet = _getAvg))
 
+            self.add(pr.LocalVariable(
+                name = f'AmpInConvFactor[{i}]',
+                units = u'\u03bcV/ADC',
+                disp = '{:0.3f}',
+                guiGroup = 'AmpInConvFactor',
+                value = 1.0e6*self.loading.ampVin(1/2**13, 0.0, i)))
+
 
         self.add(MultiPlot(
             name='MultiPlot',
@@ -443,6 +450,7 @@ def plot_histogram_channel(ch, ax, values, src, multi_channel):
         elif ch == 0:
             ax.set_title('Histograms')
     else:
+        ax.set_ylabel('Number of samples')
         ax.set_xlabel(units)
         ax.set_title(f'Channel {ch} Histogram')
 
@@ -478,6 +486,7 @@ def plot_psd_channel(ch, ax, values, src, multi_channel):
         else:
             ax.xaxis.set_ticklabels([])
     else:
+        ax.set_ylabel('nV/rt.Hz')
         ax.set_xlabel('Frequency (Hz)')
         ax.set_title(f'Channel {ch} PSD (nV/rt.Hz) - {src}')
 
