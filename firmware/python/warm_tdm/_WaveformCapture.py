@@ -289,8 +289,8 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
                 linkedGet = lambda read, ch=i: self.loading.ampVin(self.RmsNoiseVADC[ch].get(read=read), 0.0, ch)))
 
         for i in range(8):
-            def _get(read, x=i):
-                d = self.RawData.get(read=read)
+            def _getPkPk(read, x=i):
+                d = self.RawData.value()
                 v = d[x]['V@ADC']
                 v = np.array([self.loading.ampVin(a, 0.0, x) for a in v])
                 r = v.max()-v.min()
@@ -303,7 +303,22 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
                 disp = '{:0.3f}',
                 guiGroup = 'PkPkAmpIn',
                 dependencies = [self.RawData],
-                linkedGet = _get))
+                linkedGet = _getPkPk))
+
+            def _getAvg(read, x=i):
+                d = self.RawData.value()
+                v = d[x]['V@ADC']
+                v = np.array([self.loading.ampVin(a, 0.0, x) for a in v])
+                r = v.mean()
+                return r*1.0e6
+
+            self.add(pr.LinkVariable(
+                name = f'AvgAmpIn[{i}]',
+                units = u'\u03bcV',
+                disp = '{:0.3f}',
+                guiGroup = 'AvgAmpIn',
+                dependencies = [self.RawData],
+                linkedGet = _getAvg))
 
 
         self.add(MultiPlot(
@@ -380,19 +395,28 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
 
 def plot_waveform_channel(ch, ax, values, src, multi_channel):
     ax.clear()
+    if src == 'ADC Counts':
+        units = src
+        plt_values = values
+    else:
+        units = f'{src} - \u03bcV'
+        plt_values = values * 1.0e6
+
     if not multi_channel:
         ax.set_title(f'Channel {ch} waveform')
         ax.set_xlabel('Sample number')
-        if src == 'ADC Counts':
-            ax.set_ylabel(src)
-            plt_values = values
-        else:
-            ax.set_ylabel(f'{src} - \u03bcV')
-            plt_values = values * 1.0e6
+        ax.set_ylabel(units)
+    else:
+        if ch == 7:
+            ax.set_xlabel(units)
+        elif ch == 0:
+            ax.set_title(f'Waveforms')
             
     ax.plot(plt_values)
+    
 def plot_histogram_channel(ch, ax, values, src, multi_channel):
     print(f'plot_histogram_channel(ch={ch})')
+    print(values)
     ax.clear()
     
     if src == 'ADC Counts':
@@ -406,8 +430,9 @@ def plot_histogram_channel(ch, ax, values, src, multi_channel):
     else:
         print('stepfilled')
         values_uv = values * 1.0e6
-        units = f'{src} - \u03bcV'
-        ax.hist(values, bins=50, histtype='stepfilled')
+        units = f'{src} -  \u03bcV'
+        bins = 50
+        ax.hist(values_uv, bins=bins, histtype='stepfilled')
 
     ax.xaxis.set_ticks_position('bottom')
     ax.yaxis.set_ticks_position('left')

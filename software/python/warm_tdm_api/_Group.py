@@ -682,11 +682,11 @@ class Group(pr.Device):
             self.SaOut,
             self.SaOutNorm,
             self.SaFbForceCurrent,
-#            self.SaFbForceVoltage,
+            self.SaFbForceVoltage,
             self.Sq1BiasForceCurrent,
-#            self.Sq1BiasForceVoltage,        
+            self.Sq1BiasForceVoltage,        
             self.Sq1FbForceCurrent,
-#            self.Sq1FbForceVoltage,
+            self.Sq1FbForceVoltage,
             self.TesBias
         ]
 
