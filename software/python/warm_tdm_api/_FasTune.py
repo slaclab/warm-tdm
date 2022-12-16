@@ -1,6 +1,73 @@
 
 import pyrogue as pr
 import warm_tdm_api
+import numpy as np
+import matplotlib.pyplot as plt
+
+class RowFasSweepPlot(pr.LinkVariable):
+
+    def __init__(self, **kwargs):
+        super().__init__(linkedGet=self.linkedGet, **kwargs)
+
+        self._fig = plt.Figure(tight_layout=True, figsize=(20,20))
+        self._ax = self._fig.add_subplot()
+        self._fig.suptitle('FAS Flux Row')
+
+    def _plot_ax(self, ax, row, curves):
+        ax.clear()
+        ax.set_ylabel('SA FB Servo')
+        ax.set_xlabel(u'FAS Flux (\u03bcA)')
+
+        numColumns = len(curves['biasValues'])
+
+        # Plot the curve for each column
+        for col in range(numColumns):
+            minX = curves['lowIndexes'][col]
+            minY = curves['lowPoints'][col]
+            label = f'{col}: {minimum}'
+            ax.plot(curves['xValues'], curves['curves'][col], '-', minX, minY, '*', label=label)
+
+        # Plot a vertial line at the median FasFluxOn of all the curves
+        median = np.median(curves['lowIndexes'])
+        label = f'Median: {median}'
+        ax.axvline(median, label=label)
+
+        ax.set_title(f'Row {row} FAS Sweep')
+        ax.legend(title='Column: Minimum FAS')
+
+    def linkedGet(self, index=-1, read=False):
+        tune = self.parent.FasTuneOutput.value()
+
+        if tune == []:
+            return self._fig
+
+        row = index
+        if row == -1:
+            row = self.parent.PlotRow.value()
+
+        self._plot_ax(self._ax, row, tune[row])
+
+        return self._fig
+
+
+class FasTunePlot(pr.LinkVariable):
+
+    def __init__(self, **kwargs):
+        super().__init__(linkedGet=self.linkedGet, **kwargs)
+
+        self._fig = plt.Figure(tight_layout=True, figsize=(20,20))
+        self._ax = self._fig.add_subplot()
+        self._fig.suptitle('FAS Flux Tune')
+
+    def linkedGet(self, index=-1, read=False):
+        tune = self.parent.FasTuneOutput.value()
+        
+        if tune == []:
+            return self._fig
+
+        ax.plot([np.median(row['lowIndexes']) for row in tune])
+
+        return self._fig
 
 
 class FasTuneProcess(pr.Process):
@@ -35,7 +102,19 @@ class FasTuneProcess(pr.Process):
                                   mode='RO',
                                   description="Results Data From FAS Tuning"))
 
+        self.add(pr.LocalVariable(
+            name = 'PlotRow',
+            value = 0))
+
+        self.add(RowFasSweepPlot(
+            name = 'SweepPlot',
+            dependencies = [self.PlotRow, self.FasTuneOutput]))
+
+        self.add(FasTunePlot(
+            name = 'TunePlot',
+            dependencies = [self.FasTuneOutput]))
+
     def _fasTuneWrap(self):
         with self.root.updateGroup(0.25):
             ret = warm_tdm_api.fasTune(group=self.parent, process=self)
-            self.FasTuneOutput.set(value=ret)
+            self.FasTuneOutput.set(value=[r.asDict() for r in ret])

@@ -718,7 +718,7 @@ class Group(pr.Device):
         self.add(warm_tdm_api.SaOffsetProcess())
         self.add(warm_tdm_api.SaOffsetSweepProcess(config=self._config))
         self.add(warm_tdm_api.SaTuneProcess(config=self._config))
-        self.add(warm_tdm_api.Sq1TuneProcess(groups=['NoDoc']))
+        self.add(warm_tdm_api.Sq1TuneProcess(config=self._config, groups=['NoDoc']))
         self.add(warm_tdm_api.FasTuneProcess(groups=['NoDoc']))
         self.add(warm_tdm_api.Sq1DiagProcess(groups=['NoDoc']))
         self.add(warm_tdm_api.TesRampProcess(groups=['NoDoc']))

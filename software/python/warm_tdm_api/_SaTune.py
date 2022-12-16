@@ -16,29 +16,13 @@ class SinglePlot(pr.LinkVariable):
         self._fig.suptitle(u'SA OUT (mV) vs. SA FB (\u03bcA)')
 
     def _plot_ax(self, ax, col, curves, shunt):
-        ax.clear()
-        ax.set_ylabel('SA Out (mV)')
-        ax.set_xlabel(u'SA FB (\u03bcA)')
+        warm_tdm_api.plotCurveDataDict(
+            ax=ax,
+            curveDataDict=curves,
+            ax_title=f'Channel {col} - FB Shunt = {shunt/1000} kOhms',
+            xlabel=u'SA FB (\u03bcA)',
+            ylabel='SA Out (mV)')
         
-        for step, value in enumerate(curves['biasValues']):
-            linewidth = 1.0
-            if step == curves['bestIndex']:
-                linewidth = 2.0
-            peak = curves['peaks'][step] 
-            label = f'{value:1.3f} - P-P: {peak:1.3f}'
-            ax.plot(curves['xValues'], curves['curves'][step], label=label, linewidth=linewidth)
-
-        A, w, p, c = curves['bestfit'] 
-        fitfunc = lambda t: A * np.sin(w*t + p) + c
-        r = np.linspace(min(curves['xValues']), max(curves['xValues']), 1000)
-        fitline = np.array([fitfunc(t) for t in r])
-        label = f'fitted - P-P: {A*2:0.03f} - ' + u'\u03A6o: ' + f'{(2.0*np.pi)/w:0.01f}'
-        ax.plot(r, fitline, label=label, linestyle='dashed')
-            
-        ax.set_title(f'Channel {col} - FB Shunt = {shunt/1000} kOhms')
-        ax.legend(title=u'SA BIAS (\u03bcA) - SA OUT P-P (mV)')
-        
-
     def linkedGet(self, index=-1, read=False):
         tune = self.parent.SaTuneOutput.value()
         
@@ -91,10 +75,10 @@ class SaTuneProcess(pr.Process):
         # Init master class
         pr.Process.__init__(self, function=self._saTuneWrap,
                             description='Process which performs an SA tuning step.'
-                                        'This tuning process sweeps the SaFb value and determines the SaOffset value required zero out the SaOut '
-                                        'value. This sweep is repeated for a series of SaBias values. Once the sweep is completed the process will '
-                                        'determine the SaBias value which results in the largest peak to peak amplitude in the SaFb vs SaOffset curve. '
-                                        'For the select SaBias curce the process will then select the point on the curve with the highest slope.'
+                                        'This tuning process sweeps the SaFb value records SaOut at each step.'
+                                        'This sweep is repeated for a series of SaBias values. Once the sweep is completed the process will '
+                                        'determine the SaBias value which results in the largest peak to peak amplitude in the SaFb vs SaOut curve. '
+                                        'For the selected SaBias curve the process will then select the point on the curve with the highest slope.'
                                         'The resulting curves are available as a dictionary of numpy arrays.',
                             **kwargs)
 
@@ -172,8 +156,8 @@ class SaTuneProcess(pr.Process):
                                               "biasValues: array of SaBias values, one for each SaBias step. "
                                               "curves: SaOffset vs SaFb curves, one for each SaBias value. "
                                               "biasOut: Selected SaBias value after fitting. "
-                                              "fbOut: Selected SaFb value after fitting. "
-                                              "offsetOut: Selected SaOffset out value after fitting. "))
+                                              "xOut: Selected SaFb value after fitting. "
+                                              "yOut: SaOut at fitted SaFb point. "))
 
         # Select Channel
         self.add(pr.LocalVariable(name='PlotColumn',
@@ -199,12 +183,12 @@ class SaTuneProcess(pr.Process):
                                  linkedGet=self._saBiasGet,
                                  description="Fitted SaBias value for the column selected via the PlotColumn variable above. "))
 
-        self.add(pr.LinkVariable(name='FittedSaOffset',
+        self.add(pr.LinkVariable(name='FittedSaOut',
                                  mode='RO',
                                  hidden=True,
                                  dependencies=[self.PlotColumn,self.SaTuneOutput],
-                                 linkedGet=self._saOffsetGet,
-                                 description="Fitted SaOffset value for the column selected via the PlotColumn variable above. "))
+                                 linkedGet=self._saOutGet,
+                                 description="Fitted SaOut value for the column selected via the PlotColumn variable above. "))
 
         self.add(SinglePlot(name='Plot',
                             mode='RO',
@@ -227,30 +211,24 @@ class SaTuneProcess(pr.Process):
         self.ReadDevice.addToGroup('NoDoc')
         self.WriteDevice.addToGroup('NoDoc')
 
+    def _getHelper(self, field):
+        with self.root.updateGroup():
+            col = self.PlotColumn.value()
+            tune = self.SaTuneOutput.value()
+            if col >= len(tune):
+                return 0.0
+            else:
+                return tune[col][field]
+        
 
     def _saFbGet(self):
-        with self.root.updateGroup():
-            col = self.PlotColumn.value()
-            if col >= len(self.SaTuneOutput.value()):
-                return 0.0
-            else:
-                return self.SaTuneOutput.value()[col]['fbOut']
+        self._getHelper('xOut')
 
     def _saBiasGet(self):
-        with self.root.updateGroup():
-            col = self.PlotColumn.value()
-            if col >= len(self.SaTuneOutput.value()):
-                return 0.0
-            else:
-                return self.SaTuneOutput.value()[col]['biasOut']
+        self._getHelper('biasOut')
 
-    def _saOffsetGet(self):
-        with self.root.updateGroup():
-            col = self.PlotColumn.value()
-            if col >= len(self.SaTuneOutput.value()):
-                return 0.0
-            else:
-                return self.SaTuneOutput.value()[col]['offsetOut']
+    def _saOutGet(self):
+        self._getHelper('yOut')
 
     def _saTuneWrap(self):
         with self.root.updateGroup(0.25):
