@@ -23,7 +23,7 @@
       <string/>
      </property>
      <property name="currentIndex">
-      <number>0</number>
+      <number>4</number>
      </property>
      <property name="alarmChannels">
       <stringlist>
@@ -33,9 +33,25 @@
        <string></string>
        <string></string>
        <string></string>
-       <string></string>
       </stringlist>
      </property>
+     <widget class="QWidget" name="debug_tree_tab">
+      <attribute name="title">
+       <string>Debug Tree</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_6">
+       <item>
+        <widget class="DebugTree" name="DebugTree_2">
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="channel" stdset="0">
+          <string>rogue://0/root</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
      <widget class="QWidget" name="control_tab">
       <attribute name="title">
        <string>Control</string>
@@ -619,6 +635,33 @@ p, li { white-space: pre-wrap; }
        </item>
       </layout>
      </widget>
+     <widget class="QWidget" name="system_tab">
+      <attribute name="title">
+       <string>System</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_8">
+       <item>
+        <widget class="DataWriter" name="DataWriter">
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="channel" stdset="0">
+          <string>rogue://0/GroupRoot.DataWriter</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="SystemLog" name="SystemLog">
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="channel" stdset="0">
+          <string>rogue://0/GroupRoot.SystemLog</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
      <widget class="QWidget" name="sa_tuning_tab">
       <attribute name="title">
        <string>SA Tuning</string>
@@ -742,50 +785,6 @@ p, li { white-space: pre-wrap; }
        </item>
       </layout>
      </widget>
-     <widget class="QWidget" name="system_tab">
-      <attribute name="title">
-       <string>System</string>
-      </attribute>
-      <layout class="QVBoxLayout" name="verticalLayout_8">
-       <item>
-        <widget class="DataWriter" name="DataWriter">
-         <property name="toolTip">
-          <string/>
-         </property>
-         <property name="channel" stdset="0">
-          <string>rogue://0/GroupRoot.DataWriter</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="SystemLog" name="SystemLog">
-         <property name="toolTip">
-          <string/>
-         </property>
-         <property name="channel" stdset="0">
-          <string>rogue://0/GroupRoot.SystemLog</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
-     <widget class="QWidget" name="debug_tree_tab">
-      <attribute name="title">
-       <string>Debug Tree</string>
-      </attribute>
-      <layout class="QVBoxLayout" name="verticalLayout_6">
-       <item>
-        <widget class="DebugTree" name="DebugTree_2">
-         <property name="toolTip">
-          <string/>
-         </property>
-         <property name="channel" stdset="0">
-          <string>rogue://0/root</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
      <widget class="QWidget" name="waveform_tab">
       <attribute name="title">
        <string>Waveforms</string>
@@ -866,35 +865,6 @@ p, li { white-space: pre-wrap; }
        </item>
       </layout>
      </widget>
-     <widget class="QWidget" name="sa_stripchart">
-      <attribute name="title">
-       <string>SA Strip Chart</string>
-      </attribute>
-      <layout class="QVBoxLayout" name="verticalLayout_4">
-       <item>
-        <widget class="Process" name="Process_3">
-         <property name="toolTip">
-          <string/>
-         </property>
-         <property name="channel" stdset="0">
-          <string>rogue://0/GroupRoot.Group.SaStripChartProcess</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="PyDMWaveformPlot" name="PyDMWaveformPlot_19">
-         <property name="toolTip">
-          <string/>
-         </property>
-         <property name="curves">
-          <stringlist>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaStripChartProcess.SampleDataY&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaStripChartProcess.SampleDataX&quot;, &quot;plot_style&quot;: null, &quot;name&quot;: &quot;mV&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;yAxisName&quot;: &quot;Axis 1&quot;, &quot;barWidth&quot;: null, &quot;upperThreshold&quot;: null, &quot;lowerThreshold&quot;: null, &quot;thresholdColor&quot;: &quot;white&quot;, &quot;redraw_mode&quot;: 2}</string>
-          </stringlist>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
     </widget>
    </item>
   </layout>
@@ -949,11 +919,6 @@ p, li { white-space: pre-wrap; }
    <class>PyDMLabel</class>
    <extends>QLabel</extends>
    <header>pydm.widgets.label</header>
-  </customwidget>
-  <customwidget>
-   <class>PyDMWaveformPlot</class>
-   <extends>QGraphicsView</extends>
-   <header>pydm.widgets.waveformplot</header>
   </customwidget>
   <customwidget>
    <class>PyDMEnumComboBox</class>
