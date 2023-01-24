@@ -37,10 +37,11 @@ def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title)
         # Plot a fitted sin wave
         if len(curveDataDict['sinfits']) > 0:
             bestIndex = curveDataDict['bestIndex']
-            A, w, p, c = curveDataDict['sinfits'][bestIndex]
-            x = np.linspace(xValues.min(), xValues.max(), 5000)
-            fitcurve = _sinfunc(x, A, w, p, c)
-            ax.plot(x, fitcurve, '--')
+            if len(curveDataDict['sinfits'][bestIndex]) > 0:
+                A, w, p, c = curveDataDict['sinfits'][bestIndex]
+                x = np.linspace(xValues.min(), xValues.max(), 5000)
+                fitcurve = _sinfunc(x, A, w, p, c)
+                ax.plot(x, fitcurve, '--')
 
         ax.legend(title=legend_title)                
     
