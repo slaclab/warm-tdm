@@ -465,6 +465,13 @@ class Group(pr.Device):
             mode = 'RO',
             value = {k:v['SA_FB_SHUNT_R'] for k,v in self.HardwareGroup.ColumnBoard[0].loading.items()}))
 
+        self.add(pr.LocalVariable(
+            name = 'SQ1_FB_SHUNT_R',
+            hidden = True,
+            mode = 'RO',
+            value = {k:v['SQ1_FB_SHUNT_R'] for k,v in self.HardwareGroup.ColumnBoard[0].loading.items()}))
+        
+
         self.add(GroupLinkVariable(
             name='SaBiasVoltage',
             description='SaBias value for each column. 1D array with total length = ColumnBoards * 8.'
