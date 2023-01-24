@@ -98,7 +98,7 @@ class FasTuneProcess(pr.Process):
         # FAS Tuning Results
         self.add(pr.LocalVariable(name='FasTuneOutput',
                                   hidden=True,
-                                  value={},
+                                  value=[],
                                   mode='RO',
                                   description="Results Data From FAS Tuning"))
 
@@ -108,10 +108,12 @@ class FasTuneProcess(pr.Process):
 
         self.add(RowFasSweepPlot(
             name = 'SweepPlot',
+            hidden = True,
             dependencies = [self.PlotRow, self.FasTuneOutput]))
 
         self.add(FasTunePlot(
             name = 'TunePlot',
+            hidden = True,
             dependencies = [self.FasTuneOutput]))
 
     def _fasTuneWrap(self):

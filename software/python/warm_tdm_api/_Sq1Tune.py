@@ -22,10 +22,11 @@ class SinglePlot(pr.LinkVariable):
             curveDataDict=curves,
             ax_title=f'Row {row} Column {col}',
             xlabel=u'SQ1 FB (\u03bcA)',
-            ylabel=u'SA FB (\u03bcA)')
+            ylabel=u'SA FB (\u03bcA)',
+            legend_title='SQ1 Bias Curves')
         
     def linkedGet(self, index=-1, read=False):
-        tune = self.parent.SaTuneOutput.value()
+        tune = self.parent.Sq1TuneOutput.value()
         
         if tune == {}:
             return self._fig
@@ -85,40 +86,46 @@ class Sq1TuneProcess(pr.Process):
             name='Sq1FbLowOffset',
             value=0.0,
             mode='RW',
+            units=u'\u03bcA',
             description="Starting point offset for SQ1 FB Tuning"))
 
         # High offset for SQ1 FB Tuning
         self.add(pr.LocalVariable(
             name='Sq1FbHighOffset',
-            value=0.0,
+            value=300.0,
             mode='RW',
+            units=u'\u03bcA',            
             description="Ending point offset for SQ1 FB Tuning"))
 
         # Step size for SQ1 FB Tuning
         self.add(pr.LocalVariable(
             name='Sq1FbNumSteps',
-            value=0.0,
+            value=1000,
             mode='RW',
             description="Number of steps for SQ1 FB Tuning"))
 
         # Low offset for SQ1 Bias Tuning
         self.add(pr.LocalVariable(
             name='Sq1BiasLowOffset',
-            value=0.0,
+            value=20.0,
             mode='RW',
+            units=u'\u03bcA',                        
             description="Starting point offset for SQ1 Bias Tuning"))
 
         # High offset for SQ1 Bias Tuning
         self.add(pr.LocalVariable(
             name='Sq1BiasHighOffset',
-            value=0.0,
+            value=60.0,
             mode='RW',
+            units=u'\u03bcA',                        
             description="Ending point offset for SQ1 Bias Tuning"))
 
         # Step size for SQ1 Bias Tuning
         self.add(pr.LocalVariable(
             name='Sq1BiasNumSteps',
-            value=0.0,
+            value=5,
+            minimum=1,
+            maximum=10,
             mode='RW',
             description="Number of steps for SQ1 Bias Tuning"))
 
@@ -150,7 +157,6 @@ class Sq1TuneProcess(pr.Process):
         self.add(pr.LinkVariable(
             name='FittedSq1Fb',
             mode='RO',
-            hidden=True,
             dependencies=[self.PlotColumn, self.PlotRow, self.Sq1TuneOutput],
             linkedGet=self._sq1FbGet,
             description="Fitted Sq1FB value for the column and row selected"))
@@ -158,7 +164,6 @@ class Sq1TuneProcess(pr.Process):
         self.add(pr.LinkVariable(
             name='FittedSq1Bias',
             mode='RO',
-            hidden=True,
             dependencies=[self.PlotColumn, self.PlotRow, self.Sq1TuneOutput],
             linkedGet=self._sq1BiasGet,
             description="Fitted Sq1Bias value for the column and row selected"))
@@ -166,7 +171,6 @@ class Sq1TuneProcess(pr.Process):
         self.add(pr.LinkVariable(
             name='FittedSaFb',
             mode='RO',
-            hidden=True,
             dependencies=[self.PlotColumn, self.PlotRow, self.Sq1TuneOutput],
             linkedGet=self._saFbGet,
             description="Fitted SaFb value for the column and row selected"))

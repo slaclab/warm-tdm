@@ -21,7 +21,8 @@ class SinglePlot(pr.LinkVariable):
             curveDataDict=curves,
             ax_title=f'Channel {col} - FB Shunt = {shunt/1000} kOhms',
             xlabel=u'SA FB (\u03bcA)',
-            ylabel='SA Out (mV)')
+            ylabel='SA Out (mV)',
+            legend_title='SA Bias Curves')
         
     def linkedGet(self, index=-1, read=False):
         tune = self.parent.SaTuneOutput.value()

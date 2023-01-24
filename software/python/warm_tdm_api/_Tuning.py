@@ -5,18 +5,17 @@ from simple_pid import PID
 import warm_tdm_api
 
 
-def saOffset(*, group):
+def saOffset(*, group, process=None):
     """Returns float.
     Run PID loops to determine saOffset that properly offsets saBias
     """
 
     # Get parameters from the Process
-    process = group.SaOffsetProcess
-    kp = process.Kp.get()
-    ki = process.Ki.get()
-    kd = process.Kd.get()
-    precision = process.Precision.get()
-    maxLoops = process.MaxLoops.get()
+    kp = group.SaOffsetProcess.Kp.get()
+    ki = group.SaOffsetProcess.Ki.get()
+    kd = group.SaOffsetProcess.Kd.get()
+    precision = group.SaOffsetProcess.Precision.get()
+    maxLoops = group.SaOffsetProcess.MaxLoops.get()
     colCount = len(group.ColumnMap.get())    
 
     # Setup PID controller
@@ -57,11 +56,11 @@ def saOffset(*, group):
         for i, p in enumerate(pid):
             change = p(masked[i])
             control[i] = np.clip(control[i] + change, 0.0, 2.499)
-            #print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')
+            print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')
 
         group.SaOffset.set(control)
 
-        if process._runEn is False:
+        if process is not None and process._runEn is False:
             return control
 
     if count == maxLoops:
@@ -94,9 +93,6 @@ def saFbSweep(*, group, bias, saFbRange, pctLow, pctRange, process):
     # Iterate through the steps
     for idx in range(numSteps):
 
-        if process is not None:
-            process.Progress.set(pctLow + pctRange*((idx+1)/numSteps))
-
         # Setup data
         #print(f'Writing SaFbForce values = {saFbRange[:, idx]}')
         group.SaFbForceCurrent.set(saFbRange[:, idx])
@@ -108,6 +104,10 @@ def saFbSweep(*, group, bias, saFbRange, pctLow, pctRange, process):
 
         for col in range(colCount):
             curves[col].addPoint(points[col])
+
+        if process is not None:
+            process.Advance() #Progress.set(pctLow + pctRange*((idx+1)/numSteps))
+            
 
 
     # Reset FB to zero after sweep
@@ -141,13 +141,15 @@ def saBiasSweep(*, group, process):
         high = group.SaTuneProcess.SaFbHighOffset.get()
         saFbRange[col] = np.linspace(low,high,numFbSteps,endpoint=True)
 
-        datalist.append(warm_tdm_api.CurveData(xvalues=saFbRange[col]))
+        datalist.append(warm_tdm_api.CurveData(xValues=saFbRange[col]))
     
             
     pctRange = 1.0/numBiasSteps
 
     # Get current sabias values
     bias = group.SaBiasCurrent.get()
+
+    process.TotalSteps.set(numBiasSteps * numFbSteps)
 
     #print(f'Bias sweep - {saBiasRange}')
     #print(f'Fb sweep = {saFbRange}')
@@ -165,7 +167,9 @@ def saBiasSweep(*, group, process):
         # Only set bias for enabled columns
         #print(f'Setting SaBias values = {saBiasRange[:, idx]}')
         group.SaBiasCurrent.set(saBiasRange[:, idx])
+        print('Starting saOffset()')
         saOffset(group=group)
+        print('Done saOffset()')        
 
         curves = saFbSweep(group=group,bias=saBiasRange[:, idx], saFbRange=saFbRange, pctLow=idx/numBiasSteps,pctRange=pctRange,process=process)
 

@@ -74,7 +74,8 @@ class SaOffsetProcess(pr.Process):
     def _saOffsetWrap(self):
         with self.root.updateGroup(0.25):
             ret = warm_tdm_api.saOffset(
-                group=self.parent)
+                group=self.parent,
+                process=self)
 
             self.SaOffsetOutput.set(ret)
 
@@ -164,7 +165,8 @@ class SaOffsetSweepProcess(pr.Process):
             saBias = np.full(colCount, low)
             mask = np.array([1.0 if en else 0 for en in group.ColTuneEnable.value()])
 
-            totalSteps = len(fbPoints) * biasRange.size            
+            totalSteps = len(fbPoints) * biasRange.size
+            self.TotalSteps.set(totalSteps)
 
             for i, bias in enumerate(biasRange):
                 saBias = mask * bias
@@ -182,7 +184,7 @@ class SaOffsetSweepProcess(pr.Process):
                     curves[i, j] = group.SaOut.get() #group.SaOffset.get()
                     #curves[i, j] = group.SaOffset.get()                    
 
-                    self.Progress.set((i*biasSteps + j) / totalSteps)
+                    self.Advance() #Progress.set((i*biasSteps + j) / totalSteps)
                     if self._runEn is False:
                         self.Message.set('Stopped by user')
                         return
