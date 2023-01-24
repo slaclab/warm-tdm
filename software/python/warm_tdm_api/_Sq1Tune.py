@@ -57,7 +57,7 @@ class MultiPlot(SinglePlot):
         self._fig.suptitle(u'SA FB (\u03bcA) vs. SQ1 FB (\u03bcA)')
 
     def linkedGet(self, index=-1):
-        tune = self.parent.SaTuneOutput.value()
+        tune = self.parent.Sq1TuneOutput.value()
         shunt = self.parent.parent.SQ1_FB_SHUNT_R.value()        
 
         if tune == {}:
