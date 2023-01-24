@@ -15,6 +15,7 @@ def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title)
 
         # Plot each curve with heavier line for curve with highest amplitude
         for biasIndex, value in enumerate(curveDataDict['biasValues']):
+                
             linewidth = 1.0
             if biasIndex == curveDataDict['bestIndex']:
                 linewidth = 2.0
@@ -34,11 +35,12 @@ def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title)
 
 
         # Plot a fitted sin wave
-        bestIndex = curveDataDict['bestIndex']
-        A, w, p, c = curveDataDict['sinfits'][bestIndex]
-        x = np.linspace(xValues.min(), xValues.max(), 5000)
-        fitcurve = _sinfunc(x, A, w, p, c)
-        ax.plot(x, fitcurve, '--')
+        if len(curveDataDict['sinfits']) > 0:
+            bestIndex = curveDataDict['bestIndex']
+            A, w, p, c = curveDataDict['sinfits'][bestIndex]
+            x = np.linspace(xValues.min(), xValues.max(), 5000)
+            fitcurve = _sinfunc(x, A, w, p, c)
+            ax.plot(x, fitcurve, '--')
 
         ax.legend(title=legend_title)                
     
@@ -165,8 +167,13 @@ class Curve():
         guess_amp = np.std(np_points) * 2**0.5
         guess_offset = np.mean(np_points)
         guess = np.array([guess_amp, guess_period, 0, guess_offset])
-        self.curvefit = scipy.optimize.curve_fit(_sinfunc, xValues, np_points, p0=guess)[0]
-        print(f'{self.curvefit=}')
+        try:
+            self.curvefit = scipy.optimize.curve_fit(_sinfunc, xValues, np_points, p0=guess)[0]
+            print(f'{self.curvefit=}')            
+        except RuntimeError:
+            print('Could not fit curves')
+
+
 
     def addPoint(self, point):
         self.points.append(point)
