@@ -46,7 +46,7 @@ parser.add_argument(
 parser.add_argument(
     "--rows",
     type     = int,
-    default  = 0,
+    default  = 1,
     help     = "Number of row modules")
 
 parser.add_argument(
@@ -86,13 +86,21 @@ config = warm_tdm_api.GroupConfig(rowBoards=groups[0]['rowBoards'],
 # root.start()
 # #pyrogue.waitCntrlC()
 
-with warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=args.emulate, plots=args.plots) as root:
+with warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=args.emulate, plots=args.plots, initRead=True) as root:
 
     if args.docs != '':
         root.genDocuments(path=args.docs,incGroups=['DocApi'],excGroups=['NoDoc','Enable','Hardware'])
 
     root.Group.ColTuneEnable.set(False, index=0)
-    root.Group.ColTuneEnable.set(False, index=1)    
+    root.Group.ColTuneEnable.set(False, index=1)
+
+    rowTuneEnable = [False for _ in range(32)]
+    rowTuneEnable[0] = True
+    rowTuneEnable[2] = True    
+    root.Group.RowTuneEnable.set(rowTuneEnable)
+
+    
+#    root.Group.HardwareGroup.RowBoard[0].enable.set(False)
 
     pyrogue.pydm.runPyDM(root=root,title='Warm TDM',sizeX=2000,sizeY=2000,ui=warm_tdm_api.pydmUi)
 

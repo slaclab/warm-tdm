@@ -242,7 +242,7 @@ def saFbServo(*, group, precision=1.0):
         p.output_limits = (-0.5, 0.5)
         p.sample_time   = None
 
-    control = group.SaFb.get()
+    control = group.SaFbForceCurrent.get()
 
     current = group.SaOutAdc.get()
     masked = current
@@ -376,7 +376,7 @@ def sq1FbSweep(*, group, bias, fbRange, row, process):
 
     for fbStep in range(numSteps):
         # Set SQ1 FB
-        group.Sq1FbForceCurrent.set(fbRange[:, step])
+        group.Sq1FbForceCurrent.set(fbRange[:, fbStep])
 
         # Servo saFB
         points = saFbServo(group=group)
@@ -413,30 +413,33 @@ def sq1BiasSweep(group, row, process):
     for col in range(colCount):
         low = process.Sq1BiasLowOffset.get()
         high = process.Sq1BiasHighOffset.get()
-        saBiasRange[col] = np.linspace(low, high, numBiasSteps, endpoint=True)
+        biasRange[col] = np.linspace(low, high, numBiasSteps, endpoint=True)
 
         low = process.Sq1FbLowOffset.get()
         high = process.Sq1FbHighOffset.get()
-        saFbRange[col] = np.linspace(low, high, numFbSteps, endpoint=True)
+        fbRange[col] = np.linspace(low, high, numFbSteps, endpoint=True)
 
-        datalist.append(warm_tdm_api.CurveData(xvalues=sq1FbRange[col]))
+        datalist.append(warm_tdm_api.CurveData(xValues=fbRange[col]))
 
-    # Iterate over each bias point
-    for biasStep in range(numBiasSteps):
-        # Reset FB to zero
-        # This is probably unnecessary
-        group.Sq1FbForceCurrent.set(np.zeros(colCount, np.float64))
+    # Only run FB sweeps if tuning is enabled on this row.
+    # Otherwise return CurveData with no curves
+    if group.RowTuneEnable.get()[row]:
+        # Iterate over each bias point
+        for biasStep in range(numBiasSteps):
+            # Reset FB to zero
+            # This is probably unnecessary
+            group.Sq1FbForceCurrent.set(np.zeros(colCount, np.float64))
 
-        # Set SQ1 Bias
-        group.Sq1BiasForceCurrent.set(biasRange[:, biasStep])
+            # Set SQ1 Bias
+            group.Sq1BiasForceCurrent.set(biasRange[:, biasStep])
 
-        # Sweep SQ1 FB at the bias
-        curves = sq1FbSweep(group=group, bias=biasRange[:, biasStep], fbRange=fbRange, process=process)
-
-        # Assign curves by column
-        for col in range(colCount):
-            datalist[col].addCurve(curves[col])
-
+            # Sweep SQ1 FB at the bias
+            curves = sq1FbSweep(group=group, bias=biasRange[:, biasStep], fbRange=fbRange, row=row, process=process)
+        
+            # Assign curves by column
+            for col in range(colCount):
+                datalist[col].addCurve(curves[col])
+            
     # Compute best bias point for each column
     for d in datalist:
         d.update()
@@ -458,21 +461,25 @@ def sq1Tune(group, process):
     """
     outputs = []
     numRows = group.NumRows.get()
+    rowTuneEnable = group.RowTuneEnable.value()
+    numEnabledRows = rowTuneEnable.count(True)
     numColumns = group.NumColumns.get()
 
-    totalSteps = numRows * process.Sq1BiasSteps.get() * process.Sq1FbSteps.get()
+    totalSteps = numEnabledRows * process.Sq1BiasNumSteps.get() * process.Sq1FbNumSteps.get()
     process.TotalSteps.set(totalSteps)
 
     #group.RowForceEn.set(True)
+
     
     for row in range(group.NumRows.get()):
         results = sq1BiasSweep(group, row, process)
         outputs.append(results)
-
-        for col in range(numColumns):
-            group.Sq1Bias.set(index=(col, row), value=results[col].biasOut)
-            group.Sq1Fb.set(index=(col, row), value=results[col].xOut)
-            group.SqFb.set(index=(col, row), value=results[col].yOut)
+        
+        if rowTuneEnable[row]:
+            for col in range(numColumns):
+                group.Sq1BiasCurrent.set(index=(col, row), value=results[col].biasOut)
+                group.Sq1FbCurrent.set(index=(col, row), value=results[col].xOut)
+                group.SaFbCurrent.set(index=(col, row), value=results[col].yOut)
 
     return outputs
 
