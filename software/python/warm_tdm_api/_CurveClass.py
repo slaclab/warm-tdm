@@ -2,7 +2,8 @@ import numpy as np
 import scipy.optimize
 import sys
 
-def _sinfunc(t, A, w, p, c): return A*np.sin((2*np.pi/w)*t+p)+c
+def _sinfunc(t, A, w, p, c):
+        return A*np.sin((2*np.pi/w)*t+p)+c
 
 def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title):
         ax.clear()
@@ -10,6 +11,10 @@ def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title)
         ax.set_ylabel(ylabel)
         ax.set_xlabel(xlabel)
 
+        # Special case for CurveData with no curves
+        if len(curveDataDict['biasValues']) == 0:
+            ax.text(.5, .5, 'Not Tuned', ha='center', va='center', fontsize=28)
+            return
 
         xValues = curveDataDict['xValues']
 
@@ -31,8 +36,6 @@ def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title)
 
         # Plot the calculated operating point
         ax.plot(curveDataDict['xOut'], curveDataDict['yOut'], 's')
-
-
 
         # Plot a fitted sin wave
         if len(curveDataDict['sinfits']) > 0:
@@ -87,9 +90,10 @@ class CurveData():
                 
         #self.bestfit = self.fit(self.bestCurve)
 
-        self.biasOut = self.bestCurve.bias
-        self.yOut = (self.bestCurve.lowpoint + self.bestCurve.highpoint) / 2
-        self.xOut = (self.bestCurve.lowindex + self.bestCurve.highindex) / 2
+        if self.bestCurve is not None:
+            self.biasOut = self.bestCurve.bias
+            self.yOut = (self.bestCurve.lowpoint + self.bestCurve.highpoint) / 2
+            self.xOut = (self.bestCurve.lowindex + self.bestCurve.highindex) / 2
             
 
 #     def plot(self):
@@ -119,7 +123,7 @@ class CurveData():
             'highPoints': np.array([c.highpoint for c in self.curveList], np.float32),
             'sinfits': np.array([c.curvefit for c in self.curveList], np.float32),
             'bestIndex' : self.bestIndex,
-            'bestPeak' : self.bestCurve.peakheight,
+            'bestPeak' : 0.0 if self.bestIndex is None else self.bestCurve.peakheight,
             'biasOut': self.biasOut,
             'xOut': self.xOut,
             'yOut': self.yOut,

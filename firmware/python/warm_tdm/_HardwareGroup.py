@@ -100,7 +100,7 @@ class HardwareGroup(pyrogue.Device):
                 srp == srpStream
 
             # Instantiate the board Device tree and link it to the SRP
-            self.add(warm_tdm.RowModule(name=f'RowBoard[{rowIndex}]', memBase=srp, expand=True))
+            self.add(warm_tdm.RowModule(name=f'RowBoard[{rowIndex}]', memBase=srp, expand=False, enabled=False))
 
         self.add(pyrogue.LocalVariable(
             name = 'ReadoutList',
