@@ -132,7 +132,7 @@ class SaOffsetSweepProcess(pr.Process):
         self.add(pr.LocalVariable(name='PlotChannel',
                                   value = 0,
                                   minimum = 0,
-                                  maximum = self.columns,
+                                  maximum = self.columns-1,
                                   mode = 'RW'))
 
         self.add(pr.LinkVariable(name='Plot',
