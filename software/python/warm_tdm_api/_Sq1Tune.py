@@ -84,7 +84,7 @@ class Sq1TuneProcess(pr.Process):
         # Low offset for SQ1 FB Tuning
         self.add(pr.LocalVariable(
             name='Sq1FbLowOffset',
-            value=0.0,
+            value=-77.0,
             mode='RW',
             units=u'\u03bcA',
             description="Starting point offset for SQ1 FB Tuning"))
@@ -92,7 +92,7 @@ class Sq1TuneProcess(pr.Process):
         # High offset for SQ1 FB Tuning
         self.add(pr.LocalVariable(
             name='Sq1FbHighOffset',
-            value=300.0,
+            value=77.0,
             mode='RW',
             units=u'\u03bcA',            
             description="Ending point offset for SQ1 FB Tuning"))
@@ -100,14 +100,14 @@ class Sq1TuneProcess(pr.Process):
         # Step size for SQ1 FB Tuning
         self.add(pr.LocalVariable(
             name='Sq1FbNumSteps',
-            value=1000,
+            value=300,
             mode='RW',
             description="Number of steps for SQ1 FB Tuning"))
 
         # Low offset for SQ1 Bias Tuning
         self.add(pr.LocalVariable(
             name='Sq1BiasLowOffset',
-            value=20.0,
+            value=0.0,
             mode='RW',
             units=u'\u03bcA',                        
             description="Starting point offset for SQ1 Bias Tuning"))
@@ -115,7 +115,7 @@ class Sq1TuneProcess(pr.Process):
         # High offset for SQ1 Bias Tuning
         self.add(pr.LocalVariable(
             name='Sq1BiasHighOffset',
-            value=60.0,
+            value=75.0,
             mode='RW',
             units=u'\u03bcA',                        
             description="Ending point offset for SQ1 Bias Tuning"))
@@ -123,9 +123,7 @@ class Sq1TuneProcess(pr.Process):
         # Step size for SQ1 Bias Tuning
         self.add(pr.LocalVariable(
             name='Sq1BiasNumSteps',
-            value=5,
-            minimum=1,
-            maximum=10,
+            value=40,
             mode='RW',
             description="Number of steps for SQ1 Bias Tuning"))
 
