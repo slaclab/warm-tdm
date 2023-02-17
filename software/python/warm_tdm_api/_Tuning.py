@@ -40,7 +40,7 @@ def saOffset(*, group, process=None):
         #print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}')
     #print()
 
-    mult = np.array([1 if en else 0 for en in group.ColTuneEnable.value()],np.float32)
+    mult = np.array([1 if en else 0 for en in group.ColTuneEnable.value()],np.float64)
     count = 0
 
     while count < maxLoops:
@@ -84,7 +84,7 @@ def saFbSweep(*, group, bias, saFbRange, pctLow, pctRange, process):
     colCount = len(group.ColumnMap.get())
     curves = [warm_tdm_api.Curve(bias[i]) for i in range(colCount)]
 
-    saFbArray = np.zeros(colCount, np.float)
+    saFbArray = np.zeros(colCount, np.float64)
 
     numSteps = len(saFbRange[0])
 
@@ -111,7 +111,7 @@ def saFbSweep(*, group, bias, saFbRange, pctLow, pctRange, process):
 
 
     # Reset FB to zero after sweep
-    group.SaFbForceCurrent.set(value=np.zeros(colCount, np.float))
+    group.SaFbForceCurrent.set(value=np.zeros(colCount, np.float64))
 
     return curves
 
@@ -249,7 +249,7 @@ def saFbServo(*, group, precision=1.0):
 
     current = group.SaOutAdc.get()
     masked = current
-    mult = np.array([1 if en else 0 for en in group.ColTuneEnable.value()], np.float32)    
+    mult = np.array([1 if en else 0 for en in group.ColTuneEnable.value()], np.float64)    
     count = 0
 
     for count in range(maxLoops):
