@@ -375,7 +375,7 @@ class Group(pr.Device):
                         'Total length = RowBoards * 32.'
                         'Values can be accessed as a full array or as single values using an index key.'
                         'Not yet implemented in the tuning routines.',
-            value=np.ones(rtsize, np.bool),
+            value=np.ones(rtsize, bool),
             groups='TopApi',
             mode='RW'))
 
@@ -388,7 +388,7 @@ class Group(pr.Device):
                         'Total length = ColumnBoards * 8.'
                         'Values can be accessed as a full array or as single values using the an index key.'
                         'Not yet implemented in the tuning routines.',
-            value=np.ones(len(self._config.columnMap), np.bool),
+            value=np.ones(len(self._config.columnMap), bool),
             groups='TopApi',
             mode='RW'))
 
