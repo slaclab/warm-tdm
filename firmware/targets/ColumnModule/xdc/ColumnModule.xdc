@@ -142,7 +142,7 @@ set_property -dict { PACKAGE_PIN V21  IOSTANDARD LVCMOS33 } [get_ports { sq1Bias
 set_property -dict { PACKAGE_PIN W21  IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[12] }];
 set_property -dict { PACKAGE_PIN AA25 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[13] }];
 
-set_property -dict { PACKAGE_PIN AE26 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasWrt[0] }];
+set_property -dict { PACKAGE_PIN AB25 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasWrt[0] }];
 set_property -dict { PACKAGE_PIN W23  IOSTANDARD LVCMOS33 } [get_ports { sq1BiasWrt[1] }];
 set_property -dict { PACKAGE_PIN W24  IOSTANDARD LVCMOS33 } [get_ports { sq1BiasWrt[2] }];
 set_property -dict { PACKAGE_PIN AB26 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasWrt[3] }];
