@@ -188,7 +188,7 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
         self.conv = np.vectorize(_conv)
         cols = list(range(8))
 
-        tmpAdc = np.array(np.random.default_rng().normal(1, 20, (8,0x2000)), dtype=np.int)
+        tmpAdc = np.array(np.random.default_rng().normal(1, 20, (8,0x2000)), dtype=np.int32)
         tmpVoltage = self.conv(tmpAdc)
         tmpAmpVin = np.zeros_like(tmpVoltage)
 
