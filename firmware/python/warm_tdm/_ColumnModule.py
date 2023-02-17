@@ -23,11 +23,11 @@ class Loading(object):
         'SQ1_FB_FSADJ_R':2.0e3,                     
         'SQ1_FB_DAC_LOAD_R':25.0,
         'SQ1_FB_AMP_GAIN_R':-4.7,
-        'SQ1_FB_SHUNT_R':7.15e3,
+        'SQ1_FB_SHUNT_R':11.3e3,
         'SQ1_BIAS_FSADJ_R':2.0e3,                     
         'SQ1_BIAS_DAC_LOAD_R':25.0,
         'SQ1_BIAS_AMP_GAIN_R':-4.7,
-        'SQ1_BIAS_SHUNT_R':7.15e3} for ch in range(8)}
+        'SQ1_BIAS_SHUNT_R':10.0e3} for ch in range(8)}
 
     def __init__(self, overrides={}):
 
