@@ -62,15 +62,15 @@ class ColumnModule(pr.Device):
     def __init__(self,
                  # Channels 0 and 1 have FB attached after first stage
                  waveform_stream,                 
-                 loading={
-                     0: {
-                         'SA_AMP_FB_R': 1.0,
-                         'SA_OFFSET_R': 1.0e20,
-                         'SA_AMP_GAIN_R': 1.0e20},
-                     1: {
-                         'SA_AMP_FB_R': 1.0,
-                         'SA_OFFSET_R': 1.0e20,
-                         'SA_AMP_GAIN_R': 1.0e20}},                     
+#                  loading={
+#                      0: {
+#                          'SA_AMP_FB_R': 1.0,
+#                          'SA_OFFSET_R': 1.0e20,
+#                          'SA_AMP_GAIN_R': 1.0e20},
+#                      1: {
+#                          'SA_AMP_FB_R': 1.0,
+#                          'SA_OFFSET_R': 1.0e20,
+#                          'SA_AMP_GAIN_R': 1.0e20}},                     
                  rows=64,
                  **kwargs):
         super().__init__(**kwargs)
