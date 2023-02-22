@@ -61,7 +61,8 @@ class Loading(object):
 class ColumnModule(pr.Device):
     def __init__(self,
                  # Channels 0 and 1 have FB attached after first stage
-                 waveform_stream,                 
+                 waveform_stream,
+                 loading={},
 #                  loading={
 #                      0: {
 #                          'SA_AMP_FB_R': 1.0,
