@@ -91,12 +91,11 @@ with warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=arg
     if args.docs != '':
         root.genDocuments(path=args.docs,incGroups=['DocApi'],excGroups=['NoDoc','Enable','Hardware'])
 
-    root.Group.ColTuneEnable.set(False, index=0)
-    root.Group.ColTuneEnable.set(False, index=1)
+#    root.Group.ColTuneEnable.set(False, index=0)
+#    root.Group.ColTuneEnable.set(False, index=1)
 
     rowTuneEnable = [False for _ in range(32)]
     rowTuneEnable[0] = True
-    rowTuneEnable[2] = True    
     root.Group.RowTuneEnable.set(rowTuneEnable)
 
     
