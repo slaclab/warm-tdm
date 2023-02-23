@@ -223,8 +223,8 @@ def saTune(*, group, process=None, doSet=True):
                 group.SaFbCurrent.set(index=(col,row), value=saBiasResults[col].xOut)
             # biasOut represents the tuned SA Bias point
             group.SaBias.set(index=col, value=saBiasResults[col].biasOut)
-            # Run saOffset to zero out the ADC value at the tuned SaBias,SaFb point
 
+        # Run saOffset to zero out the ADC value at the tuned SaBias,SaFb point
         saOffset(group=group)
             
     return saBiasResults
@@ -382,7 +382,10 @@ def sq1FbSweep(*, group, bias, fbRange, row, process):
         group.Sq1FbForceCurrent.set(fbRange[:, fbStep])
 
         # Servo saFB
-        points = saFbServo(group=group)
+        #points = saFbServo(group=group)
+
+        # Open Loop mode - temporary for testing
+        points = group.SaOut.get()
 
         # Add points to curves
         for col in range(colCount):
