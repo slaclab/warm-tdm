@@ -35,7 +35,7 @@ def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title)
             ax.plot(curveDataDict['lowIndexes'][biasIndex], curveDataDict['lowPoints'][biasIndex], 'v', color=color)            
 
         # Plot the calculated operating point
-        ax.plot(curveDataDict['xOut'], curveDataDict['yOut'], 's')
+        #ax.plot(curveDataDict['xOut'], curveDataDict['yOut'], 's')
 
         # Plot a fitted sin wave
         if len(curveDataDict['sinfits']) > 0:
