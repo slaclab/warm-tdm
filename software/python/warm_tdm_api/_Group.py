@@ -48,7 +48,7 @@ class GroupLinkVariable(pr.LinkVariable):
             if index != -1:
                 return self.dependencies[index].get(read=read)
             else:
-                ret = np.zeros(len(self.dependencies), np.float)
+                ret = np.zeros(len(self.dependencies), np.float64)
 
                 for idx, var in enumerate(self.dependencies):
                     ret[idx] = var.get(read=read)
@@ -130,7 +130,7 @@ class SaOutVariable(GroupLinkVariable):
                     dep.parent.checkBlocks()
 
                 # Iterate through all the channel values now held in shadow memory and assign to array
-                ret = np.zeros((len(self._config.columnMap)), np.float)
+                ret = np.zeros((len(self._config.columnMap)), np.float64)
                 for idx, board, chan in self._config.colGetIter(index):
                     ret[idx] = self.dependencies[board].get(index=chan, read=False)
 
@@ -304,7 +304,7 @@ class Group(pr.Device):
                         'Total length = RowBoards * 32.'
                         'Values can be accessed as a full array or as single values using an index key.'
                         'Not yet implemented in the tuning routines.',
-            value=np.ones(rtsize, np.bool),
+            value=np.ones(rtsize, bool),
             groups='TopApi',
             mode='RW'))
 
@@ -317,7 +317,7 @@ class Group(pr.Device):
                         'Total length = ColumnBoards * 8.'
                         'Values can be accessed as a full array or as single values using the an index key.'
                         'Not yet implemented in the tuning routines.',
-            value=np.ones(len(self._config.columnMap), np.bool),
+            value=np.ones(len(self._config.columnMap), bool),
             groups='TopApi',
             mode='RW'))
 
