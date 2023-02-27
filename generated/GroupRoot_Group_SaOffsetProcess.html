@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SaOffsetProcess &mdash; Warm TDM v1.0.0 documentation</title>
@@ -11,14 +11,14 @@
     <script src="../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-        <script src="../_static/jquery.js"></script>
-        <script src="../_static/underscore.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="SaOffsetSweepProcess" href="GroupRoot_Group_SaOffsetSweepProcess.html" />
+    <link rel="next" title="SaTuneProcess" href="GroupRoot_Group_SaTuneProcess.html" />
     <link rel="prev" title="Group" href="GroupRoot_Group.html" /> 
 </head>
 
@@ -27,14 +27,18 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="../index.html" class="icon icon-home"> Warm TDM
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Warm TDM
           </a>
               <div class="version">
                 v1.0.0
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -45,10 +49,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../client/index.html">Client API</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../structure.html">Tree Structure</a><ul class="current">
 <li class="toctree-l2 current"><a class="reference internal" href="GroupRoot.html">GroupRoot</a><ul class="current">
-<li class="toctree-l3"><a class="reference internal" href="GroupRoot_DataWriter.html">DataWriter</a></li>
 <li class="toctree-l3 current"><a class="reference internal" href="GroupRoot_Group.html">Group</a><ul class="current">
 <li class="toctree-l4 current"><a class="current reference internal" href="#">SaOffsetProcess</a></li>
-<li class="toctree-l4"><a class="reference internal" href="GroupRoot_Group_SaOffsetSweepProcess.html">SaOffsetSweepProcess</a></li>
 <li class="toctree-l4"><a class="reference internal" href="GroupRoot_Group_SaTuneProcess.html">SaTuneProcess</a></li>
 <li class="toctree-l4"><a class="reference internal" href="GroupRoot_Group.html#summary">Summary</a></li>
 <li class="toctree-l4"><a class="reference internal" href="GroupRoot_Group.html#details">Details</a></li>
@@ -76,11 +78,11 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
-          <li><a href="../structure.html">Tree Structure</a> &raquo;</li>
-          <li><a href="GroupRoot.html">GroupRoot</a> &raquo;</li>
-          <li><a href="GroupRoot_Group.html">Group</a> &raquo;</li>
-      <li>SaOffsetProcess</li>
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../structure.html">Tree Structure</a></li>
+          <li class="breadcrumb-item"><a href="GroupRoot.html">GroupRoot</a></li>
+          <li class="breadcrumb-item"><a href="GroupRoot_Group.html">Group</a></li>
+      <li class="breadcrumb-item active">SaOffsetProcess</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/generated/GroupRoot_Group_SaOffsetProcess.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -91,16 +93,16 @@
            <div itemprop="articleBody">
              
   <section id="saoffsetprocess">
-<h1>SaOffsetProcess<a class="headerlink" href="#saoffsetprocess" title="Permalink to this headline"></a></h1>
+<h1>SaOffsetProcess<a class="headerlink" href="#saoffsetprocess" title="Permalink to this heading"></a></h1>
 <div class="line-block">
 <div class="line">Process which attempts to find an SaOffset value which results in the SaOut value being zero.</div>
 <div class="line">A PID controller is used with configurable parameters, including a precision value to determine how close to zero the loop must come.</div>
 <div class="line">A timeout value will terminate the process if it fails to converge witing a set period of time.</div>
 </div>
 <section id="summary">
-<h2>Summary<a class="headerlink" href="#summary" title="Permalink to this headline"></a></h2>
+<h2>Summary<a class="headerlink" href="#summary" title="Permalink to this heading"></a></h2>
 <section id="variable-list">
-<h3>Variable List<a class="headerlink" href="#variable-list" title="Permalink to this headline"></a></h3>
+<h3>Variable List<a class="headerlink" href="#variable-list" title="Permalink to this heading"></a></h3>
 <ul class="simple">
 <li><p>Running</p></li>
 <li><p>Progress</p></li>
@@ -114,7 +116,7 @@
 </ul>
 </section>
 <section id="command-list">
-<h3>Command List<a class="headerlink" href="#command-list" title="Permalink to this headline"></a></h3>
+<h3>Command List<a class="headerlink" href="#command-list" title="Permalink to this heading"></a></h3>
 <ul class="simple">
 <li><p>Start</p></li>
 <li><p>Stop</p></li>
@@ -122,19 +124,15 @@
 </section>
 </section>
 <section id="details">
-<h2>Details<a class="headerlink" href="#details" title="Permalink to this headline"></a></h2>
+<h2>Details<a class="headerlink" href="#details" title="Permalink to this heading"></a></h2>
 <section id="variables">
-<h3>Variables<a class="headerlink" href="#variables" title="Permalink to this headline"></a></h3>
-<div class="topic">
+<h3>Variables<a class="headerlink" href="#variables" title="Permalink to this heading"></a></h3>
+<aside class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetProcess.Running</p>
 <div class="line-block">
 <div class="line">Status values indicating if operation is running.</div>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 50%" />
-<col style="width: 50%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Field</p></th>
 <th class="head"><p>Value</p></th>
@@ -164,17 +162,13 @@
 </tr>
 </tbody>
 </table>
-</div>
-<div class="topic">
+</aside>
+<aside class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetProcess.Progress</p>
 <div class="line-block">
 <div class="line">Percent complete: 0 - 100 %.</div>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 50%" />
-<col style="width: 50%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Field</p></th>
 <th class="head"><p>Value</p></th>
@@ -210,18 +204,14 @@
 </tr>
 </tbody>
 </table>
-</div>
-<div class="topic">
+</aside>
+<aside class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetProcess.Message</p>
 <div class="line-block">
 <div class="line">Process status message.</div>
 <div class="line">Prefixed with ‘Error:’ if an error occurred.</div>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 50%" />
-<col style="width: 50%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Field</p></th>
 <th class="head"><p>Value</p></th>
@@ -248,17 +238,13 @@
 </tr>
 </tbody>
 </table>
-</div>
-<div class="topic">
+</aside>
+<aside class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetProcess.Kp</p>
 <div class="line-block">
 <div class="line">Proportional PID coefficient.</div>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 50%" />
-<col style="width: 50%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Field</p></th>
 <th class="head"><p>Value</p></th>
@@ -285,17 +271,13 @@
 </tr>
 </tbody>
 </table>
-</div>
-<div class="topic">
+</aside>
+<aside class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetProcess.Ki</p>
 <div class="line-block">
 <div class="line">Integral PID coefficient.</div>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 50%" />
-<col style="width: 50%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Field</p></th>
 <th class="head"><p>Value</p></th>
@@ -322,17 +304,13 @@
 </tr>
 </tbody>
 </table>
-</div>
-<div class="topic">
+</aside>
+<aside class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetProcess.Kd</p>
 <div class="line-block">
 <div class="line">Differential PID coefficient.</div>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 50%" />
-<col style="width: 50%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Field</p></th>
 <th class="head"><p>Value</p></th>
@@ -359,17 +337,13 @@
 </tr>
 </tbody>
 </table>
-</div>
-<div class="topic">
+</aside>
+<aside class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetProcess.Precision</p>
 <div class="line-block">
 <div class="line">Convergance precision.</div>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 50%" />
-<col style="width: 50%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Field</p></th>
 <th class="head"><p>Value</p></th>
@@ -396,17 +370,13 @@
 </tr>
 </tbody>
 </table>
-</div>
-<div class="topic">
+</aside>
+<aside class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetProcess.Timeout</p>
 <div class="line-block">
 <div class="line">Timeout for PID convergance.</div>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 50%" />
-<col style="width: 50%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Field</p></th>
 <th class="head"><p>Value</p></th>
@@ -436,8 +406,8 @@
 </tr>
 </tbody>
 </table>
-</div>
-<div class="topic">
+</aside>
+<aside class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetProcess.SaOffsetOutput</p>
 <div class="line-block">
 <div class="line">Results Data From SA Offset.</div>
@@ -445,10 +415,6 @@
 <div class="line">The length is ColumnCount * 8’.</div>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 50%" />
-<col style="width: 50%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Field</p></th>
 <th class="head"><p>Value</p></th>
@@ -475,21 +441,17 @@
 </tr>
 </tbody>
 </table>
-</div>
+</aside>
 </section>
 <section id="commands">
-<h3>Commands<a class="headerlink" href="#commands" title="Permalink to this headline"></a></h3>
-<div class="topic">
+<h3>Commands<a class="headerlink" href="#commands" title="Permalink to this heading"></a></h3>
+<aside class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetProcess.Start</p>
 <div class="line-block">
 <div class="line">Start process.</div>
 <div class="line">No Args.</div>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 50%" />
-<col style="width: 50%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Field</p></th>
 <th class="head"><p>Value</p></th>
@@ -510,18 +472,14 @@
 </tr>
 </tbody>
 </table>
-</div>
-<div class="topic">
+</aside>
+<aside class="topic">
 <p class="topic-title">GroupRoot.Group.SaOffsetProcess.Stop</p>
 <div class="line-block">
 <div class="line">Stop process.</div>
 <div class="line">No Args.</div>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 50%" />
-<col style="width: 50%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Field</p></th>
 <th class="head"><p>Value</p></th>
@@ -542,7 +500,7 @@
 </tr>
 </tbody>
 </table>
-</div>
+</aside>
 </section>
 </section>
 </section>
@@ -552,7 +510,7 @@
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="GroupRoot_Group.html" class="btn btn-neutral float-left" title="Group" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="GroupRoot_Group_SaOffsetSweepProcess.html" class="btn btn-neutral float-right" title="SaOffsetSweepProcess" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="GroupRoot_Group_SaTuneProcess.html" class="btn btn-neutral float-right" title="SaTuneProcess" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

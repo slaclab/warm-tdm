@@ -11,7 +11,6 @@ GroupRoot
    :maxdepth: 1
    :caption: Sub Devices:
 
-   GroupRoot_DataWriter
    GroupRoot_Group
 
 Summary
