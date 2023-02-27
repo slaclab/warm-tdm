@@ -40,17 +40,19 @@ parser.add_argument(
     "--ip",
     type     = str,
     required = False,
-    default = '192.168.3.12',
+    default = '192.168.3.11',
     help     = "IP address")
 
 parser.add_argument(
     "--rows",
     type     = int,
+    default  = 1,
     help     = "Number of row modules")
 
 parser.add_argument(
     "--cols",
     type     = int,
+    default  = 1,
     help     = "Number of column modules")
 
 parser.add_argument(
@@ -80,9 +82,25 @@ config = warm_tdm_api.GroupConfig(rowBoards=groups[0]['rowBoards'],
                                   host=groups[0]['host'],
                                   rowOrder=None)
 
-with warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=args.emulate, plots=args.plots) as root:
+# root = warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=args.emulate, plots=args.plots)
+# root.start()
+# #pyrogue.waitCntrlC()
+
+with warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=args.emulate, plots=args.plots, initRead=True) as root:
 
     if args.docs != '':
         root.genDocuments(path=args.docs,incGroups=['DocApi'],excGroups=['NoDoc','Enable','Hardware'])
 
+#    root.Group.ColTuneEnable.set(False, index=0)
+#    root.Group.ColTuneEnable.set(False, index=1)
+
+    rowTuneEnable = [False for _ in range(32)]
+    rowTuneEnable[0] = True
+    root.Group.RowTuneEnable.set(rowTuneEnable)
+
+    
+#    root.Group.HardwareGroup.RowBoard[0].enable.set(False)
+
     pyrogue.pydm.runPyDM(root=root,title='Warm TDM',sizeX=2000,sizeY=2000,ui=warm_tdm_api.pydmUi)
+
+

@@ -380,6 +380,7 @@ begin
    U_WarmTdmCommon_1 : entity warm_tdm.WarmTdmCommon
       generic map (
          TPD_G            => TPD_G,
+         SIMULATION_G     => SIMULATION_G,
          BUILD_INFO_G     => BUILD_INFO_G,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_COMMON_C).baseAddr,
          AXIL_CLK_FREQ_G  => AXIL_CLK_FREQ_C)

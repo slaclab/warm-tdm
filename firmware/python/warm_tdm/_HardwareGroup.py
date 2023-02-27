@@ -48,11 +48,12 @@ class HardwareGroup(pyrogue.Device):
 
             if emulate is True:
                 srp =  pyrogue.interfaces.simulation.MemEmulate()
+                dataStream = rogue.interfaces.stream.Master()
 
             elif simulation is True:
                 srpStream = rogue.interfaces.stream.TcpClient('localhost', SIM_SRP_PORT + (0x00 <<4 | index)*2)
                 dataStream = rogue.interfaces.stream.TcpClient('localhost', SIM_DATA_PORT + (0x00 <<4 | index)*2)
-                self.addInterface(srpStream, dataStream)            
+                self.addInterface(srpStream, dataStream)
                 srp = rogue.protocols.srp.SrpV3()
                 srp == srpStream
 
@@ -64,13 +65,13 @@ class HardwareGroup(pyrogue.Device):
 
             # Instantiate the board Device tree and link it to the SRP
             self.add(warm_tdm.ColumnModule(name=f'ColumnBoard[{index}]', memBase=srp, expand=True, rows=rows, waveform_stream=dataStream))
-            waveGui = warm_tdm.WaveformCaptureReceiver(hidden=True, live_plots=plots)                        
+            waveGui = warm_tdm.WaveformCaptureReceiver(hidden=False, loading=self.ColumnBoard[index].loading)
 
             # Link the data stream to the DataWriter
             if emulate is False:
                 dataWriterChannel = (groupId << 3) | index
                 dataStream >> dataWriter.getChannel(dataWriterChannel)
-            
+
                 #debug = warm_tdm.StreamDebug()
 
                 dataStream >> waveGui
@@ -88,7 +89,7 @@ class HardwareGroup(pyrogue.Device):
             elif simulation is True:
                 srpStream = rogue.interfaces.stream.TcpClient('localhost', SIM_SRP_PORT + (0x00 <<4 | boardIndex)*2)
                 dataStream = rogue.interfaces.stream.TcpClient('localhost', SIM_DATA_PORT + (0x00 <<4 | boardIndex)*2)
-                self.addInterface(srpStream, dataStream)            
+                self.addInterface(srpStream, dataStream)
                 srp = rogue.protocols.srp.SrpV3()
                 srp == srpStream
 
@@ -97,9 +98,9 @@ class HardwareGroup(pyrogue.Device):
                 dataStream = dataUdp.application(dest=boardIndex)
                 srp = rogue.protocols.srp.SrpV3()
                 srp == srpStream
-            
+
             # Instantiate the board Device tree and link it to the SRP
-            self.add(warm_tdm.RowModule(name=f'RowBoard[{rowIndex}]', memBase=srp, expand=True))
+            self.add(warm_tdm.RowModule(name=f'RowBoard[{rowIndex}]', memBase=srp, expand=False, enabled=False))
 
         self.add(pyrogue.LocalVariable(
             name = 'ReadoutList',
@@ -114,6 +115,6 @@ class HardwareGroup(pyrogue.Device):
         super().writeBlocks(**kwargs)
 
         #Then configure the row selects according to the ReadoutList
-        self.RowSelectArray.configure(self.ReadoutList.value())
+        #self.RowSelectArray.configure(self.ReadoutList.value())
 
 

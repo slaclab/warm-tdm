@@ -13,6 +13,7 @@ from warm_tdm._DataPath import *
 from warm_tdm._FastDacDriver import *
 from warm_tdm._AdcDsp import *
 from warm_tdm._Ad5679R import *
+from warm_tdm._Ad5263 import *
 from warm_tdm._RowSelect import *
 from warm_tdm._HardwareGroup import *
 from warm_tdm._SaBiasOffset import *
