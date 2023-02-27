@@ -92,6 +92,7 @@ class SaTuneProcess(pr.Process):
 
         # Select Channel
         self.add(pr.LocalVariable(name='PlotColumn',
+                                  groups='NoDoc',
                                   value=0,
                                   minimum=0,
                                   maximum=len(config.columnMap)-1,
@@ -101,6 +102,7 @@ class SaTuneProcess(pr.Process):
 
 
         self.add(pr.LinkVariable(name='FittedSaFb',
+                                 groups='NoDoc',
                                  mode='RO',
                                  hidden=True,
                                  dependencies=[self.PlotColumn,self.SaTuneOutput],
@@ -108,6 +110,7 @@ class SaTuneProcess(pr.Process):
                                  description="Fitted SaFB value for the column selected via the PlotColumn variable above. "))
 
         self.add(pr.LinkVariable(name='FittedSaBias',
+                                 groups='NoDoc',
                                  mode='RO',
                                  hidden=True,
                                  dependencies=[self.PlotColumn,self.SaTuneOutput],
@@ -116,6 +119,7 @@ class SaTuneProcess(pr.Process):
 
         self.add(pr.LinkVariable(name='FittedSaOffset',
                                  mode='RO',
+                                 groups='NoDoc',
                                  hidden=True,
                                  dependencies=[self.PlotColumn,self.SaTuneOutput],
                                  linkedGet=self._saOffsetGet,
@@ -123,6 +127,7 @@ class SaTuneProcess(pr.Process):
 
         self.add(pr.LinkVariable(name='PlotXData',
                                  mode='RO',
+                                 groups='NoDoc',
                                  hidden=True,
                                  dependencies=[self.PlotColumn,self.SaTuneOutput],
                                  linkedGet=self._plotXGet,
@@ -132,12 +137,14 @@ class SaTuneProcess(pr.Process):
             self.add(pr.LinkVariable(name=f'PlotYData[{i}]',
                                      mode='RO',
                                      hidden=True,
+                                     groups='NoDoc',
                                      dependencies=[self.PlotColumn,self.SaTuneOutput],
                                      linkedGet=lambda i=i: self._plotYGet(i),
                                      description="Y-Axis data for each SaBias value for the column selected via the PlotColumn variable above. "))
 
         self.add(pr.LocalCommand(name='SavePlotData',
                                  value='',
+                                 groups='NoDoc',
                                  function=self._saveData,
                                  description="Command to save the plot data as a numpy binary file (np.save). The arg is the filename to write the data to. "))
 

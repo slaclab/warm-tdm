@@ -75,7 +75,7 @@ class SaOffsetSweepProcess(pr.Process):
                  **kwargs):
 
         # Init master class
-        pr.Process.__init__(self, function=self._saOffsetSweep, **kwargs)
+        pr.Process.__init__(self, groups='NoDoc', function=self._saOffsetSweep, **kwargs)
 
         # Low offset for SA Bias Tuning
         self.add(pr.LocalVariable(name='SaBiasLow',
