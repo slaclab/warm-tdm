@@ -238,7 +238,7 @@ class Group(pr.Device):
 
         self.add(pr.LocalVariable(
             name='NumRows',
-            description='Total number of rows in the Group. NumRowBoards * 32.',
+            description='Total number of rows in the Group. Max is NumRowBoards * 32.',
             value=len(self._config.rowMap),
             mode='RO',
             groups='TopApi'))
@@ -252,7 +252,7 @@ class Group(pr.Device):
 
         self.add(pr.LocalVariable(
             name='NumColumns',
-            description='Total number of columns in the Group. NumColumnBoards * 8.',
+            description='Total number of columns in the Group. Max is NumColumnBoards * 8.',
             value=len(self._config.columnMap),
             mode='RO',
             groups='TopApi'))
@@ -273,7 +273,7 @@ class Group(pr.Device):
             description='Contains the conversion between row index and (board,channel).'
                         'Values can be accessed as a full array or as single values using an index key.'
                         'Each value is a PhysicalMap object containg board and channel attributes.'
-                        'Total length = RowBoards * 32.',
+                        'Max Length = RowBoards * 32.',
             localGet=lambda: self._config.rowMap,
             mode='RO',
             typeStr='PhysicalMap[]',
@@ -284,7 +284,7 @@ class Group(pr.Device):
             description='Contains the conversion between column index and (board,channel).'
                         'Values can be accessed as a full array or as single values using an index key.'
                         'Each value is a PhysicalMap object containg board and channel attributes.'
-                        'Total length = ColumnBoards * 8.',
+                        'Max length = ColumnBoards * 8.',
             localGet=lambda: self._config.columnMap,
             mode='RO',
             typeStr='PhysicalMap[]',
@@ -301,7 +301,7 @@ class Group(pr.Device):
         self.add(pr.LocalVariable(
             name='RowTuneEnable',
             description='Array of booleans which enable the tuning of each row.'
-                        'Total length = RowBoards * 32.'
+                        'Total length = NumRows.'
                         'Values can be accessed as a full array or as single values using an index key.'
                         'Not yet implemented in the tuning routines.',
             value=np.ones(rtsize, bool),
@@ -314,7 +314,7 @@ class Group(pr.Device):
         self.add(pr.LocalVariable(
             name='ColTuneEnable',
             description='Array of booleans which enable the tuning of each column.'
-                        'Total length = ColumnBoards * 8.'
+                        'Total length = NumColumns.'
                         'Values can be accessed as a full array or as single values using the an index key.'
                         'Not yet implemented in the tuning routines.',
             value=np.ones(len(self._config.columnMap), bool),
@@ -350,6 +350,7 @@ class Group(pr.Device):
             name='RowTuneIndex',
             description='Manual selection of row for tuning. When RowTunEn is true the FasFluxOn value for this row is output. All other rows are set to FasFluxOff.',
             typeStr='int',
+            groups='NoDoc',
             value=0,
             config=self._config,
             dependencies=[self.HardwareGroup.RowBoard[m.board].RowSelectArray.RowSelect[m.channel].Active
@@ -382,6 +383,7 @@ class Group(pr.Device):
             description='Current ADC value in Volts for each column. Total length = ColumnBoards * 8.'
                         'Values can be accessed as a full array or as single values using an index key.',
             units='V',
+            groups='NoDoc',
             config=self._config,
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].DataPath.WaveformCapture.AdcAverage
                             for m in self._config.columnMap]))
@@ -398,6 +400,7 @@ class Group(pr.Device):
             description='Current ADC value in mV for each column. Total length = ColumnBoards * 8.'
                         'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.SaOutAdc],
+            groups='NoDoc',
             units = 'mV',
             disp = '{:0.06f}',
             linkedGet = lambda index, read: 1e3 * self.SaOutAdc.get(index=index, read=read)/200))
@@ -427,6 +430,7 @@ class Group(pr.Device):
 
         self.add(GroupLinkVariable(
             name='SaFbForce',
+            groups='NoDoc',
             description='SaFb value for each column used during tuning.'
                          '1D array with total length ColumnBoards * 8.'
                          'Values can be accessed as a full array or as single values using an index key.',
@@ -445,6 +449,7 @@ class Group(pr.Device):
 
         self.add(GroupLinkVariable(
             name='Sq1BiasForce',
+            groups='NoDoc',
             description='Sq1Bias value for each column used during tuning.'
                          '1D array with total length ColumnBoards * 8.'
                          'Values can be accessed as a full array or as single values using an index key.',
@@ -462,6 +467,7 @@ class Group(pr.Device):
 
         self.add(GroupLinkVariable(
             name='Sq1FbForce',
+            groups='NoDoc',
             description='Sq1Fb value for each column used during tuning.'
                          '1D array with total length ColumnBoards * 8.'
                          'Values can be accessed as a full array or as single values using an index key.',
