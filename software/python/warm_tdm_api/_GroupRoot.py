@@ -41,11 +41,12 @@ class GroupRoot(pyrogue.Root):
         self.DataWriter.MaxFileSize.addToGroup('NoDoc')
         self.DataWriter.CurrentSize.addToGroup('NoDoc')
 
-        self.add(warm_tdm_api.Group(groupConfig=groupConfig,
-                                    groupId=0,
-                                    expand=True,
-                                    dataWriter=self.DataWriter,
-                                    simulation=simulation,
-                                    emulate=emulate,
-                                    plots=plots))
+        self.add(warm_tdm_api.Group(
+            groupConfig=groupConfig,
+            groupId=0,
+            expand=True,
+            dataWriter=self.DataWriter,
+            simulation=simulation,
+            emulate=emulate,
+            plots=plots))
 

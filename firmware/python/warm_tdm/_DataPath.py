@@ -29,8 +29,10 @@ class DataPath(pr.Device):
             stream = waveform_stream))
 
         self.add(AdcFilters(
+            enabled = False,
             offset = (10 << 16),
             numberTaps = 41))
+
 
 class AdcFilters(pr.Device):
     def __init__(self, numberTaps, **kwargs):

@@ -23,7 +23,7 @@
       <string/>
      </property>
      <property name="currentIndex">
-      <number>6</number>
+      <number>1</number>
      </property>
      <property name="alarmChannels">
       <stringlist>
@@ -33,9 +33,25 @@
        <string></string>
        <string></string>
        <string></string>
-       <string></string>
       </stringlist>
      </property>
+     <widget class="QWidget" name="debug_tree_tab">
+      <attribute name="title">
+       <string>Debug Tree</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_6">
+       <item>
+        <widget class="DebugTree" name="DebugTree_2">
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="channel" stdset="0">
+          <string>rogue://0/root</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
      <widget class="QWidget" name="control_tab">
       <attribute name="title">
        <string>Control</string>
@@ -73,7 +89,7 @@
                  <string/>
                 </property>
                 <property name="channel" stdset="0">
-                 <string>rogue://0/GroupRoot.Group.RowTuneEn/name</string>
+                 <string>rogue://0/GroupRoot.Group.RowTuneMode/name</string>
                 </property>
                </widget>
               </item>
@@ -83,7 +99,7 @@
                  <string/>
                 </property>
                 <property name="channel" stdset="0">
-                 <string>rogue://0/GroupRoot.Group.RowTuneEn</string>
+                 <string>rogue://0/GroupRoot.Group.RowTuneMode</string>
                 </property>
                </widget>
               </item>
@@ -167,7 +183,7 @@
                </widget>
               </item>
               <item row="1" column="1">
-               <widget class="PyDMLineEdit" name="PyDMLineEdit_5">
+               <widget class="PyRogueLineEdit" name="PyRogueLineEdit_5">
                 <property name="toolTip">
                  <string/>
                 </property>
@@ -190,7 +206,7 @@
                </widget>
               </item>
               <item row="3" column="1">
-               <widget class="PyDMLineEdit" name="PyDMLineEdit_7">
+               <widget class="PyRogueLineEdit" name="PyRogueLineEdit_7">
                 <property name="toolTip">
                  <string/>
                 </property>
@@ -213,7 +229,7 @@
                </widget>
               </item>
               <item row="0" column="1">
-               <widget class="PyDMLineEdit" name="PyDMLineEdit">
+               <widget class="PyRogueLineEdit" name="PyRogueLineEdit">
                 <property name="toolTip">
                  <string/>
                 </property>
@@ -236,7 +252,7 @@
                </widget>
               </item>
               <item row="2" column="1">
-               <widget class="PyDMLineEdit" name="PyDMLineEdit_2">
+               <widget class="PyRogueLineEdit" name="PyRogueLineEdit_2">
                 <property name="toolTip">
                  <string/>
                 </property>
@@ -445,7 +461,7 @@ p, li { white-space: pre-wrap; }
                <string/>
               </property>
               <property name="channel" stdset="0">
-               <string>rogue://0/GroupRoot.Group.ConfigSelect.SaBias/name</string>
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.SaBiasCurrent/name</string>
               </property>
              </widget>
             </item>
@@ -455,7 +471,7 @@ p, li { white-space: pre-wrap; }
                <string/>
               </property>
               <property name="channel" stdset="0">
-               <string>rogue://0/GroupRoot.Group.ConfigSelect.SaBias/disp</string>
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.SaBiasCurrent/disp</string>
               </property>
              </widget>
             </item>
@@ -485,7 +501,7 @@ p, li { white-space: pre-wrap; }
                <string/>
               </property>
               <property name="channel" stdset="0">
-               <string>rogue://0/GroupRoot.Group.ConfigSelect.SaFb/name</string>
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.SaFbForceCurrent/name</string>
               </property>
              </widget>
             </item>
@@ -495,7 +511,7 @@ p, li { white-space: pre-wrap; }
                <string/>
               </property>
               <property name="channel" stdset="0">
-               <string>rogue://0/GroupRoot.Group.ConfigSelect.SaFb/disp</string>
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.SaFbForceCurrent/disp</string>
               </property>
              </widget>
             </item>
@@ -505,7 +521,7 @@ p, li { white-space: pre-wrap; }
                <string/>
               </property>
               <property name="channel" stdset="0">
-               <string>rogue://0/GroupRoot.Group.ConfigSelect.Sq1Bias/name</string>
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.Sq1BiasForceCurrent/name</string>
               </property>
              </widget>
             </item>
@@ -515,7 +531,7 @@ p, li { white-space: pre-wrap; }
                <string/>
               </property>
               <property name="channel" stdset="0">
-               <string>rogue://0/GroupRoot.Group.ConfigSelect.Sq1Bias/disp</string>
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.Sq1BiasForceCurrent/disp</string>
               </property>
              </widget>
             </item>
@@ -525,7 +541,7 @@ p, li { white-space: pre-wrap; }
                <string/>
               </property>
               <property name="channel" stdset="0">
-               <string>rogue://0/GroupRoot.Group.ConfigSelect.Sq1Fb/name</string>
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.Sq1FbForceCurrent/name</string>
               </property>
              </widget>
             </item>
@@ -535,7 +551,7 @@ p, li { white-space: pre-wrap; }
                <string/>
               </property>
               <property name="channel" stdset="0">
-               <string>rogue://0/GroupRoot.Group.ConfigSelect.Sq1Fb/disp</string>
+               <string>rogue://0/GroupRoot.Group.ConfigSelect.Sq1FbForceCurrent/disp</string>
               </property>
              </widget>
             </item>
@@ -619,6 +635,33 @@ p, li { white-space: pre-wrap; }
        </item>
       </layout>
      </widget>
+     <widget class="QWidget" name="system_tab">
+      <attribute name="title">
+       <string>System</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_8">
+       <item>
+        <widget class="DataWriter" name="DataWriter">
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="channel" stdset="0">
+          <string>rogue://0/GroupRoot.DataWriter</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="SystemLog" name="SystemLog">
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="channel" stdset="0">
+          <string>rogue://0/GroupRoot.SystemLog</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
      <widget class="QWidget" name="sa_tuning_tab">
       <attribute name="title">
        <string>SA Tuning</string>
@@ -635,23 +678,18 @@ p, li { white-space: pre-wrap; }
         </widget>
        </item>
        <item>
-        <widget class="PyDMWaveformPlot" name="PyDMWaveformPlot">
+        <widget class="Plotter" name="Plotter">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
          <property name="toolTip">
           <string/>
          </property>
-         <property name="curves">
-          <stringlist>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[0]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[1]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;red&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[2]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;dodgerblue&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[3]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;forestgreen&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[4]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;yellow&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[5]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;magenta&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[6]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;turquoise&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[7]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;deeppink&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[8]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;lime&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotYData[9]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaTuneProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;orange&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-          </stringlist>
+         <property name="channel" stdset="0">
+          <string>rogue://0/GroupRoot.Group.SaTuneProcess.Plot</string>
          </property>
         </widget>
        </item>
@@ -729,7 +767,7 @@ p, li { white-space: pre-wrap; }
             <string/>
            </property>
            <property name="channel" stdset="0">
-            <string>rogue://0/GroupRoot.Group.SaTuneProcess.FittedSaOffset/name</string>
+            <string>rogue://0/GroupRoot.Group.SaTuneProcess.FittedSaOut/name</string>
            </property>
           </widget>
          </item>
@@ -739,290 +777,140 @@ p, li { white-space: pre-wrap; }
             <string/>
            </property>
            <property name="channel" stdset="0">
-            <string>rogue://0/GroupRoot.Group.SaTuneProcess.FittedSaOffset/disp</string>
+            <string>rogue://0/GroupRoot.Group.SaTuneProcess.FittedSaOut/disp</string>
            </property>
           </widget>
          </item>
         </layout>
        </item>
       </layout>
-     </widget>
-     <widget class="QWidget" name="system_tab">
+    </widget>
+    <widget class="QWidget" name="fas_tuning_tab">
       <attribute name="title">
-       <string>System</string>
+	<string>FAS Tuning</string>
       </attribute>
-      <layout class="QVBoxLayout" name="verticalLayout_8">
+      <layout class="QVBoxLayout" name="verticalLayout_4">
+	<item>
+          <widget class="Process" name="Process">
+            <property name="toolTip">
+              <string/>
+            </property>
+            <property name="channel" stdset="0">
+              <string>rogue://0/GroupRoot.Group.FasTuneProcess</string>
+            </property>
+          </widget>
+	</item>
+	<item>
+          <widget class="Plotter" name="Plotter">
+            <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+		<horstretch>0</horstretch>
+		<verstretch>0</verstretch>
+              </sizepolicy>
+            </property>
+            <property name="toolTip">
+              <string/>
+            </property>
+            <property name="channel" stdset="0">
+              <string>rogue://0/GroupRoot.Group.FasTuneProcess.SweepPlot</string>
+            </property>
+          </widget>
+	</item>
+	<item>
+          <widget class="Plotter" name="Plotter">
+            <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+		<horstretch>0</horstretch>
+		<verstretch>0</verstretch>
+              </sizepolicy>
+            </property>
+            <property name="toolTip">
+              <string/>
+            </property>
+            <property name="channel" stdset="0">
+              <string>rogue://0/GroupRoot.Group.FasTuneProcess.TunePlot</string>
+            </property>
+          </widget>
+	</item>
+      </layout>
+    </widget>
+     <widget class="QWidget" name="sq1_tuning_tab">
+      <attribute name="title">
+       <string>SQ1 Tuning</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_10">
        <item>
-        <widget class="DataWriter" name="DataWriter">
+        <widget class="Process" name="Process">
          <property name="toolTip">
           <string/>
          </property>
          <property name="channel" stdset="0">
-          <string>rogue://0/GroupRoot.DataWriter</string>
+          <string>rogue://0/GroupRoot.Group.Sq1TuneProcess</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="SystemLog" name="SystemLog">
+        <widget class="Plotter" name="Plotter">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
          <property name="toolTip">
           <string/>
          </property>
          <property name="channel" stdset="0">
-          <string>rogue://0/GroupRoot.SystemLog</string>
+          <string>rogue://0/GroupRoot.Group.Sq1TuneProcess.Plot</string>
          </property>
         </widget>
        </item>
       </layout>
-     </widget>
-     <widget class="QWidget" name="debug_tree_tab">
-      <attribute name="title">
-       <string>Debug Tree</string>
-      </attribute>
-      <layout class="QVBoxLayout" name="verticalLayout_6">
-       <item>
-        <widget class="DebugTree" name="DebugTree_2">
-         <property name="toolTip">
-          <string/>
-         </property>
-         <property name="channel" stdset="0">
-          <string>rogue://0/root</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
+    </widget>       
      <widget class="QWidget" name="waveform_tab">
       <attribute name="title">
        <string>Waveforms</string>
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout_9">
        <item>
-        <widget class="DebugTree" name="DebugTree">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="minimumSize">
-          <size>
-           <width>0</width>
-           <height>300</height>
-          </size>
-         </property>
-         <property name="toolTip">
-          <string/>
-         </property>
-         <property name="channel" stdset="0">
-          <string>rogue://0/root.Group.HardwareGroup.ColumnBoard[0].DataPath.WaveformCapture</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <layout class="QGridLayout" name="gridLayout_2">
-         <item row="1" column="0">
-          <widget class="PyDMWaveformPlot" name="PyDMWaveformPlot_12">
+        <layout class="QHBoxLayout" name="horizontalLayout_4">
+         <item>
+          <widget class="DebugTree" name="DebugTree">
            <property name="toolTip">
             <string/>
            </property>
-           <property name="curves">
-            <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramY[0]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramX[0]&quot;, &quot;name&quot;: &quot;CH 0&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-            </stringlist>
+           <property name="channel" stdset="0">
+            <string>rogue://0/root.Group.HardwareGroup.ColumnBoard[0].DataPath.WaveformCapture</string>
            </property>
           </widget>
          </item>
-         <item row="8" column="0">
-          <widget class="PyDMWaveformPlot" name="PyDMWaveformPlot_13">
-           <property name="toolTip">
-            <string/>
-           </property>
-           <property name="curves">
-            <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramY[6]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramX[6]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-            </stringlist>
-           </property>
-          </widget>
-         </item>
-         <item row="1" column="1">
-          <widget class="PyDMWaveformPlot" name="PyDMWaveformPlot_2">
+         <item>
+          <widget class="DebugTree" name="DebugTree_3">
            <property name="minimumSize">
             <size>
              <width>0</width>
-             <height>0</height>
+             <height>469</height>
             </size>
            </property>
            <property name="toolTip">
             <string/>
            </property>
-           <property name="curves">
-            <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramY[1]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramX[1]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-            </stringlist>
-           </property>
-          </widget>
-         </item>
-         <item row="6" column="1">
-          <widget class="PyDMWaveformPlot" name="PyDMWaveformPlot_15">
-           <property name="toolTip">
-            <string/>
-           </property>
-           <property name="curves">
-            <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramY[5]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramX[5]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-            </stringlist>
-           </property>
-          </widget>
-         </item>
-         <item row="3" column="1">
-          <widget class="PyDMWaveformPlot" name="PyDMWaveformPlot_17">
-           <property name="toolTip">
-            <string/>
-           </property>
-           <property name="curves">
-            <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramY[3]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramX[3]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-            </stringlist>
-           </property>
-          </widget>
-         </item>
-         <item row="8" column="1">
-          <widget class="PyDMWaveformPlot" name="PyDMWaveformPlot_14">
-           <property name="toolTip">
-            <string/>
-           </property>
-           <property name="curves">
-            <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramY[7]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramX[7]&quot;, &quot;name&quot;: &quot;CH 7&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-            </stringlist>
-           </property>
-          </widget>
-         </item>
-         <item row="3" column="0">
-          <widget class="PyDMWaveformPlot" name="PyDMWaveformPlot_16">
-           <property name="toolTip">
-            <string/>
-           </property>
-           <property name="curves">
-            <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramY[2]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramX[2]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-            </stringlist>
-           </property>
-          </widget>
-         </item>
-         <item row="6" column="0">
-          <widget class="PyDMWaveformPlot" name="PyDMWaveformPlot_18">
-           <property name="toolTip">
-            <string/>
-           </property>
-           <property name="curves">
-            <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramY[4]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.PeriodogramX[4]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-            </stringlist>
+           <property name="channel" stdset="0">
+            <string>rogue://0/root.Group.HardwareGroup.WaveformCaptureReceiver</string>
            </property>
           </widget>
          </item>
         </layout>
        </item>
        <item>
-        <layout class="QGridLayout" name="gridLayout">
-         <item row="2" column="0">
-          <widget class="PyDMWaveformPlot" name="PyDMWaveformPlot_3">
-           <property name="toolTip">
-            <string/>
-           </property>
-           <property name="curves">
-            <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramY[4]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramX[4]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-            </stringlist>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="0">
-          <widget class="PyDMWaveformPlot" name="PyDMWaveformPlot_7">
-           <property name="toolTip">
-            <string/>
-           </property>
-           <property name="curves">
-            <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramY[0]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramX[0]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-            </stringlist>
-           </property>
-          </widget>
-         </item>
-         <item row="1" column="0">
-          <widget class="PyDMWaveformPlot" name="PyDMWaveformPlot_4">
-           <property name="toolTip">
-            <string/>
-           </property>
-           <property name="curves">
-            <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramY[2]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramX[2]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-            </stringlist>
-           </property>
-          </widget>
-         </item>
-         <item row="3" column="0">
-          <widget class="PyDMWaveformPlot" name="PyDMWaveformPlot_5">
-           <property name="toolTip">
-            <string/>
-           </property>
-           <property name="curves">
-            <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramY[6]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramX[6]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-            </stringlist>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="1">
-          <widget class="PyDMWaveformPlot" name="PyDMWaveformPlot_6">
-           <property name="toolTip">
-            <string/>
-           </property>
-           <property name="curves">
-            <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramY[5]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramX[5]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-            </stringlist>
-           </property>
-          </widget>
-         </item>
-         <item row="3" column="1">
-          <widget class="PyDMWaveformPlot" name="PyDMWaveformPlot_9">
-           <property name="toolTip">
-            <string/>
-           </property>
-           <property name="curves">
-            <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramY[7]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramX[7]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-            </stringlist>
-           </property>
-          </widget>
-         </item>
-         <item row="1" column="1">
-          <widget class="PyDMWaveformPlot" name="PyDMWaveformPlot_8">
-           <property name="toolTip">
-            <string/>
-           </property>
-           <property name="curves">
-            <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramY[3]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramX[3]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-            </stringlist>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="1">
-          <widget class="PyDMWaveformPlot" name="PyDMWaveformPlot_10">
-           <property name="toolTip">
-            <string/>
-           </property>
-           <property name="curves">
-            <stringlist>
-             <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramY[1]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.HistogramX[1]&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-            </stringlist>
-           </property>
-          </widget>
-         </item>
-        </layout>
+        <widget class="Plotter" name="Plotter_3">
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="channel" stdset="0">
+          <string>rogue://0/GroupRoot.Group.HardwareGroup.WaveformCaptureReceiver.MultiPlot</string>
+         </property>
+        </widget>
        </item>
       </layout>
      </widget>
@@ -1033,6 +921,12 @@ p, li { white-space: pre-wrap; }
       <layout class="QVBoxLayout" name="verticalLayout_5">
        <item>
         <widget class="Process" name="Process_2">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
          <property name="toolTip">
           <string/>
          </property>
@@ -1042,50 +936,12 @@ p, li { white-space: pre-wrap; }
         </widget>
        </item>
        <item>
-        <widget class="PyDMWaveformPlot" name="PyDMWaveformPlot_11">
-         <property name="toolTip">
-          <string/>
-         </property>
-         <property name="curves">
-          <stringlist>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotYData[0]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotYData[1]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;red&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotYData[2]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;dodgerblue&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotYData[3]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;forestgreen&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotYData[4]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;yellow&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotYData[5]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;magenta&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotYData[6]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;turquoise&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotYData[7]&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaOffsetSweepProcess.PlotXData&quot;, &quot;name&quot;: &quot;&quot;, &quot;color&quot;: &quot;deeppink&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-          </stringlist>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
-     <widget class="QWidget" name="sa_stripchart">
-      <attribute name="title">
-       <string>SA Strip Chart</string>
-      </attribute>
-      <layout class="QVBoxLayout" name="verticalLayout_4">
-       <item>
-        <widget class="Process" name="Process_3">
+        <widget class="Plotter" name="Plotter_2">
          <property name="toolTip">
           <string/>
          </property>
          <property name="channel" stdset="0">
-          <string>rogue://0/GroupRoot.Group.SaStripChartProcess</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="PyDMWaveformPlot" name="PyDMWaveformPlot_19">
-         <property name="toolTip">
-          <string/>
-         </property>
-         <property name="curves">
-          <stringlist>
-           <string>{&quot;y_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaStripChartProcess.SampleDataY&quot;, &quot;x_channel&quot;: &quot;rogue://0/GroupRoot.Group.SaStripChartProcess.SampleDataX&quot;, &quot;name&quot;: &quot;mV&quot;, &quot;color&quot;: &quot;white&quot;, &quot;lineStyle&quot;: 1, &quot;lineWidth&quot;: 1, &quot;symbol&quot;: null, &quot;symbolSize&quot;: 10, &quot;redraw_mode&quot;: 2}</string>
-          </stringlist>
+          <string>rogue://0/GroupRoot.Group.SaOffsetSweepProcess.Plot</string>
          </property>
         </widget>
        </item>
@@ -1121,6 +977,11 @@ p, li { white-space: pre-wrap; }
    <container>1</container>
   </customwidget>
   <customwidget>
+   <class>Plotter</class>
+   <extends>PyDMFrame</extends>
+   <header>pyrogue.pydm.widgets.plot</header>
+  </customwidget>
+  <customwidget>
    <class>PyRogueLineEdit</class>
    <extends>PyDMLineEdit</extends>
    <header>pyrogue.pydm.widgets.line_edit</header>
@@ -1140,11 +1001,6 @@ p, li { white-space: pre-wrap; }
    <class>PyDMLabel</class>
    <extends>QLabel</extends>
    <header>pydm.widgets.label</header>
-  </customwidget>
-  <customwidget>
-   <class>PyDMWaveformPlot</class>
-   <extends>QGraphicsView</extends>
-   <header>pydm.widgets.waveformplot</header>
   </customwidget>
   <customwidget>
    <class>PyDMEnumComboBox</class>

@@ -31,8 +31,8 @@ library warm_tdm;
 
 entity ColumnModuleBoard is
    generic (
-      TPD_G                   : time     := 1 ns;
-      RING_ADDR_0_G           : boolean  := false;
+      TPD_G                   : time    := 1 ns;
+      RING_ADDR_0_G           : boolean := false;
       SIM_PGP_PORT_NUM_G      : integer := 7000;
       SIM_ETH_SRP_PORT_NUM_G  : integer := 8000;
       SIM_ETH_DATA_PORT_NUM_G : integer := 9000);
@@ -148,6 +148,17 @@ architecture sim of ColumnModuleBoard is
    signal clk : sl;
    signal rst : sl;
 
+   signal saFbDacA    : RealArray(7 downto 0);
+   signal saFbDacB    : RealArray(7 downto 0);
+   signal sq1FbDacA   : RealArray(7 downto 0);
+   signal sq1FbDacB   : RealArray(7 downto 0);
+   signal sq1BiasDacA : RealArray(7 downto 0);
+   signal sq1BiasDacB : RealArray(7 downto 0);
+
+   signal saFbOut    : RealArray(7 downto 0);
+   signal sq1FbOut   : RealArray(7 downto 0);
+   signal sq1BiasOut : RealArray(7 downto 0);
+
    signal saSig : RealArray(7 downto 0);
    signal noise : RealArray(7 downto 0);
 
@@ -164,8 +175,16 @@ architecture sim of ColumnModuleBoard is
    signal tesDacVout : RealArray(15 downto 0) := (others => 0.0);
    signal tesBias    : RealArray(7 downto 0)  := (others => 0.0);
 
-   signal vBias : RealArray(7 downto 0) := (others => 0.0);
-   signal vOffset : RealArray(7 downto 0) := (others => 0.0);   
+   signal saBias   : RealArray(7 downto 0) := (others => 0.0);
+   signal saOffset : RealArray(7 downto 0) := (others => 0.0);
+
+   signal saBiasCurrent : RealArray(7 downto 0) := (others => 0.0);
+   signal saResistance  : RealArray(7 downto 0) := (others => 0.0);
+   signal ampInP        : RealArray(7 downto 0) := (others => 0.0);
+   signal amplitudeTmp  : RealArray(7 downto 0) := (others => 0.0);
+   signal amplitude     : RealArray(7 downto 0) := (others => 0.0);
+   signal fbCurrent     : RealArray(7 downto 0) := (others => 0.0);
+
 
 begin
 
@@ -337,6 +356,16 @@ begin
          i2cSda => promSda,             -- [inout]
          i2cScl => promScl);            -- [inout]
 
+   U_Ad5263_1 : entity warm_tdm.Ad5263
+      generic map (
+         TPD_G        => TPD_G,
+         RESISTANCE_G => 20.0e3,
+         ADDR_G       => "00")
+      port map (
+         sda => promSda,                -- [inout]
+         scl => promScl,                -- [inout]
+         w   => open);                  -- [out]
+
    -------------------------------------------------------------------------------------------------
    -- SA56004atk
    -------------------------------------------------------------------------------------------------
@@ -408,36 +437,124 @@ begin
       generic map (
          TPD_G => TPD_G)
       port map (
-         sclk   => saDacSclk,           -- [in]
-         sdi    => saDacMosi,           -- [in]
-         sdo    => saDacMiso,           -- [out]
-         syncB  => saDacSyncB,          -- [in]
-         ldacB  => saDacLdacB,          -- [in]
-         resetB => saDacResetB,         -- [in]
-         vout(7 downto 0)   => vBias,
-         vout(15 downto 8) => vOffset);          -- [out]
+         sclk              => saDacSclk,    -- [in]
+         sdi               => saDacMosi,    -- [in]
+         sdo               => saDacMiso,    -- [out]
+         syncB             => saDacSyncB,   -- [in]
+         ldacB             => saDacLdacB,   -- [in]
+         resetB            => saDacResetB,  -- [in]
+         vout(7 downto 0)  => saBias,
+         vout(15 downto 8) => saOffset);    -- [out]
+
+   -------------------------------------------------------------------------------------------------
+   -- Fast Dacs
+   -------------------------------------------------------------------------------------------------
+   GEN_FAST_DACS : for i in 3 downto 0 generate
+
+      U_Ad9767_SA_FB : entity warm_tdm.Ad9767
+         generic map (
+            FSADJ1_G => 2.0e3,
+            FSADJ2_G => 2.0e3)
+         port map (
+            db     => saFbDb,            -- [in]
+            iqsel  => saFbSel(i),        -- [in]
+            iqwrt  => saFbWrt(i),        -- [in]
+            iqclk  => saFbClk(i),        -- [in]
+            iOut1A => saFbDacA(2*i),     -- [out]
+            iOut1B => saFbDacB(2*i),     -- [out]
+            iOut2A => saFbDacA(2*i+1),   -- [out]
+            iOut2B => saFbDacB(2*i+1));  -- [out]
+
+      U_Ad9767_SQ1_BIAS : entity warm_tdm.Ad9767
+         generic map (
+            FSADJ1_G => 2.0e3,
+            FSADJ2_G => 2.0e3)
+         port map (
+            db     => sq1BiasDb,            -- [in]
+            iqsel  => sq1BiasSel(i),        -- [in]
+            iqwrt  => sq1BiasWrt(i),        -- [in]
+            iqclk  => sq1BiasClk(i),        -- [in]
+            iOut1A => sq1BiasDacA(2*i),     -- [out]
+            iOut1B => sq1BiasDacB(2*i),     -- [out]
+            iOut2A => sq1BiasDacA(2*i+1),   -- [out]
+            iOut2B => sq1BiasDacB(2*i+1));  -- [out]
+
+      U_Ad9767_SQ1_FB : entity warm_tdm.Ad9767
+         generic map (
+            FSADJ1_G => 2.0e3,
+            FSADJ2_G => 2.0e3)
+         port map (
+            db     => sq1FbDb,            -- [in]
+            iqsel  => sq1FbSel(i),        -- [in]
+            iqwrt  => sq1FbWrt(i),        -- [in]
+            iqclk  => sq1FbClk(i),        -- [in]
+            iOut1A => sq1FbDacA(2*i),     -- [out]
+            iOut1B => sq1FbDacB(2*i),     -- [out]
+            iOut2A => sq1FbDacA(2*i+1),   -- [out]
+            iOut2B => sq1FbDacB(2*i+1));  -- [out]
+
+   end generate;
+
+   FAST_DAC_AMPS : for i in 7 downto 0 generate
+      saFbOut(i)    <= (((saFbDacA(i) * 25) - (saFbDacB(i) * 25)) * (-5.0));        -- / 4.15e3;
+      sq1FbOut(i)   <= (((sq1FbDacA(i) * 25) - (sq1FbDacB(i) * 25)) * (-5.0));      -- / 4.15e3;
+      sq1BiasOut(i) <= (((sq1BiasDacA(i) * 25) - (sq1BiasDacB(i) * 25)) * (-5.0));  -- / 4.15e3;
+   end generate FAST_DAC_AMPS;
 
 
-   GEN_NOISE: process (timingRxClkP) is
-      variable rand : real;
+   GEN_NOISE : process (timingRxClkP) is
+      variable rand         : real;
       variable seed1, seed2 : positive;
-      variable tmp : RealArray(7 downto 0);
+      variable tmp          : RealArray(7 downto 0);
    begin
       if (rising_edge(timingRxClkP)) then
          for i in 7 downto 0 loop
             uniform(seed1, seed2, rand);
-            tmp(i) := rand * 1.0E-5;     
+            tmp(i) := rand * 1.0E-5;
          end loop;
          noise <= tmp;
       end if;
    end process;
 
 
-   GEN_AMPLIFIER: for i in 7 downto 0 generate
-      saSig(i) <= noise(i);             -- for now
+   GEN_AMPLIFIER : for i in 7 downto 0 generate
+      constant R_BIAS_C     : real := 15.0e3;
+      constant R_OFFSET_C   : real := 4.22e3;
+      constant R_GAIN_C     : real := 100.0;
+      constant R_FB_C       : real := 1.1e3;
+      constant R_CABLE_C    : real := 200.0;
+      constant R_FB_SHUNT_C : real := 7.15e3;
 
-      -- board has accidental plarity inversion, hence the (-)1.5
-      adcVin(i) <= 0.080044 * (vBias(i)-1.08288*(vOffset(i)-138.621*saSig(i))) * 11 * (-1.5);  
+      constant G_BIAS_C   : real := 1.0/R_BIAS_C;
+      constant G_OFFSET_C : real := 1.0/R_OFFSET_C;
+      constant G_GAIN_C   : real := 1.0/R_GAIN_C;
+      constant G_FB_C     : real := 1.0/R_FB_C;
+      constant G_CABLE_C  : real := 1.0/R_CABLE_C;
+
+      constant G2_C : real := 11.0;
+      constant G3_C : real := 1.5;
+
+      constant PHI_NOT_C : real := 40.0e-6;
+
+   begin
+      saBiasCurrent(i) <= saBias(i)/R_BIAS_C;
+
+      -- Calculate max SA Resistance based on current
+      amplitudeTmp(i) <= (-100.0e9) * (saBiasCurrent(i)-20.0e-6) * (saBiasCurrent(i)-60.0e-6);
+      amplitude(i)    <= ite(amplitudeTmp(i) < 0.0, 0.0, amplitudeTmp(i));
+
+      fbCurrent(i) <= saFbOut(i)/R_FB_SHUNT_C;
+
+      saResistance(i) <= 125.0 + amplitude(i) * cos(fbCurrent(i) * 2 * MATH_PI / PHI_NOT_C - saBias(i)) + amplitude(i);
+
+      saSig(i) <= saBias(i) * saResistance(i) / (saResistance(i) + R_BIAS_C);
+
+      ampInP(i) <= ((saSig(i) * G_CABLE_C) + (saBias(i) * G_BIAS_C)) / (G_BIAS_C + G_CABLE_C);
+--      ampInP <= saBias(i) * R_CABLE_C/(R_BIAS_C+R_CABLE_C) + saSig(i);
+
+      adcVin(i) <= R_FB_C * (ampInP(i) * (G_GAIN_C + G_OFFSET_C + G_FB_C) - (saOffset(i) * G_OFFSET_C)) * G2_C * G3_C * (-1.0);
+
+      --adcVin(i) <= 0.080044 * (saBias(i)-1.08288*(saOffset(i)-138.621*saSig(i))) * 11 * (-1.5);
 
    end generate;
 

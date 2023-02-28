@@ -37,16 +37,16 @@ set_property PACKAGE_PIN K6 [get_ports {gtRefClk1P}]
 set_property PACKAGE_PIN K5 [get_ports {gtRefClk1N}]
 
 # PGP
-set_property PACKAGE_PIN P2 [get_ports {pgpTxP[1]}]
-set_property PACKAGE_PIN P1 [get_ports {pgpTxN[1]}]
-set_property PACKAGE_PIN R4 [get_ports {pgpRxP[1]}]
-set_property PACKAGE_PIN R3 [get_ports {pgpRxN[1]}]
+# set_property PACKAGE_PIN P2 [get_ports {pgpTxP[1]}]
+# set_property PACKAGE_PIN P1 [get_ports {pgpTxN[1]}]
+# set_property PACKAGE_PIN R4 [get_ports {pgpRxP[1]}]
+# set_property PACKAGE_PIN R3 [get_ports {pgpRxN[1]}]
 
-# GT Timing
-set_property PACKAGE_PIN N4 [get_ports {pgpRxP[0]}]
-set_property PACKAGE_PIN N3 [get_ports {pgpRxN[0]}]
-set_property PACKAGE_PIN M2 [get_ports {pgpTxP[0]}]
-set_property PACKAGE_PIN M1 [get_ports {pgpTxN[0]}]
+# # GT Timing
+# set_property PACKAGE_PIN N4 [get_ports {pgpRxP[0]}]
+# set_property PACKAGE_PIN N3 [get_ports {pgpRxN[0]}]
+# set_property PACKAGE_PIN M2 [get_ports {pgpTxP[0]}]
+# set_property PACKAGE_PIN M1 [get_ports {pgpTxN[0]}]
 
 
 # IO Timing
@@ -142,7 +142,7 @@ set_property -dict { PACKAGE_PIN V21  IOSTANDARD LVCMOS33 } [get_ports { sq1Bias
 set_property -dict { PACKAGE_PIN W21  IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[12] }];
 set_property -dict { PACKAGE_PIN AA25 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[13] }];
 
-set_property -dict { PACKAGE_PIN AE26 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasWrt[0] }];
+set_property -dict { PACKAGE_PIN AB25 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasWrt[0] }];
 set_property -dict { PACKAGE_PIN W23  IOSTANDARD LVCMOS33 } [get_ports { sq1BiasWrt[1] }];
 set_property -dict { PACKAGE_PIN W24  IOSTANDARD LVCMOS33 } [get_ports { sq1BiasWrt[2] }];
 set_property -dict { PACKAGE_PIN AB26 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasWrt[3] }];
@@ -276,12 +276,12 @@ set_property -dict { PACKAGE_PIN U16  IOSTANDARD LVCMOS33 } [get_ports { tesDela
 # set_property -dict { PACKAGE_PIN V3 IOSTANDARD LVCMOS18 } [get_ports { asicDacLdacB }];
 # set_property -dict { PACKAGE_PIN W3 IOSTANDARD LVCMOS18 } [get_ports { asicDacResetB }];
 
-# set_property -dict { PACKAGE_PIN V4 IOSTANDARD LVDS } [get_ports { asicResetP }];
-# set_property -dict { PACKAGE_PIN W4 IOSTANDARD LVDS } [get_ports { asicResetN }];
-# set_property -dict { PACKAGE_PIN Y3 IOSTANDARD LVDS } [get_ports { asicCarryInP }];
-# set_property -dict { PACKAGE_PIN Y2 IOSTANDARD LVDS } [get_ports { asicCarryInN }];
-# set_property -dict { PACKAGE_PIN V2 IOSTANDARD LVDS } [get_ports { asicClkP }];
-# set_property -dict { PACKAGE_PIN V1 IOSTANDARD LVDS } [get_ports { asicClkN }];
+set_property -dict { PACKAGE_PIN V4 IOSTANDARD LVDS } [get_ports { asicResetP }];
+set_property -dict { PACKAGE_PIN W4 IOSTANDARD LVDS } [get_ports { asicResetN }];
+set_property -dict { PACKAGE_PIN Y3 IOSTANDARD LVDS } [get_ports { asicCarryInP }];
+set_property -dict { PACKAGE_PIN Y2 IOSTANDARD LVDS } [get_ports { asicCarryInN }];
+set_property -dict { PACKAGE_PIN V2 IOSTANDARD LVDS } [get_ports { asicClkP }];
+set_property -dict { PACKAGE_PIN V1 IOSTANDARD LVDS } [get_ports { asicClkN }];
 # set_property -dict { PACKAGE_PIN AB1 IOSTANDARD LVDS DIFF_TERM true} [get_ports { asicFbP }];
 # set_property -dict { PACKAGE_PIN AC1 IOSTANDARD LVDS DIFF_TERM true} [get_ports { asicFbN }];
 

@@ -5,18 +5,18 @@ from simple_pid import PID
 import warm_tdm_api
 
 
-def saOffset(*, group):
+def saOffset(*, group, process=None):
     """Returns float.
     Run PID loops to determine saOffset that properly offsets saBias
     """
 
     # Get parameters from the Process
-    process = group.SaOffsetProcess
-    kp = process.Kp.get()
-    ki = process.Ki.get()
-    kd = process.Kd.get()
-    precision = process.Precision.get()
-    timeout = process.Timeout.get()
+    kp = group.SaOffsetProcess.Kp.get()
+    ki = group.SaOffsetProcess.Ki.get()
+    kd = group.SaOffsetProcess.Kd.get()
+    precision = group.SaOffsetProcess.Precision.get()
+    maxLoops = group.SaOffsetProcess.MaxLoops.get()
+    colCount = len(group.ColumnMap.get())
 
     # Setup PID controller
     pid = [PID(kp, ki, kd) for _ in range(len(group.ColumnMap.value()))]
@@ -26,30 +26,27 @@ def saOffset(*, group):
         p.output_limits = (-0.5, 0.5)
         p.sample_time = None
 
-    stime = time.time()
+    # Final output should be near SaBias, so start near there
+    # Start at half the current bias
+    control =  group.SaBiasVoltage.get()/2.0  #np.zeros(len(group.ColumnMap.value()))
 
-    # Final output should be near SaBias, so start there.
-    control = group.SaBias.get()
+    group.SaOffset.set(value=control)
 
-    group.SaOffset.set(control)
-    current = group.SaOut.get()
+
+    current = group.SaOutAdc.get()
     masked = current
 #    print('Initial Values')
 #    for i in range(len(control)):
         #print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}')
     #print()
 
-    mult = np.array([1 if en else 0 for en in group.ColTuneEnable.value()],np.float32)
+    mult = np.array([1 if en else 0 for en in group.ColTuneEnable.value()],np.float64)
     count = 0
 
-    while True:
+    while count < maxLoops:
         count += 1
 
-        # Limit convergance to 1 minute
-        if (time.time() - stime) > timeout:
-            raise Exception(f"saOffset PID loop failed to converge after {timeout} seconds")
-
-        current = group.SaOut.get()
+        current = group.SaOutAdc.get()
         masked = current * mult
 
         # All channels have converged
@@ -59,11 +56,17 @@ def saOffset(*, group):
         for i, p in enumerate(pid):
             change = p(masked[i])
             control[i] = np.clip(control[i] + change, 0.0, 2.499)
-            #print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')
+            print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')
 
         group.SaOffset.set(control)
 
-    print(f'saOffset PID loop Converged after {count} loops')
+        if process is not None and process._runEn is False:
+            return control
+
+    if count == maxLoops:
+        raise Exception(f"saOffset PID loop failed to converge after {maxLoops} loops")
+    else:
+        print(f'saOffset PID loop Converged after {count} loops')
 
     return control
 
@@ -73,14 +76,15 @@ def saOffset(*, group):
 #SA TUNING
 def saFbSweep(*, group, bias, saFbRange, pctLow, pctRange, process):
     """Returns a list of Curves objects.
-    Iterates through SaFb values determined by lowoffset,highoffset,steps and
-    calls SaOffset to generate points
+    Iterate over a range of SaFb values for each column at a single SaBias point.
+    Capture SaOut value at each step
+    Return list of Curve objects containing curves for each column
     """
     row = 0
     colCount = len(group.ColumnMap.get())
     curves = [warm_tdm_api.Curve(bias[i]) for i in range(colCount)]
 
-    saFbArray = np.zeros(colCount, np.float)
+    saFbArray = np.zeros(colCount, np.float64)
 
     numSteps = len(saFbRange[0])
 
@@ -90,79 +94,93 @@ def saFbSweep(*, group, bias, saFbRange, pctLow, pctRange, process):
     for idx in range(numSteps):
 
         # Setup data
-        for col in range(colCount):
-            if group.ColTuneEnable.value()[col] is True:
-                saFbArray[col] = saFbRange[col][idx]
-
-        # large burst transaction of write data
-        group.SaFbForce.set(value=saFbArray)
-
-        if process is not None:
-            process.Progress.set(pctLow + pctRange*(idx/numSteps))
+        #print(f'Writing SaFbForce values = {saFbRange[:, idx]}')
+        group.SaFbForceCurrent.set(saFbRange[:, idx])
 
         time.sleep(sleep)
-
-        ###### THIS  NEEDS TO BE FIXED #######
-        points = group.HardwareGroup.ColumnBoard[0].DataPath.WaveformCapture.AdcAverage.get() #group.SaOut.get()
-
-#        print(f'saFb step {idx} - {saFbArray[5]} - {points[5]}')
+        points = group.SaOut.get() #group.HardwareGroup.ColumnBoard[0].DataPath.WaveformCapture.AdcAverage.get() #group.SaOut.get()
 
         for col in range(colCount):
             curves[col].addPoint(points[col])
 
+        if process is not None:
+            process.Advance() #Progress.set(pctLow + pctRange*((idx+1)/numSteps))
+
+
+
     # Reset FB to zero after sweep
-    group.SaFbForce.set(value=np.zeros(colCount, np.float))
+    group.SaFbForceCurrent.set(value=np.zeros(colCount, np.float64))
 
     return curves
 
 def saBiasSweep(*, group, process):
     """Returns a list of CurveData objects.
-    Creates a list of CurveData objects, corresponding to each
-    column
-    Iterates through SaBias values determined by low,high,
-    steps and calls saFbSweep to generate curves, adding them
+    Creates a list of CurveData objects, corresponding to each column.
+    Iterates through SaBias values determined by Rogue variables.
+    Calls saFbSweep to generate curves, adding them
     to their corresponding data objects
     """
 
-    datalist = []
-    saBiasRange = []
-    saFbRange = []
+    # Extract iteration steps from Rogue variables
+    # Create CurveData obects for storing output data
     colCount = len(group.ColumnMap.get())
+    colTuneEnable = group.ColTuneEnable.value()
     numBiasSteps = group.SaTuneProcess.SaBiasNumSteps.get()
     numFbSteps = group.SaTuneProcess.SaFbNumSteps.get()
-    pctRange = 1.0/numBiasSteps
+    saBiasRange = np.zeros((colCount, numBiasSteps), np.float64)
+    saFbRange = np.zeros((colCount, numFbSteps), np.float64)
 
-    # Get current sabias values
-    bias = group.SaBias.get()
-
+    datalist = []
     for col in range(colCount):
         low = group.SaTuneProcess.SaBiasLowOffset.get()
         high = group.SaTuneProcess.SaBiasHighOffset.get()
-        saBiasRange.append(np.linspace(low,high,numBiasSteps,endpoint=True))
+        saBiasRange[col] = np.linspace(low,high,numBiasSteps,endpoint=True)
 
         low = group.SaTuneProcess.SaFbLowOffset.get()
         high = group.SaTuneProcess.SaFbHighOffset.get()
-        saFbRange.append(np.linspace(low,high,numFbSteps,endpoint=True))
+        saFbRange[col] = np.linspace(low,high,numFbSteps,endpoint=True)
 
-        datalist.append(warm_tdm_api.CurveData(xvalues=saFbRange[col]))
+        datalist.append(warm_tdm_api.CurveData(xValues=saFbRange[col]))
 
+
+    pctRange = 1.0/numBiasSteps
+
+    # Get current sabias values
+    bias = group.SaBiasCurrent.get()
+
+    process.TotalSteps.set(numBiasSteps * numFbSteps)
+
+    #print(f'Bias sweep - {saBiasRange}')
+    #print(f'Fb sweep = {saFbRange}')
+
+    # Iterate over each SA Bias point
+    # Set the SaBias, set the proper Offset
+    # Sweep the SaFb range with saFbSweep()
     for idx in range(numBiasSteps):
-        for col in range(colCount):
-            if group.ColTuneEnable.value()[col] is True:
-                bias[col] = saBiasRange[col][idx]
-
-        group.SaBias.set(bias)
-        saOffset(group=group)
-
-        #print(f'saBias step {idx} - {bias}')
-
+        group.SaFbForceCurrent.set(np.zeros(colCount, np.float64))
+        # Update process message
         if process is not None:
-            process.Message.set(f'SaBias step {idx} out of {numBiasSteps}')
+            process.Message.set(f'SaBias step {idx+1} out of {numBiasSteps}')
 
-        curves = saFbSweep(group=group,bias=bias,saFbRange=saFbRange, pctLow=idx/numBiasSteps,pctRange=pctRange,process=process)
+
+        # Only set bias for enabled columns
+        #print(f'Setting SaBias values = {saBiasRange[:, idx]}')
+        group.SaBiasCurrent.set(saBiasRange[:, idx])
+        print('Starting saOffset()')
+        saOffset(group=group)
+        print('Done saOffset()')
+
+        curves = saFbSweep(group=group,bias=saBiasRange[:, idx], saFbRange=saFbRange, pctLow=idx/numBiasSteps,pctRange=pctRange,process=process)
 
         for col in range(colCount):
-            datalist[col].addCurve(curves[col])
+            # Only add the curve if column is enabled for tuning
+            if colTuneEnable[col]:
+                datalist[col].addCurve(curves[col])
+
+        # check for stopped process
+        if process is not None and process._runEn == False:
+            print('Process stopped, exiting saBiasSweep')
+            break
 
     for d in datalist:
         d.update()
@@ -190,98 +208,116 @@ def saTune(*, group, process=None, doSet=True):
      is plotted against SaFb values, which each curve
      representing a different bias.
     """
-    group.Init()
+#    group.Init()
+
     group.RowTuneIndex.set(0)
-    group.RowTuneEn.set(True)
+    #group.RowTuneMode.set(True)
     saBiasResults = saBiasSweep(group=group,process=process)
 
     if doSet:
         for col in range(len(group.ColumnMap.get())):
+            # xOut represents the tuned saFB. Set it for every row.
             for row in range(len(group.RowMap.get())):
-                group.SaFb.set(index=(col,row),value=saBiasResults[col].fbOut)
-            group.SaOffset.set(index=col,value=saBiasResults[col].offsetOut)
-            group.SaBias.set(index=col,value=saBiasResults[col].biasOut)
-        group.RowForceEn.set(False)
+                group.SaFbCurrent.set(index=(col,row), value=saBiasResults[col].xOut)
+            # biasOut represents the tuned SA Bias point
+            group.SaBias.set(index=col, value=saBiasResults[col].biasOut)
+
+        # Run saOffset to zero out the ADC value at the tuned SaBias,SaFb point
+        saOffset(group=group)
+
     return saBiasResults
 
 
 #FAS TUNING
-def saFb(*,group,row,precision=1.0):
+def saFbServo(*, group, precision=1.0):
     """Returns list of SaFb values which zero out SaOut.
     Each element corresponds with a column
     """
 
     # Setup PID controller
-    pid = [PID(1,.1,.05)] * len(group.ColumnMap.get())
+    pid = [PID(.1,0,0) for _ in range(len(group.ColumnMap.value()))]
+    maxLoops = 100
 
     for p in pid:
         p.setpoint = 0 # want to zero out SaOut
-        p.output_limits = (0.0, 1.0)
-        p.sample_time   = 0.1
+        p.output_limits = (-0.5, 0.5)
+        p.sample_time   = None
 
-    stime = time.time()
+    control = group.SaFbForceCurrent.get()
 
-    control = group.SaFb.get()
+    current = group.SaOutAdc.get()
+    masked = current
+    mult = np.array([1 if en else 0 for en in group.ColTuneEnable.value()], np.float64)
+    count = 0
 
-    while True:
+    for count in range(maxLoops):
 
-        # Limit convergance to 1 minute
-        if (time.time() - stime) > 60:
-            raise Exception("saFb PID loop failed to converge after 60 seconds")
-
-        current = group.SaOut.get()
+        current = group.SaOutAdc.get()
+        masked = current * mult
 
         # All channels have converged
-        if (max(current) < precision) and (min(current) > (-1.0*precision)):
+        if (max(current) < precision) and (min(masked) > (-1.0*precision)):
             break
 
         for i, p in enumerate(pid):
-            control[i][row] = p(current[i])
+            change = p(masked[i])
+            control[i] = np.clip(control[i] + change, 0.0, 500e-6) # Check this clip range
 
-        group.SaFb.set(control)
+        group.SaFbForceCurrent.set(control)
+
+    else:
+        raise Exception(f"saOffset PID loop failed to converge after {maxLoops} loops")
+
+    print(f'saFb PID loop Converged after {count} loops')
 
     return control
 
-def fasFlux(*,group,row,pctLow,pctRange,process):
-    """Returns a list of CurveData objects, each element corresponding to a column.
+def fasSweep(*, group, row, process):
+    """Returns a 2D numpy array with indecies [col, fasFluxPoint]
     Iterates through FasFluxOn values determined by
-    lowoffset,highoffset,step,calling saFb to generate
-     points. Adds this curve to a CurveData object.
+    lowoffset,highoffset,step,calling saFb to generate points.
+    Adds this curve to the numpy array
     """
 
     colCount = len(group.ColumnMap.get())
     numSteps = group.FasTuneProcess.FasFluxNumSteps.get()
+    low =  group.FasTuneProcess.FasFluxLowOffset.get()
+    high = group.FasTuneProcess.FasFluxHighOffset.get()
+    fasFluxRange = np.linspace(low, high, numSteps, endpoint=True)
 
-    low = group.FasFluxOn.get(index=row) + group.FasTuneProcess.FasFluxLowOffset.get()
-    high = group.FasFluxOn.get(index=row) + group.FasTuneProcess.FasFluxHighOffset.get()
+    # Create the CurveData structure
+    data = warm_tdm_api.CurveData(xvalues=fasFluxRange)
+    #data = np.zeros((colCount, fasFluxRange.size, 2), dtype=float)
 
-    fasFluxRange = np.linspace(low,high,numSteps,endpoint=True)
+    # Add a Curve for each column
+    for col in range(colCount):
+        data.addCurve(warm_tdm_api.Curve(col))
 
-    curves = [warm_tdm_api.Curve(0) for i in range(colCount)]
+    # Sweep the flux range
+    for step in range(numSteps):
+        # Set a the fasFlux value for the row
+        # Below is wrong. Need to drive FAS Flux value
+        group.FasFluxOn.set(index=row, value=fasFluxRange[step])
 
-    for idx in range(numSteps):
-        group.FasFluxOn.set(index=row,value=fasFluxRange[idx])
-
-        if process is not None:
-            process.Progress.set(pctLow + pctRange*(idx/numSteps))
-
-        points = saFb(group=group,row=row)
+        # Servo the saFb
+        points = saFbServo(group=group)
 
         for col in range(colCount):
-            curves[col].addPoint(points[col])
+            data.curveList[col].addPoint(points[col])
 
-    datalist = [warm_tdm_api.CurveData(xvalues=fasFluxRange)] * colCount
+        # check for stopped process
+        if process is not None:
+            process.Advance()
+            if process._runEn == False:
+                print('Process stopped, exiting fasSweep()')
+                break
 
-    for col in range(colCount):
-        datalist[col].addCurve(curves[col])
-        #datalist[col].update()
-
-    return datalist
+    return data
 
 def fasTune(*,group,process=None):
     """
     Iterate through all rows, measuring results from
-    fasFlux subroutine, and setting FasFluxOn and FasFluxOff
+    fasSweep subroutine, and setting FasFluxOn and FasFluxOff
     accordingly.
 
     Args
@@ -295,131 +331,169 @@ def fasTune(*,group,process=None):
     ----
     list
         list of CurveData objects where result of saFb
-        subroutine is plotted against fasFlux
+        subroutine is plotted against fasSweep
     """
     curves = []
     numRows = group.NumRows.get()
-    pctRange = 1.0/numRows
 
-    group.RowForceEn.set(True)
+    process.TotalSteps.set(numRows * process.FasFluxNumSteps.get())
 
+    #group.RowForceEn.set(True)
+
+    # Generate FAS Flux curves for each row
     for row in range(numRows):
-        group.RowForceIndex.set(row)
+        #group.RowForceIndex.set(row)
         if process is not None:
             process.Message.set(f'Row {row} out of {numRows}')
-        curves.append(fasFlux(group=group,row=row,pctLow=row/numRows,pctRange=pctRange,process=process))
+            #process.Process.set(row/numRows)
 
-    group.RowForceEn.set(False)
+        # Generate and save the curves
+        curve = fasSweep(group=group, process=process)
+        curves.append(curve)
+
+        # Minumum index of the curve is FasFluxOn
+        # Use median across all columns as FasFlowOn for that row
+        group.FasFluxOn.set(index=row, value=np.median(curve.argmin(1)))
+
+        # check for stopped process
+        if process is not None and process._runEn == False:
+            print('Process stopped, fasTune()')
+            break
+
+
+    #group.RowForceEn.set(False)
     return curves
 
 #SQ1 TUNING - output vs sq1fb for various values of sq1 bias for every row for every column
-def sq1Flux(group,bias,row):
+def sq1FbSweep(*, group, bias, fbRange, row, process):
     """Returns list of curve objects.
     Iterates through Sq1Fb values determined by lowoffset,
     highoffset,step. Generates curve points with saOffset()
     """
-    curves = []
-    Sq1FbOffsetRange = []
 
-    for col in range(len(group.ColMap.get())):
-        low = group.Sq1Fb.get(index=(col,row)) + group.Sq1FbLowOffset.get()
-        high = group.Sq1Fb.get(index=(col,row)) + group.Sq1FbHighOffset.get()
-        numsteps = group.Sq1FbNumSteps.get()
-        Sq1FbOffsetRange.append(np.linspace(low,high,numsteps,endpoint=True))
+    colCount = len(group.ColumnMap.get())
+    curves = [warm_tdm_api.Curve(bias[i]) for i in range(colCount)]
+    numSteps = len(fbRange[0])
 
-    for col in range(len(group.ColMap.get())):
-        curves.append(warm_tdm_api.Curve(bias))
+    for fbStep in range(numSteps):
+        # Set SQ1 FB
+        group.Sq1FbForceCurrent.set(fbRange[:, fbStep])
 
-    for idx in range(len(Sq1FbOffsetRange[0])):
-        for col in range(len(group.ColMap.get)):
-            group.Sq1Fb.set(index=(col,row),value=Sq1FbOffsetRange[col][idx])
-        points = saOffset(group,row)
+        # Servo saFB
+        #points = saFbServo(group=group)
 
-        for col in range(len(group.ColMap.get())):
+        # Open Loop mode - temporary for testing
+        points = group.SaOut.get()
+
+        # Add points to curves
+        for col in range(colCount):
             curves[col].addPoint(points[col])
 
-    ###OLD CODE BELOW
-    for col in range(len(group.ColMap.get())):
-        curve = warm_tdm_api.Curve(bias)
-        for fb in np.arange(low,high+step,step):
-            group.Sq1Fb.set(index=(col,row),value=fb)
-            offset = saOffset(group,row,None)
-            curve.addPoint(offset)
-        curves.append(curve)
+        process.Advance()
+
+        # check for stopped process
+        if process is not None and process._runEn == False:
+            print('Process stopped, sq1FbSweep()')
+            break
+
     return curves
 
-def sq1FluxRow(group,row,bias):
-    """Returns Curve object.
-    Iterates through rows, enabling tuning for each row.
-    Calls sq1Flux on row passed as argument
-    """
 
-    for row in range(group.NumRows.get()):
-        group.RowForceIndex.set(row)
-        group.RowForceEn.set(True)
-        #set the corresponding saFb value for the row
-    curves = sq1Flux(group,bias,row)
-    return curves
-
-def sq1FluxRowBias(group,row):
+def sq1BiasSweep(group, row, process):
     """Returns list of CurveData objects, corresponding to each column.
     Iterates through Sq1Bias values determined by
     lowoffset,highoffset,step,and gets curves by calling sq1FluxRow
     """
 
+    # Extract iteration steps from Rogue variables
+    # Create CurveData obects for storing output data
+    colCount = len(group.ColumnMap.get())
+    numBiasSteps = process.Sq1BiasNumSteps.get()
+    numFbSteps = process.Sq1FbNumSteps.get()
+    biasRange = np.zeros((colCount, numBiasSteps), np.float64)
+    fbRange = np.zeros((colCount, numFbSteps), np.float64)
+
     datalist = []
+    for col in range(colCount):
+        low = process.Sq1BiasLowOffset.get()
+        high = process.Sq1BiasHighOffset.get()
+        biasRange[col] = np.linspace(low, high, numBiasSteps, endpoint=True)
 
-    for col in range(len(group.ColMap.get())):
-        low = group.Sq1Bias.get(index=(col,row)) + group.Sq1BiasLowOffset.get()
-        high = group.Sq1Bias.get(index=(col,row)) + group.Sq1BiasHighOffset.get()
-        step = group.Sq1BiasStepSize.get()
+        low = process.Sq1FbLowOffset.get()
+        high = process.Sq1FbHighOffset.get()
+        fbRange[col] = np.linspace(low, high, numFbSteps, endpoint=True)
 
-        lowFb = group.Sq1Fb.get(index=(col,row)) + group.Sq1FbLowOffset.get()
-        highFb = group.Sq1Fb.get(index=(col,row)) + group.Sq1FbHighOffset.get()
-        stepFb= group.Sq1FbStepSize.get()
+        datalist.append(warm_tdm_api.CurveData(xValues=fbRange[col]))
 
-        data = warm_tdp_api.CurveData()
-        data.populateXValues(lowFb,highFb+stepFb,stepFb)
+    # Only run FB sweeps if tuning is enabled on this row.
+    # Otherwise return CurveData with no curves
+    if group.RowTuneEnable.get()[row]:
+        # Iterate over each bias point
+        for biasStep in range(numBiasSteps):
+            # Reset FB to zero
+            # This is probably unnecessary
+            group.Sq1FbForceCurrent.set(np.zeros(colCount, np.float64))
 
-        for bias in np.arange(low,high+step,step):
-            data.addCurve(sq1FluxRow(group,row,bias))
-        datalist.append(data)
+            # Set SQ1 Bias
+            group.Sq1BiasForceCurrent.set(biasRange[:, biasStep])
+
+            # Sweep SQ1 FB at the bias
+            curves = sq1FbSweep(group=group, bias=biasRange[:, biasStep], fbRange=fbRange, row=row, process=process)
+
+            # Assign curves by column (if enabled for tuning)
+            for col in range(colCount):
+                if group.ColTuneEnable.get()[col]:
+                    datalist[col].addCurve(curves[col])
+
+    # Compute best bias point for each column
+    for d in datalist:
+        d.update()
+
     return datalist
 
-def sq1Tune(group,column):
+def sq1Tune(group, process):
     """
-    Runs Sq1FluxRowBias for each row, collecting CurveData objects.
+    Runs Sq1BiasSweep for each row, collecting CurveData objects.
     During this loop, sets the resulting Sq1Bias and Sq1Fb values
 
     Args
     ----
     group : group
-    column : int
-        column to operate on
     Returns
     ----
     list
-        list of CurveData objects where saOffset subroutine result
-        is plotted against sq1Fb. Each curve represents a different
-        sq1Bias, and each CurveData object in the list corresponds
-        with a different row
+        list of list of CurveData objects
     """
     outputs = []
-    group.RowForceEn.set(True)
-    for row in range(group.NumRows.get()):
-        results = sq1FluxRowBias(group,row)
-        for data in results:
-            data.update()
+    numRows = group.NumRows.get()
+    rowTuneEnable = group.RowTuneEnable.value()
+    colTuneEnable = group.ColTuneEnable.value()
+    numEnabledRows = rowTuneEnable.count(True)
+    numColumns = group.NumColumns.get()
 
-        group.Sq1Bias.set(index=(row,column),value=results.biasOut)
-        group.Sq1Fb.set(index=(row,column),value=results.fbOut)
+    totalSteps = numEnabledRows * process.Sq1BiasNumSteps.get() * process.Sq1FbNumSteps.get()
+    process.TotalSteps.set(totalSteps)
+
+    #group.RowForceEn.set(True)
+
+
+    for row in range(group.NumRows.get()):
+        results = sq1BiasSweep(group, row, process)
         outputs.append(results)
+
+        if rowTuneEnable[row]:
+            for col in range(numColumns):
+                if colTuneEnable[col]:
+                    group.Sq1BiasCurrent.set(index=(col, row), value=results[col].biasOut)
+                    group.Sq1FbCurrent.set(index=(col, row), value=results[col].xOut)
+                    group.SaFbCurrent.set(index=(col, row), value=results[col].yOut)
+
     return outputs
 
 
 
 #SQ1 DIAGNOSTIC -output vs sq1 feedback for every row  for every column
-def sq1Ramp(group,row, column):
+def sq1Ramp(group, row, column):
     """Returns list of offsets that zero out SaOut depending
     on the biasIterates through Sq1Fb values determined by
     lowoffset,highoffset,step and records output of saOffset().
