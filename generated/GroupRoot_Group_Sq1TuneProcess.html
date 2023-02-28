@@ -112,6 +112,7 @@
 <li><p>Sq1BiasLowOffset</p></li>
 <li><p>Sq1BiasHighOffset</p></li>
 <li><p>Sq1BiasNumSteps</p></li>
+<li><p>SetAfterFinish</p></li>
 <li><p>Sq1TuneOutput</p></li>
 </ul>
 </section>
@@ -432,6 +433,43 @@
 <td><p>8</p></td>
 </tr>
 <tr class="row-odd"><td><p>mode</p></td>
+<td><p>RW</p></td>
+</tr>
+</tbody>
+</table>
+</aside>
+<aside class="topic">
+<p class="topic-title">GroupRoot.Group.Sq1TuneProcess.SetAfterFinish</p>
+<div class="line-block">
+<div class="line">This variable controls if the FAS set points found at the end of the process is set back.</div>
+<div class="line">Otherwise the previous values of FasFluxOn, FasFluxOff and SaFb for each row will be restored.</div>
+</div>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>SetAfterFinish</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.Sq1TuneProcess.SetAfterFinish</p></td>
+</tr>
+<tr class="row-even"><td><p>enum</p></td>
+<td><p>{False: ‘False’, True: ‘True’}</p></td>
+</tr>
+<tr class="row-odd"><td><p>typeStr</p></td>
+<td><p>bool</p></td>
+</tr>
+<tr class="row-even"><td><p>disp</p></td>
+<td><p>enum</p></td>
+</tr>
+<tr class="row-odd"><td><p>precision</p></td>
+<td><p>0</p></td>
+</tr>
+<tr class="row-even"><td><p>mode</p></td>
 <td><p>RW</p></td>
 </tr>
 </tbody>
