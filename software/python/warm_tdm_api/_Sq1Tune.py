@@ -45,6 +45,13 @@ class Sq1TuneProcess(pr.Process):
                                   mode='RW',
                                   description="Number of steps for SQ1 Bias Tuning"))
 
+        # Set values after finish
+        self.add(pr.LocalVariable(name='SetAfterFinish',
+                                  value=False,
+                                  mode='RW',
+                                  description="This variable controls if the FAS set points found at the end of the process is set back. "
+                                              "Otherwise the previous values of FasFluxOn, FasFluxOff and SaFb for each row will be restored."))
+
         # SQ1 Tuning Results
         self.add(pr.LocalVariable(name='Sq1TuneOutput',
                                   value={},
