@@ -12,6 +12,10 @@ Group
 
    GroupRoot_Group_SaOffsetProcess
    GroupRoot_Group_SaTuneProcess
+   GroupRoot_Group_Sq1TuneProcess
+   GroupRoot_Group_FasTuneProcess
+   GroupRoot_Group_Sq1DiagProcess
+   GroupRoot_Group_TesRampProcess
 
 Summary
 #######
