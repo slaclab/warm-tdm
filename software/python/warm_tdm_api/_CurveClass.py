@@ -10,6 +10,7 @@ def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title)
         ax.set_title(ax_title)        
         ax.set_ylabel(ylabel)
         ax.set_xlabel(xlabel)
+        ax.grid(True)
 
         # Special case for CurveData with no curves
         if len(curveDataDict['biasValues']) == 0:
@@ -36,6 +37,7 @@ def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title)
 
         # Plot the calculated operating point
         #ax.plot(curveDataDict['xOut'], curveDataDict['yOut'], 's')
+        ax.axhline(y=curveDataDict['yOut'], linestyle='--')
 
         # Plot a fitted sin wave
         if len(curveDataDict['sinfits']) > 0:
@@ -62,24 +64,6 @@ class CurveData():
         self.xOut = None
         #self.bestfit = None
 
-#     def sinfit(self, curveIndex):
-#         np_points = np.array(curve.points_)
-#         x_values = np.array(self.xValues_)
-
-#         guess_freq = 1.0/26
-#         guess_amp = np.std(np_points) * 2.0**0.5
-#         guess_offset = np.mean(np_points)
-#         guess = np.array([guess_amp, 2*np.pi*guess_freq, 0., guess_offset])
-
-
-#         popt, pcov = scipy.optimize.curve_fit(sinfunc, x_values, np_points, p0=guess)
-#         A, w, p, c = popt
-#         f = w/(2.0*np.pi)
-#         fitfunc = lambda t: A * np.sin(w*t + p) + c
-#         print( {"amp": A, "omega": w, "phase": p, "offset": c, "freq": f, "period": 1./f, "fitfunc": fitfunc, "maxcov": np.max(pcov), "rawres": (guess,popt,pcov)})
-#         return (A, w, p, c)
-        
-
     def update(self):
         # Find the best curve
         for i, curve in enumerate(self.curveList):
@@ -94,18 +78,6 @@ class CurveData():
             self.biasOut = self.bestCurve.bias
             self.yOut = (self.bestCurve.lowpoint + self.bestCurve.highpoint) / 2
             self.xOut = (self.bestCurve.lowindex + self.bestCurve.highindex) / 2
-            
-
-#     def plot(self):
-#         self.update() #might not want to call this here
-#         fig = plt.figure()
-#         ax = fig.add_subplot(111)
-#         for curveindex in range(len(self.curveList_)):
-#             ax.plot(self.xValues_,self.curveList_[curveindex].points_) #plot the curves
-#         ax.plot(self.xValues_[self.bestCurve.highindex_],self.bestCurve.points_[self.bestCurve.highindex_],"^") #plot the max point
-#         ax.plot(self.xValues_[self.bestCurve.lowindex_],self.bestCurve.points_[self.bestCurve.lowindex_],"v")#plot the min point
-#         ax.plot(self.xOut,self.yOut,"s") #plot the midpoint
-#         plt.show()
 
     def addCurve(self,curve):
         self.curveList.append(curve)

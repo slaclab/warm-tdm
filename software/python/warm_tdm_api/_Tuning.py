@@ -74,7 +74,7 @@ def saOffset(*, group, process=None):
 
 
 #SA TUNING
-def saFbSweep(*, group, bias, saFbRange, pctLow, pctRange, process):
+def saFbSweep(*, group, bias, saFbRange, process):
     """Returns a list of Curves objects.
     Iterate over a range of SaFb values for each column at a single SaBias point.
     Capture SaOut value at each step
@@ -106,7 +106,8 @@ def saFbSweep(*, group, bias, saFbRange, pctLow, pctRange, process):
             curves[col].addPoint(points[col])
 
         if process is not None:
-            process.Advance() #Progress.set(pctLow + pctRange*((idx+1)/numSteps))
+            process.Advance()
+            #Progress.set(pctLow + pctRange*((idx+1)/numSteps))
             
 
 
@@ -145,11 +146,6 @@ def saBiasSweep(*, group, process):
         datalist.append(warm_tdm_api.CurveData(xValues=saFbRange[col]))
     
             
-    pctRange = 1.0/numBiasSteps
-
-    # Get current sabias values
-    bias = group.SaBiasCurrent.get()
-
     process.TotalSteps.set(numBiasSteps * numFbSteps)
 
     #print(f'Bias sweep - {saBiasRange}')
@@ -172,7 +168,7 @@ def saBiasSweep(*, group, process):
         saOffset(group=group)
         print('Done saOffset()')        
 
-        curves = saFbSweep(group=group,bias=saBiasRange[:, idx], saFbRange=saFbRange, pctLow=idx/numBiasSteps,pctRange=pctRange,process=process)
+        curves = saFbSweep(group=group,bias=saBiasRange[:, idx], saFbRange=saFbRange, process=process)
 
         for col in range(colCount):
             # Only add the curve if column is enabled for tuning
