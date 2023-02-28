@@ -100,10 +100,10 @@
 <h1>SaTuneProcess<a class="headerlink" href="#satuneprocess" title="Permalink to this heading"></a></h1>
 <div class="line-block">
 <div class="line">Process which performs an SA tuning step.</div>
-<div class="line">This tuning process sweeps the SaFb value and determines the SaOffset value required zero out the SaOut value.</div>
+<div class="line">This tuning process sweeps the SaFb value records SaOut at each step.</div>
 <div class="line">This sweep is repeated for a series of SaBias values.</div>
-<div class="line">Once the sweep is completed the process will determine the SaBias value which results in the largest peak to peak amplitude in the SaFb vs SaOffset curve.</div>
-<div class="line">For the select SaBias curce the process will then select the point on the curve with the highest slope.</div>
+<div class="line">Once the sweep is completed the process will determine the SaBias value which results in the largest peak to peak amplitude in the SaFb vs SaOut curve.</div>
+<div class="line">For the selected SaBias curve the process will then select the point on the curve with the highest slope.</div>
 <div class="line">The resulting curves are available as a dictionary of numpy arrays.</div>
 </div>
 <section id="summary">
@@ -280,6 +280,9 @@
 <tr class="row-odd"><td><p>mode</p></td>
 <td><p>RW</p></td>
 </tr>
+<tr class="row-even"><td><p>units</p></td>
+<td><p>uA</p></td>
+</tr>
 </tbody>
 </table>
 </aside>
@@ -314,6 +317,9 @@
 </tr>
 <tr class="row-odd"><td><p>mode</p></td>
 <td><p>RW</p></td>
+</tr>
+<tr class="row-even"><td><p>units</p></td>
+<td><p>uA</p></td>
 </tr>
 </tbody>
 </table>
@@ -389,6 +395,9 @@
 <tr class="row-odd"><td><p>mode</p></td>
 <td><p>RW</p></td>
 </tr>
+<tr class="row-even"><td><p>units</p></td>
+<td><p>uA</p></td>
+</tr>
 </tbody>
 </table>
 </aside>
@@ -423,6 +432,9 @@
 </tr>
 <tr class="row-odd"><td><p>mode</p></td>
 <td><p>RW</p></td>
+</tr>
+<tr class="row-even"><td><p>units</p></td>
+<td><p>uA</p></td>
 </tr>
 </tbody>
 </table>
@@ -513,8 +525,8 @@
 <div class="line">biasValues: array of SaBias values, one for each SaBias step.</div>
 <div class="line">curves: SaOffset vs SaFb curves, one for each SaBias value.</div>
 <div class="line">biasOut: Selected SaBias value after fitting.</div>
-<div class="line">fbOut: Selected SaFb value after fitting.</div>
-<div class="line">offsetOut: Selected SaOffset out value after fitting.</div>
+<div class="line">xOut: Selected SaFb value after fitting.</div>
+<div class="line">yOut: SaOut at fitted SaFb point.</div>
 </div>
 <table class="docutils align-default">
 <thead>
