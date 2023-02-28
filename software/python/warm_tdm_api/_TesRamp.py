@@ -33,6 +33,9 @@ class TesRampProcess(pr.Process):
                                   mode='RO',
                                   description="Results Data From Tes Diagnostic"))
 
+        self.ReadDevice.addToGroup('NoDoc')
+        self.WriteDevice.addToGroup('NoDoc')
+
     def _tesRampWrap(self):
         #ret = warm_tdm_api.saTune(self.parent,row=0,pctVar=self.Progress)
         #self.SaTuneOutput.set(value=ret)

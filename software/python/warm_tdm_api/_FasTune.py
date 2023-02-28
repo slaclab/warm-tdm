@@ -35,6 +35,9 @@ class FasTuneProcess(pr.Process):
                                   mode='RO',
                                   description="Results Data From FAS Tuning"))
 
+        self.ReadDevice.addToGroup('NoDoc')
+        self.WriteDevice.addToGroup('NoDoc')
+
     def _fasTuneWrap(self):
         with self.root.updateGroup(0.25):
             ret = warm_tdm_api.fasTune(group=self.parent, process=self)

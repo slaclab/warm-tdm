@@ -52,6 +52,9 @@ class Sq1TuneProcess(pr.Process):
                                   mode='RO',
                                   description="Results Data From SQ1 Tuning"))
 
+        self.ReadDevice.addToGroup('NoDoc')
+        self.WriteDevice.addToGroup('NoDoc')
+
     def _sq1TuneWrap(self):
         #ret = warm_tdm_api.saTune(self.parent,row=0,pctVar=self.Progress)
         #self.SaTuneOutput.set(value=ret)
