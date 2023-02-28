@@ -17,24 +17,28 @@ class SaOffsetProcess(pr.Process):
 
         self.add(pr.LocalVariable(
             name='Kp',
+            groups='NoDoc',
             value=-.1,
             mode='RW',
             description="Proportional PID coefficient"))
 
         self.add(pr.LocalVariable(
             name='Ki',
+            groups='NoDoc',
             value=0.0,
             mode='RW',
             description="Integral PID coefficient"))
 
         self.add(pr.LocalVariable(
             name='Kd',
+            groups='NoDoc',
             value=0.0,
             mode='RW',
             description="Differential PID coefficient"))
 
         self.add(pr.LocalVariable(
             name='Precision',
+            groups='NoDoc',
             value=0.02,
             mode='RW',
             description="Convergance precision"))
@@ -42,6 +46,7 @@ class SaOffsetProcess(pr.Process):
 
         self.add(pr.LocalVariable(
             name='Timeout',
+            groups='NoDoc',
             value=0.1,
             units = 'Seconds',
             mode='RW',

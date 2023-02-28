@@ -38,8 +38,8 @@ class SaStripChartProcess(pr.Process):
             name = 'SampleDataX',
             mode = 'RO',
             hidden = True,
-            value = np.zeros(1, np.float64))) 
-       
+            value = np.zeros(1, np.float64)))
+
 
     def _process(self):
         saOutVar = self.parent.SaOut
@@ -60,4 +60,4 @@ class SaStripChartProcess(pr.Process):
 
         self.Data.set(np.array(samples))
         self.SampleDataX.set(np.array(times))
-    
+

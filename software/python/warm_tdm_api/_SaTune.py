@@ -42,6 +42,7 @@ class SaTuneProcess(pr.Process):
         # Wait time between FB set and output sampling
         self.add(pr.LocalVariable(name='SaFbSampleDelay',
                                   value=.001,
+                                  groups='NoDoc',
                                   mode='RW',
                                   description="Wait time between FB set and SA Out sampling in seconds"))
 

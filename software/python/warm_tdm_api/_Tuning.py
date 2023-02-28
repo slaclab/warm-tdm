@@ -101,6 +101,8 @@ def saFbSweep(*, group, bias, saFbRange, pctLow, pctRange, process):
             process.Progress.set(pctLow + pctRange*(idx/numSteps))
 
         time.sleep(sleep)
+
+        ###### THIS  NEEDS TO BE FIXED #######
         points = group.HardwareGroup.ColumnBoard[0].DataPath.WaveformCapture.AdcAverage.get() #group.SaOut.get()
 
 #        print(f'saFb step {idx} - {saFbArray[5]} - {points[5]}')
