@@ -23,10 +23,10 @@ class SinglePlot(pr.LinkVariable):
             xlabel=u'SA FB (\u03bcA)',
             ylabel='SA Out (mV)',
             legend_title='SA Bias Curves')
-        
+
     def linkedGet(self, index=-1, read=False):
         tune = self.parent.SaTuneOutput.value()
-        
+
         if tune == {}:
             return self._fig
 
@@ -34,7 +34,7 @@ class SinglePlot(pr.LinkVariable):
         if col == -1:
             col = self.parent.PlotColumn.value()
 
-        shunt = self.parent.parent.SA_FB_SHUNT_R.value()            
+        shunt = self.parent.parent.SA_FB_SHUNT_R.value()
 
         self._plot_ax(self._ax, col, tune[col], shunt[col])
 
@@ -47,14 +47,14 @@ class MultiPlot(SinglePlot):
             self,
             linkedGet = self.linkedGet,
             **kwargs)
-        
+
         self._fig = plt.Figure(tight_layout=True, figsize=(20, 20))
         self._ax = self._fig.subplots(4, 2, sharey=True)
         self._fig.suptitle('SA OUT (mV) vs. SA FB (\u03bcA)')
 
     def linkedGet(self):
         tune = self.parent.SaTuneOutput.value()
-        shunt = self.parent.parent.SA_FB_SHUNT_R.value()        
+        shunt = self.parent.parent.SA_FB_SHUNT_R.value()
 
         if tune == {}:
             return self._fig
@@ -70,7 +70,7 @@ class SaTuneProcess(pr.Process):
 
     def __init__(self, *, config, maxBiasSteps=10, **kwargs):
         self._maxBiasSteps = maxBiasSteps
-        
+
         self._columns = len(config.columnMap)
 
         # Init master class
@@ -110,6 +110,7 @@ class SaTuneProcess(pr.Process):
         # Wait time between FB set and output sampling
         self.add(pr.LocalVariable(name='SaFbSampleDelay',
                                   value=.001,
+                                  groups='NoDoc',
                                   mode='RW',
                                   description="Wait time between FB set and SA Out sampling in seconds"))
 
@@ -162,6 +163,7 @@ class SaTuneProcess(pr.Process):
 
         # Select Channel
         self.add(pr.LocalVariable(name='PlotColumn',
+                                  groups='NoDoc',
                                   value=0,
                                   minimum=0,
                                   maximum=len(config.columnMap)-1,
@@ -171,6 +173,7 @@ class SaTuneProcess(pr.Process):
 
 
         self.add(pr.LinkVariable(name='FittedSaFb',
+                                 groups='NoDoc',
                                  mode='RO',
                                  hidden=True,
                                  dependencies=[self.PlotColumn,self.SaTuneOutput],
@@ -178,6 +181,7 @@ class SaTuneProcess(pr.Process):
                                  description="Fitted SaFB value for the column selected via the PlotColumn variable above. "))
 
         self.add(pr.LinkVariable(name='FittedSaBias',
+                                 groups='NoDoc',
                                  mode='RO',
                                  hidden=True,
                                  dependencies=[self.PlotColumn,self.SaTuneOutput],
@@ -186,6 +190,7 @@ class SaTuneProcess(pr.Process):
 
         self.add(pr.LinkVariable(name='FittedSaOut',
                                  mode='RO',
+                                 groups='NoDoc',
                                  hidden=True,
                                  dependencies=[self.PlotColumn,self.SaTuneOutput],
                                  linkedGet=self._saOutGet,
@@ -193,19 +198,21 @@ class SaTuneProcess(pr.Process):
 
         self.add(SinglePlot(name='Plot',
                             mode='RO',
+                            groups='NoDoc',
                             hidden=True,
                             dependencies = [self.SaTuneOutput, self.PlotColumn],
                             description = 'A matplotlib figure of a selected column'))
 
         self.add(MultiPlot(name='MultiPlot',
                            mode='RO',
+                           groups='NoDoc',
                            hidden=True,
                            dependencies = [self.SaTuneOutput],
                            description = 'A matplotlib figure of all the curves'))
-        
 
         self.add(pr.LocalCommand(name='SavePlotData',
                                  value='',
+                                 groups='NoDoc',
                                  function=self._saveData,
                                  description="Command to save the plot data as a numpy binary file (np.save). The arg is the filename to write the data to. "))
 
@@ -220,7 +227,7 @@ class SaTuneProcess(pr.Process):
                 return 0.0
             else:
                 return tune[col][field]
-        
+
 
     def _saFbGet(self):
         self._getHelper('xOut')

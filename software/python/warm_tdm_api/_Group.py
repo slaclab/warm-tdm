@@ -187,7 +187,7 @@ class SaOutVariable(GroupLinkVariable):
                 for idx, board, chan in self._config.colGetIter(index):
                     ret[idx] = self.dependencies[board].get(index=chan, read=False)
 
-            if read: print(f'{self.path}.get({index=}, {read=}) \n{ret}'),         
+            if read: print(f'{self.path}.get({index=}, {read=}) \n{ret}'),
             return ret
 
 class FastDacVariable(GroupLinkVariable):
@@ -248,6 +248,7 @@ class Group(pr.Device):
         for i in range(len(self._config.columnMap)):
             self.add(pr.LinkVariable(
                 name = f'_{arrVar.name}[{i}]',
+                groups='NoDoc',
                 mode = arrVar.mode,
                 disp = arrVar.disp,
                 units = arrVar.units,
@@ -255,7 +256,7 @@ class Group(pr.Device):
                 dependencies = [arrVar],
                 linkedGet = lambda read, x=i: arrVar.get(read=read, index=x),
                 linkedSet = None if arrVar.mode == 'RO' else lambda value, write, x=i: arrVar.set(value, write=write, index=x)))
-            
+
     def __init__(self, groupConfig, groupId, dataWriter, simulation=False, emulate=False, plots=False, **kwargs):
         """
         Warm TDM Device
@@ -307,7 +308,7 @@ class Group(pr.Device):
 
         self.add(pr.LocalVariable(
             name='NumRows',
-            description='Total number of rows in the Group. NumRowBoards * 32.',
+            description='Total number of rows in the Group. Max is NumRowBoards * 32.',
             value=len(self._config.rowMap),
             mode='RO',
             groups='TopApi'))
@@ -321,7 +322,7 @@ class Group(pr.Device):
 
         self.add(pr.LocalVariable(
             name='NumColumns',
-            description='Total number of columns in the Group. NumColumnBoards * 8.',
+            description='Total number of columns in the Group. Max is NumColumnBoards * 8.',
             value=len(self._config.columnMap),
             mode='RO',
             groups='TopApi'))
@@ -342,7 +343,7 @@ class Group(pr.Device):
             description='Contains the conversion between row index and (board,channel).'
                         'Values can be accessed as a full array or as single values using an index key.'
                         'Each value is a PhysicalMap object containg board and channel attributes.'
-                        'Total length = RowBoards * 32.',
+                        'Max Length = RowBoards * 32.',
             localGet=lambda: [dataclasses.asdict(m) for m in self._config.rowMap],
             mode='RO',
             typeStr='PhysicalMap[]',
@@ -353,13 +354,13 @@ class Group(pr.Device):
             description='Contains the conversion between column index and (board,channel).'
                         'Values can be accessed as a full array or as single values using an index key.'
                         'Each value is a PhysicalMap object containg board and channel attributes.'
-                        'Total length = ColumnBoards * 8.',
+                        'Max length = ColumnBoards * 8.',
             localGet=lambda: [dataclasses.asdict(d) for d in self._config.columnMap],
             mode='RO',
             typeStr='PhysicalMap[]',
             hidden=True))
 
-        
+
 
         ##################################
         # Tuning enables
@@ -372,7 +373,7 @@ class Group(pr.Device):
         self.add(pr.LocalVariable(
             name='RowTuneEnable',
             description='Array of booleans which enable the tuning of each row.'
-                        'Total length = RowBoards * 32.'
+                        'Total length = NumRows.'
                         'Values can be accessed as a full array or as single values using an index key.'
                         'Not yet implemented in the tuning routines.',
             value=np.ones(rtsize, bool),
@@ -385,7 +386,7 @@ class Group(pr.Device):
         self.add(pr.LocalVariable(
             name='ColTuneEnable',
             description='Array of booleans which enable the tuning of each column.'
-                        'Total length = ColumnBoards * 8.'
+                        'Total length = NumColumns.'
                         'Values can be accessed as a full array or as single values using the an index key.'
                         'Not yet implemented in the tuning routines.',
             value=np.ones(len(self._config.columnMap), bool),
@@ -422,6 +423,7 @@ class Group(pr.Device):
             name='RowTuneIndex',
             description='Manual selection of row for tuning. When RowTunEn is true the FasFluxOn value for this row is output. All other rows are set to FasFluxOff.',
             typeStr='int',
+            groups='NoDoc',
             value=0,
             config=self._config,
             tuneEnVar = self.RowTuneEnable,
@@ -462,19 +464,21 @@ class Group(pr.Device):
         self.add(pr.LocalVariable(
             name = 'SA_FB_SHUNT_R',
             hidden = True,
+            groups='NoDoc',
             mode = 'RO',
             value = {k:v['SA_FB_SHUNT_R'] for k,v in self.HardwareGroup.ColumnBoard[0].loading.items()}))
 
         self.add(pr.LocalVariable(
             name = 'SQ1_FB_SHUNT_R',
             hidden = True,
+            groups='NoDoc',
             mode = 'RO',
             value = {k:v['SQ1_FB_SHUNT_R'] for k,v in self.HardwareGroup.ColumnBoard[0].loading.items()}))
-        
 
         self.add(GroupLinkVariable(
             name='SaBiasVoltage',
-            description='SaBias value for each column. 1D array with total length = ColumnBoards * 8.'
+            groups='NoDoc',
+            description='SaBias value for each column. 1D array with total length = NumColumns.'
                         'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SaBiasOffset.BiasVoltage[m.channel]
                             for m in self._config.columnMap],
@@ -484,16 +488,16 @@ class Group(pr.Device):
 
         self.add(GroupLinkVariable(
             name='SaBiasCurrent',
-            description='SaBias value for each column. 1D array with total length = ColumnBoards * 8.'
+            description='SaBias value for each column. 1D array with total length = NumColumns.'
                         'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SaBiasOffset.BiasCurrent[m.channel]
                             for m in self._config.columnMap],
             tuneEnVar = self.ColTuneEnable))
-        
+
 
         self.add(GroupLinkVariable(
             name='SaOffset',
-            description='SaOffset value for each column. 1D array with total length = ColumnBoards * 8.'
+            description='SaOffset value for each column. 1D array with total length = NumColumns.'
                         'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SaBiasOffset.OffsetVoltage[m.channel]
                             for m in self._config.columnMap],
@@ -501,7 +505,8 @@ class Group(pr.Device):
 
         self.add(SaOutVariable(
             name='SaOutAdc',
-            description='Current ADC value in Volts for each column. Total length = ColumnBoards * 8.'
+            groups='NoDoc',
+            description='Current ADC value in Volts for each column. Total length = NumColumns.'
                         'Values can be accessed as a full array or as single values using an index key.',
 #            units='V',
             config=self._config,
@@ -520,8 +525,9 @@ class Group(pr.Device):
         # Remove amplifier gain and bias
         self.add(SaOutVariable(
             name='SaOut',
+            groups='NoDoc',
             description='Current SA_OUT value in mV for each column before amplifier gain, adjusted for current offset value'
-            'Total length = ColumnBoards * 8. '
+            'Total length = NumColumns. '
             'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SaOut
                             for m in self._config.columnMap],
@@ -532,21 +538,22 @@ class Group(pr.Device):
 
         self.add(SaOutVariable(
             name='SaOutNorm',
+            groups='NoDoc',
             description='Current SA_OUT value in mV for each column before amplifier gain, not adjusted for current offset value'
-            'Total length = ColumnBoards * 8. '
+            'Total length = NumColumns. '
             'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SaOutNorm
                             for m in self._config.columnMap],
-#            units = 'mV',            
+#            units = 'mV',
             config = self._config,
             disp = '{:0.03f}'))
 
-        
+
 
         self.add(FastDacVariable(
             name='SaFbCurrent',
             description='SaFb value for each column/row used during readout.'
-                         '2D array with total length = (ColumnBoards * 8) * (RowBoards * 32).'
+                         '2D array with total length = NumColumns * NumRows.'
                          'Values can be accessed as a full 2D array or pass a (col, row) tuple for the index key to access each value.',
             config = self._config,
             hidden = True,
@@ -556,8 +563,9 @@ class Group(pr.Device):
 
         self.add(GroupLinkVariable(
             name='SaFbForceCurrent',
+            groups='NoDoc',
             description='SaFb value for each column used during tuning.'
-                         '1D array with total length ColumnBoards * 8.'
+                         '1D array with total length NumColumns.'
                          'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SAFb.OverrideCurrent[m.channel]
                             for m in self._config.columnMap],
@@ -567,8 +575,9 @@ class Group(pr.Device):
 
         self.add(FastDacVariable(
             name='SaFbVoltage',
+            groups='NoDoc',
             description='SaFb value for each column/row used during readout.'
-                         '2D array with total length = (ColumnBoards * 8) * (RowBoards * 32).'
+                         '2D array with total length = NumColumns * Num Rows.'
                          'Values can be accessed as a full 2D array or pass a (col, row) tuple for the index key to access each value.',
             config = self._config,
             hidden = True,
@@ -578,8 +587,9 @@ class Group(pr.Device):
 
         self.add(GroupLinkVariable(
             name='SaFbForceVoltage',
+            groups='NoDoc',
             description='SaFb value for each column used during tuning.'
-                         '1D array with total length ColumnBoards * 8.'
+                         '1D array with total length NumColumns.'
                          'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SAFb.OverrideVoltage[m.channel]
                             for m in self._config.columnMap],
@@ -590,7 +600,7 @@ class Group(pr.Device):
         self.add(FastDacVariable(
             name='Sq1BiasCurrent',
             description='Sq1Bias value for each column/row used during readout.'
-                         '2D array with total length = (ColumnBoards * 8) * (RowBoards * 32).'
+                         '2D array with total length = NumColumns * NumRows.'
                          'Values can be accessed as a full 2D array or pass a (col, row) tuple for the index key to access each value.',
             config = self._config,
             hidden = True,
@@ -599,18 +609,20 @@ class Group(pr.Device):
 
         self.add(GroupLinkVariable(
             name='Sq1BiasForceCurrent',
+            groups='NoDoc',
             description='Sq1Bias value for each column used during tuning.'
-                         '1D array with total length ColumnBoards * 8.'
+                         '1D array with total length NumColumns.'
                          'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SQ1Bias.OverrideCurrent[m.channel]
                             for m in self._config.columnMap],
             tuneEnVar = self.ColTuneEnable))
-        
+
 
         self.add(FastDacVariable(
             name='Sq1BiasVoltage',
+            groups='NoDoc',
             description='Sq1Bias value for each column/row used during readout.'
-                         '2D array with total length = (ColumnBoards * 8) * (RowBoards * 32).'
+                         '2D array with total length = NumColumns * NumRows.'
                          'Values can be accessed as a full 2D array or pass a (col, row) tuple for the index key to access each value.',
             config = self._config,
             hidden = True,
@@ -620,8 +632,9 @@ class Group(pr.Device):
 
         self.add(GroupLinkVariable(
             name='Sq1BiasForceVoltage',
+            groups='NoDoc',
             description='Sq1Bias value for each column used during tuning.'
-                         '1D array with total length ColumnBoards * 8.'
+                         '1D array with total length NumColumns.'
                          'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SQ1Bias.OverrideVoltage[m.channel]
                             for m in self._config.columnMap],
@@ -632,7 +645,7 @@ class Group(pr.Device):
         self.add(FastDacVariable(
             name='Sq1FbCurrent',
             description='Sq1Fb value for each column/row used during readout.'
-                         '2D array with total length = (ColumnBoards * 8) * (RowBoards * 32).'
+                         '2D array with total length = NumColumns * NumRows.'
                          'Values can be accessed as a full 2D array or pass a (col, row) tuple for the index key to access each value.',
             config = self._config,
             hidden = True,
@@ -641,18 +654,20 @@ class Group(pr.Device):
 
         self.add(GroupLinkVariable(
             name='Sq1FbForceCurrent',
+            groups='NoDoc',
             description='Sq1Fb value for each column used during tuning.'
-                         '1D array with total length ColumnBoards * 8.'
+                         '1D array with total length NumColumns.'
                          'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SQ1Fb.OverrideCurrent[m.channel]
                             for m in self._config.columnMap],
             tuneEnVar = self.ColTuneEnable))
-        
+
 
         self.add(FastDacVariable(
             name='Sq1FbVoltage',
+            groups='NoDoc',
             description='Sq1Fb value for each column/row used during readout.'
-                         '2D array with total length = (ColumnBoards * 8) * (RowBoards * 32).'
+                         '2D array with total length = NumColumns * NumRows.'
                          'Values can be accessed as a full 2D array or pass a (col, row) tuple for the index key to access each value.',
             config = self._config,
             hidden = True,
@@ -662,19 +677,20 @@ class Group(pr.Device):
 
         self.add(GroupLinkVariable(
             name='Sq1FbForceVoltage',
+            groups='NoDoc',
             description='Sq1Fb value for each column used during tuning.'
-                         '1D array with total length ColumnBoards * 8.'
+                         '1D array with total length NumColumns.'
                          'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SQ1Fb.OverrideVoltage[m.channel]
                             for m in self._config.columnMap],
             tuneEnVar = self.ColTuneEnable))
 
 
-        
+
         self.add(GroupLinkVariable(
             name = 'TesBias',
             description='TesValue value for each column.'
-                         '1D array with total length ColumnBoards * 8.'
+                         '1D array with total length NumColumns.'
                          'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].TesBias.BiasCurrent[m.channel]
                             for m in self._config.columnMap],
@@ -716,7 +732,7 @@ class Group(pr.Device):
             self.SaFbForceCurrent,
             self.SaFbForceVoltage,
             self.Sq1BiasForceCurrent,
-            self.Sq1BiasForceVoltage,        
+            self.Sq1BiasForceVoltage,
             self.Sq1FbForceCurrent,
             self.Sq1FbForceVoltage,
             self.TesBias
@@ -748,12 +764,12 @@ class Group(pr.Device):
         # Tuning and diagnostic Processes
         #############################################
         self.add(warm_tdm_api.SaOffsetProcess())
-        self.add(warm_tdm_api.SaOffsetSweepProcess(config=self._config))
+        self.add(warm_tdm_api.SaOffsetSweepProcess(groups=['NoDoc'],config=self._config))
         self.add(warm_tdm_api.SaTuneProcess(config=self._config))
-        self.add(warm_tdm_api.Sq1TuneProcess(config=self._config, groups=['NoDoc']))
-        self.add(warm_tdm_api.FasTuneProcess(groups=['NoDoc']))
-        self.add(warm_tdm_api.Sq1DiagProcess(groups=['NoDoc']))
-        self.add(warm_tdm_api.TesRampProcess(groups=['NoDoc']))
+        self.add(warm_tdm_api.Sq1TuneProcess(config=self._config))
+        self.add(warm_tdm_api.FasTuneProcess())
+        self.add(warm_tdm_api.Sq1DiagProcess())
+        self.add(warm_tdm_api.TesRampProcess())
         self.add(warm_tdm_api.SaStripChartProcess(groups=['NoDoc']))
 
     # Set FLL Enable value

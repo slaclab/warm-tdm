@@ -28,18 +28,21 @@ class SaOffsetProcess(pr.Process):
 
         self.add(pr.LocalVariable(
             name='Kp',
+            groups='NoDoc',
             value=-.1,
             mode='RW',
             description="Proportional PID coefficient"))
 
         self.add(pr.LocalVariable(
             name='Ki',
+            groups='NoDoc',
             value=0.0,
             mode='RW',
             description="Integral PID coefficient"))
 
         self.add(pr.LocalVariable(
             name='Kd',
+            groups='NoDoc',
             value=0.0,
             mode='RW',
             description="Differential PID coefficient"))
@@ -47,6 +50,7 @@ class SaOffsetProcess(pr.Process):
         self.add(pr.LocalVariable(
             name='Precision',
             value=0.001,
+            groups='NoDoc',
             mode='RW',
             description="Convergance precision"))
 
@@ -54,6 +58,7 @@ class SaOffsetProcess(pr.Process):
         self.add(pr.LocalVariable(
             name='MaxLoops',
             value=100,
+            groups='NoDoc',
 #            units = 'Seconds',
             mode='RW',
             description="Max number of loops for PID convergance"))
@@ -92,7 +97,7 @@ class SaOffsetSweepProcess(pr.Process):
         self.columns = len(config.columnMap)
 
         self._fig = plt.Figure(tight_layout=True, figsize=(20,10))
-        self._ax = self._fig.add_subplot()        
+        self._ax = self._fig.add_subplot()
 
         # Low offset for SA Bias Tuning
         self.add(pr.LocalVariable(name='SaBiasLow',
@@ -149,7 +154,7 @@ class SaOffsetSweepProcess(pr.Process):
             group = self.parent
 
             startBias = group.SaBiasCurrent.get()
-            startOffset = group.SaOffset.get()            
+            startOffset = group.SaOffset.get()
 
             low = self.SaBiasLow.get()
             high = self.SaBiasHigh.get()
@@ -175,14 +180,14 @@ class SaOffsetSweepProcess(pr.Process):
                     warm_tdm_api.saOffset(group=group)
                 except:
                     print('saOffset timed out')
-                
+
                 for j, fb in enumerate(fbPoints):
                     saFb = mask * fb
                     group.SaFbForceCurrent.set(saFb)
 
-                    
+
                     curves[i, j] = group.SaOut.get() #group.SaOffset.get()
-                    #curves[i, j] = group.SaOffset.get()                    
+                    #curves[i, j] = group.SaOffset.get()
 
                     self.Advance() #Progress.set((i*biasSteps + j) / totalSteps)
                     if self._runEn is False:

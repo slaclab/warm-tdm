@@ -16,6 +16,9 @@ class Sq1DiagProcess(pr.Process):
                                   mode='RO',
                                   description="Results Data From SQ1 Diagnostic"))
 
+        self.ReadDevice.addToGroup('NoDoc')
+        self.WriteDevice.addToGroup('NoDoc')
+
     def _sq1DiagWrap(self):
         #ret = warm_tdm_api.saTune(self.parent,row=0,pctVar=self.Progress)
         #self.SaTuneOutput.set(value=ret)

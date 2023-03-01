@@ -61,7 +61,7 @@ class FasTunePlot(pr.LinkVariable):
 
     def linkedGet(self, index=-1, read=False):
         tune = self.parent.FasTuneOutput.value()
-        
+
         if tune == []:
             return self._fig
 
@@ -95,6 +95,13 @@ class FasTuneProcess(pr.Process):
                                   mode='RW',
                                   description="Number of steps for Fas Flux Tuning"))
 
+        # Set values after finish
+        self.add(pr.LocalVariable(name='SetAfterFinish',
+                                  value=False,
+                                  mode='RW',
+                                  description="This variable controls if the FAS set points found at the end of the process is set back. "
+                                              "Otherwise the previous values of FasFluxOn, FasFluxOff and SaFb for each row will be restored."))
+
         # FAS Tuning Results
         self.add(pr.LocalVariable(name='FasTuneOutput',
                                   hidden=True,
@@ -102,17 +109,23 @@ class FasTuneProcess(pr.Process):
                                   mode='RO',
                                   description="Results Data From FAS Tuning"))
 
+        self.ReadDevice.addToGroup('NoDoc')
+        self.WriteDevice.addToGroup('NoDoc')
+
         self.add(pr.LocalVariable(
             name = 'PlotRow',
+            groups='NoDoc',
             value = 0))
 
         self.add(RowFasSweepPlot(
             name = 'SweepPlot',
+            groups='NoDoc',
             hidden = True,
             dependencies = [self.PlotRow, self.FasTuneOutput]))
 
         self.add(FasTunePlot(
             name = 'TunePlot',
+            groups='NoDoc',
             hidden = True,
             dependencies = [self.FasTuneOutput]))
 

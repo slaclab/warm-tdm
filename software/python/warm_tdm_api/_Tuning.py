@@ -16,7 +16,7 @@ def saOffset(*, group, process=None):
     kd = group.SaOffsetProcess.Kd.get()
     precision = group.SaOffsetProcess.Precision.get()
     maxLoops = group.SaOffsetProcess.MaxLoops.get()
-    colCount = len(group.ColumnMap.get())    
+    colCount = len(group.ColumnMap.get())
 
     # Setup PID controller
     pid = [PID(kp, ki, kd) for _ in range(len(group.ColumnMap.value()))]
@@ -99,8 +99,6 @@ def saFbSweep(*, group, bias, saFbRange, process):
 
         time.sleep(sleep)
         points = group.SaOut.get() #group.HardwareGroup.ColumnBoard[0].DataPath.WaveformCapture.AdcAverage.get() #group.SaOut.get()
-        
-        #print(f'saFb step {idx} - {points}')
 
         for col in range(colCount):
             curves[col].addPoint(points[col])
@@ -108,8 +106,6 @@ def saFbSweep(*, group, bias, saFbRange, process):
         if process is not None:
             process.Advance()
             #Progress.set(pctLow + pctRange*((idx+1)/numSteps))
-            
-
 
     # Reset FB to zero after sweep
     group.SaFbForceCurrent.set(value=np.zeros(colCount, np.float64))
@@ -127,13 +123,13 @@ def saBiasSweep(*, group, process):
     # Extract iteration steps from Rogue variables
     # Create CurveData obects for storing output data
     colCount = len(group.ColumnMap.get())
-    colTuneEnable = group.ColTuneEnable.value()    
+    colTuneEnable = group.ColTuneEnable.value()
     numBiasSteps = group.SaTuneProcess.SaBiasNumSteps.get()
     numFbSteps = group.SaTuneProcess.SaFbNumSteps.get()
     saBiasRange = np.zeros((colCount, numBiasSteps), np.float64)
     saFbRange = np.zeros((colCount, numFbSteps), np.float64)
 
-    datalist = []    
+    datalist = []
     for col in range(colCount):
         low = group.SaTuneProcess.SaBiasLowOffset.get()
         high = group.SaTuneProcess.SaBiasHighOffset.get()
@@ -144,8 +140,7 @@ def saBiasSweep(*, group, process):
         saFbRange[col] = np.linspace(low,high,numFbSteps,endpoint=True)
 
         datalist.append(warm_tdm_api.CurveData(xValues=saFbRange[col]))
-    
-            
+
     process.TotalSteps.set(numBiasSteps * numFbSteps)
 
     #print(f'Bias sweep - {saBiasRange}')
@@ -156,17 +151,17 @@ def saBiasSweep(*, group, process):
     # Sweep the SaFb range with saFbSweep()
     for idx in range(numBiasSteps):
         group.SaFbForceCurrent.set(np.zeros(colCount, np.float64))
-        # Update process message 
+        # Update process message
         if process is not None:
             process.Message.set(f'SaBias step {idx+1} out of {numBiasSteps}')
-        
+
 
         # Only set bias for enabled columns
         #print(f'Setting SaBias values = {saBiasRange[:, idx]}')
         group.SaBiasCurrent.set(saBiasRange[:, idx])
         print('Starting saOffset()')
         saOffset(group=group)
-        print('Done saOffset()')        
+        print('Done saOffset()')
 
         curves = saFbSweep(group=group,bias=saBiasRange[:, idx], saFbRange=saFbRange, process=process)
 
@@ -222,7 +217,7 @@ def saTune(*, group, process=None, doSet=True):
 
         # Run saOffset to zero out the ADC value at the tuned SaBias,SaFb point
         saOffset(group=group)
-            
+
     return saBiasResults
 
 
@@ -245,7 +240,7 @@ def saFbServo(*, group, precision=1.0):
 
     current = group.SaOutAdc.get()
     masked = current
-    mult = np.array([1 if en else 0 for en in group.ColTuneEnable.value()], np.float64)    
+    mult = np.array([1 if en else 0 for en in group.ColTuneEnable.value()], np.float64)
     count = 0
 
     for count in range(maxLoops):
@@ -273,7 +268,7 @@ def saFbServo(*, group, precision=1.0):
 def fasSweep(*, group, row, process):
     """Returns a 2D numpy array with indecies [col, fasFluxPoint]
     Iterates through FasFluxOn values determined by
-    lowoffset,highoffset,step,calling saFb to generate points. 
+    lowoffset,highoffset,step,calling saFb to generate points.
     Adds this curve to the numpy array
     """
 
@@ -293,8 +288,8 @@ def fasSweep(*, group, row, process):
 
     # Sweep the flux range
     for step in range(numSteps):
-        # Set a the fasFlux value for the row 
-        # Below is wrong. Need to drive FAS Flux value       
+        # Set a the fasFlux value for the row
+        # Below is wrong. Need to drive FAS Flux value
         group.FasFluxOn.set(index=row, value=fasFluxRange[step])
 
         # Servo the saFb
@@ -308,7 +303,7 @@ def fasSweep(*, group, row, process):
             process.Advance()
             if process._runEn == False:
                 print('Process stopped, exiting fasSweep()')
-                break     
+                break
 
     return data
 
@@ -357,8 +352,8 @@ def fasTune(*,group,process=None):
         if process is not None and process._runEn == False:
             print('Process stopped, fasTune()')
             break
-        
-        
+
+
     #group.RowForceEn.set(False)
     return curves
 
@@ -411,7 +406,7 @@ def sq1BiasSweep(group, row, process):
     biasRange = np.zeros((colCount, numBiasSteps), np.float64)
     fbRange = np.zeros((colCount, numFbSteps), np.float64)
 
-    datalist = []    
+    datalist = []
     for col in range(colCount):
         low = process.Sq1BiasLowOffset.get()
         high = process.Sq1BiasHighOffset.get()
@@ -437,12 +432,12 @@ def sq1BiasSweep(group, row, process):
 
             # Sweep SQ1 FB at the bias
             curves = sq1FbSweep(group=group, bias=biasRange[:, biasStep], fbRange=fbRange, row=row, process=process)
-        
+
             # Assign curves by column (if enabled for tuning)
             for col in range(colCount):
                 if group.ColTuneEnable.get()[col]:
                     datalist[col].addCurve(curves[col])
-            
+
     # Compute best bias point for each column
     for d in datalist:
         d.update()
@@ -460,12 +455,12 @@ def sq1Tune(group, process):
     Returns
     ----
     list
-        list of list of CurveData objects 
+        list of list of CurveData objects
     """
     outputs = []
     numRows = group.NumRows.get()
     rowTuneEnable = group.RowTuneEnable.value()
-    colTuneEnable = group.ColTuneEnable.value()    
+    colTuneEnable = group.ColTuneEnable.value()
     numEnabledRows = rowTuneEnable.count(True)
     numColumns = group.NumColumns.get()
 
@@ -474,11 +469,11 @@ def sq1Tune(group, process):
 
     #group.RowForceEn.set(True)
 
-    
+
     for row in range(group.NumRows.get()):
         results = sq1BiasSweep(group, row, process)
         outputs.append(results)
-        
+
         if rowTuneEnable[row]:
             for col in range(numColumns):
                 if colTuneEnable[col]:
