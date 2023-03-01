@@ -128,6 +128,11 @@
 <li><p>ColTuneEnable</p></li>
 <li><p>FasFluxOff</p></li>
 <li><p>FasFluxOn</p></li>
+<li><p>SaBiasCurrent</p></li>
+<li><p>SaOffset</p></li>
+<li><p>SaFbCurrent</p></li>
+<li><p>Sq1BiasCurrent</p></li>
+<li><p>Sq1FbCurrent</p></li>
 <li><p>TesBias</p></li>
 <li><p>_ColTuneEnable[0]</p></li>
 <li><p>_ColTuneEnable[1]</p></li>
@@ -629,6 +634,196 @@
 </tr>
 <tr class="row-odd"><td><p>mode</p></td>
 <td><p>RW</p></td>
+</tr>
+</tbody>
+</table>
+</aside>
+<aside class="topic">
+<p class="topic-title">GroupRoot.Group.SaBiasCurrent</p>
+<div class="line-block">
+<div class="line">SaBias value for each column.</div>
+<div class="line">1D array with total length = ColumnBoards * 8.</div>
+<div class="line">Values can be accessed as a full array or as single values using an index key.</div>
+</div>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>SaBiasCurrent</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.SaBiasCurrent</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>float64(8,)</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{:0.4f}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RW</p></td>
+</tr>
+<tr class="row-even"><td><p>units</p></td>
+<td><p>μA</p></td>
+</tr>
+</tbody>
+</table>
+</aside>
+<aside class="topic">
+<p class="topic-title">GroupRoot.Group.SaOffset</p>
+<div class="line-block">
+<div class="line">SaOffset value for each column.</div>
+<div class="line">1D array with total length = ColumnBoards * 8.</div>
+<div class="line">Values can be accessed as a full array or as single values using an index key.</div>
+</div>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>SaOffset</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.SaOffset</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>float64(8,)</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{:0.4f}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RW</p></td>
+</tr>
+<tr class="row-even"><td><p>units</p></td>
+<td><p>V</p></td>
+</tr>
+</tbody>
+</table>
+</aside>
+<aside class="topic">
+<p class="topic-title">GroupRoot.Group.SaFbCurrent</p>
+<div class="line-block">
+<div class="line">SaFb value for each column/row used during readout.</div>
+<div class="line">2D array with total length = (ColumnBoards * 8) * (RowBoards * 32).</div>
+<div class="line">Values can be accessed as a full 2D array or pass a (col, row) tuple for the index key to access each value.</div>
+</div>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>SaFbCurrent</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.SaFbCurrent</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>float64(8, 32)</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{:0.04f}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RW</p></td>
+</tr>
+<tr class="row-even"><td><p>units</p></td>
+<td><p>bcA</p></td>
+</tr>
+</tbody>
+</table>
+</aside>
+<aside class="topic">
+<p class="topic-title">GroupRoot.Group.Sq1BiasCurrent</p>
+<div class="line-block">
+<div class="line">Sq1Bias value for each column/row used during readout.</div>
+<div class="line">2D array with total length = (ColumnBoards * 8) * (RowBoards * 32).</div>
+<div class="line">Values can be accessed as a full 2D array or pass a (col, row) tuple for the index key to access each value.</div>
+</div>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Sq1BiasCurrent</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.Sq1BiasCurrent</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>float64(8, 32)</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{:0.04f}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RW</p></td>
+</tr>
+<tr class="row-even"><td><p>units</p></td>
+<td><p>bcA</p></td>
+</tr>
+</tbody>
+</table>
+</aside>
+<aside class="topic">
+<p class="topic-title">GroupRoot.Group.Sq1FbCurrent</p>
+<div class="line-block">
+<div class="line">Sq1Fb value for each column/row used during readout.</div>
+<div class="line">2D array with total length = (ColumnBoards * 8) * (RowBoards * 32).</div>
+<div class="line">Values can be accessed as a full 2D array or pass a (col, row) tuple for the index key to access each value.</div>
+</div>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>Sq1FbCurrent</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>GroupRoot.Group.Sq1FbCurrent</p></td>
+</tr>
+<tr class="row-even"><td><p>typeStr</p></td>
+<td><p>float64(8, 32)</p></td>
+</tr>
+<tr class="row-odd"><td><p>disp</p></td>
+<td><p>{:0.04f}</p></td>
+</tr>
+<tr class="row-even"><td><p>precision</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-odd"><td><p>mode</p></td>
+<td><p>RW</p></td>
+</tr>
+<tr class="row-even"><td><p>units</p></td>
+<td><p>bcA</p></td>
 </tr>
 </tbody>
 </table>
