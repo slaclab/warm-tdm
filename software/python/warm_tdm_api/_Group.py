@@ -487,7 +487,6 @@ class Group(pr.Device):
 
         self.add(GroupLinkVariable(
             name='SaBiasCurrent',
-            groups='NoDoc',
             description='SaBias value for each column. 1D array with total length = ColumnBoards * 8.'
                         'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SaBiasOffset.BiasCurrent[m.channel]
@@ -497,7 +496,6 @@ class Group(pr.Device):
 
         self.add(GroupLinkVariable(
             name='SaOffset',
-            groups='NoDoc',
             description='SaOffset value for each column. 1D array with total length = ColumnBoards * 8.'
                         'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SaBiasOffset.OffsetVoltage[m.channel]
@@ -553,7 +551,6 @@ class Group(pr.Device):
 
         self.add(FastDacVariable(
             name='SaFbCurrent',
-            groups='NoDoc',
             description='SaFb value for each column/row used during readout.'
                          '2D array with total length = (ColumnBoards * 8) * (RowBoards * 32).'
                          'Values can be accessed as a full 2D array or pass a (col, row) tuple for the index key to access each value.',
@@ -601,7 +598,6 @@ class Group(pr.Device):
 
         self.add(FastDacVariable(
             name='Sq1BiasCurrent',
-            groups='NoDoc',
             description='Sq1Bias value for each column/row used during readout.'
                          '2D array with total length = (ColumnBoards * 8) * (RowBoards * 32).'
                          'Values can be accessed as a full 2D array or pass a (col, row) tuple for the index key to access each value.',
@@ -647,7 +643,6 @@ class Group(pr.Device):
 
         self.add(FastDacVariable(
             name='Sq1FbCurrent',
-            groups='NoDoc',
             description='Sq1Fb value for each column/row used during readout.'
                          '2D array with total length = (ColumnBoards * 8) * (RowBoards * 32).'
                          'Values can be accessed as a full 2D array or pass a (col, row) tuple for the index key to access each value.',
