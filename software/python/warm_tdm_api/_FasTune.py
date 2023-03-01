@@ -114,15 +114,18 @@ class FasTuneProcess(pr.Process):
 
         self.add(pr.LocalVariable(
             name = 'PlotRow',
+            groups='NoDoc',
             value = 0))
 
         self.add(RowFasSweepPlot(
             name = 'SweepPlot',
+            groups='NoDoc',
             hidden = True,
             dependencies = [self.PlotRow, self.FasTuneOutput]))
 
         self.add(FasTunePlot(
             name = 'TunePlot',
+            groups='NoDoc',
             hidden = True,
             dependencies = [self.FasTuneOutput]))
 

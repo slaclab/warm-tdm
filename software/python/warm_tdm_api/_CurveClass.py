@@ -7,7 +7,7 @@ def _sinfunc(t, A, w, p, c):
 
 def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title):
         ax.clear()
-        ax.set_title(ax_title)        
+        ax.set_title(ax_title)
         ax.set_ylabel(ylabel)
         ax.set_xlabel(xlabel)
 
@@ -20,11 +20,11 @@ def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title)
 
         # Plot each curve with heavier line for curve with highest amplitude
         for biasIndex, value in enumerate(curveDataDict['biasValues']):
-                
+
             linewidth = 1.0
             if biasIndex == curveDataDict['bestIndex']:
                 linewidth = 2.0
-            peak = curveDataDict['peaks'][biasIndex] 
+            peak = curveDataDict['peaks'][biasIndex]
             label = f'{value:1.3f} - P-P: {peak:1.3f}'
             color = next(ax._get_lines.prop_cycler)['color']
             # Plot the curve
@@ -32,7 +32,7 @@ def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title)
             # Mark the max point
             ax.plot(curveDataDict['highIndexes'][biasIndex], curveDataDict['highPoints'][biasIndex], '^', color=color)
             # Mark the min point
-            ax.plot(curveDataDict['lowIndexes'][biasIndex], curveDataDict['lowPoints'][biasIndex], 'v', color=color)            
+            ax.plot(curveDataDict['lowIndexes'][biasIndex], curveDataDict['lowPoints'][biasIndex], 'v', color=color)
 
         # Plot the calculated operating point
         #ax.plot(curveDataDict['xOut'], curveDataDict['yOut'], 's')
@@ -46,15 +46,15 @@ def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title)
                 fitcurve = _sinfunc(x, A, w, p, c)
                 ax.plot(x, fitcurve, '--')
 
-        ax.legend(title=legend_title)                
-    
+        ax.legend(title=legend_title)
+
 
 class CurveData():
 
     def __init__(self, xValues):
         self.xValues = xValues
         self.curveList = []
-        
+
         self.bestCurve = None
         self.bestIndex = None
         self.biasOut = None
@@ -78,7 +78,7 @@ class CurveData():
 #         fitfunc = lambda t: A * np.sin(w*t + p) + c
 #         print( {"amp": A, "omega": w, "phase": p, "offset": c, "freq": f, "period": 1./f, "fitfunc": fitfunc, "maxcov": np.max(pcov), "rawres": (guess,popt,pcov)})
 #         return (A, w, p, c)
-        
+
 
     def update(self):
         # Find the best curve
@@ -87,14 +87,14 @@ class CurveData():
             if self.bestCurve is None or curve.peakheight > self.bestCurve.peakheight:
                 self.bestCurve = curve
                 self.bestIndex = i
-                
+
         #self.bestfit = self.fit(self.bestCurve)
 
         if self.bestCurve is not None:
             self.biasOut = self.bestCurve.bias
             self.yOut = (self.bestCurve.lowpoint + self.bestCurve.highpoint) / 2
             self.xOut = (self.bestCurve.lowindex + self.bestCurve.highindex) / 2
-            
+
 
 #     def plot(self):
 #         self.update() #might not want to call this here
@@ -129,7 +129,7 @@ class CurveData():
             'yOut': self.yOut,
             # 'bestfit': self.bestfit}
         }
-    
+
     def __repr__(self):
         return str(self.asDict())
 
@@ -156,7 +156,7 @@ class Curve():
         self.highindex = xValues[argmax]
         self.highpoint = np_points[argmax]
         self.peakheight = self.highpoint - self.lowpoint
-        
+
         print(f'{self.lowindex=}')
         print(f'{self.lowpoint=}')
         print(f'{self.highindex=}')
@@ -174,10 +174,9 @@ class Curve():
         guess = np.array([guess_amp, guess_period, 0, guess_offset])
         try:
             self.curvefit = scipy.optimize.curve_fit(_sinfunc, xValues, np_points, p0=guess)[0]
-            print(f'{self.curvefit=}')            
+            print(f'{self.curvefit=}')
         except RuntimeError:
             print('Could not fit curves')
-
 
 
     def addPoint(self, point):

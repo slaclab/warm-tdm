@@ -24,10 +24,10 @@ class SinglePlot(pr.LinkVariable):
             xlabel=u'SQ1 FB (\u03bcA)',
             ylabel=u'SA FB (\u03bcA)',
             legend_title='SQ1 Bias Curves')
-        
+
     def linkedGet(self, index=-1, read=False):
         tune = self.parent.Sq1TuneOutput.value()
-        
+
         if tune == {}:
             return self._fig
 
@@ -38,7 +38,7 @@ class SinglePlot(pr.LinkVariable):
         else:
             col, row = index
 
-        shunt = self.parent.parent.SQ1_FB_SHUNT_R.value()            
+        shunt = self.parent.parent.SQ1_FB_SHUNT_R.value()
 
         self._plot_ax(self._ax, col, row, tune[row][col])
 
@@ -51,14 +51,14 @@ class MultiPlot(SinglePlot):
             self,
             linkedGet = self.linkedGet,
             **kwargs)
-        
+
         self._fig = plt.Figure(tight_layout=True, figsize=(20, 20))
         self._ax = self._fig.subplots(4, 2, sharey=True)
         self._fig.suptitle(u'SA FB (\u03bcA) vs. SQ1 FB (\u03bcA)')
 
     def linkedGet(self, index=-1):
         tune = self.parent.Sq1TuneOutput.value()
-        shunt = self.parent.parent.SQ1_FB_SHUNT_R.value()        
+        shunt = self.parent.parent.SQ1_FB_SHUNT_R.value()
 
         if tune == {}:
             return self._fig
@@ -73,7 +73,7 @@ class MultiPlot(SinglePlot):
             self._plot_ax(ax, col, row, tune[row][col], )
 
         return self._fig
-    
+
 class Sq1TuneProcess(pr.Process):
 
     def __init__(self, *, config, **kwargs):
@@ -94,7 +94,7 @@ class Sq1TuneProcess(pr.Process):
             name='Sq1FbHighOffset',
             value=77.0,
             mode='RW',
-            units=u'\u03bcA',            
+            units=u'\u03bcA',
             description="Ending point offset for SQ1 FB Tuning"))
 
         # Step size for SQ1 FB Tuning
@@ -109,7 +109,7 @@ class Sq1TuneProcess(pr.Process):
             name='Sq1BiasLowOffset',
             value=0.0,
             mode='RW',
-            units=u'\u03bcA',                        
+            units=u'\u03bcA',
             description="Starting point offset for SQ1 Bias Tuning"))
 
         # High offset for SQ1 Bias Tuning
@@ -117,7 +117,7 @@ class Sq1TuneProcess(pr.Process):
             name='Sq1BiasHighOffset',
             value=75.0,
             mode='RW',
-            units=u'\u03bcA',                        
+            units=u'\u03bcA',
             description="Ending point offset for SQ1 Bias Tuning"))
 
         # Step size for SQ1 Bias Tuning
@@ -145,6 +145,7 @@ class Sq1TuneProcess(pr.Process):
         self.add(pr.LocalVariable(
             name='PlotColumn',
             value=0,
+            groups='NoDoc',
             minimum=0,
             maximum=len(config.columnMap)-1,
             mode='RW',
@@ -153,15 +154,17 @@ class Sq1TuneProcess(pr.Process):
         self.add(pr.LocalVariable(
             name='PlotRow',
             value=0,
+            groups='NoDoc',
             minimum=0,
             maximum=len(config.rowMap)-1,
             mode='RW',
             description="Controls which row is selected for the resulting plot and fitted value variables below"))
-        
+
 
         self.add(pr.LinkVariable(
             name='FittedSq1Fb',
             mode='RO',
+            groups='NoDoc',
             dependencies=[self.PlotColumn, self.PlotRow, self.Sq1TuneOutput],
             linkedGet=self._sq1FbGet,
             description="Fitted Sq1FB value for the column and row selected"))
@@ -169,6 +172,7 @@ class Sq1TuneProcess(pr.Process):
         self.add(pr.LinkVariable(
             name='FittedSq1Bias',
             mode='RO',
+            groups='NoDoc',
             dependencies=[self.PlotColumn, self.PlotRow, self.Sq1TuneOutput],
             linkedGet=self._sq1BiasGet,
             description="Fitted Sq1Bias value for the column and row selected"))
@@ -176,6 +180,7 @@ class Sq1TuneProcess(pr.Process):
         self.add(pr.LinkVariable(
             name='FittedSaFb',
             mode='RO',
+            groups='NoDoc',
             dependencies=[self.PlotColumn, self.PlotRow, self.Sq1TuneOutput],
             linkedGet=self._saFbGet,
             description="Fitted SaFb value for the column and row selected"))
@@ -183,6 +188,7 @@ class Sq1TuneProcess(pr.Process):
         self.add(SinglePlot(
             name='Plot',
             mode='RO',
+            groups='NoDoc',
             hidden=True,
             dependencies = [self.Sq1TuneOutput, self.PlotColumn, self.PlotRow],
             description = 'A matplotlib figure of a selected column and row'))
@@ -190,6 +196,7 @@ class Sq1TuneProcess(pr.Process):
         self.add(MultiPlot(
             name='MultiPlot',
             mode='RO',
+            groups='NoDoc',
             hidden=True,
             dependencies = [self.Sq1TuneOutput, self.PlotRow],
             description = 'A matplotlib figure of all the curves for a row'))
