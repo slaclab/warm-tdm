@@ -696,6 +696,31 @@ class Group(pr.Device):
                             for m in self._config.columnMap],
             tuneEnVar = self.ColTuneEnable))
 
+        @self.command()
+        def ZeroSaBias():
+            self.SaBiasCurrent.set(0)
+            self.SaOffset.set(0)
+
+        @self.command()
+        def ZeroSaFb():
+            self.SaFbForceCurrent.set(0)
+
+        @self.command()
+        def ZeroSq1Bias():
+            self.Sq1BiasForceCurrent.set(0)
+
+        @self.command()
+        def ZeroSq1Fb():
+            self.Sq1FbForceCurrent.set(0)
+        
+        @self.command()
+        def ZeroDacs():
+            self.Sq1FbForceCurrent.set(0)
+            self.Sq1BiasForceCurrent.set(0)
+            self.SaFbForceCurrent.set(0)
+            self.SaBiasCurrent.set(0)
+            self.SaOffset.set(0)
+
         self.columnSelectedVars = [
             self.ColTuneEnable,
             self.SaBiasVoltage,
