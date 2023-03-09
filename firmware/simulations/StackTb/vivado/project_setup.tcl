@@ -1,3 +1,12 @@
+##############################################################################
+## This file is part of 'warm-tdm'.
+## It is subject to the license terms in the LICENSE.txt file found in the 
+## top-level directory of this distribution and at: 
+##    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html. 
+## No part of 'warm-tdm', including this file, 
+## may be copied, modified, propagated, or distributed except according to 
+## the terms contained in the LICENSE.txt file.
+##############################################################################
 set_property target_language Verilog [current_project]
 set_property STEPS.SYNTH_DESIGN.ARGS.FLATTEN_HIERARCHY none [get_runs synth_1]
 #set_property STEPS.SYNTH_DESIGN.ARGS.BUFG 32 [get_runs synth_1]
