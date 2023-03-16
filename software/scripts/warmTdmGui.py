@@ -86,7 +86,7 @@ config = warm_tdm_api.GroupConfig(rowBoards=groups[0]['rowBoards'],
 # root.start()
 # #pyrogue.waitCntrlC()
 
-with warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=args.emulate, plots=args.plots, initRead=True) as root:
+with warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=args.emulate, plots=args.plots, initRead=not args.sim) as root:
 
     if args.docs != '':
         root.genDocuments(path=args.docs,incGroups=['DocApi'],excGroups=['NoDoc','Enable','Hardware'])
