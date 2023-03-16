@@ -127,6 +127,44 @@ class Sq1TuneProcess(pr.Process):
             mode='RW',
             description="Number of steps for SQ1 Bias Tuning"))
 
+        self.add(pr.LocalVariable(
+            name='ServoKp',
+            value=-0.1,
+            mode='RW',
+            description="Proportional PID coefficient"))
+
+        self.add(pr.LocalVariable(
+            name='ServoKi',
+            value=0.0,
+            mode='RW',
+            description="Integral PID coefficient"))
+
+        self.add(pr.LocalVariable(
+            name='ServoKd',
+            value=0.0,
+            mode='RW',
+            description="Differential PID coefficient"))
+
+        self.add(pr.LocalVariable(
+            name='ServoPrecision',
+            value=0.001,
+            mode='RW',
+            description="Convergance precision"))
+
+
+        self.add(pr.LocalVariable(
+            name='ServoMaxLoops',
+            value=100,
+            mode='RW',
+            description="Max number of loops for PID convergance"))
+        
+        self.add(pr.LocalVariable(
+            name='ServoDisable',
+            value=True,
+            mode='RW',
+            description="Disable the servo and grab SaOutAdc directly"))
+        
+
         # SQ1 Tuning Results
         self.add(pr.LocalVariable(
             name='Sq1TuneOutput',

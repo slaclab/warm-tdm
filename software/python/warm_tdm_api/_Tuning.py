@@ -227,14 +227,19 @@ def saTune(*, group, process=None, doSet=True):
 
 
 #FAS TUNING
-def saFbServo(*, group, precision=1.0):
+def saFbServo(*, group, process):
     """Returns list of SaFb values which zero out SaOut.
     Each element corresponds with a column
     """
 
     # Setup PID controller
-    pid = [PID(.1,0,0) for _ in range(len(group.ColumnMap.value()))]
-    maxLoops = 100
+    kp = process.ServoKp.get()
+    ki = process.ServoKi.get()
+    kd = process.ServoKd.get()
+    precision = process.ServoPrecision.get()
+    maxLoops = process.ServoMaxLoops.get()
+    
+    pid = [PID(kp, ki, kd) for _ in range(len(group.ColumnMap.value()))]
 
     for p in pid:
         p.setpoint = 0 # want to zero out SaOut
@@ -373,15 +378,19 @@ def sq1FbSweep(*, group, bias, fbRange, row, process):
     curves = [warm_tdm_api.Curve(bias[i]) for i in range(colCount)]
     numSteps = len(fbRange[0])
 
+    servoDisable = process.ServoDisable.get()
+
     for fbStep in range(numSteps):
         # Set SQ1 FB
         group.Sq1FbForceCurrent.set(fbRange[:, fbStep])
 
-        # Servo saFB
-        #points = saFbServo(group=group)
 
-        # Open Loop mode - temporary for testing
-        points = group.SaOut.get()
+        if servoDisable is False:
+            # Servo saFB            
+            points = saFbServo(group=group, process=process)
+        else:
+            # Open Loop mode - temporary for testing
+            points = group.SaOut.get()
 
         # Add points to curves
         for col in range(colCount):
