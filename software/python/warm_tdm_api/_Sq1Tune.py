@@ -4,6 +4,7 @@ import warm_tdm_api
 
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 
 class SinglePlot(pr.LinkVariable):
 
@@ -225,6 +226,13 @@ class Sq1TuneProcess(pr.Process):
             dependencies = [self.Sq1TuneOutput, self.PlotRow],
             description = 'A matplotlib figure of all the curves for a row'))
 
+        self.add(pr.LocalCommand(
+            name='SavePlotData',
+            value='',
+            function=self._saveData,
+            description="Command to save the plot data as a numpy binary file (np.save). The arg is the filename to write the data to. "))
+        
+
     def _getHelper(self, field):
         with self.root.updateGroup():
             col = self.PlotColumn.value()
@@ -250,6 +258,17 @@ class Sq1TuneProcess(pr.Process):
         with self.root.updateGroup(0.25):
             ret = warm_tdm_api.sq1Tune(group=self.parent, process=self)
         self.Sq1TuneOutput.set(value = [[col.asDict() for col in row] for row in ret])
+
+    def _saveData(self,arg):
+        print(f"Sq1Tune - Save data called with {arg=}")
+        filename = arg
+        if arg is None or arg == '':
+            timestr = time.strftime("%Y%m%d-%H%M%S")
+            filename = f'SQ1Tune_{timestr}.npy'
+
+        np.save(filename, self.Sq1TuneOutput.value())
+
+
 
 
 

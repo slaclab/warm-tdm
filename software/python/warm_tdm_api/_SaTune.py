@@ -237,7 +237,11 @@ class SaTuneProcess(pr.Process):
             self.SaTuneOutput.set(value=[r.asDict() for r in ret])
 
     def _saveData(self,arg):
-        print(f"Save data called with {arg}")
-        if arg != '':
-            np.save(arg,self.SaTuneOutput.value())
+        print(f"SaTune - Save data called with {arg=}")
+        filename = arg
+        if arg is None or arg == '':
+            timestr = time.strftime("%Y%m%d-%H%M%S")
+            filename = f'SATune_{timestr}.npy'
+
+        np.save(filename, self.SaTuneOutput.value())
 
