@@ -264,7 +264,7 @@ def saFbServo(*, group, process):
 
         for i, p in enumerate(pid):
             change = p(masked[i])
-            control[i] = np.clip(control[i] + change, 0.0, 500e-6) # Check this clip range
+            control[i] = np.clip(control[i] + change, -100. ,100.0 ) # Check this clip range
 
         group.SaFbForceCurrent.set(control)
 
@@ -482,6 +482,7 @@ def sq1Tune(group, process):
     process.TotalSteps.set(totalSteps)
 
     #group.RowForceEn.set(True)
+    saOffset(group=group)
 
     
     for row in range(group.NumRows.get()):
