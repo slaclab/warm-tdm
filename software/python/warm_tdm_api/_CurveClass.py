@@ -134,10 +134,10 @@ class Curve():
         self.max_slope_point = (x_sliced[y_prime.argmax()], y_sliced[y_prime.argmax()])
         
         argmin = y_sliced.argmin()
-        self.lowpoint = (xValues[argmin], np_points[argmin])
+        self.lowpoint = (x_sliced[argmin], y_sliced[argmin])
         argmax = y_sliced.argmax()
-        self.highpoint = (xValues[argmax], np_points[argmax])
-        self.peakheight = self.highpoint[1] - self.lowpoint[1]
+        self.highpoint = (x_sliced[argmax], y_sliced[argmax])
+        self.peakheight = np_points.max() - np_points.min()
 
         print(f'Processed curve for bias={self.bias:.2f}')
         print(f'{self.phinot=:.2f}')
