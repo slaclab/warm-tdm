@@ -334,14 +334,15 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
             parent = self,
             hidden=True))
 
-
+        self.add(pr.LocalVariable(
+            name = 'SaveData',
+            value = False))
 
     def _acceptFrame(self, frame):
         if frame.getError():
             print('Frame Error!')
             return
 
-        print('_acceptFrame() - start')
         data = frame.getNumpy(0, frame.getPayload())
         numBytes = data.size
         print(f'PyDM - Got Frame on channel {frame.getChannel()}: {numBytes} bytes')
@@ -357,8 +358,6 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
         adcs = adcs//4
 
         with self.root.updateGroup():
-            print('update Group open')
-
             if channel >= 8:
                 # Construct a view of the adc data
                 adcs.resize(adcs.size//8, 8)
@@ -366,7 +365,6 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
             else:
                 self.RmsNoiseRaw.set(value=adcs.std(), index=channel)
 
-            print(adcs)
             voltages = self.conv(adcs)
             ampVin = np.zeros_like(voltages)
             
@@ -395,10 +393,11 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
             #print(d)
             self.RawData.set(d)
 
-            print('update Group closed')
+            if self.SaveData.value():
+                timestr = time.strftime("%Y%m%d-%H%M%S")
+                filename = f'../data/Waveform_{timestr}.npy'
+                np.save(filename, self.RawData.value())
 
-
-        print('_acceptFrame() - done')
 
 def plot_waveform_channel(ch, ax, values, src, multi_channel):
     ax.clear()
