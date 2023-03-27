@@ -25,30 +25,23 @@ def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title)
             linewidth = 1.0
             if biasIndex == curveDataDict['bestIndex']:
                 linewidth = 2.0
-            peak = curveDataDict['peaks'][biasIndex] 
-            label = f'{value:1.3f} - P-P: {peak:1.3f}'
+            peak = curveDataDict['peaks'][biasIndex]
+            phinot = curveDataDict['phinots'][biasIndex]
+            label = f'{value:1.3f} - P-P: {peak:1.3f} - $\phi_o$: {phinot:.2f}'
             color = next(ax._get_lines.prop_cycler)['color']
             # Plot the curve
             ax.plot(xValues, curveDataDict['curves'][biasIndex], label=label, linewidth=linewidth, color=color)
             # Mark the max point
-            ax.plot(curveDataDict['highIndexes'][biasIndex], curveDataDict['highPoints'][biasIndex], '^', color=color)
+            ax.plot(*curveDataDict['highPoints'][biasIndex], '^', color=color)
             # Mark the min point
-            ax.plot(curveDataDict['lowIndexes'][biasIndex], curveDataDict['lowPoints'][biasIndex], 'v', color=color)            
+            ax.plot(*curveDataDict['lowPoints'][biasIndex], 'v', color=color)
 
         # Plot the calculated operating point
-        #ax.plot(curveDataDict['xOut'], curveDataDict['yOut'], 's')
+        ax.plot(curveDataDict['xOut'], curveDataDict['yOut'], 's', label='Tune Point')
         ax.axhline(y=curveDataDict['yOut'], linestyle='--')
+        ax.axvline(x=curveDataDict['xOut'], linestyle='--')
 
-        # Plot a fitted sin wave
-        if len(curveDataDict['sinfits']) > 0:
-            bestIndex = curveDataDict['bestIndex']
-            if len(curveDataDict['sinfits'][bestIndex]) > 0:
-                A, w, p, c = curveDataDict['sinfits'][bestIndex]
-                x = np.linspace(xValues.min(), xValues.max(), 5000)
-                fitcurve = _sinfunc(x, A, w, p, c)
-                ax.plot(x, fitcurve, '--')
-
-        ax.legend(title=legend_title)                
+        ax.legend(title=legend_title)
     
 
 class CurveData():
@@ -72,12 +65,10 @@ class CurveData():
                 self.bestCurve = curve
                 self.bestIndex = i
                 
-        #self.bestfit = self.fit(self.bestCurve)
-
         if self.bestCurve is not None:
             self.biasOut = self.bestCurve.bias
-            self.yOut = (self.bestCurve.lowpoint + self.bestCurve.highpoint) / 2
-            self.xOut = (self.bestCurve.lowindex + self.bestCurve.highindex) / 2
+            self.yOut = self.bestCurve.max_slope_point[1]
+            self.xOut = self.bestCurve.max_slope_point[0]
 
     def addCurve(self,curve):
         self.curveList.append(curve)
@@ -89,13 +80,13 @@ class CurveData():
             'biasValues': np.array([c.bias for c in self.curveList], np.float32),
             'curves': [np.array(c.points, np.float32) for c in self.curveList],
             'peaks': np.array([c.peakheight for c in self.curveList], np.float32),
-            'lowIndexes': np.array([c.lowindex for c in self.curveList], np.float32),
+            'phinots': np.array([c.phinot for c in curveList], np.float32),
+            'minSlopePoints': np.array([c.min_slope_point for c in curveList], np.float32),
+            'maxSlopePoints': np.array([c.max_slope_point for c in curveList], np.float32),
             'lowPoints': np.array([c.lowpoint for c in self.curveList], np.float32),
-            'highIndexes': np.array([c.highindex for c in self.curveList], np.float32),
             'highPoints': np.array([c.highpoint for c in self.curveList], np.float32),
-            'sinfits': np.array([c.curvefit for c in self.curveList], np.float32),
             'bestIndex' : self.bestIndex,
-            'bestPeak' : 0.0 if self.bestIndex is None else self.bestCurve.peakheight,
+#            'bestPeak' : 0.0 if self.bestIndex is None else self.bestCurve.peakheight,
             'biasOut': self.biasOut,
             'xOut': self.xOut,
             'yOut': self.yOut,
@@ -113,42 +104,51 @@ class Curve():
     def __init__(self, bias):
         self.bias = bias
         self.points = [] #np.zeros(parent.xValues.size, float)
-        self.lowindex = 0
-        self.highindex = 0
+
+        # Calculated curve parameters
+        self.phinot = 0.0
         self.peakheight = 0
+        self.min_slope_point = 0
+        self.max_slope_point = 0
+        self.lowindex = 0
+        self.highindex = 0        
         self.curvefit = []
 
     def updatePeak(self, xValues):
         print(f'bias curve {self.bias} - updatePeak()')
         np_points = np.array(self.points)
-        argmin = np_points.argmin()
-        self.lowindex = xValues[argmin]
-        self.lowpoint = np_points[argmin]
-        argmax = np_points.argmax()
-        self.highindex = xValues[argmax]
-        self.highpoint = np_points[argmax]
-        self.peakheight = self.highpoint - self.lowpoint
+
+        # Use FFT to find phy_not
+        ff = np.fft.fftfreq(xValues.size, xValues[1]-xValues[0])
+        Fyy = abs(np.fft.fft(np_points))
+        self.phinot = 1.0/abs(ff[np.argmax(Fyy[1:])+1])
+
+        # Slice the curve for 1.25 phy_not
+        # This finds min and max slope points closest to x=0
+        slice_low = xValues.searchsorted(0)
+        slice_high = xValues.searchsorted(self.phi_not*1.25)
+        x_sliced = xValues[slice_low:slice_high]
+        y_sliced = np_points[slice_low:slice_high]
+        y_prime = np.gradient(y_sliced, x_sliced)
+        self.min_slope_point = (x_sliced[y_prime.argmin()], y_sliced[y_prime.min()])
+        self.max_slope_point = (x_sliced[y_prime.argmax()], y_sliced[y_prime.max()])
         
-        print(f'{self.lowindex=}')
+        argmin = y_sliced.argmin()
+        self.lowpoint = (xValues[argmin], np_points[argmin])
+        argmax = y_sliced.argmax()
+        self.highpoint = (xValues[argmax], np_points[argmax])
+        self.peakheight = self.highpoint[1] - self.lowpoint[1]
+
+        print(f'Processed curve for bias={self.bias:.2f}')
+        print(f'{self.phinot=:.2f}')
+        print(f'{self.min_slope_point=}')
+        print(f'{self.max_slope_point=}')
         print(f'{self.lowpoint=}')
-        print(f'{self.highindex=}')
         print(f'{self.highpoint=}')
         print(f'{self.peakheight=}')
         #with np.printoptions(threshold=np.inf):
         #    print(xValues)
         #    print(np_points)
-
-        ff = np.fft.fftfreq(xValues.size, xValues[1]-xValues[0])
-        Fyy = abs(np.fft.fft(np_points))
-        guess_period = 1.0/abs(ff[np.argmax(Fyy[1:])+1])
-        guess_amp = np.std(np_points) * 2**0.5
-        guess_offset = np.mean(np_points)
-        guess = np.array([guess_amp, guess_period, 0, guess_offset])
-        try:
-            self.curvefit = scipy.optimize.curve_fit(_sinfunc, xValues, np_points, p0=guess)[0]
-            print(f'{self.curvefit=}')            
-        except RuntimeError:
-            print('Could not fit curves')
 
 
 
