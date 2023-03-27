@@ -161,7 +161,7 @@ class Sq1TuneProcess(pr.Process):
         
         self.add(pr.LocalVariable(
             name='ServoDisable',
-            value=True,
+            value=False,
             mode='RW',
             description="Disable the servo and grab SaOutAdc directly"))
         
