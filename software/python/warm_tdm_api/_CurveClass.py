@@ -80,9 +80,9 @@ class CurveData():
             'biasValues': np.array([c.bias for c in self.curveList], np.float32),
             'curves': [np.array(c.points, np.float32) for c in self.curveList],
             'peaks': np.array([c.peakheight for c in self.curveList], np.float32),
-            'phinots': np.array([c.phinot for c in curveList], np.float32),
-            'minSlopePoints': np.array([c.min_slope_point for c in curveList], np.float32),
-            'maxSlopePoints': np.array([c.max_slope_point for c in curveList], np.float32),
+            'phinots': np.array([c.phinot for c in self.curveList], np.float32),
+            'minSlopePoints': np.array([c.min_slope_point for c in self.curveList], np.float32),
+            'maxSlopePoints': np.array([c.max_slope_point for c in self.curveList], np.float32),
             'lowPoints': np.array([c.lowpoint for c in self.curveList], np.float32),
             'highPoints': np.array([c.highpoint for c in self.curveList], np.float32),
             'bestIndex' : self.bestIndex,
@@ -126,12 +126,12 @@ class Curve():
         # Slice the curve for 1.25 phy_not
         # This finds min and max slope points closest to x=0
         slice_low = xValues.searchsorted(0)
-        slice_high = xValues.searchsorted(self.phi_not*1.25)
+        slice_high = xValues.searchsorted(self.phinot*1.25)
         x_sliced = xValues[slice_low:slice_high]
         y_sliced = np_points[slice_low:slice_high]
         y_prime = np.gradient(y_sliced, x_sliced)
-        self.min_slope_point = (x_sliced[y_prime.argmin()], y_sliced[y_prime.min()])
-        self.max_slope_point = (x_sliced[y_prime.argmax()], y_sliced[y_prime.max()])
+        self.min_slope_point = (x_sliced[y_prime.argmin()], y_sliced[y_prime.argmin()])
+        self.max_slope_point = (x_sliced[y_prime.argmax()], y_sliced[y_prime.argmax()])
         
         argmin = y_sliced.argmin()
         self.lowpoint = (xValues[argmin], np_points[argmin])
