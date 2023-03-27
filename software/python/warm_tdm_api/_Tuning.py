@@ -259,7 +259,7 @@ def saFbServo(*, group, process):
         masked = current * mult
 
         # All channels have converged
-        if (max(current) < precision) and (min(masked) > (-1.0*precision)):
+        if (max(masked) < precision) and (min(masked) > (-1.0*precision)):
             break
 
         for i, p in enumerate(pid):
@@ -269,7 +269,7 @@ def saFbServo(*, group, process):
         group.SaFbForceCurrent.set(control)
 
     else:
-        raise Exception(f"saOffset PID loop failed to converge after {maxLoops} loops")
+        raise Exception(f"saFb PID loop failed to converge after {maxLoops} loops")
 
     print(f'saFb PID loop Converged after {count} loops')
 
