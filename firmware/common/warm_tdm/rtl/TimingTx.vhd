@@ -43,9 +43,10 @@ entity TimingTx is
       timingRefClk : in sl;
       timingRefRst : in sl;
 
-      xbarDataSel : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
-      xbarClkSel  : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
-      xbarMgtSel  : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarDataSel   : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarClkSel    : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarMgtSel    : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarTimingSel : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
 
       timingTxClkP  : out sl;
       timingTxClkN  : out sl;
@@ -75,9 +76,10 @@ architecture rtl of TimingTx is
 
    type RegType is record
       -- XBAR
-      xbarDataSel : slv(1 downto 0);
-      xbarClkSel  : slv(1 downto 0);
-      xbarMgtSel  : slv(1 downto 0);
+      xbarDataSel   : slv(1 downto 0);
+      xbarClkSel    : slv(1 downto 0);
+      xbarMgtSel    : slv(1 downto 0);
+      xbarTimingSel : slv(1 downto 0);
 
       -- Config
       runMode           : sl;
@@ -95,15 +97,16 @@ architecture rtl of TimingTx is
    end record RegType;
 
    constant REG_INIT_C : RegType := (
-      xbarDataSel       => ite(RING_ADDR_0_G, "11", "00"), -- Temporary loopback only
+      xbarDataSel       => ite(RING_ADDR_0_G, "11", "00"),  -- Temporary loopback only
       xbarClkSel        => ite(RING_ADDR_0_G, "11", "00"),
       xbarMgtSel        => "01",
+      xbarTimingSel     => "01",
       runMode           => SOFTWARE_C,
       softwareRowStrobe => '0',
-      rowPeriod         => toSlv(256, 16),  -- 125 MHz / 256 = 488 kHz
-      numRows           => toSlv(64, 16),   -- Default of 64 rows
+      rowPeriod         => toSlv(256, 16),                  -- 125 MHz / 256 = 488 kHz
+      numRows           => toSlv(64, 16),                   -- Default of 64 rows
       sampleStartTime   => toSlv(150, 16),
-      sampleEndTime     => toSlv(249, 16),  -- Could be corner case here?
+      sampleEndTime     => toSlv(249, 16),                  -- Could be corner case here?
       timingTx          => IDLE_C,
       timingData        => LOCAL_TIMING_INIT_C,
       axilWriteSlave    => AXI_LITE_WRITE_SLAVE_INIT_C,
@@ -180,6 +183,7 @@ begin
       axiSlaveRegister(axilEp, X"50", 0, v.xbarClkSel);
       axiSlaveRegister(axilEp, X"50", 4, v.xbarDataSel);
       axiSlaveRegister(axilEp, X"50", 8, v.xbarMgtSel);
+      axiSlaveRegister(axilEp, X"50", 12, v.xbarTimingSel);
 
       axiSlaveRegisterR(axilEp, X"60", 0, refClkFreq);
       axiSlaveRegisterR(axilEp, X"64", 0, wordClkFreq);
@@ -260,9 +264,10 @@ begin
       timingAxilWriteSlave <= r.axilWriteSlave;
       timingAxilReadSlave  <= r.axilReadSlave;
 
-      xbarClkSel  <= r.xbarClkSel;
-      xbarDataSel <= r.xbarDataSel;
-      xbarMgtSel  <= r.xbarMgtSel;
+      xbarClkSel    <= r.xbarClkSel;
+      xbarDataSel   <= r.xbarDataSel;
+      xbarMgtSel    <= r.xbarMgtSel;
+      xbarTimingSel <= r.xbarTimingSel;
 
 
    end process;

@@ -64,9 +64,10 @@ entity WarmTdmCore is
       pgpRxN : in  slv(1 downto 0);
 
       -- Timing Interface Crossbars
-      xbarDataSel : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
-      xbarClkSel  : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
-      xbarMgtSel  : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarDataSel   : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarClkSel    : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarMgtSel    : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarTimingSel : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
 
       -- SelectIO Timing
       timingRxClkP  : in  sl;
@@ -304,24 +305,25 @@ begin
          IODELAY_GROUP_G   => "IODELAY0",
          IDELAYCTRL_FREQ_G => 200.0)
       port map (
-         timingGtRefClk  => gtRefClk1,                           -- [in]
-         timingFabRefClk => fabRefClk1,                          -- [in]
-         timingRxClkP    => timingRxClkP,                        -- [in]
-         timingRxClkN    => timingRxClkN,                        -- [in]
-         timingRxDataP   => timingRxDataP,                       -- [in]
-         timingRxDataN   => timingRxDataN,                       -- [in]
+         timingGtRefClk  => gtRefClk1,  -- [in]
+         timingFabRefClk => fabRefClk1,     -- [in]
+         timingRxClkP    => timingRxClkP,   -- [in]
+         timingRxClkN    => timingRxClkN,   -- [in]
+         timingRxDataP   => timingRxDataP,  -- [in]
+         timingRxDataN   => timingRxDataN,  -- [in]
          timingRxClkOut  => locTimingRxClk125,                   -- [out]
          timingRxRstOut  => timingRxRst125,                      -- [out]
-         timingRxDataOut => timingRxData,                        -- [out]
-         timingTxClkP    => timingTxClkP,                        -- [out]
-         timingTxClkN    => timingTxClkN,                        -- [out]
-         timingTxDataP   => timingTxDataP,                       -- [out]
-         timingTxDataN   => timingTxDataN,                       -- [out]
-         xbarClkSel      => xbarClkSel,                          -- [out]
-         xbarDataSel     => xbarDataSel,                         -- [out]
-         xbarMgtSel      => xbarMgtSel,                          -- [out]         
-         axilClk         => locAxilClk,                          -- [in]
-         axilRst         => locAxilRst,                          -- [in]
+         timingRxDataOut => timingRxData,   -- [out]
+         timingTxClkP    => timingTxClkP,   -- [out]
+         timingTxClkN    => timingTxClkN,   -- [out]
+         timingTxDataP   => timingTxDataP,  -- [out]
+         timingTxDataN   => timingTxDataN,  -- [out]
+         xbarClkSel      => xbarClkSel,     -- [out]
+         xbarDataSel     => xbarDataSel,    -- [out]
+         xbarMgtSel      => xbarMgtSel,     -- [out]
+         xbarTimingSel   => xbarTimingSel,  -- [out]                                                                 -- 
+         axilClk         => locAxilClk,     -- [in]
+         axilRst         => locAxilRst,     -- [in]
          axilWriteMaster => locAxilWriteMasters(AXIL_TIMING_C),  -- [in]
          axilWriteSlave  => locAxilWriteSlaves(AXIL_TIMING_C),   -- [out]
          axilReadMaster  => locAxilReadMasters(AXIL_TIMING_C),   -- [in]

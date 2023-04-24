@@ -67,9 +67,10 @@ entity Timing is
       timingTxDataN : out sl;
 
       -- XBAR select
-      xbarDataSel : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
-      xbarClkSel  : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
-      xbarMgtSel  : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarDataSel   : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarClkSel    : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarMgtSel    : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarTimingSel : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
 
       -- Configuration
       axilClk         : in  sl;
@@ -208,8 +209,9 @@ begin
          timingRefClk    => timingFabRefClk,         -- [in]
          timingRefRst    => timingRefRst,            -- [in]
          xbarDataSel     => xbarDataSel,             -- [out]
-         xbarClkSel      => xbarClkSel,              --[out]
-         xbarMgtSel      => xbarMgtSel,              --[out]         
+         xbarClkSel      => xbarClkSel,              -- [out]
+         xbarMgtSel      => xbarMgtSel,              -- [out]
+         xbarTimingSel   => xbarTimingSel,            -- [out]
          timingTxClkP    => timingTxClkP,            -- [out]
          timingTxClkN    => timingTxClkN,            -- [out]
          timingTxDataP   => timingTxDataP,           -- [out]
