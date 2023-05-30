@@ -186,7 +186,7 @@ begin
    axiClk <= iAxiClk;
    axiRst <= iAxiRst;
 
-    REAL_PGP_GEN : if (false) generate --SIM_PORT_NUM_G = 0) generate
+    REAL_PGP_GEN : if (true) generate --SIM_PORT_NUM_G = 0) generate
       Pgp2bGtx7VarLat_Inst_0 : entity surf.Pgp2bGtx7VarLat
          generic map (
             TPD_G                 => TPD_G,
@@ -357,83 +357,83 @@ begin
 
   end generate;
 
-   SIM_GEN : if (SIM_PORT_NUM_G > 0) generate
+--    SIM_GEN : if (SIM_PORT_NUM_G > 0) generate
 
-      U_RoguePgp2bSim_1 : entity surf.RoguePgp2bSim
-         generic map (
-            TPD_G         => TPD_G,
-            PORT_NUM_G    => 7000,         --SIM_PORT_NUM_G,
-            NUM_VC_G      => 4,
-            EN_SIDEBAND_G => true)
-         port map (
-            pgpClk       => pgpClk,        -- [in]
-            pgpClkRst    => pgpRst,        -- [in]
-            pgpRxIn      => pgpRxIn(0),    -- [in]
-            pgpRxOut     => pgpRxOut(0),   -- [out]
-            pgpTxIn      => pgpTxIn(0),    -- [in]
-            pgpTxOut     => pgpTxOut(0),   -- [out]
-            pgpTxMasters => pgpTxMasters,  -- [in]
-            pgpTxSlaves  => pgpTxSlaves,   -- [out]
-            pgpRxMasters => pgpRxMasters,  -- [out]
-            pgpRxSlaves  => pgpRxSlaves);  -- [in]
+--       U_RoguePgp2bSim_1 : entity surf.RoguePgp2bSim
+--          generic map (
+--             TPD_G         => TPD_G,
+--             PORT_NUM_G    => 7000,         --SIM_PORT_NUM_G,
+--             NUM_VC_G      => 4,
+--             EN_SIDEBAND_G => true)
+--          port map (
+--             pgpClk       => pgpClk,        -- [in]
+--             pgpClkRst    => pgpRst,        -- [in]
+--             pgpRxIn      => pgpRxIn(0),    -- [in]
+--             pgpRxOut     => pgpRxOut(0),   -- [out]
+--             pgpTxIn      => pgpTxIn(0),    -- [in]
+--             pgpTxOut     => pgpTxOut(0),   -- [out]
+--             pgpTxMasters => pgpTxMasters,  -- [in]
+--             pgpTxSlaves  => pgpTxSlaves,   -- [out]
+--             pgpRxMasters => pgpRxMasters,  -- [out]
+--             pgpRxSlaves  => pgpRxSlaves);  -- [in]
 
-   end generate;
+--    end generate;
 
---    U_Pgp2bAxi_0 : entity surf.Pgp2bAxi
---       generic map (
---          TPD_G             => TPD_G,
---          COMMON_TX_CLK_G   => false,
---          COMMON_RX_CLK_G   => false,
---          WRITE_EN_G        => true,
---          AXI_CLK_FREQ_G    => 125.0E6,
---          ERROR_CNT_WIDTH_G => 16)
---       port map (
---          pgpTxClk        => pgpClk,                             -- [in]
---          pgpTxClkRst     => pgpRst,                             -- [in]
---          pgpTxIn         => pgpTxIn(0),                         -- [out]
---          pgpTxOut        => pgpTxOut(0),                        -- [in]
---          locTxIn         => locPgpTxIn(0),                      -- [in]
---          pgpRxClk        => pgpClk,                             -- [in]
---          pgpRxClkRst     => pgpRst,                             -- [in]
---          pgpRxIn         => pgpRxIn(0),                         -- [out]
---          pgpRxOut        => pgpRxOut(0),                        -- [in]
--- --         locRxIn         => locRxIn,          -- [in]
--- --          statusWord      => statusWord,       -- [out]
--- --          statusSend      => statusSend,       -- [out]
---          axilClk         => iAxiClk,                            -- [in]
---          axilRst         => iAxiRst,                            -- [in]
---          axilReadMaster  => locAxilReadMasters(AXIL_PGP_0_C),   -- [in]
---          axilReadSlave   => locAxilReadSlaves(AXIL_PGP_0_C),    -- [out]
---          axilWriteMaster => locAxilWriteMasters(AXIL_PGP_0_C),  -- [in]
---          axilWriteSlave  => locAxilWriteSlaves(AXIL_PGP_0_C));  -- [out]
+   U_Pgp2bAxi_0 : entity surf.Pgp2bAxi
+      generic map (
+         TPD_G             => TPD_G,
+         COMMON_TX_CLK_G   => false,
+         COMMON_RX_CLK_G   => false,
+         WRITE_EN_G        => true,
+         AXI_CLK_FREQ_G    => 125.0E6,
+         ERROR_CNT_WIDTH_G => 16)
+      port map (
+         pgpTxClk        => pgpClk,                             -- [in]
+         pgpTxClkRst     => pgpRst,                             -- [in]
+         pgpTxIn         => pgpTxIn(0),                         -- [out]
+         pgpTxOut        => pgpTxOut(0),                        -- [in]
+         locTxIn         => locPgpTxIn(0),                      -- [in]
+         pgpRxClk        => pgpClk,                             -- [in]
+         pgpRxClkRst     => pgpRst,                             -- [in]
+         pgpRxIn         => pgpRxIn(0),                         -- [out]
+         pgpRxOut        => pgpRxOut(0),                        -- [in]
+--         locRxIn         => locRxIn,          -- [in]
+--          statusWord      => statusWord,       -- [out]
+--          statusSend      => statusSend,       -- [out]
+         axilClk         => iAxiClk,                            -- [in]
+         axilRst         => iAxiRst,                            -- [in]
+         axilReadMaster  => locAxilReadMasters(AXIL_PGP_0_C),   -- [in]
+         axilReadSlave   => locAxilReadSlaves(AXIL_PGP_0_C),    -- [out]
+         axilWriteMaster => locAxilWriteMasters(AXIL_PGP_0_C),  -- [in]
+         axilWriteSlave  => locAxilWriteSlaves(AXIL_PGP_0_C));  -- [out]
 
---    U_Pgp2bAxi_1 : entity surf.Pgp2bAxi
---       generic map (
---          TPD_G             => TPD_G,
---          COMMON_TX_CLK_G   => false,
---          COMMON_RX_CLK_G   => false,
---          WRITE_EN_G        => true,
---          AXI_CLK_FREQ_G    => 125.0E6,
---          ERROR_CNT_WIDTH_G => 16)
---       port map (
---          pgpTxClk        => pgpClk,                             -- [in]
---          pgpTxClkRst     => pgpRst,                             -- [in]
---          pgpTxIn         => pgpTxIn(1),                         -- [out]
---          pgpTxOut        => pgpTxOut(1),                        -- [in]
---          locTxIn         => locPgpTxIn(1),                      -- [in]
---          pgpRxClk        => pgpClk,                             -- [in]
---          pgpRxClkRst     => pgpRst,                             -- [in]
---          pgpRxIn         => pgpRxIn(1),                         -- [out]
---          pgpRxOut        => pgpRxOut(1),                        -- [in]
--- --         locRxIn         => locRxIn,          -- [in]
--- --          statusWord      => statusWord,       -- [out]
--- --          statusSend      => statusSend,       -- [out]
---          axilClk         => iAxiClk,                            -- [in]
---          axilRst         => iAxiRst,                            -- [in]
---          axilReadMaster  => locAxilReadMasters(AXIL_PGP_1_C),   -- [in]
---          axilReadSlave   => locAxilReadSlaves(AXIL_PGP_1_C),    -- [out]
---          axilWriteMaster => locAxilWriteMasters(AXIL_PGP_1_C),  -- [in]
---          axilWriteSlave  => locAxilWriteSlaves(AXIL_PGP_1_C));  -- [out]
+   U_Pgp2bAxi_1 : entity surf.Pgp2bAxi
+      generic map (
+         TPD_G             => TPD_G,
+         COMMON_TX_CLK_G   => false,
+         COMMON_RX_CLK_G   => false,
+         WRITE_EN_G        => true,
+         AXI_CLK_FREQ_G    => 125.0E6,
+         ERROR_CNT_WIDTH_G => 16)
+      port map (
+         pgpTxClk        => pgpClk,                             -- [in]
+         pgpTxClkRst     => pgpRst,                             -- [in]
+         pgpTxIn         => pgpTxIn(1),                         -- [out]
+         pgpTxOut        => pgpTxOut(1),                        -- [in]
+         locTxIn         => locPgpTxIn(1),                      -- [in]
+         pgpRxClk        => pgpClk,                             -- [in]
+         pgpRxClkRst     => pgpRst,                             -- [in]
+         pgpRxIn         => pgpRxIn(1),                         -- [out]
+         pgpRxOut        => pgpRxOut(1),                        -- [in]
+--         locRxIn         => locRxIn,          -- [in]
+--          statusWord      => statusWord,       -- [out]
+--          statusSend      => statusSend,       -- [out]
+         axilClk         => iAxiClk,                            -- [in]
+         axilRst         => iAxiRst,                            -- [in]
+         axilReadMaster  => locAxilReadMasters(AXIL_PGP_1_C),   -- [in]
+         axilReadSlave   => locAxilReadSlaves(AXIL_PGP_1_C),    -- [out]
+         axilWriteMaster => locAxilWriteMasters(AXIL_PGP_1_C),  -- [in]
+         axilWriteSlave  => locAxilWriteSlaves(AXIL_PGP_1_C));  -- [out]
 
 
 
