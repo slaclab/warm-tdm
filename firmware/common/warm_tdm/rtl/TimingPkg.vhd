@@ -49,10 +49,12 @@ package TimingPkg is
       sample       : sl;
       firstSample  : sl;
       lastSample   : sl;
-      rowNum       : slv(15 downto 0);  -- Current row number
+      rowSeq       : slv(9 downto 0);   -- Sequence in row readout list
+      rowIndex     : slv(7 downto 0);   -- Current row index
+      rowIndexNext : slv(7 downto 0);
       rowTime      : slv(15 downto 0);  -- timingClk counts since last row strobe
       readoutCount : slv(63 downto 0);  -- Number of full loops through all rows
-      rawAdc       : sl;
+      rawAdc       : sl;                -- Capture ADC waveforms on all channels
    end record LocalTimingType;
 
    constant LOCAL_TIMING_INIT_C : LocalTimingType := (
@@ -64,9 +66,12 @@ package TimingPkg is
       sample       => '0',
       firstSample  => '0',
       lastSample   => '0',
-      rowNum       => (others => '0'),
+      rowSeq       => (others => '0'),
+      rowIndex     => (others => '0'),
+      rowIndexNext => (others => '0'),
       rowTime      => (others => '0'),
       readoutCount => (others => '0'),
       rawAdc       => '0');
+
 
 end package TimingPkg;

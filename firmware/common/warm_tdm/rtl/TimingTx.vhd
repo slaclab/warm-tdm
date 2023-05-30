@@ -175,7 +175,9 @@ begin
       -- Status
       axiSlaveRegisterR(axilEp, X"30", 0, r.timingData.running);
       axiSlaveRegisterR(axilEp, X"30", 1, r.timingData.sample);
-      axiSlaveRegisterR(axilEp, X"34", 0, r.timingData.rowNum);
+      axiSlaveRegisterR(axilEp, X"34", 0, r.timingData.rowSeq);
+      axiSlaveRegisterR(axilEp, X"34", 16, r.timingData.rowIndex);
+      axiSlaveRegisterR(axilEp, X"34", 24, r.timingData.rowIndexNext);            
       axiSlaveRegisterR(axilEp, X"38", 0, r.timingData.rowTime);
       axiSlaveRegisterR(axilEp, X"40", 0, r.timingData.runTime);
       axiSlaveRegisterR(axilEp, X"48", 0, r.timingData.readoutCount);
@@ -203,7 +205,7 @@ begin
       if (r.timingData.startRun = '1' and r.timingData.running = '0') then
          v.timingData.running      := '1';
          v.timingData.runTime      := (others => '0');
-         v.timingData.rowNum       := (others => '0');
+         v.timingData.rowSeq       := (others => '0');
          v.timingData.rowTime      := (others => '0');
          v.timingData.readoutCount := (others => '0');
          v.timingTx                := START_RUN_C;
@@ -218,10 +220,10 @@ begin
          if ((r.runMode = HARDWARE_C and r.timingData.rowTime = r.rowPeriod-1) or
              (r.runMode = SOFTWARE_C and r.softwareRowStrobe = '1')) then
             v.timingData.rowTime := (others => '0');
-            v.timingData.rowNum  := r.timingData.rowNum + 1;
+            v.timingData.rowSeq  := r.timingData.rowSeq + 1;
 
-            if (r.timingData.rowNum = r.numRows-1) then
-               v.timingData.rowNum       := (others => '0');
+            if (r.timingData.rowSeq = r.numRows-1) then
+               v.timingData.rowSeq       := (others => '0');
                v.timingData.readoutCount := r.timingData.readoutCount + 1;
             end if;
          end if;
@@ -231,7 +233,7 @@ begin
             (r.runMode = SOFTWARE_C and r.softwareRowStrobe = '1') then
             v.timingTx := ROW_STROBE_C;
 
-            if (r.timingData.rowNum = 0) then
+            if (r.timingData.rowSeq = 0) then
                v.timingTx := FIRST_ROW_C;
             end if;
 
