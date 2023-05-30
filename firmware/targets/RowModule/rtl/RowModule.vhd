@@ -38,17 +38,19 @@ use warm_tdm.WarmTdmPkg.all;
 entity RowModule is
 
    generic (
-      TPD_G                   : time             := 1 ns;
-      SIMULATION_G            : boolean          := false;
-      SIM_PGP_PORT_NUM_G      : integer          := 7000;
-      SIM_ETH_SRP_PORT_NUM_G  : integer          := 8000;
-      SIM_ETH_DATA_PORT_NUM_G : integer          := 9000;
+      TPD_G                   : time                  := 1 ns;
+      SIMULATION_G            : boolean               := false;
+      SIM_PGP_PORT_NUM_G      : integer               := 7000;
+      SIM_ETH_SRP_PORT_NUM_G  : integer               := 8000;
+      SIM_ETH_DATA_PORT_NUM_G : integer               := 9000;
       BUILD_INFO_G            : BuildInfoType;
-      RING_ADDR_0_G           : boolean          := false;
-      ETH_10G_G               : boolean          := false;
-      DHCP_G                  : boolean          := false;
-      IP_ADDR_G               : slv(31 downto 0) := x"0C03A8C0";  -- 192.168.3.12 
-      MAC_ADDR_G              : slv(47 downto 0) := x"0C_00_16_56_00_08");
+      RING_ADDR_0_G           : boolean               := false;
+      NUM_ROW_SELECTS_G       : integer range 1 to 32 := 10;
+      NUM_CHIP_SELECTS_G      : integer range 0 to 8  := 8;
+      ETH_10G_G               : boolean               := false;
+      DHCP_G                  : boolean               := false;
+      IP_ADDR_G               : slv(31 downto 0)      := x"0C03A8C0";  -- 192.168.3.12 
+      MAC_ADDR_G              : slv(47 downto 0)      := x"0C_00_16_56_00_08");
    port (
       -- Clocks
       gtRefClk0P : in sl;
@@ -63,10 +65,10 @@ entity RowModule is
       pgpRxN : in  slv(1 downto 0);
 
       -- Timing Interface Crossbars
-      xbarDataSel : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
-      xbarClkSel  : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
-      xbarMgtSel  : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
-      xbarTimingSel  : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");      
+      xbarDataSel   : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarClkSel    : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarMgtSel    : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarTimingSel : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
 
       -- MGT Timing
 --       timingRxP : in sl;
@@ -288,26 +290,28 @@ begin
    -------------------------------------------------------------------------------------------------
    -- DACS
    -------------------------------------------------------------------------------------------------
-   U_RowDacDriver_1: entity warm_tmd.RowDacDriver
+   U_RowDacDriver_1 : entity warm_tdm.RowDacDriver
       generic map (
-         TPD_G            => TPD_G,
-         AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_DACS_C).baseAddr)
+         TPD_G              => TPD_G,
+         NUM_ROW_SELECTS_G  => NUM_ROW_SELECTS_G,
+         NUM_CHIP_SELECTS_G => NUM_CHIP_SELECTS_G,
+         AXIL_BASE_ADDR_G   => AXIL_XBAR_CFG_C(AXIL_DACS_C).baseAddr)
       port map (
-         timingRxClk125  => timingRxClk125,   -- [in]
-         timingRxRst125  => timingRxRst125,   -- [in]
-         timingRxData    => timingRxData,     -- [in]
-         dacDb           => dacDb,            -- [out]
-         dacWrt          => dacWrt,           -- [out]
-         dacClk          => dacClk,           -- [out]
-         dacSel          => dacSel,           -- [out]
-         dacReset        => dacReset,         -- [out]
-         axilClk         => axilClk,          -- [in]
-         axilRst         => axilRst,          -- [in]
-         axilWriteMaster => axilWriteMaster,  -- [in]
-         axilWriteSlave  => axilWriteSlave,   -- [out]
-         axilReadMaster  => axilReadMaster,   -- [in]
-         axilReadSlave   => axilReadSlave);   -- [out]
-   
+         timingRxClk125  => timingRxClk125,                    -- [in]
+         timingRxRst125  => timingRxRst125,                    -- [in]
+         timingRxData    => timingRxData,                      -- [in]
+         dacDb           => dacDb,                             -- [out]
+         dacWrt          => dacWrt,                            -- [out]
+         dacClk          => dacClk,                            -- [out]
+         dacSel          => dacSel,                            -- [out]
+         dacReset        => dacReset,                          -- [out]
+         axilClk         => axilClk,                           -- [in]
+         axilRst         => axilRst,                           -- [in]
+         axilWriteMaster => locAxilWriteMasters(AXIL_DACS_C),  -- [in]
+         axilWriteSlave  => locAxilWriteSlaves(AXIL_DACS_C),   -- [out]
+         axilReadMaster  => locAxilReadMasters(AXIL_DACS_C),   -- [in]
+         axilReadSlave   => locAxilReadSlaves(AXIL_DACS_C));   -- [out]
+
 
 
    -------------------------------------------------------------------------------------------------
