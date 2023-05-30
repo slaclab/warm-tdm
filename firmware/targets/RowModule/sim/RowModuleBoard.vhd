@@ -30,8 +30,8 @@ library warm_tdm;
 
 entity RowModuleBoard is
    generic (
-      TPD_G                   : time     := 1 ns;
-      RING_ADDR_0_G           : boolean  := false;
+      TPD_G                   : time    := 1 ns;
+      RING_ADDR_0_G           : boolean := false;
       SIM_PGP_PORT_NUM_G      : integer := 7000;
       SIM_ETH_SRP_PORT_NUM_G  : integer := 8000;
       SIM_ETH_DATA_PORT_NUM_G : integer := 9000);
@@ -68,59 +68,66 @@ architecture sim of RowModuleBoard is
    constant DHCP_G    : boolean          := true;
    constant IP_ADDR_G : slv(31 downto 0) := x"0B01A8C0";
 
-   -- component ports
-   signal gtRefClk0P    : sl;                                   -- [in]
-   signal gtRefClk0N    : sl;                                   -- [in]
-   signal gtRefClk1P    : sl;                                   -- [in]
-   signal gtRefClk1N    : sl;                                   -- [in]
-   signal pgpTxP        : slv(1 downto 0)  := "00";             -- [out]
-   signal pgpTxN        : slv(1 downto 0)  := "00";             -- [out]
-   signal pgpRxP        : slv(1 downto 0)  := "00";             -- [in]
-   signal pgpRxN        : slv(1 downto 0)  := "00";             -- [in]
-   signal xbarDataSel   : slv(1 downto 0)  := "00";             -- [out]
-   signal xbarClkSel    : slv(1 downto 0)  := "00";             -- [out]
-   signal xbarMgtSel    : slv(1 downto 0)  := "00";             -- [out]
-   signal timingRxClkP  : sl;                                   -- [in]
-   signal timingRxClkN  : sl;                                   -- [in]
-   signal timingRxDataP : sl;                                   -- [in]
-   signal timingRxDataN : sl;                                   -- [in]
-   signal timingTxClkP  : sl;                                   -- [out]
-   signal timingTxClkN  : sl;                                   -- [out]
-   signal timingTxDataP : sl;                                   -- [out]
-   signal timingTxDataN : sl;                                   -- [out]
-   signal sfp0TxP       : sl               := '0';              -- [out]
-   signal sfp0TxN       : sl               := '0';              -- [out]
-   signal sfp0RxP       : sl               := '0';              -- [in]
-   signal sfp0RxN       : sl               := '0';              -- [in]
-   signal bootCsL       : sl               := '0';              -- [out]
-   signal bootMosi      : sl               := '0';              -- [out]
-   signal bootMiso      : sl               := '0';              -- [in]
-   signal promScl       : sl;                                   -- [inout]
-   signal promSda       : sl;                                   -- [inout]
-   signal pwrScl        : sl;                                   -- [inout]
-   signal pwrSda        : sl;                                   -- [inout]
-   signal leds          : slv(7 downto 0);                      -- [out]
-   signal vAuxP         : slv(3 downto 0)  := (others => '0');  -- [in]
-   signal vAuxN         : slv(3 downto 0)  := (others => '0');  -- [in]
-   signal dacCsB        : slv(11 downto 0);                     -- [out]
-   signal dacSdio       : slv(11 downto 0);                     -- [out]
-   signal dacSdo        : slv(11 downto 0);                     -- [in]
-   signal dacSclk       : slv(11 downto 0);                     -- [out]
-   signal dacResetB     : slv(11 downto 0) := (others => '1');  -- [out]
-   signal dacTriggerB   : slv(11 downto 0) := (others => '1');  -- [out]
-   signal dacClkP       : slv(11 downto 0);                     -- [out]
-   signal dacClkN       : slv(11 downto 0);                     -- [out]
+
+   signal gtRefClk0P     : sl;                                                 -- [in]
+   signal gtRefClk0N     : sl;                                                 -- [in]
+   signal gtRefClk1P     : sl;                                                 -- [in]
+   signal gtRefClk1N     : sl;                                                 -- [in]
+   signal pgpTxP         : slv(1 downto 0);                                    -- [out]
+   signal pgpTxN         : slv(1 downto 0);                                    -- [out]
+   signal pgpRxP         : slv(1 downto 0);                                    -- [in]
+   signal pgpRxN         : slv(1 downto 0);                                    -- [in]
+   signal xbarDataSel    : slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");  -- [out]
+   signal xbarClkSel     : slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");  -- [out]
+   signal xbarMgtSel     : slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");  -- [out]
+   signal xbarTimingSel  : slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");  -- [out]
+   signal timingRxClkP   : sl;                                                 -- [in]
+   signal timingRxClkN   : sl;                                                 -- [in]
+   signal timingRxDataP  : sl;                                                 -- [in]
+   signal timingRxDataN  : sl;                                                 -- [in]
+   signal timingTxClkP   : sl;                                                 -- [out]
+   signal timingTxClkN   : sl;                                                 -- [out]
+   signal timingTxDataP  : sl;                                                 -- [out]
+   signal timingTxDataN  : sl;                                                 -- [out]
+   signal sfp0TxP        : sl;                                                 -- [out]
+   signal sfp0TxN        : sl;                                                 -- [out]
+   signal sfp0RxP        : sl;                                                 -- [in]
+   signal sfp0RxN        : sl;                                                 -- [in]
+   signal bootCsL        : sl;                                                 -- [out]
+   signal bootMosi       : sl;                                                 -- [out]
+   signal bootMiso       : sl;                                                 -- [in]
+   signal promScl        : sl;                                                 -- [inout]
+   signal promSda        : sl;                                                 -- [inout]
+   signal pwrScl         : sl;                                                 -- [inout]
+   signal pwrSda         : sl;                                                 -- [inout]
+   signal leds           : slv(7 downto 0) := "00000000";                      -- [out]
+   signal conRxGreenLed  : sl              := '1';                             -- [out]
+   signal conRxYellowLed : sl              := '1';                             -- [out]
+   signal conTxGreenLed  : sl              := '1';                             -- [out]
+   signal conTxYellowLed : sl              := '1';                             -- [out]
+   signal vAuxP          : slv(3 downto 0);                                    -- [in]
+   signal vAuxN          : slv(3 downto 0);                                    -- [in]
+   signal dacDb          : slv(13 downto 0);                                   -- [out]
+   signal dacWrt         : slv(15 downto 0);                                   -- [out]
+   signal dacClk         : slv(15 downto 0);                                   -- [out]
+   signal dacSel         : slv(15 downto 0);                                   -- [out]
+   signal dacReset       : slv(15 downto 0);                                   -- [out]
 
    -- Local signals
    signal clk : sl;
    signal rst : sl;
+
+   signal iOut1A : RealArray(15 downto 0);
+   signal iOut1B : RealArray(15 downto 0);
+   signal iOut2A : RealArray(15 downto 0);
+   signal iOut2B : RealArray(15 downto 0);
 
 begin
 
    -------------------------------------------------------------------------------------------------
    -- FPGA
    -------------------------------------------------------------------------------------------------
-   U_RowModule : entity warm_tdm.RowModule
+   U_RowModule_1 : entity warm_tdm.RowModule
       generic map (
          TPD_G                   => TPD_G,
          SIMULATION_G            => SIMULATION_G,
@@ -131,49 +138,52 @@ begin
          RING_ADDR_0_G           => RING_ADDR_0_G,
          ETH_10G_G               => ETH_10G_G,
          DHCP_G                  => DHCP_G,
-         IP_ADDR_G               => IP_ADDR_G)
+         IP_ADDR_G               => IP_ADDR_G,
+         MAC_ADDR_G              => MAC_ADDR_G)
       port map (
-         gtRefClk0P    => gtRefClk0P,     -- [in]
-         gtRefClk0N    => gtRefClk0N,     -- [in]
-         gtRefClk1P    => gtRefClk1P,     -- [in]
-         gtRefClk1N    => gtRefClk1N,     -- [in]
-         pgpTxP        => pgpTxP,         -- [out]
-         pgpTxN        => pgpTxN,         -- [out]
-         pgpRxP        => pgpRxP,         -- [in]
-         pgpRxN        => pgpRxN,         -- [in]
-         xbarDataSel   => xbarDataSel,    -- [out]
-         xbarClkSel    => xbarClkSel,     -- [out]
-         xbarMgtSel    => xbarMgtSel,     -- [out]
-         timingRxClkP  => timingRxClkP,   -- [in]
-         timingRxClkN  => timingRxClkN,   -- [in]
-         timingRxDataP => timingRxDataP,  -- [in]
-         timingRxDataN => timingRxDataN,  -- [in]
-         timingTxClkP  => timingTxClkP,   -- [out]
-         timingTxClkN  => timingTxClkN,   -- [out]
-         timingTxDataP => timingTxDataP,  -- [out]
-         timingTxDataN => timingTxDataN,  -- [out]
-         sfp0TxP       => sfp0TxP,        -- [out]
-         sfp0TxN       => sfp0TxN,        -- [out]
-         sfp0RxP       => sfp0RxP,        -- [in]
-         sfp0RxN       => sfp0RxN,        -- [in]
-         bootCsL       => bootCsL,        -- [out]
-         bootMosi      => bootMosi,       -- [out]
-         bootMiso      => bootMiso,       -- [in]
-         promScl       => promScl,        -- [inout]
-         promSda       => promSda,        -- [inout]
-         pwrScl        => pwrScl,         -- [inout]
-         pwrSda        => pwrSda,         -- [inout]
-         leds          => leds,           -- [out]
-         vAuxP         => vAuxP,          -- [in]
-         vAuxN         => vAuxN,          -- [in]
-         dacCsB        => dacCsB,         -- [out]
-         dacSdio       => dacSdio,        -- [out]
-         dacSdo        => dacSdo,         -- [in]
-         dacSclk       => dacSclk,        -- [out]
-         dacResetB     => dacResetB,      -- [out]
-         dacTriggerB   => dacTriggerB,    -- [out]
-         dacClkP       => dacClkP,        -- [out]
-         dacClkN       => dacClkN);       -- [out]
+         gtRefClk0P     => gtRefClk0P,      -- [in]
+         gtRefClk0N     => gtRefClk0N,      -- [in]
+         gtRefClk1P     => gtRefClk1P,      -- [in]
+         gtRefClk1N     => gtRefClk1N,      -- [in]
+         pgpTxP         => pgpTxP,          -- [out]
+         pgpTxN         => pgpTxN,          -- [out]
+         pgpRxP         => pgpRxP,          -- [in]
+         pgpRxN         => pgpRxN,          -- [in]
+         xbarDataSel    => xbarDataSel,     -- [out]
+         xbarClkSel     => xbarClkSel,      -- [out]
+         xbarMgtSel     => xbarMgtSel,      -- [out]
+         xbarTimingSel  => xbarTimingSel,   -- [out]
+         timingRxClkP   => timingRxClkP,    -- [in]
+         timingRxClkN   => timingRxClkN,    -- [in]
+         timingRxDataP  => timingRxDataP,   -- [in]
+         timingRxDataN  => timingRxDataN,   -- [in]
+         timingTxClkP   => timingTxClkP,    -- [out]
+         timingTxClkN   => timingTxClkN,    -- [out]
+         timingTxDataP  => timingTxDataP,   -- [out]
+         timingTxDataN  => timingTxDataN,   -- [out]
+         sfp0TxP        => sfp0TxP,         -- [out]
+         sfp0TxN        => sfp0TxN,         -- [out]
+         sfp0RxP        => sfp0RxP,         -- [in]
+         sfp0RxN        => sfp0RxN,         -- [in]
+         bootCsL        => bootCsL,         -- [out]
+         bootMosi       => bootMosi,        -- [out]
+         bootMiso       => bootMiso,        -- [in]
+         promScl        => promScl,         -- [inout]
+         promSda        => promSda,         -- [inout]
+         pwrScl         => pwrScl,          -- [inout]
+         pwrSda         => pwrSda,          -- [inout]
+         leds           => leds,            -- [out]
+         conRxGreenLed  => conRxGreenLed,   -- [out]
+         conRxYellowLed => conRxYellowLed,  -- [out]
+         conTxGreenLed  => conTxGreenLed,   -- [out]
+         conTxYellowLed => conTxYellowLed,  -- [out]
+         vAuxP          => vAuxP,           -- [in]
+         vAuxN          => vAuxN,           -- [in]
+         dacDb          => dacDb,           -- [out]
+         dacWrt         => dacWrt,          -- [out]
+         dacClk         => dacClk,          -- [out]
+         dacSel         => dacSel,          -- [out]
+         dacReset       => dacReset);       -- [out]
 
    -------------------------------------------------------------------------------------------------
    -- Clocks
@@ -212,17 +222,18 @@ begin
    timingRxClkN <= rj45TimingRxClkN when xbarClkSel(1) = '0' else timingTxClkN;
 
    -- Put PGP on timingMgt
-   rj45TimingTxMgtP <= rj45TimingRxMgtP when xbarMgtSel(0) = '0' else pgpTxP(0);
-   rj45TimingTxMgtN <= rj45TimingRxMgtN when xbarMgtSel(0) = '0' else pgpTxN(0);
+   rj45PgpTxP <= rj45PgpRxMgtP when xbarMgtSel(0) = '0' else pgpTxP(0);
+   rj45PgpTxN <= rj45PgpRxMgtN when xbarMgtSel(0) = '0' else pgpTxN(0);
 
-   pgpRxP(0) <= rj45TimingRxMgtP when xbarMgtSel(1) = '0' else pgpTxP(0);
-   pgpRxN(0) <= rj45TimingRxMgtN when xbarMgtSel(1) = '0' else pgpTxN(0);
+   pgpRxP(0) <= rj45PgpRxMgtP when xbarMgtSel(1) = '0' else pgpTxP(0);
+   pgpRxN(0) <= rj45PgpRxMgtN when xbarMgtSel(1) = '0' else pgpTxN(0);
 
-   rj45PgpTxP <= pgpTxP(1);
-   rj45PgpTxN <= pgpTxN(1);
+   rj45TimingTxMgtP <= rj45TimingRxMgtP when xbarTimingSel(0) = '0' else pgpTxP(1);
+   rj45TimingTxMgtN <= rj45TimingRxMgtN when xbarTimingSel(0) = '0' else pgpTxN(1);
 
-   pgpRxP(1) <= rj45PgpRxP;
-   pgpRxN(1) <= rj45PgpRxN;
+   pgpRxP(1) <= rj45TimingRxMgtP when xbarTimingSel(1) = '0' else pgpTxP(1);
+   pgpRxN(1) <= rj45TimingRxMgtN when xbarTimingSel(1) = '0' else pgpTxN(1);
+
 
    -------------------------------------------------------------------------------------------------
    -- Clock and reset for things that need it
@@ -279,22 +290,27 @@ begin
    ------------------------------------------------
    -- AD9106 Array
    ------------------------------------------------
-   AD9106_GEN : for i in 11 downto 0 generate
-      U_Ad9106_1 : entity warm_tdm.Ad9106
+   AD9106_GEN : for i in 15 downto 0 generate
+
+      U_Ad9767_1 : entity warm_tdm.Ad9767
          generic map (
-            TPD_G => TPD_G)
+            FSADJ1_G => 2.0e3,
+            FSADJ2_G => 2.0e3)
          port map (
-            sclk     => dacSclk(i),      -- [in]
-            sdio     => dacSdio(i),      -- [in]
-            sdo      => dacSdo(i),       -- [out]
-            csB      => dacCsB(i),       -- [in]
-            clkP     => dacClkP(i),      -- [in]
-            clkN     => dacClkN(i),      -- [in]
-            triggerB => dacTriggerB(i),  -- [in]
---         fsadj    => fsadj,             -- [in]
-            iOutP    => open,            -- [out]
-            iOutN    => open);           -- [out]
+            db     => dacDb,            -- [in]
+            iqsel  => dacSel,           -- [in]
+            iqwrt  => dacWrt,           -- [in]
+            iqclk  => dacClk,           -- [in]
+            iOut1A => iOut1A(i),        -- [out]
+            iOut1B => iOut1B(i),        -- [out]
+            iOut2A => iOut2A(i),        -- [out]
+            iOut2B => iOut2B(i));       -- [out]
    end generate;
+
+   -------------------------------------------------------------------------------------------------
+   -- Differential drivers on DAC0
+   -------------------------------------------------------------------------------------------------
+
 
 end architecture sim;
 
