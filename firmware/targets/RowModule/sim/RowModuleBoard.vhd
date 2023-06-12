@@ -34,7 +34,12 @@ entity RowModuleBoard is
       RING_ADDR_0_G           : boolean := false;
       SIM_PGP_PORT_NUM_G      : integer := 7000;
       SIM_ETH_SRP_PORT_NUM_G  : integer := 8000;
-      SIM_ETH_DATA_PORT_NUM_G : integer := 9000);
+      SIM_ETH_DATA_PORT_NUM_G : integer := 9000;
+      R_DAC_LOAD_G            : real    := 24.9;
+      AMP_GAIN_G              : real    := (4.02+1.00);
+      R_SHUNT_G               : real    := 1.0e3;
+      R_CABLE_G               : real    := 200.0);
+   );
    port (
       rj45TimingRxClkP  : in  sl;          -- [in]
       rj45TimingRxClkN  : in  sl;          -- [in]
@@ -121,6 +126,8 @@ architecture sim of RowModuleBoard is
    signal iOut1B : RealArray(15 downto 0);
    signal iOut2A : RealArray(15 downto 0);
    signal iOut2B : RealArray(15 downto 0);
+
+   signal fasCurrent : RealArray(31 downto 0);
 
 begin
 
@@ -297,20 +304,69 @@ begin
             FSADJ1_G => 2.0e3,
             FSADJ2_G => 2.0e3)
          port map (
-            db     => dacDb,            -- [in]
-            iqsel  => dacSel,           -- [in]
-            iqwrt  => dacWrt,           -- [in]
-            iqclk  => dacClk,           -- [in]
-            iOut1A => iOut1A(i),        -- [out]
-            iOut1B => iOut1B(i),        -- [out]
-            iOut2A => iOut2A(i),        -- [out]
-            iOut2B => iOut2B(i));       -- [out]
+            db      => dacDb,           -- [in]
+            iqsel   => dacSel(i),       -- [in]
+            iqwrt   => dacWrt(i),       -- [in]
+            iqclk   => dacClk(i),       -- [in]
+            iqreset => dacReset(i),     -- [in]
+            iOut1A  => iOut1A(i),       -- [out]
+            iOut1B  => iOut1B(i),       -- [out]
+            iOut2A  => iOut2A(i),       -- [out]
+            iOut2B  => iOut2B(i));      -- [out]
    end generate;
 
    -------------------------------------------------------------------------------------------------
    -- Differential drivers on DAC0
    -------------------------------------------------------------------------------------------------
+   U_RowSelectDiffAmp_1 : entity warm_tdm.RowSelectDiffAmp
+      generic map (
+         R_DAC_LOAD_G => R_DAC_LOAD_G,
+         AMP_GAIN_G   => AMP_GAIN_G,
+         R_SHUNT_G    => R_SHUNT_G,
+         R_CABLE_G    => R_CABLE_G)
+      port map (
+         iInP => iOut1A(0),             -- [in]
+         iInN => iOut1B(0),             -- [in]
+         iOut => fasCurrent(0));        -- [out]
 
+   U_RowSelectDiffAmp_2 : entity warm_tdm.RowSelectDiffAmp
+      generic map (
+         R_DAC_LOAD_G => R_DAC_LOAD_G,
+         AMP_GAIN_G   => AMP_GAIN_G,
+         R_SHUNT_G    => R_SHUNT_G,
+         R_CABLE_G    => R_CABLE_G)
+      port map (
+         iInP => iOut2A(0),             -- [in]
+         iInN => iOut2B(0),             -- [in]
+         iOut => fasCurrent(1));        -- [out]
+
+   -------------------------------------------------------------------------------------------------
+   -- Single ended drivers on DAC1 - DAC15
+   -------------------------------------------------------------------------------------------------
+   SE_AMPS : for i in 15 downto 1 generate
+      U_RowSelectAmp_1 : entity warm_tdm.RowSelectAmp
+         generic map (
+            R_DAC_LOAD_G => R_DAC_LOAD_G,
+            AMP_GAIN_G   => AMP_GAIN_G,
+            R_SHUNT_G    => R_SHUNT_G,
+            R_CABLE_G    => R_CABLE_G)
+         port map (
+            iInP => iOut1A(i),          -- [in]
+            iInN => iOut1B(i),          -- [in]
+            iOut => fasCurrent(i*2));
+
+      U_RowSelectAmp_2 : entity warm_tdm.RowSelectAmp
+         generic map (
+            R_DAC_LOAD_G => R_DAC_LOAD_G,
+            AMP_GAIN_G   => AMP_GAIN_G,
+            R_SHUNT_G    => R_SHUNT_G,
+            R_CABLE_G    => R_CABLE_G)
+         port map (
+            iInP => iOut2A(i),          -- [in]
+            iInN => iOut2B(i),          -- [in]
+            iOut => fasCurrent(i*2+1));
+
+   end generate SE_AMPS;
 
 end architecture sim;
 
