@@ -29,14 +29,15 @@ entity Ad9767 is
       FSADJ2_G : real := 2.0e3);
 
    port (
-      db     : in  slv(13 downto 0);
-      iqsel  : in  sl;
-      iqwrt  : in  sl;
-      iqclk  : in  sl;
-      iOut1A : out real;
-      iOut1B : out real;
-      iOut2A : out real;
-      iOut2B : out real);
+      db      : in  slv(13 downto 0);
+      iqsel   : in  sl;
+      iqwrt   : in  sl;
+      iqclk   : in  sl;
+      iqreset : in  sl;
+      iOut1A  : out real;
+      iOut1B  : out real;
+      iOut2A  : out real;
+      iOut2B  : out real);
 
 end entity Ad9767;
 
@@ -44,7 +45,7 @@ end entity Ad9767;
 architecture rtl of Ad9767 is
 
    constant IOUTFS_1_C : real := (1.2 / FSADJ1_G) * 32;
-   constant IOUTFS_2_C : real := (1.2 / FSADJ2_G) * 32;   
+   constant IOUTFS_2_C : real := (1.2 / FSADJ2_G) * 32;
 
    signal inLatch1  : slv(13 downto 0);
    signal inLatch2  : slv(13 downto 0);
@@ -66,9 +67,11 @@ begin
       end if;
    end process IN_LATCH;
 
-   clk_div : process (iqclk) is
+   clk_div : process (iqclk, iqreset) is
    begin
-      if (rising_edge(iqclk)) then
+      if (iqreset = '1') then
+         clkDiv <= '0' after 2 ns;
+      elsif (rising_edge(iqclk)) then
          clkDiv <= not clkDiv after 2 ns;
       end if;
    end process;
@@ -83,9 +86,9 @@ begin
 
    iOut1A <= IOUTFS_1_C * (conv_integer(outLatch1)/16384.0);
    iOut1B <= IOUTFS_1_C * ((16383-conv_integer(outLatch1))/16384.0);
-   
+
    iOut2A <= IOUTFS_2_C * (conv_integer(outLatch2)/16384.0);
-   iOut2B <= IOUTFS_2_C * ((16383-conv_integer(outLatch2))/16384.0);   
+   iOut2B <= IOUTFS_2_C * ((16383-conv_integer(outLatch2))/16384.0);
 
 
 
