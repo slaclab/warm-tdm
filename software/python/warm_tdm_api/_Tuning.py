@@ -227,18 +227,22 @@ def saTune(*, group, process=None, doSet=True):
 
 
 #FAS TUNING
-def saFbServo(*, group, precision=1.0):
+def saFbServo(*, group, ):
     """Returns list of SaFb values which zero out SaOut.
     Each element corresponds with a column
     """
 
     # Setup PID controller
-    pid = [PID(.1,0,0) for _ in range(len(group.ColumnMap.value()))]
-    maxLoops = 100
+    kp = group.SaFbServoKp.get()
+    ki = group.SaFbServoKi.get()
+    kd = group.SaFbServoKd.get()
+    pid = [PID(kp, ki, kd) for _ in range(len(group.ColumnMap.value()))]
+    maxLoops = group.SaFbServoMaxLoops.get()
+    precision = group.SaFbServoPrecision.get()
 
     for p in pid:
         p.setpoint = 0 # want to zero out SaOut
-        p.output_limits = (-0.5, 0.5)
+        p.output_limits = (-10.0, 10.0)
         p.sample_time   = None
 
     control = group.SaFbForceCurrent.get()
@@ -253,13 +257,17 @@ def saFbServo(*, group, precision=1.0):
         current = group.SaOutAdc.get()
         masked = current * mult
 
+        print(f'saFbServo Loop {count}')
+        print(f'  SaOutAdc - {masked}')
+        print(f'  SaFbCurrent - {control}')
+
         # All channels have converged
         if (max(current) < precision) and (min(masked) > (-1.0*precision)):
             break
 
         for i, p in enumerate(pid):
             change = p(masked[i])
-            control[i] = np.clip(control[i] + change, 0.0, 500e-6) # Check this clip range
+            control[i] = np.clip(control[i] + change, 0.0, 100.0) # Check this clip range
 
         group.SaFbForceCurrent.set(control)
 
@@ -378,10 +386,10 @@ def sq1FbSweep(*, group, bias, fbRange, row, process):
         group.Sq1FbForceCurrent.set(fbRange[:, fbStep])
 
         # Servo saFB
-        #points = saFbServo(group=group)
+        points = saFbServo(group=group)
 
         # Open Loop mode - temporary for testing
-        points = group.SaOut.get()
+        #points = group.SaOut.get()
 
         # Add points to curves
         for col in range(colCount):

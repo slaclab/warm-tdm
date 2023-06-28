@@ -46,6 +46,10 @@ class GroupLinkVariable(pr.LinkVariable):
                 if self.tuneEnVar.get(index=index):
                     self.dependencies[index].set(value=value, write=write)
             else:
+                # Allow all indecies to be set with a single scalar input
+                if not isinstance(val, list, np.ndarray):
+                    val = [val for _ in range(len(self.dependencies))]
+                    
                 for idx, (var, val) in enumerate(zip(self.dependencies, value)):
                     if self.tuneEnVar is not None and self.tuneEnVar.get(index=idx):
                         #print(f'Setting {self.path}[{idx}] = {val}')
@@ -755,6 +759,39 @@ class Group(pr.Device):
         self.add(warm_tdm_api.Sq1DiagProcess(groups=['NoDoc']))
         self.add(warm_tdm_api.TesRampProcess(groups=['NoDoc']))
         self.add(warm_tdm_api.SaStripChartProcess(groups=['NoDoc']))
+
+
+      self.add(pr.LocalVariable(
+            name='SaFbServoKp',
+            value=-.1,
+            mode='RW',
+            description="Proportional PID coefficient"))
+
+        self.add(pr.LocalVariable(
+            name='SaFbServoKi',
+            value=0.0,
+            mode='RW',
+            description="Integral PID coefficient"))
+
+        self.add(pr.LocalVariable(
+            name='SaFbServoKd',
+            value=0.0,
+            mode='RW',
+            description="Differential PID coefficient"))
+
+        self.add(pr.LocalVariable(
+            name='SaFbServoPrecision',
+            value=0.0001,
+            mode='RW',
+            description="Convergance precision"))
+
+
+        self.add(pr.LocalVariable(
+            name='SaFbServoMaxLoops',
+            value=100,
+#            units = 'Seconds',
+            mode='RW',
+            description="Max number of loops for PID convergance"))        
 
     # Set FLL Enable value
     def _fllEnableSet(self, value, write):
