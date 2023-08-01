@@ -19,7 +19,7 @@ class SinglePlot(pr.LinkVariable):
         warm_tdm_api.plotCurveDataDict(
             ax=ax,
             curveDataDict=curves,
-            ax_title=f'Channel {col} - FB Shunt = {shunt/1000} kOhms',
+            ax_title=f'Channel {col}', ## - FB Shunt = {shunt/1000} kOhms',
             xlabel=u'SA FB (\u03bcA)',
             ylabel='SA Out (mV)',
             legend_title='SA Bias Curves')
@@ -34,9 +34,9 @@ class SinglePlot(pr.LinkVariable):
         if col == -1:
             col = self.parent.PlotColumn.value()
 
-        shunt = self.parent.parent.SA_FB_SHUNT_R.value()            
+#        shunts = [self.parent.loading.Column[x].SA_FB_SHUNT_R.value() for x in range(8)]
 
-        self._plot_ax(self._ax, col, tune[col], shunt[col])
+        self._plot_ax(self._ax, col, tune[col]) ##, shunts[col])
 
         return self._fig
 
@@ -54,14 +54,14 @@ class MultiPlot(SinglePlot):
 
     def linkedGet(self):
         tune = self.parent.SaTuneOutput.value()
-        shunt = self.parent.parent.SA_FB_SHUNT_R.value()        
+ #       shunts = [self.parent.loading.Column[x].SA_FB_SHUNT_R.value() for x in range(8)]
 
         if tune == {}:
             return self._fig
 
         axes = self._ax.reshape(8)
         for col, ax in enumerate(axes):
-            self._plot_ax(ax, col, tune[col], shunt[col])
+            self._plot_ax(ax, col, tune[col]) ##, shunts[col])
 
         return self._fig
 

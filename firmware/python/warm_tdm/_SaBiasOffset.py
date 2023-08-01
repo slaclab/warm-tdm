@@ -18,7 +18,7 @@ class SaBiasOffset(pr.Device):
                 if self.TriggerWaveform.get():
                     self._waveformTrigger()
                 self._dac.DacVoltage[ch].set(value, write=write)
-            
+
             self.add(pr.LinkVariable(
                 name = f'BiasVoltage[{i}]',
                 dependencies = [self._dac.DacVoltage[i]],
@@ -29,7 +29,7 @@ class SaBiasOffset(pr.Device):
                 units = 'V'))
 
 
-        for i in range(8):            
+        for i in range(8):
             self.add(pr.LinkVariable(
                 name = f'OffsetVoltage[{i}]',
                 variable = self._dac.DacVoltage[i+8],
@@ -39,8 +39,8 @@ class SaBiasOffset(pr.Device):
             self.add(pr.LinkVariable(
                 name = f'BiasCurrent[{i}]',
                 dependencies = [self.BiasVoltage[i]],
-                linkedGet = lambda read, ch=i: self.BiasVoltage[ch].get(read=read) * 1e6 / loading[ch]['SA_BIAS_SHUNT_R'],
-                linkedSet = lambda value, write, ch=i: self.BiasVoltage[ch].set( (value/1e6) * loading[ch]['SA_BIAS_SHUNT_R'] , write=write),
+                linkedGet = lambda read, ch=i: self.BiasVoltage[ch].get(read=read) * 1e6 / loading.Column[ch].SA_BIAS_SHUNT_R.get(read=read),
+                linkedSet = lambda value, write, ch=i: self.BiasVoltage[ch].set((value/1e6) * loading.Column[ch].SA_BIAS_SHUNT_R.value(), write=write),
                 disp = '{:0.01f}',
                 units = u'\u03bcA'))
 
@@ -74,4 +74,3 @@ class SaBiasOffset(pr.Device):
 #             dacValue = dacChannel.get(read=read)
 #             return dacValue / 15e3
 #         return _getChannel
-    

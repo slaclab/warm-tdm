@@ -194,7 +194,7 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
 
         for ch in range(len(tmpAmpVin)):
             for sample in range(len(tmpAmpVin[0])):
-                tmpAmpVin[ch][sample] = self.loading.ampVin(tmpVoltage[ch][sample], 0.0, ch)
+                tmpAmpVin[ch][sample] = tmpVoltage[ch][sample] / 200.0
 
         self.add(pr.LocalVariable(
             name = 'RawData',
@@ -320,13 +320,13 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
                 dependencies = [self.RawData],
                 linkedGet = _getAvg))
 
-            self.add(pr.LocalVariable(
+            self.add(pr.LinkVariable(
                 name = f'AmpInConvFactor[{i}]',
-                units = u'\u03bcV/ADC',
-                disp = '{:0.3f}',
+#                units = u'\u03bcV/ADC',
+ #               disp = '{:0.3f}',
                 guiGroup = 'AmpInConvFactor',
-                value = 1.0e6*self.loading.ampVin(1/2**13, 0.0, i)))
-
+                variable = self.loading.Column[i].AmpInConvFactor))
+  
 
         self.add(MultiPlot(
             name='MultiPlot',

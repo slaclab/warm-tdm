@@ -459,17 +459,17 @@ class Group(pr.Device):
         # Column board acces variables
         #####################################
 
-        self.add(pr.LocalVariable(
-            name = 'SA_FB_SHUNT_R',
-            hidden = True,
-            mode = 'RO',
-            value = {k:v['SA_FB_SHUNT_R'] for k,v in self.HardwareGroup.ColumnBoard[0].loading.items()}))
+#         self.add(pr.LocalVariable(
+#             name = 'SA_FB_SHUNT_R',
+#             hidden = True,
+#             mode = 'RO',
+#             value = {k:v['SA_FB_SHUNT_R'] for k,v in self.HardwareGroup.ColumnBoard[0].loading.Column[items()}))
 
-        self.add(pr.LocalVariable(
-            name = 'SQ1_FB_SHUNT_R',
-            hidden = True,
-            mode = 'RO',
-            value = {k:v['SQ1_FB_SHUNT_R'] for k,v in self.HardwareGroup.ColumnBoard[0].loading.items()}))
+#         self.add(pr.LocalVariable(
+#             name = 'SQ1_FB_SHUNT_R',
+#             hidden = True,
+#             mode = 'RO',
+#             value = {k:v['SQ1_FB_SHUNT_R'] for k,v in self.HardwareGroup.ColumnBoard[0].loading.items()}))
         
 
         self.add(GroupLinkVariable(

@@ -39,7 +39,7 @@ class SinglePlot(pr.LinkVariable):
         else:
             col, row = index
 
-        shunt = self.parent.parent.SQ1_FB_SHUNT_R.value()            
+ #       shunts = [self.parent.Loading.Column[x].SQ1_FB_SHUNT_R.value() for x in range(8)]            
 
         self._plot_ax(self._ax, col, row, tune[row][col])
 
@@ -59,7 +59,7 @@ class MultiPlot(SinglePlot):
 
     def linkedGet(self, index=-1):
         tune = self.parent.Sq1TuneOutput.value()
-        shunt = self.parent.parent.SQ1_FB_SHUNT_R.value()        
+#        shunt = self.parent.parent.SQ1_FB_SHUNT_R.value()        
 
         if tune == {}:
             return self._fig
