@@ -101,9 +101,16 @@ with warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=arg
     colTuneEnable[0] = True
     root.Group.ColTuneEnable.set(colTuneEnable)
 
+    print('Built root. Starting PyDM')
     
 #    root.Group.HardwareGroup.RowBoard[0].enable.set(False)
 
-    pyrogue.pydm.runPyDM(root=root,title='Warm TDM',sizeX=2000,sizeY=2000,ui=warm_tdm_api.pydmUi)
+
+    pyrogue.pydm.runPyDM(
+        serverList=root.zmqServer.address,
+        title='Warm TDM',
+        sizeX=2000,
+        sizeY=2000,
+        ui=warm_tdm_api.pydmUi)
 
 

@@ -53,9 +53,12 @@ class WarmTdmRoot(pyrogue.Root):
         #self._doHeartbeat = False
         super().__init__(**kwargs)
 
+        self.zmqServer = pyrogue.interfaces.ZmqServer(root=self, addr='*', port=0)
+        self.addInterface(self.zmqServer)
+
         # Add the data writer
-        self.add(pyrogue.utilities.fileio.StreamWriter(name='DataWriter'))
-        self >> self.DataWriter.getChannel(len(groups))
+        #self.add(pyrogue.utilities.fileio.StreamWriter(name='DataWriter'))
+        #self >> self.DataWriter.getChannel(len(groups))
 
         for i, s in enumerate(groups):
             self.add(warm_tdm.HardwareGroup(

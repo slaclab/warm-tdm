@@ -24,6 +24,10 @@ class GroupRoot(pyrogue.Root):
                                        "This interface supports configuration load and save as well as the top level reset control.",
                          **kwargs)
 
+        self.zmqServer = pyrogue.interfaces.ZmqServer(root=self, addr='*', port=0)
+        self.addInterface(self.zmqServer)
+        
+
         self.LoadConfig.addToGroup('DocApi')
         self.SaveConfig.addToGroup('DocApi')
         self.GetYamlConfig.addToGroup('DocApi')
@@ -34,7 +38,7 @@ class GroupRoot(pyrogue.Root):
 
         # Add the data writer
         self.add(pyrogue.utilities.fileio.StreamWriter(name='DataWriter',groups='DocApi'))
-        self >> self.DataWriter.getChannel(100)
+        #self >> self.DataWriter.getChannel(100)
         self.DataWriter.ReadDevice.addToGroup('NoDoc')
         self.DataWriter.WriteDevice.addToGroup('NoDoc')
         self.DataWriter.BufferSize.addToGroup('NoDoc')
