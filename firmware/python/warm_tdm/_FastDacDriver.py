@@ -10,10 +10,6 @@ class FastDacDriver(pr.Device):
                  typ,
                  loading,                 
                  rows=64,
-#                  rfsadj=[2.0E3]*8,
-#                  dacLoad=[25.0]*8,
-#                  ampGain=[-4.7]*8,
-#                  outResistance=[4.0e3]*8,
                  waveformTrigger=None,
                  **kwargs):
         super().__init__(**kwargs)
@@ -21,23 +17,12 @@ class FastDacDriver(pr.Device):
         if rows == 0:
             rows = 64
 
-#         print(rfsadj)
-#         self.iOutFs = [1.2 / r * 32 for r in rfsadj.values()]
-#         self.dacLoad = dacLoad
-#         self.ampGain = ampGain
-#         self.outResistance = outResistance
         self._waveformTrigger = waveformTrigger
 
         self.rfsadj_deps = loading.deps(typ, 'FSADJ_R')
         self.dacLoad_deps = loading.deps(typ, 'DAC_LOAD_R')
-        self.ampGain_deps = loading.deps(typ, 'AMP_GAIN_R')
+        self.ampGain_deps = loading.deps(typ, 'AMP_GAIN')
         self.outResistance_deps = loading.deps(typ, 'SHUNT_R')
-
-        print('FastDacDriver.__init__()')
-        print(self.rfsadj_deps)
-        print(self.dacLoad_deps)
-        print(self.ampGain_deps)
-        print(self.outResistance_deps)
 
         for col in range(8):
             self.add(pr.LinkVariable(

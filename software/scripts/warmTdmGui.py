@@ -20,8 +20,8 @@ from warm_tdm_api import PhysicalMap as pm
 #rogue.Logging.setFilter('pyrogue.memory.Master', rogue.Logging.Debug)
 #rogue.Logging.setFilter('pyrogue.memory.Hub', rogue.Logging.Debug)
 #rogue.Logging.setFilter('pyrogue.memory.Transaction', rogue.Logging.Debug)
+#logging.getLogger('pyrogue.Variable.RemoteVariable.GroupRoot.Group.HardwareGroup.RowBoard[0]').setLevel(logging.DEBUG)
 #logging.getLogger('pyrogue.Device').setLevel(logging.DEBUG)
-#logging.getLogger('pyrogue.Variable').setLevel(logging.DEBUG)
 
 parser = argparse.ArgumentParser()
 

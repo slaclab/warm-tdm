@@ -76,7 +76,7 @@ class WaveformCapture(pr.Device, rogue.interfaces.stream.Slave):
                 startSel = self.SelectedChannel.get()
                 self.AllChannels.set(False)
                 for i in range(8):
-                    print(f'Capturing channel {i}')
+                    #print(f'Capturing channel {i}')
                     self.SelectedChannel.set(i)
                     self.WaveformTrigger()
                     time.sleep(1)
@@ -172,7 +172,7 @@ class WaveformCapture(pr.Device, rogue.interfaces.stream.Slave):
     def _acceptFrame(self, frame):
         self.WaveformState.set('Idle')
 
-        
+
 
 class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
 
@@ -265,7 +265,7 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
                 units = 'ADC',
                 disp = '{:0.3f}',
                 guiGroup = 'RmsNoiseAdc',
-                dependencies = [self.RawData],
+                dependencies = [self.RmsNoiseRaw],
                 linkedGet = lambda read, ch=i: self.RmsNoiseRaw.get(read=read, index=ch)))
 
         for i in range(8):
@@ -291,11 +291,11 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
         for i in range(8):
             def _getPkPk(read, x=i):
                 d = self.RawData.value()
-                v = d[x]['V@ADC']
-                v = np.array([self.loading.ampVin(a, 0.0, x) for a in v])
+                v = d[x]['V@AmpIn']
+                #v = np.array([self.loading.ampVin(a, 0.0, x) for a in v])
                 r = v.max()-v.min()
                 return r*1.0e6
-            
+
             self.add(pr.LinkVariable(
                 name = f'PkPkAmpIn[{i}]',
                 mode = 'RO',
@@ -307,8 +307,8 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
 
             def _getAvg(read, x=i):
                 d = self.RawData.value()
-                v = d[x]['V@ADC']
-                v = np.array([self.loading.ampVin(a, 0.0, x) for a in v])
+                v = d[x]['V@AmpIn']
+                #v = np.array([self.loading.ampVin(a, 0.0, x) for a in v])
                 r = v.mean()
                 return r*1.0e6
 
@@ -324,9 +324,10 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
                 name = f'AmpInConvFactor[{i}]',
 #                units = u'\u03bcV/ADC',
  #               disp = '{:0.3f}',
+                mode = 'RO',
                 guiGroup = 'AmpInConvFactor',
                 variable = self.loading.Column[i].AmpInConvFactor))
-  
+
 
         self.add(MultiPlot(
             name='MultiPlot',
@@ -367,14 +368,14 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
 
             voltages = self.conv(adcs)
             ampVin = np.zeros_like(voltages)
-            
+
             d = self.RawData.value()
 
             if channel >= 8:
                 for sample in range(len(voltages)):
                     for ch in range(len(voltages[0])):
                         ampVin[sample, ch] = self.loading.ampVin(voltages[sample, ch], 0.0, ch)
-                
+
                 d = {ch: {
                     'ADC Counts': adcs[:,ch],
                     'V@ADC': voltages[:,ch],
@@ -385,7 +386,7 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
                 print(f'Setting data for channel {channel}')
                 for sample in range(len(voltages)):
                     ampVin[sample, channel] = self.loading.ampVin(voltages[sample, channel], 0.0, channel)
-                        
+
                 d[channel]['ADC Counts'] = adcs
                 d[channel]['V@ADC'] = voltages
                 d[channel]['V@AmpIn'] = ampVin
@@ -417,14 +418,14 @@ def plot_waveform_channel(ch, ax, values, src, multi_channel):
             ax.set_xlabel(units)
         elif ch == 0:
             ax.set_title(f'Waveforms')
-            
+
     ax.plot(plt_values)
-    
+
 def plot_histogram_channel(ch, ax, values, src, multi_channel):
-    print(f'plot_histogram_channel(ch={ch})')
-    print(values)
+    #print(f'plot_histogram_channel(ch={ch})')
+    #print(values)
     ax.clear()
-    
+
     if src == 'ADC Counts':
         mean = np.int32(values.mean())
         low = np.int32(values.min())
@@ -434,7 +435,7 @@ def plot_histogram_channel(ch, ax, values, src, multi_channel):
         units = src
         ax.hist(values, bins, histtype='bar')#, density=True)
     else:
-        print('stepfilled')
+        #print('stepfilled')
         values_uv = values * 1.0e6
         units = f'{src} -  \u03bcV'
         bins = 50
@@ -443,7 +444,7 @@ def plot_histogram_channel(ch, ax, values, src, multi_channel):
     ax.xaxis.set_ticks_position('bottom')
     ax.yaxis.set_ticks_position('left')
     if multi_channel:
-        ax.yaxis.set_ticklabels([])        
+        ax.yaxis.set_ticklabels([])
         if ch == 7:
             ax.set_xlabel(units)
         elif ch == 0:
@@ -455,7 +456,7 @@ def plot_histogram_channel(ch, ax, values, src, multi_channel):
 
 
 def plot_psd_channel(ch, ax, values, src, multi_channel):
-    print(f'plot_psd_channel(ch={ch})')
+    #print(f'plot_psd_channel(ch={ch})')
 
     # Calculate the PSD
     freq=125.e6 # 125MHz
@@ -525,22 +526,22 @@ class MultiPlot(pr.LinkVariable):
 
 
     def linkedGet(self, read, index=-1):
-        print(f'MultiPlot.linkedGet({read=}, {index=})')
+        #print(f'MultiPlot.linkedGet({read=}, {index=})')
         #if read is False and self.fig is not None:
         #    print('Return previous fig')
         #    return self.fig
 
         if self.fig is not None:
-            print('Closing old plot')
+            #print('Closing old plot')
             plt.close(self.fig)
 
-        print('Regenerate figure')
+        #print('Regenerate figure')
         self.fig = plt.Figure(tight_layout=True, figsize=(20,20))
 
         enabled_plot_functions = {k:v  for k,v in self.plot_functions.items() if k.get(read=read) is True}
-        print(f'{enabled_plot_functions=}')
+        #print(f'{enabled_plot_functions=}')
         num_plots = len(enabled_plot_functions)
-        print(f'{num_plots}')
+        #print(f'{num_plots}')
         data = self.parent.RawData.get(read=read)
 
         if self.parent.PlotColumn.getDisp(read=read) == 'All':
