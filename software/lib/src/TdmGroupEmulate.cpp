@@ -18,7 +18,7 @@ warm_tdm_lib::TdmGroupEmulatePtr warm_tdm_lib::TdmGroupEmulate::create(uint8_t g
 }
 
 void warm_tdm_lib::TdmGroupEmulate::setup_python() {
-   bp::class_<warm_tdm_lib::TdmGroupEmulate, warm_tdm_lib::TdmGroupEmulatePtr, bp::bases<ris::Slave>, boost::noncopyable >("TdmGroupEmulate",bp::init<>(uint8_t, uint8_t, uint8_t))
+   bp::class_<warm_tdm_lib::TdmGroupEmulate, warm_tdm_lib::TdmGroupEmulatePtr, bp::bases<ris::Master>, boost::noncopyable >("TdmGroupEmulate",bp::init<uint8_t, uint8_t, uint8_t>())
       .def("_start",             &warm_tdm_lib::TdmGroupEmulate::start)
       .def("_stop",              &warm_tdm_lib::TdmGroupEmulate::stop)
       .def("reqFrames",          &warm_tdm_lib::TdmGroupEmulate::countReset)
@@ -28,7 +28,7 @@ void warm_tdm_lib::TdmGroupEmulate::setup_python() {
    ;
 }
 
-warm_tdm_lib::TdmGroupEmulate::TdmGroupEmulate (uint8_t groupId, uint32_t numColBoards, uint32_t numRows) {
+warm_tdm_lib::TdmGroupEmulate::TdmGroupEmulate (uint8_t groupId, uint8_t numColBoards, uint8_t numRows) {
    countReset();
 
    lastTimestamp_ = 0;
@@ -48,7 +48,7 @@ warm_tdm_lib::TdmGroupEmulate::~TdmGroupEmulate () {
 void warm_tdm_lib::TdmGroupEmulate::start() {
    if ( txThread_ == NULL ) {
       runEnable_ = true;
-      txThread_ = new std::thread(&TdmGroupEmulate::runThread, NULL);
+      txThread_ = new std::thread(&TdmGroupEmulate::runThread, this);
    }
 }
 
@@ -57,7 +57,7 @@ void warm_tdm_lib::TdmGroupEmulate::stop() {
       runEnable_ = false;
       txThread_->join();
       delete txThread_;
-      txThrad_ = NULL;
+      txThread_ = NULL;
    }
 }
 
@@ -90,7 +90,7 @@ void warm_tdm_lib::TdmGroupEmulate::genFrames() {
    uint32_t tmp32;
    uint64_t tmp64;
 
-   lastTimestamp_ = reqTimeStamp_;
+   lastTimestamp_ = reqTimestamp_;
    size = 24 + (36 * numRows_);
 
    for ( col=0; col < numColBoards_; col++ ) {
@@ -118,12 +118,17 @@ void warm_tdm_lib::TdmGroupEmulate::genFrames() {
       toFrame(it, 3, &tmp32);
 
       for (row=0; row < numRows_; row++) {
-         toFrame(it, 1 &row);
+         toFrame(it, 1, &row);
 
          tmp32 = 0;
          toFrame(it, 3, &tmp32);
 
-         for (x=0; x < 8; x++) toFrame(it, 4, &x);
+         for (x=0; x < 8; x++) {
+            toFrame(it, 4, &x);
+            toFrame(it, 4, &row);
+            toFrame(it, 4, &col);
+            toFrame(it, 4, &groupId_);
+         }
       }
       sendFrame(frame);
       ++txFrameCount_;
@@ -134,7 +139,7 @@ void warm_tdm_lib::TdmGroupEmulate::genFrames() {
 
 void warm_tdm_lib::TdmGroupEmulate::runThread() {
    while (runEnable_) {
-      if ( lastTimestamp_ != reqTimestamp ) genFrames();
+      if ( lastTimestamp_ != reqTimestamp_ ) genFrames();
       else usleep(10);
    }
 }

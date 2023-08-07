@@ -5,6 +5,7 @@
 #include <rogue/interfaces/stream/Master.h>
 #include <rogue/interfaces/stream/Frame.h>
 #include <rogue/interfaces/stream/FrameIterator.h>
+#include <thread>
 
 namespace warm_tdm_lib {
 
@@ -19,10 +20,13 @@ namespace warm_tdm_lib {
          uint8_t  numColBoards_;
          uint8_t  numRows_;
          bool runEnable_;
+         std::thread* txThread_;
+
+         void runThread();
 
       public:
 
-         static std::shared_ptr<ucsc_hn_lib::TdmGroupEmulate> create(uint8_t groupId, uint8_t numColBoards, uint8_t numRows);
+         static std::shared_ptr<warm_tdm_lib::TdmGroupEmulate> create(uint8_t groupId, uint8_t numColBoards, uint8_t numRows);
 
          static void setup_python();
 
@@ -43,11 +47,9 @@ namespace warm_tdm_lib {
          void reqFrames(uint64_t timestamp);
 
          void genFrames();
-
-         void runThread();
    };
 
-   typedef std::shared_ptr<ucsc_hn_lib::TdmGroupEmulate> TdmGroupEmulatePtr;
+   typedef std::shared_ptr<warm_tdm_lib::TdmGroupEmulate> TdmGroupEmulatePtr;
 
 }
 

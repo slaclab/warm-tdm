@@ -14,7 +14,7 @@ namespace warm_tdm_lib {
 
       public:
 
-         static std::shared_ptr<ucsc_hn_lib::TdmDataReceiver> create();
+         static std::shared_ptr<warm_tdm_lib::TdmDataReceiver> create();
 
          static void setup_python();
 
@@ -29,7 +29,7 @@ namespace warm_tdm_lib {
          void acceptFrame ( std::shared_ptr<rogue::interfaces::stream::Frame> frame );
    };
 
-   typedef std::shared_ptr<ucsc_hn_lib::TdmDataReceiver> TdmDataReceiverPtr;
+   typedef std::shared_ptr<warm_tdm_lib::TdmDataReceiver> TdmDataReceiverPtr;
 
 }
 
