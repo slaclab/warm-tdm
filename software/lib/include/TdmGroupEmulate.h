@@ -11,8 +11,10 @@ namespace warm_tdm_lib {
 
    class TdmGroupEmulate : public rogue::interfaces::stream::Master {
 
-         uint64_t lastTimestamp_;
-         uint64_t reqTimestamp_;
+         uint32_t timestampA_;
+         uint32_t timestampB_;
+         uint32_t timestampC_;
+         uint32_t reqCount_;
          uint32_t sequence_;
          uint32_t txFrameCount_;
          uint32_t txByteCount_;
@@ -26,13 +28,21 @@ namespace warm_tdm_lib {
 
       public:
 
-         static std::shared_ptr<warm_tdm_lib::TdmGroupEmulate> create(uint8_t groupId, uint8_t numColBoards, uint8_t numRows);
+         static std::shared_ptr<warm_tdm_lib::TdmGroupEmulate> create(uint8_t groupId);
 
          static void setup_python();
 
-         TdmGroupEmulate (uint8_t groupId, uint8_t numColBoards, uint8_t numRows);
+         TdmGroupEmulate (uint8_t groupId);
 
          ~TdmGroupEmulate ();
+
+         void setNumColBoards(uint8_t number);
+
+         uint8_t getNumColBoards();
+
+         void setNumRows(uint8_t number);
+
+         uint8_t getNumRows();
 
          void start();
 
@@ -44,7 +54,7 @@ namespace warm_tdm_lib {
 
          uint32_t getTxByteCount();
 
-         void reqFrames(uint64_t timestamp);
+         void reqFrames(uint32_t timestampA, uint32_t timestampB, uint32_t timestampC);
 
          void genFrames();
    };
