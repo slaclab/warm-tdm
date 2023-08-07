@@ -11,6 +11,8 @@ pyrogue.addLibraryPath(f'../../firmware/submodules/surf/python')
 
 import warm_tdm_api
 
+groupCount = 12
+
 class EmulateRoot(pyrogue.Root):
 
     def __init__(self):
@@ -20,7 +22,7 @@ class EmulateRoot(pyrogue.Root):
         dr = warm_tdm_api.TdmDataReceiver()
         self.add(dr)
 
-        for i in range(12):
+        for i in range(groupCount):
             dg = warm_tdm_api.TdmGroupEmulate(name=f'TdmGroupEmulate[{i}]', groupId=i)
             dr << dg
             self.add(dg)
