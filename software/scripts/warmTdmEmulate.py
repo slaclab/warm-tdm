@@ -19,11 +19,11 @@ class EmulateRoot(pyrogue.Root):
         pyrogue.Root.__init__(self, description="Emulate Root")
 
 
-        dr = warm_tdm_api.TdmDataReceiver()
+        dr = warm_tdm_api.TdmDataReceiver(expand=True)
         self.add(dr)
 
         for i in range(groupCount):
-            dg = warm_tdm_api.TdmGroupEmulate(name=f'TdmGroupEmulate[{i}]', groupId=i)
+            dg = warm_tdm_api.TdmGroupEmulate(name=f'TdmGroupEmulate[{i}]', expand=True, groupId=i)
             dr << dg
             self.add(dg)
 
