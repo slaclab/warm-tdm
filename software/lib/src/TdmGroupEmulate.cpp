@@ -148,10 +148,10 @@ void warm_tdm_lib::TdmGroupEmulate::genFrames() {
          toFrame(it, 3, &tmp32);
 
          for (x=0; x < 8; x++) {
-            toFrame(it, 4, &x);
-            toFrame(it, 4, &row);
-            toFrame(it, 4, &col);
-            toFrame(it, 4, &groupId_);
+            toFrame(it, 1, &x);
+            toFrame(it, 1, &row);
+            toFrame(it, 1, &col);
+            toFrame(it, 1, &groupId_);
          }
       }
       sendFrame(frame);
