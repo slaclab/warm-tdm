@@ -27,7 +27,7 @@ class EmulateRoot(pyrogue.Root):
             dr << dg
             self.add(dg)
 
-        self.add(warm_tdm_api.RunControl())
+        self.add(warm_tdm_api.RunEmulate())
 
         self.zmqServer = pyrogue.interfaces.ZmqServer(root=self, addr='*', port=0)
         self.addInterface(self.zmqServer)

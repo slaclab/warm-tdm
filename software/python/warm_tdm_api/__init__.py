@@ -13,7 +13,7 @@ from warm_tdm_api._ConfigSelect import *
 from warm_tdm_api._SaStripChart import *
 from warm_tdm_api._TdmDataReceiver import *
 from warm_tdm_api._TdmGroupEmulate import *
-from warm_tdm_api._RunControl import *
+from warm_tdm_api._RunEmulate import *
 
 import os.path
 pydmUi = os.path.dirname(__file__) + '/warm_tdm_gui.ui'

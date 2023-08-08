@@ -2,7 +2,7 @@ import pyrogue as pr
 import time
 import warm_tdm_api
 
-class RunControl(pr.RunControl):
+class RunEmulate(pr.RunControl):
     """Special base class to control runs. """
 
     def __init__(self, *, hidden=True, states=None, cmd=None, **kwargs):
