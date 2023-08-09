@@ -46,7 +46,10 @@ void warm_tdm_lib::TdmDataReceiver::acceptFrame ( ris::FramePtr frame ) {
    rogue::GilRelease noGil;
    ris::FrameLockPtr lock = frame->lock();
 
-   rxFrameCount_++;
-   rxByteCount_ += frame->getPayload();
+   {
+      std::lock_guard<std::mutex> lock(mtx_);
+      rxFrameCount_++;
+      rxByteCount_ += frame->getPayload();
+   }
 }
 

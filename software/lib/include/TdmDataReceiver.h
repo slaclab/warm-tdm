@@ -12,6 +12,8 @@ namespace warm_tdm_lib {
          uint32_t rxFrameCount_;
          uint32_t rxByteCount_;
 
+         std::mutex mtx_;
+
       public:
 
          static std::shared_ptr<warm_tdm_lib::TdmDataReceiver> create();
