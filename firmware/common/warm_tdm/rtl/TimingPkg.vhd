@@ -51,7 +51,7 @@ package TimingPkg is
       lastSample   : sl;
       rowSeq       : slv(9 downto 0);   -- Sequence in row readout list
       rowIndex     : slv(7 downto 0);   -- Current row index
-      rowIndexNext : slv(7 downto 0);
+      rowIndexNext : slv(7 downto 0);   -- Next row index
       rowTime      : slv(15 downto 0);  -- timingClk counts since last row strobe
       readoutCount : slv(63 downto 0);  -- Number of full loops through all rows
       rawAdc       : sl;                -- Capture ADC waveforms on all channels

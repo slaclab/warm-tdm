@@ -241,6 +241,12 @@ architecture rtl of ColumnModule is
    signal locAxilReadMasters  : AxiLiteReadMasterArray(NUM_AXIL_MASTERS_C-1 downto 0);
    signal locAxilReadSlaves   : AxiLiteReadSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0);
 
+   signal sq1FbAxilWriteMaster : AxiLiteWriteMasterType;
+   signal sq1FbAxilWriteSlave  : AxiLiteWriteSlaveType;
+   signal sq1FbAxilReadMaster  : AxiLiteReadMasterType;
+   signal sq1FbAxilReadSlave   : AxiLiteReadSlaveType;
+
+
    -- Data Streams
    signal axisClk          : sl;
    signal axisRst          : sl;
@@ -253,8 +259,11 @@ architecture rtl of ColumnModule is
    signal timingRxClk125 : sl;
    signal timingRxRst125 : sl;
    signal timingRxData   : LocalTimingType;
+   signal sq1FbDacs      : Slv14Array(7 downto 0);
 
    signal adc : Ad9681SerialType;
+
+
 
 begin
 
@@ -335,21 +344,25 @@ begin
    U_AxiLiteCrossbar_Main : entity surf.AxiLiteCrossbar
       generic map (
          TPD_G              => TPD_G,
-         NUM_SLAVE_SLOTS_G  => 1,
+         NUM_SLAVE_SLOTS_G  => 2,
          NUM_MASTER_SLOTS_G => NUM_AXIL_MASTERS_C,
          MASTERS_CONFIG_G   => AXIL_XBAR_CFG_C,
          DEBUG_G            => false)
       port map (
-         axiClk              => axilClk,              -- [in]
-         axiClkRst           => axilRst,              -- [in]
-         sAxiWriteMasters(0) => srpAxilWriteMaster,   -- [in]
-         sAxiWriteSlaves(0)  => srpAxilWriteSlave,    -- [out]
-         sAxiReadMasters(0)  => srpAxilReadMaster,    -- [in]
-         sAxiReadSlaves(0)   => srpAxilReadSlave,     -- [out]
-         mAxiWriteMasters    => locAxilWriteMasters,  -- [out]
-         mAxiWriteSlaves     => locAxilWriteSlaves,   -- [in]
-         mAxiReadMasters     => locAxilReadMasters,   -- [out]
-         mAxiReadSlaves      => locAxilReadSlaves);   -- [in]
+         axiClk              => axilClk,               -- [in]
+         axiClkRst           => axilRst,               -- [in]
+         sAxiWriteMasters(0) => srpAxilWriteMaster,    -- [in]
+         sAxiWriteMasters(1) => sq1FbAxilWriteMaster,  -- [in]
+         sAxiWriteSlaves(0)  => srpAxilWriteSlave,     -- [out]
+         sAxiWriteSlaves(1)  => sq1FbAxilWriteSlave,   --[out]
+         sAxiReadMasters(0)  => srpAxilReadMaster,     -- [in]
+         sAxiReadMasters(1)  => sq1FbAxilReadMaster,   -- [in]
+         sAxiReadSlaves(0)   => srpAxilReadSlave,      -- [out]
+         sAxiReadSlaves(1)   => sq1FbAxilReadSlave,    -- [out]
+         mAxiWriteMasters    => locAxilWriteMasters,   -- [out]
+         mAxiWriteSlaves     => locAxilWriteSlaves,    -- [in]
+         mAxiReadMasters     => locAxilReadMasters,    -- [out]
+         mAxiReadSlaves      => locAxilReadSlaves);    -- [in]
 
    -------------------------------------------------------------------------------------------------
    -- SA Bias
@@ -458,22 +471,30 @@ begin
          TPD_G            => TPD_G,
          SIMULATION_G     => SIMULATION_G,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_DATA_PATH_C).baseAddr,
+         SQ1FB_RAM_ADDR_G => AXIL_XBAR_CFG_C(AXIL_SQ1_FB_DAC_C).baseAddr,
          IODELAY_GROUP_G  => "IODELAY0")
       port map (
-         adc             => adc,                                    -- [in]
-         timingRxClk125  => timingRxClk125,                         -- [in]
-         timingRxRst125  => timingRxRst125,                         -- [in]
-         timingRxData    => timingRxData,                           -- [in]
-         axisClk         => axisClk,                                -- [in]
-         axisRst         => axisRst,                                -- [in]
-         axisMaster      => dataTxAxisMaster,                       -- [out]
-         axisSlave       => dataTxAxisSlave,                        -- [in]
-         axilClk         => axilClk,                                -- [in]
-         axilRst         => axilRst,                                -- [in]
-         axilReadMaster  => locAxilReadMasters(AXIL_DATA_PATH_C),   -- [in]
-         axilReadSlave   => locAxilReadSlaves(AXIL_DATA_PATH_C),    -- [out]
-         axilWriteMaster => locAxilWriteMasters(AXIL_DATA_PATH_C),  -- [in]
-         axilWriteSlave  => locAxilWriteSlaves(AXIL_DATA_PATH_C));  -- [out]
+         adc              => adc,                                    -- [in]
+         timingRxClk125   => timingRxClk125,                         -- [in]
+         timingRxRst125   => timingRxRst125,                         -- [in]
+         timingRxData     => timingRxData,                           -- [in]
+         sq1FbDacs        => sq1FbDacs,                              --[in]
+         axisClk          => axisClk,                                -- [in]
+         axisRst          => axisRst,                                -- [in]
+         axisMaster       => dataTxAxisMaster,                       -- [out]
+         axisSlave        => dataTxAxisSlave,                        -- [in]
+         axilClk          => axilClk,                                -- [in]
+         axilRst          => axilRst,                                -- [in]
+         sAxilReadMaster  => locAxilReadMasters(AXIL_DATA_PATH_C),   -- [in]
+         sAxilReadSlave   => locAxilReadSlaves(AXIL_DATA_PATH_C),    -- [out]
+         sAxilWriteMaster => locAxilWriteMasters(AXIL_DATA_PATH_C),  -- [in]
+         sAxilWriteSlave  => locAxilWriteSlaves(AXIL_DATA_PATH_C),   -- [out]
+         mAxilReadMaster  => sq1FbAxilReadMaster,                    -- [out]
+         mAxilReadSlave   => sq1FbAxilReadSlave,                     -- [in]
+         mAxilWriteMaster => sq1FbAxilWriteMaster,                   -- [out]
+         mAxilWriteSlave  => sq1FbAxilWriteSlave);                   -- [in]
+
+
 
    -------------------------------------------------------------------------------------------------
    -- Fast DAC drivers
@@ -506,6 +527,7 @@ begin
          timingRxClk125  => timingRxClk125,                          -- [in]
          timingRxRst125  => timingRxRst125,                          -- [in]
          timingRxData    => timingRxData,                            -- [in]
+         dacOut          => sq1FbDacs,                               -- [out]
          dacDb           => sq1FbDb,                                 -- [out]
          dacWrt          => sq1FbWrt,                                -- [out]
          dacClk          => sq1FbClk,                                -- [out]

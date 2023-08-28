@@ -11,7 +11,7 @@
 source -quiet $::env(RUCKUS_DIR)/vivado_proc.tcl
 
 # Load Source Code
-loadSource -lib warm_tdm -dir "$::DIR_PATH/rtl"
+loadSource -lib warm_tdm  -dir "$::DIR_PATH/rtl" -fileType "VHDL 2008"
 loadConstraints -dir "$::DIR_PATH/xdc"
 
 # Load Ip Core

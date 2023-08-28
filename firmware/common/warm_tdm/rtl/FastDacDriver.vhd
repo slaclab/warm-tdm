@@ -39,11 +39,11 @@ entity FastDacDriver is
 
       timingRxData : in LocalTimingType;
 
-      -- Interface for internal updates to DAC array
-      dacOut      : out slv14Array(7 downto 0);
-      dacIn       : in  slv14Array(7 downto 0);
-      dacRowIndex : in  slv(7 downto 0);
-      dacValid    : in  sl;
+      -- Currently driven dac values
+      dacOut : out slv14Array(7 downto 0);
+--       dacIn       : in  slv14Array(7 downto 0);
+--       dacRowIndex : in  slv(7 downto 0);
+--       dacValid    : in  sl;
 
       -- DAC HW Interface
       dacDb    : out slv(13 downto 0);
@@ -73,7 +73,7 @@ architecture rtl of FastDacDriver is
    signal locAxilReadSlaves   : AxiLiteReadSlaveArray(NUM_AXIL_C-1 downto 0);
 
    type StateType is (
-      WAIT_LOAD_DACS_S
+      WAIT_LOAD_DACS_S,
       DATA_S,
       WRITE_S,
       WRITE_FALL_S,
@@ -87,9 +87,10 @@ architecture rtl of FastDacDriver is
 
    type RegType is record
       startup    : sl;
+      rowIndex : slv(7 downto 0);
       state      : StateType;
       dacOutNext : slv14array(7 downto 0);
-      dacOut     : Slv14Array(7 donwto 0);
+      dacOut     : Slv14Array(7 downto 0);
       dacNum     : slv(2 downto 0);
       dacDb      : slv(13 downto 0);
       dacWrt     : slv(3 downto 0);
@@ -99,6 +100,7 @@ architecture rtl of FastDacDriver is
 
    constant REG_INIT_C : RegType := (
       startup    => '1',
+      rowIndex => (others => '0'),
       state      => WAIT_ROW_STROBE_S,
       dacOutNext => (others => (others => '0')),
       dacOut     => (others => (others => '0')),
@@ -160,14 +162,14 @@ begin
             axiWriteMaster => locAxilWriteMasters(i),  -- [in]
             axiWriteSlave  => locAxilWriteSlaves(i),   -- [out]
             clk            => timingRxClk125,          -- [in]
-            we             => r.ramWrite,              -- [in]
+--            we             => r.ramWrite,              -- [in]
             rst            => timingRxRst125,          -- [in]
             addr           => r.rowIndex,              -- [in]
-            din            => r.ramDin,                -- [in]
+--            din            => r.ramDin,                -- [in]
             dout           => ramDout(i));             -- [out]
    end generate GEN_AXIL_RAM;
 
-   U_AxiDualPortRam_1 : entity surf.AxiDualPortRam
+   U_AxiDualPortRam_OVERRIDE : entity surf.AxiDualPortRam
       generic map (
          TPD_G            => TPD_G,
          SYNTH_MODE_G     => "inferred",
@@ -203,11 +205,11 @@ begin
    begin
       v := r;
 
-      if (dacValid = '1') then
-         v.ramWriteReq = '1';
-         v.ramDin      := dacIn;
-         v.ramReqRowId := dacRowIndex;
-      end if;
+--       if (dacValid = '1') then
+--          v.ramWriteReq = '1';
+--          v.ramDin      := dacIn;
+--          v.ramReqRowId := dacRowIndex;
+--       end if;
 
       dacInt  := conv_integer(r.dacNum);
       dacChip := conv_integer(r.dacNum(2 downto 1));
@@ -219,20 +221,22 @@ begin
       case r.state is
          when WAIT_LOAD_DACS_S =>
             v.dacNum := (others => '0');
-            -- Use lastSample instead of loadDacs for now since it doesn't exist yet
+            -- At startup, load rowIndex[0] ram values into dacs
             if (r.startup = '1') then
-               v.startup := '0';
                v.rowIndex := (others => '0');
-               v.state := WAIT_RAM_OUTPUT_S;
+               v.state    := DATA_S;
 
-            elsif (timingRxData.lastSample = '1')
-               v.state   := WAIT_RAM_OUTPUT_S;
+            -- Use lastSample instead of loadDacs for now since it doesn't exist yet               
+            elsif (timingRxData.lastSample = '1') then
+               v.rowIndex := timingRxData.rowIndexNext;
+               v.state    := DATA_S;
             end if;
 
             if (overrideWrValid = '1') then
-               v.dacDb  := overrideWrData(13 downto 0);
-               v.dacNum := overrideWrAddr;
-               v.state  := OVER_SEL_S;
+               v.dacDb              := overrideWrData(13 downto 0);
+               v.dacOutNext(dacInt) := overrideWrData(13 downto 0);
+               v.dacNum             := overrideWrAddr;
+               v.state              := OVER_SEL_S;
             end if;
 
          when DATA_S =>
@@ -254,11 +258,13 @@ begin
                v.state := WAIT_ROW_STROBE_S;
             end if;
 
-         -- Once Dacs are loaded, wait for row strobe to clock loaded value to dac output
          when WAIT_ROW_STROBE_S =>
-            if (timingRxData.rowStrobe = '1') then
-               v.dacOut <= r.dacOutNext;
-               v.state  := CLK_0_RISE_S;
+            -- Once Dacs are loaded, wait for row strobe to clock loaded value to dac output
+            -- During startup, don't wait for row strobe
+            if (timingRxData.rowStrobe = '1' or r.startup = '1') then
+               v.startup := '0';
+               v.dacOut  := r.dacOutNext;
+               v.state   := CLK_0_RISE_S;
             end if;
 
          when OVER_SEL_S =>
@@ -284,7 +290,7 @@ begin
          when CLK_1_RISE_S =>
             v.dacClk := (others => '1');
             v.dacSel := (others => '0');
-            v.state  := WAIT_ROW_STROBE_S;
+            v.state  := WAIT_LOAD_DACS_S;
 
          when others => null;
       end case;
