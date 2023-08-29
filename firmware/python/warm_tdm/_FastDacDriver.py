@@ -166,7 +166,7 @@ class FastDacDriver(pr.Device):
 
 
     def _squidVoltageToDac(self, voltage, column):
-        dacCurrent = voltage / (self.dacLoad_deps[column].value() * self.ampGain[column].value())
+        dacCurrent = voltage / (self.dacLoad_deps[column].value() * self.ampGain_deps[column].value())
 #        print(f'dacCurrent = {dacCurrent}')
 
         dac = int(((dacCurrent/self.IOutFs[column].value())*8192)+8191)
