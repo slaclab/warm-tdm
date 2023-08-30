@@ -25,13 +25,13 @@ class HardwareGroup(pyrogue.Device):
             host='192.168.3.11',
             colBoards=4,
             rowBoards=2,
-            rows=64,
+#            rows=64,
             plots=False,
             **kwargs):
 
         super().__init__(**kwargs)
 
-        print(f'HardwareGroup with {rows} rows')
+#        print(f'HardwareGroup with {rows} rows')
 
         # Open rUDP connections to the Manager board
         if simulation is False and emulate is False:
@@ -54,6 +54,8 @@ class HardwareGroup(pyrogue.Device):
                 srpStream = rogue.interfaces.stream.TcpClient('localhost', SIM_SRP_PORT + (0x00 <<4 | index)*2)
                 dataStream = rogue.interfaces.stream.TcpClient('localhost', SIM_DATA_PORT + (0x00 <<4 | index)*2)
                 self.addInterface(srpStream, dataStream)
+
+                
                 srp = rogue.protocols.srp.SrpV3()
                 srp == srpStream
 
@@ -63,9 +65,20 @@ class HardwareGroup(pyrogue.Device):
                 srp = rogue.protocols.srp.SrpV3()
                 srp == srpStream
 
+            # Data streams are packetized and need to be unpacked
+#            packetizer = rogue.protocols.packetizer.CoreV2(False, False, True);
+#            dataStream >> packetizer.transport()
+                
+
             # Instantiate the board Device tree and link it to the SRP
-            self.add(warm_tdm.ColumnModule(name=f'ColumnBoard[{index}]', memBase=srp, expand=True, rows=rows, waveform_stream=dataStream))
+            self.add(warm_tdm.ColumnModule(
+                name=f'ColumnBoard[{index}]',
+                memBase=srp, expand=True,
+#                rows=rows,
+                waveform_stream=dataStream))
+            
             waveGui = warm_tdm.WaveformCaptureReceiver(hidden=False, loading=self.ColumnBoard[index].loading)
+            pidDebug = warm_tdm.PidDebugger(hidden=False)
 
             # Link the data stream to the DataWriter
             if emulate is False:
@@ -74,7 +87,9 @@ class HardwareGroup(pyrogue.Device):
 
                 #debug = warm_tdm.StreamDebug()
 
-                dataStream >> waveGui
+                dataStream >> pidDebug
+#                packetizer.application(8) >> waveGui
+#                packetizer.application(0) >> pidDebug
 
 #                 else:
 #                     debug = warm_tdm.StreamDebug()
@@ -108,6 +123,7 @@ class HardwareGroup(pyrogue.Device):
             value = [0,1,2,3] )) #list(range(48))))
 
         self.add(waveGui)
+        self.add(pidDebug)
 
 
     def writeBlocks(self, **kwargs):

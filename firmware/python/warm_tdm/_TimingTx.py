@@ -116,7 +116,15 @@ class TimingTx(pr.Device):
             bitOffset = 16,
             bitSize = 16,
             disp = '{:d}'))
-
+        
+        self.add(pr.RemoteVariable(
+            name = 'LoadDacsTime',
+            mode = 'RW',
+            offset = 0x24,
+            bitOffset = 0,
+            bitSize = 16,
+            disp = '{:d}'))
+        
         self.add(pr.RemoteVariable(
             name = 'Running',
             mode = 'RO',

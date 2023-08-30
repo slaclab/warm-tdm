@@ -113,7 +113,18 @@ architecture rtl of DataPath is
    signal sq1FbAxilWriteMaster : AxiLiteWriteMasterType;
    signal sq1FbAxilWriteSlave  : AxiLiteWriteSlaveType;
 
+   signal waveformMaster : AxiStreamMasterType;
+   signal waveformSlave  : AxiStreamSlaveType;
 
+   signal pidDebugMasters : AxiStreamMasterArray(7 downto 0);
+   signal pidDebugSlaves  : AxiStreamSlaveArray(7 downto 0);
+
+   signal pidDebugMaster : AxiStreamMasterType;
+   signal pidDebugSlave  : AxiStreamSlaveType;
+
+   signal dataAxisMaster : AxiStreamMasterType;
+   signal dataAxisSlave  : AxiStreamSlaveType;
+   
 begin
 
    U_AxiLiteAsync_SRP : entity surf.AxiLiteAsync
@@ -214,28 +225,28 @@ begin
             COEFF_WIDTH_G    => 26,
             COEFFICIENTS_G   => FILTER_COEFFICIENTS_C)
          port map (
-            clk                 => timingRxClk125,                            -- [in]
-            rst                 => timingRxRst125,                            -- [in]
-            ibValid             => adcStreams(i).tvalid,                      -- [in]
-            din                 => adcStreams(i).tData(15 downto 0),          -- [in]
-            sbIn(7 downto 0)    => timingRxData.rowIndex,                     -- [in]
-            sbIn(8)             => timingRxData.firstSample,                  -- [in]
-            sbIn(9)             => timingRxData.lastSample,                   -- [in]
-            sbIn(10)            => timingRxData.rowStrobe,                    -- [in]
-            sbIn(24 downto 11)  => sq1FbDacs(i),                              -- [in]
-            obValid             => filteredAdcStreams(i).tvalid,              -- [out]
-            dout                => filteredAdcStreams(i).tData(15 downto 0),  -- [out]
-            sbOut(7 downto 0)   => filteredAdcStreams(i).tid(7 downto 0),     -- [out]
-            sbOut(8)            => filteredAdcStreams(i).tUser(0),            -- [out]
-            sbOut(9)            => filteredAdcStreams(i).tUser(1),            -- [out]
-            sbOut(10)           => filteredAdcStreams(i).tUser(2),            -- [out]
-            sbOut(24 downto 11) => filteredAdcStreams(i).tData(29 downto 16),    -- [out]
-            axilClk             => timingRxClk125,                            -- [in]
-            axilRst             => timingRxRst125,                            -- [in]
-            axilReadMaster      => filterAxilReadMasters(i),                  -- [in]
-            axilReadSlave       => filterAxilReadSlaves(i),                   -- [out]
-            axilWriteMaster     => filterAxilWriteMasters(i),                 -- [in]
-            axilWriteSlave      => filterAxilWriteSlaves(i));                 -- [out]
+            clk                 => timingRxClk125,                             -- [in]
+            rst                 => timingRxRst125,                             -- [in]
+            ibValid             => adcStreams(i).tvalid,                       -- [in]
+            din                 => adcStreams(i).tData(15 downto 0),           -- [in]
+            sbIn(7 downto 0)    => timingRxData.rowIndex,                      -- [in]
+            sbIn(8)             => timingRxData.firstSample,                   -- [in]
+            sbIn(9)             => timingRxData.lastSample,                    -- [in]
+            sbIn(10)            => timingRxData.rowStrobe,                     -- [in]
+            sbIn(24 downto 11)  => sq1FbDacs(i),                               -- [in]
+            obValid             => filteredAdcStreams(i).tvalid,               -- [out]
+            dout                => filteredAdcStreams(i).tData(15 downto 0),   -- [out]
+            sbOut(7 downto 0)   => filteredAdcStreams(i).tid(7 downto 0),      -- [out]
+            sbOut(8)            => filteredAdcStreams(i).tUser(0),             -- [out]
+            sbOut(9)            => filteredAdcStreams(i).tUser(1),             -- [out]
+            sbOut(10)           => filteredAdcStreams(i).tUser(2),             -- [out]
+            sbOut(24 downto 11) => filteredAdcStreams(i).tData(29 downto 16),  -- [out]
+            axilClk             => timingRxClk125,                             -- [in]
+            axilRst             => timingRxRst125,                             -- [in]
+            axilReadMaster      => filterAxilReadMasters(i),                   -- [in]
+            axilReadSlave       => filterAxilReadSlaves(i),                    -- [out]
+            axilWriteMaster     => filterAxilWriteMasters(i),                  -- [in]
+            axilWriteSlave      => filterAxilWriteSlaves(i));                  -- [out]
    end generate FIR_FILTER_GEN;
 
 
@@ -253,14 +264,15 @@ begin
          axilWriteSlave  => locAxilWriteSlaves(9),   -- [out]
          axisClk         => axisClk,                 -- [in]
          axisRst         => axisRst,                 -- [in]
-         axisMaster      => axisMaster,              -- [out]
-         axisSlave       => axisSlave);              -- [in]
+         axisMaster      => waveformMaster,          -- [out]
+         axisSlave       => waveformSlave);          -- [in]
 
 
    GEN_ADC_DSP : for i in 7 downto 0 generate
       U_AdcDsp_1 : entity warm_tdm.AdcDsp
          generic map (
             TPD_G            => TPD_G,
+            COLUMN_NUM_G     => i,
             AXIL_BASE_ADDR_G => XBAR_COFNIG_C(i+1).baseAddr,
             SQ1FB_RAM_ADDR_G => SQ1FB_RAM_ADDR_G(31 downto 12) & toslv(i, 4) & X"00")
          port map (
@@ -277,10 +289,67 @@ begin
             mAxilReadMaster  => sq1fbAxilReadMasters(i),   -- [out]
             mAxilReadSlave   => sq1fbAxilReadSlaves(i),    -- [in]
             mAxilWriteMaster => sq1fbAxilWriteMasters(i),  -- [out]
-            mAxilWriteSlave  => sq1fbAxilWriteSlaves(i));  -- [in]
-
-
+            mAxilWriteSlave  => sq1fbAxilWriteSlaves(i),   -- [in]
+            axisClk          => axisClk,                   -- [in]
+            axisRst          => axisRst,                   -- [in]
+            pidDebugMaster   => pidDebugMasters(i),        -- [out]
+            pidDebugSlave    => pidDebugSlaves(i));        -- [in]            
    end generate;
+
+   axisMaster <= pidDebugMasters(0);
+   pidDebugSlaves(0) <= axisSlave;
+
+   -- Multiplex debug streams
+--    U_AxiStreamMux_1 : entity surf.AxiStreamMux
+--       generic map (
+--          TPD_G         => TPD_G,
+--          PIPE_STAGES_G => 0,
+--          NUM_SLAVES_G  => 8,
+--          MODE_G        => "INDEXED")
+--       port map (
+--          axisClk      => axisClk,          -- [in]
+--          axisRst      => axisRst,          -- [in]
+--          sAxisMasters => pidDebugMasters,  -- [in]
+--          sAxisSlaves  => pidDebugSlaves,   -- [out]
+--          mAxisMaster  => pidDebugMaster,   -- [out]
+--          mAxisSlave   => pidDebugSlave);   -- [in]
+
+--    -- Multiplex waveform stream into debug streams
+--    U_AxiStreamMux_2 : entity surf.AxiStreamMux
+--       generic map (
+--          TPD_G         => TPD_G,
+--          PIPE_STAGES_G => 0,
+--          NUM_SLAVES_G  => 2,
+--          MODE_G        => "PASSTHROUGH")
+--       port map (
+--          axisClk         => axisClk,         -- [in]
+--          axisRst         => axisRst,         -- [in]
+--          sAxisMasters(0) => pidDebugMaster,  -- [in]
+--          sAxisMasters(1) => waveformMaster,  -- [in]         
+--          sAxisSlaves(0)  => pidDebugSlave,   -- [out]
+--          sAxisSlaves(1)  => waveformSlave,   -- [out]
+--          mAxisMaster     => dataAxisMaster,  -- [out]
+--          mAxisSlave      => dataAxisSlave);  -- [in]
+
+--    -- Packetize everything
+--    U_AxiStreamPacketizer2_1 : entity surf.AxiStreamPacketizer2
+--       generic map (
+--          TPD_G                => TPD_G,
+--          MEMORY_TYPE_G        => "distributed",
+--          REG_EN_G             => false,
+--          CRC_MODE_G           => "NONE",
+--          MAX_PACKET_BYTES_G   => 256,
+--          TDEST_BITS_G         => 8,
+--          INPUT_PIPE_STAGES_G  => 0,
+--          OUTPUT_PIPE_STAGES_G => 0)
+--       port map (
+--          axisClk     => axisClk,         -- [in]
+--          axisRst     => axisRst,         -- [in]
+--          sAxisMaster => dataAxisMaster,  -- [in]
+--          sAxisSlave  => dataAxisSlave,   -- [out]
+--          mAxisMaster => axisMaster,      -- [out]
+--          mAxisSlave  => axisSlave);      -- [in]   
+
 
    -- Combine Sq1 masters into single bus
    U_AxiLiteCrossbar_SQ1 : entity surf.AxiLiteCrossbar

@@ -22,6 +22,7 @@ from warm_tdm_api import PhysicalMap as pm
 #rogue.Logging.setFilter('pyrogue.memory.Transaction', rogue.Logging.Debug)
 #logging.getLogger('pyrogue.Device').setLevel(logging.DEBUG)
 #logging.getLogger('pyrogue.Variable').setLevel(logging.DEBUG)
+rogue.Logging.setFilter('pyrogue.protocols.packetizer.CoreV2', rogue.Logging.Debug)
 
 parser = argparse.ArgumentParser()
 

@@ -72,7 +72,7 @@ class ColumnModule(pr.Device):
 #                          'SA_AMP_FB_R': 1.0,
 #                          'SA_OFFSET_R': 1.0e20,
 #                          'SA_AMP_GAIN_R': 1.0e20}},                     
-                 rows=64,
+#                 rows=64,
                  **kwargs):
         super().__init__(**kwargs)
 
@@ -109,7 +109,7 @@ class ColumnModule(pr.Device):
         self.add(warm_tdm.FastDacDriver(
             name = 'SAFb',
             offset = 0xC0600000,
-            rows = rows,
+#            rows = rows,
             rfsadj = {col: d['SA_FB_FSADJ_R'] for col, d in self.loading.items()},
             dacLoad = {col: d['SA_FB_DAC_LOAD_R'] for col, d in self.loading.items()},
             ampGain = {col: d['SA_FB_AMP_GAIN_R'] for col, d in self.loading.items()},
@@ -120,7 +120,7 @@ class ColumnModule(pr.Device):
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Bias',
             offset = 0xC0400000,
-            rows = rows,
+ #           rows = rows,
             rfsadj = {col: d['SQ1_BIAS_FSADJ_R'] for col, d in self.loading.items()},
             dacLoad = {col: d['SQ1_BIAS_DAC_LOAD_R'] for col, d in self.loading.items()},
             ampGain = {col: d['SQ1_BIAS_AMP_GAIN_R'] for col, d in self.loading.items()},
@@ -130,7 +130,7 @@ class ColumnModule(pr.Device):
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Fb',
             offset =0xC0500000,
-            rows = rows,
+  #          rows = rows,
             rfsadj = {col: d['SQ1_FB_FSADJ_R'] for col, d in self.loading.items()},
             dacLoad = {col: d['SQ1_FB_DAC_LOAD_R'] for col, d in self.loading.items()},
             ampGain = {col: d['SQ1_FB_AMP_GAIN_R'] for col, d in self.loading.items()},

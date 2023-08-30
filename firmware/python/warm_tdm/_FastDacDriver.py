@@ -7,7 +7,6 @@ import warm_tdm
 class FastDacDriver(pr.Device):
 
     def __init__(self,
-                 rows=64,
                  rfsadj=[2.0E3]*8,
                  dacLoad=[25.0]*8,
                  ampGain=[-4.7]*8,
@@ -16,8 +15,7 @@ class FastDacDriver(pr.Device):
                  **kwargs):
         super().__init__(**kwargs)
 
-        if rows == 0:
-            rows = 64
+        rows = 256
 
         print(rfsadj)
         self.iOutFs = [1.2 / r * 32 for r in rfsadj.values()]
@@ -34,7 +32,7 @@ class FastDacDriver(pr.Device):
         for i in range(8):
             self.add(pr.RemoteVariable(
                 name = f'OverrideRaw[{i}]',
-                offset = (8 << 8) + 4*i,
+                offset = (8 << 12) + 4*i,
                 base = pr.UInt,
                 bitSize = 16))
 
@@ -101,7 +99,7 @@ class FastDacDriver(pr.Device):
 
             self.add(pr.RemoteVariable(
                 name = f'ColumnRaw[{i}]',
-                offset = i << 8,
+                offset = i << 12,
                 base = pr.UInt,
                 mode = 'RW',
                 bitSize = 32*rows,

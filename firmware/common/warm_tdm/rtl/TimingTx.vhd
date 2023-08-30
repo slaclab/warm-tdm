@@ -88,6 +88,7 @@ architecture rtl of TimingTx is
       numRows           : slv(15 downto 0);
       sampleStartTime   : slv(15 downto 0);
       sampleEndTime     : slv(15 downto 0);
+      loadDacsTime      : slv(15 downto 0);
       -- State
       timingData        : LocalTimingType;
       timingTx          : slv(7 downto 0);
@@ -103,10 +104,11 @@ architecture rtl of TimingTx is
       xbarTimingSel     => "01",
       runMode           => SOFTWARE_C,
       softwareRowStrobe => '0',
-      rowPeriod         => toSlv(256, 16),                  -- 125 MHz / 256 = 488 kHz
-      numRows           => toSlv(64, 16),                   -- Default of 64 rows
-      sampleStartTime   => toSlv(150, 16),
-      sampleEndTime     => toSlv(249, 16),                  -- Could be corner case here?
+      rowPeriod         => toSlv(250, 16),                  -- 125 MHz / 256 = 488 kHz
+      numRows           => toSlv(256, 16),                  -- Default of 64 rows
+      sampleStartTime   => toSlv(32, 16),
+      sampleEndTime     => toSlv(160, 16),                  -- Could be corner case here?
+      loadDacsTime      => toSlv(200, 16),
       timingTx          => IDLE_C,
       timingData        => LOCAL_TIMING_INIT_C,
       axilWriteSlave    => AXI_LITE_WRITE_SLAVE_INIT_C,
@@ -171,13 +173,14 @@ begin
       axiSlaveRegister(axilEp, X"18", 0, v.softwareRowStrobe);
 
       axiSlaveRegister(axilEp, X"20", 0, v.timingData.rawAdc);
+      axiSlaveRegister(axilEp, X"24", 0, v.loadDacsTime);
 
       -- Status
       axiSlaveRegisterR(axilEp, X"30", 0, r.timingData.running);
       axiSlaveRegisterR(axilEp, X"30", 1, r.timingData.sample);
       axiSlaveRegisterR(axilEp, X"34", 0, r.timingData.rowSeq);
       axiSlaveRegisterR(axilEp, X"34", 16, r.timingData.rowIndex);
-      axiSlaveRegisterR(axilEp, X"34", 24, r.timingData.rowIndexNext);            
+      axiSlaveRegisterR(axilEp, X"34", 24, r.timingData.rowIndexNext);
       axiSlaveRegisterR(axilEp, X"38", 0, r.timingData.rowTime);
       axiSlaveRegisterR(axilEp, X"40", 0, r.timingData.runTime);
       axiSlaveRegisterR(axilEp, X"48", 0, r.timingData.readoutCount);
@@ -196,6 +199,10 @@ begin
       -- Timing Gen
       ----------------------
       v.timingTx := IDLE_C;
+
+      v.timingData.firstSample := '0';
+      v.timingData.lastSample  := '0';
+      v.timingData.loadDacs    := '0';
 
       if (r.timingData.rawAdc = '1') then
          v.timingTx := RAW_ADC_C;
@@ -238,18 +245,23 @@ begin
             end if;
 
          elsif (r.timingData.rowTime = r.sampleStartTime) then
-            v.timingData.sample := '1';
-            v.timingTx          := SAMPLE_START_C;
+            v.timingData.sample      := '1';
+            v.timingData.firstSample := '1';
+            v.timingTx               := SAMPLE_START_C;
 
          elsif (r.timingData.rowTime = r.sampleEndTime) then
-            v.timingData.sample := '0';
-            v.timingTx          := SAMPLE_END_C;
+            v.timingData.sample     := '0';
+            v.timingData.lastSample := '1';
+            v.timingTx              := SAMPLE_END_C;
+
+         elsif (r.timingData.rowTime = r.loadDacsTime) then
+            v.timingData.loadDacs := '1';
+            v.timingTx            := LOAD_DACS_C;
+
          end if;
 
          -- Need to end run more cleanly than this
-         if (r.timingData.endRun = '1') and (
-            (r.runMode = HARDWARE_C and v.timingTx = FIRST_ROW_C) or
-            (r.runMode = SOFTWARE_C)) then
+         if (r.timingData.endRun = '1')  then
             v.timingData.running := '0';
             v.timingData.sample  := '0';
             v.timingData.endRun  := '0';

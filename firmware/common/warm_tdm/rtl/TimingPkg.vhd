@@ -38,6 +38,7 @@ package TimingPkg is
    constant ROW_STROBE_C   : slv(7 downto 0) := "01111100";  -- K28.3
    constant SAMPLE_START_C : slv(7 downto 0) := "10011100";  -- K28.4
    constant SAMPLE_END_C   : slv(7 downto 0) := "11011100";  -- K28.6
+   constant LOAD_DACS_C    : slv(7 downto 0) := "11110111";  -- K23.7
    constant RAW_ADC_C      : slv(7 downto 0) := "11111110";  -- K30.7
 
    type LocalTimingType is record
@@ -49,6 +50,7 @@ package TimingPkg is
       sample       : sl;
       firstSample  : sl;
       lastSample   : sl;
+      loadDacs     : sl;
       rowSeq       : slv(9 downto 0);   -- Sequence in row readout list
       rowIndex     : slv(7 downto 0);   -- Current row index
       rowIndexNext : slv(7 downto 0);   -- Next row index
@@ -66,6 +68,7 @@ package TimingPkg is
       sample       => '0',
       firstSample  => '0',
       lastSample   => '0',
+      loadDacs     => '0',
       rowSeq       => (others => '0'),
       rowIndex     => (others => '0'),
       rowIndexNext => (others => '0'),

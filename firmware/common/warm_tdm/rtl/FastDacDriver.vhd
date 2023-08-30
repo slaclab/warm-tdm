@@ -65,7 +65,7 @@ architecture rtl of FastDacDriver is
 
    constant NUM_AXIL_C : integer := 9;
 
-   constant XBAR_COFNIG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_C, AXIL_BASE_ADDR_G, 12, 8);
+   constant XBAR_COFNIG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_C, AXIL_BASE_ADDR_G, 16, 12);
 
    signal locAxilWriteMasters : AxiLiteWriteMasterArray(NUM_AXIL_C-1 downto 0);
    signal locAxilWriteSlaves  : AxiLiteWriteSlaveArray(NUM_AXIL_C-1 downto 0);
@@ -227,7 +227,7 @@ begin
                v.state    := DATA_S;
 
             -- Use lastSample instead of loadDacs for now since it doesn't exist yet               
-            elsif (timingRxData.lastSample = '1') then
+            elsif (timingRxData.loadDacs = '1') then
                v.rowIndex := timingRxData.rowIndexNext;
                v.state    := DATA_S;
             end if;

@@ -227,13 +227,8 @@ class FastDacVariable(GroupLinkVariable):
 
             # Full array access
             else:
-                rows = len(self._config.rowMap)
+                rows = 256 #len(self._config.rowMap)
                 cols = len(self._config.columnMap)
-
-                # Handle corner case of now row boards in group
-                # Just pretend there are 64 channels
-                if rows == 0:
-                    rows = 64
 
                 ret = np.zeros((cols, rows), np.float64)
                 for colIndex in range(cols):
@@ -286,7 +281,7 @@ class Group(pr.Device):
             host=groupConfig.host,
             colBoards=groupConfig.columnBoards,
             rowBoards=groupConfig.rowBoards,
-            rows=len(groupConfig.rowMap),
+#            rows=len(groupConfig.rowMap),
             plots=plots,
             groups=['Hardware'],
             expand=True))
@@ -546,7 +541,7 @@ class Group(pr.Device):
         self.add(FastDacVariable(
             name='SaFbCurrent',
             description='SaFb value for each column/row used during readout.'
-                         '2D array with total length = (ColumnBoards * 8) * (RowBoards * 32).'
+                         '2D array with total length = (ColumnBoards * 8) * 256.'
                          'Values can be accessed as a full 2D array or pass a (col, row) tuple for the index key to access each value.',
             config = self._config,
             hidden = True,

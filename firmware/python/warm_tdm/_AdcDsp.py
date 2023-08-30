@@ -21,6 +21,8 @@ class AdcDsp(pr.Device):
 
         COEF_BASE = pr.Fixed(10, 8)
 
+        numRows = 1
+
         self.add(pr.RemoteVariable(
             name = 'PllEnable',
             offset = 0x00,
@@ -51,7 +53,7 @@ class AdcDsp(pr.Device):
             bitOffset = 0))
 
         self.add(pr.RemoteVariable(
-            name = 'AccumError',
+            name = 'AccumError_DBG',
             mode = 'RO',
             offset = 0x10,
             base = pr.Fixed(22, 0),
@@ -59,7 +61,7 @@ class AdcDsp(pr.Device):
             bitOffset = 0))
 
         self.add(pr.RemoteVariable(
-            name = 'LastAccum',
+            name = 'LastAccum_DBG',
             mode = 'RO',
             offset = 0x14,
             base = pr.Fixed(22, 0),
@@ -67,7 +69,7 @@ class AdcDsp(pr.Device):
             bitOffset = 0))
         
         self.add(pr.RemoteVariable(
-            name = 'SumAccum',
+            name = 'SumAccum_DBG',
             mode = 'RO',
             offset = 0x18,
             base = pr.Fixed(22, 0),
@@ -75,7 +77,7 @@ class AdcDsp(pr.Device):
             bitOffset = 0))
 
         self.add(pr.RemoteVariable(
-            name = 'PidResult',
+            name = 'PidResult_DBG',
             mode = 'RO',
             offset = 0x1C,
             base = pr.Fixed(32, 8),
@@ -83,7 +85,7 @@ class AdcDsp(pr.Device):
             bitOffset = 0))
         
         self.add(pr.RemoteVariable(
-            name = 'Sq1Fb',
+            name = 'Sq1Fb_DBG',
             mode = 'RO',
             offset = 0x20,
             base = pr.Int,
@@ -92,7 +94,7 @@ class AdcDsp(pr.Device):
         
         
         self.add(pr.RemoteVariable(
-            name = 'AdcOffsets',
+            name = 'AdcBaselines',
             offset = 0x1000,
             base = pr.Int,
             mode = 'RW',
