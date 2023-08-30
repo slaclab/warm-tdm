@@ -53,32 +53,17 @@ class PidDebugger(pr.DataReceiver):
             base = pr.Int,
             bitSize = 14))
 
-        
-        
-
     def process(self, frame):
-        channel = frame.getChannel()
         fl = frame.getPayload()
-        data = frame.getNumpy(0, fl)
+        raw = bytearray(fl)
+        frame.read(raw, 0)
 
         print(f'Got PID Debug Frame of {fl} bytes for column {channel}')
 
-        raw = data.view(np.uint8)
-
+        # Overwrite the MemEmulate data with new frame
         for i, byte in enumerate(raw):
             self.mem._data[i] = byte
 
-#         column = raw[0]
-#         baseline = raw[1]
-#         accumError = raw[2]
-#         sq1Fb_pre = raw[3]
-#         sumAccum = raw[4]
-#         diff = raw[5]
-#         pidResult = raw[6]
-#         sq1Fb_post = raw[7]
-
-        with self.root.updateGroup():
-            self.readBlocks()
-            self.checkBlocks()
+        self.readBlocks()
         
         print(raw)
