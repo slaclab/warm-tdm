@@ -15,7 +15,7 @@ class SinglePlot(pr.LinkVariable):
         self._ax = self._fig.add_subplot()
         self._fig.suptitle(u'SA OUT (mV) vs. SA FB (\u03bcA)')
 
-    def _plot_ax(self, ax, col, curves, shunt):
+    def _plot_ax(self, ax, col, curves):
         warm_tdm_api.plotCurveDataDict(
             ax=ax,
             curveDataDict=curves,
