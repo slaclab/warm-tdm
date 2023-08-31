@@ -66,8 +66,9 @@ class HardwareGroup(pyrogue.Device):
                 srp == srpStream
 
             # Data streams are packetized and need to be unpacked
-#            packetizer = rogue.protocols.packetizer.CoreV2(False, False, True);
-#            dataStream >> packetizer.transport()
+            packetizer = rogue.protocols.packetizer.CoreV2(False, False, False);
+            dataStream >> packetizer.transport()
+            self.addInterface(packetizer)
                 
 
             # Instantiate the board Device tree and link it to the SRP
@@ -78,17 +79,28 @@ class HardwareGroup(pyrogue.Device):
                 waveform_stream=dataStream))
             
             waveGui = warm_tdm.WaveformCaptureReceiver(hidden=False, loading=self.ColumnBoard[index].loading)
-            pidDebug = warm_tdm.PidDebugger(hidden=False)
+            pidDebug = [warm_tdm.PidDebugger(name=f'PidDebug[{i}]', hidden=False) for i in range(8)]
 
             # Link the data stream to the DataWriter
             if emulate is False:
                 dataWriterChannel = (groupId << 3) | index
-                dataStream >> dataWriter.getChannel(dataWriterChannel)
+                #dataStream >> dataWriter.getChannel(dataWriterChannel)
 
-                #debug = warm_tdm.StreamDebug()
 
-                dataStream >> pidDebug
-#                packetizer.application(8) >> waveGui
+                debug = rogue.interfaces.stream.Slave()
+                debug.setDebug(100, 'DataStream')
+ #               dataStream >> debug
+                #self.addInterface(debug)
+
+                for i in range(8):
+                    chDbg = rogue.interfaces.stream.Slave()
+                    chDbg.setDebug(100, f'DataStream_App_{i}')
+                    packetizer.application(i) >> chDbg
+#                    packetizer.application(i) >> pidDebug[i]
+                    #self.addInterface(chDbg, pidDebug[i])
+                    
+                #dataStream >> pidDebug
+                packetizer.application(8) >> waveGui
 #                packetizer.application(0) >> pidDebug
 
 #                 else:
@@ -123,7 +135,8 @@ class HardwareGroup(pyrogue.Device):
             value = [0,1,2,3] )) #list(range(48))))
 
         self.add(waveGui)
-        self.add(pidDebug)
+        for i in range(8):
+            self.add(pidDebug[i])
 
 
     def writeBlocks(self, **kwargs):

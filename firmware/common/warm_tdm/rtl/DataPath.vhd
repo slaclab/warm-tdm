@@ -124,7 +124,7 @@ architecture rtl of DataPath is
 
    signal dataAxisMaster : AxiStreamMasterType;
    signal dataAxisSlave  : AxiStreamSlaveType;
-   
+
 begin
 
    U_AxiLiteAsync_SRP : entity surf.AxiLiteAsync
@@ -215,39 +215,50 @@ begin
 
 
    FIR_FILTER_GEN : for i in 7 downto 0 generate
-      U_FirFilterSingleChannel_1 : entity surf.FirFilterSingleChannel
-         generic map (
-            TPD_G            => TPD_G,
-            COMMON_CLK_G     => true,
-            NUM_TAPS_G       => 41,
-            SIDEBAND_WIDTH_G => 11+14,
-            DATA_WIDTH_G     => 16,
-            COEFF_WIDTH_G    => 26,
-            COEFFICIENTS_G   => FILTER_COEFFICIENTS_C)
-         port map (
-            clk                 => timingRxClk125,                             -- [in]
-            rst                 => timingRxRst125,                             -- [in]
-            ibValid             => adcStreams(i).tvalid,                       -- [in]
-            din                 => adcStreams(i).tData(15 downto 0),           -- [in]
-            sbIn(7 downto 0)    => timingRxData.rowIndex,                      -- [in]
-            sbIn(8)             => timingRxData.firstSample,                   -- [in]
-            sbIn(9)             => timingRxData.lastSample,                    -- [in]
-            sbIn(10)            => timingRxData.rowStrobe,                     -- [in]
-            sbIn(24 downto 11)  => sq1FbDacs(i),                               -- [in]
-            obValid             => filteredAdcStreams(i).tvalid,               -- [out]
-            dout                => filteredAdcStreams(i).tData(15 downto 0),   -- [out]
-            sbOut(7 downto 0)   => filteredAdcStreams(i).tid(7 downto 0),      -- [out]
-            sbOut(8)            => filteredAdcStreams(i).tUser(0),             -- [out]
-            sbOut(9)            => filteredAdcStreams(i).tUser(1),             -- [out]
-            sbOut(10)           => filteredAdcStreams(i).tUser(2),             -- [out]
-            sbOut(24 downto 11) => filteredAdcStreams(i).tData(29 downto 16),  -- [out]
-            axilClk             => timingRxClk125,                             -- [in]
-            axilRst             => timingRxRst125,                             -- [in]
-            axilReadMaster      => filterAxilReadMasters(i),                   -- [in]
-            axilReadSlave       => filterAxilReadSlaves(i),                    -- [out]
-            axilWriteMaster     => filterAxilWriteMasters(i),                  -- [in]
-            axilWriteSlave      => filterAxilWriteSlaves(i));                  -- [out]
+--       U_FirFilterSingleChannel_1 : entity surf.FirFilterSingleChannel
+--          generic map (
+--             TPD_G            => TPD_G,
+--             COMMON_CLK_G     => true,
+--             NUM_TAPS_G       => 41,
+--             SIDEBAND_WIDTH_G => 11+14,
+--             DATA_WIDTH_G     => 16,
+--             COEFF_WIDTH_G    => 26,
+--             COEFFICIENTS_G   => FILTER_COEFFICIENTS_C)
+--          port map (
+--             clk                 => timingRxClk125,                             -- [in]
+--             rst                 => timingRxRst125,                             -- [in]
+--             ibValid             => adcStreams(i).tvalid,                       -- [in]
+--             din                 => adcStreams(i).tData(15 downto 0),           -- [in]
+--             sbIn(7 downto 0)    => timingRxData.rowIndex,                      -- [in]
+--             sbIn(8)             => timingRxData.firstSample,                   -- [in]
+--             sbIn(9)             => timingRxData.lastSample,                    -- [in]
+--             sbIn(10)            => timingRxData.rowStrobe,                     -- [in]
+--             sbIn(24 downto 11)  => sq1FbDacs(i),                               -- [in]
+--             obValid             => filteredAdcStreams(i).tvalid,               -- [out]
+--             dout                => filteredAdcStreams(i).tData(15 downto 0),   -- [out]
+--             sbOut(7 downto 0)   => filteredAdcStreams(i).tid(7 downto 0),      -- [out]
+--             sbOut(8)            => filteredAdcStreams(i).tUser(0),             -- [out]
+--             sbOut(9)            => filteredAdcStreams(i).tUser(1),             -- [out]
+--             sbOut(10)           => filteredAdcStreams(i).tUser(2),             -- [out]
+--             sbOut(24 downto 11) => filteredAdcStreams(i).tData(29 downto 16),  -- [out]
+--             axilClk             => timingRxClk125,                             -- [in]
+--             axilRst             => timingRxRst125,                             -- [in]
+--             axilReadMaster      => filterAxilReadMasters(i),                   -- [in]
+--             axilReadSlave       => filterAxilReadSlaves(i),                    -- [out]
+--             axilWriteMaster     => filterAxilWriteMasters(i),                  -- [in]
+--             axilWriteSlave      => filterAxilWriteSlaves(i));                  -- [out]
+
+      filteredAdcStreams(i).tValid              <= adcStreams(i).tValid;
+      filteredAdcStreams(i).tData(15 downto 0)  <= adcStreams(i).tData(15 downto 0);
+      filteredAdcStreams(i).tid(7 downto 0)     <= timingRxData.rowIndex;
+      filteredAdcStreams(i).tuser(0)            <= timingRxData.firstSample;
+      filteredAdcStreams(i).tuser(1)            <= timingRxData.lastSample;
+      filteredAdcStreams(i).tuser(2)            <= timingRxData.rowStrobe;
+      filteredAdcStreams(i).tData(29 downto 16) <= sq1FbDacs(i);
+
    end generate FIR_FILTER_GEN;
+
+
 
 
    U_WaveformCapture_1 : entity warm_tdm.WaveformCapture
@@ -274,7 +285,7 @@ begin
             TPD_G            => TPD_G,
             COLUMN_NUM_G     => i,
             AXIL_BASE_ADDR_G => XBAR_COFNIG_C(i+1).baseAddr,
-            SQ1FB_RAM_ADDR_G => SQ1FB_RAM_ADDR_G(31 downto 12) & toslv(i, 4) & X"00")
+            SQ1FB_RAM_ADDR_G => SQ1FB_RAM_ADDR_G(31 downto 16) & toslv(i, 4) & X"000")
          port map (
             timingRxClk125   => timingRxClk125,            -- [in]
             timingRxRst125   => timingRxRst125,            -- [in]
@@ -296,59 +307,63 @@ begin
             pidDebugSlave    => pidDebugSlaves(i));        -- [in]            
    end generate;
 
-   axisMaster <= pidDebugMasters(0);
-   pidDebugSlaves(0) <= axisSlave;
+--    axisMaster        <= pidDebugMasters(0);
+--    pidDebugSlaves(0) <= axisSlave;
 
    -- Multiplex debug streams
---    U_AxiStreamMux_1 : entity surf.AxiStreamMux
---       generic map (
---          TPD_G         => TPD_G,
---          PIPE_STAGES_G => 0,
---          NUM_SLAVES_G  => 8,
---          MODE_G        => "INDEXED")
---       port map (
---          axisClk      => axisClk,          -- [in]
---          axisRst      => axisRst,          -- [in]
---          sAxisMasters => pidDebugMasters,  -- [in]
---          sAxisSlaves  => pidDebugSlaves,   -- [out]
---          mAxisMaster  => pidDebugMaster,   -- [out]
---          mAxisSlave   => pidDebugSlave);   -- [in]
+   U_AxiStreamMux_1 : entity surf.AxiStreamMux
+      generic map (
+         TPD_G         => TPD_G,
+         PIPE_STAGES_G => 0,
+         NUM_SLAVES_G  => 8,
+         MODE_G        => "INDEXED")
+      port map (
+         axisClk      => axisClk,          -- [in]
+         axisRst      => axisRst,          -- [in]
+         sAxisMasters => pidDebugMasters,  -- [in]
+         sAxisSlaves  => pidDebugSlaves,   -- [out]
+         mAxisMaster  => pidDebugMaster,   -- [out]
+         mAxisSlave   => pidDebugSlave);   -- [in]
 
---    -- Multiplex waveform stream into debug streams
---    U_AxiStreamMux_2 : entity surf.AxiStreamMux
---       generic map (
---          TPD_G         => TPD_G,
---          PIPE_STAGES_G => 0,
---          NUM_SLAVES_G  => 2,
---          MODE_G        => "PASSTHROUGH")
---       port map (
---          axisClk         => axisClk,         -- [in]
---          axisRst         => axisRst,         -- [in]
---          sAxisMasters(0) => pidDebugMaster,  -- [in]
---          sAxisMasters(1) => waveformMaster,  -- [in]         
---          sAxisSlaves(0)  => pidDebugSlave,   -- [out]
---          sAxisSlaves(1)  => waveformSlave,   -- [out]
---          mAxisMaster     => dataAxisMaster,  -- [out]
---          mAxisSlave      => dataAxisSlave);  -- [in]
+   -- Multiplex waveform stream into debug streams
+   U_AxiStreamMux_2 : entity surf.AxiStreamMux
+      generic map (
+         TPD_G          => TPD_G,
+         PIPE_STAGES_G  => 0,
+         NUM_SLAVES_G   => 2,
+         MODE_G         => "ROUTED",
+         TDEST_ROUTES_G => (
+            0           => "00000---",  -- pid debug
+            1           => "00001000"))      -- waveform
+      port map (
+         axisClk         => axisClk,         -- [in]
+         axisRst         => axisRst,         -- [in]
+         sAxisMasters(0) => pidDebugMaster,  -- [in]
+         sAxisMasters(1) => waveformMaster,  -- [in]         
+         sAxisSlaves(0)  => pidDebugSlave,   -- [out]
+         sAxisSlaves(1)  => waveformSlave,   -- [out]
+         mAxisMaster     => dataAxisMaster,  -- [out]
+         mAxisSlave      => dataAxisSlave);  -- [in]
 
---    -- Packetize everything
---    U_AxiStreamPacketizer2_1 : entity surf.AxiStreamPacketizer2
---       generic map (
---          TPD_G                => TPD_G,
---          MEMORY_TYPE_G        => "distributed",
---          REG_EN_G             => false,
---          CRC_MODE_G           => "NONE",
---          MAX_PACKET_BYTES_G   => 256,
---          TDEST_BITS_G         => 8,
---          INPUT_PIPE_STAGES_G  => 0,
---          OUTPUT_PIPE_STAGES_G => 0)
---       port map (
---          axisClk     => axisClk,         -- [in]
---          axisRst     => axisRst,         -- [in]
---          sAxisMaster => dataAxisMaster,  -- [in]
---          sAxisSlave  => dataAxisSlave,   -- [out]
---          mAxisMaster => axisMaster,      -- [out]
---          mAxisSlave  => axisSlave);      -- [in]   
+   -- Packetize everything
+   U_AxiStreamPacketizer2_1 : entity surf.AxiStreamPacketizer2
+      generic map (
+         TPD_G                => TPD_G,
+         MEMORY_TYPE_G        => "distributed",
+         REG_EN_G             => false,
+         CRC_MODE_G           => "NONE",
+         MAX_PACKET_BYTES_G   => 256,
+         TDEST_BITS_G         => 8,
+         OUTPUT_TDEST_G       => "00001000",  -- Direct stream to eth on ring addr 0
+         INPUT_PIPE_STAGES_G  => 0,
+         OUTPUT_PIPE_STAGES_G => 0)
+      port map (
+         axisClk     => axisClk,         -- [in]
+         axisRst     => axisRst,         -- [in]
+         sAxisMaster => dataAxisMaster,  -- [in]
+         sAxisSlave  => dataAxisSlave,   -- [out]
+         mAxisMaster => axisMaster,      -- [out]
+         mAxisSlave  => axisSlave);      -- [in]   
 
 
    -- Combine Sq1 masters into single bus

@@ -54,6 +54,7 @@ class PidDebugger(pr.DataReceiver):
             bitSize = 14))
 
     def process(self, frame):
+        channel = frame.getChannel()
         fl = frame.getPayload()
         raw = bytearray(fl)
         frame.read(raw, 0)
@@ -65,5 +66,6 @@ class PidDebugger(pr.DataReceiver):
             self.mem._data[i] = byte
 
         self.readBlocks()
+        self.checkBlocks()
         
         print(raw)

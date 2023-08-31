@@ -104,7 +104,7 @@ architecture rtl of AdcDsp is
 
    constant AXIS_DEBUG_CFG_C : AxiStreamConfigType := ssiAxiStreamConfig(
       dataBytes => 4,
-      tKeepMode => TKEEP_FIXED_C,
+      tKeepMode => TKEEP_COMP_C,
       tDestBits => 4);
 
 
@@ -650,7 +650,7 @@ begin
 
       if (fifoValid = '1') then
          v.req.request             := '1';
-         v.req.address             := SQ1FB_RAM_ADDR_G(31 downto 16) & toSlv(COLUMN_NUM_G, 4) & "00" & fifoDout(21 downto 14) & "00";
+         v.req.address             := SQ1FB_RAM_ADDR_G(31 downto 12) & "00" & fifoDout(21 downto 14) & "00";
          v.req.wrData              := (others => '0');
          v.req.wrData(13 downto 0) := fifoDout(13 downto 0);
          v.fifoRd                  := '1';
