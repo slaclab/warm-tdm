@@ -21,12 +21,33 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -Wno-deprecated")
 #####################################
 # Find Rogue & Support Libraries
 #####################################
+SET(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+
 if (DEFINED ENV{ROGUE_DIR})
    set(Rogue_DIR $ENV{ROGUE_DIR}/lib)
 else()
    set(Rogue_DIR ${CMAKE_PREFIX_PATH}/lib)
 endif()
 find_package(Rogue REQUIRED)
+
+find_package(Python QUIET REQUIRED COMPONENTS Interpreter Development)
+Message("-- Found Python version: ${Python_VERSION}")
+
+set(Boost_PYTHON_TYPE python)
+# Hack for some old Boost CMake modules
+set(_Boost_PYTHON${Python_VERSION_MAJOR}_HEADERS "boost/python.hpp")
+set(_Boost_PYTHON${Python_VERSION_MAJOR}${Python_VERSION_MINOR}_HEADERS "boost/python.hpp")
+
+find_package(Boost QUIET COMPONENTS python${Python_VERSION_MAJOR}${Python_VERSION_MINOR})
+if(${Boost_PYTHON${Python_VERSION_MAJOR}${Python_VERSION_MINOR}_FOUND})
+	set(Boost_PYTHON_TYPE python${Python_VERSION_MAJOR}${Python_VERSION_MINOR})
+else()
+	find_package(Boost QUIET COMPONENTS python${Python_VERSION_MAJOR})
+	if(${Boost_PYTHON${Python_VERSION_MAJOR}_FOUND})
+		set(Boost_PYTHON_TYPE python${Python_VERSION_MAJOR})
+	endif()
+endif()
+find_package(Boost REQUIRED COMPONENTS system ${Boost_PYTHON_TYPE})
 
 #####################################
 # Setup build
@@ -37,6 +58,7 @@ include_directories(${ROGUE_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR}/include)
 
 # Create rogue python library
 add_library(warm_tdm_lib SHARED "")
+target_include_directories(warm_tdm_lib PRIVATE ${Python_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 
 add_subdirectory(src)
 
@@ -45,5 +67,5 @@ set_target_properties(warm_tdm_lib PROPERTIES PREFIX "" SUFFIX ".so")
 set_target_properties(warm_tdm_lib PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/../python)
 
 # Link to rogue core
-TARGET_LINK_LIBRARIES(warm_tdm_lib PUBLIC ${ROGUE_LIBRARIES})
+TARGET_LINK_LIBRARIES(warm_tdm_lib PUBLIC ${ROGUE_LIBRARIES} ${Boost_LIBRARIES} ${Python_LIBRARIES})
 
