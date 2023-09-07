@@ -29,6 +29,7 @@ else()
    set(Rogue_DIR ${CMAKE_PREFIX_PATH}/lib)
 endif()
 find_package(Rogue REQUIRED)
+find_package(S4DAQSender REQUIRED)
 
 find_package(Python QUIET REQUIRED COMPONENTS Interpreter Development)
 Message("-- Found Python version: ${Python_VERSION}")
@@ -54,7 +55,7 @@ find_package(Boost REQUIRED COMPONENTS system ${Boost_PYTHON_TYPE})
 #####################################
 
 # Include files
-include_directories(${ROGUE_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR}/include)
+include_directories(${ROGUE_INCLUDE_DIRS} ${S4DAQSender_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR}/include)
 
 # Create rogue python library
 add_library(warm_tdm_lib SHARED "")
@@ -67,5 +68,5 @@ set_target_properties(warm_tdm_lib PROPERTIES PREFIX "" SUFFIX ".so")
 set_target_properties(warm_tdm_lib PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/../python)
 
 # Link to rogue core
-TARGET_LINK_LIBRARIES(warm_tdm_lib PUBLIC ${ROGUE_LIBRARIES} ${Boost_LIBRARIES} ${Python_LIBRARIES})
+TARGET_LINK_LIBRARIES(warm_tdm_lib PUBLIC ${ROGUE_LIBRARIES} ${S4DAQSender_LIBRARIES} ${Boost_LIBRARIES} ${Python_LIBRARIES})
 
