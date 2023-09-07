@@ -35,21 +35,21 @@ class AdcDsp(pr.Device):
             name = 'P_Coef',
             offset = 0x04,
             base = COEF_BASE,
-            bitSize = 10,
+            bitSize = 18,
             bitOffset = 0))
 
         self.add(pr.RemoteVariable(
             name = 'I_Coef',
             offset = 0x08,
             base = COEF_BASE,
-            bitSize = 10,
+            bitSize = 18,
             bitOffset = 0))
 
         self.add(pr.RemoteVariable(
             name = 'D_Coef',
             offset = 0x0C,
             base = COEF_BASE,
-            bitSize = 10,
+            bitSize = 18,
             bitOffset = 0))
 
         self.add(pr.RemoteVariable(
