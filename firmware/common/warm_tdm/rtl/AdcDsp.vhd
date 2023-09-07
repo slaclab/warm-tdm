@@ -91,8 +91,8 @@ architecture rtl of AdcDsp is
 
    -- Max of 256 accumulations adds 8 bits to 14 bit ADC
    constant ACCUM_BITS_C : integer := 22;
-   constant COEF_HIGH_C  : integer := 1;
-   constant COEF_LOW_C   : integer := -16;
+   constant COEF_HIGH_C  : integer := 0;
+   constant COEF_LOW_C   : integer := -17;
    constant COEF_BITS_C  : integer := COEF_HIGH_C - COEF_LOW_C + 1;
 
    constant SUM_BITS_C    : integer := ACCUM_BITS_C;
@@ -108,7 +108,17 @@ architecture rtl of AdcDsp is
       tDestBits => 4);
 
 
-   type StateType is (WAIT_ROW_STROBE_S, WAIT_FIRST_SAMPLE_S, ACCUMULATE_S, PREP_PID_S, PID_P_S, PID_I_S, PID_D_S, SQ1FB_ADJUST_S, LOOP_DONE_S);
+   type StateType is (
+      WAIT_ROW_STROBE_S,
+      WAIT_FIRST_SAMPLE_S,
+      ACCUMULATE_S,
+      PREP_PID_S,
+      PID_PRESHIFT_S,
+      PID_P_S,
+      PID_I_S,
+      PID_D_S,
+      SQ1FB_ADJUST_S,
+      LOOP_DONE_S);
 
    type RegType is record
       pllEnable      : sl;
@@ -118,6 +128,7 @@ architecture rtl of AdcDsp is
       accumError     : sfixed(ACCUM_BITS_C-1 downto 0);
       lastAccum      : sfixed(ACCUM_BITS_C-1 downto 0);
       sumAccum       : sfixed(SUM_BITS_C-1 downto 0);
+      accumShift     : slv(3 downto 0);
       pidMultiplier  : sfixed(ACCUM_BITS_C-1 downto 0);
       pidCoef        : sfixed(COEF_HIGH_C downto COEF_LOW_C);
       p              : slv(COEF_BITS_C-1 downto 0);  -- sfixed(COEF_HIGH_C downto COEF_LOW_C);
@@ -140,6 +151,7 @@ architecture rtl of AdcDsp is
       accumError     => (others => '0'),
       lastAccum      => (others => '0'),
       sumAccum       => (others => '0'),
+      accumShift     => toSlv(7, 4),
       pidMultiplier  => (others => '0'),
       pidCoef        => (others => '0'),
       p              => "0000000100",
@@ -416,6 +428,7 @@ begin
       axiSlaveWaitTxn(axilEp, timingAxilWriteMaster, timingAxilReadMaster, v.axilWriteSlave, v.axilReadSlave);
 
       axiSlaveRegister(axilEp, X"00", 0, v.pllEnable);
+      axiSlaveRegister(axilEp, X"00", 16, v.accumShift);
       axiSlaveRegister(axilEp, X"04", 0, v.p);
       axiSlaveRegister(axilEp, X"08", 0, v.i);
       axiSlaveRegister(axilEp, X"0c", 0, v.d);
@@ -493,9 +506,13 @@ begin
                v.pidCoef       := pSfixed;
                v.pidMultiplier := r.accumError;     -- Prep accumError for P stage
                v.pidResult     := (others => '0');  -- Clear pid result
+               v.state         := PID_PRESHIFT_S;
+
+            when PID_PRESHIFT_S =>
+               v.pidMultiplier := shift_right(r.pidMultiplier, to_integer(unsigned(r.accumShift)));
                v.state         := PID_P_S;
 
-            when PID_P_S =>
+            when PID_P_S =>       
                -- Fourth Word is starting SQ1FB
                v.pidDebugMaster.tValid             := '1';
                v.pidDebugMaster.tData(31 downto 0) := resize(to_slv(r.sq1FB), 32);
