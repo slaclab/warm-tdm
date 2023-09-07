@@ -50,17 +50,19 @@ parser.add_argument(
     "--ip",
     type     = str,
     required = False,
-    default = '192.168.3.12',
+    default = '192.168.3.11',
     help     = "IP address")
 
 parser.add_argument(
     "--rows",
     type     = int,
+    default = 0,
     help     = "Number of row modules")
 
 parser.add_argument(
     "--cols",
     type     = int,
+    default = 1,
     help     = "Number of column modules")
 
 args = parser.parse_known_args()[0]
@@ -71,13 +73,15 @@ groups = [{
     'colBoards': args.cols,
     'rowBoards': args.rows}]
 
+
+
 # Get the arguments
 args = parser.parse_known_args()[0]
 
 print(args)
 
 kwargs = {}
-kwargs['groups'] = groups
+#kwargs['groups'] = groups
 #kwargs = warm_tdm.CONFIGS['hw'][args.cfg]
 
 if args.path is None:
@@ -100,7 +104,12 @@ else:
 
 #rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
 
-with warm_tdm.WarmTdmRoot(pollEn=False, **kwargs) as root:
+with warm_tdm.WarmTdmRoot(
+        pollEn=False,
+        host=args.ip,
+        colBoards=args.cols,
+        rowBoards=args.rows,
+        **kwargs) as root:
 
     av = root.find(name='AxiVersion')[0]
 
