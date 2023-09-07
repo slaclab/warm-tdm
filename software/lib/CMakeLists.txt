@@ -62,6 +62,7 @@ add_library(warm_tdm_lib SHARED "")
 target_include_directories(warm_tdm_lib PRIVATE ${Python_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 
 add_subdirectory(src)
+add_warm_tdm_sources(TARGET warm_tdm_lib PYTHON)
 
 # Set output to TOP/lib, remove lib prefix
 set_target_properties(warm_tdm_lib PROPERTIES PREFIX "" SUFFIX ".so")
@@ -70,3 +71,12 @@ set_target_properties(warm_tdm_lib PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${PROJECT
 # Link to rogue core
 TARGET_LINK_LIBRARIES(warm_tdm_lib PUBLIC ${ROGUE_LIBRARIES} ${S4DAQSender_LIBRARIES} ${Boost_LIBRARIES} ${Python_LIBRARIES})
 
+# Create non-Python library
+# This will currently compile the shared sources twice, which is suboptimal,
+# but doesn't involve much code in total. One possible solution would be to
+# build the python library from the native library.
+add_library(warm_tdm_native SHARED "")
+target_compile_definitions(warm_tdm_native PRIVATE "-DNO_PYTHON")
+target_include_directories(warm_tdm_native PRIVATE)
+add_warm_tdm_sources(TARGET warm_tdm_native)
+TARGET_LINK_LIBRARIES(warm_tdm_native PUBLIC ${ROGUE_LIBRARIES} ${S4DAQSender_LIBRARIES})

@@ -6,17 +6,21 @@
 #include <rogue/interfaces/stream/FrameIterator.h>
 #include <rogue/interfaces/stream/FrameAccessor.h>
 #include <rogue/interfaces/stream/FrameLock.h>
+#ifndef NO_PYTHON
 #include <rogue/GilRelease.h>
 #include <boost/python.hpp>
 
-namespace ris = rogue::interfaces::stream;
 namespace bp = boost::python;
+#endif
+
+namespace ris = rogue::interfaces::stream;
 
 warm_tdm_lib::TdmDataReceiverPtr warm_tdm_lib::TdmDataReceiver::create(std::string collectorHost, int collectorPort) {
    warm_tdm_lib::TdmDataReceiverPtr r = std::make_shared<warm_tdm_lib::TdmDataReceiver>(collectorHost, collectorPort);
    return(r);
 }
 
+#ifndef NO_PYTHON
 void warm_tdm_lib::TdmDataReceiver::setup_python() {
    bp::class_<warm_tdm_lib::TdmDataReceiver, warm_tdm_lib::TdmDataReceiverPtr, bp::bases<ris::Slave>, boost::noncopyable >("TdmDataReceiver",bp::init<std::string, int>())
       .def("countReset",         &warm_tdm_lib::TdmDataReceiver::countReset)
@@ -24,6 +28,7 @@ void warm_tdm_lib::TdmDataReceiver::setup_python() {
       .def("getRxByteCount",     &warm_tdm_lib::TdmDataReceiver::getRxByteCount)
    ;
 }
+#endif
 
 warm_tdm_lib::TdmDataReceiver::TdmDataReceiver (std::string collectorHost, int collectorPort) :
 senderStop_(false),
@@ -51,7 +56,9 @@ uint32_t warm_tdm_lib::TdmDataReceiver::getRxByteCount() {
 }
 
 void warm_tdm_lib::TdmDataReceiver::acceptFrame ( ris::FramePtr frame ) {
+#ifndef NO_PYTHON
    rogue::GilRelease noGil;
+#endif
    ris::FrameLockPtr lock = frame->lock();
    sender_.ingestFrame(frame);
 

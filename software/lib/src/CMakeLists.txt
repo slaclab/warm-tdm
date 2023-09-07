@@ -1,5 +1,13 @@
+SET(WARM_TDM_SRC_DIR ${CMAKE_CURRENT_LIST_DIR} PARENT_SCOPE)
 
-target_sources(warm_tdm_lib PRIVATE "${CMAKE_CURRENT_LIST_DIR}/TdmDataReceiver.cpp")
-target_sources(warm_tdm_lib PRIVATE "${CMAKE_CURRENT_LIST_DIR}/TdmGroupEmulate.cpp")
-target_sources(warm_tdm_lib PRIVATE "${CMAKE_CURRENT_LIST_DIR}/warm_tdm_lib.cpp")
-
+function(add_warm_tdm_sources)
+	set(options PYTHON)
+	set(oneValueArgs TARGET)
+	set(multiValueArgs )
+	cmake_parse_arguments("ADD_SOURCES" "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGV})
+	target_sources(${ADD_SOURCES_TARGET} PRIVATE "${WARM_TDM_SRC_DIR}/TdmDataReceiver.cpp")
+	target_sources(${ADD_SOURCES_TARGET} PRIVATE "${WARM_TDM_SRC_DIR}/TdmGroupEmulate.cpp")
+	if(ADD_SOURCES_PYTHON)
+		target_sources(${ADD_SOURCES_TARGET} PRIVATE "${WARM_TDM_SRC_DIR}/warm_tdm_lib.cpp")
+	endif(ADD_SOURCES_PYTHON)
+endfunction()

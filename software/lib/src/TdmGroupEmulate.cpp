@@ -1,22 +1,27 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
+#include <unistd.h>
 #include <TdmGroupEmulate.h>
 #include <rogue/interfaces/stream/Master.h>
 #include <rogue/interfaces/stream/Frame.h>
 #include <rogue/interfaces/stream/FrameIterator.h>
 #include <rogue/interfaces/stream/FrameAccessor.h>
 #include <rogue/interfaces/stream/FrameLock.h>
+#ifndef NO_PYTHON
 #include <rogue/GilRelease.h>
 #include <boost/python.hpp>
 
-namespace ris = rogue::interfaces::stream;
 namespace bp = boost::python;
+#endif
+
+namespace ris = rogue::interfaces::stream;
 
 warm_tdm_lib::TdmGroupEmulatePtr warm_tdm_lib::TdmGroupEmulate::create(uint8_t groupId) {
    warm_tdm_lib::TdmGroupEmulatePtr r = std::make_shared<warm_tdm_lib::TdmGroupEmulate>(groupId);
    return(r);
 }
 
+#ifndef NO_PYTHON
 void warm_tdm_lib::TdmGroupEmulate::setup_python() {
    bp::class_<warm_tdm_lib::TdmGroupEmulate, warm_tdm_lib::TdmGroupEmulatePtr, bp::bases<ris::Master>, boost::noncopyable >("TdmGroupEmulate",bp::init<uint8_t>())
       .def("_start",             &warm_tdm_lib::TdmGroupEmulate::start)
@@ -31,6 +36,7 @@ void warm_tdm_lib::TdmGroupEmulate::setup_python() {
       .def("getTxByteCount",     &warm_tdm_lib::TdmGroupEmulate::getTxByteCount)
    ;
 }
+#endif
 
 warm_tdm_lib::TdmGroupEmulate::TdmGroupEmulate (uint8_t groupId) {
    countReset();
