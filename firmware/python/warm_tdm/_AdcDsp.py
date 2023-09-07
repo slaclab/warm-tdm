@@ -19,7 +19,7 @@ class AdcDsp(pr.Device):
 #        SUM_BITS = 18
         RESULT_BITS = 32
 
-        COEF_BASE = pr.Fixed(18, 16)
+        COEF_BASE = pr.Fixed(18, 17)
 
         numRows = 1
 
