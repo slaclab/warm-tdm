@@ -9,7 +9,7 @@ class TimingTx(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = "Mode",
-            offset = 0x14,
+            offset = 0x18,
             bitSize = 1,
             bitOffset = 0,
             enum = {
@@ -18,7 +18,7 @@ class TimingTx(pr.Device):
 
         self.add(pr.RemoteCommand(
             name = "SoftRowStrobe",
-            offset = 0x18,
+            offset = 0x1C,
             bitSize = 1,
             bitOffset = 0,
             function = pr.RemoteCommand.touchOne))
@@ -112,8 +112,8 @@ class TimingTx(pr.Device):
         self.add(pr.RemoteVariable(
             name = 'SampleEndTime',
             mode = 'RW',
-            offset = 0x10,
-            bitOffset = 16,
+            offset = 0x14,
+            bitOffset = 0,
             bitSize = 32,
             disp = '{:d}'))
         
