@@ -8,8 +8,9 @@ package local_fixed_pkg is new ieee.fixed_generic_pkg  generic map (
 use work.local_fixed_pkg.all;
 
 library ieee;
-use ieee.std_logic_1164.all;
-
+                           use ieee.std_logic_1164.all;
+                           
+use ieee.numeric_std.all;
 
 library unisim;
 use unisim.vcomponents.all;
@@ -154,9 +155,9 @@ architecture rtl of AdcDsp is
       accumShift     => toSlv(7, 4),
       pidMultiplier  => (others => '0'),
       pidCoef        => (others => '0'),
-      p              => "0000000100",
-      i              => "0000000100",
-      d              => "0000000100",
+      p              => "000000000000000100",
+      i              => "000000000000000100",
+      d              => "000000000000000100",
       pidValid       => '0',
       pidResult      => (others => '0'),
       sq1Fb          => (others => '0'),
