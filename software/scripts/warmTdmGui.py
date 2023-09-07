@@ -16,16 +16,16 @@ from warm_tdm_api import PhysicalMap as pm
 
 #rogue.Logging.setFilter('pyrogue.memory.block', rogue.Logging.Debug)
 #rogue.Logging.setFilter('pyrogue.stream.TcpCore', rogue.Logging.Debug)
-#rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
+rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
 #rogue.Logging.setFilter('pyrogue.memory.Master', rogue.Logging.Debug)
 #rogue.Logging.setFilter('pyrogue.memory.Hub', rogue.Logging.Debug)
 #rogue.Logging.setFilter('pyrogue.memory.Transaction', rogue.Logging.Debug)
 #logging.getLogger('pyrogue.Variable.RemoteVariable.GroupRoot.Group.HardwareGroup.RowBoard[0]').setLevel(logging.DEBUG)
 #logging.getLogger('pyrogue.Device').setLevel(logging.DEBUG)
-rogue.Logging.setFilter('pyrogue.protocols.packetizer.Core', rogue.Logging.Debug)
-rogue.Logging.setFilter('pyrogue.protocols.packetizer.Controller', rogue.Logging.Debug)
-rogue.Logging.setFilter('pyrogue.protocols.packetizer.Application', rogue.Logging.Debug)
-rogue.Logging.setLevel(rogue.Logging.Debug)
+#rogue.Logging.setFilter('pyrogue.protocols.packetizer.Core', rogue.Logging.Debug)
+#rogue.Logging.setFilter('pyrogue.protocols.packetizer.Controller', rogue.Logging.Debug)
+#rogue.Logging.setFilter('pyrogue.protocols.packetizer.Application', rogue.Logging.Debug)
+#rogue.Logging.setLevel(rogue.Logging.Debug)
 
 
 parser = argparse.ArgumentParser()
@@ -103,7 +103,7 @@ with warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=arg
     rowTuneEnable[0] = True
     root.Group.RowTuneEnable.set(rowTuneEnable)
     colTuneEnable = [False for _ in range(8)]
-    colTuneEnable[0] = True
+    colTuneEnable[4] = True
     root.Group.ColTuneEnable.set(colTuneEnable)
 
     print('Built root. Starting PyDM')
