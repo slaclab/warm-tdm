@@ -84,11 +84,11 @@ architecture rtl of TimingTx is
       -- Config
       runMode           : sl;
       softwareRowStrobe : sl;
-      rowPeriod         : slv(15 downto 0);
+      rowPeriod         : slv(31 downto 0);
       numRows           : slv(15 downto 0);
-      sampleStartTime   : slv(15 downto 0);
-      sampleEndTime     : slv(15 downto 0);
-      loadDacsTime      : slv(15 downto 0);
+      sampleStartTime   : slv(31 downto 0);
+      sampleEndTime     : slv(31 downto 0);
+      loadDacsTime      : slv(31 downto 0);
       -- State
       timingData        : LocalTimingType;
       timingTx          : slv(7 downto 0);
@@ -106,9 +106,9 @@ architecture rtl of TimingTx is
       softwareRowStrobe => '0',
       rowPeriod         => toSlv(250, 16),                  -- 125 MHz / 256 = 488 kHz
       numRows           => toSlv(256, 16),                  -- Default of 64 rows
-      sampleStartTime   => toSlv(32, 16),
-      sampleEndTime     => toSlv(160, 16),                  -- Could be corner case here?
-      loadDacsTime      => toSlv(200, 16),
+      sampleStartTime   => toSlv(32, 32),
+      sampleEndTime     => toSlv(160, 32),                  -- Could be corner case here?
+      loadDacsTime      => toSlv(200, 32),
       timingTx          => IDLE_C,
       timingData        => LOCAL_TIMING_INIT_C,
       axilWriteSlave    => AXI_LITE_WRITE_SLAVE_INIT_C,

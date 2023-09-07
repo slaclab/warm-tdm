@@ -90,7 +90,7 @@ class TimingTx(pr.Device):
             mode = 'RW',
             offset = 0x08,
             bitOffset = 0,
-            bitSize = 16,
+            bitSize = 32,
             disp = '{:d}'))
 
         self.add(pr.RemoteVariable(
@@ -106,7 +106,7 @@ class TimingTx(pr.Device):
             mode = 'RW',
             offset = 0x10,
             bitOffset = 0,
-            bitSize = 16,
+            bitSize = 32,
             disp = '{:d}'))
         
         self.add(pr.RemoteVariable(
@@ -114,7 +114,7 @@ class TimingTx(pr.Device):
             mode = 'RW',
             offset = 0x10,
             bitOffset = 16,
-            bitSize = 16,
+            bitSize = 32,
             disp = '{:d}'))
         
         self.add(pr.RemoteVariable(
@@ -122,7 +122,7 @@ class TimingTx(pr.Device):
             mode = 'RW',
             offset = 0x24,
             bitOffset = 0,
-            bitSize = 16,
+            bitSize = 32,
             disp = '{:d}'))
         
         self.add(pr.RemoteVariable(
