@@ -16,7 +16,7 @@ from warm_tdm_api import PhysicalMap as pm
 
 #rogue.Logging.setFilter('pyrogue.memory.block', rogue.Logging.Debug)
 #rogue.Logging.setFilter('pyrogue.stream.TcpCore', rogue.Logging.Debug)
-rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
+#rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
 #rogue.Logging.setFilter('pyrogue.memory.Master', rogue.Logging.Debug)
 #rogue.Logging.setFilter('pyrogue.memory.Hub', rogue.Logging.Debug)
 #rogue.Logging.setFilter('pyrogue.memory.Transaction', rogue.Logging.Debug)
