@@ -30,12 +30,12 @@ def array_iter(channel, array):
         for i in range(array.shape[1]):
             yield (i, array[:,i])
 
-class WaveformCapture(pr.Device, rogue.interfaces.stream.Slave):
+class WaveformCapture(pr.Device):
     def __init__(self, stream, **kwargs):
-        rogue.interfaces.stream.Slave.__init__(self)
+#        rogue.interfaces.stream.Slave.__init__(self)
         pr.Device.__init__(self, **kwargs)
 
-        stream >> self
+#        stream >> self
 
         self.add(pr.RemoteVariable(
             name = 'SelectedChannel',
@@ -58,10 +58,10 @@ class WaveformCapture(pr.Device, rogue.interfaces.stream.Slave):
             hidden = True,
             function = pr.RemoteCommand.touchOne))
 
-        self.add(pr.LocalVariable(
-            name = 'WaveformState',
-            hidden = True,
-            value = 'Idle'))
+#         self.add(pr.LocalVariable(
+#             name = 'WaveformState',
+#             hidden = True,
+#             value = 'Idle'))
 
         @self.command()
         def CaptureWaveform():
@@ -169,8 +169,9 @@ class WaveformCapture(pr.Device, rogue.interfaces.stream.Slave):
                 linkedGet = lambda read, x=i: self.AdcAverage.get(read=read, index=x)))
 
 
-    def _acceptFrame(self, frame):
-        self.WaveformState.set('Idle')
+ #    def _acceptFrame(self, frame):
+#         print(f'Got waveform frame')
+#         self.WaveformState.set('Idle')
 
 
 

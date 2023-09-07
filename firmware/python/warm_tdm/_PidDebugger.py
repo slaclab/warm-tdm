@@ -59,8 +59,6 @@ class PidDebugger(pr.DataReceiver):
         raw = bytearray(fl)
         frame.read(raw, 0)
 
-        print(f'Got PID Debug Frame of {fl} bytes for column {channel}')
-
         # Overwrite the MemEmulate data with new frame
         for i, byte in enumerate(raw):
             self.mem._data[i] = byte
@@ -68,4 +66,3 @@ class PidDebugger(pr.DataReceiver):
         self.readBlocks()
         self.checkBlocks()
         
-        print(raw)

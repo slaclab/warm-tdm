@@ -67,8 +67,9 @@ class HardwareGroup(pyrogue.Device):
 
             # Data streams are packetized and need to be unpacked
             packetizer = rogue.protocols.packetizer.CoreV2(False, False, False);
-            dataStream >> packetizer.transport()
-            self.addInterface(packetizer)
+            fifo = rogue.interfaces.stream.Fifo(10, 0, False)
+            dataStream >> fifo >> packetizer.transport()
+            self.addInterface(packetizer, fifo)
                 
 
             # Instantiate the board Device tree and link it to the SRP
@@ -76,7 +77,7 @@ class HardwareGroup(pyrogue.Device):
                 name=f'ColumnBoard[{index}]',
                 memBase=srp, expand=True,
 #                rows=rows,
-                waveform_stream=dataStream))
+                waveform_stream=None))
             
             pidDebug = [warm_tdm.PidDebugger(name=f'PidDebug[{i}]', hidden=False) for i in range(8)]
             waveGui = warm_tdm.WaveformCaptureReceiver(hidden=False, loading=self.ColumnBoard[index].Loading)
@@ -95,8 +96,8 @@ class HardwareGroup(pyrogue.Device):
                 for i in range(8):
                     chDbg = rogue.interfaces.stream.Slave()
                     chDbg.setDebug(100, f'DataStream_App_{i}')
-                    packetizer.application(i) >> chDbg
-#                    packetizer.application(i) >> pidDebug[i]
+                    packetizer.application(i) >> pidDebug[i]                    
+#                    packetizer.application(i) >> chDbg
                     #self.addInterface(chDbg, pidDebug[i])
                     
                 #dataStream >> pidDebug
