@@ -104,7 +104,7 @@ architecture rtl of TimingTx is
       xbarTimingSel     => "01",
       runMode           => SOFTWARE_C,
       softwareRowStrobe => '0',
-      rowPeriod         => toSlv(250, 16),                  -- 125 MHz / 256 = 488 kHz
+      rowPeriod         => toSlv(250, 32),                  -- 125 MHz / 256 = 488 kHz
       numRows           => toSlv(256, 16),                  -- Default of 64 rows
       sampleStartTime   => toSlv(32, 32),
       sampleEndTime     => toSlv(160, 32),                  -- Could be corner case here?
