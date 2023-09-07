@@ -92,7 +92,7 @@ architecture rtl of AdcDsp is
    -- Max of 256 accumulations adds 8 bits to 14 bit ADC
    constant ACCUM_BITS_C : integer := 22;
    constant COEF_HIGH_C  : integer := 1;
-   constant COEF_LOW_C   : integer := -8;
+   constant COEF_LOW_C   : integer := -16;
    constant COEF_BITS_C  : integer := COEF_HIGH_C - COEF_LOW_C + 1;
 
    constant SUM_BITS_C    : integer := ACCUM_BITS_C;
