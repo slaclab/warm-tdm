@@ -80,3 +80,11 @@ target_compile_definitions(warm_tdm_native PRIVATE "-DNO_PYTHON")
 target_include_directories(warm_tdm_native PRIVATE)
 add_warm_tdm_sources(TARGET warm_tdm_native)
 TARGET_LINK_LIBRARIES(warm_tdm_native PUBLIC ${ROGUE_LIBRARIES} ${S4DAQSender_LIBRARIES})
+
+#####################################
+# Install Setup
+#####################################
+
+include(GNUInstallDirs)
+install(TARGETS warm_tdm_native LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/s4_warm_tdm FILES_MATCHING PATTERN "*.h")
