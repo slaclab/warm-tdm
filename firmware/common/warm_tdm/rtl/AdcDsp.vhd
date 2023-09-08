@@ -258,7 +258,7 @@ begin
          TPD_G            => TPD_G,
          SYNTH_MODE_G     => "inferred",
          MEMORY_TYPE_G    => "distributed",
-         READ_LATENCY_G   => 0,
+         READ_LATENCY_G   => 1,
          AXI_WR_EN_G      => true,
          SYS_WR_EN_G      => false,
          SYS_BYTE_WR_EN_G => false,
@@ -282,9 +282,9 @@ begin
       generic map (
          TPD_G            => TPD_G,
          SYNTH_MODE_G     => "inferred",
-         MEMORY_TYPE_G    => "distributed",
-         READ_LATENCY_G   => 0,
-         AXI_WR_EN_G      => false,
+         MEMORY_TYPE_G    => "block",
+         READ_LATENCY_G   => 3,
+         AXI_WR_EN_G      => true,
          SYS_WR_EN_G      => true,
          SYS_BYTE_WR_EN_G => false,
          COMMON_CLK_G     => false,
@@ -298,7 +298,7 @@ begin
          axiWriteMaster => locAxilWriteMasters(ACCUM_ERROR_C),  -- [in]
          axiWriteSlave  => locAxilWriteSlaves(ACCUM_ERROR_C),   -- [out]
          clk            => timingRxClk125,                      -- [in]
-         rst            => r.clearRams,                         -- [in]
+         rst            => timingRxRst125,                         -- [in]
          addr           => r.rowIndex,                          -- [in]         
          we             => r.accumValid,                        -- [in]
          din            => accumError,                          -- [in]
@@ -326,7 +326,7 @@ begin
          axiWriteMaster => locAxilWriteMasters(SUM_ACCUM_C),  -- [in]
          axiWriteSlave  => locAxilWriteSlaves(SUM_ACCUM_C),   -- [out]
          clk            => timingRxClk125,                    -- [in]
-         rst            => r.clearRams,                       -- [in]
+         rst            => timingRxRst125,                       -- [in]
          addr           => r.rowIndex,                        -- [in]         
          we             => r.pidValid,                        -- [in]
          din            => sumAccum,                          -- [in]
@@ -353,7 +353,7 @@ begin
          axiWriteMaster => locAxilWriteMasters(PID_RESULTS_C),  -- [in]
          axiWriteSlave  => locAxilWriteSlaves(PID_RESULTS_C),   -- [out]
          clk            => timingRxClk125,                      -- [in]
-         rst            => r.clearRams,                         -- [in]
+         rst            => timingRxRst125,                         -- [in]
          addr           => r.rowIndex,                          -- [in]         
          we             => r.pidValid,                          -- [in]
          din            => pidResult,                           -- [in]
@@ -379,7 +379,7 @@ begin
          mAxisMaster     => filterStreamMaster,                  -- [out]
          mAxisSlave      => AXI_STREAM_SLAVE_FORCE_C,            -- [in]
          axilClk         => timingRxClk125,                      -- [in]
-         axilRst         => r.clearRams,                         -- [in]
+         axilRst         => timingRxRst125,                         -- [in]
          axilReadMaster  => locAxilReadMasters(FILTER_COEF_C),   -- [in]
          axilReadSlave   => locAxilReadSlaves(FILTER_COEF_C),    -- [out]
          axilWriteMaster => locAxilWriteMasters(FILTER_COEF_C),  -- [in]
@@ -406,7 +406,7 @@ begin
          axiWriteMaster => locAxilWriteMasters(FILTER_RESULTS_C),               -- [in]
          axiWriteSlave  => locAxilWriteSlaves(FILTER_RESULTS_C),                -- [out]
          clk            => timingRxClk125,                                      -- [in]
-         rst            => r.clearRams,                                         -- [in]
+         rst            => timingRxRst125,                                         -- [in]
          addr           => r.rowIndex,                                          -- [in]         
          we             => filterStreamMaster.tValid,                           -- [in]
          din            => filterStreamMaster.tData(RESULT_BITS_C-1 downto 0),  -- [in]
