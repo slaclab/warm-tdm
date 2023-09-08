@@ -65,9 +65,7 @@ class WaveformCapture(pr.Device):
 
         @self.command()
         def CaptureWaveform():
-            self.WaveformState.set('Capture')
-            self.WaveformTrigger()
-            pr.VariableWait(self.WaveformState, lambda v: self.WaveformState.get() == 'Idle')
+             self.WaveformTrigger()
 
         @self.command()
         def CaptureIterative():
