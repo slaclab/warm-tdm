@@ -24,12 +24,20 @@ class AdcDsp(pr.Device):
         numRows = 1
 
         self.add(pr.RemoteVariable(
-            name = 'PllEnable',
+            name = 'PidEnable',
             offset = 0x00,
             base = pr.Bool,
             mode = 'RW',
             bitSize = 1,
             bitOffset = 0))
+
+        self.add(pr.RemoteVariable(
+            name = 'AccumShift',
+            offset = 0x00,
+            base = pr.UInt,
+            mode = 'RW',
+            bitSize = 4,
+            bitOffset = 16))
 
         self.add(pr.RemoteVariable(
             name = 'P_Coef',
@@ -79,15 +87,15 @@ class AdcDsp(pr.Device):
         self.add(pr.RemoteVariable(
             name = 'PidResult_DBG',
             mode = 'RO',
-            offset = 0x1C,
-            base = pr.Fixed(32, 8),
-            bitSize = 32,
+            offset = 0x20,
+            base = pr.Fixed(40, 17),
+            bitSize = 40,
             bitOffset = 0))
         
         self.add(pr.RemoteVariable(
             name = 'Sq1Fb_DBG',
             mode = 'RO',
-            offset = 0x20,
+            offset = 0x28,
             base = pr.Int,
             bitSize = 14,
             bitOffset = 0))
@@ -119,7 +127,7 @@ class AdcDsp(pr.Device):
             name = 'SumAccum',
             offset = 0x3000,
             base = pr.Int,
-            mode = 'RO',
+            mode = 'RW',
             bitSize = 32*numRows,
             numValues = numRows,
             valueBits = ACCUM_BITS,
@@ -129,7 +137,7 @@ class AdcDsp(pr.Device):
         self.add(pr.RemoteVariable(
             name = 'PidResults',
             offset = 0x4000,
-            mode = 'RO',
+            mode = 'RW',
             bitSize = 32*numRows,
             numValues = numRows,
             valueBits = RESULT_BITS,
@@ -144,6 +152,12 @@ class AdcDsp(pr.Device):
             numValues = numRows,
             valueBits = 16,
             valueStride = 32))
+
+        @self.command()
+        def ClearPids():
+            blank = [0 for x in range(numRows)]
+            self.SumAccum.set(blank)
+            self.PidResults.set(blank)
 
         self.add(surf.dsp.fixed.FirFilterMultiChannel(
             name = 'FirFilter',

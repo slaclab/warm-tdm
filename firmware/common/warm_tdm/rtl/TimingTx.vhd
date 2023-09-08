@@ -240,10 +240,6 @@ begin
             (r.runMode = SOFTWARE_C and r.softwareRowStrobe = '1') then
             v.timingTx := ROW_STROBE_C;
 
-            if (r.timingData.rowSeq = 0) then
-               v.timingTx := FIRST_ROW_C;
-            end if;
-
          elsif (r.timingData.rowTime = r.sampleStartTime) then
             v.timingData.sample      := '1';
             v.timingData.firstSample := '1';
