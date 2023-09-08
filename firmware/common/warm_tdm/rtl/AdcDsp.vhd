@@ -8,8 +8,8 @@ package local_fixed_pkg is new ieee.fixed_generic_pkg  generic map (
 use work.local_fixed_pkg.all;
 
 library ieee;
-                           use ieee.std_logic_1164.all;
-                           
+use ieee.std_logic_1164.all;
+
 use ieee.numeric_std.all;
 
 library unisim;
@@ -104,7 +104,7 @@ architecture rtl of AdcDsp is
    constant FILTER_COEFFICIENTS_C : IntegerArray(0 to 10) := (5 => 2**7-1, others => 0);
 
    constant AXIS_DEBUG_CFG_C : AxiStreamConfigType := ssiAxiStreamConfig(
-      dataBytes => 4,
+      dataBytes => 8,
       tKeepMode => TKEEP_COMP_C,
       tDestBits => 4);
 
@@ -139,6 +139,7 @@ architecture rtl of AdcDsp is
       pidResult      : sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
       sq1Fb          : sfixed(13 downto 0);
       sq1FbValid     : sl;
+      clearRams      : sl;
       pidDebugMaster : AxiStreamMasterType;
       axilWriteSlave : AxiLiteWriteSlaveType;
       axilReadSlave  : AxiLiteReadSlaveType;
@@ -152,16 +153,17 @@ architecture rtl of AdcDsp is
       accumError     => (others => '0'),
       lastAccum      => (others => '0'),
       sumAccum       => (others => '0'),
-      accumShift     => toSlv(7, 4),
+      accumShift     => toSlv(0, 4),
       pidMultiplier  => (others => '0'),
       pidCoef        => (others => '0'),
-      p              => "000000000000000100",
-      i              => "000000000000000100",
-      d              => "000000000000000100",
+      p              => (others => '0'),
+      i              => (others => '0'),
+      d              => (others => '0'),
       pidValid       => '0',
       pidResult      => (others => '0'),
       sq1Fb          => (others => '0'),
       sq1FbValid     => '0',
+      clearRams      => '0',
       pidDebugMaster => axiStreamMasterInit(AXIS_DEBUG_CFG_C),
       axilWriteSlave => AXI_LITE_WRITE_SLAVE_INIT_C,
       axilReadSlave  => AXI_LITE_READ_SLAVE_INIT_C);
@@ -296,7 +298,7 @@ begin
          axiWriteMaster => locAxilWriteMasters(ACCUM_ERROR_C),  -- [in]
          axiWriteSlave  => locAxilWriteSlaves(ACCUM_ERROR_C),   -- [out]
          clk            => timingRxClk125,                      -- [in]
-         rst            => timingRxRst125,                      -- [in]
+         rst            => r.clearRams,                         -- [in]
          addr           => r.rowIndex,                          -- [in]         
          we             => r.accumValid,                        -- [in]
          din            => accumError,                          -- [in]
@@ -324,7 +326,7 @@ begin
          axiWriteMaster => locAxilWriteMasters(SUM_ACCUM_C),  -- [in]
          axiWriteSlave  => locAxilWriteSlaves(SUM_ACCUM_C),   -- [out]
          clk            => timingRxClk125,                    -- [in]
-         rst            => timingRxRst125,                    -- [in]
+         rst            => r.clearRams,                       -- [in]
          addr           => r.rowIndex,                        -- [in]         
          we             => r.pidValid,                        -- [in]
          din            => sumAccum,                          -- [in]
@@ -351,7 +353,7 @@ begin
          axiWriteMaster => locAxilWriteMasters(PID_RESULTS_C),  -- [in]
          axiWriteSlave  => locAxilWriteSlaves(PID_RESULTS_C),   -- [out]
          clk            => timingRxClk125,                      -- [in]
-         rst            => timingRxRst125,                      -- [in]
+         rst            => r.clearRams,                         -- [in]
          addr           => r.rowIndex,                          -- [in]         
          we             => r.pidValid,                          -- [in]
          din            => pidResult,                           -- [in]
@@ -377,7 +379,7 @@ begin
          mAxisMaster     => filterStreamMaster,                  -- [out]
          mAxisSlave      => AXI_STREAM_SLAVE_FORCE_C,            -- [in]
          axilClk         => timingRxClk125,                      -- [in]
-         axilRst         => timingRxRst125,                      -- [in]
+         axilRst         => r.clearRams,                         -- [in]
          axilReadMaster  => locAxilReadMasters(FILTER_COEF_C),   -- [in]
          axilReadSlave   => locAxilReadSlaves(FILTER_COEF_C),    -- [out]
          axilWriteMaster => locAxilWriteMasters(FILTER_COEF_C),  -- [in]
@@ -404,7 +406,7 @@ begin
          axiWriteMaster => locAxilWriteMasters(FILTER_RESULTS_C),               -- [in]
          axiWriteSlave  => locAxilWriteSlaves(FILTER_RESULTS_C),                -- [out]
          clk            => timingRxClk125,                                      -- [in]
-         rst            => timingRxRst125,                                      -- [in]
+         rst            => r.clearRams,                                         -- [in]
          addr           => r.rowIndex,                                          -- [in]         
          we             => filterStreamMaster.tValid,                           -- [in]
          din            => filterStreamMaster.tData(RESULT_BITS_C-1 downto 0),  -- [in]
@@ -423,6 +425,9 @@ begin
    begin
       v := r;
 
+      -- Rams clear on clock reset or axil command
+      v.clearRams := timingRxRst125;
+
       ----------------------------------------------------------------------------------------------
       -- AXI Lite Registers
       ----------------------------------------------------------------------------------------------
@@ -437,9 +442,10 @@ begin
       axiSlaveRegisterR(axilEp, X"10", 0, to_slv(r.accumError));
       axiSlaveRegisterR(axilEp, X"14", 0, to_slv(r.lastAccum));
       axiSlaveRegisterR(axilEp, X"18", 0, to_slv(r.sumAccum));
-      axiSlaveRegisterR(axilEp, X"1C", 0, to_slv(r.pidResult));
-      axiSlaveRegisterR(axilEp, X"20", 0, to_slv(r.sq1Fb));
+      axiSlaveRegisterR(axilEp, X"20", 0, to_slv(r.pidResult));
+      axiSlaveRegisterR(axilEp, X"28", 0, to_slv(r.sq1Fb));
 
+      axiSlaveRegister(axilEp, X"30", 0, v.clearRams);
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
 
@@ -513,7 +519,7 @@ begin
                v.pidMultiplier := shift_right(r.pidMultiplier, to_integer(unsigned(r.accumShift)));
                v.state         := PID_P_S;
 
-            when PID_P_S =>       
+            when PID_P_S =>
                -- Fourth Word is starting SQ1FB
                v.pidDebugMaster.tValid             := '1';
                v.pidDebugMaster.tData(31 downto 0) := resize(to_slv(r.sq1FB), 32);
@@ -552,7 +558,7 @@ begin
             when SQ1FB_ADJUST_S =>
                -- Seventh Word is PID result
                v.pidDebugMaster.tValid             := '1';
-               v.pidDebugMaster.tData(31 downto 0) := resize(to_slv(r.pidResult), 32);
+               v.pidDebugMaster.tData(63 downto 0) := resize(to_slv(r.pidResult), 64);
 
                v.sq1Fb      := resize(r.sq1Fb + r.pidResult, v.sq1Fb);
                v.sq1FbValid := '1';
