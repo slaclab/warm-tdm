@@ -13,7 +13,7 @@ class FastDacDriver(pr.Device):
                  **kwargs):
         super().__init__(**kwargs)
 
-        rows = 256
+        rows = 1
 
         self._waveformTrigger = waveformTrigger
 
@@ -63,13 +63,13 @@ class FastDacDriver(pr.Device):
             # Current Conversion
             ####################
             def _overCurrentGet(index, read, x=col):
-                ret = self._dacToSquidCurrent(self.Override[x].value(), x) * 1.0e6
+                ret = self._dacToSquidCurrent(self.Override[x].value(), x) 
                 #print(f'_overGet - OverrideRaw[{x}].value() = {self.OverrideRaw[x].value()} - voltage = {voltage}')
                 return ret
 
             def _overCurrentSet(value, index, write, x=col):
                 #print(f'Override[{x}].set()')
-                self.Override[x].set(self._squidCurrentToDac(value*1.0e-6, x), write=write)
+                self.Override[x].set(self._squidCurrentToDac(value, x), write=write)
 
             self.add(pr.LinkVariable(
                 name = f'OverrideCurrent[{col}]',
@@ -114,15 +114,6 @@ class FastDacDriver(pr.Device):
                 valueBits = 14,
                 valueStride = 32))
 
-        for col in range(8):
-
-            self.add(pr.LinkVariable(
-                name = f'ColumnCurrents[{col}]',
-                dependencies = [self.ColumnRaw[col]],
-                disp = '{:0.03f}',
-                units = u'\03bcA',
-                linkedGet = self._getCurrentFunc(col),
-                linkedSet = self._setCurrentFunc(col)))
             
         for col in range(8):
             self.add(pr.LinkVariable(
@@ -132,6 +123,17 @@ class FastDacDriver(pr.Device):
                 units = 'V',
                 linkedGet = self._getVoltageFunc(col),
                 linkedSet = self._setVoltageFunc(col)))
+
+        for col in range(8):
+
+            self.add(pr.LinkVariable(
+                name = f'ColumnCurrents[{col}]',
+                dependencies = [self.ColumnVoltages[col]],
+                disp = '{:0.03f}',
+                units = u'\03bcA',
+                linkedGet = self._getCurrentFunc(col),
+                linkedSet = self._setCurrentFunc(col)))
+            
 
         @self.command()
         def RamTest():
@@ -160,7 +162,7 @@ class FastDacDriver(pr.Device):
         return voltage
 
     def _dacToSquidCurrent(self, dac, column):
-        return self._dacToSquidVoltage(dac, column) / self.outResistance_deps[column].value()
+        return self._dacToSquidVoltage(dac, column) / self.outResistance_deps[column].value() * 1e6
 
 
     def _squidVoltageToDac(self, voltage, column):
@@ -173,7 +175,7 @@ class FastDacDriver(pr.Device):
         return dac
 
     def _squidCurrentToDac(self, current, column):
-        return self._squidVoltageToDac(current * self.outResistance_deps[column].value(), column)
+        return self._squidVoltageToDac(current * 1e-6 * self.outResistance_deps[column].value(), column)
     
 
 

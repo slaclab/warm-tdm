@@ -63,7 +63,9 @@ end entity FastDacDriver;
 
 architecture rtl of FastDacDriver is
 
-   constant NUM_AXIL_C : integer := 9;
+   constant NUM_AXIL_C      : integer := 10;
+   constant OVERRIDE_AXIL_C : integer := 8;
+   constant LOCAL_AXIL_C    : integer := 9;
 
    constant XBAR_COFNIG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_C, AXIL_BASE_ADDR_G, 16, 12);
 
@@ -86,29 +88,33 @@ architecture rtl of FastDacDriver is
       CLK_1_RISE_S);
 
    type RegType is record
-      startup    : sl;
-      rowIndex : slv(7 downto 0);
-      state      : StateType;
-      dacOutNext : slv14array(7 downto 0);
-      dacOut     : Slv14Array(7 downto 0);
-      dacNum     : slv(2 downto 0);
-      dacDb      : slv(13 downto 0);
-      dacWrt     : slv(3 downto 0);
-      dacClk     : slv(3 downto 0);
-      dacSel     : slv(3 downto 0);
+      startup        : sl;
+      rowIndex       : slv(7 downto 0);
+      state          : StateType;
+      dacOutNext     : slv14array(7 downto 0);
+      dacOut         : Slv14Array(7 downto 0);
+      dacNum         : slv(2 downto 0);
+      dacDb          : slv(13 downto 0);
+      dacWrt         : slv(3 downto 0);
+      dacClk         : slv(3 downto 0);
+      dacSel         : slv(3 downto 0);
+      axilWriteSlave : AxiLiteWriteSlaveType;
+      axilReadSlave  : AxiLiteReadSlaveType;
    end record RegType;
 
    constant REG_INIT_C : RegType := (
-      startup    => '1',
-      rowIndex => (others => '0'),
-      state      => WAIT_ROW_STROBE_S,
-      dacOutNext => (others => (others => '0')),
-      dacOut     => (others => (others => '0')),
-      dacNum     => (others => '0'),
-      dacDb      => (others => '0'),
-      dacWrt     => (others => '0'),
-      dacClk     => (others => '0'),
-      dacSel     => (others => '0'));
+      startup        => '1',
+      rowIndex       => (others => '0'),
+      state          => WAIT_ROW_STROBE_S,
+      dacOutNext     => (others => (others => '0')),
+      dacOut         => (others => (others => '0')),
+      dacNum         => (others => '0'),
+      dacDb          => (others => '0'),
+      dacWrt         => (others => '0'),
+      dacClk         => (others => '0'),
+      dacSel         => (others => '0'),
+      axilWriteSlave => AXI_LITE_WRITE_SLAVE_INIT_C,
+      axilReadSlave  => AXI_LITE_READ_SLAVE_INIT_C);
 
    signal r   : RegType := REG_INIT_C;
    signal rin : RegType;
@@ -119,6 +125,10 @@ architecture rtl of FastDacDriver is
    signal overrideWrAddr  : slv(2 downto 0);
    signal overrideWrData  : slv(15 downto 0);
 
+   signal timingAxilWriteMaster : AxiLiteWriteMasterType;
+   signal timingAxilWriteSlave  : AxiLiteWriteSlaveType;
+   signal timingAxilReadMaster  : AxiLiteReadMasterType;
+   signal timingAxilReadSlave   : AxiLiteReadSlaveType;
 begin
 
    U_AxiLiteCrossbar_1 : entity surf.AxiLiteCrossbar
@@ -181,27 +191,50 @@ begin
          COMMON_CLK_G     => false,
          ADDR_WIDTH_G     => 3,
          DATA_WIDTH_G     => 16,
-         INIT_G           => X"2000")               -- init to midscale for DAC         )
+         INIT_G           => X"2000")   -- init to midscale for DAC         )
       port map (
-         axiClk         => axilClk,                 -- [in]
-         axiRst         => axilRst,                 -- [in]
-         axiReadMaster  => locAxilReadMasters(8),   -- [in]
-         axiReadSlave   => locAxilReadSlaves(8),    -- [out]
-         axiWriteMaster => locAxilWriteMasters(8),  -- [in]
-         axiWriteSlave  => locAxilWriteSlaves(8),   -- [out]
-         clk            => timingRxClk125,          -- [in]
-         rst            => timingRxRst125,          -- [in]
-         addr           => (others => '0'),         -- [in]
-         dout           => open,                    -- [out]
-         axiWrValid     => overrideWrValid,         -- [out]
-         axiWrAddr      => overrideWrAddr,          -- [out]
-         axiWrData      => overrideWrData);         -- [out]
+         axiClk         => axilClk,     -- [in]
+         axiRst         => axilRst,     -- [in]
+         axiReadMaster  => locAxilReadMasters(OVERRIDE_AXIL_C),   -- [in]
+         axiReadSlave   => locAxilReadSlaves(OVERRIDE_AXIL_C),    -- [out]
+         axiWriteMaster => locAxilWriteMasters(OVERRIDE_AXIL_C),  -- [in]
+         axiWriteSlave  => locAxilWriteSlaves(OVERRIDE_AXIL_C),   -- [out]
+         clk            => timingRxClk125,                        -- [in]
+         rst            => timingRxRst125,                        -- [in]
+         addr           => (others => '0'),                       -- [in]
+         dout           => open,        -- [out]
+         axiWrValid     => overrideWrValid,                       -- [out]
+         axiWrAddr      => overrideWrAddr,                        -- [out]
+         axiWrData      => overrideWrData);                       -- [out]
+
+   U_AxiLiteAsync_1 : entity surf.AxiLiteAsync
+      generic map (
+         TPD_G            => TPD_G,
+         RST_ASYNC_G      => RST_ASYNC_G,
+         AXI_ERROR_RESP_G => AXI_ERROR_RESP_G,
+         COMMON_CLK_G     => COMMON_CLK_G,
+         NUM_ADDR_BITS_G  => NUM_ADDR_BITS_G,
+         PIPE_STAGES_G    => PIPE_STAGES_G)
+      port map (
+         sAxiClk         => timingRxClk125,                     -- [in]
+         sAxiClkRst      => axilClkRst,                         -- [in]
+         sAxiReadMaster  => locAxilReadMasters(LOCAL_AXIL_C),   -- [in]
+         sAxiReadSlave   => locAxilReadSlaves(LOCAL_AXIL_C),    -- [out]
+         sAxiWriteMaster => locAxilWriteMasters(LOCAL_AXIL_C),  -- [in]
+         sAxiWriteSlave  => locAxilWriteSlaves(LOCAL_AXIL_C),   -- [out]
+         mAxiClk         => timingRxClk125,                     -- [in]
+         mAxiClkRst      => timingRxRst125,                     -- [in]
+         mAxiReadMaster  => timingAxilReadMaster,               -- [out]
+         mAxiReadSlave   => timingAxilReadSlave,                -- [in]
+         mAxiWriteMaster => timingAxilWriteMaster,              -- [out]
+         mAxiWriteSlave  => timingAxilWriteSlave);              -- [in]
 
    comb : process (overrideWrAddr, overrideWrData, overrideWrValid, r, ramDout, timingRxData,
                    timingRxRst125) is
       variable v       : RegType;
       variable dacInt  : integer range 0 to 7;
       variable dacChip : integer range 0 to 3;
+      variable axilEp  : AxiLiteEndpointType;
    begin
       v := r;
 
@@ -294,6 +327,23 @@ begin
 
          when others => null;
       end case;
+
+      ----------------------------------------------------------------------------------------------
+      -- AXI Lite
+      ----------------------------------------------------------------------------------------------
+      axiSlaveWaitTxn(axilEp, timingAxilWriteMaster, timingAxilReadMaster, v.axilWriteSlave, v.axilReadSlave);
+
+      axiSlaveRegisterR(axilEp, X"00", 0, r.dacOut(0));
+      axiSlaveRegisterR(axilEp, X"04", 0, r.dacOut(1));
+      axiSlaveRegisterR(axilEp, X"08", 0, r.dacOut(2));
+      axiSlaveRegisterR(axilEp, X"0C", 0, r.dacOut(3));
+      axiSlaveRegisterR(axilEp, X"10", 0, r.dacOut(4));
+      axiSlaveRegisterR(axilEp, X"14", 0, r.dacOut(5));
+      axiSlaveRegisterR(axilEp, X"18", 0, r.dacOut(6));
+      axiSlaveRegisterR(axilEp, X"1C", 0, r.dacOut(7));
+
+      axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
+
 
       if (timingRxRst125 = '1') then
          v := REG_INIT_C;
