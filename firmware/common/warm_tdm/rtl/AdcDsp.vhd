@@ -482,6 +482,8 @@ begin
 
             when WAIT_FIRST_SAMPLE_S =>
                -- Activate and deactivate the accumulator
+               -- RAMs have a 3 cycle latency so this needs to happen at least 3 cycles after row strobe
+               -- In practice it will always be much longer than 3 cycles
                if (adcAxisMaster.tUser(0) = '1') then
                   -- Second word is baseline
                   v.pidDebugMaster.tValid             := '1';
