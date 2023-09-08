@@ -209,15 +209,10 @@ begin
 
    U_AxiLiteAsync_1 : entity surf.AxiLiteAsync
       generic map (
-         TPD_G            => TPD_G,
-         RST_ASYNC_G      => RST_ASYNC_G,
-         AXI_ERROR_RESP_G => AXI_ERROR_RESP_G,
-         COMMON_CLK_G     => COMMON_CLK_G,
-         NUM_ADDR_BITS_G  => NUM_ADDR_BITS_G,
-         PIPE_STAGES_G    => PIPE_STAGES_G)
+         TPD_G => TPD_G)
       port map (
-         sAxiClk         => timingRxClk125,                     -- [in]
-         sAxiClkRst      => axilClkRst,                         -- [in]
+         sAxiClk         => axilClk,                            -- [in]
+         sAxiClkRst      => axilRst,                            -- [in]
          sAxiReadMaster  => locAxilReadMasters(LOCAL_AXIL_C),   -- [in]
          sAxiReadSlave   => locAxilReadSlaves(LOCAL_AXIL_C),    -- [out]
          sAxiWriteMaster => locAxilWriteMasters(LOCAL_AXIL_C),  -- [in]
@@ -229,8 +224,8 @@ begin
          mAxiWriteMaster => timingAxilWriteMaster,              -- [out]
          mAxiWriteSlave  => timingAxilWriteSlave);              -- [in]
 
-   comb : process (overrideWrAddr, overrideWrData, overrideWrValid, r, ramDout, timingRxData,
-                   timingRxRst125) is
+   comb : process (overrideWrAddr, overrideWrData, overrideWrValid, r, ramDout,
+                   timingAxilReadMaster, timingAxilWriteMaster, timingRxData, timingRxRst125) is
       variable v       : RegType;
       variable dacInt  : integer range 0 to 7;
       variable dacChip : integer range 0 to 3;
@@ -252,15 +247,16 @@ begin
 --      v.dacSel := (others => '0');
 
       case r.state is
-         when WAIT_LOAD_DACS_S =>
+         when WAIT_ROW_STROBE_S =>
             v.dacNum := (others => '0');
             -- At startup, load rowIndex[0] ram values into dacs
             if (r.startup = '1') then
+               v.startup := '0';               
                v.rowIndex := (others => '0');
                v.state    := DATA_S;
 
             -- Use lastSample instead of loadDacs for now since it doesn't exist yet               
-            elsif (timingRxData.loadDacs = '1') then
+            elsif (timingRxData.rowStrobe = '1') then
                v.rowIndex := timingRxData.rowIndexNext;
                v.state    := DATA_S;
             end if;
@@ -288,16 +284,7 @@ begin
             v.dacNum := r.dacNum + 1;
             v.state  := DATA_S;
             if (r.dacNum = 7) then
-               v.state := WAIT_ROW_STROBE_S;
-            end if;
-
-         when WAIT_ROW_STROBE_S =>
-            -- Once Dacs are loaded, wait for row strobe to clock loaded value to dac output
-            -- During startup, don't wait for row strobe
-            if (timingRxData.rowStrobe = '1' or r.startup = '1') then
-               v.startup := '0';
-               v.dacOut  := r.dacOutNext;
-               v.state   := CLK_0_RISE_S;
+               v.state := CLK_0_RISE_S;
             end if;
 
          when OVER_SEL_S =>
@@ -310,9 +297,10 @@ begin
             v.state           := OVER_WRITE_FALL_S;
 
          when OVER_WRITE_FALL_S =>
-            v.state := CLK_0_FALL_S;
+            v.state := CLK_0_RISE_S;
 
          when CLK_0_RISE_S =>
+            v.dacOut  := r.dacOutNext;                           
             v.dacClk := (others => '1');
             v.state  := CLK_0_FALL_S;
 
@@ -323,7 +311,7 @@ begin
          when CLK_1_RISE_S =>
             v.dacClk := (others => '1');
             v.dacSel := (others => '0');
-            v.state  := WAIT_LOAD_DACS_S;
+            v.state  := WAIT_ROW_STROBE_S;
 
          when others => null;
       end case;
@@ -354,6 +342,9 @@ begin
       dacWrt <= r.dacWrt;
       dacSel <= r.dacSel;
       dacClk <= r.dacClk;
+
+      timingAxilReadSlave  <= r.axilReadSlave;
+      timingAxilWriteSlave <= r.axilWriteSlave; 
 
       rin <= v;
 

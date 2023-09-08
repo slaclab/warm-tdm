@@ -34,8 +34,26 @@ class FastDacDriver(pr.Device):
         self.add(pr.LocalVariable(
             name = 'TriggerWaveform',
             value = False))
-        
 
+        for col in range(8):
+            self.add(pr.RemoteVariable(
+                name = f'DacRawNow[{col}]',
+                offset = (9 << 12) + 4*col,
+                mode = 'RO',
+                base = pr.UInt,
+                bitSize = 14))
+
+        for col in range(8):
+            self.add(pr.LinkVariable(
+                name = f'DacCurrentNow[{col}]',
+                dependencies = [self.DacRawNow[col]],
+                mode = 'RO',
+                units = u'\u03bcA',
+                disp = '{:0.03f}',
+                pollInterval = 1,
+                linkedGet = lambda x=col: self._dacToSquidCurrent(self.DacRawNow[x].value(), x)))
+            
+        
         for col in range(8):
             self.add(pr.RemoteVariable(
                 name = f'OverrideRaw[{col}]',
@@ -43,37 +61,21 @@ class FastDacDriver(pr.Device):
                 base = pr.UInt,
                 bitSize = 16))
 
-            def _setOverride(value, write, ch=col):
-                if self.TriggerWaveform.get():
-                    self._waveformTrigger()
-                self.OverrideRaw[ch].set(value, write=write)
-                
-            self.add(pr.LinkVariable(
-                name = f'Override[{col}]',
-                hidden = True,
-                dependencies = [self.OverrideRaw[col]],
-                linkedSet = _setOverride,
-                linkedGet = lambda read, ch=col: self.OverrideRaw[ch].get(read=read),
-                mode = 'RW'))
-            
-
         for col in range(8):
 
             ####################
             # Current Conversion
             ####################
             def _overCurrentGet(index, read, x=col):
-                ret = self._dacToSquidCurrent(self.Override[x].value(), x) 
-                #print(f'_overGet - OverrideRaw[{x}].value() = {self.OverrideRaw[x].value()} - voltage = {voltage}')
+                ret = self._dacToSquidCurrent(self.OverrideRaw[x].value(), x) 
                 return ret
 
             def _overCurrentSet(value, index, write, x=col):
-                #print(f'Override[{x}].set()')
-                self.Override[x].set(self._squidCurrentToDac(value, x), write=write)
+                self.OverrideRaw[x].set(self._squidCurrentToDac(value, x), write=write)
 
             self.add(pr.LinkVariable(
                 name = f'OverrideCurrent[{col}]',
-                dependencies = [self.Override[col]],
+                dependencies = [self.OverrideRaw[col]],
                 units = u'\u03bcA',
                 disp = '{:0.03f}',
                 linkedGet = _overCurrentGet,
@@ -84,17 +86,17 @@ class FastDacDriver(pr.Device):
             # Voltage Conversion
             ####################
             def _overVoltageGet(index, read, x=col):
-                ret = self._dacToSquidVoltage(self.Override[x].value(), x)
+                ret = self._dacToSquidVoltage(self.OverrideRaw[x].value(), x)
                 #print(f'_overGet - OverrideRaw[{x}].value() = {self.OverrideRaw[x].value()} - voltage = {voltage}')
                 return ret
 
             def _overVoltageSet(value, index, write, x=col):
                 #print(f'Override[{x}].set()')
-                self.Override[x].set(self._squidVoltageToDac(value, x), write=write)
+                self.OverrideRaw[x].set(self._squidVoltageToDac(value, x), write=write)
 
             self.add(pr.LinkVariable(
                 name = f'OverrideVoltage[{col}]',
-                dependencies = [self.Override[col]],
+                dependencies = [self.OverrideRaw[col]],
                 units = 'V',
                 disp = '{:0.03f}',
                 linkedGet = _overVoltageGet,
@@ -130,7 +132,7 @@ class FastDacDriver(pr.Device):
                 name = f'ColumnCurrents[{col}]',
                 dependencies = [self.ColumnVoltages[col]],
                 disp = '{:0.03f}',
-                units = u'\03bcA',
+                units = u'\u03bcA',
                 linkedGet = self._getCurrentFunc(col),
                 linkedSet = self._setCurrentFunc(col)))
             
