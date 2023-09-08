@@ -130,7 +130,7 @@ class FastDacDriver(pr.Device):
                 name = f'ColumnCurrents[{col}]',
                 dependencies = [self.ColumnVoltages[col]],
                 disp = '{:0.03f}',
-                units = u'\03bcA',
+                units = u'\u03bcA',
                 linkedGet = self._getCurrentFunc(col),
                 linkedSet = self._setCurrentFunc(col)))
             
