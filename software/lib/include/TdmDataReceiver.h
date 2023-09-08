@@ -31,9 +31,13 @@ namespace warm_tdm_lib {
 
          void countReset();
 
-         uint32_t getRxFrameCount();
+         uint32_t getRxFrameCount() const;
 
-         uint32_t getRxByteCount();
+         uint32_t getRxByteCount() const;
+
+         void addDetectorRow(uint8_t groupID, uint8_t columnBoardID, uint8_t rowIndex, uint8_t rowLen=8);
+
+         void initializeCommunication();
 
          void acceptFrame ( std::shared_ptr<rogue::interfaces::stream::Frame> frame );
    };

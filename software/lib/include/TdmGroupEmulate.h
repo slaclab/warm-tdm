@@ -36,13 +36,15 @@ namespace warm_tdm_lib {
 
          ~TdmGroupEmulate ();
 
+         uint8_t getGroupId() const;
+
          void setNumColBoards(uint8_t number);
 
-         uint8_t getNumColBoards();
+         uint8_t getNumColBoards() const;
 
          void setNumRows(uint8_t number);
 
-         uint8_t getNumRows();
+         uint8_t getNumRows() const;
 
          void start();
 
@@ -50,9 +52,9 @@ namespace warm_tdm_lib {
 
          void countReset();
 
-         uint32_t getTxFrameCount();
+         uint32_t getTxFrameCount() const;
 
-         uint32_t getTxByteCount();
+         uint32_t getTxByteCount() const;
 
          void reqFrames(uint32_t timestampA, uint32_t timestampB, uint32_t timestampC);
 

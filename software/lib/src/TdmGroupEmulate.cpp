@@ -26,6 +26,7 @@ void warm_tdm_lib::TdmGroupEmulate::setup_python() {
    bp::class_<warm_tdm_lib::TdmGroupEmulate, warm_tdm_lib::TdmGroupEmulatePtr, bp::bases<ris::Master>, boost::noncopyable >("TdmGroupEmulate",bp::init<uint8_t>())
       .def("_start",             &warm_tdm_lib::TdmGroupEmulate::start)
       .def("_stop",              &warm_tdm_lib::TdmGroupEmulate::stop)
+      .def("getGroupId",         &warm_tdm_lib::TdmGroupEmulate::getGroupId)
       .def("getNumColBoards",    &warm_tdm_lib::TdmGroupEmulate::getNumColBoards)
       .def("setNumColBoards",    &warm_tdm_lib::TdmGroupEmulate::setNumColBoards)
       .def("getNumRows",         &warm_tdm_lib::TdmGroupEmulate::getNumRows)
@@ -58,11 +59,15 @@ warm_tdm_lib::TdmGroupEmulate::~TdmGroupEmulate () {
    stop();
 }
 
+uint8_t warm_tdm_lib::TdmGroupEmulate::getGroupId() const {
+   return groupId_;
+}
+
 void warm_tdm_lib::TdmGroupEmulate::setNumColBoards(uint8_t number) {
    numColBoards_ = number;
 }
 
-uint8_t warm_tdm_lib::TdmGroupEmulate::getNumColBoards() {
+uint8_t warm_tdm_lib::TdmGroupEmulate::getNumColBoards() const {
    return numColBoards_;
 }
 
@@ -70,7 +75,7 @@ void warm_tdm_lib::TdmGroupEmulate::setNumRows(uint8_t number) {
    numRows_ = number;
 }
 
-uint8_t warm_tdm_lib::TdmGroupEmulate::getNumRows() {
+uint8_t warm_tdm_lib::TdmGroupEmulate::getNumRows() const {
    return numRows_;
 }
 
@@ -95,11 +100,11 @@ void warm_tdm_lib::TdmGroupEmulate::countReset () {
    txByteCount_ = 0;
 }
 
-uint32_t warm_tdm_lib::TdmGroupEmulate::getTxFrameCount() {
+uint32_t warm_tdm_lib::TdmGroupEmulate::getTxFrameCount() const {
    return txFrameCount_;
 }
 
-uint32_t warm_tdm_lib::TdmGroupEmulate::getTxByteCount() {
+uint32_t warm_tdm_lib::TdmGroupEmulate::getTxByteCount() const {
    return txByteCount_;
 }
 

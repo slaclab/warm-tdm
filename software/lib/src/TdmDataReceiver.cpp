@@ -23,9 +23,11 @@ warm_tdm_lib::TdmDataReceiverPtr warm_tdm_lib::TdmDataReceiver::create(std::stri
 #ifndef NO_PYTHON
 void warm_tdm_lib::TdmDataReceiver::setup_python() {
    bp::class_<warm_tdm_lib::TdmDataReceiver, warm_tdm_lib::TdmDataReceiverPtr, bp::bases<ris::Slave>, boost::noncopyable >("TdmDataReceiver",bp::init<std::string, int>())
-      .def("countReset",         &warm_tdm_lib::TdmDataReceiver::countReset)
-      .def("getRxFrameCount",    &warm_tdm_lib::TdmDataReceiver::getRxFrameCount)
-      .def("getRxByteCount",     &warm_tdm_lib::TdmDataReceiver::getRxByteCount)
+      .def("countReset",              &warm_tdm_lib::TdmDataReceiver::countReset)
+      .def("getRxFrameCount",         &warm_tdm_lib::TdmDataReceiver::getRxFrameCount)
+      .def("getRxByteCount",          &warm_tdm_lib::TdmDataReceiver::getRxByteCount)
+      .def("addDetectorRow",          &warm_tdm_lib::TdmDataReceiver::addDetectorRow)
+      .def("initializeCommunication", &warm_tdm_lib::TdmDataReceiver::initializeCommunication)
    ;
 }
 #endif
@@ -35,7 +37,6 @@ senderStop_(false),
 sender_(collectorHost, collectorPort, senderStop_)
 {
    countReset();
-   sender_.initializeCommunication();
 }
 
 warm_tdm_lib::TdmDataReceiver::~TdmDataReceiver() {
@@ -47,12 +48,20 @@ void warm_tdm_lib::TdmDataReceiver::countReset () {
    rxByteCount_ = 0;
 }
 
-uint32_t warm_tdm_lib::TdmDataReceiver::getRxFrameCount() {
+uint32_t warm_tdm_lib::TdmDataReceiver::getRxFrameCount() const {
    return rxFrameCount_;
 }
 
-uint32_t warm_tdm_lib::TdmDataReceiver::getRxByteCount() {
+uint32_t warm_tdm_lib::TdmDataReceiver::getRxByteCount() const {
    return rxByteCount_;
+}
+
+void warm_tdm_lib::TdmDataReceiver::addDetectorRow(uint8_t groupID, uint8_t columnBoardID, uint8_t rowIndex, uint8_t rowLen) {
+   sender_.addDetectorRow(groupID, columnBoardID, rowIndex, rowLen);
+}
+
+void warm_tdm_lib::TdmDataReceiver::initializeCommunication() {
+   sender_.initializeCommunication();
 }
 
 void warm_tdm_lib::TdmDataReceiver::acceptFrame ( ris::FramePtr frame ) {
