@@ -168,7 +168,7 @@ begin
       axiSlaveRegister(axilEp, X"08", 0, v.rowPeriod);
       axiSlaveRegister(axilEp, X"0C", 0, v.numRows);
       axiSlaveRegister(axilEp, X"10", 0, v.sampleStartTime);
-      axiSlaveRegister(axilEp, X"14", 16, v.sampleEndTime);
+      axiSlaveRegister(axilEp, X"14", 0, v.sampleEndTime);
       axiSlaveRegister(axilEp, X"18", 0, v.runMode);
       axiSlaveRegister(axilEp, X"1C", 0, v.softwareRowStrobe);
 
