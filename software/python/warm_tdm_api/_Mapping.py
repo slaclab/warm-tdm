@@ -44,6 +44,9 @@ class GroupConfig(object):
         self.columnMap = [PhysicalMap(board,chan) for board in range(columnBoards) for chan in range(8)]
         self.rowMap = [PhysicalMap(board,chan) for board in range(rowBoards) for chan in range(32)]
 
+        self.numColumns = len(self.columnMap)
+        self.numRows = len(self.rowMap)
+
         self.rowOrder = rowOrder
         if self.rowOrder is None:
             self.rowOrder = [i for i in range(len(self.rowMap))],
