@@ -10,13 +10,11 @@ import warm_tdm_api
 class SaOffsetProcess(pr.Process):
     """ Use a PID loop to determine the SaOffset values that null out the SaBias contribution to the input chain. """
 
-    def __init__(self, **kwargs):
+    def __init__(self, config, **kwargs):
 
         description = """Process which attempts to find an SaOffset value which results in the SaOut value being zero.
         A PID controller is used with configurable parameters, including a precision value to determine how close to zero the loop must come.
         A timeout value will terminate the process if it fails to converge witing a set period of time."""
-
-
 
         # Init master class
         pr.Process.__init__(
@@ -63,7 +61,7 @@ class SaOffsetProcess(pr.Process):
         self.add(pr.LocalVariable(
             name='SaOffsetOutput',
             hidden=True,
-            value=[],
+            value=np.zeros(config.numColumns),
             mode='RO',
             description="Results Data From SA Offset. This is an array of values, one for each column. The length is ColumnCount * 8'"))
 
