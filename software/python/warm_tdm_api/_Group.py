@@ -743,7 +743,7 @@ class Group(pr.Device):
         #############################################
         # Tuning and diagnostic Processes
         #############################################
-        self.add(warm_tdm_api.SaOffsetProcess(config=se))
+        self.add(warm_tdm_api.SaOffsetProcess(config=self.config))
         self.add(warm_tdm_api.SaOffsetSweepProcess(config=self.config))
         self.add(warm_tdm_api.SaTuneProcess(config=self.config))
         self.add(warm_tdm_api.Sq1TuneProcess(config=self.config, groups=['NoDoc']))
