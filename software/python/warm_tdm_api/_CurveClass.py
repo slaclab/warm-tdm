@@ -115,7 +115,7 @@ class Curve():
         self.curvefit = []
 
     def updatePeak(self, xValues):
-        print(f'bias curve {self.bias} - updatePeak()')
+        #print(f'bias curve {self.bias} - updatePeak()')
         np_points = np.array(self.points)
 
         # Use FFT to find phy_not
@@ -139,13 +139,13 @@ class Curve():
         self.highpoint = (x_sliced[argmax], y_sliced[argmax])
         self.peakheight = np_points.max() - np_points.min()
 
-        print(f'Processed curve for bias={self.bias:.2f}')
-        print(f'{self.phinot=:.2f}')
-        print(f'{self.min_slope_point=}')
-        print(f'{self.max_slope_point=}')
-        print(f'{self.lowpoint=}')
-        print(f'{self.highpoint=}')
-        print(f'{self.peakheight=}')
+#         print(f'Processed curve for bias={self.bias:.2f}')
+#         print(f'{self.phinot=:.2f}')
+#         print(f'{self.min_slope_point=}')
+#         print(f'{self.max_slope_point=}')
+#         print(f'{self.lowpoint=}')
+#         print(f'{self.highpoint=}')
+#         print(f'{self.peakheight=}')
         #with np.printoptions(threshold=np.inf):
         #    print(xValues)
         #    print(np_points)

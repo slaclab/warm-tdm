@@ -251,7 +251,7 @@ begin
             v.dacNum := (others => '0');
             -- At startup, load rowIndex[0] ram values into dacs
             if (r.startup = '1') then
-               v.startup := '0';               
+               v.startup  := '0';
                v.rowIndex := (others => '0');
                v.state    := DATA_S;
 
@@ -262,10 +262,10 @@ begin
             end if;
 
             if (overrideWrValid = '1') then
-               v.dacDb              := overrideWrData(13 downto 0);
-               v.dacOutNext(dacInt) := overrideWrData(13 downto 0);
-               v.dacNum             := overrideWrAddr;
-               v.state              := OVER_SEL_S;
+               v.dacDb := overrideWrData(13 downto 0);
+
+               v.dacNum := overrideWrAddr;
+               v.state  := OVER_SEL_S;
             end if;
 
          when DATA_S =>
@@ -288,19 +288,20 @@ begin
             end if;
 
          when OVER_SEL_S =>
-            v.dacSel(dacChip) := not r.dacNum(0);
-            v.state           := OVER_WRITE_S;
+            v.dacOutNext(dacInt) := r.dacDb;
+            v.dacSel(dacChip)    := not r.dacNum(0);
+            v.state              := OVER_WRITE_S;
 
          when OVER_WRITE_S =>
             v.dacWrt(dacChip) := '1';
-            v.dacNum          := "111";
+--            v.dacNum          := "111";
             v.state           := OVER_WRITE_FALL_S;
 
          when OVER_WRITE_FALL_S =>
             v.state := CLK_0_RISE_S;
 
          when CLK_0_RISE_S =>
-            v.dacOut  := r.dacOutNext;                           
+            v.dacOut := r.dacOutNext;
             v.dacClk := (others => '1');
             v.state  := CLK_0_FALL_S;
 
@@ -344,7 +345,7 @@ begin
       dacClk <= r.dacClk;
 
       timingAxilReadSlave  <= r.axilReadSlave;
-      timingAxilWriteSlave <= r.axilWriteSlave; 
+      timingAxilWriteSlave <= r.axilWriteSlave;
 
       rin <= v;
 

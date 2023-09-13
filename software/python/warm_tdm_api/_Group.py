@@ -38,7 +38,7 @@ class GroupLinkVariable(pr.LinkVariable):
         if len(self.dependencies) == 0:
             return
 
-        print(f'{self.path}.set({value=}, {index=}, {write=})')
+        #print(f'{self.path}.set({value=}, {index=}, {write=})')
         # Dependencies represent the channel values in channel order
         # So just use those references to do thtre set accesses
         with self.parent.root.updateGroup():
@@ -77,7 +77,7 @@ class GroupLinkVariable(pr.LinkVariable):
                 for idx, var in enumerate(self.dependencies):
                     ret[idx] = var.get(read=False)
 
-            if read: print(f'{self.path}.get({index=}, {read=}) - {ret}')
+            #if read: print(f'{self.path}.get({index=}, {read=}) - {ret}')
             return ret
 
 class RowTuneEnVariable(GroupLinkVariable):
@@ -187,7 +187,7 @@ class SaOutVariable(GroupLinkVariable):
                 for idx, board, chan in self._config.colGetIter(index):
                     ret[idx] = self.dependencies[board].get(index=chan, read=False)
 
-            if read: print(f'{self.path}.get({index=}, {read=}) \n{ret}'),         
+            #if read: print(f'{self.path}.get({index=}, {read=}) \n{ret}'),         
             return ret
 
 class FastDacVariable(GroupLinkVariable):
@@ -744,7 +744,7 @@ class Group(pr.Device):
         # Tuning and diagnostic Processes
         #############################################
         self.add(warm_tdm_api.SaOffsetProcess(config=self.config))
-        self.add(warm_tdm_api.SaOffsetSweepProcess(config=self.config))
+        self.add(warm_tdm_api.SaOffsetSweepProcess(config=self.config, group=self))
         self.add(warm_tdm_api.SaTuneProcess(config=self.config))
         self.add(warm_tdm_api.Sq1TuneProcess(config=self.config, groups=['NoDoc']))
         self.add(warm_tdm_api.FasTuneProcess(groups=['NoDoc']))
