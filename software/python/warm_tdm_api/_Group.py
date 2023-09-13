@@ -210,7 +210,7 @@ class FastDacVariable(GroupLinkVariable):
 
             # Full array access
             else:
-                for colIndex in range(len(self._config.columnMap)):
+                for colIndex in range(self._config.numColumns):
                     colBoard = self._config.columnMap[colIndex].board
                     colChan = self._config.columnMap[colIndex].channel
                     self.dependencies[colIndex].set(value=value[colIndex], index=-1, write=write)
@@ -239,8 +239,9 @@ class FastDacVariable(GroupLinkVariable):
 
 
 class Group(pr.Device):
+    
     def makeGuiGroup(self, arrVar):
-        for i in range(len(self._config.columnMap)):
+        for i in range(self.config.numColumns):
             self.add(pr.LinkVariable(
                 name = f'_{arrVar.name}[{i}]',
                 mode = arrVar.mode,
@@ -742,7 +743,7 @@ class Group(pr.Device):
         #############################################
         # Tuning and diagnostic Processes
         #############################################
-        self.add(warm_tdm_api.SaOffsetProcess(config=self.config))
+        self.add(warm_tdm_api.SaOffsetProcess(config=se))
         self.add(warm_tdm_api.SaOffsetSweepProcess(config=self.config))
         self.add(warm_tdm_api.SaTuneProcess(config=self.config))
         self.add(warm_tdm_api.Sq1TuneProcess(config=self.config, groups=['NoDoc']))
