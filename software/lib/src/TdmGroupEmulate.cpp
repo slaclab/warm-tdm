@@ -52,7 +52,6 @@ warm_tdm_lib::TdmGroupEmulate::TdmGroupEmulate (uint8_t groupId) {
    numRows_ = 1;
    runEnable_ = false;
    txThread_ = NULL;
-   sequence_ = 0;
 }
 
 warm_tdm_lib::TdmGroupEmulate::~TdmGroupEmulate () {
@@ -110,9 +109,9 @@ uint32_t warm_tdm_lib::TdmGroupEmulate::getTxByteCount() const {
 
 void warm_tdm_lib::TdmGroupEmulate::reqFrames(uint32_t timestampA, uint32_t timestampB, uint32_t timestampC) {
    ++reqCount_;
-   timestampA = timestampA;
-   timestampB = timestampB;
-   timestampC = timestampC;
+   timestampA_ = timestampA;
+   timestampB_ = timestampB;
+   timestampC_ = timestampC;
 }
 
 void warm_tdm_lib::TdmGroupEmulate::genFrames() {
@@ -138,7 +137,7 @@ void warm_tdm_lib::TdmGroupEmulate::genFrames() {
       toFrame(it, 1, &tmp8);
 
       toFrame(it, 1, &groupId_);
-      toFrame(it, 1, &x);
+      toFrame(it, 1, &col);
       toFrame(it, 1, &numRows_);
       toFrame(it, 4, &timestampA_);
       toFrame(it, 4, &timestampB_);
