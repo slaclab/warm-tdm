@@ -11,10 +11,10 @@ namespace warm_tdm_lib {
 
    class TdmGroupEmulate : public rogue::interfaces::stream::Master {
 
-         uint32_t timestampA_;
-         uint32_t timestampB_;
-         uint32_t timestampC_;
-         uint32_t reqCount_;
+         std::atomic<uint32_t> timestampA_;
+         std::atomic<uint32_t> timestampB_;
+         std::atomic<uint32_t> timestampC_;
+         std::atomic<uint32_t> reqCount_;
          uint32_t sequence_;
          uint32_t txFrameCount_;
          uint32_t txByteCount_;
