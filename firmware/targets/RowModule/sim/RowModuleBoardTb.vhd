@@ -37,10 +37,12 @@ architecture sim of RowModuleBoardTb is
    constant NUM_ROW_MODULES_C : integer := 1;
 
    -- component ports
-   signal rj45TimingClkP  : slv(NUM_ROW_MODULES_C-1 downto 0);  -- [in]
-   signal rj45TimingClkN  : slv(NUM_ROW_MODULES_C-1 downto 0);  -- [in]
-   signal rj45TimingDataP : slv(NUM_ROW_MODULES_C-1 downto 0);  -- [in]
-   signal rj45TimingDataN : slv(NUM_ROW_MODULES_C-1 downto 0);  -- [in]
+   signal rj45TimingClkP  : slv(NUM_ROW_MODULES_C-1 downto 0);
+   signal rj45TimingClkN  : slv(NUM_ROW_MODULES_C-1 downto 0);
+   signal rj45TimingDataP : slv(NUM_ROW_MODULES_C-1 downto 0);
+   signal rj45TimingDataN : slv(NUM_ROW_MODULES_C-1 downto 0);
+   signal rj45PgpMgtP     : slv(NUM_ROW_MODULES_C-1 downto 0);
+   signal rj45PgpMgtN     : slv(NUM_ROW_MODULES_C-1 downto 0);
 
 begin
 
@@ -48,19 +50,23 @@ begin
    RowModGen : for i in 0 to NUM_ROW_MODULES_C-1 generate
       U_RowModuleBoard : entity warm_tdm.RowModuleBoard
          generic map (
-            TPD_G              => TPD_G,
-            RING_ADDR_0_G      => (i =0),
-            SIM_PGP_PORT_NUM_G => 0, --7000 + (10*i),
+            TPD_G                  => TPD_G,
+            RING_ADDR_0_G          => (i = 0),
+            SIM_PGP_PORT_NUM_G     => 0,           --7000 + (10*i),
             SIM_ETH_SRP_PORT_NUM_G => 10000 + (1000*i))
          port map (
             rj45TimingRxClkP  => rj45TimingClkP(ite(i = 0, NUM_ROW_MODULES_C-1, i-1)),   -- [in]
             rj45TimingRxClkN  => rj45TimingClkN(ite(i = 0, NUM_ROW_MODULES_C-1, i-1)),   -- [in]
             rj45TimingRxDataP => rj45TimingDataP(ite(i = 0, NUM_ROW_MODULES_C-1, i-1)),  -- [in]
             rj45TimingRxDataN => rj45TimingDataN(ite(i = 0, NUM_ROW_MODULES_C-1, i-1)),  -- [in]
-            rj45TimingTxClkP  => rj45TimingClkP(i),                                      -- [out]
-            rj45TimingTxClkN  => rj45TimingClkN(i),                                      -- [out]
-            rj45TimingTxDataP => rj45TimingDataP(i),                                     -- [out]
-            rj45TimingTxDataN => rj45TimingDataN(i));                                    -- [out]
+            rj45PgpRxMgtP     => rj45PgpMgtP(ite(i = 0, NUM_ROW_MODULES_C-1, i-1)),  -- [in]
+            rj45PgpRxMgtN     => rj45PgpMgtN(ite(i = 0, NUM_ROW_MODULES_C-1, i-1)),  -- [in]            
+            rj45TimingTxClkP  => rj45TimingClkP(i),                                  -- [out]
+            rj45TimingTxClkN  => rj45TimingClkN(i),                                  -- [out]
+            rj45TimingTxDataP => rj45TimingDataP(i),                                 -- [out]
+            rj45TimingTxDataN => rj45TimingDataN(i),                                 -- [out]
+            rj45PgpTxMgtP     => rj45PgpMgtP(i),   -- [out]
+            rj45PgpTxMgtN     => rj45PgpMgtN(i));  -- [out]            
    end generate RowModGen;
 
 

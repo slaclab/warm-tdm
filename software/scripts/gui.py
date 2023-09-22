@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import rogue
-import pyrogue.gui
+import pyrogue.pydm
 import sys
 import argparse
 import os
@@ -86,7 +86,7 @@ print(args)
 groups = [{
     'host': args.ip,
     'colBoards': args.cols,
-    'rowBoards': args.rows} for _ in range(args.groups)]
+    'rowBoards': args.rows}]
 
 
 # parser.add_argument(
@@ -99,18 +99,20 @@ groups = [{
 kwargs = {}
 kwargs['simulation'] = args.sim
 kwargs['emulate'] = args.emulate
-kwargs['groups'] = groups
+#kwargs['groups'] = groups
 kwargs['plots'] = args.plots
 
 print(kwargs)
 
-with warm_tdm.WarmTdmRoot(pollEn=False, **kwargs) as root:
+with warm_tdm.WarmTdmRoot(
+        pollEn=False,
+        host = args.ip,
+        colBoards = args.cols,
+        rowBoards = args.rows,
+        simulation = args.sim,
+        emulate = args.emulate,
+        plots = args.plots) as root:
 
-    # Create GUI
-    appTop = pyrogue.gui.application(sys.argv)
-    guiTop = pyrogue.gui.GuiTop()
-    guiTop.addTree(root)
-    guiTop.resize(1500,1500)
-
-    # Run gui
-    appTop.exec_()
+    pyrogue.pydm.runPyDM(
+        serverList=root.zmqServer.address,
+        title='Warm TDM')

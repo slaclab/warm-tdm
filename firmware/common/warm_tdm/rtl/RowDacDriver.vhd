@@ -61,37 +61,42 @@ architecture rtl of RowDacDriver is
    constant TIMING_MODE_C : sl := '0';
    constant MANUAL_MODE_C : sl := '1';
 
-   constant ROW_SELECT_BITS_C   : integer := log2(NUM_ROW_SELECTS_G);                     -- 4
-   constant CHIP_SELECT_BITS_C  : integer := ite(NUM_CHIP_SELECTS_G > 0, log2(NUM_CHIP_SELECTS_G), 0);  -- 3
-   constant BOARD_SELECT_BITS_C : integer := 8 - ROW_SELECT_BITS_C - CHIP_SELECT_BITS_C;  -- 1
+   constant ROW_SELECT_BITS_C   : integer := log2(NUM_ROW_SELECTS_G);                     -- 5
+   constant CHIP_SELECT_BITS_C  : integer := ite(NUM_CHIP_SELECTS_G > 0, log2(NUM_CHIP_SELECTS_G), 0);  -- 0
+   constant BOARD_SELECT_BITS_C : integer := 8 - ROW_SELECT_BITS_C - CHIP_SELECT_BITS_C;  -- 3
 
-   constant NUM_RS_DACS_C    : integer := NUM_ROW_SELECTS_G/2;                   -- 5
-   constant NUM_CS_DACS_C    : integer := NUM_CHIP_SELECTS_G/2;                  -- 4
-   constant NUM_SPARE_DACS_C : integer := 16 - (NUM_RS_DACS_C + NUM_CS_DACS_C);  -- 7
+   constant NUM_RS_DACS_C    : integer := NUM_ROW_SELECTS_G/2;                   -- 16
+   constant NUM_CS_DACS_C    : integer := NUM_CHIP_SELECTS_G/2;                  -- 0
+   constant NUM_SPARE_DACS_C : integer := 16 - (NUM_RS_DACS_C + NUM_CS_DACS_C);  -- 0
 
 --   constant RS_DAC_CTRL_BITS_C : integer := (2**ROW_SELECT_BITS_C-1);   -- 8
 --   constant CS_DAC_CTRL_BITS_C : integer := (2**CHIP_SELECT_BITS_C-1);  -- 4
 
    constant ROW_LOW_C       : integer := 0;
-   constant ROW_HIGH_C      : integer := ROW_SELECT_BITS_C - 1;                            -- 3
-   constant CHIP_LOW_C      : integer := ite(NUM_CHIP_SELECTS_G /= 0, ROW_HIGH_C + 1, 0);  -- 4
-   constant CHIP_HIGH_C     : integer := ite(NUM_CHIP_SELECTS_G /= 0, CHIP_LOW_C + CHIP_SELECT_BITS_C -1 , 0);  --
-   --6
+   constant ROW_HIGH_C      : integer := ROW_SELECT_BITS_C - 1;                            -- 4
+   constant CHIP_LOW_C      : integer := ite(NUM_CHIP_SELECTS_G /= 0, ROW_HIGH_C + 1, 0);  -- 0
+   constant CHIP_HIGH_C     : integer := ite(NUM_CHIP_SELECTS_G /= 0, CHIP_LOW_C + CHIP_SELECT_BITS_C -1, 0);  --0
+
    constant ROW_CHIP_LOW_C  : integer := 0;
-   constant ROW_CHIP_HIGH_C : integer := ROW_SELECT_BITS_C + CHIP_SELECT_BITS_C - 1;       -- 6
-   constant ROW_CHIP_BITS_C : integer := ROW_CHIP_HIGH_C - ROW_CHIP_LOW_C + 1;             -- 7
+   constant ROW_CHIP_HIGH_C : integer := ROW_SELECT_BITS_C + CHIP_SELECT_BITS_C - 1;       -- 4
+   constant ROW_CHIP_BITS_C : integer := ROW_CHIP_HIGH_C - ROW_CHIP_LOW_C + 1;             -- 5
    constant BOARD_LOW_C     : integer := ite(CHIP_SELECT_BITS_C /= 0, CHIP_HIGH_C + 1, ROW_HIGH_C + 1);  --
-   --7
+   --5
    constant BOARD_HIGH_C    : integer := BOARD_LOW_C + BOARD_SELECT_BITS_C - 1;            -- 7
 
    constant RS_DAC_LOW_C  : integer := 0;
-   constant RS_DAC_HIGH_C : integer := (NUM_ROW_SELECTS_G / 2) - 1;                  -- 4
-   constant CS_DAC_LOW_C  : integer := RS_DAC_HIGH_C + 1;                            -- 5
-   constant CS_DAC_HIGH_C : integer := CS_DAC_LOW_C + (NUM_CHIP_SELECTS_G / 2) - 1;  -- 8
+   constant RS_DAC_HIGH_C : integer := (NUM_ROW_SELECTS_G / 2) - 1;                  -- 15
+   constant CS_DAC_LOW_C  : integer := RS_DAC_HIGH_C + 1;                            -- 16
+   constant CS_DAC_HIGH_C : integer := CS_DAC_LOW_C + (NUM_CHIP_SELECTS_G / 2) - 1;  -- 15
 
-   constant NUM_AXIL_C : integer := 5;
+   constant NUM_AXIL_C          : integer := 5;
+   constant LOCAL_AXIL_C        : integer := 0;
+   constant ROW_FAS_ON_AXIL_C   : integer := 1;
+   constant ROW_FAS_OFF_AXIL_C  : integer := 2;
+   constant CHIP_FAS_ON_AXIL_C  : integer := 3;
+   constant CHIP_FAS_OFF_AXIL_C : integer := 4;
 
-   constant XBAR_COFNIG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_C, AXIL_BASE_ADDR_G, 12, 8);
+   constant XBAR_COFNIG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_C, AXIL_BASE_ADDR_G, 16, 12);
 
    signal locAxilWriteMasters : AxiLiteWriteMasterArray(NUM_AXIL_C-1 downto 0);
    signal locAxilWriteSlaves  : AxiLiteWriteSlaveArray(NUM_AXIL_C-1 downto 0) := (others => AXI_LITE_WRITE_SLAVE_EMPTY_DECERR_C);
@@ -218,21 +223,21 @@ begin
          COMMON_CLK_G     => false,
          ADDR_WIDTH_G     => ROW_CHIP_BITS_C,
          DATA_WIDTH_G     => 16,
-         INIT_G           => X"2000")               -- init to midscale for DAC
+         INIT_G           => X"2000")                               -- init to midscale for DAC
       port map (
-         axiClk         => axilClk,                 -- [in]
-         axiRst         => axilRst,                 -- [in]
-         axiReadMaster  => locAxilReadMasters(1),   -- [in]
-         axiReadSlave   => locAxilReadSlaves(1),    -- [out]
-         axiWriteMaster => locAxilWriteMasters(1),  -- [in]
-         axiWriteSlave  => locAxilWriteSlaves(1),   -- [out]
-         clk            => timingRxClk125,          -- [in]
-         rst            => timingRxRst125,          -- [in]
-         addr           => r.rowChipNum,            -- [in]
-         dout           => rsOnDout,                -- [out]
-         axiWrValid     => rsOnWrValid,             -- [out]
-         axiWrAddr      => rsOnWrAddr,              -- [out]
-         axiWrData      => rsOnWrData);             -- [out]
+         axiClk         => axilClk,                                 -- [in]
+         axiRst         => axilRst,                                 -- [in]
+         axiReadMaster  => locAxilReadMasters(ROW_FAS_ON_AXIL_C),   -- [in]
+         axiReadSlave   => locAxilReadSlaves(ROW_FAS_ON_AXIL_C),    -- [out]
+         axiWriteMaster => locAxilWriteMasters(ROW_FAS_ON_AXIL_C),  -- [in]
+         axiWriteSlave  => locAxilWriteSlaves(ROW_FAS_ON_AXIL_C),   -- [out]
+         clk            => timingRxClk125,                          -- [in]
+         rst            => timingRxRst125,                          -- [in]
+         addr           => r.rowChipNum,                            -- [in]
+         dout           => rsOnDout,                                -- [out]
+         axiWrValid     => rsOnWrValid,                             -- [out]
+         axiWrAddr      => rsOnWrAddr,                              -- [out]
+         axiWrData      => rsOnWrData);                             -- [out]
 
    U_AxiDualPortRam_RS_OFF : entity surf.AxiDualPortRam
       generic map (
@@ -246,21 +251,21 @@ begin
          COMMON_CLK_G     => false,
          ADDR_WIDTH_G     => ROW_CHIP_BITS_C,
          DATA_WIDTH_G     => 16,
-         INIT_G           => X"2000")               -- init to midscale for DAC
+         INIT_G           => X"2000")                                -- init to midscale for DAC
       port map (
-         axiClk         => axilClk,                 -- [in]
-         axiRst         => axilRst,                 -- [in]
-         axiReadMaster  => locAxilReadMasters(2),   -- [in]
-         axiReadSlave   => locAxilReadSlaves(2),    -- [out]
-         axiWriteMaster => locAxilWriteMasters(2),  -- [in]
-         axiWriteSlave  => locAxilWriteSlaves(2),   -- [out]
-         clk            => timingRxClk125,          -- [in]
-         rst            => timingRxRst125,          -- [in]
-         addr           => r.rowChipNum,            -- [in]
-         dout           => rsOffDout,               -- [out]
-         axiWrValid     => rsOffWrValid,            -- [out]
-         axiWrAddr      => rsOffWrAddr,             -- [out]
-         axiWrData      => rsOffWrData);            -- [out]
+         axiClk         => axilClk,                                  -- [in]
+         axiRst         => axilRst,                                  -- [in]
+         axiReadMaster  => locAxilReadMasters(ROW_FAS_OFF_AXIL_C),   -- [in]
+         axiReadSlave   => locAxilReadSlaves(ROW_FAS_OFF_AXIL_C),    -- [out]
+         axiWriteMaster => locAxilWriteMasters(ROW_FAS_OFF_AXIL_C),  -- [in]
+         axiWriteSlave  => locAxilWriteSlaves(ROW_FAS_OFF_AXIL_C),   -- [out]
+         clk            => timingRxClk125,                           -- [in]
+         rst            => timingRxRst125,                           -- [in]
+         addr           => r.rowChipNum,                             -- [in]
+         dout           => rsOffDout,                                -- [out]
+         axiWrValid     => rsOffWrValid,                             -- [out]
+         axiWrAddr      => rsOffWrAddr,                              -- [out]
+         axiWrData      => rsOffWrData);                             -- [out]
 
 
    -- Store Chip Select On value for each chip select line driven by this board
@@ -278,21 +283,21 @@ begin
             COMMON_CLK_G     => false,
             ADDR_WIDTH_G     => CHIP_SELECT_BITS_C,
             DATA_WIDTH_G     => 16,
-            INIT_G           => X"2000")               -- init to midscale for DAC
+            INIT_G           => X"2000")                                -- init to midscale for DAC
          port map (
-            axiClk         => axilClk,                 -- [in]
-            axiRst         => axilRst,                 -- [in]
-            axiReadMaster  => locAxilReadMasters(3),   -- [in]
-            axiReadSlave   => locAxilReadSlaves(3),    -- [out]
-            axiWriteMaster => locAxilWriteMasters(3),  -- [in]
-            axiWriteSlave  => locAxilWriteSlaves(3),   -- [out]
-            clk            => timingRxClk125,          -- [in]
-            rst            => timingRxRst125,          -- [in]
-            addr           => r.chipNum,               -- [in]
-            dout           => csOnDout,                -- [out]
-            axiWrValid     => csOnWrValid,             -- [out]
-            axiWrAddr      => csOnWrAddr,              -- [out]
-            axiWrData      => csOnWrData);             -- [out]
+            axiClk         => axilClk,                                  -- [in]
+            axiRst         => axilRst,                                  -- [in]
+            axiReadMaster  => locAxilReadMasters(CHIP_FAS_ON_AXIL_C),   -- [in]
+            axiReadSlave   => locAxilReadSlaves(CHIP_FAS_ON_AXIL_C),    -- [out]
+            axiWriteMaster => locAxilWriteMasters(CHIP_FAS_ON_AXIL_C),  -- [in]
+            axiWriteSlave  => locAxilWriteSlaves(CHIP_FAS_ON_AXIL_C),   -- [out]
+            clk            => timingRxClk125,                           -- [in]
+            rst            => timingRxRst125,                           -- [in]
+            addr           => r.chipNum,                                -- [in]
+            dout           => csOnDout,                                 -- [out]
+            axiWrValid     => csOnWrValid,                              -- [out]
+            axiWrAddr      => csOnWrAddr,                               -- [out]
+            axiWrData      => csOnWrData);                              -- [out]
 
       U_AxiDualPortRam_CS_OFF : entity surf.AxiDualPortRam
          generic map (
@@ -306,21 +311,21 @@ begin
             COMMON_CLK_G     => false,
             ADDR_WIDTH_G     => CHIP_SELECT_BITS_C,
             DATA_WIDTH_G     => 16,
-            INIT_G           => X"2000")               -- init to midscale for DAC
+            INIT_G           => X"2000")                                 -- init to midscale for DAC
          port map (
-            axiClk         => axilClk,                 -- [in]
-            axiRst         => axilRst,                 -- [in]
-            axiReadMaster  => locAxilReadMasters(4),   -- [in]
-            axiReadSlave   => locAxilReadSlaves(4),    -- [out]
-            axiWriteMaster => locAxilWriteMasters(4),  -- [in]
-            axiWriteSlave  => locAxilWriteSlaves(4),   -- [out]
-            clk            => timingRxClk125,          -- [in]
-            rst            => timingRxRst125,          -- [in]
-            addr           => r.chipNum,               -- [in]
-            dout           => csOffDout,               -- [out]
-            axiWrValid     => csOffWrValid,            -- [out]
-            axiWrAddr      => csOffWrAddr,             -- [out]
-            axiWrData      => csOffWrData);            -- [out]
+            axiClk         => axilClk,                                   -- [in]
+            axiRst         => axilRst,                                   -- [in]
+            axiReadMaster  => locAxilReadMasters(CHIP_FAS_OFF_AXIL_C),   -- [in]
+            axiReadSlave   => locAxilReadSlaves(CHIP_FAS_OFF_AXIL_C),    -- [out]
+            axiWriteMaster => locAxilWriteMasters(CHIP_FAS_OFF_AXIL_C),  -- [in]
+            axiWriteSlave  => locAxilWriteSlaves(CHIP_FAS_OFF_AXIL_C),   -- [out]
+            clk            => timingRxClk125,                            -- [in]
+            rst            => timingRxRst125,                            -- [in]
+            addr           => r.chipNum,                                 -- [in]
+            dout           => csOffDout,                                 -- [out]
+            axiWrValid     => csOffWrValid,                              -- [out]
+            axiWrAddr      => csOffWrAddr,                               -- [out]
+            axiWrData      => csOffWrData);                              -- [out]
 
    end generate GEN_CS_ON_RAM;
 
@@ -345,7 +350,9 @@ begin
       axiSlaveWaitTxn(axilEp, locAxilWriteMasters(0), locAxilReadMasters(0), v.axilWriteSlave, v.axilReadSlave);
 
       axiSlaveRegister(axilEp, X"00", 0, v.mode);
-      axiSlaveRegister(axilEp, X"04", 0, v.cfgBoardId);
+      if (BOARD_SELECT_BITS_C > 0) then
+         axiSlaveRegister(axilEp, X"04", 0, v.cfgBoardId);         
+      end if;
       axiSlaveRegister(axilEp, X"08", 0, v.dacReset);
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
@@ -394,7 +401,9 @@ begin
             v.rowNum     := timingRxData.rowIndex(ROW_HIGH_C downto ROW_LOW_C);
             v.chipNum    := timingRxData.rowIndex(CHIP_HIGH_C downto CHIP_LOW_C);
             v.rowChipNum := timingRxData.rowIndex(ROW_CHIP_HIGH_C downto ROW_CHIP_LOW_C);
-            v.boardId    := timingRxData.rowIndex(BOARD_HIGH_C downto BOARD_LOW_C);
+            if (BOARD_SELECT_BITS_C > 0) then
+               v.boardId    := timingRxData.rowIndex(BOARD_HIGH_C downto BOARD_LOW_C);               
+            end if;
             v.state      := ROW_OFF_DATA_S;
 
          when ROW_OFF_DATA_S =>
@@ -403,7 +412,7 @@ begin
             v.state               := ROW_OFF_WRITE_S;
 
          when ROW_OFF_WRITE_S =>
-            if (r.boardId = r.cfgBoardId) then
+            if (BOARD_SELECT_BITS_C > 0 and r.boardId = r.cfgBoardId) then
                v.rsDacWrt(rsDacChip) := '1';
             end if;
             if (NUM_CHIP_SELECTS_G > 0) then

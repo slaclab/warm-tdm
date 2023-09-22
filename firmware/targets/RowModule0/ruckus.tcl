@@ -29,7 +29,7 @@ loadConstraints -dir  "$::DIR_PATH/../RowModule/xdc/"
 
 set_property top {RowModule} [get_filesets {sources_1}]
 set sysGeneric [get_property generic -object [current_fileset]]
-set testGeneric "${sysGeneric}, RING_ADDR_0_G=true, SIM_PGP_PORT_NUM_G=0"
+set testGeneric "${sysGeneric}, RING_ADDR_0_G=true"
 set_property generic ${testGeneric} -object [current_fileset]
 
 

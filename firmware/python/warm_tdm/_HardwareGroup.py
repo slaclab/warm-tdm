@@ -128,16 +128,17 @@ class HardwareGroup(pyrogue.Device):
                 srp == srpStream
 
             # Instantiate the board Device tree and link it to the SRP
-            self.add(warm_tdm.RowModule(name=f'RowBoard[{rowIndex}]', memBase=srp, expand=False, enabled=False))
+            self.add(warm_tdm.RowModule(name=f'RowBoard[{rowIndex}]', memBase=srp, expand=True, enabled=True))
 
         self.add(pyrogue.LocalVariable(
             name = 'ReadoutList',
             typeStr = 'int',
             value = [0,1,2,3] )) #list(range(48))))
 
-        self.add(waveGui)
-        for i in range(8):
-            self.add(pidDebug[i])
+        if colBoards > 0:
+            self.add(waveGui)
+            for i in range(8):
+                self.add(pidDebug[i])
 
 
     def writeBlocks(self, **kwargs):

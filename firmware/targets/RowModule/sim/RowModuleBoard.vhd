@@ -39,24 +39,23 @@ entity RowModuleBoard is
       AMP_GAIN_G              : real    := (4.02+1.00);
       R_SHUNT_G               : real    := 1.0e3;
       R_CABLE_G               : real    := 200.0);
-   );
    port (
       rj45TimingRxClkP  : in  sl;          -- [in]
       rj45TimingRxClkN  : in  sl;          -- [in]
       rj45TimingRxDataP : in  sl;          -- [in]
       rj45TimingRxDataN : in  sl;          -- [in]
-      rj45TimingRxMgtP  : in  sl;          -- [in]
-      rj45TimingRxMgtN  : in  sl;          -- [in]
-      rj45PgpRxP        : in  sl;          -- [in]
-      rj45PgpRxN        : in  sl;          -- [in]
+--       rj45TimingRxMgtP  : in  sl;          -- [in]
+--       rj45TimingRxMgtN  : in  sl;          -- [in]
+      rj45PgpRxMgtP        : in  sl;          -- [in]
+      rj45PgpRxMgtN        : in  sl;          -- [in]
       rj45TimingTxClkP  : out sl;          -- [out]
       rj45TimingTxClkN  : out sl;          -- [out]
       rj45TimingTxDataP : out sl;          -- [out]
       rj45TimingTxDataN : out sl;          -- [out]
-      rj45TimingTxMgtP  : out sl;          -- [out]
-      rj45TimingTxMgtN  : out sl;          -- [out]
-      rj45PgpTxP        : out sl := '0';   -- [out]
-      rj45PgpTxN        : out sl := '0');  -- [out]
+--       rj45TimingTxMgtP  : out sl;          -- [out]
+--       rj45TimingTxMgtN  : out sl;          -- [out]
+      rj45PgpTxMgtP        : out sl := '0';   -- [out]
+      rj45PgpTxMgtN        : out sl := '0');  -- [out]
 
 
 end entity RowModuleBoard;
@@ -145,8 +144,8 @@ begin
          RING_ADDR_0_G           => RING_ADDR_0_G,
          ETH_10G_G               => ETH_10G_G,
          DHCP_G                  => DHCP_G,
-         IP_ADDR_G               => IP_ADDR_G,
-         MAC_ADDR_G              => MAC_ADDR_G)
+         IP_ADDR_G               => IP_ADDR_G)
+--         MAC_ADDR_G              => MAC_ADDR_G)
       port map (
          gtRefClk0P     => gtRefClk0P,      -- [in]
          gtRefClk0N     => gtRefClk0N,      -- [in]
@@ -229,17 +228,17 @@ begin
    timingRxClkN <= rj45TimingRxClkN when xbarClkSel(1) = '0' else timingTxClkN;
 
    -- Put PGP on timingMgt
-   rj45PgpTxP <= rj45PgpRxMgtP when xbarMgtSel(0) = '0' else pgpTxP(0);
-   rj45PgpTxN <= rj45PgpRxMgtN when xbarMgtSel(0) = '0' else pgpTxN(0);
+   rj45PgpTxMgtP <= rj45PgpRxMgtP when xbarMgtSel(0) = '0' else pgpTxP(0);
+   rj45PgpTxMgtN <= rj45PgpRxMgtN when xbarMgtSel(0) = '0' else pgpTxN(0);
 
    pgpRxP(0) <= rj45PgpRxMgtP when xbarMgtSel(1) = '0' else pgpTxP(0);
    pgpRxN(0) <= rj45PgpRxMgtN when xbarMgtSel(1) = '0' else pgpTxN(0);
 
-   rj45TimingTxMgtP <= rj45TimingRxMgtP when xbarTimingSel(0) = '0' else pgpTxP(1);
-   rj45TimingTxMgtN <= rj45TimingRxMgtN when xbarTimingSel(0) = '0' else pgpTxN(1);
+--    rj45TimingTxMgtP <= rj45TimingRxMgtP when xbarTimingSel(0) = '0' else pgpTxP(1);
+--    rj45TimingTxMgtN <= rj45TimingRxMgtN when xbarTimingSel(0) = '0' else pgpTxN(1);
 
-   pgpRxP(1) <= rj45TimingRxMgtP when xbarTimingSel(1) = '0' else pgpTxP(1);
-   pgpRxN(1) <= rj45TimingRxMgtN when xbarTimingSel(1) = '0' else pgpTxN(1);
+--    pgpRxP(1) <= rj45TimingRxMgtP when xbarTimingSel(1) = '0' else pgpTxP(1);
+--    pgpRxN(1) <= rj45TimingRxMgtN when xbarTimingSel(1) = '0' else pgpTxN(1);
 
 
    -------------------------------------------------------------------------------------------------
@@ -297,7 +296,7 @@ begin
    ------------------------------------------------
    -- AD9106 Array
    ------------------------------------------------
-   AD9106_GEN : for i in 15 downto 0 generate
+   AD9767_GEN : for i in 15 downto 0 generate
 
       U_Ad9767_1 : entity warm_tdm.Ad9767
          generic map (

@@ -47,10 +47,10 @@ architecture rtl of Ad9767 is
    constant IOUTFS_1_C : real := (1.2 / FSADJ1_G) * 32;
    constant IOUTFS_2_C : real := (1.2 / FSADJ2_G) * 32;
 
-   signal inLatch1  : slv(13 downto 0);
-   signal inLatch2  : slv(13 downto 0);
-   signal outLatch1 : slv(13 downto 0);
-   signal outLatch2 : slv(13 downto 0);
+   signal inLatch1  : slv(13 downto 0) := (others => '0');
+   signal inLatch2  : slv(13 downto 0) := (others => '0');
+   signal outLatch1 : slv(13 downto 0) := (others => '0');
+   signal outLatch2 : slv(13 downto 0) := (others => '0');
 
    signal clkDiv : sl := '1';
 

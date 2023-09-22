@@ -40,13 +40,13 @@ entity RowModule is
    generic (
       TPD_G                   : time                  := 1 ns;
       SIMULATION_G            : boolean               := false;
-      SIM_PGP_PORT_NUM_G      : integer               := 7000;
+      SIM_PGP_PORT_NUM_G      : integer               := 0;
       SIM_ETH_SRP_PORT_NUM_G  : integer               := 8000;
       SIM_ETH_DATA_PORT_NUM_G : integer               := 9000;
       BUILD_INFO_G            : BuildInfoType;
       RING_ADDR_0_G           : boolean               := false;
-      NUM_ROW_SELECTS_G       : integer range 1 to 32 := 10;
-      NUM_CHIP_SELECTS_G      : integer range 0 to 8  := 8;
+      NUM_ROW_SELECTS_G       : integer range 1 to 32 := 32;
+      NUM_CHIP_SELECTS_G      : integer range 0 to 8  := 0;
       ETH_10G_G               : boolean               := false;
       DHCP_G                  : boolean               := false;
       IP_ADDR_G               : slv(31 downto 0)      := x"0C03A8C0";  -- 192.168.3.12 
@@ -151,7 +151,7 @@ architecture rtl of RowModule is
          connectivity => X"FFFF"),
       AXIL_DACS_C     => (
          baseAddr     => APP_BASE_ADDR_C + X"01000000",
-         addrBits     => 24,
+         addrBits     => 16,
          connectivity => X"FFFF"));
 
    signal axilClk : sl;

@@ -44,6 +44,6 @@ begin
 
    ampInDiff <= (iInP * R_DAC_LOAD_G) - (iInN * R_DAC_LOAD_G);
    ampVout   <= ampInDiff * AMP_GAIN_G;
-   iOut      <= (2 * ampVout) / ((2*49.9*3) + (2*R_SHUNT_G) + R_CABLE_G);
+   iOut      <= (2.0 * ampVout) / ((2*49.9*3) + (2.0*R_SHUNT_G) + R_CABLE_G);
 
 end architecture sim;
