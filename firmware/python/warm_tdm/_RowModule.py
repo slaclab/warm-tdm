@@ -23,8 +23,8 @@ class RowModule(pr.Device):
 
         self.add(warm_tdm.RowDacDriver(
             offset = 0xC100_0000,
-            num_row_selects = 24,
-            num_chip_selects = 8,
+            num_row_selects = 32,
+            num_chip_selects = 0,
             expand = True))
 
 
