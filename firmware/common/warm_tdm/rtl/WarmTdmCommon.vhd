@@ -193,18 +193,21 @@ begin
          axilWriteSlave      => locAxilWriteSlaves(AXIL_XADC_C),   -- [out]
          xadcClk             => axilClk,                           -- [in]
          xadcRst             => axilClk,                           -- [in]
-         vAuxP(0)            => vAuxP(0),
-         vAuxP(1)            => vAuxP(2),
-         vAuxP(7 downto 2)   => "000000",
-         vAuxP(8)            => vAuxP(1),
-         vAuxP(9)            => vAuxP(3),
-         vAuxP(15 downto 10) => "000000",
-         vAuxN(0)            => vAuxN(0),
-         vAuxN(1)            => vAuxN(2),
-         vAuxN(7 downto 2)   => "000000",
-         vAuxN(8)            => vAuxN(1),
-         vAuxN(9)            => vAuxN(3),
-         vAuxN(15 downto 10) => "000000",
+         vAuxP(2 downto 0)   => "000",         
+         vAuxP(3)            => vAuxP(0),
+         vAuxP(4)            => vAuxP(2),
+         vAuxP(10 downto 5)   => "000000",
+         vAuxP(11)            => vAuxP(1),
+         vAuxP(12)            => vAuxP(3),
+         vAuxP(15 downto 13) => "000",
+         vAuxN(2 downto 0)   => "000",         
+         vAuxN(3)            => vAuxN(0),
+         vAuxN(4)            => vAuxN(2),
+         vAuxN(10 downto 5)   => "000000",
+         vAuxN(11)            => vAuxN(1),
+         vAuxN(12)            => vAuxN(3),
+         vAuxN(15 downto 13) => "000",
+         
          alm                 => open,                              -- [out]
          ot                  => open);                             -- [out]
 
