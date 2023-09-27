@@ -232,7 +232,7 @@ set_property -dict { PACKAGE_PIN R19 IOSTANDARD LVCMOS33 } [get_ports { conTxGre
 set_property -dict { PACKAGE_PIN P19 IOSTANDARD LVCMOS33 } [get_ports { conTxYellowLed }];
 
 set_property -dict { PACKAGE_PIN D9 IOSTANDARD LVCMOS25 } [get_ports { xbarDataSel[0] }];
-set_property -dict { PACKAGE_PIN C1 IOSTANDARD LVCMOS25 } [get_ports { xbarDataSel[1] }];
+set_property -dict { PACKAGE_PIN C9 IOSTANDARD LVCMOS25 } [get_ports { xbarDataSel[1] }];
 set_property -dict { PACKAGE_PIN B11 IOSTANDARD LVCMOS25 } [get_ports { xbarClkSel[0] }];
 set_property -dict { PACKAGE_PIN B10 IOSTANDARD LVCMOS25 } [get_ports { xbarClkSel[1]}];
 set_property -dict { PACKAGE_PIN A9 IOSTANDARD LVCMOS25 } [get_ports { xbarMgtSel[0] }];
