@@ -69,7 +69,7 @@ class RowDacDriver(pr.Device):
         return current
 
     def _currentToDac(self, current):
-                 
+        pass
     
     def _dacToFasVoltage(self, dac):
         current = self._dacToCurrent(dac)
