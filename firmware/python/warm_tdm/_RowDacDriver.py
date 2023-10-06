@@ -54,8 +54,8 @@ class RowDacDriver(pr.Device):
             valueStride = 32))
 
         self.add(pr.LinkVariable(
-            name = 'RowFasOnVoltage'
-            dependencies = self.RowFasOnRaw,
+            name = 'RowFasOnVoltage',
+            dependencies = [self.RowFasOnRaw],
             disp = '{:0.3f}',
             units = 'V',
             linkedGet = self._getVoltageFunc(self.RowFasOnRaw),
