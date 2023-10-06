@@ -189,13 +189,6 @@ class RowDacDriver(pr.Device):
         def bits(number):
             if number < 2: return 1
             return int(math.ceil(math.log2(number)))
-#             if number == 0 or number == 1:
-#                 return number
-#             else:
-#                 l2 = math.log2(number)
-#                 if math.ceil(l2) == math.floor(l2):
-#                     l2 = l2 + 1
-#                 return int(math.ceil(l2))
 
         self.chip_addr_bits = bits(num_chip_selects)
         self.row_addr_bits = bits(num_row_selects)
@@ -203,7 +196,6 @@ class RowDacDriver(pr.Device):
         print(f'Offset: {self.rs_offset}')
 
         rowBoardIdBits = 8-(self.row_addr_bits + self.chip_addr_bits)
-
 
 
         # Channels 0 and 1 use differential amplifier configuration
