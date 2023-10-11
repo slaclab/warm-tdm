@@ -193,23 +193,23 @@ begin
          axilWriteSlave      => locAxilWriteSlaves(AXIL_XADC_C),   -- [out]
          xadcClk             => axilClk,                           -- [in]
          xadcRst             => axilClk,                           -- [in]
-         vAuxP(2 downto 0)   => "000",         
+         vAuxP(2 downto 0)   => "000",
          vAuxP(3)            => vAuxP(0),
          vAuxP(4)            => vAuxP(2),
-         vAuxP(10 downto 5)   => "000000",
-         vAuxP(11)            => vAuxP(1),
-         vAuxP(12)            => vAuxP(3),
+         vAuxP(10 downto 5)  => "000000",
+         vAuxP(11)           => vAuxP(1),
+         vAuxP(12)           => vAuxP(3),
          vAuxP(15 downto 13) => "000",
-         vAuxN(2 downto 0)   => "000",         
+         vAuxN(2 downto 0)   => "000",
          vAuxN(3)            => vAuxN(0),
          vAuxN(4)            => vAuxN(2),
-         vAuxN(10 downto 5)   => "000000",
-         vAuxN(11)            => vAuxN(1),
-         vAuxN(12)            => vAuxN(3),
+         vAuxN(10 downto 5)  => "000000",
+         vAuxN(11)           => vAuxN(1),
+         vAuxN(12)           => vAuxN(3),
          vAuxN(15 downto 13) => "000",
-         
-         alm                 => open,                              -- [out]
-         ot                  => open);                             -- [out]
+
+         alm => open,                   -- [out]
+         ot  => open);                  -- [out]
 
    ----------------------
    -- AXI-Lite: Boot Prom
@@ -260,11 +260,21 @@ begin
       generic map (
          TPD_G            => TPD_G,
          DEVICE_MAP_G     => (
-            0             => MakeI2cAxiLiteDevType(
+            0             => MakeI2cAxiLiteDevType(          -- SA56004ATK Temp Monitor
                i2cAddress => "1001000",
                dataSize   => 8,
                addrSize   => 8,
-               endianness => '1')),
+               endianness => '1'),
+            1             => MakeI2cAxiLiteDevType(          -- LTC4151 Digital Power
+               i2cAddress => "1101111",
+               dataSize   => 8,
+               addrSize   => 8,
+               endianness => '0'),
+            2             => MakeI2cAxiLiteDevType(          -- LTC4151 Analog Power
+               i2cAddress => "1100111",
+               dataSize   => 8,
+               addrSize   => 8,
+               endianness => '0')),
          I2C_SCL_FREQ_G   => ite(SIMULATION_G, 2.0e6, 100.0E+3),
          I2C_MIN_PULSE_G  => ite(SIMULATION_G, 50.0e-9, 100.0E-9),
          AXI_CLK_FREQ_G   => AXIL_CLK_FREQ_G)                --156.25E+6)

@@ -281,7 +281,7 @@ begin
    U_i2cRamSlave_PWR : entity surf.i2cRamSlave
       generic map (
          TPD_G        => TPD_G,
-         I2C_ADDR_G   => 64+16,
+         I2C_ADDR_G   => 64+8,
          TENBIT_G     => 0,
          FILTER_G     => 2,
          ADDR_SIZE_G  => 2,
@@ -292,6 +292,37 @@ begin
          rst    => rst,                 -- [in]
          i2cSda => pwrSda,              -- [inout]
          i2cScl => pwrScl);             -- [inout]
+
+   U_i2cRamSlave_PWR : entity surf.i2cRamSlave
+      generic map (
+         TPD_G        => TPD_G,
+         I2C_ADDR_G   => 64+32+8+4+2=1,
+         TENBIT_G     => 0,
+         FILTER_G     => 2,
+         ADDR_SIZE_G  => 2,
+         DATA_SIZE_G  => 1,
+         ENDIANNESS_G => 1)
+      port map (
+         clk    => clk,                 -- [in]
+         rst    => rst,                 -- [in]
+         i2cSda => pwrSda,              -- [inout]
+         i2cScl => pwrScl);             -- [inout]
+
+   U_i2cRamSlave_PWR : entity surf.i2cRamSlave
+      generic map (
+         TPD_G        => TPD_G,
+         I2C_ADDR_G   => 64+32+4+2+1,
+         TENBIT_G     => 0,
+         FILTER_G     => 2,
+         ADDR_SIZE_G  => 2,
+         DATA_SIZE_G  => 1,
+         ENDIANNESS_G => 1)
+      port map (
+         clk    => clk,                 -- [in]
+         rst    => rst,                 -- [in]
+         i2cSda => pwrSda,              -- [inout]
+         i2cScl => pwrScl);             -- [inout]
+   
 
    ------------------------------------------------
    -- AD9106 Array
