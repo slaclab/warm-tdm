@@ -5,6 +5,7 @@ import surf.xilinx
 import surf.devices.micron
 import surf.devices.microchip
 import surf.devices.nxp
+import surf.devices.linear
 
 import warm_tdm
 
