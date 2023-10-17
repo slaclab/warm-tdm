@@ -186,18 +186,20 @@ class ColumnBoardLoading(pr.Device):
 
 class ColumnModule(pr.Device):
     def __init__(self,
-                 # Channels 0 and 1 have FB attached after first stage
                  waveform_stream,
-                 loading={},
+                 amplifierClass,
+#                 loading={},
 #                 rows=64,
                  **kwargs):
         super().__init__(**kwargs)
 
-        # Write any entries in loading over top of the default loading values
-        self.add(ColumnBoardLoading(
-            name = 'Loading',
-            overrides=loading))
-
+        # SA Signal Amplifier Models
+        for i in range(8):
+            self.add(amplifierClass(
+                name = f'Amp[{i}]'))
+                
+        
+ 
         self.add(warm_tdm.WarmTdmCore(
             offset = 0x00000000,
             expand = True))
@@ -228,26 +230,19 @@ class ColumnModule(pr.Device):
         self.add(warm_tdm.FastDacDriver(
             name = 'SAFb',
             offset = 0xC0600000,
-#            rows = rows,
-            typ = 'SA_FB',
-            loading = self.Loading,
-            waveformTrigger = self.DataPath.WaveformCapture.WaveformTrigger
+            rows = rows,            
         ))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Bias',
             offset = 0xC0400000,
  #           rows = rows,
-            typ = 'SQ1_BIAS',
-            loading = self.Loading,
         ))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Fb',
             offset =0xC0500000,
   #          rows = rows,
-            typ = 'SQ1_FB',
-            loading = self.Loading,
         ))
 
 
@@ -260,6 +255,7 @@ class ColumnModule(pr.Device):
         #########################################
         self.add(pr.LinkVariable(
             name = 'SaOutAdc',
+            description = 'SA Signal voltage as measured at ADC, after amplification',
             variable = self.DataPath.WaveformCapture.AdcAverage,
             units = 'V',
             mode = 'RO',
@@ -273,10 +269,10 @@ class ColumnModule(pr.Device):
                 adc = self.SaOutAdc.get(read=read, index=index, check=check)
                 offset = self.SaBiasOffset.OffsetVoltageArray.get(read=read, index=index, check=check)
                 if index == -1:
-                    ret = self.Loading.ampVinVec(adc, offset, cols) * 1e3
+                    ret = np.array([self.Amp[i].ampVin(adc, offset) * 1e3 for i in range(cols)])
                     return ret
                 else:
-                    ret = self.Loading.ampVin(adc, offset, index) * 1e3
+                    ret = self.Amp[index].ampVin(adc, offset) * 1e3
                     return ret
 
         def _saOutNormGet(*, read=True, index=-1, check=True):
@@ -285,15 +281,16 @@ class ColumnModule(pr.Device):
                 adc = self.SaOutAdc.get(read=read, index=index, check=check)
                 offset = 0.0
                 if index == -1:
-                    ret = self.Loading.ampVinVec(adc, offset, cols) * 1e3
+                    ret = np.array([self.Amp.ampVin(adc, offset) * 1e3 for i in range(cols)])
                     return ret
                 else:
-                    ret = self.Loading.ampVin(adc, offset, index) * 1e3
+                    ret = self.Amp[index].ampVin(adc, offset) * 1e3
                     return ret
 
 
         self.add(pr.LinkVariable(
             name = 'SaOut',
+            description = 'Calculated SA Signal value given ADC voltage, Amplifier model and Offset value',
             dependencies = [self.SaOutAdc, *[x for x in self.SaBiasOffset.OffsetVoltage.values()]],
             units = 'mV',
             disp = '{:0.03f}',
@@ -301,6 +298,7 @@ class ColumnModule(pr.Device):
 
         self.add(pr.LinkVariable(
             name = 'SaOutNorm',
+            description = 'Calculated SA Signal value given ADC voltage with offset=0',
             dependencies = [self.SaOutAdc],
             units = 'mV',
             disp = '{:0.03f}',

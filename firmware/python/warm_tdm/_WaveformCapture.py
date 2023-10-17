@@ -31,7 +31,7 @@ def array_iter(channel, array):
             yield (i, array[:,i])
 
 class WaveformCapture(pr.Device):
-    def __init__(self, stream, **kwargs):
+    def __init__(self, stream=None, **kwargs):
 #        rogue.interfaces.stream.Slave.__init__(self)
         pr.Device.__init__(self, **kwargs)
 
