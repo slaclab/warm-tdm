@@ -2,8 +2,10 @@ import pyrogue as pr
 import numpy as np
 
 class SaBiasOffset(pr.Device):
-    def __init__(self, dac, loading, waveformTrigger, **kwargs):
+    def __init__(self, dac, waveformTrigger, **kwargs):
         super().__init__(**kwargs)
+
+        self.shunt = 15.0e3
 
         self._dac = dac
         self._waveformTrigger = waveformTrigger
@@ -39,8 +41,8 @@ class SaBiasOffset(pr.Device):
             self.add(pr.LinkVariable(
                 name = f'BiasCurrent[{i}]',
                 dependencies = [self.BiasVoltage[i]],
-                linkedGet = lambda read, ch=i: self.BiasVoltage[ch].get(read=read) * 1e6 / loading.Column[ch].SA_BIAS_SHUNT_R.get(read=read),
-                linkedSet = lambda value, write, ch=i: self.BiasVoltage[ch].set((value/1e6) * loading.Column[ch].SA_BIAS_SHUNT_R.value(), write=write),
+                linkedGet = lambda read, ch=i: self.BiasVoltage[ch].get(read=read) * 1e6 / self.shunt,
+                linkedSet = lambda value, write, ch=i: self.BiasVoltage[ch].set((value/1e6) * self.shunt, write=write),
                 disp = '{:0.01f}',
                 units = u'\u03bcA'))
 

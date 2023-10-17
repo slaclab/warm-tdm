@@ -31,7 +31,7 @@ def array_iter(channel, array):
             yield (i, array[:,i])
 
 class WaveformCapture(pr.Device):
-    def __init__(self, stream=None, **kwargs):
+    def __init__(self, **kwargs):
 #        rogue.interfaces.stream.Slave.__init__(self)
         pr.Device.__init__(self, **kwargs)
 
@@ -175,11 +175,11 @@ class WaveformCapture(pr.Device):
 
 class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
 
-    def __init__(self, loading, **kwargs):
+    def __init__(self, amplifier, **kwargs):
         rogue.interfaces.stream.Slave.__init__(self)
         pr.Device.__init__(self, **kwargs)
 
-        self.loading = loading
+        self.amplifier = amplifier
 
         def _conv(adc):
             return adc/2**13
@@ -285,7 +285,7 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
                 disp = '{:0.3f}',
                 guiGroup = 'RmsNoiseAmpInX',
                 dependencies = [self.RmsNoiseVADC[i]],
-                linkedGet = lambda read, ch=i: self.loading.ampVin(self.RmsNoiseVADC[ch].get(read=read), 0.0, ch)))
+                linkedGet = lambda read, ch=i: self.amplifier[ch].ampVin(self.RmsNoiseVADC[ch].get(read=read), 0.0)))
 
         for i in range(8):
             def _getPkPk(read, x=i):
@@ -325,7 +325,7 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
  #               disp = '{:0.3f}',
                 mode = 'RO',
                 guiGroup = 'AmpInConvFactor',
-                variable = self.loading.Column[i].AmpInConvFactor))
+                variable = self.amplifier[i].AmpInConvFactor))
 
 
         self.add(MultiPlot(

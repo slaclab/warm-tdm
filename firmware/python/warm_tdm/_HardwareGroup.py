@@ -81,7 +81,7 @@ class HardwareGroup(pyrogue.Device):
                 ))
             
             pidDebug = [warm_tdm.PidDebugger(name=f'PidDebug[{i}]', hidden=False, col=i, fastDacDriver=self.ColumnBoard[index].SQ1Fb) for i in range(8)]
-            waveGui = warm_tdm.WaveformCaptureReceiver(hidden=False, loading=self.ColumnBoard[index].Loading)
+            waveGui = warm_tdm.WaveformCaptureReceiver(hidden=False, amplifier=self.ColumnBoard[index].amplifiers)
 
             # Link the data stream to the DataWriter
             if emulate is False:

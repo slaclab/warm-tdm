@@ -74,14 +74,14 @@ class FastDacMem(pr.Device):
 
 class FastDacDriver(pr.Device):
 
-    def __init__(self, **kwargs):
+    def __init__(self, rows, **kwargs):
         super().__init__(**kwargs)
 
-        rows = 1
-
+        self.rows = rows
+        
         # Create devices that hold amplifier configuration
         for i in range(8):
-            self.add(FastDacAmplifierSE(
+            self.add(warm_tdm.FastDacAmplifierSE(
                 name = f'Amp[{i}]',
                 hidden = True))
 
@@ -138,7 +138,7 @@ class FastDacDriver(pr.Device):
             # Voltage Conversion
             ####################
             def _overVoltageGet(index, read, x=col):
-                ret = self.Amp[x].dacToCurrent(self.OverrideRaw[x].value())
+                ret = self.Amp[x].dacToOutCurrent(self.OverrideRaw[x].value())
                 #print(f'_overGet - OverrideRaw[{x}].value() = {self.OverrideRaw[x].value()} - voltage = {voltage}')
                 return ret
 
@@ -158,7 +158,7 @@ class FastDacDriver(pr.Device):
 
         for col in range(8):
 
-            self.add(pr.FastDacMem(
+            self.add(FastDacMem(
                 name = f'ColumnRaw[{col}]',
                 offset = col << 12,
                 amp = self.Amp[col],

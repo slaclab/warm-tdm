@@ -186,10 +186,9 @@ class ColumnBoardLoading(pr.Device):
 
 class ColumnModule(pr.Device):
     def __init__(self,
-                 waveform_stream,
-                 amplifierClass,
+                 amplifierClass=warm_tdm.ColumnBoardC00SaAmp,
 #                 loading={},
-#                 rows=64,
+                 rows=1,
                  **kwargs):
         super().__init__(**kwargs)
 
@@ -197,8 +196,8 @@ class ColumnModule(pr.Device):
         for i in range(8):
             self.add(amplifierClass(
                 name = f'Amp[{i}]'))
-                
-        
+
+        self.amplifiers = [self.Amp[i] for i in range(8)]
  
         self.add(warm_tdm.WarmTdmCore(
             offset = 0x00000000,
@@ -206,8 +205,7 @@ class ColumnModule(pr.Device):
 
         self.add(warm_tdm.DataPath(
             offset = 0xC0300000,
-            expand = True,
-            waveform_stream = waveform_stream))
+            expand = True,))
 
         self.add(warm_tdm.Ad5679R(
             name = 'SaBiasDac',
@@ -216,7 +214,7 @@ class ColumnModule(pr.Device):
 
         self.add(warm_tdm.SaBiasOffset(
             dac = self.SaBiasDac,
-            loading = self.Loading,
+#            loading = self.Loading,
             waveformTrigger = self.DataPath.WaveformCapture.WaveformTrigger))
 
         self.add(warm_tdm.Ad5679R(
@@ -236,13 +234,13 @@ class ColumnModule(pr.Device):
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Bias',
             offset = 0xC0400000,
- #           rows = rows,
+            rows = rows,
         ))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Fb',
             offset =0xC0500000,
-  #          rows = rows,
+            rows = rows,
         ))
 
 
@@ -269,7 +267,7 @@ class ColumnModule(pr.Device):
                 adc = self.SaOutAdc.get(read=read, index=index, check=check)
                 offset = self.SaBiasOffset.OffsetVoltageArray.get(read=read, index=index, check=check)
                 if index == -1:
-                    ret = np.array([self.Amp[i].ampVin(adc, offset) * 1e3 for i in range(cols)])
+                    ret = np.array([self.Amp[i].ampVin(adc, offset) * 1e3 for i in range(8)])
                     return ret
                 else:
                     ret = self.Amp[index].ampVin(adc, offset) * 1e3
@@ -281,7 +279,7 @@ class ColumnModule(pr.Device):
                 adc = self.SaOutAdc.get(read=read, index=index, check=check)
                 offset = 0.0
                 if index == -1:
-                    ret = np.array([self.Amp.ampVin(adc, offset) * 1e3 for i in range(cols)])
+                    ret = np.array([self.Amp[i].ampVin(adc, offset) * 1e3 for i in range(8)])
                     return ret
                 else:
                     ret = self.Amp[index].ampVin(adc, offset) * 1e3
