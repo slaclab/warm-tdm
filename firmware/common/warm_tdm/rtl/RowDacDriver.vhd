@@ -385,9 +385,9 @@ begin
 
          when INIT_A_S =>
             -- Put mid-scale on bus (drives 0 after amplifier)
-            v.dacDb    := "10_0000_0000";
+            v.dacDb  := "1000000000";
             v.dacSel := (others => '0');
-            v.state := INIT_B_S;
+            v.state  := INIT_B_S;
 
          when INIT_B_S =>
             -- Write channel 0 and all dacs
@@ -396,21 +396,21 @@ begin
                -- After write, set channel 1 and clear wrt
                v.dacWrt := (others => '0');
                v.dacSel := (others => '1');
-               v.state := INIT_C_S;
+               v.state  := INIT_C_S;
             end if;
-            
+
          when INIT_C_S =>
             -- Write channel 1 on all dacs
             v.dacWrt := (others => '1');
             if (r.dacWrt(0) = '1') then
                -- After wrt, clean everything and clock the outputs
                -- Will return to IDLE_S after clocking
-               v.dacDb := (others => '0');
+               v.dacDb  := (others => '0');
                v.dacWrt := (others => '0');
                v.dacSel := (others => '0');
-               v.state := CLK_0_RISE_S;
+               v.state  := CLK_0_RISE_S;
             end if;
-            
+
          when IDLE_S =>
             v.rowNum := (others => '0');
 
@@ -448,9 +448,9 @@ begin
             v.state := ROW_OFF_DATA_S;
 
          when ROW_OFF_DATA_S =>
-            v.dacDb               := rsOffDout(13 downto 0);
+            v.dacDb             := rsOffDout(13 downto 0);
             v.dacSel(rsDacChip) := not r.rowNum(0);
-            v.state               := ROW_OFF_WRITE_S;
+            v.state             := ROW_OFF_WRITE_S;
 
          when ROW_OFF_WRITE_S =>
             if (BOARD_SELECT_BITS_C > 0 and r.boardId = r.cfgBoardId) then
@@ -463,9 +463,9 @@ begin
             end if;
 
          when CHIP_OFF_DATA_S =>
-            v.dacDb               := csOffDout(13 downto 0);
+            v.dacDb             := csOffDout(13 downto 0);
             v.dacSel(csDacChip) := not r.chipNum(0);
-            v.state               := CHIP_OFF_WRITE_S;
+            v.state             := CHIP_OFF_WRITE_S;
 
          when CHIP_OFF_WRITE_S =>
             if (r.boardId = r.cfgBoardId) then
@@ -482,12 +482,12 @@ begin
             v.state      := ROW_ON_DATA_S;
 
          when ROW_ON_DATA_S =>
-            v.dacDb               := rsOnDout(13 downto 0);
+            v.dacDb             := rsOnDout(13 downto 0);
             v.dacSel(rsDacChip) := not r.rowNum(0);
 
          when ROW_ON_WRITE_S =>
             if (r.boardId = r.cfgBoardId) then
-               v.rsDacWrt(rsDacChip) := '1';
+               v.dacWrt(rsDacChip) := '1';
             end if;
             if (NUM_CHIP_SELECTS_G > 0) then
                v.state := CHIP_ON_DATA_S;
@@ -496,7 +496,7 @@ begin
             end if;
 
          when CHIP_ON_DATA_S =>
-            v.dacDb               := csOnDout(13 downto 0);
+            v.dacDb             := csOnDout(13 downto 0);
             v.dacSel(csDacChip) := not r.chipNum(0);
 
          when CHIP_ON_WRITE_S =>
@@ -508,19 +508,19 @@ begin
          when MANUAL_RS_DATA_S =>
             -- DB already set, just do SEL
             v.dacSel(rsDacChip) := not r.rowNum(0);
-            v.state               := MANUAL_RS_WRITE_S;
+            v.state             := MANUAL_RS_WRITE_S;
 
          when MANUAL_RS_WRITE_S =>
-            v.rsDacWrt(rsDacChip) := '1';
-            v.state               := CLK_0_RISE_S;
+            v.dacWrt(rsDacChip) := '1';
+            v.state             := CLK_0_RISE_S;
 
          when MANUAL_CS_DATA_S =>
             v.dacSel(csDacChip) := not r.chipNum(0);
-            v.state               := MANUAL_CS_WRITE_S;
+            v.state             := MANUAL_CS_WRITE_S;
 
          when MANUAL_CS_WRITE_S =>
             v.dacWrt(csDacChip) := '1';
-            v.state               := CLK_0_RISE_S;
+            v.state             := CLK_0_RISE_S;
 
          when CLK_0_RISE_S =>
             -- Wait for row strobe to clock new DAC values if in TIMING_MODE
@@ -555,14 +555,14 @@ begin
 --          v.dacWrt(CS_DAC_HIGH_C downto CS_DAC_LOW_C) <= v.csDacWrt(NUM_CS_DACS_C-1 downto 0);
 --          v.dacSel(CS_DAC_HIGH_C downto CS_DAC_LOW_C) <= v.csDacSel(NUM_CS_DACS_C-1 downto 0);
 --       end if;
-      
-      
+
+
       ----------------------------------------------------------------------------------------------
       -- Drive outputs
       ----------------------------------------------------------------------------------------------
-      dacDb <= r.dacDb;
-      dacWrt <= r.dacWrt;
-      dacSel <= r.dacSel;
+      dacDb    <= r.dacDb;
+      dacWrt   <= r.dacWrt;
+      dacSel   <= r.dacSel;
       dacClk   <= r.dacClk;
       dacReset <= r.dacReset;
 
