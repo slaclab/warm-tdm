@@ -385,7 +385,7 @@ begin
 
          when INIT_A_S =>
             -- Put mid-scale on bus (drives 0 after amplifier)
-            v.dacDb  := "1000000000";
+            v.dacDb  := "10000000000000";
             v.dacSel := (others => '0');
             v.state  := INIT_B_S;
 
