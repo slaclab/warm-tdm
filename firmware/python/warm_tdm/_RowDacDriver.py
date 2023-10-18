@@ -15,7 +15,6 @@ class FasMem(pr.Device):
             name = f'Raw',
             offset = kwargs['offset'],
             base = pr.UInt,
-#            bitSize = num_row_selects * 32,
             numValues = size,
             valueBits = 14,
             valueStride = 32))
@@ -36,13 +35,35 @@ class FasMem(pr.Device):
             linkedGet = self.getVoltage,
             linkedSet = self.setVoltage))
 
+        for i in range(size):
+            self.add(pr.LinkVariable(
+                name = f'Current_[{i}]',
+                guiGroup = 'Current_',
+                dependencies = [self.Current],
+                disp = '{:0.3f}',
+                units = '\u03bcA',
+                linkedGet = lambda read, x=i: self.Current.get(read=read, index=x),
+                linkedSet = lambda write, value, x=i: self.Current.set(value=value, write=write, index=x)))
+
+        for i in range(size):
+            self.add(pr.LinkVariable(
+                name = f'LoadVoltage_[{i}]',
+                guiGroup = 'LoadVoltage_',
+                dependencies = [self.Raw],
+                disp = '{:0.3f}',
+                units = 'mV',
+                linkedGet = lambda read, x=i: 1.0e3 * self.amps[x].dacToLoadVoltage(self.Raw.get(read=read, index=x))))
+
+            
+            
+
     def getCurrent(self, index, read):
         dacs = self.Raw.get(read=read, index=index)
         if index == -1:
             currents = [self.amps[i].dacToOutCurrent(dac) for i, dac in enumerate(dacs)]
             currents = np.array(currents, dtype=np.float64)
         else:
-            currents = self.amps[index].outCurrentToDac(dac)
+            currents = self.amps[index].dacToOutCurrent(dacs)
 
         return currents
 
@@ -60,7 +81,7 @@ class FasMem(pr.Device):
             voltages = [self.amps[i].dacToOutVoltage(dac) for i, dac in enumerate(dacs)]
             voltages = np.array(voltages, dtype=np.float64)
         else:
-            voltages = self.amps[index].outVoltageToDac(dacs)
+            voltages = self.amps[index].dacToOutVoltage(dacs)
 
         return voltages
 
@@ -87,7 +108,7 @@ class RowDacDriver(pr.Device):
         self.chip_addr_bits = bits(num_chip_selects)
         self.row_addr_bits = bits(num_row_selects)
         self.rs_offset = 2**(self.row_addr_bits+2) # Two extra bits for AXI addressing
-        print(f'Offset: {self.rs_offset}')
+#        print(f'Offset: {self.rs_offset}')
 
         rowBoardIdBits = 8-(self.row_addr_bits + self.chip_addr_bits)
 
@@ -96,12 +117,14 @@ class RowDacDriver(pr.Device):
         for i in range(2):
             self.add(warm_tdm.FastDacAmplifierDiff(
                 name = f'Amp[{i}]',
-                hidden = True))
+                guiGroup = 'Amp_',
+                hidden = False))
 
         for i in range(2, 32):
             self.add(warm_tdm.FastDacAmplifierSE(
                 name = f'Amp[{i}]',
-                hidden = True))
+                guiGroup = 'Amp_',
+                hidden = False))
 
         self.amps = [self.Amp[i] for i in range(32)]
 
