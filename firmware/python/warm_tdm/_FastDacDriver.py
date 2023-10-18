@@ -83,8 +83,8 @@ class FastDacDriver(pr.Device):
         for i in range(8):
             self.add(warm_tdm.FastDacAmplifierSE(
                 name = f'Amp[{i}]',
+                defaults = {'Invert': True},
                 hidden = True))
-
         
 
         for col in range(8):

@@ -161,6 +161,10 @@ class FastDacAmplifierSE(pr.Device):
             linkedGet = lambda: 1.2 / self.FSADJ.value() * 32))
 
         self.add(pr.LocalVariable(
+            name = 'Invert',
+            value = False,))
+
+        self.add(pr.LocalVariable(
             name = 'LoadR',
             value = 24.9,
             units = '\u03A9'))
@@ -202,7 +206,10 @@ class FastDacAmplifierSE(pr.Device):
             linkedGet = self.rout))
 
     def gain(self):
-        return self.FbR.value() / self.InputR.value()
+        ret = self.FbR.value() / self.InputR.value()
+        if self.Invert.value() is True:
+            ret = ret * -1
+        return ret
 
     def rout(self):
         return self.FilterR.value() + self.ShuntR.value() + self.CableR.value()
@@ -228,7 +235,7 @@ class FastDacAmplifierSE(pr.Device):
         return iout * 1e6
 
     def outVoltageToDac(self, voltage):
-        print(f'outVoltageToDac({voltage=})')
+#        print(f'outVoltageToDac({voltage=})')
         gain = self.gain()
         load = self.LoadR.value()
         ioutfs = self.IOUTFS.value()
@@ -236,12 +243,17 @@ class FastDacAmplifierSE(pr.Device):
         iin = vin / load
         iina = (iin + ioutfs) / 2
         dac =  int((iina / ioutfs) * 16384)
-        print(f'{gain=}, {load=}, {ioutfs=}, {vin=}, {iin=}, {iina=}, {dac=}')
+#        print(f'{gain=}, {load=}, {ioutfs=}, {vin=}, {iin=}, {iina=}, {dac=}')
         return int(dac)
 
     def outCurrentToDac(self, current):
         vout = current * 1e-6 * self.rout()
         return self.outVoltageToDac(vout)
+
+    def dacToLoadVoltage(self, dac):
+        voltage = self.dacToOutVoltage(dac)
+        load = voltage * (self.CableR.value() / self.OutR.value())
+        return load
 
 
 class FastDacAmplifierDiff(FastDacAmplifierSE):
@@ -253,4 +265,5 @@ class FastDacAmplifierDiff(FastDacAmplifierSE):
 
     def rout(self):
         return (2 * self.FilterR.value()) + (2 * self.ShuntR.value()) + self.CableR.value()
+
     
