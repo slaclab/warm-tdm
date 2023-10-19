@@ -152,7 +152,7 @@ architecture rtl of RowDacDriver is
    constant REG_INIT_C : RegType := (
       startup        => '1',
       state          => INIT_A_S,
-      mode           => TIMING_MODE_C,
+      mode           => MANUAL_MODE_C,
       cfgBoardId     => (others => '0'),
       boardId        => (others => '0'),
       rowNum         => (others => '0'),
