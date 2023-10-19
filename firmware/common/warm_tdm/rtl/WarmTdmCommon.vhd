@@ -256,7 +256,7 @@ begin
    -------------------------------------------------------------------------------------------------
    -- Board temperature
    -------------------------------------------------------------------------------------------------
-   U_AxiI2cRegMaster_1 : entity surf.AxiI2cRegMaster
+   U_AxiI2cRegMaster_POWER : entity surf.AxiI2cRegMaster
       generic map (
          TPD_G            => TPD_G,
          DEVICE_MAP_G     => (
