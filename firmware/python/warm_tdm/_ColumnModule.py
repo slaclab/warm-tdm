@@ -186,10 +186,8 @@ class ColumnBoardLoading(pr.Device):
 
 class ColumnModule(pr.Device):
     def __init__(self,
-                 # Channels 0 and 1 have FB attached after first stage
-                 waveform_stream,
-                 loading={},
-#                 rows=64,
+                 amplifierClass=warm_tdm.ColumnBoardC00SaAmp,
+                 rows=256,
                  **kwargs):
         super().__init__(**kwargs)
 
@@ -200,7 +198,8 @@ class ColumnModule(pr.Device):
 
         self.add(warm_tdm.WarmTdmCore(
             offset = 0x00000000,
-            expand = True))
+            expand = True,
+            therm_channels = [0, 1, 8, 9]))
 
         self.add(warm_tdm.DataPath(
             offset = 0xC0300000,

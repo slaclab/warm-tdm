@@ -183,7 +183,7 @@ begin
          SEQ_VCCINT_SEL_EN_G      => true,
          SEQ_VCCAUX_SEL_EN_G      => true,
          SEQ_VCCBRAM_SEL_EN_G     => true,
-         SEQ_VAUX_SEL_EN_G        => toBooleanArray("0000001100000011"))
+         SEQ_VAUX_SEL_EN_G        => toBooleanArray("0001100000011000"))
       port map (
          axilClk             => axilClk,                           -- [in]
          axilRst             => axilRst,                           -- [in]
