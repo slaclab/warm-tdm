@@ -52,4 +52,5 @@ class WarmTdmCommon(pr.Device):
 
         self.add(warm_tdm.BoardTemp(
             xadc = self.Xadc,
+            therm_channels = therm_channels,
             sa56004x = self.Sa56004x))
