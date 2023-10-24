@@ -32,12 +32,14 @@ class WarmTdmCommon(pr.Device):
         self.add(surf.devices.linear.Ltc4151(
             name = 'Ltc4151_Digital',
             enabled = False,
-            offset = 0x00010200))
+            senseRes = 0.02,
+            offset = 0x00010400))
 
         self.add(surf.devices.linear.Ltc4151(
             name = 'Ltc4151_Analog',
             enabled = False,
-            offset = 0x00010400))
+            senseRes = 0.02,            
+            offset = 0x00010800))
         
         self.add(surf.devices.microchip.Axi24LC64FT(
             enabled = False,

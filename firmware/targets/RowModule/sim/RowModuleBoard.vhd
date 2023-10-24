@@ -46,16 +46,16 @@ entity RowModuleBoard is
       rj45TimingRxDataN : in  sl;          -- [in]
 --       rj45TimingRxMgtP  : in  sl;          -- [in]
 --       rj45TimingRxMgtN  : in  sl;          -- [in]
-      rj45PgpRxMgtP        : in  sl;          -- [in]
-      rj45PgpRxMgtN        : in  sl;          -- [in]
+      rj45PgpRxMgtP     : in  sl;          -- [in]
+      rj45PgpRxMgtN     : in  sl;          -- [in]
       rj45TimingTxClkP  : out sl;          -- [out]
       rj45TimingTxClkN  : out sl;          -- [out]
       rj45TimingTxDataP : out sl;          -- [out]
       rj45TimingTxDataN : out sl;          -- [out]
 --       rj45TimingTxMgtP  : out sl;          -- [out]
 --       rj45TimingTxMgtN  : out sl;          -- [out]
-      rj45PgpTxMgtP        : out sl := '0';   -- [out]
-      rj45PgpTxMgtN        : out sl := '0');  -- [out]
+      rj45PgpTxMgtP     : out sl := '0';   -- [out]
+      rj45PgpTxMgtN     : out sl := '0');  -- [out]
 
 
 end entity RowModuleBoard;
@@ -293,39 +293,34 @@ begin
          i2cSda => pwrSda,              -- [inout]
          i2cScl => pwrScl);             -- [inout]
 
-   U_i2cRamSlave_PWR : entity surf.i2cRamSlave
+   U_LTC4151_DIG : entity warm_tdm.Ltc4151
       generic map (
-         TPD_G        => TPD_G,
-         I2C_ADDR_G   => 64+32+8+4+2=1,
-         TENBIT_G     => 0,
-         FILTER_G     => 2,
-         ADDR_SIZE_G  => 2,
-         DATA_SIZE_G  => 1,
-         ENDIANNESS_G => 1)
+         TPD_G  => TPD_G,
+         ADDR_G => "00")
       port map (
-         clk    => clk,                 -- [in]
-         rst    => rst,                 -- [in]
-         i2cSda => pwrSda,              -- [inout]
-         i2cScl => pwrScl);             -- [inout]
+         sda    => pwrSda,              -- [inout]
+         scl    => pwrScl,              -- [inout]
+         senseP => 12.0,                -- [in]
+         senseN => (12.0-0.01),         -- [in]
+         vin    => 12.0,                -- [in]
+         adin   => 1.0);                -- [in]
 
-   U_i2cRamSlave_PWR : entity surf.i2cRamSlave
+   U_LTC4151_ANA : entity warm_tdm.Ltc4151
       generic map (
-         TPD_G        => TPD_G,
-         I2C_ADDR_G   => 64+32+4+2+1,
-         TENBIT_G     => 0,
-         FILTER_G     => 2,
-         ADDR_SIZE_G  => 2,
-         DATA_SIZE_G  => 1,
-         ENDIANNESS_G => 1)
+         TPD_G  => TPD_G,
+         ADDR_G => "10")
       port map (
-         clk    => clk,                 -- [in]
-         rst    => rst,                 -- [in]
-         i2cSda => pwrSda,              -- [inout]
-         i2cScl => pwrScl);             -- [inout]
-   
+         sda    => pwrSda,              -- [inout]
+         scl    => pwrScl,              -- [inout]
+         senseP => 12.0,                -- [in]
+         senseN => (12.0-0.02),         -- [in]
+         vin    => 12.0,                -- [in]
+         adin   => 1.0);                -- [in]
+
+
 
    ------------------------------------------------
-   -- AD9106 Array
+   -- DAC Array
    ------------------------------------------------
    AD9767_GEN : for i in 15 downto 0 generate
 

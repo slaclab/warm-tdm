@@ -13,6 +13,8 @@ export PRJ_VERSION = 0x00000000
 
 export GIT_BYPASS = 1
 
+export GZIP_BUILD_IMAGE = 1
+
 # Use top level makefile
 include $(RUCKUS_DIR)/system_vivado.mk
 

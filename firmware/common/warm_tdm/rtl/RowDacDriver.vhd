@@ -72,17 +72,17 @@ architecture rtl of RowDacDriver is
 --   constant RS_DAC_CTRL_BITS_C : integer := (2**ROW_SELECT_BITS_C-1);   -- 8
 --   constant CS_DAC_CTRL_BITS_C : integer := (2**CHIP_SELECT_BITS_C-1);  -- 4
 
-   constant ROW_LOW_C       : integer := 0;
-   constant ROW_HIGH_C      : integer := ROW_SELECT_BITS_C - 1;                            -- 4
-   constant CHIP_LOW_C      : integer := ite(NUM_CHIP_SELECTS_G /= 0, ROW_HIGH_C + 1, 0);  -- 0
-   constant CHIP_HIGH_C     : integer := ite(NUM_CHIP_SELECTS_G /= 0, CHIP_LOW_C + CHIP_SELECT_BITS_C -1, 0);  --0
+   constant ROW_LOW_C   : integer := 0;
+   constant ROW_HIGH_C  : integer := ROW_SELECT_BITS_C - 1;                            -- 4
+   constant CHIP_LOW_C  : integer := ite(NUM_CHIP_SELECTS_G /= 0, ROW_HIGH_C + 1, 0);  -- 0
+   constant CHIP_HIGH_C : integer := ite(NUM_CHIP_SELECTS_G /= 0, CHIP_LOW_C + CHIP_SELECT_BITS_C -1, 0);  --0
 
    constant ROW_CHIP_LOW_C  : integer := 0;
-   constant ROW_CHIP_HIGH_C : integer := ROW_SELECT_BITS_C + CHIP_SELECT_BITS_C - 1;       -- 4
-   constant ROW_CHIP_BITS_C : integer := ROW_CHIP_HIGH_C - ROW_CHIP_LOW_C + 1;             -- 5
+   constant ROW_CHIP_HIGH_C : integer := ROW_SELECT_BITS_C + CHIP_SELECT_BITS_C - 1;  -- 4
+   constant ROW_CHIP_BITS_C : integer := ROW_CHIP_HIGH_C - ROW_CHIP_LOW_C + 1;        -- 5
    constant BOARD_LOW_C     : integer := ite(CHIP_SELECT_BITS_C /= 0, CHIP_HIGH_C + 1, ROW_HIGH_C + 1);  --
    --5
-   constant BOARD_HIGH_C    : integer := BOARD_LOW_C + BOARD_SELECT_BITS_C - 1;            -- 7
+   constant BOARD_HIGH_C    : integer := BOARD_LOW_C + BOARD_SELECT_BITS_C - 1;       -- 7
 
    constant RS_DAC_LOW_C  : integer := 0;
    constant RS_DAC_HIGH_C : integer := (NUM_ROW_SELECTS_G / 2) - 1;                  -- 15
@@ -104,6 +104,9 @@ architecture rtl of RowDacDriver is
    signal locAxilReadSlaves   : AxiLiteReadSlaveArray(NUM_AXIL_C-1 downto 0)  := (others => AXI_LITE_READ_SLAVE_EMPTY_DECERR_C);
 
    type StateType is (
+      INIT_A_S,
+      INIT_B_S,
+      INIT_C_S,
       IDLE_S,
       OFF_PRE_S,
       ROW_OFF_DATA_S,
@@ -136,18 +139,20 @@ architecture rtl of RowDacDriver is
       dacReset       : slv(15 downto 0);
       dacDb          : slv(13 downto 0);
       dacClk         : slv(15 downto 0);
-      rsDacWrt       : slv(NUM_RS_DACS_C-1 downto 0);
-      rsDacSel       : slv(NUM_RS_DACS_C-1 downto 0);
-      csDacWrt       : slv(NUM_CS_DACS_C-1 downto 0);
-      csDacSel       : slv(NUM_CS_DACS_C-1 downto 0);
+      dacWrt         : slv(15 downto 0);
+      dacSel         : slv(15 downto 0);
+--       rsDacWrt       : slv(NUM_RS_DACS_C-1 downto 0);
+--       rsDacSel       : slv(NUM_RS_DACS_C-1 downto 0);
+--       csDacWrt       : slv(NUM_CS_DACS_C-1 downto 0);
+--       csDacSel       : slv(NUM_CS_DACS_C-1 downto 0);
       axilWriteSlave : AxiLiteWriteSlaveType;
       axilReadSlave  : AxiLiteReadSlaveType;
    end record RegType;
 
    constant REG_INIT_C : RegType := (
       startup        => '1',
-      state          => IDLE_S,
-      mode           => TIMING_MODE_C,
+      state          => INIT_A_S,
+      mode           => MANUAL_MODE_C,
       cfgBoardId     => (others => '0'),
       boardId        => (others => '0'),
       rowNum         => (others => '0'),
@@ -156,10 +161,12 @@ architecture rtl of RowDacDriver is
       dacReset       => (others => '0'),
       dacDb          => (others => '0'),
       dacClk         => (others => '0'),
-      rsDacWrt       => (others => '0'),
-      rsDacSel       => (others => '0'),
-      csDacWrt       => (others => '0'),
-      csDacSel       => (others => '0'),
+      dacWrt         => (others => '0'),
+      dacSel         => (others => '0'),
+--       rsDacWrt       => (others => '0'),
+--       rsDacSel       => (others => '0'),
+--       csDacWrt       => (others => '0'),
+--       csDacSel       => (others => '0'),
       axilWriteSlave => AXI_LITE_WRITE_SLAVE_EMPTY_DECERR_C,
       axilReadSlave  => AXI_LITE_READ_SLAVE_EMPTY_DECERR_C);
 
@@ -351,25 +358,59 @@ begin
 
       axiSlaveRegister(axilEp, X"00", 0, v.mode);
       if (BOARD_SELECT_BITS_C > 0) then
-         axiSlaveRegister(axilEp, X"04", 0, v.cfgBoardId);         
+         axiSlaveRegister(axilEp, X"04", 0, v.cfgBoardId);
       end if;
       axiSlaveRegister(axilEp, X"08", 0, v.dacReset);
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
 
+
+      ----------------------------------------------------------------------------------------------
+      -- Convert row and chip registers to Integers
+      ----------------------------------------------------------------------------------------------
       rsDacInt  := conv_integer(r.rowNum);
       rsDacChip := conv_integer(r.rowNum(ROW_SELECT_BITS_C-1 downto 1));
       if (NUM_CHIP_SELECTS_G > 0) then
-         csDacInt  := conv_integer(r.chipNum);
-         csDacChip := conv_integer(r.chipNum(CHIP_SELECT_BITS_C-1 downto 1));
+         csDacInt  := conv_integer(r.chipNum) + NUM_ROW_SELECTS_G;
+         csDacChip := conv_integer(r.chipNum(CHIP_SELECT_BITS_C-1 downto 1)) + NUM_RS_DACS_C;
       end if;
 
-      v.rsDacWrt := (others => '0');
-      v.csDacWrt := (others => '0');
-
+      ----------------------------------------------------------------------------------------------
+      -- State Machine
+      ----------------------------------------------------------------------------------------------
+      v.dacWrt := (others => '0');
       v.dacClk := (others => '0');
 
       case r.state is
+
+         when INIT_A_S =>
+            -- Put mid-scale on bus (drives 0 after amplifier)
+            v.dacDb  := "10000000000000";
+            v.dacSel := (others => '0');
+            v.state  := INIT_B_S;
+
+         when INIT_B_S =>
+            -- Write channel 0 and all dacs
+            v.dacWrt := (others => '1');
+            if (r.dacWrt(0) = '1') then
+               -- After write, set channel 1 and clear wrt
+               v.dacWrt := (others => '0');
+               v.dacSel := (others => '1');
+               v.state  := INIT_C_S;
+            end if;
+
+         when INIT_C_S =>
+            -- Write channel 1 on all dacs
+            v.dacWrt := (others => '1');
+            if (r.dacWrt(0) = '1') then
+               -- After wrt, clean everything and clock the outputs
+               -- Will return to IDLE_S after clocking
+               v.dacDb  := (others => '0');
+               v.dacWrt := (others => '0');
+               v.dacSel := (others => '0');
+               v.state  := CLK_0_RISE_S;
+            end if;
+
          when IDLE_S =>
             v.rowNum := (others => '0');
 
@@ -402,18 +443,18 @@ begin
             v.chipNum    := timingRxData.rowIndex(CHIP_HIGH_C downto CHIP_LOW_C);
             v.rowChipNum := timingRxData.rowIndex(ROW_CHIP_HIGH_C downto ROW_CHIP_LOW_C);
             if (BOARD_SELECT_BITS_C > 0) then
-               v.boardId    := timingRxData.rowIndex(BOARD_HIGH_C downto BOARD_LOW_C);               
+               v.boardId := timingRxData.rowIndex(BOARD_HIGH_C downto BOARD_LOW_C);
             end if;
-            v.state      := ROW_OFF_DATA_S;
+            v.state := ROW_OFF_DATA_S;
 
          when ROW_OFF_DATA_S =>
-            v.dacDb               := rsOffDout(13 downto 0);
-            v.rsDacSel(rsDacChip) := not r.rowNum(0);
-            v.state               := ROW_OFF_WRITE_S;
+            v.dacDb             := rsOffDout(13 downto 0);
+            v.dacSel(rsDacChip) := not r.rowNum(0);
+            v.state             := ROW_OFF_WRITE_S;
 
          when ROW_OFF_WRITE_S =>
             if (BOARD_SELECT_BITS_C > 0 and r.boardId = r.cfgBoardId) then
-               v.rsDacWrt(rsDacChip) := '1';
+               v.dacWrt(rsDacChip) := '1';
             end if;
             if (NUM_CHIP_SELECTS_G > 0) then
                v.state := CHIP_OFF_DATA_S;
@@ -422,13 +463,13 @@ begin
             end if;
 
          when CHIP_OFF_DATA_S =>
-            v.dacDb               := csOffDout(13 downto 0);
-            v.csDacSel(csDacChip) := not r.chipNum(0);
-            v.state               := CHIP_OFF_WRITE_S;
+            v.dacDb             := csOffDout(13 downto 0);
+            v.dacSel(csDacChip) := not r.chipNum(0);
+            v.state             := CHIP_OFF_WRITE_S;
 
          when CHIP_OFF_WRITE_S =>
             if (r.boardId = r.cfgBoardId) then
-               v.csDacWrt(csDacChip) := '1';
+               v.dacWrt(csDacChip) := '1';
             end if;
             v.state := ON_PRE_S;
 
@@ -441,12 +482,12 @@ begin
             v.state      := ROW_ON_DATA_S;
 
          when ROW_ON_DATA_S =>
-            v.dacDb               := rsOnDout(13 downto 0);
-            v.rsDacSel(rsDacChip) := not r.rowNum(0);
+            v.dacDb             := rsOnDout(13 downto 0);
+            v.dacSel(rsDacChip) := not r.rowNum(0);
 
          when ROW_ON_WRITE_S =>
             if (r.boardId = r.cfgBoardId) then
-               v.rsDacWrt(rsDacChip) := '1';
+               v.dacWrt(rsDacChip) := '1';
             end if;
             if (NUM_CHIP_SELECTS_G > 0) then
                v.state := CHIP_ON_DATA_S;
@@ -455,31 +496,31 @@ begin
             end if;
 
          when CHIP_ON_DATA_S =>
-            v.dacDb               := csOnDout(13 downto 0);
-            v.csDacSel(csDacChip) := not r.chipNum(0);
+            v.dacDb             := csOnDout(13 downto 0);
+            v.dacSel(csDacChip) := not r.chipNum(0);
 
          when CHIP_ON_WRITE_S =>
             if (r.boardId = r.cfgBoardId) then
-               v.csDacWrt(csDacChip) := '1';
+               v.dacWrt(csDacChip) := '1';
             end if;
             v.state := CLK_0_RISE_S;
 
          when MANUAL_RS_DATA_S =>
             -- DB already set, just do SEL
-            v.rsDacSel(rsDacChip) := not r.rowNum(0);
-            v.state               := MANUAL_RS_WRITE_S;
+            v.dacSel(rsDacChip) := not r.rowNum(0);
+            v.state             := MANUAL_RS_WRITE_S;
 
          when MANUAL_RS_WRITE_S =>
-            v.rsDacWrt(rsDacChip) := '1';
-            v.state               := CLK_0_RISE_S;
+            v.dacWrt(rsDacChip) := '1';
+            v.state             := CLK_0_RISE_S;
 
          when MANUAL_CS_DATA_S =>
-            v.csDacSel(csDacChip) := not r.chipNum(0);
-            v.state               := MANUAL_CS_WRITE_S;
+            v.dacSel(csDacChip) := not r.chipNum(0);
+            v.state             := MANUAL_CS_WRITE_S;
 
          when MANUAL_CS_WRITE_S =>
-            v.csDacWrt(csDacChip) := '1';
-            v.state               := CLK_0_RISE_S;
+            v.dacWrt(csDacChip) := '1';
+            v.state             := CLK_0_RISE_S;
 
          when CLK_0_RISE_S =>
             -- Wait for row strobe to clock new DAC values if in TIMING_MODE
@@ -504,16 +545,24 @@ begin
          v := REG_INIT_C;
       end if;
 
-      dacDb <= r.dacDb;
+      ----------------------------------------------------------------------------------------------
+      -- 
+      ----------------------------------------------------------------------------------------------
+--       v.dacWrt(RS_DAC_HIGH_C downto RS_DAC_LOW_C) <= v.rsDacWrt(NUM_RS_DACS_C-1 downto 0);
+--       v.dacSel(RS_DAC_HIGH_C downto RS_DAC_LOW_C) <= v.rsDacSel(NUM_RS_DACS_C-1 downto 0);
 
-      dacWrt(RS_DAC_HIGH_C downto RS_DAC_LOW_C) <= r.rsDacWrt(NUM_RS_DACS_C-1 downto 0);
-      dacSel(RS_DAC_HIGH_C downto RS_DAC_LOW_C) <= r.rsDacSel(NUM_RS_DACS_C-1 downto 0);
+--       if (NUM_CS_DACS_C > 0) then
+--          v.dacWrt(CS_DAC_HIGH_C downto CS_DAC_LOW_C) <= v.csDacWrt(NUM_CS_DACS_C-1 downto 0);
+--          v.dacSel(CS_DAC_HIGH_C downto CS_DAC_LOW_C) <= v.csDacSel(NUM_CS_DACS_C-1 downto 0);
+--       end if;
 
-      if (NUM_CS_DACS_C > 0) then
-         dacWrt(CS_DAC_HIGH_C downto CS_DAC_LOW_C) <= r.csDacWrt(NUM_CS_DACS_C-1 downto 0);
-         dacSel(CS_DAC_HIGH_C downto CS_DAC_LOW_C) <= r.csDacSel(NUM_CS_DACS_C-1 downto 0);
-      end if;
 
+      ----------------------------------------------------------------------------------------------
+      -- Drive outputs
+      ----------------------------------------------------------------------------------------------
+      dacDb    <= r.dacDb;
+      dacWrt   <= r.dacWrt;
+      dacSel   <= r.dacSel;
       dacClk   <= r.dacClk;
       dacReset <= r.dacReset;
 
