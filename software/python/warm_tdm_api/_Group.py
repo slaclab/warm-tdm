@@ -126,34 +126,6 @@ class RowTuneIndexVariable(GroupLinkVariable):
         with self.parent.root.updateGroup():
             return self._value
 
-class Amplifier(object):
-    def __init__(self):
-
-        self.Rbias = 15e3
-        self.Roff = 4.22e3
-        self.Rgain = 100
-        self.Rfb = 1.1e3
-        self.Rcable = 200
-
-        self.Gbias = 1.0/self.Rbias
-        self.Goff = 1.0/self.Roff
-        self.Ggain = 1.0/self.Rgain
-        self.Gfb = 1.0/self.Rfb
-        self.Gcable = 1.0/self.Rcable
-
-        self.G2 = 11
-        self.G3 = 1.5
-
-    def Vout(self, Vin, Voff):
-        return self.Rfb * (Vin*(self.Ggain + self.Goff + self.Gfb) - Voff*self.Goff) * self.G2 *self.G3
-
-    def Vin(self, Vout, Voffset):
-        return ((Vout/(self.G2*self.G3)) * self.Gfb + Voffset * self.Goff) / (self.Ggain + self.Goff + self.Gfb)
-
-    def SaOut(self, Vout, Vbias, Voffset):
-        return self.Vin(Vout, Voffset)
-    #return (self.Vin(Vout, Voffset) * (self.Gbias + self.Gcable) - Vbias * self.Gbias) / self.Gcable
-
 
 class SaOutVariable(GroupLinkVariable):
     def __init__(self, config, disp='{:0.04f}', **kwargs):

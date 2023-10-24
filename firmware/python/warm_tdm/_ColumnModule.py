@@ -214,7 +214,6 @@ class ColumnModule(pr.Device):
 
         self.add(warm_tdm.SaBiasOffset(
             dac = self.SaBiasDac,
-#            loading = self.Loading,
             waveformTrigger = self.DataPath.WaveformCapture.WaveformTrigger))
 
         self.add(warm_tdm.Ad5679R(
@@ -249,7 +248,7 @@ class ColumnModule(pr.Device):
             offset = 0xC0200000))
 
         #########################################
-        # Compute SA Out based on loading options
+        # Compute SA Out based on amplifier config
         #########################################
         self.add(pr.LinkVariable(
             name = 'SaOutAdc',
