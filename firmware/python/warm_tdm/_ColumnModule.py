@@ -186,7 +186,7 @@ class ColumnBoardLoading(pr.Device):
 
 class ColumnModule(pr.Device):
     def __init__(self,
-                 amplifierClass=warm_tdm.ColumnBoardC00SaAmp,
+                 loading={},                 
                  rows=256,
                  **kwargs):
         super().__init__(**kwargs)
