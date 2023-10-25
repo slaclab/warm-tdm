@@ -10,7 +10,7 @@ import surf.devices.linear
 import warm_tdm
 
 class WarmTdmCommon(pr.Device):
-    def __init__(self, **kwargs):
+    def __init__(self, therm_channels, **kwargs):
         super().__init__(**kwargs)
 
         self.add(surf.axi.AxiVersion(
@@ -19,7 +19,7 @@ class WarmTdmCommon(pr.Device):
         self.add(surf.xilinx.Xadc(
             enabled = False,
             offset = 0x00001000,
-            auxChannels = [0, 1, 8, 9]))
+            auxChannels = therm_channels))
 
         self.add(surf.devices.micron.AxiMicronN25Q(
             enabled = False,
@@ -47,4 +47,10 @@ class WarmTdmCommon(pr.Device):
 
         self.add(warm_tdm.Ad5263(
             enabled = False,
+            hidden = True,
             offset = 0x000C0000))
+
+        self.add(warm_tdm.BoardTemp(
+            xadc = self.Xadc,
+            therm_channels = therm_channels,
+            sa56004x = self.Sa56004x))

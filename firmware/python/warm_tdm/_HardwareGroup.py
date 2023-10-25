@@ -24,8 +24,8 @@ class HardwareGroup(pyrogue.Device):
             emulate=False,
             host='192.168.3.11',
             colBoards=4,
-            rowBoards=2,
-#            rows=64,
+            rowBoards=1,
+            rows=256,
             plots=False,
             **kwargs):
 
@@ -77,8 +77,7 @@ class HardwareGroup(pyrogue.Device):
                 name=f'ColumnBoard[{index}]',
                 memBase=srp,
                 expand=True,
-#                rows=rows,
-                ))
+                rows=rows))
             
             pidDebug = [warm_tdm.PidDebugger(name=f'PidDebug[{i}]', hidden=False, col=i, fastDacDriver=self.ColumnBoard[index].SQ1Fb) for i in range(8)]
             waveGui = warm_tdm.WaveformCaptureReceiver(hidden=False, amplifier=self.ColumnBoard[index].amplifiers)
@@ -148,11 +147,5 @@ class HardwareGroup(pyrogue.Device):
                 self.add(pidDebug[i])
 
 
-    def writeBlocks(self, **kwargs):
-        # Do the normal write
-        super().writeBlocks(**kwargs)
-
-        #Then configure the row selects according to the ReadoutList
-        #self.RowSelectArray.configure(self.ReadoutList.value())
 
 

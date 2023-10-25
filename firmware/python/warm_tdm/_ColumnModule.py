@@ -201,7 +201,8 @@ class ColumnModule(pr.Device):
  
         self.add(warm_tdm.WarmTdmCore(
             offset = 0x00000000,
-            expand = True))
+            expand = True,
+            therm_channels = [0, 1, 8, 9]))
 
         self.add(warm_tdm.DataPath(
             offset = 0xC0300000,

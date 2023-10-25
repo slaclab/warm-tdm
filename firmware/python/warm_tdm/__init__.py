@@ -31,3 +31,4 @@ from warm_tdm._TesBias import *
 from warm_tdm._Plotter import *
 from warm_tdm._WaveformCapture import *
 from warm_tdm._PidDebugger import *
+from warm_tdm._BoardTemp import *

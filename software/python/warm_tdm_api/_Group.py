@@ -372,55 +372,55 @@ class Group(pr.Device):
 #             groups='TopApi',
 #             mode='RW'))
 
-        self.add(RowTuneEnVariable(
-            name='RowTuneMode',
-            description='Enables the manual section (RowTuneIndex) of a row for tuning purposes. Used by the tuning scripts.',
-            typeStr='bool',
-            groups='NoDoc',
-            value=False,
-            tuneEnVar = self.RowTuneEnable,
-            dependencies=[self.HardwareGroup.RowBoard[m.board].RowSelectArray.RowSelect[m.channel].Mode
-                          for m in self.config.rowMap]))
+#         self.add(RowTuneEnVariable(
+#             name='RowTuneMode',
+#             description='Enables the manual section (RowTuneIndex) of a row for tuning purposes. Used by the tuning scripts.',
+#             typeStr='bool',
+#             groups='NoDoc',
+#             value=False,
+#             tuneEnVar = self.RowTuneEnable,
+#             dependencies=[self.HardwareGroup.RowBoard[m.board].RowSelectArray.RowSelect[m.channel].Mode
+#                           for m in self.config.rowMap]))
 
 
         # Row Tune Channel
         # Sets the selected channel to its ON value
         # Sets all other channels to OFF
-        self.add(RowTuneIndexVariable(
-            name='RowTuneIndex',
-            description='Manual selection of row for tuning. When RowTunEn is true the FasFluxOn value for this row is output. All other rows are set to FasFluxOff.',
-            typeStr='int',
-            value=0,
-            config=self.config,
-            tuneEnVar = self.RowTuneEnable,
-            dependencies=[self.HardwareGroup.RowBoard[m.board].RowSelectArray.RowSelect[m.channel].Active
-                          for m in self.config.rowMap]))
+#         self.add(RowTuneIndexVariable(
+#             name='RowTuneIndex',
+#             description='Manual selection of row for tuning. When RowTunEn is true the FasFluxOn value for this row is output. All other rows are set to FasFluxOff.',
+#             typeStr='int',
+#             value=0,
+#             config=self.config,
+#             tuneEnVar = self.RowTuneEnable,
+#             dependencies=[self.HardwareGroup.RowBoard[m.board].RowSelectArray.RowSelect[m.channel].Active
+#                           for m in self.config.rowMap]))
 
 
         # FAS Flux off values, accessed with row index
-        self.add(GroupLinkVariable(
-            name='FasFluxOff',
-            description='FasFluxOff value for each row. Total length = RowBoards * 32.'
-                        'Values can be accessed as a full array or as single values using an index key.',
-            dependencies=[self.HardwareGroup.RowBoard[m.board].RowSelectArray.RowSelect[m.channel].OffValue
-                          for m in self.config.rowMap],
-            tuneEnVar = self.RowTuneEnable))
+#         self.add(GroupLinkVariable(
+#             name='FasFluxOff',
+#             description='FasFluxOff value for each row. Total length = RowBoards * 32.'
+#                         'Values can be accessed as a full array or as single values using an index key.',
+#             dependencies=[self.HardwareGroup.RowBoard[m.board].RowSelectArray.RowSelect[m.channel].OffValue
+#                           for m in self.config.rowMap],
+#             tuneEnVar = self.RowTuneEnable))
 
-        # FAS Flux on values, accessed with row index
-        self.add(GroupLinkVariable(
-            name='FasFluxOn',
-            description='FasFluxOn value for each row. Total length = RowBoards * 32.'
-                        'Values can be accessed as a full array or as single values using an index key.',
-            dependencies=[self.HardwareGroup.RowBoard[m.board].RowSelectArray.RowSelect[m.channel].OnValue
-                          for m in self.config.rowMap],
-            tuneEnVar = self.RowTuneEnable))
+#         # FAS Flux on values, accessed with row index
+#         self.add(GroupLinkVariable(
+#             name='FasFluxOn',
+#             description='FasFluxOn value for each row. Total length = RowBoards * 32.'
+#                         'Values can be accessed as a full array or as single values using an index key.',
+#             dependencies=[self.HardwareGroup.RowBoard[m.board].RowSelectArray.RowSelect[m.channel].OnValue
+#                           for m in self.config.rowMap],
+#             tuneEnVar = self.RowTuneEnable))
 
-        self.rowSelectedVars = [
-            self.RowTuneEnable,
-#            self.RowTuneMode,
-#            self.RowTuneIndex,
-            self.FasFluxOff,
-            self.FasFluxOn]
+        self.rowSelectedVars = []
+#             self.RowTuneEnable,
+# #            self.RowTuneMode,
+# #            self.RowTuneIndex,
+#             self.FasFluxOff,
+#             self.FasFluxOn]
 
 
         #####################################

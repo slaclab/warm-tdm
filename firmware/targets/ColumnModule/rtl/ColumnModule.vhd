@@ -283,7 +283,8 @@ begin
          ETH_10G_G               => ETH_10G_G,
          DHCP_G                  => DHCP_G,
          IP_ADDR_G               => IP_ADDR_G,
-         MAC_ADDR_G              => MAC_ADDR_G)
+         MAC_ADDR_G              => MAC_ADDR_G,
+         XADC_AUX_CHANS_G        => (9, 1, 8, 0))         
       port map (
          gtRefClk0P       => gtRefClk0P,          -- [in]
          gtRefClk0N       => gtRefClk0N,          -- [in]

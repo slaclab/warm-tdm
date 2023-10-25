@@ -33,11 +33,12 @@ library warm_tdm;
 entity WarmTdmCommon is
 
    generic (
-      TPD_G            : time             := 1 ns;
-      SIMULATION_G     : boolean          := false;
+      TPD_G            : time                     := 1 ns;
+      SIMULATION_G     : boolean                  := false;
       BUILD_INFO_G     : BuildInfoType;
-      AXIL_BASE_ADDR_G : slv(31 downto 0) := (others => '0');
-      AXIL_CLK_FREQ_G  : real             := 125.0E6);
+      AXIL_BASE_ADDR_G : slv(31 downto 0)         := (others => '0');
+      XADC_AUX_CHANS_G : IntegerArray(3 downto 0) := (12, 4, 11, 3);
+      AXIL_CLK_FREQ_G  : real                     := 125.0E6);
 
    port (
       axilClk         : in  sl;
@@ -103,6 +104,21 @@ architecture rtl of WarmTdmCommon is
 
    signal bootSck : sl;
 
+   signal locAuxP : slv(15 downto 0) := (others => '0');
+   signal locAuxN : slv(15 downto 0) := (others => '0');
+
+   function genSeqVauxSelEn
+      return BooleanArray is
+      variable ret : BooleanArray(15 downto 0) := (others => false);
+   begin
+      for i  in XADC_AUX_CHANS_G'range loop
+         ret(XADC_AUX_CHANS_G(i)) := true;
+      end loop;
+      return ret;      
+   end function genSeqVauxSelEn;
+   
+   constant SEQ_VAUX_SEL_EN_C : BooleanArray(15 downto 0):= genSeqVauxSelEn;
+
 begin
 
    -------------------------------------------------------------------------------------------------
@@ -153,7 +169,11 @@ begin
    -------------------------------------------------------------------------------------------------
    -- XADC
    -------------------------------------------------------------------------------------------------
-
+   AUX_LOOP : for i in XADC_AUX_CHANS_G'range generate
+      locAuxP(XADC_AUX_CHANS_G(i)) <= vAuxP(i);
+      locAuxN(XADC_AUX_CHANS_G(i)) <= vAuxN(i);
+   end generate AUX_LOOP;
+   
    U_XadcSimpleCore_1 : entity surf.XadcSimpleCore
       generic map (
          TPD_G                    => TPD_G,
@@ -183,33 +203,20 @@ begin
          SEQ_VCCINT_SEL_EN_G      => true,
          SEQ_VCCAUX_SEL_EN_G      => true,
          SEQ_VCCBRAM_SEL_EN_G     => true,
-         SEQ_VAUX_SEL_EN_G        => toBooleanArray("0000001100000011"))
+         SEQ_VAUX_SEL_EN_G        => SEQ_VAUX_SEL_EN_C)
       port map (
-         axilClk             => axilClk,                           -- [in]
-         axilRst             => axilRst,                           -- [in]
-         axilReadMaster      => locAxilReadMasters(AXIL_XADC_C),   -- [in]
-         axilReadSlave       => locAxilReadSlaves(AXIL_XADC_C),    -- [out]
-         axilWriteMaster     => locAxilWriteMasters(AXIL_XADC_C),  -- [in]
-         axilWriteSlave      => locAxilWriteSlaves(AXIL_XADC_C),   -- [out]
-         xadcClk             => axilClk,                           -- [in]
-         xadcRst             => axilClk,                           -- [in]
-         vAuxP(2 downto 0)   => "000",
-         vAuxP(3)            => vAuxP(0),
-         vAuxP(4)            => vAuxP(2),
-         vAuxP(10 downto 5)  => "000000",
-         vAuxP(11)           => vAuxP(1),
-         vAuxP(12)           => vAuxP(3),
-         vAuxP(15 downto 13) => "000",
-         vAuxN(2 downto 0)   => "000",
-         vAuxN(3)            => vAuxN(0),
-         vAuxN(4)            => vAuxN(2),
-         vAuxN(10 downto 5)  => "000000",
-         vAuxN(11)           => vAuxN(1),
-         vAuxN(12)           => vAuxN(3),
-         vAuxN(15 downto 13) => "000",
-
-         alm => open,                   -- [out]
-         ot  => open);                  -- [out]
+         axilClk         => axilClk,                           -- [in]
+         axilRst         => axilRst,                           -- [in]
+         axilReadMaster  => locAxilReadMasters(AXIL_XADC_C),   -- [in]
+         axilReadSlave   => locAxilReadSlaves(AXIL_XADC_C),    -- [out]
+         axilWriteMaster => locAxilWriteMasters(AXIL_XADC_C),  -- [in]
+         axilWriteSlave  => locAxilWriteSlaves(AXIL_XADC_C),   -- [out]
+         xadcClk         => axilClk,                           -- [in]
+         xadcRst         => axilClk,                           -- [in]
+         vAuxP           => locAuxP,                           -- [in]
+         vAuxN           => locAuxN,                           -- [in]
+         alm             => open,                              -- [out]
+         ot              => open);                             -- [out]
 
    ----------------------
    -- AXI-Lite: Boot Prom

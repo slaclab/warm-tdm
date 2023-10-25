@@ -9,3 +9,4 @@
 ##############################################################################
 # Set top level sim
 #set_property top "HeadUnitTb"     [get_filesets sim_1]
+set_property top "ColumnModuleBoardTb"     [get_filesets sim_1]
