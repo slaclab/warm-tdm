@@ -204,7 +204,7 @@ class ColumnModule(pr.Device):
         self.add(warm_tdm.DataPath(
             offset = 0xC0300000,
             expand = True,
-            waveform_stream = waveform_stream))
+            waveform_stream = None))
 
         self.add(warm_tdm.Ad5679R(
             name = 'SaBiasDac',

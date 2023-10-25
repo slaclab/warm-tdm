@@ -75,9 +75,9 @@ class HardwareGroup(pyrogue.Device):
             # Instantiate the board Device tree and link it to the SRP
             self.add(warm_tdm.ColumnModule(
                 name=f'ColumnBoard[{index}]',
-                memBase=srp, expand=True,
-                rows=rows,
-                waveform_stream=None))
+                memBase=srp,
+                expand=True,
+                rows=rows))
             
             pidDebug = [warm_tdm.PidDebugger(name=f'PidDebug[{i}]', hidden=False, col=i, fastDacDriver=self.ColumnBoard[index].SQ1Fb) for i in range(8)]
             waveGui = warm_tdm.WaveformCaptureReceiver(hidden=False, loading=self.ColumnBoard[index].Loading)
