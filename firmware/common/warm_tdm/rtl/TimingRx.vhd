@@ -40,7 +40,8 @@ entity TimingRx is
       AXIL_CLK_FREQ_G   : real                  := 156.25E6;
       IODELAY_GROUP_G   : string                := "DEFAULT_GROUP";
       IDELAYCTRL_FREQ_G : real                  := 200.0;
-      DEFAULT_DELAY_G   : integer range 0 to 31 := 0);
+      DEFAULT_DELAY_G   : integer range 0 to 31 := 0;
+      AXIL_BASE_ADDR_G  : slv(31 downto 0)      := (others => '0'));
 
    port (
       timingRxClkP  : in sl;
@@ -104,6 +105,16 @@ architecture rtl of TimingRx is
    -------------------------------------------------------------------------------------------------
    -- AXI Lite
    -------------------------------------------------------------------------------------------------
+
+   constant NUM_AXIL_C : integer := 5;
+
+   constant XBAR_COFNIG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_C, AXIL_BASE_ADDR_G, 12, 8);
+
+   signal locAxilWriteMasters : AxiLiteWriteMasterArray(NUM_AXIL_C-1 downto 0);
+   signal locAxilWriteSlaves  : AxiLiteWriteSlaveArray(NUM_AXIL_C-1 downto 0) := (others => AXI_LITE_WRITE_SLAVE_EMPTY_DECERR_C);
+   signal locAxilReadMasters  : AxiLiteReadMasterArray(NUM_AXIL_C-1 downto 0);
+   signal locAxilReadSlaves   : AxiLiteReadSlaveArray(NUM_AXIL_C-1 downto 0)  := (others => AXI_LITE_READ_SLAVE_EMPTY_DECERR_C);
+
    type AxilRegType is record
       realignGearbox : sl;
       resetPll       : sl;
@@ -145,6 +156,8 @@ architecture rtl of TimingRx is
    signal lockingCntCfg   : slv(23 downto 0) := ite(SIMULATION_G, X"000008", X"00FFFF");
    signal counterVector   : SlVectorArray(7 downto 0, 15 downto 0);
    signal statusVector    : slv(7 downto 0);
+
+   signal rowOrderRamOut : slv(7 downto 0);
 
 begin
 
@@ -472,12 +485,59 @@ begin
          rdClk        => axilClk,                     -- [in]
          rdRst        => axilRst);                    -- [in]
 
+   U_AxiLiteCrossbar_1 : entity surf.AxiLiteCrossbar
+      generic map (
+         TPD_G              => TPD_G,
+         NUM_SLAVE_SLOTS_G  => 1,
+         NUM_MASTER_SLOTS_G => NUM_AXIL_C,
+         MASTERS_CONFIG_G   => XBAR_COFNIG_C,
+         DEBUG_G            => false)
+      port map (
+         axiClk              => axilClk,              -- [in]
+         axiClkRst           => axilRst,              -- [in]
+         sAxiWriteMasters(0) => axilWriteMaster,      -- [in]
+         sAxiWriteSlaves(0)  => axilWriteSlave,       -- [out]
+         sAxiReadMasters(0)  => axilReadMaster,       -- [in]
+         sAxiReadSlaves(0)   => axilReadSlave,        -- [out]
+         mAxiWriteMasters    => locAxilWriteMasters,  -- [out]
+         mAxiWriteSlaves     => locAxilWriteSlaves,   -- [in]
+         mAxiReadMasters     => locAxilReadMasters,   -- [out]
+         mAxiReadSlaves      => locAxilReadSlaves);   -- [in]
+
+
+
+   -- RAM for ADC Offsets
+   U_AxiDualPortRam_ROW_ORDER : entity surf.AxiDualPortRam
+      generic map (
+         TPD_G            => TPD_G,
+         SYNTH_MODE_G     => "inferred",
+         MEMORY_TYPE_G    => "block",
+         READ_LATENCY_G   => 3,
+         AXI_WR_EN_G      => true,
+         SYS_WR_EN_G      => false,
+         SYS_BYTE_WR_EN_G => false,
+         COMMON_CLK_G     => false,
+         ADDR_WIDTH_G     => 10,                    -- 1024 Rows
+         DATA_WIDTH_G     => 8)
+      port map (
+         axiClk         => axilClk,                 -- [in]
+         axiRst         => axilRst,                 -- [in]
+         axiReadMaster  => locAxilReadMasters(1),   -- [in]
+         axiReadSlave   => locAxilReadSlaves(1),    -- [out]
+         axiWriteMaster => locAxilWriteMasters(1),  -- [in]
+         axiWriteSlave  => locAxilWriteSlaves(1),   -- [out]
+         clk            => wordClk,                 -- [in]
+         rst            => wordRst,                 -- [in]
+         addr           => r.timingRxData.rowSeq,   -- [in]
+         dout           => rowOrderRamOut);         -- [out]
+
+
 
    -------------------------------------------------------------------------------------------------
    -- Transition to timingRxClk here from wordClk
    -- Is this ok?
    -------------------------------------------------------------------------------------------------
-   comb : process (locked, r, timingRxData, timingRxDataK, timingRxValid, wordRst) is
+   comb : process (locked, r, rowOrderRamOut, timingRxData, timingRxDataK, timingRxValid, wordRst) is
       variable v : RegType;
    begin
       v := r;
@@ -492,7 +552,12 @@ begin
       v.timingRxData.rowStrobe   := '0';
       v.timingRxData.firstSample := '0';
       v.timingRxData.lastSample  := '0';
+      v.timingRxData.loadDacs    := '0';
       v.timingRxData.rawAdc      := '0';
+
+--      v.nextRowSeq := r.timingRxData.rowSeq + 1;
+
+      v.timingRxData.rowIndexNext := rowOrderRamOut;
 
       if (timingRxValid = '1' and timingRxDataK = '1' and locked = '1') then
          case timingRxData is
@@ -502,18 +567,20 @@ begin
                v.timingRxData.readoutCount := (others => '0');
                v.timingRxData.running      := '1';
                v.timingRxData.sample       := '0';
+               v.timingRxData.rowSeq       := (others => '0');
             when END_RUN_C =>
                v.timingRxData.endRun  := '1';
                v.timingRxData.running := '0';
                v.timingRxData.sample  := '0';
-            when FIRST_ROW_C =>
-               v.timingRxData.rowStrobe    := '1';
-               v.timingRxData.rowNum       := (others => '0');
-               v.timingRxData.rowTime      := (others => '0');
-               v.timingRxData.readoutCount := r.timingRxData.readoutCount + 1;
+--             when FIRST_ROW_C =>
+--                v.timingRxData.rowStrobe    := '1';
+--                v.timingRxData.rowNum       := (others => '0');
+--                v.timingRxData.rowTime      := (others => '0');
+--                v.timingRxData.readoutCount := r.timingRxData.readoutCount + 1;
             when ROW_STROBE_C =>
                v.timingRxData.rowStrobe := '1';
-               v.timingRxData.rowNum    := r.timingRxData.rowNum + 1;
+               v.timingRxData.rowSeq    := r.timingRxData.rowSeq + 1;
+               v.timingRxData.rowIndex  := r.timingRxData.rowIndexNext;
                v.timingRxData.rowTime   := (others => '0');
             when SAMPLE_START_C =>
                v.timingRxData.sample      := '1';
@@ -521,6 +588,8 @@ begin
             when SAMPLE_END_C =>
                v.timingRxData.sample     := '0';
                v.timingRxData.lastSample := '1';
+            when LOAD_DACS_C =>
+               v.timingRxData.loadDacs := '1';
             when RAW_ADC_C =>
                v.timingRxData.rawAdc := '1';
             when others => null;
@@ -547,8 +616,8 @@ begin
    -------------------------------------------------------------------------------------------------
    -- AXI-Lite interface
    -------------------------------------------------------------------------------------------------
-   axilComb : process (axilR, axilReadMaster, axilRst, axilWriteMaster, counterVector, curDelay,
-                       debugDataOut, debugDataValid, rxClkFreq, statusVector) is
+   axilComb : process (axilR, axilRst, counterVector, curDelay, debugDataOut, debugDataValid,
+                       locAxilReadMasters, locAxilWriteMasters, rxClkFreq, statusVector) is
       variable v      : AxilRegType;
       variable axilEp : AxiLiteEndpointType;
    begin
@@ -565,7 +634,7 @@ begin
          v.readoutDebug2 := axilR.readoutDebug1;
       end if;
 
-      axiSlaveWaitTxn(axilEp, axilWriteMaster, axilReadMaster, v.axilWriteSlave, v.axilReadSlave);
+      axiSlaveWaitTxn(axilEp, locAxilWriteMasters(0), locAxilReadMasters(0), v.axilWriteSlave, v.axilReadSlave);
 
       -- Up to 8 delay registers
       -- Write delay values to IDELAY primatives
@@ -607,9 +676,9 @@ begin
          v := AXIL_REG_INIT_C;
       end if;
 
-      axilRin        <= v;
-      axilWriteSlave <= axilR.axilWriteSlave;
-      axilReadSlave  <= axilR.axilReadSlave;
+      axilRin               <= v;
+      locAxilWriteSlaves(0) <= axilR.axilWriteSlave;
+      locAxilReadSlaves(0)  <= axilR.axilReadSlave;
 
    end process;
 

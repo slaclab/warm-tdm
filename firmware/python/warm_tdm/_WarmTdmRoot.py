@@ -39,10 +39,12 @@ class StreamDebug(rogue.interfaces.stream.Slave):
 class WarmTdmRoot(pyrogue.Root):
     def __init__(
             self,
+            host,
+            rowBoards,
+            colBoards,
             simulation=False,
             emulate=False,
             plots=False,
-            groups=[NORMAL_GROUP],
             **kwargs):
 
         # Disable polling and set a longer timeout in simulation mode
@@ -55,22 +57,24 @@ class WarmTdmRoot(pyrogue.Root):
 
         self.zmqServer = pyrogue.interfaces.ZmqServer(root=self, addr='*', port=0)
         self.addInterface(self.zmqServer)
+        self.add(pyrogue.utilities.fileio.StreamWriter(name='DataWriter',groups='DocApi'))        
 
         # Add the data writer
         #self.add(pyrogue.utilities.fileio.StreamWriter(name='DataWriter'))
         #self >> self.DataWriter.getChannel(len(groups))
 
-        for i, s in enumerate(groups):
-            self.add(warm_tdm.HardwareGroup(
-                name=f'HardwareGroup[{i}]',
-                groupId=i,
-                dataWriter=self.DataWriter,
-                simulation=simulation,
-                emulate=emulate,
-                expand=True,
-                plots=plots,
-                rows=32*s['rowBoards'],
-                **s))
+        self.add(warm_tdm.HardwareGroup(
+            groupId=0,
+            dataWriter=self.DataWriter,
+            simulation=simulation,
+            emulate=emulate,
+            host=host,
+            colBoards=colBoards,
+            rowBoards=rowBoards,
+            plots=plots,
+#            groups=['Hardware'],
+            expand=True))
+
 
 
 

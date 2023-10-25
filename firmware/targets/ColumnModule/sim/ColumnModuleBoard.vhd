@@ -524,12 +524,11 @@ begin
       constant R_FB_C       : real := 1.1e3;
       constant R_CABLE_C    : real := 200.0;
       constant R_FB_SHUNT_C : real := 7.15e3;
-
-      constant G_BIAS_C   : real := 1.0/R_BIAS_C;
-      constant G_OFFSET_C : real := 1.0/R_OFFSET_C;
-      constant G_GAIN_C   : real := 1.0/R_GAIN_C;
-      constant G_FB_C     : real := 1.0/R_FB_C;
-      constant G_CABLE_C  : real := 1.0/R_CABLE_C;
+      constant G_BIAS_C     : real := 1.0/R_BIAS_C;
+      constant G_OFFSET_C   : real := 1.0/R_OFFSET_C;
+      constant G_GAIN_C     : real := 1.0/R_GAIN_C;
+      constant G_FB_C       : real := 1.0/R_FB_C;
+      constant G_CABLE_C    : real := 1.0/R_CABLE_C;
 
       constant G2_C : real := 11.0;
       constant G3_C : real := 1.5;
@@ -543,8 +542,7 @@ begin
       amplitudeTmp(i) <= (-100.0e9) * (saBiasCurrent(i)-20.0e-6) * (saBiasCurrent(i)-60.0e-6);
       amplitude(i)    <= ite(amplitudeTmp(i) < 0.0, 0.0, amplitudeTmp(i));
 
-      fbCurrent(i) <= saFbOut(i)/R_FB_SHUNT_C;
-
+      fbCurrent(i)    <= saFbOut(i)/R_FB_SHUNT_C;
       saResistance(i) <= 125.0 + amplitude(i) * cos(fbCurrent(i) * 2 * MATH_PI / PHI_NOT_C - saBias(i)) + amplitude(i);
 
       saSig(i) <= saBias(i) * saResistance(i) / (saResistance(i) + R_BIAS_C);

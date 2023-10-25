@@ -67,9 +67,10 @@ entity Timing is
       timingTxDataN : out sl;
 
       -- XBAR select
-      xbarDataSel : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
-      xbarClkSel  : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
-      xbarMgtSel  : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarDataSel   : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarClkSel    : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarMgtSel    : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarTimingSel : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
 
       -- Configuration
       axilClk         : in  sl;
@@ -94,10 +95,26 @@ architecture rtl of Timing is
    attribute IODELAY_GROUP                 : string;
    attribute IODELAY_GROUP of IDELAYCTRL_0 : label is IODELAY_GROUP_G;
 
-   signal locAxilWriteMasters : AxiLiteWriteMasterArray(1 downto 0);
-   signal locAxilWriteSlaves  : AxiLiteWriteSlaveArray(1 downto 0);
-   signal locAxilReadMasters  : AxiLiteReadMasterArray(1 downto 0);
-   signal locAxilReadSlaves   : AxiLiteReadSlaveArray(1 downto 0);
+   constant NUM_AXIL_MASTERS_C : integer := 2;
+   constant AXIL_RX_C          : integer := 0;
+   constant AXIL_TX_C          : integer := 1;
+
+
+   constant AXIL_XBAR_CFG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := (
+      AXIL_RX_C       => (
+         baseAddr     => AXIL_BASE_ADDR_G + X"0000",
+         addrBits     => 8,
+         connectivity => X"FFFF"),
+      AXIL_TX_C       => (
+         baseAddr     => AXIL_BASE_ADDR_G + X"0100",
+         addrBits     => 8,
+         connectivity => X"FFFF"));
+
+
+   signal locAxilWriteMasters : AxiLiteWriteMasterArray(NUM_AXIL_MASTERS_C-1 downto 0);
+   signal locAxilWriteSlaves  : AxiLiteWriteSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0);
+   signal locAxilReadMasters  : AxiLiteReadMasterArray(NUM_AXIL_MASTERS_C-1 downto 0);
+   signal locAxilReadSlaves   : AxiLiteReadSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0);
 
 
 begin
@@ -149,16 +166,8 @@ begin
       generic map (
          TPD_G              => TPD_G,
          NUM_SLAVE_SLOTS_G  => 1,
-         NUM_MASTER_SLOTS_G => 2,
-         MASTERS_CONFIG_G   => (
-            0               => (
-               baseAddr     => AXIL_BASE_ADDR_G + X"0000",
-               addrBits     => 8,
-               connectivity => X"FFFF"),
-            1               => (
-               baseAddr     => AXIL_BASE_ADDR_G + X"0100",
-               addrBits     => 8,
-               connectivity => X"FFFF")),
+         NUM_MASTER_SLOTS_G => NUM_AXIL_MASTERS_C,
+         MASTERS_CONFIG_G   => AXIL_XBAR_CFG_C,
          DEBUG_G            => true)
       port map (
          axiClk              => axilClk,              -- [in]
@@ -182,7 +191,8 @@ begin
          AXIL_CLK_FREQ_G   => AXIL_CLK_FREQ_G,
          IODELAY_GROUP_G   => IODELAY_GROUP_G,
          IDELAYCTRL_FREQ_G => IDELAYCTRL_FREQ_G,
-         DEFAULT_DELAY_G   => DEFAULT_DELAY_G)
+         DEFAULT_DELAY_G   => DEFAULT_DELAY_G,
+         AXIL_BASE_ADDR_G  => AXIL_XBAR_CFG_C(AXIL_RX_C).baseAddr)
       port map (
          timingRxClkP    => timingRxClkP,            -- [in]
          timingRxClkN    => timingRxClkN,            -- [in]
@@ -208,8 +218,9 @@ begin
          timingRefClk    => timingFabRefClk,         -- [in]
          timingRefRst    => timingRefRst,            -- [in]
          xbarDataSel     => xbarDataSel,             -- [out]
-         xbarClkSel      => xbarClkSel,              --[out]
-         xbarMgtSel      => xbarMgtSel,              --[out]         
+         xbarClkSel      => xbarClkSel,              -- [out]
+         xbarMgtSel      => xbarMgtSel,              -- [out]
+         xbarTimingSel   => xbarTimingSel,           -- [out]
          timingTxClkP    => timingTxClkP,            -- [out]
          timingTxClkN    => timingTxClkN,            -- [out]
          timingTxDataP   => timingTxDataP,           -- [out]

@@ -24,14 +24,14 @@ class HardwareGroup(pyrogue.Device):
             emulate=False,
             host='192.168.3.11',
             colBoards=4,
-            rowBoards=2,
-            rows=64,
+            rowBoards=1,
+            rows=256,
             plots=False,
             **kwargs):
 
         super().__init__(**kwargs)
 
-        print(f'HardwareGroup with {rows} rows')
+#        print(f'HardwareGroup with {rows} rows')
 
         # Open rUDP connections to the Manager board
         if simulation is False and emulate is False:
@@ -54,6 +54,8 @@ class HardwareGroup(pyrogue.Device):
                 srpStream = rogue.interfaces.stream.TcpClient('localhost', SIM_SRP_PORT + (0x00 <<4 | index)*2)
                 dataStream = rogue.interfaces.stream.TcpClient('localhost', SIM_DATA_PORT + (0x00 <<4 | index)*2)
                 self.addInterface(srpStream, dataStream)
+
+                
                 srp = rogue.protocols.srp.SrpV3()
                 srp == srpStream
 
@@ -63,18 +65,46 @@ class HardwareGroup(pyrogue.Device):
                 srp = rogue.protocols.srp.SrpV3()
                 srp == srpStream
 
+            # Data streams are packetized and need to be unpacked
+            packetizer = rogue.protocols.packetizer.CoreV2(False, False, False);
+            fifo = rogue.interfaces.stream.Fifo(10, 0, False)
+            dataStream >> fifo >> packetizer.transport()
+            self.addInterface(packetizer, fifo)
+                
+
             # Instantiate the board Device tree and link it to the SRP
-            self.add(warm_tdm.ColumnModule(name=f'ColumnBoard[{index}]', memBase=srp, expand=True, rows=rows, waveform_stream=dataStream))
-            waveGui = warm_tdm.WaveformCaptureReceiver(hidden=False, loading=self.ColumnBoard[index].loading)
+            self.add(warm_tdm.ColumnModule(
+                name=f'ColumnBoard[{index}]',
+                memBase=srp,
+                expand=True,
+                rows=rows))
+            
+            pidDebug = [warm_tdm.PidDebugger(name=f'PidDebug[{i}]', hidden=False, col=i, fastDacDriver=self.ColumnBoard[index].SQ1Fb) for i in range(8)]
+            waveGui = warm_tdm.WaveformCaptureReceiver(hidden=False, loading=self.ColumnBoard[index].Loading)
 
             # Link the data stream to the DataWriter
             if emulate is False:
                 dataWriterChannel = (groupId << 3) | index
-                dataStream >> dataWriter.getChannel(dataWriterChannel)
+                #dataStream >> dataWriter.getChannel(dataWriterChannel)
 
-                #debug = warm_tdm.StreamDebug()
 
-                dataStream >> waveGui
+                debug = rogue.interfaces.stream.Slave()
+                debug.setDebug(100, 'DataStream')
+ #               dataStream >> debug
+                #self.addInterface(debug)
+
+                for i in range(8):
+                    chDbg = rogue.interfaces.stream.Slave()
+                    chDbg.setDebug(100, f'DataStream_App_{i}')
+                    rateDrop = rogue.interfaces.stream.RateDrop(True, 0.1)
+                    self.addInterface(rateDrop)
+                    packetizer.application(i) >> rateDrop >> pidDebug[i]                    
+#                    packetizer.application(i) >> chDbg
+                    #self.addInterface(chDbg, pidDebug[i])
+                    
+                #dataStream >> pidDebug
+                packetizer.application(8) >> waveGui
+#                packetizer.application(0) >> pidDebug
 
 #                 else:
 #                     debug = warm_tdm.StreamDebug()
@@ -100,21 +130,18 @@ class HardwareGroup(pyrogue.Device):
                 srp == srpStream
 
             # Instantiate the board Device tree and link it to the SRP
-            self.add(warm_tdm.RowModule(name=f'RowBoard[{rowIndex}]', memBase=srp, expand=False, enabled=False))
+            self.add(warm_tdm.RowModule(name=f'RowBoard[{rowIndex}]', memBase=srp, expand=True, enabled=True))
 
         self.add(pyrogue.LocalVariable(
             name = 'ReadoutList',
             typeStr = 'int',
             value = [0,1,2,3] )) #list(range(48))))
 
-        self.add(waveGui)
+        if colBoards > 0:
+            self.add(waveGui)
+            for i in range(8):
+                self.add(pidDebug[i])
 
 
-    def writeBlocks(self, **kwargs):
-        # Do the normal write
-        super().writeBlocks(**kwargs)
-
-        #Then configure the row selects according to the ReadoutList
-        #self.RowSelectArray.configure(self.ReadoutList.value())
 
 

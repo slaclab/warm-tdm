@@ -9,7 +9,7 @@ class TimingTx(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = "Mode",
-            offset = 0x14,
+            offset = 0x18,
             bitSize = 1,
             bitOffset = 0,
             enum = {
@@ -18,7 +18,7 @@ class TimingTx(pr.Device):
 
         self.add(pr.RemoteCommand(
             name = "SoftRowStrobe",
-            offset = 0x18,
+            offset = 0x1C,
             bitSize = 1,
             bitOffset = 0,
             function = pr.RemoteCommand.touchOne))
@@ -90,7 +90,7 @@ class TimingTx(pr.Device):
             mode = 'RW',
             offset = 0x08,
             bitOffset = 0,
-            bitSize = 16,
+            bitSize = 32,
             disp = '{:d}'))
 
         self.add(pr.RemoteVariable(
@@ -106,17 +106,25 @@ class TimingTx(pr.Device):
             mode = 'RW',
             offset = 0x10,
             bitOffset = 0,
-            bitSize = 16,
+            bitSize = 32,
             disp = '{:d}'))
         
         self.add(pr.RemoteVariable(
             name = 'SampleEndTime',
             mode = 'RW',
-            offset = 0x10,
-            bitOffset = 16,
-            bitSize = 16,
+            offset = 0x14,
+            bitOffset = 0,
+            bitSize = 32,
             disp = '{:d}'))
-
+        
+        self.add(pr.RemoteVariable(
+            name = 'LoadDacsTime',
+            mode = 'RW',
+            offset = 0x24,
+            bitOffset = 0,
+            bitSize = 32,
+            disp = '{:d}'))
+        
         self.add(pr.RemoteVariable(
             name = 'Running',
             mode = 'RO',
@@ -227,4 +235,26 @@ class TimingTx(pr.Device):
             enum = {
                 0: 'RJ-45 RX',
                 1: 'FPGA TX'}))
+
+        self.add(pr.RemoteVariable(
+            name = 'XbarTxTimingSrc',
+            mode = 'RW',
+            offset = 0x50,
+            bitOffset = 12,
+            bitSize = 1,
+            enum = {
+                0: 'RJ-45 RX',
+                1: 'FPGA TX'}))
+
+
+        self.add(pr.RemoteVariable(
+            name = 'XbarRxTimingSrc',
+            mode = 'RW',
+            offset = 0x50,
+            bitOffset = 13,
+            bitSize = 1,
+            enum = {
+                0: 'RJ-45 RX',
+                1: 'FPGA TX'}))
+        
         

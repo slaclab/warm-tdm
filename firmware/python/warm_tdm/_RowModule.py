@@ -11,13 +11,9 @@ class RowModule(pr.Device):
 
         self.add(warm_tdm.WarmTdmCore(
             offset = 0x00000000,
-            expand = True))
-        
-        self.add(warm_tdm.RowModuleDacs(
-            offset = 0xC1000000,
             expand = True,
-            enabled = True))
-
+            therm_channels = [3, 11, 4, 12]))
+        
         self.add(surf.protocols.ssi.SsiPrbsRx(
             hidden = True,
             offset = 0xC0200000))
@@ -26,17 +22,11 @@ class RowModule(pr.Device):
             hidden = True,
             offset = 0xC0201000))
 
-        self.add(warm_tdm.RowSelectArray(rowModule=self))
+        self.add(warm_tdm.RowDacDriver(
+            offset = 0xC100_0000,
+            num_row_selects = 32,
+            num_chip_selects = 0,
+            expand = True))
 
-        @self.command()
-        def Run():
-            for i, dac in self.RowModuleDacs.Ad9106.items():
-                dac.RUN.set(1, write=True)
-            self.WarmTdmCore.Timing.TimingTx.StartRun()
 
-        @self.command()
-        def Stop():
-            self.WarmTdmCore.Timing.TimingTx.EndRun()            
-            for i, dac in self.RowModuleDacs.Ad9106.items():
-                dac.RUN.set(0, write=True)
 

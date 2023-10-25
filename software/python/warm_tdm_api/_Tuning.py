@@ -56,7 +56,7 @@ def saOffset(*, group, process=None):
         for i, p in enumerate(pid):
             change = p(masked[i])
             control[i] = np.clip(control[i] + change, 0.0, 2.499)
-            print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')
+            #print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')
 
         group.SaOffset.set(control)
 
@@ -164,9 +164,9 @@ def saBiasSweep(*, group, process):
         # Only set bias for enabled columns
         #print(f'Setting SaBias values = {saBiasRange[:, idx]}')
         group.SaBiasCurrent.set(saBiasRange[:, idx])
-        print('Starting saOffset()')
+        #print('Starting saOffset()')
         saOffset(group=group)
-        print('Done saOffset()')        
+        #print('Done saOffset()')        
 
         curves = saFbSweep(group=group,bias=saBiasRange[:, idx], saFbRange=saFbRange, process=process)
 

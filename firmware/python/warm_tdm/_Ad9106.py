@@ -1783,16 +1783,16 @@ class Ad9106(pr.Device):
 #                 valueBits = 12,
 #                 valueStride = 32))
 
-        self.add(Ad9106Sram(
-            dac = self,
-            enabled=True,
-            name = 'SRAM',
-            description = 'SRAM for waveforms',
-            offset = SRAM_DATA,
-            size = 2**12<<2,
-            base = pr.UInt,
-            wordBitSize = 12,
-            stride = 4))
+#         self.add(Ad9106Sram(
+#             dac = self,
+#             enabled=True,
+#             name = 'SRAM',
+#             description = 'SRAM for waveforms',
+#             offset = SRAM_DATA,
+#             size = 2**12<<2,
+#             base = pr.UInt,
+#             wordBitSize = 12,
+#             stride = 4))
 
         # Don't need RAMUPDATE if writing to BUF_READ, MEM_ACCESS or RUN
         self.NON_BUFFERED = [self.BUF_READ, self.MEM_ACCESS, self.RUN]
@@ -1850,7 +1850,7 @@ class Ad9106(pr.Device):
 
 
 
-class Ad9106Sram(pr.MemoryDevice):
+class Ad9106Sram(pr.Device): # Temp hack
     def __init__(self, dac, **kwargs):
         super().__init__(**kwargs)
         self._dac = dac

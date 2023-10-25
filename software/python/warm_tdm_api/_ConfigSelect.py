@@ -14,7 +14,7 @@ class ConfigSelect(pr.Device):
                                  value=0,
                                  mode='RW',
                                  minimum=0,
-                                 maximum=len(group._config.rowOrder),
+                                 maximum=group.config.numRows,
                                  groups='TopApi',
                                  description="Row Configuration Selection"))
 
@@ -24,7 +24,7 @@ class ConfigSelect(pr.Device):
                                  value=0,
                                  mode='RW',
                                  minimum=0,
-                                 maximum=len(group._config.columnMap),
+                                 maximum=group.config.numColumns,
                                  groups='TopApi',
                                  description="Row Configuration Selection"))
 

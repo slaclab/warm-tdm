@@ -35,17 +35,18 @@ use warm_tdm.TimingPkg.all;
 entity WarmTdmCore is
 
    generic (
-      TPD_G                   : time             := 1 ns;
-      SIMULATION_G            : boolean          := false;
-      SIM_PGP_PORT_NUM_G      : integer          := 7000;
-      SIM_ETH_SRP_PORT_NUM_G  : integer          := 8000;
-      SIM_ETH_DATA_PORT_NUM_G : integer          := 9000;
+      TPD_G                   : time                     := 1 ns;
+      SIMULATION_G            : boolean                  := false;
+      SIM_PGP_PORT_NUM_G      : integer                  := 7000;
+      SIM_ETH_SRP_PORT_NUM_G  : integer                  := 8000;
+      SIM_ETH_DATA_PORT_NUM_G : integer                  := 9000;
       BUILD_INFO_G            : BuildInfoType;
-      RING_ADDR_0_G           : boolean          := false;
-      ETH_10G_G               : boolean          := false;
-      DHCP_G                  : boolean          := false;
-      IP_ADDR_G               : slv(31 downto 0) := x"0B03A8C0";  -- 192.168.3.11
-      MAC_ADDR_G              : slv(47 downto 0) := x"0B_00_16_56_00_08");
+      RING_ADDR_0_G           : boolean                  := false;
+      ETH_10G_G               : boolean                  := false;
+      DHCP_G                  : boolean                  := false;
+      IP_ADDR_G               : slv(31 downto 0)         := x"0B03A8C0";  -- 192.168.3.11
+      MAC_ADDR_G              : slv(47 downto 0)         := x"0B_00_16_56_00_08";
+      XADC_AUX_CHANS_G        : IntegerArray(3 downto 0) := (12, 4, 11, 3));
 
    port (
       ----------------
@@ -64,9 +65,10 @@ entity WarmTdmCore is
       pgpRxN : in  slv(1 downto 0);
 
       -- Timing Interface Crossbars
-      xbarDataSel : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
-      xbarClkSel  : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
-      xbarMgtSel  : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarDataSel   : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarClkSel    : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarMgtSel    : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
+      xbarTimingSel : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
 
       -- SelectIO Timing
       timingRxClkP  : in  sl;
@@ -304,24 +306,25 @@ begin
          IODELAY_GROUP_G   => "IODELAY0",
          IDELAYCTRL_FREQ_G => 200.0)
       port map (
-         timingGtRefClk  => gtRefClk1,                           -- [in]
-         timingFabRefClk => fabRefClk1,                          -- [in]
-         timingRxClkP    => timingRxClkP,                        -- [in]
-         timingRxClkN    => timingRxClkN,                        -- [in]
-         timingRxDataP   => timingRxDataP,                       -- [in]
-         timingRxDataN   => timingRxDataN,                       -- [in]
+         timingGtRefClk  => gtRefClk1,  -- [in]
+         timingFabRefClk => fabRefClk1,     -- [in]
+         timingRxClkP    => timingRxClkP,   -- [in]
+         timingRxClkN    => timingRxClkN,   -- [in]
+         timingRxDataP   => timingRxDataP,  -- [in]
+         timingRxDataN   => timingRxDataN,  -- [in]
          timingRxClkOut  => locTimingRxClk125,                   -- [out]
          timingRxRstOut  => timingRxRst125,                      -- [out]
-         timingRxDataOut => timingRxData,                        -- [out]
-         timingTxClkP    => timingTxClkP,                        -- [out]
-         timingTxClkN    => timingTxClkN,                        -- [out]
-         timingTxDataP   => timingTxDataP,                       -- [out]
-         timingTxDataN   => timingTxDataN,                       -- [out]
-         xbarClkSel      => xbarClkSel,                          -- [out]
-         xbarDataSel     => xbarDataSel,                         -- [out]
-         xbarMgtSel      => xbarMgtSel,                          -- [out]         
-         axilClk         => locAxilClk,                          -- [in]
-         axilRst         => locAxilRst,                          -- [in]
+         timingRxDataOut => timingRxData,   -- [out]
+         timingTxClkP    => timingTxClkP,   -- [out]
+         timingTxClkN    => timingTxClkN,   -- [out]
+         timingTxDataP   => timingTxDataP,  -- [out]
+         timingTxDataN   => timingTxDataN,  -- [out]
+         xbarClkSel      => xbarClkSel,     -- [out]
+         xbarDataSel     => xbarDataSel,    -- [out]
+         xbarMgtSel      => xbarMgtSel,     -- [out]
+         xbarTimingSel   => xbarTimingSel,  -- [out]                                                                 -- 
+         axilClk         => locAxilClk,     -- [in]
+         axilRst         => locAxilRst,     -- [in]
          axilWriteMaster => locAxilWriteMasters(AXIL_TIMING_C),  -- [in]
          axilWriteSlave  => locAxilWriteSlaves(AXIL_TIMING_C),   -- [out]
          axilReadMaster  => locAxilReadMasters(AXIL_TIMING_C),   -- [in]
@@ -383,7 +386,8 @@ begin
          SIMULATION_G     => SIMULATION_G,
          BUILD_INFO_G     => BUILD_INFO_G,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_COMMON_C).baseAddr,
-         AXIL_CLK_FREQ_G  => AXIL_CLK_FREQ_C)
+         AXIL_CLK_FREQ_G  => AXIL_CLK_FREQ_C,
+         XADC_AUX_CHANS_G => XADC_AUX_CHANS_G)
       port map (
          axilClk         => locAxilClk,                          -- [in]
          axilRst         => locAxilRst,                          -- [in]

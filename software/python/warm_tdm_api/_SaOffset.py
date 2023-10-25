@@ -10,13 +10,11 @@ import warm_tdm_api
 class SaOffsetProcess(pr.Process):
     """ Use a PID loop to determine the SaOffset values that null out the SaBias contribution to the input chain. """
 
-    def __init__(self, **kwargs):
+    def __init__(self, config, **kwargs):
 
         description = """Process which attempts to find an SaOffset value which results in the SaOut value being zero.
         A PID controller is used with configurable parameters, including a precision value to determine how close to zero the loop must come.
         A timeout value will terminate the process if it fails to converge witing a set period of time."""
-
-
 
         # Init master class
         pr.Process.__init__(
@@ -63,7 +61,7 @@ class SaOffsetProcess(pr.Process):
         self.add(pr.LocalVariable(
             name='SaOffsetOutput',
             hidden=True,
-            value=[],
+            value=np.zeros(config.numColumns),
             mode='RO',
             description="Results Data From SA Offset. This is an array of values, one for each column. The length is ColumnCount * 8'"))
 
@@ -81,7 +79,7 @@ class SaOffsetProcess(pr.Process):
 
 class SaOffsetSweepProcess(pr.Process):
 
-    def __init__(self, config, **kwargs):
+    def __init__(self, config, group, **kwargs):
 
         description = """Process which performs an SaBias sweep and plots the SaOffset value required to zero out the SaOut value at each step.
         The SaOffset PID parameters are taken from the SaOffsetProcess Device."""
@@ -98,12 +96,14 @@ class SaOffsetSweepProcess(pr.Process):
         self.add(pr.LocalVariable(name='SaBiasLow',
                                   value=1.0,
                                   mode='RW',
+                                  units=group.SaBiasCurrent.units,
                                   description="Starting point offset for SA Bias Sweep"))
 
         # High offset for SA Bias Tuning
         self.add(pr.LocalVariable(name='SaBiasHigh',
                                   value=100.0,
                                   mode='RW',
+                                  units=group.SaBiasCurrent.units,                                  
                                   description="Ending point offset for SA Bias Sweep"))
 
         # Step size for SA Bias Tuning
@@ -114,7 +114,8 @@ class SaOffsetSweepProcess(pr.Process):
                                   description="Number of steps for SA Bias Sweep"))
 
         self.add(pr.LocalVariable(name='SaFbPoints',
-                                  value = [0.0, 0.15],
+                                  value = [0.0, 60.0, 120.0],
+                                  units=group.SaFbForceCurrent.units,
                                   mode = 'RW'))
 
         self.add(pr.LocalVariable(name='PlotXData',
@@ -127,7 +128,7 @@ class SaOffsetSweepProcess(pr.Process):
                                   description=f'Y axis data',
                                   mode='RO',
                                   hidden=True,
-                                  value = np.zeros([10, 2, self.columns])))
+                                  value = np.zeros([10, 3, self.columns])))
 
         self.add(pr.LocalVariable(name='PlotChannel',
                                   value = 0,
