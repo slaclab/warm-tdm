@@ -71,13 +71,13 @@ class AdcDsp(pr.Device):
             amp = self.parent.parent.Amp[column]
             dac = amp.outCurrentToDac(value)
             # Convert inverted offset binary to 2s complement
-            dac = (dac & 2000) | (~dac & 1fff)
+            dac = (dac & 0x2000) | (~dac & 0x1fff)
             self.PhiNotRaw.set(dac, write=write)
 
         def _get(read):
             amp = self.parent.parent.Amp[column]
             dac = self.PhiNotRaw.get(read=read)
-            dac = (dac & 2000) | (~dac & 1fff)            
+            dac = (dac & 0x2000) | (~dac & 0x1fff)            
             current = amp.dacToOutCurrent(dac)
             return current
             
