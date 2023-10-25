@@ -40,7 +40,7 @@ class FastDacMem(pr.Device):
             currents = [self.amp.dacToOutCurrent(dac) for dac in dacs]
             currents = np.array(currents, dtype=np.float64)
         else:
-            currents = self.amp.outCurrentToDac(dac)
+            currents = self.amp.outCurrentToDac(dacs)
 
         return currents
 
@@ -159,7 +159,7 @@ class FastDacDriver(pr.Device):
         for col in range(8):
 
             self.add(FastDacMem(
-                name = f'ColumnRaw[{col}]',
+                name = f'Column[{col}]',
                 offset = col << 12,
                 amp = self.Amp[col],
                 size = rows))
