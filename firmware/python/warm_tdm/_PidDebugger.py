@@ -12,21 +12,21 @@ class PidDebugger(pr.DataReceiver):
         self.add(pr.RemoteVariable(
             name = 'Column',
             mode = 'RO',
-            offset = 0x00,
+            offset = 0 * 8,
             base = pr.UInt,
             bitSize = 3))
 
         self.add(pr.RemoteVariable(
             name = 'AccumError',
             mode = 'RO',
-            offset = 0x08*2,
+            offset = 2 * 8,
             base = pr.Fixed(22, 0),
             bitSize = 22))
 
         self.add(pr.RemoteVariable(
             name = 'SumAccum',
             mode = 'RO',
-            offset = 0x10*2,
+            offset = 4 * 8,
             base = pr.Fixed(22, 0),
             bitSize = 22))
 
@@ -34,7 +34,7 @@ class PidDebugger(pr.DataReceiver):
         self.add(pr.RemoteVariable(
             name = 'Diff',
             mode = 'RO',
-            offset = 0x14*2,
+            offset = 5 * 8,
             base = pr.Fixed(22, 0),
             bitSize = 22))
 
@@ -42,14 +42,14 @@ class PidDebugger(pr.DataReceiver):
         self.add(pr.RemoteVariable(
             name = 'PidResult',
             mode = 'RO',
-            offset = 0x18*2,
+            offset = 6 * 8,
             base = pr.Fixed(40, 17),
             bitSize = 40))
 
         self.add(pr.RemoteVariable(
             name = 'Sq1FbPreRaw',
             mode = 'RO',
-            offset = 0x0C*2,
+            offset = 3 * 8,
             base = pr.UInt,
             bitSize = 14))
 
@@ -64,7 +64,7 @@ class PidDebugger(pr.DataReceiver):
         self.add(pr.RemoteVariable(
             name = 'Sq1FbPostRaw',
             mode = 'RO',
-            offset = 0x1C*2,
+            offset = 8 * 8,
             base = pr.UInt,
             bitSize = 14))
 
@@ -75,6 +75,14 @@ class PidDebugger(pr.DataReceiver):
             units = u'\u03bcA',
             dependencies = [self.Sq1FbPostRaw, self.Column],
             linkedGet = lambda: fastDacDriver.Amp[self.Column.value()].dacToOutCurrent(self.Sq1FbPostRaw.value())))
+
+        self.add(pr.RemoteVariable(
+            name = 'FluxJumps',
+            mode = 'RO',
+            offset = 7 * 8,
+            base = pr.Int,
+            bitSize = 8,
+            bitOffset = 0))
         
 
     def process(self, frame):

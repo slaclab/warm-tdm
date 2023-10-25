@@ -20,6 +20,7 @@ class DataPath(pr.Device):
         for i in range(8):
             self.add(warm_tdm.AdcDsp(
                 name = f'AdcDsp[{i}]',
+                column = i,
                 offset = (i+1) << 16))
 
         self.add(warm_tdm.WaveformCapture(

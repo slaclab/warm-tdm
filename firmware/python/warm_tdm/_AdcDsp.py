@@ -11,7 +11,7 @@ import warm_tdm
 
 
 class AdcDsp(pr.Device):
-    def __init__(self, numRows=256, **kwargs):
+    def __init__(self, column, numRows=256, **kwargs):
         super().__init__(**kwargs)
 
         ACCUM_BITS = 22
@@ -59,6 +59,42 @@ class AdcDsp(pr.Device):
             base = COEF_BASE,
             bitSize = 18,
             bitOffset = 0))
+
+        self.add(pr.RemoteVariable(
+            name = 'PhiNotRaw',
+            offset = 0x40,
+            base = pr.Int,
+            bitSize = 14,
+            bitOffset = 0))
+
+        def _set(value, write):
+            amp = self.parent.parent.Amp[column]
+            dac = amp.outCurrentToDac(value)
+            # Convert inverted offset binary to 2s complement
+            dac = (dac & 2000) | (~dac & 1fff)
+            self.PhiNotRaw.set(dac, write=write)
+
+        def _get(read):
+            amp = self.parent.parent.Amp[column]
+            dac = self.PhiNotRaw.get(read=read)
+            dac = (dac & 2000) | (~dac & 1fff)            
+            current = amp.dacToOutCurrent(dac)
+            return current
+            
+        self.add(pr.LinkVariable(
+            name = 'PhiNot',
+            dependencies = [self.PhiNotRaw],
+            units = u'\u03bcA',            
+            linkedSet = _set,
+            linkedGet = _get))
+
+        self.add(pr.RemoteVariable(
+            name = 'FluxJumps',
+            offset = 0x44,
+            base = pr.Int,
+            bitSize = 8,
+            bitOffset = 0,
+            disp = '{:d}'))
 
         self.add(pr.RemoteVariable(
             name = 'AccumError_DBG',
