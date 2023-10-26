@@ -68,14 +68,14 @@ class AdcDsp(pr.Device):
             bitOffset = 0))
 
         def _set(value, write):
-            amp = self.parent.parent.Amp[column]
+            amp = self.parent.parent.SQ1Fb.Amp[column]
             dac = amp.outCurrentToDac(value)
             # Convert inverted offset binary to 2s complement
             dac = (dac & 0x2000) | (~dac & 0x1fff)
             self.FluxQuantumRaw.set(dac, write=write)
 
         def _get(read):
-            amp = self.parent.parent.Amp[column]
+            amp = self.parent.parent.SQ1Fb.Amp[column]
             dac = self.FluxQuantumRaw.get(read=read)
             dac = (dac & 0x2000) | (~dac & 0x1fff)            
             current = amp.dacToOutCurrent(dac)

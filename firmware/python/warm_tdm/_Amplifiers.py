@@ -206,7 +206,7 @@ class FastDacAmplifierSE(pr.Device):
             linkedGet = self.rout))
 
     def gain(self):
-        ret = self.FbR.value() / self.InputR.value()
+        ret = self.FbR.value() / (self.InputR.value())
         if self.Invert.value() is True:
             ret = ret * -1
         return ret

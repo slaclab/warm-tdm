@@ -29,7 +29,7 @@ class SinglePlot(pr.LinkVariable):
     def linkedGet(self, index=-1, read=False):
         tune = self.parent.Sq1TuneOutput.value()
         
-        if tune == {}:
+        if tune == {} or tune == []:
             return self._fig
 
 
@@ -39,8 +39,10 @@ class SinglePlot(pr.LinkVariable):
         else:
             col, row = index
 
- #       shunts = [self.parent.Loading.Column[x].SQ1_FB_SHUNT_R.value() for x in range(8)]            
+        print(f'Sq1TunePlot - {row=}, {col=}')
 
+ #       shunts = [self.parent.Loading.Column[x].SQ1_FB_SHUNT_R.value() for x in range(8)]            
+ 
         self._plot_ax(self._ax, col, row, tune[row][col])
 
         return self._fig
@@ -61,7 +63,7 @@ class MultiPlot(SinglePlot):
         tune = self.parent.Sq1TuneOutput.value()
 #        shunt = self.parent.parent.SQ1_FB_SHUNT_R.value()        
 
-        if tune == {}:
+        if tune == {} or tune == []:
             return self._fig
 
         if index == -1:
@@ -258,6 +260,8 @@ class Sq1TuneProcess(pr.Process):
         with self.root.updateGroup(0.25):
             ret = warm_tdm_api.sq1Tune(group=self.parent, process=self)
         self.Sq1TuneOutput.set(value = [[col.asDict() for col in row] for row in ret])
+        print('SQ1Tune Output')
+        print(self.Sq1TuneOutput.value())
 
     def _saveData(self,arg):
         print(f"Sq1Tune - Save data called with {arg=}")

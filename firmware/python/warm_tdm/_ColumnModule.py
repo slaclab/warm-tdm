@@ -228,18 +228,21 @@ class ColumnModule(pr.Device):
         self.add(warm_tdm.FastDacDriver(
             name = 'SAFb',
             offset = 0xC0600000,
+            shunt = 7.15e3,
             rows = rows,            
         ))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Bias',
             offset = 0xC0400000,
+            shunt = 10.0e3,
             rows = rows,
         ))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Fb',
             offset =0xC0500000,
+            shunt = 11.3e3,
             rows = rows,
         ))
 
@@ -264,25 +267,25 @@ class ColumnModule(pr.Device):
         def _saOutGet(*, read=True, index=-1, check=True):
             #print(f'ColumnModule._saOutGet({read=}, {index=}, {check=})')
             with self.root.updateGroup():
-                adc = self.SaOutAdc.get(read=read, index=index, check=check)
-                offset = self.SaBiasOffset.OffsetVoltageArray.get(read=read, index=index, check=check)
+                adcs = self.SaOutAdc.get(read=read, index=index, check=check)
+                offsets = self.SaBiasOffset.OffsetVoltageArray.get(read=read, index=index, check=check)
                 if index == -1:
-                    ret = np.array([self.Amp[i].ampVin(adc, offset) * 1e3 for i in range(8)])
+                    ret = np.array([self.Amp[i].ampVin(adcs[i], offsets[i]) * 1e3 for i in range(8)])
                     return ret
                 else:
-                    ret = self.Amp[index].ampVin(adc, offset) * 1e3
+                    ret = self.Amp[index].ampVin(adcs, offsets) * 1e3
                     return ret
 
         def _saOutNormGet(*, read=True, index=-1, check=True):
             #print(f'ColumnModule._saOutNormGet({read=}, {index=}, {check=})')
             with self.root.updateGroup():
-                adc = self.SaOutAdc.get(read=read, index=index, check=check)
+                adcs = self.SaOutAdc.get(read=read, index=index, check=check)
                 offset = 0.0
                 if index == -1:
-                    ret = np.array([self.Amp[i].ampVin(adc, offset) * 1e3 for i in range(8)])
+                    ret = np.array([self.Amp[i].ampVin(adcs[i], offset) * 1e3 for i in range(8)])
                     return ret
                 else:
-                    ret = self.Amp[index].ampVin(adc, offset) * 1e3
+                    ret = self.Amp[index].ampVin(adcs, offset) * 1e3
                     return ret
 
 
