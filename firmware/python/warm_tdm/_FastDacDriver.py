@@ -138,7 +138,7 @@ class FastDacDriver(pr.Device):
             # Voltage Conversion
             ####################
             def _overVoltageGet(index, read, x=col):
-                ret = self.Amp[x].dacToOutCurrent(self.OverrideRaw[x].value())
+                ret = self.Amp[x].dacToOutVoltage(self.OverrideRaw[x].value())
                 #print(f'_overGet - OverrideRaw[{x}].value() = {self.OverrideRaw[x].value()} - voltage = {voltage}')
                 return ret
 
