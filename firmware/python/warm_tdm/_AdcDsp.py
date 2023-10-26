@@ -61,7 +61,7 @@ class AdcDsp(pr.Device):
             bitOffset = 0))
 
         self.add(pr.RemoteVariable(
-            name = 'PhiNotRaw',
+            name = 'FluxQuantumRaw',
             offset = 0x40,
             base = pr.Int,
             bitSize = 14,
@@ -72,18 +72,18 @@ class AdcDsp(pr.Device):
             dac = amp.outCurrentToDac(value)
             # Convert inverted offset binary to 2s complement
             dac = (dac & 0x2000) | (~dac & 0x1fff)
-            self.PhiNotRaw.set(dac, write=write)
+            self.FluxQuantumRaw.set(dac, write=write)
 
         def _get(read):
             amp = self.parent.parent.Amp[column]
-            dac = self.PhiNotRaw.get(read=read)
+            dac = self.FluxQuantumRaw.get(read=read)
             dac = (dac & 0x2000) | (~dac & 0x1fff)            
             current = amp.dacToOutCurrent(dac)
             return current
             
         self.add(pr.LinkVariable(
-            name = 'PhiNot',
-            dependencies = [self.PhiNotRaw],
+            name = 'FluxQuantum',
+            dependencies = [self.FluxQuantumRaw],
             units = u'\u03bcA',            
             linkedSet = _set,
             linkedGet = _get))
@@ -194,6 +194,7 @@ class AdcDsp(pr.Device):
             blank = [0 for x in range(numRows)]
             self.SumAccum.set(blank)
             self.PidResults.set(blank)
+            self.FluxJumps.set(0)
 
         self.add(surf.dsp.fixed.FirFilterMultiChannel(
             name = 'FirFilter',

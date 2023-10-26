@@ -141,8 +141,8 @@ architecture rtl of AdcDsp is
       pidResult      : sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
       sq1Fb          : sfixed(13 downto 0);
       sq1FbValid     : sl;
-      numFluxJumps   : sfixed(7 downto 0);
-      fluxJumpConst  : slv(13 downto 0);
+      numFluxJumps   : slv(7 downto 0);
+      fluxQuantum  : slv(13 downto 0);
       clearRams      : sl;
       pidDebugMaster : AxiStreamMasterType;
       axilWriteSlave : AxiLiteWriteSlaveType;
@@ -168,7 +168,7 @@ architecture rtl of AdcDsp is
       sq1Fb          => (others => '0'),
       sq1FbValid     => '0',
       numFluxJumps   => (others => '0'),
-      fluxJumpConst  => (others => '0'),
+      fluxQuantum  => (others => '0'),
       clearRams      => '0',
       pidDebugMaster => axiStreamMasterInit(AXIS_DEBUG_CFG_C),
       axilWriteSlave => AXI_LITE_WRITE_SLAVE_INIT_C,
@@ -441,7 +441,8 @@ begin
       variable pSfixed            : sfixed(COEF_HIGH_C downto COEF_LOW_C);
       variable iSfixed            : sfixed(COEF_HIGH_C downto COEF_LOW_C);
       variable dSfixed            : sfixed(COEF_HIGH_C downto COEF_LOW_C);
-      variable fluxJumpConstFixed : sfixed(13 downto 0);
+      variable fluxQuantumFixed : sfixed(13 downto 0);
+      variable numFluxJumps : sfixed(7 downto 0);
       variable axilEp             : AxiLiteEndpointType;
 
    begin
@@ -461,14 +462,15 @@ begin
       axiSlaveRegister(axilEp, X"08", 0, v.i);
       axiSlaveRegister(axilEp, X"0c", 0, v.d);
 
-      axiSlaveRegister(axilEp, X"40", 0, v.fluxJumpConst);
+      axiSlaveRegister(axilEp, X"40", 0, v.fluxQuantum);
+      axiSlaveRegister(axilEp, X"44", 0, v.numFluxJumps);      
 
       axiSlaveRegisterR(axilEp, X"10", 0, to_slv(r.accumError));
       axiSlaveRegisterR(axilEp, X"14", 0, to_slv(r.lastAccum));
       axiSlaveRegisterR(axilEp, X"18", 0, to_slv(r.sumAccum));
       axiSlaveRegisterR(axilEp, X"20", 0, to_slv(r.pidResult));
       axiSlaveRegisterR(axilEp, X"28", 0, to_slv(r.sq1Fb));
-      axiSlaveRegisterR(axilEp, X"44", 0, to_slv(r.numFluxJumps));
+
 
       axiSlaveRegister(axilEp, X"30", 0, v.clearRams);
 
@@ -488,7 +490,8 @@ begin
       pSfixed            := to_sfixed(r.p, pSfixed);
       iSfixed            := to_sfixed(r.i, iSfixed);
       dSfixed            := to_sfixed(r.d, dSfixed);
-      fluxJumpConstFixed := to_sfixed(r.fluxJumpConst, fluxJumpConstFixed);
+      fluxQuantumFixed := to_sfixed(r.fluxQuantum, fluxQuantumFixed);
+      numFluxJumpsFixed := to_sfixed(r.numFluxJumps, numFluxJumpsFixed);
 
       if (r.pllEnable = '1') then
          case r.state is
@@ -591,17 +594,19 @@ begin
                v.pidDebugMaster.tData(63 downto 0) := resize(to_slv(r.pidResult), 64);
 
                v.sq1Fb      := resize(r.sq1Fb + r.pidResult, v.sq1Fb);
-               v.sq1FbValid := '1';
                v.state      := FLUX_JUMP_S;
 
             when FLUX_JUMP_S =>
                if (r.sq1Fb > 7862) then
-                  v.sq1Fb        := resize(r.sq1Fb - fluxJumpConstFixed, v.sq1Fb);
-                  v.numFluxJumps := resize(r.numFluxJumps + 1, v.numFluxJumps);
+                  v.sq1Fb        := resize(r.sq1Fb - fluxQuantumFixed, v.sq1Fb);
+                  numFluxJumpsFixed := resize(numFluxJumpsFixed + 1, numFluxJumpsFixed);
                elsif (r.sq1Fb < -7862) then
-                  v.sq1Fb        := resize(r.sq1Fb + fluxJumpConstFixed, v.sq1Fb);
-                  v.numFluxJumps := resize(r.numFluxJumps - 1, v.numFluxJumps);
+                  v.sq1Fb        := resize(r.sq1Fb + fluxQuantumFixed, v.sq1Fb);
+                  numFluxJumpsFixed := resize(numFluxJumpsFixed - 1, numFluxJumpsFixed);
                end if;
+
+               v.numFluxJumps := to_slv(numFluxJumpsFixed, v.numFluxJumps);
+               v.sq1FbValid   := '1';               
 
                v.state := FLUX_DEBUG_S;
 
