@@ -74,7 +74,7 @@ class FastDacMem(pr.Device):
 
 class FastDacDriver(pr.Device):
 
-    def __init__(self, rows, **kwargs):
+    def __init__(self, shunt, rows, **kwargs):
         super().__init__(**kwargs)
 
         self.rows = rows
@@ -83,8 +83,8 @@ class FastDacDriver(pr.Device):
         for i in range(8):
             self.add(warm_tdm.FastDacAmplifierSE(
                 name = f'Amp[{i}]',
-                defaults = {'Invert': True},
-                hidden = True))
+                defaults = {'Invert': True, 'ShuntR': shunt, 'FbR': 4.7e3},
+                hidden = False))
         
 
         for col in range(8):
