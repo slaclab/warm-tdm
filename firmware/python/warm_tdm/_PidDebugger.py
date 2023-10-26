@@ -43,6 +43,7 @@ class PidDebugger(pr.DataReceiver):
             name = 'PidResult',
             mode = 'RO',
             offset = 6 * 8,
+            disp = '{:0.03f}',            
             base = pr.Fixed(40, 17),
             bitSize = 40))
 
