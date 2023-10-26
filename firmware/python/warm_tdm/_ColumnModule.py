@@ -228,18 +228,21 @@ class ColumnModule(pr.Device):
         self.add(warm_tdm.FastDacDriver(
             name = 'SAFb',
             offset = 0xC0600000,
+            shunt = 7.15e3,
             rows = rows,            
         ))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Bias',
             offset = 0xC0400000,
+            shunt = 10.0e3,
             rows = rows,
         ))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Fb',
             offset =0xC0500000,
+            shunt = 11.3e3,
             rows = rows,
         ))
 

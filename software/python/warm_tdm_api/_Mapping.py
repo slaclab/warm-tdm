@@ -46,6 +46,8 @@ class GroupConfig(object):
 
         self.numColumns = len(self.columnMap)
         self.numRows = len(self.rowMap)
+        if self.numRows == 0:
+            self.numRows = 1
 
         self.rowOrder = rowOrder
         if self.rowOrder is None:

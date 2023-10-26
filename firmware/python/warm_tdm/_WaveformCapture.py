@@ -175,11 +175,11 @@ class WaveformCapture(pr.Device):
 
 class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
 
-    def __init__(self, amplifier, **kwargs):
+    def __init__(self, amplifiers, **kwargs):
         rogue.interfaces.stream.Slave.__init__(self)
         pr.Device.__init__(self, **kwargs)
 
-        self.amplifier = amplifier
+        self.amplifiers = amplifiers
 
         def _conv(adc):
             return adc/2**13
@@ -285,7 +285,7 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
                 disp = '{:0.3f}',
                 guiGroup = 'RmsNoiseAmpInX',
                 dependencies = [self.RmsNoiseVADC[i]],
-                linkedGet = lambda read, ch=i: self.amplifier[ch].ampVin(self.RmsNoiseVADC[ch].get(read=read), 0.0)))
+                linkedGet = lambda read, ch=i: self.amplifiers[ch].ampVin(self.RmsNoiseVADC[ch].get(read=read), 0.0)))
 
         for i in range(8):
             def _getPkPk(read, x=i):
@@ -325,7 +325,7 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
  #               disp = '{:0.3f}',
                 mode = 'RO',
                 guiGroup = 'AmpInConvFactor',
-                variable = self.amplifier[i].AmpInConvFactor))
+                variable = self.amplifiers[i].AmpInConvFactor))
 
 
         self.add(MultiPlot(
@@ -373,7 +373,7 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
             if channel >= 8:
                 for sample in range(len(voltages)):
                     for ch in range(len(voltages[0])):
-                        ampVin[sample, ch] = self.loading.ampVin(voltages[sample, ch], 0.0, ch)
+                        ampVin[sample, ch] = self.amplifiers[ch].ampVin(voltages[sample, ch], 0.0)
 
                 d = {ch: {
                     'ADC Counts': adcs[:,ch],
@@ -384,7 +384,7 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
             else:
                 print(f'Setting data for channel {channel}')
                 for sample in range(len(voltages)):
-                    ampVin[sample, channel] = self.loading.ampVin(voltages[sample, channel], 0.0, channel)
+                    ampVin[sample] = self.amplifiers[channel].ampVin(voltages[sample], 0.0)
 
                 d[channel]['ADC Counts'] = adcs
                 d[channel]['V@ADC'] = voltages
