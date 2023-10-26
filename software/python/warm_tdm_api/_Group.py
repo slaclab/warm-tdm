@@ -276,7 +276,7 @@ class Group(pr.Device):
         self.add(pr.LocalVariable(
             name='NumRows',
             description='Total number of rows in the Group. NumRowBoards * 32.',
-            value=len(self.config.rowMap),
+            value=self.config.numRows,
             mode='RO',
             groups='TopApi'))
 
