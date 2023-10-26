@@ -208,7 +208,7 @@ def saTune(*, group, process=None, doSet=True):
     """
 #    group.Init()
 
-    group.RowTuneIndex.set(0)
+    #group.RowTuneIndex.set(0)
     #group.RowTuneMode.set(True)
     saBiasResults = saBiasSweep(group=group,process=process)
 
