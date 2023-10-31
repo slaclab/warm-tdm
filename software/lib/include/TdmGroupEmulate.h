@@ -5,6 +5,7 @@
 #include <rogue/interfaces/stream/Master.h>
 #include <rogue/interfaces/stream/Frame.h>
 #include <rogue/interfaces/stream/FrameIterator.h>
+#include <atomic>
 #include <thread>
 
 namespace warm_tdm_lib {
