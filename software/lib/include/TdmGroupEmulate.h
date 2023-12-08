@@ -5,16 +5,17 @@
 #include <rogue/interfaces/stream/Master.h>
 #include <rogue/interfaces/stream/Frame.h>
 #include <rogue/interfaces/stream/FrameIterator.h>
+#include <atomic>
 #include <thread>
 
 namespace warm_tdm_lib {
 
    class TdmGroupEmulate : public rogue::interfaces::stream::Master {
 
-         uint32_t timestampA_;
-         uint32_t timestampB_;
-         uint32_t timestampC_;
-         uint32_t reqCount_;
+         std::atomic<uint32_t> timestampA_;
+         std::atomic<uint32_t> timestampB_;
+         std::atomic<uint32_t> timestampC_;
+         std::atomic<uint32_t> reqCount_;
          uint32_t sequence_;
          uint32_t txFrameCount_;
          uint32_t txByteCount_;
@@ -36,13 +37,15 @@ namespace warm_tdm_lib {
 
          ~TdmGroupEmulate ();
 
+         uint8_t getGroupId() const;
+
          void setNumColBoards(uint8_t number);
 
-         uint8_t getNumColBoards();
+         uint8_t getNumColBoards() const;
 
          void setNumRows(uint8_t number);
 
-         uint8_t getNumRows();
+         uint8_t getNumRows() const;
 
          void start();
 
@@ -50,9 +53,9 @@ namespace warm_tdm_lib {
 
          void countReset();
 
-         uint32_t getTxFrameCount();
+         uint32_t getTxFrameCount() const;
 
-         uint32_t getTxByteCount();
+         uint32_t getTxByteCount() const;
 
          void reqFrames(uint32_t timestampA, uint32_t timestampB, uint32_t timestampC);
 

@@ -1,26 +1,32 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
+#include <unistd.h>
 #include <TdmGroupEmulate.h>
 #include <rogue/interfaces/stream/Master.h>
 #include <rogue/interfaces/stream/Frame.h>
 #include <rogue/interfaces/stream/FrameIterator.h>
 #include <rogue/interfaces/stream/FrameAccessor.h>
 #include <rogue/interfaces/stream/FrameLock.h>
+#ifndef NO_PYTHON
 #include <rogue/GilRelease.h>
 #include <boost/python.hpp>
 
-namespace ris = rogue::interfaces::stream;
 namespace bp = boost::python;
+#endif
+
+namespace ris = rogue::interfaces::stream;
 
 warm_tdm_lib::TdmGroupEmulatePtr warm_tdm_lib::TdmGroupEmulate::create(uint8_t groupId) {
    warm_tdm_lib::TdmGroupEmulatePtr r = std::make_shared<warm_tdm_lib::TdmGroupEmulate>(groupId);
    return(r);
 }
 
+#ifndef NO_PYTHON
 void warm_tdm_lib::TdmGroupEmulate::setup_python() {
    bp::class_<warm_tdm_lib::TdmGroupEmulate, warm_tdm_lib::TdmGroupEmulatePtr, bp::bases<ris::Master>, boost::noncopyable >("TdmGroupEmulate",bp::init<uint8_t>())
       .def("_start",             &warm_tdm_lib::TdmGroupEmulate::start)
       .def("_stop",              &warm_tdm_lib::TdmGroupEmulate::stop)
+      .def("getGroupId",         &warm_tdm_lib::TdmGroupEmulate::getGroupId)
       .def("getNumColBoards",    &warm_tdm_lib::TdmGroupEmulate::getNumColBoards)
       .def("setNumColBoards",    &warm_tdm_lib::TdmGroupEmulate::setNumColBoards)
       .def("getNumRows",         &warm_tdm_lib::TdmGroupEmulate::getNumRows)
@@ -31,6 +37,7 @@ void warm_tdm_lib::TdmGroupEmulate::setup_python() {
       .def("getTxByteCount",     &warm_tdm_lib::TdmGroupEmulate::getTxByteCount)
    ;
 }
+#endif
 
 warm_tdm_lib::TdmGroupEmulate::TdmGroupEmulate (uint8_t groupId) {
    countReset();
@@ -45,18 +52,21 @@ warm_tdm_lib::TdmGroupEmulate::TdmGroupEmulate (uint8_t groupId) {
    numRows_ = 1;
    runEnable_ = false;
    txThread_ = NULL;
-   sequence_ = 0;
 }
 
 warm_tdm_lib::TdmGroupEmulate::~TdmGroupEmulate () {
    stop();
 }
 
+uint8_t warm_tdm_lib::TdmGroupEmulate::getGroupId() const {
+   return groupId_;
+}
+
 void warm_tdm_lib::TdmGroupEmulate::setNumColBoards(uint8_t number) {
    numColBoards_ = number;
 }
 
-uint8_t warm_tdm_lib::TdmGroupEmulate::getNumColBoards() {
+uint8_t warm_tdm_lib::TdmGroupEmulate::getNumColBoards() const {
    return numColBoards_;
 }
 
@@ -64,7 +74,7 @@ void warm_tdm_lib::TdmGroupEmulate::setNumRows(uint8_t number) {
    numRows_ = number;
 }
 
-uint8_t warm_tdm_lib::TdmGroupEmulate::getNumRows() {
+uint8_t warm_tdm_lib::TdmGroupEmulate::getNumRows() const {
    return numRows_;
 }
 
@@ -89,19 +99,19 @@ void warm_tdm_lib::TdmGroupEmulate::countReset () {
    txByteCount_ = 0;
 }
 
-uint32_t warm_tdm_lib::TdmGroupEmulate::getTxFrameCount() {
+uint32_t warm_tdm_lib::TdmGroupEmulate::getTxFrameCount() const {
    return txFrameCount_;
 }
 
-uint32_t warm_tdm_lib::TdmGroupEmulate::getTxByteCount() {
+uint32_t warm_tdm_lib::TdmGroupEmulate::getTxByteCount() const {
    return txByteCount_;
 }
 
 void warm_tdm_lib::TdmGroupEmulate::reqFrames(uint32_t timestampA, uint32_t timestampB, uint32_t timestampC) {
    ++reqCount_;
-   timestampA = timestampA;
-   timestampB = timestampB;
-   timestampC = timestampC;
+   timestampA_ = timestampA;
+   timestampB_ = timestampB;
+   timestampC_ = timestampC;
 }
 
 void warm_tdm_lib::TdmGroupEmulate::genFrames() {
@@ -127,7 +137,7 @@ void warm_tdm_lib::TdmGroupEmulate::genFrames() {
       toFrame(it, 1, &tmp8);
 
       toFrame(it, 1, &groupId_);
-      toFrame(it, 1, &x);
+      toFrame(it, 1, &col);
       toFrame(it, 1, &numRows_);
       toFrame(it, 4, &timestampA_);
       toFrame(it, 4, &timestampB_);
