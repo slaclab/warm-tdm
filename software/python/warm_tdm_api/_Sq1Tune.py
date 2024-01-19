@@ -248,13 +248,13 @@ class Sq1TuneProcess(pr.Process):
                 return tune[row][col][field]
 
     def _sq1FbGet(self):
-        self._getHelper('xOut')
+        return self._getHelper('xOut')
 
     def _sq1BiasGet(self):
-        self._getHelper('biasOut')
+        return self._getHelper('biasOut')
 
     def _saFbGet(self):
-        self._getHelper('yOut')
+        return self._getHelper('yOut')
 
     def _sq1TuneWrap(self):
         with self.root.updateGroup(0.25):
