@@ -186,16 +186,19 @@ class ColumnBoardLoading(pr.Device):
 
 class ColumnModule(pr.Device):
     def __init__(self,
-                 loading={},                 
-                 rows=256,
+                 amplifierClass=warm_tdm.ColumnBoardC00SaAmp,
+#                 loading={},
+                 rows=1,
                  **kwargs):
         super().__init__(**kwargs)
 
-        # Write any entries in loading over top of the default loading values
-        self.add(ColumnBoardLoading(
-            name = 'Loading',
-            overrides=loading))
+        # SA Signal Amplifier Models
+        for i in range(8):
+            self.add(amplifierClass(
+                name = f'Amp[{i}]'))
 
+        self.amplifiers = [self.Amp[i] for i in range(8)]
+ 
         self.add(warm_tdm.WarmTdmCore(
             offset = 0x00000000,
             expand = True,
@@ -203,8 +206,7 @@ class ColumnModule(pr.Device):
 
         self.add(warm_tdm.DataPath(
             offset = 0xC0300000,
-            expand = True,
-            waveform_stream = None))
+            expand = True,))
 
         self.add(warm_tdm.Ad5679R(
             name = 'SaBiasDac',
@@ -213,7 +215,6 @@ class ColumnModule(pr.Device):
 
         self.add(warm_tdm.SaBiasOffset(
             dac = self.SaBiasDac,
-            loading = self.Loading,
             waveformTrigger = self.DataPath.WaveformCapture.WaveformTrigger))
 
         self.add(warm_tdm.Ad5679R(
@@ -227,26 +228,22 @@ class ColumnModule(pr.Device):
         self.add(warm_tdm.FastDacDriver(
             name = 'SAFb',
             offset = 0xC0600000,
-#            rows = rows,
-            typ = 'SA_FB',
-            loading = self.Loading,
-            waveformTrigger = self.DataPath.WaveformCapture.WaveformTrigger
+            shunt = 7.15e3,
+            rows = rows,            
         ))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Bias',
             offset = 0xC0400000,
- #           rows = rows,
-            typ = 'SQ1_BIAS',
-            loading = self.Loading,
+            shunt = 10.0e3,
+            rows = rows,
         ))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Fb',
             offset =0xC0500000,
-  #          rows = rows,
-            typ = 'SQ1_FB',
-            loading = self.Loading,
+            shunt = 11.3e3,
+            rows = rows,
         ))
 
 
@@ -255,10 +252,11 @@ class ColumnModule(pr.Device):
             offset = 0xC0200000))
 
         #########################################
-        # Compute SA Out based on loading options
+        # Compute SA Out based on amplifier config
         #########################################
         self.add(pr.LinkVariable(
             name = 'SaOutAdc',
+            description = 'SA Signal voltage as measured at ADC, after amplification',
             variable = self.DataPath.WaveformCapture.AdcAverage,
             units = 'V',
             mode = 'RO',
@@ -269,30 +267,31 @@ class ColumnModule(pr.Device):
         def _saOutGet(*, read=True, index=-1, check=True):
             #print(f'ColumnModule._saOutGet({read=}, {index=}, {check=})')
             with self.root.updateGroup():
-                adc = self.SaOutAdc.get(read=read, index=index, check=check)
-                offset = self.SaBiasOffset.OffsetVoltageArray.get(read=read, index=index, check=check)
+                adcs = self.SaOutAdc.get(read=read, index=index, check=check)
+                offsets = self.SaBiasOffset.OffsetVoltageArray.get(read=read, index=index, check=check)
                 if index == -1:
-                    ret = self.Loading.ampVinVec(adc, offset, cols) * 1e3
+                    ret = np.array([self.Amp[i].ampVin(adcs[i], offsets[i]) * 1e3 for i in range(8)])
                     return ret
                 else:
-                    ret = self.Loading.ampVin(adc, offset, index) * 1e3
+                    ret = self.Amp[index].ampVin(adcs, offsets) * 1e3
                     return ret
 
         def _saOutNormGet(*, read=True, index=-1, check=True):
             #print(f'ColumnModule._saOutNormGet({read=}, {index=}, {check=})')
             with self.root.updateGroup():
-                adc = self.SaOutAdc.get(read=read, index=index, check=check)
+                adcs = self.SaOutAdc.get(read=read, index=index, check=check)
                 offset = 0.0
                 if index == -1:
-                    ret = self.Loading.ampVinVec(adc, offset, cols) * 1e3
+                    ret = np.array([self.Amp[i].ampVin(adcs[i], offset) * 1e3 for i in range(8)])
                     return ret
                 else:
-                    ret = self.Loading.ampVin(adc, offset, index) * 1e3
+                    ret = self.Amp[index].ampVin(adcs, offset) * 1e3
                     return ret
 
 
         self.add(pr.LinkVariable(
             name = 'SaOut',
+            description = 'Calculated SA Signal value given ADC voltage, Amplifier model and Offset value',
             dependencies = [self.SaOutAdc, *[x for x in self.SaBiasOffset.OffsetVoltage.values()]],
             units = 'mV',
             disp = '{:0.03f}',
@@ -300,6 +299,7 @@ class ColumnModule(pr.Device):
 
         self.add(pr.LinkVariable(
             name = 'SaOutNorm',
+            description = 'Calculated SA Signal value given ADC voltage with offset=0',
             dependencies = [self.SaOutAdc],
             units = 'mV',
             disp = '{:0.03f}',

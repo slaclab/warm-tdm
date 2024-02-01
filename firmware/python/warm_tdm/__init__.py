@@ -8,6 +8,7 @@ from warm_tdm._Ad9106 import *
 ## may be copied, modified, propagated, or distributed except according to 
 ## the terms contained in the LICENSE.txt file.
 ##############################################################################
+from warm_tdm._Amplifiers import *
 from warm_tdm._TimingRx import *
 from warm_tdm._TimingTx import *
 from warm_tdm._Timing import *

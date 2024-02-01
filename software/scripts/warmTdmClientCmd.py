@@ -38,7 +38,7 @@ args = parser.parse_known_args()[0]
 
 
 client = pyrogue.interfaces.VirtualClient(args.host, args.port)
-group = client.root.Group
+#group = client.root.Group
 
 
 def setSaFb(channel, value):

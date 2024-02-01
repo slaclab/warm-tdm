@@ -126,34 +126,6 @@ class RowTuneIndexVariable(GroupLinkVariable):
         with self.parent.root.updateGroup():
             return self._value
 
-class Amplifier(object):
-    def __init__(self):
-
-        self.Rbias = 15e3
-        self.Roff = 4.22e3
-        self.Rgain = 100
-        self.Rfb = 1.1e3
-        self.Rcable = 200
-
-        self.Gbias = 1.0/self.Rbias
-        self.Goff = 1.0/self.Roff
-        self.Ggain = 1.0/self.Rgain
-        self.Gfb = 1.0/self.Rfb
-        self.Gcable = 1.0/self.Rcable
-
-        self.G2 = 11
-        self.G3 = 1.5
-
-    def Vout(self, Vin, Voff):
-        return self.Rfb * (Vin*(self.Ggain + self.Goff + self.Gfb) - Voff*self.Goff) * self.G2 *self.G3
-
-    def Vin(self, Vout, Voffset):
-        return ((Vout/(self.G2*self.G3)) * self.Gfb + Voffset * self.Goff) / (self.Ggain + self.Goff + self.Gfb)
-
-    def SaOut(self, Vout, Vbias, Voffset):
-        return self.Vin(Vout, Voffset)
-    #return (self.Vin(Vout, Voffset) * (self.Gbias + self.Gcable) - Vbias * self.Gbias) / self.Gcable
-
 
 class SaOutVariable(GroupLinkVariable):
     def __init__(self, config, disp='{:0.04f}', **kwargs):
@@ -282,7 +254,7 @@ class Group(pr.Device):
             host=groupConfig.host,
             colBoards=groupConfig.columnBoards,
             rowBoards=groupConfig.rowBoards,
-#            rows=len(groupConfig.rowMap),
+            rows=1,
             plots=plots,
             groups=['Hardware'],
             expand=True))
@@ -304,7 +276,7 @@ class Group(pr.Device):
         self.add(pr.LocalVariable(
             name='NumRows',
             description='Total number of rows in the Group. NumRowBoards * 32.',
-            value=len(self.config.rowMap),
+            value=self.config.numRows,
             mode='RO',
             groups='TopApi'))
 
@@ -547,7 +519,7 @@ class Group(pr.Device):
             config = self.config,
             hidden = True,
 #            units = 'mA',
-            dependencies = [self.HardwareGroup.ColumnBoard[m.board].SAFb.ColumnCurrents[m.channel]
+            dependencies = [self.HardwareGroup.ColumnBoard[m.board].SAFb.Column[m.channel].Current
                             for m in self.config.columnMap]))
 
         self.add(GroupLinkVariable(
@@ -569,7 +541,7 @@ class Group(pr.Device):
             config = self.config,
             hidden = True,
 #            units = 'V',
-            dependencies = [self.HardwareGroup.ColumnBoard[m.board].SAFb.ColumnVoltages[m.channel]
+            dependencies = [self.HardwareGroup.ColumnBoard[m.board].SAFb.Column[m.channel].Voltage
                             for m in self.config.columnMap]))
 
         self.add(GroupLinkVariable(
@@ -590,7 +562,7 @@ class Group(pr.Device):
                          'Values can be accessed as a full 2D array or pass a (col, row) tuple for the index key to access each value.',
             config = self.config,
             hidden = True,
-            dependencies = [self.HardwareGroup.ColumnBoard[m.board].SQ1Bias.ColumnCurrents[m.channel]
+            dependencies = [self.HardwareGroup.ColumnBoard[m.board].SQ1Bias.Column[m.channel].Current
                             for m in self.config.columnMap]))
 
         self.add(GroupLinkVariable(
@@ -610,7 +582,7 @@ class Group(pr.Device):
                          'Values can be accessed as a full 2D array or pass a (col, row) tuple for the index key to access each value.',
             config = self.config,
             hidden = True,
-            dependencies = [self.HardwareGroup.ColumnBoard[m.board].SQ1Bias.ColumnVoltages[m.channel]
+            dependencies = [self.HardwareGroup.ColumnBoard[m.board].SQ1Bias.Column[m.channel].Voltage
                             for m in self.config.columnMap]))
 
 
@@ -632,7 +604,7 @@ class Group(pr.Device):
                          'Values can be accessed as a full 2D array or pass a (col, row) tuple for the index key to access each value.',
             config = self.config,
             hidden = True,
-            dependencies = [self.HardwareGroup.ColumnBoard[m.board].SQ1Fb.ColumnCurrents[m.channel]
+            dependencies = [self.HardwareGroup.ColumnBoard[m.board].SQ1Fb.Column[m.channel].Current
                             for m in self.config.columnMap]))
 
         self.add(GroupLinkVariable(
@@ -652,7 +624,7 @@ class Group(pr.Device):
                          'Values can be accessed as a full 2D array or pass a (col, row) tuple for the index key to access each value.',
             config = self.config,
             hidden = True,
-            dependencies = [self.HardwareGroup.ColumnBoard[m.board].SQ1Fb.ColumnVoltages[m.channel]
+            dependencies = [self.HardwareGroup.ColumnBoard[m.board].SQ1Fb.Column[m.channel].Voltage
                             for m in self.config.columnMap]))
 
 

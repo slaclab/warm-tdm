@@ -208,7 +208,7 @@ def saTune(*, group, process=None, doSet=True):
     """
 #    group.Init()
 
-    group.RowTuneIndex.set(0)
+    #group.RowTuneIndex.set(0)
     #group.RowTuneMode.set(True)
     saBiasResults = saBiasSweep(group=group,process=process)
 
@@ -373,7 +373,7 @@ def sq1FbSweep(*, group, bias, fbRange, row, process):
     Iterates through Sq1Fb values determined by lowoffset,
     highoffset,step. Generates curve points with saOffset()
     """
-
+    print(f'sq1FbSweep({bias=}, {fbRange=}, {row=})')
     colCount = len(group.ColumnMap.get())
     curves = [warm_tdm_api.Curve(bias[i]) for i in range(colCount)]
     numSteps = len(fbRange[0])
@@ -414,6 +414,8 @@ def sq1BiasSweep(group, row, process):
 
     # Extract iteration steps from Rogue variables
     # Create CurveData obects for storing output data
+    print(f'saBiasSweep({row=})')
+    
     colCount = len(group.ColumnMap.get())
     numBiasSteps = process.Sq1BiasNumSteps.get()
     numFbSteps = process.Sq1FbNumSteps.get()

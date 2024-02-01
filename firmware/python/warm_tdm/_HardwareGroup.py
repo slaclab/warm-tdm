@@ -80,7 +80,7 @@ class HardwareGroup(pyrogue.Device):
                 rows=rows))
             
             pidDebug = [warm_tdm.PidDebugger(name=f'PidDebug[{i}]', hidden=False, col=i, fastDacDriver=self.ColumnBoard[index].SQ1Fb) for i in range(8)]
-            waveGui = warm_tdm.WaveformCaptureReceiver(hidden=False, loading=self.ColumnBoard[index].Loading)
+            waveGui = warm_tdm.WaveformCaptureReceiver(hidden=False, amplifiers=self.ColumnBoard[index].amplifiers)
 
             # Link the data stream to the DataWriter
             if emulate is False:
@@ -130,7 +130,11 @@ class HardwareGroup(pyrogue.Device):
                 srp == srpStream
 
             # Instantiate the board Device tree and link it to the SRP
-            self.add(warm_tdm.RowModule(name=f'RowBoard[{rowIndex}]', memBase=srp, expand=True, enabled=True))
+            self.add(warm_tdm.RowModule(
+                name=f'RowBoard[{rowIndex}]',
+                memBase=srp,
+                expand=True,
+                enabled=True))
 
         self.add(pyrogue.LocalVariable(
             name = 'ReadoutList',

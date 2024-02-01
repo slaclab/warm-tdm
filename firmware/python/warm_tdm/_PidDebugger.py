@@ -59,7 +59,7 @@ class PidDebugger(pr.DataReceiver):
             disp = '{:0.03f}',
             units = u'\u03bcA',
             dependencies = [self.Sq1FbPreRaw, self.Column],
-            linkedGet = lambda: fastDacDriver._dacToSquidCurrent(self.Sq1FbPreRaw.value(), col)))
+            linkedGet = lambda: fastDacDriver.Amp[self.Column.value()].dacToOutCurrent(self.Sq1FbPreRaw.value())))
 
         self.add(pr.RemoteVariable(
             name = 'Sq1FbPostRaw',
@@ -74,7 +74,7 @@ class PidDebugger(pr.DataReceiver):
             disp = '{:0.03f}',
             units = u'\u03bcA',
             dependencies = [self.Sq1FbPostRaw, self.Column],
-            linkedGet = lambda: fastDacDriver._dacToSquidCurrent(self.Sq1FbPostRaw.value(), col)))
+            linkedGet = lambda: fastDacDriver.Amp[self.Column.value()].dacToOutCurrent(self.Sq1FbPostRaw.value())))
         
 
     def process(self, frame):

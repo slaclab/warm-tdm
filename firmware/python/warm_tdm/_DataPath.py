@@ -9,7 +9,7 @@ import warm_tdm
 
 
 class DataPath(pr.Device):
-    def __init__(self, waveform_stream, **kwargs):
+    def __init__(self,  **kwargs):
         super().__init__(**kwargs)
 
         self.add(surf.devices.analog_devices.Ad9681Readout(
@@ -24,8 +24,7 @@ class DataPath(pr.Device):
 
         self.add(warm_tdm.WaveformCapture(
             offset = 9 << 16,
-            enabled = True,
-            stream = waveform_stream))
+            enabled = True,))
 
         self.add(AdcFilters(
             enabled = False,
