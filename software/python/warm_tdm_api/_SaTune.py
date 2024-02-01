@@ -223,13 +223,13 @@ class SaTuneProcess(pr.Process):
         
 
     def _saFbGet(self):
-        self._getHelper('xOut')
+        return self._getHelper('xOut')
 
     def _saBiasGet(self):
-        self._getHelper('biasOut')
+        return self._getHelper('biasOut')
 
     def _saOutGet(self):
-        self._getHelper('yOut')
+        return self._getHelper('yOut')
 
     def _saTuneWrap(self):
         with self.root.updateGroup(0.25):
