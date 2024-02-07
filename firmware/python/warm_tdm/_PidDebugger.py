@@ -25,6 +25,7 @@ class PidDebugger(pr.DataReceiver):
             mode = 'RO',
             offset = 0,
             base = pr.UInt,
+            bitOffset = 8,
             bitSize = 8))
 
         self.add(pr.RemoteVariable(
