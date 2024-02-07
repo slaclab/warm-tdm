@@ -155,16 +155,16 @@ class HardwareGroup(pyrogue.Device):
 #                 tx.RowIndexOrder.write()
 
 
-            
-        self.add(pyrogue.LinkVariable(
-            name = 'ReadoutList',
-            typeStr = 'int',
-            value = [0] ,
-            dependencies = [
-                self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.NumRows,
-                self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.RowIndexOrder],
-            linkedSet = rl_set,
-            linkedGet = rl_get)) #list(range(48))))
+        if colBoards > 0:
+            self.add(pyrogue.LinkVariable(
+                name = 'ReadoutList',
+                typeStr = 'int',
+                value = [0] ,
+                dependencies = [
+                    self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.NumRows,
+                    self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.RowIndexOrder],
+                linkedSet = rl_set,
+                linkedGet = rl_get)) #list(range(48))))
 
         @self.command()
         def Readout2():
