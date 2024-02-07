@@ -258,3 +258,11 @@ class TimingTx(pr.Device):
                 1: 'FPGA TX'}))
         
         
+        self.add(pr.RemoteVariable(
+            name = 'RowIndexOrder',
+            offset = 0x1000,
+            valueBits = 8,
+            numValues = 256,
+            valueStride = 32,
+            base = pr.UInt,
+            mode = 'RW'))

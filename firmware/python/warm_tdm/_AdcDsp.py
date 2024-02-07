@@ -15,13 +15,13 @@ class AdcDsp(pr.Device):
         super().__init__(**kwargs)
 
         ACCUM_BITS = 22
-        COEF_BITS = 10
+#        COEF_BITS = 10
 #        SUM_BITS = 18
         RESULT_BITS = 32
 
         COEF_BASE = pr.Fixed(18, 17)
 
-        numRows = 1
+        numRows = 4
 
         self.add(pr.RemoteVariable(
             name = 'PidEnable',
@@ -142,7 +142,7 @@ class AdcDsp(pr.Device):
             offset = 0x1000,
             base = pr.Int,
             mode = 'RW',
-            bitSize = 32*numRows,
+#            bitSize = 32*numRows,
             numValues = numRows,
             valueBits = 14,
             valueStride = 32))
@@ -153,7 +153,7 @@ class AdcDsp(pr.Device):
             offset = 0x2000,
             base = pr.Int,
             mode = 'RO',
-            bitSize = 32*numRows,
+#            bitSize = 32*numRows,
             numValues = numRows,
             valueBits = ACCUM_BITS,
             valueStride = 32))
@@ -164,7 +164,7 @@ class AdcDsp(pr.Device):
             offset = 0x3000,
             base = pr.Int,
             mode = 'RW',
-            bitSize = 32*numRows,
+#            bitSize = 32*numRows,
             numValues = numRows,
             valueBits = ACCUM_BITS,
             valueStride = 32))
@@ -174,20 +174,20 @@ class AdcDsp(pr.Device):
             name = 'PidResults',
             offset = 0x4000,
             mode = 'RW',
-            bitSize = 32*numRows,
+#            bitSize = 32*numRows,
             numValues = numRows,
-            valueBits = RESULT_BITS,
-            valueStride = 32))
+            valueBits = 40, #RESULT_BITS,
+            valueStride = 64))
         
         
         self.add(pr.RemoteVariable(
             name = 'FilterResults',
             offset = 0x5000,
             mode = 'RO',
-            bitSize = 32*numRows,
+#            bitSize = 32*numRows,
             numValues = numRows,
-            valueBits = 16,
-            valueStride = 32))
+            valueBits = 40, #16,
+            valueStride = 64))
 
         @self.command()
         def ClearPids():

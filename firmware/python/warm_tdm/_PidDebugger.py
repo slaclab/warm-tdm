@@ -2,10 +2,15 @@ import pyrogue as pr
 import pyrogue.interfaces.simulation
 import numpy as np
 
+# class PidRowDebugger(pr.Device):
+#     def __init__(self, row, **kwargs):
+        
+
 class PidDebugger(pr.DataReceiver):
 
-    def __init__(self, col, fastDacDriver, **kwargs):
+    def __init__(self, col, rows, fastDacDriver, **kwargs):
         self.mem = pyrogue.interfaces.simulation.MemEmulate()
+        self.rows = rows
         
         super().__init__(memBase=self.mem, **kwargs)
 
@@ -15,6 +20,13 @@ class PidDebugger(pr.DataReceiver):
             offset = 0 * 8,
             base = pr.UInt,
             bitSize = 3))
+
+        self.add(pr.RemoteVariable(
+            name = 'RowIndex',
+            mode = 'RO',
+            offset = 0,
+            base = pr.UInt,
+            bitSize = 8))
 
         self.add(pr.RemoteVariable(
             name = 'AccumError',
@@ -92,10 +104,11 @@ class PidDebugger(pr.DataReceiver):
         raw = bytearray(fl)
         frame.read(raw, 0)
 
-        # Overwrite the MemEmulate data with new frame
-        for i, byte in enumerate(raw):
-            self.mem._data[i] = byte
+        if raw[1] == self.row:
+            # Overwrite the MemEmulate data with new frame
+            for i, byte in enumerate(raw):
+                self.mem._data[i] = byte
 
-        self.readBlocks()
-        self.checkBlocks()
+            self.readBlocks()
+            self.checkBlocks()
         

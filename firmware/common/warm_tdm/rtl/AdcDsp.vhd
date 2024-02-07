@@ -221,6 +221,8 @@ architecture rtl of AdcDsp is
       return ret;
    end function convInvOffsetBin;
 
+   signal sq1fbInvOffsetBin : slv(13 downto 0);
+
 
 
 begin
@@ -296,6 +298,33 @@ begin
          rst            => timingRxRst125,                       -- [in]
          addr           => r.rowIndex,                           -- [in]
          dout           => adcBaselineRamOut);                   -- [out]
+
+--    U_AxiDualPortRam_FLUX_JUMP : entity surf.AxiDualPortRam
+--       generic map (
+--          TPD_G            => TPD_G,
+--          SYNTH_MODE_G     => "inferred",
+--          MEMORY_TYPE_G    => "distributed",
+--          READ_LATENCY_G   => 1,
+--          AXI_WR_EN_G      => true,
+--          SYS_WR_EN_G      => false,
+--          SYS_BYTE_WR_EN_G => false,
+--          COMMON_CLK_G     => false,
+--          ADDR_WIDTH_G     => ROW_ADDR_BITS_C,
+--          DATA_WIDTH_G     => 8)
+--       port map (
+--          axiClk         => timingRxClk125,                       -- [in]
+--          axiRst         => timingRxRst125,                       -- [in]
+--          axiReadMaster  => locAxilReadMasters(FLUX_JUMP_C),   -- [in]
+--          axiReadSlave   => locAxilReadSlaves(FLUX_JUMP_C),    -- [out]
+--          axiWriteMaster => locAxilWriteMasters(FLUX_JUMP_C),  -- [in]
+--          axiWriteSlave  => locAxilWriteSlaves(FLUX_JUMP_C),   -- [out]
+--          clk            => timingRxClk125,                       -- [in]
+--          rst            => timingRxRst125,                       -- [in]
+--          addr           => r.rowIndex,                           -- [in]
+--          dout           => fluxJumpRamOut,                   -- [out]
+--          we => r.fluxJumpWrValid,       -- in
+--          din => fluxJumpRamIn);         -- in
+   
 
    accumError <= slv(r.accumError);
    U_AxiDualPortRam_ACCUM_ERROR : entity surf.AxiDualPortRam
@@ -504,10 +533,12 @@ begin
 
                   -- First word is Column number
                   ssiSetUserSof(AXIS_DEBUG_CFG_C, v.pidDebugMaster, '1');
-                  v.pidDebugMaster.tValid            := '1';
-                  v.pidDebugMaster.tData(3 downto 0) := toSlv(COLUMN_NUM_G, 4);
-                  v.state                            := WAIT_FIRST_SAMPLE_S;
+                  v.pidDebugMaster.tValid             := '1';
+                  v.pidDebugMaster.tData(3 downto 0)  := toSlv(COLUMN_NUM_G, 4);
+                  v.pidDebugMaster.tData(15 downto 8) := v.rowIndex;
+                  v.state                             := WAIT_FIRST_SAMPLE_S;
                end if;
+
 
             when WAIT_FIRST_SAMPLE_S =>
                -- Activate and deactivate the accumulator
@@ -680,6 +711,8 @@ begin
    -- sq1Fb Updates written to fifo
    -- Convert back to inverted offsset binary first
    -------------------------------------------------------------------------------------------------
+   sq1fbInvOffsetBin <= convInvOffsetBin(to_slv(r.sq1Fb));
+
    U_Fifo_1 : entity surf.Fifo
       generic map (
          TPD_G           => TPD_G,
@@ -691,16 +724,16 @@ begin
          DATA_WIDTH_G    => 22,
          ADDR_WIDTH_G    => 4)
       port map (
-         rst               => timingRxRst125,                     -- [in]
-         wr_clk            => timingRxClk125,                     -- [in]
-         wr_en             => r.sq1FbValid,                       -- [in]
-         din(13 downto 0)  => convInvOffsetBin(to_slv(r.sq1Fb)),  -- [in]
-         din(21 downto 14) => r.rowIndex,                         -- [in]
-         overflow          => open,                               -- [out]
-         rd_clk            => timingRxClk125,                     -- [in]
-         rd_en             => axilR.fifoRd,                       -- [in]
-         dout              => fifoDout,                           -- [out]
-         valid             => fifoValid);                         -- [out]
+         rst               => timingRxRst125,     -- [in]
+         wr_clk            => timingRxClk125,     -- [in]
+         wr_en             => r.sq1FbValid,       -- [in]
+         din(13 downto 0)  => sq1fbInvOffsetBin,  -- [in]
+         din(21 downto 14) => r.rowIndex,         -- [in]
+         overflow          => open,               -- [out]
+         rd_clk            => timingRxClk125,     -- [in]
+         rd_en             => axilR.fifoRd,       -- [in]
+         dout              => fifoDout,           -- [out]
+         valid             => fifoValid);         -- [out]
 
    U_AxiLiteMaster_1 : entity surf.AxiLiteMaster
       generic map (

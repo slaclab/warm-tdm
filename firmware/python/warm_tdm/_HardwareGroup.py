@@ -136,10 +136,43 @@ class HardwareGroup(pyrogue.Device):
                 expand=True,
                 enabled=True))
 
-        self.add(pyrogue.LocalVariable(
+        def rl_get(read):
+            print(f'rl_get({read=})')
+            length = self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.NumRows.get(read=read)
+            print(f'{length=}')
+            order = self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.RowIndexOrder.get(read=read)
+            print(f'{order=}')
+            print(f'ret - {order[0:length]}')
+            return order[0:length]
+
+        def rl_set(value, write):
+            tx = self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx
+            tx.NumRows.set(len(value), write=write)            
+            tx.RowIndexOrder.set(value=value, write=write)
+#             for i,v in enumerate(value):
+#                 tx.RowIndexOrder.set(value=v, index=i, write=False)
+#             if write is True:
+#                 tx.RowIndexOrder.write()
+
+
+            
+        self.add(pyrogue.LinkVariable(
             name = 'ReadoutList',
             typeStr = 'int',
-            value = [0,1,2,3] )) #list(range(48))))
+            value = [0] ,
+            dependencies = [
+                self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.NumRows,
+                self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.RowIndexOrder],
+            linkedSet = rl_set,
+            linkedGet = rl_get)) #list(range(48))))
+
+        @self.command()
+        def Readout2():
+            self.ReadoutList.set([0, 1])
+
+        @self.command()
+        def Readout22():
+            self.ReadoutList.set(list(range(22)))
 
         if colBoards > 0:
             self.add(waveGui)

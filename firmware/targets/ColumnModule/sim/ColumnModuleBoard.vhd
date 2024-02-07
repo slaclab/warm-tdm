@@ -43,16 +43,16 @@ entity ColumnModuleBoard is
       rj45TimingRxDataN : in  sl;          -- [in]
       rj45TimingRxMgtP  : in  sl;          -- [in]
       rj45TimingRxMgtN  : in  sl;          -- [in]
-      rj45PgpRxP        : in  sl;          -- [in]
-      rj45PgpRxN        : in  sl;          -- [in]
+      rj45PgpRxMgtP     : in  sl;          -- [in]
+      rj45PgpRxMgtN     : in  sl;          -- [in]
       rj45TimingTxClkP  : out sl;          -- [out]
       rj45TimingTxClkN  : out sl;          -- [out]
       rj45TimingTxDataP : out sl;          -- [out]
       rj45TimingTxDataN : out sl;          -- [out]
       rj45TimingTxMgtP  : out sl;          -- [out]
       rj45TimingTxMgtN  : out sl;          -- [out]
-      rj45PgpTxP        : out sl := '0';   -- [out]
-      rj45PgpTxN        : out sl := '0');  -- [out]
+      rj45PgpTxMgtP     : out sl := '0';   -- [out]
+      rj45PgpTxMgtN     : out sl := '0');  -- [out]
 
 
 end entity ColumnModuleBoard;
@@ -319,11 +319,11 @@ begin
    pgpRxP(0) <= rj45TimingRxMgtP when xbarMgtSel(1) = '0' else pgpTxP(0);
    pgpRxN(0) <= rj45TimingRxMgtN when xbarMgtSel(1) = '0' else pgpTxN(0);
 
-   rj45PgpTxP <= pgpTxP(1);
-   rj45PgpTxN <= pgpTxN(1);
+   rj45PgpTxMgtP <= pgpTxP(1);
+   rj45PgpTxMgtN <= pgpTxN(1);
 
-   pgpRxP(1) <= rj45PgpRxP;
-   pgpRxN(1) <= rj45PgpRxN;
+   pgpRxP(1) <= rj45PgpRxMgtP;
+   pgpRxN(1) <= rj45PgpRxMgtN;
 
    -------------------------------------------------------------------------------------------------
    -- Clock and reset for things that need it

@@ -2,7 +2,7 @@
 -- Title      : Fast DAC Driver
 -------------------------------------------------------------------------------
 -- Company    : SLAC National Accelerator Laboratory
--- Platform   : 
+-- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
 -- Description: Drives AD9767 DACs for SQ1 Bias, SQ1 Feedback or SA Feedback
@@ -217,7 +217,7 @@ begin
 
 
    -- Store RS_ON value for each row that can be addressed by this board
-   -- NUM_ROW_SELECTS_G * NUM_CHIP_SELECTS_G 
+   -- NUM_ROW_SELECTS_G * NUM_CHIP_SELECTS_G
    U_AxiDualPortRam_RS_ON : entity surf.AxiDualPortRam
       generic map (
          TPD_G            => TPD_G,
@@ -440,7 +440,9 @@ begin
          -------------------------------------------------------------------------------------------
          when OFF_PRE_S =>
             v.rowNum     := timingRxData.rowIndex(ROW_HIGH_C downto ROW_LOW_C);
-            v.chipNum    := timingRxData.rowIndex(CHIP_HIGH_C downto CHIP_LOW_C);
+            if (CHIP_SELECT_BITS_C > 0) then
+               v.chipNum    := timingRxData.rowIndex(CHIP_HIGH_C downto CHIP_LOW_C);
+            end if;
             v.rowChipNum := timingRxData.rowIndex(ROW_CHIP_HIGH_C downto ROW_CHIP_LOW_C);
             if (BOARD_SELECT_BITS_C > 0) then
                v.boardId := timingRxData.rowIndex(BOARD_HIGH_C downto BOARD_LOW_C);
@@ -476,14 +478,19 @@ begin
          when ON_PRE_S =>
             -- Switch to next row index for DAC address
             v.rowNum     := timingRxData.rowIndexNext(ROW_HIGH_C downto ROW_LOW_C);
-            v.chipNum    := timingRxData.rowIndexNext(CHIP_HIGH_C downto CHIP_LOW_C);
+            if (NUM_CHIP_SELECTS_G > 0) then
+               v.chipNum    := timingRxData.rowIndexNext(CHIP_HIGH_C downto CHIP_LOW_C);
+            end if;
             v.rowChipNum := timingRxData.rowIndexNext(ROW_CHIP_HIGH_C downto ROW_CHIP_LOW_C);
-            v.boardId    := timingRxData.rowIndexNext(BOARD_HIGH_C downto BOARD_LOW_C);
+            if (BOARD_SELECT_BITS_C > 0) then
+               v.boardId    := timingRxData.rowIndexNext(BOARD_HIGH_C downto BOARD_LOW_C);
+            end if;
             v.state      := ROW_ON_DATA_S;
 
          when ROW_ON_DATA_S =>
             v.dacDb             := rsOnDout(13 downto 0);
             v.dacSel(rsDacChip) := not r.rowNum(0);
+            v.state := ROW_ON_WRITE_S;
 
          when ROW_ON_WRITE_S =>
             if (r.boardId = r.cfgBoardId) then
@@ -498,6 +505,7 @@ begin
          when CHIP_ON_DATA_S =>
             v.dacDb             := csOnDout(13 downto 0);
             v.dacSel(csDacChip) := not r.chipNum(0);
+            v.state := CHIP_ON_WRITE_S;
 
          when CHIP_ON_WRITE_S =>
             if (r.boardId = r.cfgBoardId) then
@@ -546,7 +554,7 @@ begin
       end if;
 
       ----------------------------------------------------------------------------------------------
-      -- 
+      --
       ----------------------------------------------------------------------------------------------
 --       v.dacWrt(RS_DAC_HIGH_C downto RS_DAC_LOW_C) <= v.rsDacWrt(NUM_RS_DACS_C-1 downto 0);
 --       v.dacSel(RS_DAC_HIGH_C downto RS_DAC_LOW_C) <= v.rsDacSel(NUM_RS_DACS_C-1 downto 0);

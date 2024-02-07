@@ -34,10 +34,11 @@ use warm_tdm.TimingPkg.all;
 entity TimingTx is
 
    generic (
-      TPD_G           : time    := 1 ns;
-      RING_ADDR_0_G   : boolean := false;
-      SIMULATION_G    : boolean := false;
-      AXIL_CLK_FREQ_G : real    := 125.0E+6);
+      TPD_G            : time             := 1 ns;
+      RING_ADDR_0_G    : boolean          := false;
+      SIMULATION_G     : boolean          := false;
+      AXIL_CLK_FREQ_G  : real             := 125.0E+6;
+      AXIL_BASE_ADDR_G : slv(31 downto 0) := (others => '0'));
 
    port (
       timingRefClk : in sl;
@@ -92,6 +93,7 @@ architecture rtl of TimingTx is
       -- State
       timingData        : LocalTimingType;
       timingTx          : slv(7 downto 0);
+      timingTxK         : slv(0 downto 0);
       -- AXIL
       axilWriteSlave    : AxiLiteWriteSlaveType;
       axilReadSlave     : AxiLiteReadSlaveType;
@@ -110,6 +112,7 @@ architecture rtl of TimingTx is
       sampleEndTime     => toSlv(160, 32),                  -- Could be corner case here?
       loadDacsTime      => toSlv(200, 32),
       timingTx          => IDLE_C,
+      timingTxK         => "1",
       timingData        => LOCAL_TIMING_INIT_C,
       axilWriteSlave    => AXI_LITE_WRITE_SLAVE_INIT_C,
       axilReadSlave     => AXI_LITE_READ_SLAVE_INIT_C);
@@ -125,25 +128,81 @@ architecture rtl of TimingTx is
    signal timingAxilReadMaster  : AxiLiteReadMasterType;
    signal timingAxilReadSlave   : AxiLiteReadSlaveType;
 
+   signal rowOrderRamOut : slv(7 downto 0);
+
+   constant NUM_AXIL_C : integer := 2;
+
+   constant XBAR_COFNIG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_C, AXIL_BASE_ADDR_G, 16, 12);
+
+   signal locAxilWriteMasters : AxiLiteWriteMasterArray(NUM_AXIL_C-1 downto 0);
+   signal locAxilWriteSlaves  : AxiLiteWriteSlaveArray(NUM_AXIL_C-1 downto 0) := (others => AXI_LITE_WRITE_SLAVE_EMPTY_DECERR_C);
+   signal locAxilReadMasters  : AxiLiteReadMasterArray(NUM_AXIL_C-1 downto 0);
+   signal locAxilReadSlaves   : AxiLiteReadSlaveArray(NUM_AXIL_C-1 downto 0)  := (others => AXI_LITE_READ_SLAVE_EMPTY_DECERR_C);
+
+
 begin
+
+   U_AxiLiteCrossbar_1 : entity surf.AxiLiteCrossbar
+      generic map (
+         TPD_G              => TPD_G,
+         NUM_SLAVE_SLOTS_G  => 1,
+         NUM_MASTER_SLOTS_G => NUM_AXIL_C,
+         MASTERS_CONFIG_G   => XBAR_COFNIG_C,
+         DEBUG_G            => false)
+      port map (
+         axiClk              => axilClk,              -- [in]
+         axiClkRst           => axilRst,              -- [in]
+         sAxiWriteMasters(0) => axilWriteMaster,      -- [in]
+         sAxiWriteSlaves(0)  => axilWriteSlave,       -- [out]
+         sAxiReadMasters(0)  => axilReadMaster,       -- [in]
+         sAxiReadSlaves(0)   => axilReadSlave,        -- [out]
+         mAxiWriteMasters    => locAxilWriteMasters,  -- [out]
+         mAxiWriteSlaves     => locAxilWriteSlaves,   -- [in]
+         mAxiReadMasters     => locAxilReadMasters,   -- [out]
+         mAxiReadSlaves      => locAxilReadSlaves);   -- [in]      
 
    U_AxiLiteAsync_1 : entity surf.AxiLiteAsync
       generic map (
          TPD_G         => TPD_G,
          PIPE_STAGES_G => 0)
       port map (
-         sAxiClk         => axilClk,                -- [in]
-         sAxiClkRst      => axilRst,                -- [in]
-         sAxiReadMaster  => axilReadMaster,         -- [in]
-         sAxiReadSlave   => axilReadSlave,          -- [out]
-         sAxiWriteMaster => axilWriteMaster,        -- [in]
-         sAxiWriteSlave  => axilWriteSlave,         -- [out]
-         mAxiClk         => wordClk,                -- [in]
-         mAxiClkRst      => wordRst,                -- [in]
-         mAxiReadMaster  => timingAxilReadMaster,   -- [out]
-         mAxiReadSlave   => timingAxilReadSlave,    -- [in]
-         mAxiWriteMaster => timingAxilWriteMaster,  -- [out]
-         mAxiWriteSlave  => timingAxilWriteSlave);  -- [in]
+         sAxiClk         => axilClk,                 -- [in]
+         sAxiClkRst      => axilRst,                 -- [in]
+         sAxiReadMaster  => locAxilReadMasters(0),   -- [in]
+         sAxiReadSlave   => locAxilReadSlaves(0),    -- [out]
+         sAxiWriteMaster => locAxilWriteMasters(0),  -- [in]
+         sAxiWriteSlave  => locAxilWriteSlaves(0),   -- [out]
+         mAxiClk         => wordClk,                 -- [in]
+         mAxiClkRst      => wordRst,                 -- [in]
+         mAxiReadMaster  => timingAxilReadMaster,    -- [out]
+         mAxiReadSlave   => timingAxilReadSlave,     -- [in]
+         mAxiWriteMaster => timingAxilWriteMaster,   -- [out]
+         mAxiWriteSlave  => timingAxilWriteSlave);   -- [in]
+
+   -- RAM for Row Index Order
+   U_AxiDualPortRam_ROW_ORDER : entity surf.AxiDualPortRam
+      generic map (
+         TPD_G            => TPD_G,
+         SYNTH_MODE_G     => "inferred",
+         MEMORY_TYPE_G    => "distributed",
+         READ_LATENCY_G   => 0,
+         AXI_WR_EN_G      => true,
+         SYS_WR_EN_G      => false,
+         SYS_BYTE_WR_EN_G => false,
+         COMMON_CLK_G     => false,
+         ADDR_WIDTH_G     => 8,                     -- 256 rows max
+         DATA_WIDTH_G     => 8)
+      port map (
+         axiClk         => axilClk,                 -- [in]
+         axiRst         => axilRst,                 -- [in]
+         axiReadMaster  => locAxilReadMasters(1),   -- [in]
+         axiReadSlave   => locAxilReadSlaves(1),    -- [out]
+         axiWriteMaster => locAxilWriteMasters(1),  -- [in]
+         axiWriteSlave  => locAxilWriteSlaves(1),   -- [out]
+         clk            => wordClk,                 -- [in]
+         rst            => wordRst,                 -- [in]
+         addr           => r.timingData.rowSeq,     -- [in]
+         dout           => rowOrderRamOut);         -- [out]   
 
    comb : process (r, refClkFreq, timingAxilReadMaster, timingAxilWriteMaster, wordClkFreq, wordRst) is
       variable v      : RegType;
@@ -157,9 +216,8 @@ begin
       axiSlaveWaitTxn(axilEp, timingAxilWriteMaster, timingAxilReadMaster, v.axilWriteSlave, v.axilReadSlave);
 
       -- Strobed signals
-      v.softwareRowStrobe   := '0';
-      v.timingData.startRun := '0';
-      v.timingData.rawAdc   := '0';
+      v.softwareRowStrobe := '0';
+      v.timingData.rawAdc := '0';
 
 
       -- Configuration
@@ -198,11 +256,14 @@ begin
       ----------------------
       -- Timing Gen
       ----------------------
-      v.timingTx := IDLE_C;
+      v.timingTx  := IDLE_C;
+      v.timingTxK := "1";
 
       v.timingData.firstSample := '0';
       v.timingData.lastSample  := '0';
       v.timingData.loadDacs    := '0';
+
+      v.timingData.rowStrobe := '0';
 
       if (r.timingData.rawAdc = '1') then
          v.timingTx := RAW_ADC_C;
@@ -215,17 +276,20 @@ begin
          v.timingData.rowSeq       := (others => '0');
          v.timingData.rowTime      := (others => '0');
          v.timingData.readoutCount := (others => '0');
+
          v.timingTx                := START_RUN_C;
       end if;
 
 
       if (r.timingData.running = '1') then
+         v.timingData.startRun     := '0';         
          -- Count the things
          v.timingData.runTime := r.timingData.runTime + 1;
          v.timingData.rowTime := r.timingData.rowTime + 1;
 
          if ((r.runMode = HARDWARE_C and r.timingData.rowTime = r.rowPeriod-1) or
              (r.runMode = SOFTWARE_C and r.softwareRowStrobe = '1')) then
+
             v.timingData.rowTime := (others => '0');
             v.timingData.rowSeq  := r.timingData.rowSeq + 1;
 
@@ -236,9 +300,14 @@ begin
          end if;
 
          -- Send codes
-         if (r.runMode = HARDWARE_C and r.timingData.rowTime = 0) or
+         if (r.runMode = HARDWARE_C and r.timingData.rowTime = 0 and r.timingData.startRun = '0') or
             (r.runMode = SOFTWARE_C and r.softwareRowStrobe = '1') then
-            v.timingTx := ROW_STROBE_C;
+            v.timingTx             := ROW_STROBE_C;
+            v.timingData.rowStrobe := '1';
+
+         elsif (r.timingTxK = "1" and (r.timingTx = ROW_STROBE_C or r.timingTx = START_RUN_C)) then
+            v.timingTxK := "0";
+            v.timingTx  := rowOrderRamOut;
 
          elsif (r.timingData.rowTime = r.sampleStartTime) then
             v.timingData.sample      := '1';
@@ -257,7 +326,7 @@ begin
          end if;
 
          -- Need to end run more cleanly than this
-         if (r.timingData.endRun = '1')  then
+         if (r.timingData.endRun = '1') then
             v.timingData.running := '0';
             v.timingData.sample  := '0';
             v.timingData.endRun  := '0';
@@ -397,7 +466,7 @@ begin
          clk     => wordClk,            -- [in]
          rst     => wordRst,            -- [in]
          dataIn  => r.timingTx,         -- [in]
-         dataKIn => "1",                -- [in]
+         dataKIn => r.timingTxK,        -- [in]
          dataOut => timingTxCodeWord);  -- [out]
 
 

@@ -199,7 +199,7 @@ class FastDacVariable(GroupLinkVariable):
 
             # Full array access
             else:
-                rows = 256 #len(self._config.rowMap)
+                rows = 32 #256 #len(self._config.rowMap)
                 cols = len(self._config.columnMap)
 
                 ret = np.zeros((cols, rows), np.float64)
@@ -254,7 +254,7 @@ class Group(pr.Device):
             host=groupConfig.host,
             colBoards=groupConfig.columnBoards,
             rowBoards=groupConfig.rowBoards,
-            rows=1,
+            rows=32,
             plots=plots,
             groups=['Hardware'],
             expand=True))

@@ -159,7 +159,7 @@ architecture rtl of WarmTdmCore is
          connectivity => X"FFFF"),
       AXIL_TIMING_C   => (
          baseAddr     => X"00100000",
-         addrBits     => 16,
+         addrBits     => 20,
          connectivity => X"FFFF"),
       AXIL_COM_C      => (
          baseAddr     => X"A0000000",

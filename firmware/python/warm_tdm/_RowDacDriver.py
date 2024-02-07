@@ -54,6 +54,15 @@ class FasMem(pr.Device):
                 units = 'mV',
                 linkedGet = lambda read, x=i: 1.0e3 * self.amps[x].dacToLoadVoltage(self.Raw.get(read=read, index=x))))
 
+        for i in range(size):
+            self.add(pr.LinkVariable(
+                name = f'Raw_[{i}]',
+                guiGroup = 'Raw_',
+                dependencies = [self.Raw],
+                disp = self.Raw.disp,
+#                units = 'mV',
+                linkedGet = lambda read, x=i: self.Raw.get(read=read, index=x),
+                linkedSet = lambda write, value, x=i: self.Raw.set(value=value, write=write, index=x)))
             
             
 

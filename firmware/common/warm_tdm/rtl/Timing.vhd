@@ -102,12 +102,12 @@ architecture rtl of Timing is
 
    constant AXIL_XBAR_CFG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := (
       AXIL_RX_C       => (
-         baseAddr     => AXIL_BASE_ADDR_G + X"0000",
+         baseAddr     => AXIL_BASE_ADDR_G + X"00000",
          addrBits     => 8,
          connectivity => X"FFFF"),
       AXIL_TX_C       => (
-         baseAddr     => AXIL_BASE_ADDR_G + X"0100",
-         addrBits     => 8,
+         baseAddr     => AXIL_BASE_ADDR_G + X"10000",
+         addrBits     => 16,
          connectivity => X"FFFF"));
 
 
@@ -213,7 +213,8 @@ begin
          TPD_G           => TPD_G,
          SIMULATION_G    => SIMULATION_G,
          RING_ADDR_0_G   => RING_ADDR_0_G,
-         AXIL_CLK_FREQ_G => AXIL_CLK_FREQ_G)
+         AXIL_CLK_FREQ_G => AXIL_CLK_FREQ_G,
+         AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_TX_C).baseAddr)
       port map (
          timingRefClk    => timingFabRefClk,         -- [in]
          timingRefRst    => timingRefRst,            -- [in]

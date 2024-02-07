@@ -106,9 +106,9 @@ architecture rtl of TimingRx is
    -- AXI Lite
    -------------------------------------------------------------------------------------------------
 
-   constant NUM_AXIL_C : integer := 5;
+   constant NUM_AXIL_C : integer := 1;
 
-   constant XBAR_COFNIG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_C, AXIL_BASE_ADDR_G, 12, 8);
+   constant XBAR_COFNIG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_C, AXIL_BASE_ADDR_G, 16, 12);
 
    signal locAxilWriteMasters : AxiLiteWriteMasterArray(NUM_AXIL_C-1 downto 0);
    signal locAxilWriteSlaves  : AxiLiteWriteSlaveArray(NUM_AXIL_C-1 downto 0) := (others => AXI_LITE_WRITE_SLAVE_EMPTY_DECERR_C);
@@ -157,7 +157,7 @@ architecture rtl of TimingRx is
    signal counterVector   : SlVectorArray(7 downto 0, 15 downto 0);
    signal statusVector    : slv(7 downto 0);
 
-   signal rowOrderRamOut : slv(7 downto 0);
+
 
 begin
 
@@ -506,30 +506,7 @@ begin
 
 
 
-   -- RAM for ADC Offsets
-   U_AxiDualPortRam_ROW_ORDER : entity surf.AxiDualPortRam
-      generic map (
-         TPD_G            => TPD_G,
-         SYNTH_MODE_G     => "inferred",
-         MEMORY_TYPE_G    => "block",
-         READ_LATENCY_G   => 3,
-         AXI_WR_EN_G      => true,
-         SYS_WR_EN_G      => false,
-         SYS_BYTE_WR_EN_G => false,
-         COMMON_CLK_G     => false,
-         ADDR_WIDTH_G     => 10,                    -- 1024 Rows
-         DATA_WIDTH_G     => 8)
-      port map (
-         axiClk         => axilClk,                 -- [in]
-         axiRst         => axilRst,                 -- [in]
-         axiReadMaster  => locAxilReadMasters(1),   -- [in]
-         axiReadSlave   => locAxilReadSlaves(1),    -- [out]
-         axiWriteMaster => locAxilWriteMasters(1),  -- [in]
-         axiWriteSlave  => locAxilWriteSlaves(1),   -- [out]
-         clk            => wordClk,                 -- [in]
-         rst            => wordRst,                 -- [in]
-         addr           => r.timingRxData.rowSeq,   -- [in]
-         dout           => rowOrderRamOut);         -- [out]
+
 
 
 
@@ -537,7 +514,7 @@ begin
    -- Transition to timingRxClk here from wordClk
    -- Is this ok?
    -------------------------------------------------------------------------------------------------
-   comb : process (locked, r, rowOrderRamOut, timingRxData, timingRxDataK, timingRxValid, wordRst) is
+   comb : process (locked, r, timingRxData, timingRxDataK, timingRxValid, wordRst) is
       variable v : RegType;
    begin
       v := r;
@@ -557,9 +534,8 @@ begin
 
 --      v.nextRowSeq := r.timingRxData.rowSeq + 1;
 
-      v.timingRxData.rowIndexNext := rowOrderRamOut;
-
       if (timingRxValid = '1' and timingRxDataK = '1' and locked = '1') then
+
          case timingRxData is
             when START_RUN_C =>
                v.timingRxData.startRun     := '1';
@@ -567,7 +543,7 @@ begin
                v.timingRxData.readoutCount := (others => '0');
                v.timingRxData.running      := '1';
                v.timingRxData.sample       := '0';
-               v.timingRxData.rowSeq       := (others => '0');
+               v.timingRxData.rowSeq       := (others => '1');
             when END_RUN_C =>
                v.timingRxData.endRun  := '1';
                v.timingRxData.running := '0';
@@ -594,6 +570,11 @@ begin
                v.timingRxData.rawAdc := '1';
             when others => null;
          end case;
+      end if;
+
+      -- First word after row strobe or start run is rowIndex for next strobe
+      if (r.timingRxData.startRun = '1' or r.timingRxData.rowStrobe = '1') then
+         v.timingRxData.rowIndexNext := timingRxData;
       end if;
 
       if (wordRst = '1') then
