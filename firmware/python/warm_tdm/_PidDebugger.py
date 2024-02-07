@@ -8,9 +8,8 @@ import numpy as np
 
 class PidDebugger(pr.DataReceiver):
 
-    def __init__(self, rows=1, col, fastDacDriver, **kwargs):
+    def __init__(self, col, fastDacDriver, **kwargs):
         self.mem = pyrogue.interfaces.simulation.MemEmulate()
-        self.rows = rows
         
         super().__init__(memBase=self.mem, **kwargs)
 
