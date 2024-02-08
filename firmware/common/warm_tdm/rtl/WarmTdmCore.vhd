@@ -324,7 +324,7 @@ begin
          timingRxClkOut  => locTimingRxClk125,                   -- [out]
          timingRxRstOut  => timingRxRst125,                      -- [out]
          timingRxDataOut => timingRxData,   -- [out]
-         timingRxLocked  => timingRxLocked  -- [out]
+         timingRxLocked  => timingRxLocked, -- [out]
          timingTxClkP    => timingTxClkP,   -- [out]
          timingTxClkN    => timingTxClkN,   -- [out]
          timingTxDataP   => timingTxDataP,  -- [out]
