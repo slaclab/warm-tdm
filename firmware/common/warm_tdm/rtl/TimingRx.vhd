@@ -53,6 +53,8 @@ entity TimingRx is
       timingRxRstOut  : out sl;
       timingRxDataOut : out LocalTimingType;
 
+      timingRxLocked : out sl;
+
       axilClk         : in  sl;
       axilRst         : in  sl;
       axilWriteMaster : in  AxiLiteWriteMasterType;
@@ -308,6 +310,8 @@ begin
          lockingCntCfg   => lockingCntCfg,    -- [in]
          errorDet        => errorDet,         -- [out]
          locked          => locked);          -- [out]
+
+   timingRxLocked <= locked;
 
    -------------------------------------------------------------------------------------------------
    -- AXIL clock to word clock

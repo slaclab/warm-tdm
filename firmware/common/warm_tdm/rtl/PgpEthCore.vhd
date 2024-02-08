@@ -69,6 +69,8 @@ entity PgpEthCore is
       -- Debug
       rssiStatus  : out slv7Array(1 downto 0);
       ethPhyReady : out sl;
+      pgpTxLink   : out sl;
+      pgpRxLink   : out sl;
 
       -- AXI Lite Master
       axilClkOut       : out sl;
@@ -180,6 +182,8 @@ begin
          pgpTxN           => pgpTxN,                            -- [out]
          pgpRxP           => pgpRxP,                            -- [in]
          pgpRxN           => pgpRxN,                            -- [in]
+         pgpTxLink        => pgpTxLink,                         -- [out]
+         pgpRxLink        => pgpRxLink,                         -- [out]
          axiClk           => axilClk,                           -- [out]
          axiRst           => axilRst,                           -- [out]
          mAxilReadMaster  => mLocAxilReadMasters(AXIL_PGP_C),   -- [out]

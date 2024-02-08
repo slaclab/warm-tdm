@@ -60,6 +60,9 @@ entity Timing is
       timingRxRstOut  : out sl;
       timingRxDataOut : out LocalTimingType;
 
+      -- Debug for LED
+      timingRxLocked : out sl;
+
       -- TX Timing Serial Interface
       timingTxClkP  : out sl;
       timingTxClkN  : out sl;
@@ -201,6 +204,7 @@ begin
          timingRxClkOut  => timingRxClkOut,          -- [out]
          timingRxRstOut  => timingRxRstOut,          -- [out]
          timingRxDataOut => timingRxDataOut,         -- [out]
+         timingRxLocked => timingRxLocked,  -- [out]
          axilClk         => axilClk,                 -- [in]
          axilRst         => axilRst,                 -- [in]
          axilWriteMaster => locAxilWriteMasters(0),  -- [in]

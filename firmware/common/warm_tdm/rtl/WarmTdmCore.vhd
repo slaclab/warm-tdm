@@ -193,6 +193,9 @@ architecture rtl of WarmTdmCore is
    signal ethPhyReady : sl;
 
    signal locTimingRxClk125 : sl;
+   signal timingRxLocked    : sl;
+   signal pgpTxLink         : sl;
+   signal pgpRxLink         : sl;
 
 
 begin
@@ -243,6 +246,12 @@ begin
    leds(4) <= rssiStatus(0)(0);
    leds(5) <= rssiStatus(1)(0);
    leds(6) <= ethPhyReady;
+
+   conRxGreenLed  <= pgpRxLink;
+   conRxYellowLed <= timingRxLocked;
+   conTxGreenLed  <= pgpTxLink;
+   conTxYellowLed <= '1';
+
 
    -------------------------------------------------------------------------------------------------
    -- APP AXI-Lite
@@ -315,6 +324,7 @@ begin
          timingRxClkOut  => locTimingRxClk125,                   -- [out]
          timingRxRstOut  => timingRxRst125,                      -- [out]
          timingRxDataOut => timingRxData,   -- [out]
+         timingRxLocked  => timingRxLocked  -- [out]
          timingTxClkP    => timingTxClkP,   -- [out]
          timingTxClkN    => timingTxClkN,   -- [out]
          timingTxDataP   => timingTxDataP,  -- [out]
@@ -360,6 +370,8 @@ begin
          ethTxN           => sfp0TxN,                          -- [out]
          rssiStatus       => rssiStatus,                       -- [out]
          ethPhyReady      => ethPhyReady,                      -- [out]
+         pgpTxLink        => pgpTxLink,                        -- [out]
+         pgpRxLink        => pgpRxLink,                        -- [out]
          axilClkOut       => locAxilClk,                       -- [out]
          axilRstOut       => locAxilRst,                       -- [out]
          mAxilWriteMaster => srpAxilWriteMaster,               -- [out]

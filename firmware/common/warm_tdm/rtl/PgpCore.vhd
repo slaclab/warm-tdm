@@ -51,7 +51,8 @@ entity PgpCore is
       pgpTxN    : out slv(1 downto 0) := (others => '1');
       pgpRxP    : in  slv(1 downto 0);
       pgpRxN    : in  slv(1 downto 0);
-
+      pgpTxLink : out sl;
+      pgpRxLink : out sl;
       -- Main clock and reset 
       axiClk           : out sl;
       axiRst           : out sl;
@@ -157,6 +158,9 @@ architecture rtl of PgpCore is
 
 
 begin
+
+   pgpTxLink <= pgpTxOut(0).linkReady;
+   pgpRxLink <= pgpRxOut(0).linkReady;
 
    locPgpTxIn(0).flowCntlDis <= '0' when RING_ADDR_0_G else '1';
 
