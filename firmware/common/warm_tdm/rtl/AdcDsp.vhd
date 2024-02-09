@@ -146,6 +146,7 @@ architecture rtl of AdcDsp is
       fluxQuantum     : slv(13 downto 0);
       fluxJumpWrValid : sl;
       clearRams       : sl;
+      pidDebugEnable : sl;
       pidDebugMaster  : AxiStreamMasterType;
       axilWriteSlave  : AxiLiteWriteSlaveType;
       axilReadSlave   : AxiLiteReadSlaveType;
@@ -173,6 +174,7 @@ architecture rtl of AdcDsp is
       fluxQuantum     => (others => '0'),
       fluxJumpWrValid => '0',
       clearRams       => '0',
+      pidDebugEnable => '1',
       pidDebugMaster  => axiStreamMasterInit(AXIS_DEBUG_CFG_C),
       axilWriteSlave  => AXI_LITE_WRITE_SLAVE_INIT_C,
       axilReadSlave   => AXI_LITE_READ_SLAVE_INIT_C);
@@ -192,6 +194,8 @@ architecture rtl of AdcDsp is
 
    signal pidStreamMaster    : AxiStreamMasterType := AXI_STREAM_MASTER_INIT_C;
    signal filterStreamMaster : AxiStreamMasterType := AXI_STREAM_MASTER_INIT_C;
+
+   signal pidDebugCtrl : AxiStreamCtrlType;
 
    -------------------------------------------------------------------------------------------------
    -- AXIL Signals
@@ -465,8 +469,8 @@ begin
          din            => filterStreamMaster.tData(RESULT_BITS_C-1 downto 0),  -- [in]
          dout           => open);                                               -- [in]
 
-   comb : process (accumRamOut, adcAxisMaster, adcBaselineRamOut, r, sumRamOut,
-                   timingAxilReadMaster, timingAxilWriteMaster, timingRxRst125) is
+   comb : process (accumRamOut, adcAxisMaster, adcBaselineRamOut, fluxJumpRamOut, pidDebugCtrl, r,
+                   sumRamOut, timingAxilReadMaster, timingAxilWriteMaster, timingRxRst125) is
       variable v                 : RegType;
       variable sq1FbSlv          : slv(13 downto 0);
       variable adcValueSfixed    : sfixed(13 downto 0);
@@ -530,6 +534,9 @@ begin
       if (r.pllEnable = '1') then
          case r.state is
             when WAIT_ROW_STROBE_S =>
+               -- Watch pidDebugPuase while we wait
+               v.pidDebugEnable := not pidDebugCtrl.pause;
+               
                -- Row strobe comes first (bit 26).
                -- Register the rowIndex (23:16) and reset accumulated error
                if (adcAxisMaster.tUser(2) = '1') then
@@ -538,7 +545,7 @@ begin
 
                   -- First word is Column number
                   ssiSetUserSof(AXIS_DEBUG_CFG_C, v.pidDebugMaster, '1');
-                  v.pidDebugMaster.tValid             := '1';
+                  v.pidDebugMaster.tValid             := v.pidDebugEnable;
                   v.pidDebugMaster.tData(3 downto 0)  := toSlv(COLUMN_NUM_G, 4);
                   v.pidDebugMaster.tData(15 downto 8) := v.rowIndex;
                   v.state                             := WAIT_FIRST_SAMPLE_S;
@@ -551,7 +558,7 @@ begin
                -- In practice it will always be much longer than 3 cycles
                if (adcAxisMaster.tUser(0) = '1') then
                   -- Second word is baseline
-                  v.pidDebugMaster.tValid             := '1';
+                  v.pidDebugMaster.tValid             := r.pidDebugEnable;
                   v.pidDebugMaster.tData(31 downto 0) := resize(adcBaselineRamOut, 32);
                   v.state                             := ACCUMULATE_S;
                end if;
@@ -576,7 +583,7 @@ begin
                v.sq1FB        := to_sfixed(convInvOffsetBin(adcAxisMaster.tData(29 downto 16)), r.sq1FB);
 
                -- Third word is accum error
-               v.pidDebugMaster.tValid             := '1';
+               v.pidDebugMaster.tValid             := r.pidDebugEnable;
                v.pidDebugMaster.tData(31 downto 0) := resize(to_slv(r.accumError), 32);
 
                -- Prep for P stage
@@ -591,7 +598,7 @@ begin
 
             when PID_P_S =>
                -- Fourth Word is starting SQ1FB
-               v.pidDebugMaster.tValid             := '1';
+               v.pidDebugMaster.tValid             := r.pidDebugEnable;
                v.pidDebugMaster.tData(13 downto 0) := resize(convInvOffsetBin(to_slv(r.sq1FB)), 14);
 
                -- Calcualte PID Stage
@@ -603,7 +610,7 @@ begin
 
             when PID_I_S =>
                -- Fifth Word is SumAccum
-               v.pidDebugMaster.tValid             := '1';
+               v.pidDebugMaster.tValid             := r.pidDebugEnable;
                v.pidDebugMaster.tData(31 downto 0) := resize(to_slv(r.pidMultiplier), 32);
 
                -- Calculate PID stage
@@ -615,7 +622,7 @@ begin
 
             when PID_D_S =>
                -- Sixth Word is diff multiplier result
-               v.pidDebugMaster.tValid             := '1';
+               v.pidDebugMaster.tValid             := r.pidDebugEnable;
                v.pidDebugMaster.tData(31 downto 0) := resize(to_slv(r.pidMultiplier), 32);
 
 
@@ -627,7 +634,7 @@ begin
 
             when SQ1FB_ADJUST_S =>
                -- Seventh Word is PID result
-               v.pidDebugMaster.tValid             := '1';
+               v.pidDebugMaster.tValid             := r.pidDebugEnable;
                v.pidDebugMaster.tData(63 downto 0) := resize(to_slv(r.pidResult), 64);
 
                v.sq1Fb := resize(r.sq1Fb + r.pidResult, v.sq1Fb);
@@ -649,14 +656,14 @@ begin
                v.state := FLUX_DEBUG_S;
 
             when FLUX_DEBUG_S =>
-               v.pidDebugMaster.tValid            := '1';
+               v.pidDebugMaster.tValid            := r.pidDebugEnable;
                v.pidDebugMaster.tData(7 downto 0) := resize(to_slv(r.numFluxJumps), 8);
 
                v.state := LOOP_DONE_S;
 
             when LOOP_DONE_S =>
                -- Ninth word is new sq1Fb
-               v.pidDebugMaster.tValid             := '1';
+               v.pidDebugMaster.tValid             := r.pidDebugEnable;
                v.pidDebugMaster.tData(13 downto 0) := resize(convInvOffsetBin(to_slv(r.sq1Fb)), 14);
                v.pidDebugMaster.tLast              := '1';
 
@@ -695,8 +702,9 @@ begin
          SLAVE_READY_EN_G    => false,
          VALID_THOLD_G       => 0,
          VALID_BURST_MODE_G  => true,
+         FIFO_PAUSE_THRESH_G => 16,
          GEN_SYNC_FIFO_G     => false,
-         FIFO_ADDR_WIDTH_G   => 4,
+         FIFO_ADDR_WIDTH_G   => 6,
          SYNTH_MODE_G        => "xpm",
          MEMORY_TYPE_G       => "distributed",
          INT_WIDTH_SELECT_G  => "WIDE",
@@ -707,7 +715,7 @@ begin
          sAxisRst    => timingRxRst125,    -- [in]
          sAxisMaster => r.pidDebugMaster,  -- [in]
          sAxisSlave  => open,              -- [out]
-         sAxisCtrl   => open,              -- [out]
+         sAxisCtrl   => pidDebugCtrl,              -- [out]
          mAxisClk    => axisClk,           -- [in]
          mAxisRst    => axisRst,           -- [in]
          mAxisMaster => pidDebugMaster,    -- [out]

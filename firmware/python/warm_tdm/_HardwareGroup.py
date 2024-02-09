@@ -79,7 +79,7 @@ class HardwareGroup(pyrogue.Device):
                 expand=True,
                 rows=rows))
             
-            pidDebug = [warm_tdm.PidDebugger(name=f'PidDebug[{i}]', hidden=False, col=i, fastDacDriver=self.ColumnBoard[index].SQ1Fb) for i in range(8)]
+            pidDebug = [warm_tdm.PidDebugger(name=f'PidDebug[{i}]', hidden=False, numRows=rows, col=i, fastDacDriver=self.ColumnBoard[index].SQ1Fb) for i in range(8)]
             waveGui = warm_tdm.WaveformCaptureReceiver(hidden=False, amplifiers=self.ColumnBoard[index].amplifiers)
 
             # Link the data stream to the DataWriter
