@@ -8,55 +8,58 @@ import numpy as np
 import warm_tdm
 
 class IndexedLinkVariable(pr.LinkVariable):
-    def __init__(self, dep, index,
-                 linkedGet=self._get,
-                 linkedSet=self._set,
-                 **kwargs):
+    def __init__(self, dep, index, **kwargs):
+        super().__init__(
+            linkedGet=self._get,
+#            linkedSet=self._set,
+            **kwargs)
         
         self.dep = dep
         self.index = index
 
-    def _get(self, *, read, index):
-        return dep.read(read=read, index=index)
+    def _get(self, *, read):
+        return self.dep.get(read=read, index=self.index)
 
-    def _set(self, *, value, index, write):
-        dep.set(value=value, index=index, write=write)
+    def _set(self, *, value, write):
+        self.dep.set(value=value, index=self.index, write=write)
 
 class RowPidStatus(pr.Device):
     def __init__(self, dsp, rowNum, **kwargs):
+        super().__init__(**kwargs)
 
-        self.add(pr.IndexedLinkVariable(
+        self.add(IndexedLinkVariable(
             name = 'AdcBaseline',
             dep = dsp.AdcBaselines,
             index = rowNum))
 
-        self.add(pr.IndexedLinkVariable(
+        self.add(IndexedLinkVariable(
             name = 'AccumError',
             dep = dsp.AccumError,
             index = rowNum))
 
-        self.add(pr.IndexedLinkVariable(
+        self.add(IndexedLinkVariable(
             name = 'SumAccum',
             dep = dsp.SumAccum,
             index = rowNum))
 
-        self.add(pr.IndexedLinkVariable(
+        self.add(IndexedLinkVariable(
             name = 'PidResults',
             dep = dsp.PidResults,
             index = rowNum))
 
-        self.add(pr.IndexedLinkVariable(
+        self.add(IndexedLinkVariable(
             name = 'FilterResults',
             dep = dsp.FilterResults,
             index = rowNum))
 
-        self.add(pr.IndexedLinkVariable(
+        self.add(IndexedLinkVariable(
             name = 'FluxJumps',
             dep = dsp.FluxJumps,
             index = rowNum))
 
 class RowPidStatusArray(pr.Device):
     def __init__(self, dsp, numRows, **kwargs):
+        super().__init__(**kwargs)
 
         for row in range(numRows):
             self.add(RowPidStatus(
@@ -254,7 +257,9 @@ class AdcDsp(pr.Device):
             valueStride = 32))
 
         self.add(RowPidStatusArray(
-            name = 'RowPidStatus'))
+            name = 'RowPidStatus',
+            dsp = self,
+            numRows = numRows))
 
         @self.command()
         def ClearPids():
