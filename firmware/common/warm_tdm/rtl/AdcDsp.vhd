@@ -67,7 +67,7 @@ architecture rtl of AdcDsp is
 
    constant ROW_ADDR_BITS_C : integer := 8;
 
-   constant NUM_AXIL_MASTERS_C : integer := 7;
+   constant NUM_AXIL_MASTERS_C : integer := 8;
    constant LOCAL_C            : integer := 0;
    constant ADC_BASELINE_C     : integer := 1;
    constant ACCUM_ERROR_C      : integer := 2;
@@ -75,6 +75,7 @@ architecture rtl of AdcDsp is
    constant PID_RESULTS_C      : integer := 4;
    constant FILTER_RESULTS_C   : integer := 5;
    constant FILTER_COEF_C      : integer := 6;
+   constant FLUX_JUMP_C        : integer := 7;
 
    constant XBAR_CONFIG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) :=
       genAxiLiteConfig(NUM_AXIL_MASTERS_C, AXIL_BASE_ADDR_G, 16, 12);
@@ -124,55 +125,57 @@ architecture rtl of AdcDsp is
       LOOP_DONE_S);
 
    type RegType is record
-      pllEnable      : sl;
-      state          : StateType;
-      rowIndex       : slv(ROW_ADDR_BITS_C-1 downto 0);
-      accumValid     : sl;
-      accumError     : sfixed(ACCUM_BITS_C-1 downto 0);
-      lastAccum      : sfixed(ACCUM_BITS_C-1 downto 0);
-      sumAccum       : sfixed(SUM_BITS_C-1 downto 0);
-      accumShift     : slv(3 downto 0);
-      pidMultiplier  : sfixed(ACCUM_BITS_C-1 downto 0);
-      pidCoef        : sfixed(COEF_HIGH_C downto COEF_LOW_C);
-      p              : slv(COEF_BITS_C-1 downto 0);  -- sfixed(COEF_HIGH_C downto COEF_LOW_C);
-      i              : slv(COEF_BITS_C-1 downto 0);  -- sfixed(COEF_HIGH_C downto COEF_LOW_C);
-      d              : slv(COEF_BITS_C-1 downto 0);  -- sfixed(COEF_HIGH_C downto COEF_LOW_C);
-      pidValid       : sl;
-      pidResult      : sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
-      sq1Fb          : sfixed(13 downto 0);
-      sq1FbValid     : sl;
-      numFluxJumps   : slv(7 downto 0);
-      fluxQuantum    : slv(13 downto 0);
-      clearRams      : sl;
-      pidDebugMaster : AxiStreamMasterType;
-      axilWriteSlave : AxiLiteWriteSlaveType;
-      axilReadSlave  : AxiLiteReadSlaveType;
+      pllEnable       : sl;
+      state           : StateType;
+      rowIndex        : slv(ROW_ADDR_BITS_C-1 downto 0);
+      accumValid      : sl;
+      accumError      : sfixed(ACCUM_BITS_C-1 downto 0);
+      lastAccum       : sfixed(ACCUM_BITS_C-1 downto 0);
+      sumAccum        : sfixed(SUM_BITS_C-1 downto 0);
+      accumShift      : slv(3 downto 0);
+      pidMultiplier   : sfixed(ACCUM_BITS_C-1 downto 0);
+      pidCoef         : sfixed(COEF_HIGH_C downto COEF_LOW_C);
+      p               : slv(COEF_BITS_C-1 downto 0);  -- sfixed(COEF_HIGH_C downto COEF_LOW_C);
+      i               : slv(COEF_BITS_C-1 downto 0);  -- sfixed(COEF_HIGH_C downto COEF_LOW_C);
+      d               : slv(COEF_BITS_C-1 downto 0);  -- sfixed(COEF_HIGH_C downto COEF_LOW_C);
+      pidValid        : sl;
+      pidResult       : sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
+      sq1Fb           : sfixed(13 downto 0);
+      sq1FbValid      : sl;
+      numFluxJumps    : slv(7 downto 0);
+      fluxQuantum     : slv(13 downto 0);
+      fluxJumpWrValid : sl;
+      clearRams       : sl;
+      pidDebugMaster  : AxiStreamMasterType;
+      axilWriteSlave  : AxiLiteWriteSlaveType;
+      axilReadSlave   : AxiLiteReadSlaveType;
    end record;
 
    constant REG_INIT_C : RegType := (
-      pllEnable      => '0',
-      state          => WAIT_ROW_STROBE_S,
-      rowIndex       => (others => '0'),
-      accumValid     => '0',
-      accumError     => (others => '0'),
-      lastAccum      => (others => '0'),
-      sumAccum       => (others => '0'),
-      accumShift     => toSlv(0, 4),
-      pidMultiplier  => (others => '0'),
-      pidCoef        => (others => '0'),
-      p              => (others => '0'),
-      i              => (others => '0'),
-      d              => (others => '0'),
-      pidValid       => '0',
-      pidResult      => (others => '0'),
-      sq1Fb          => (others => '0'),
-      sq1FbValid     => '0',
-      numFluxJumps   => (others => '0'),
-      fluxQuantum    => (others => '0'),
-      clearRams      => '0',
-      pidDebugMaster => axiStreamMasterInit(AXIS_DEBUG_CFG_C),
-      axilWriteSlave => AXI_LITE_WRITE_SLAVE_INIT_C,
-      axilReadSlave  => AXI_LITE_READ_SLAVE_INIT_C);
+      pllEnable       => '0',
+      state           => WAIT_ROW_STROBE_S,
+      rowIndex        => (others => '0'),
+      accumValid      => '0',
+      accumError      => (others => '0'),
+      lastAccum       => (others => '0'),
+      sumAccum        => (others => '0'),
+      accumShift      => toSlv(0, 4),
+      pidMultiplier   => (others => '0'),
+      pidCoef         => (others => '0'),
+      p               => (others => '0'),
+      i               => (others => '0'),
+      d               => (others => '0'),
+      pidValid        => '0',
+      pidResult       => (others => '0'),
+      sq1Fb           => (others => '0'),
+      sq1FbValid      => '0',
+      numFluxJumps    => (others => '0'),
+      fluxQuantum     => (others => '0'),
+      fluxJumpWrValid => '0',
+      clearRams       => '0',
+      pidDebugMaster  => axiStreamMasterInit(AXIS_DEBUG_CFG_C),
+      axilWriteSlave  => AXI_LITE_WRITE_SLAVE_INIT_C,
+      axilReadSlave   => AXI_LITE_READ_SLAVE_INIT_C);
 
    signal r   : RegType := REG_INIT_C;
    signal rin : RegType;
@@ -181,6 +184,7 @@ architecture rtl of AdcDsp is
    signal accumRamOut       : slv(ACCUM_BITS_C-1 downto 0);
    signal sumRamOut         : slv(SUM_BITS_C-1 downto 0);
    signal pidRamOut         : slv(RESULT_BITS_C-1 downto 0);
+   signal fluxJumpRamOut    : slv(7 downto 0);
 
    signal accumError : slv(ACCUM_BITS_C-1 downto 0);
    signal sumAccum   : slv(SUM_BITS_C-1 downto 0);
@@ -299,32 +303,32 @@ begin
          addr           => r.rowIndex,                           -- [in]
          dout           => adcBaselineRamOut);                   -- [out]
 
---    U_AxiDualPortRam_FLUX_JUMP : entity surf.AxiDualPortRam
---       generic map (
---          TPD_G            => TPD_G,
---          SYNTH_MODE_G     => "inferred",
---          MEMORY_TYPE_G    => "distributed",
---          READ_LATENCY_G   => 1,
---          AXI_WR_EN_G      => true,
---          SYS_WR_EN_G      => false,
---          SYS_BYTE_WR_EN_G => false,
---          COMMON_CLK_G     => false,
---          ADDR_WIDTH_G     => ROW_ADDR_BITS_C,
---          DATA_WIDTH_G     => 8)
---       port map (
---          axiClk         => timingRxClk125,                       -- [in]
---          axiRst         => timingRxRst125,                       -- [in]
---          axiReadMaster  => locAxilReadMasters(FLUX_JUMP_C),   -- [in]
---          axiReadSlave   => locAxilReadSlaves(FLUX_JUMP_C),    -- [out]
---          axiWriteMaster => locAxilWriteMasters(FLUX_JUMP_C),  -- [in]
---          axiWriteSlave  => locAxilWriteSlaves(FLUX_JUMP_C),   -- [out]
---          clk            => timingRxClk125,                       -- [in]
---          rst            => timingRxRst125,                       -- [in]
---          addr           => r.rowIndex,                           -- [in]
---          dout           => fluxJumpRamOut,                   -- [out]
---          we => r.fluxJumpWrValid,       -- in
---          din => fluxJumpRamIn);         -- in
-   
+   U_AxiDualPortRam_FLUX_JUMP : entity surf.AxiDualPortRam
+      generic map (
+         TPD_G            => TPD_G,
+         SYNTH_MODE_G     => "inferred",
+         MEMORY_TYPE_G    => "distributed",
+         READ_LATENCY_G   => 1,
+         AXI_WR_EN_G      => true,
+         SYS_WR_EN_G      => false,
+         SYS_BYTE_WR_EN_G => false,
+         COMMON_CLK_G     => false,
+         ADDR_WIDTH_G     => ROW_ADDR_BITS_C,
+         DATA_WIDTH_G     => 8)
+      port map (
+         axiClk         => timingRxClk125,                    -- [in]
+         axiRst         => timingRxRst125,                    -- [in]
+         axiReadMaster  => locAxilReadMasters(FLUX_JUMP_C),   -- [in]
+         axiReadSlave   => locAxilReadSlaves(FLUX_JUMP_C),    -- [out]
+         axiWriteMaster => locAxilWriteMasters(FLUX_JUMP_C),  -- [in]
+         axiWriteSlave  => locAxilWriteSlaves(FLUX_JUMP_C),   -- [out]
+         clk            => timingRxClk125,                    -- [in]
+         rst            => timingRxRst125,                    -- [in]
+         addr           => r.rowIndex,                        -- [in]
+         dout           => fluxJumpRamOut,                    -- [out]
+         we             => r.fluxJumpWrValid,                 -- [in]
+         din            => r.numFluxJumps);                   -- [in]
+
 
    accumError <= slv(r.accumError);
    U_AxiDualPortRam_ACCUM_ERROR : entity surf.AxiDualPortRam
@@ -492,7 +496,7 @@ begin
       axiSlaveRegister(axilEp, X"0c", 0, v.d);
 
       axiSlaveRegister(axilEp, X"40", 0, v.fluxQuantum);
-      axiSlaveRegister(axilEp, X"44", 0, v.numFluxJumps);
+      axiSlaveRegisterR(axilEp, X"44", 0, r.numFluxJumps);
 
       axiSlaveRegisterR(axilEp, X"10", 0, to_slv(r.accumError));
       axiSlaveRegisterR(axilEp, X"14", 0, to_slv(r.lastAccum));
@@ -507,9 +511,10 @@ begin
 
       ----------------------------------------------------------------------------------------------
 
-      v.accumValid := '0';
-      v.pidValid   := '0';
-      v.sq1FbValid := '0';
+      v.accumValid      := '0';
+      v.pidValid        := '0';
+      v.sq1FbValid      := '0';
+      v.fluxJumpWrValid := '0';
 
       v.pidDebugMaster       := axiStreamMasterInit(AXIS_DEBUG_CFG_C);
       v.pidDebugMaster.tDest := toSlv(8, 8);
@@ -560,14 +565,15 @@ begin
 
             when PREP_PID_S =>
                -- Write the accumError from last stage into ram
-               v.accumValid := '1';
+               v.accumValid   := '1';
                -- Register values from RAM for PID calculation
-               v.lastAccum  := to_sfixed(accumRamOut, r.lastAccum);
-               v.sumAccum   := to_sfixed(sumRamOut, r.sumAccum);
+               v.lastAccum    := to_sfixed(accumRamOut, r.lastAccum);
+               v.sumAccum     := to_sfixed(sumRamOut, r.sumAccum);
+               v.numFluxJumps := fluxJumpRamOut;
                -- Register current sq1FB here
                -- Invert LSB to convert inverted offset binary to 2-s complement
                -- Store in sfixed type register
-               v.sq1FB      := to_sfixed(convInvOffsetBin(adcAxisMaster.tData(29 downto 16)), r.sq1FB);
+               v.sq1FB        := to_sfixed(convInvOffsetBin(adcAxisMaster.tData(29 downto 16)), r.sq1FB);
 
                -- Third word is accum error
                v.pidDebugMaster.tValid             := '1';
@@ -636,8 +642,9 @@ begin
                   numFluxJumpsFixed := resize(numFluxJumpsFixed - 1, numFluxJumpsFixed);
                end if;
 
-               v.numFluxJumps := to_slv(numFluxJumpsFixed);
-               v.sq1FbValid   := '1';
+               v.numFluxJumps    := to_slv(numFluxJumpsFixed);
+               v.fluxJumpWrValid := '1';
+               v.sq1FbValid      := '1';
 
                v.state := FLUX_DEBUG_S;
 
