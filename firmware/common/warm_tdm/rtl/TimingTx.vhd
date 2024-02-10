@@ -204,7 +204,8 @@ begin
          addr           => r.timingData.rowSeq,     -- [in]
          dout           => rowOrderRamOut);         -- [out]   
 
-   comb : process (r, refClkFreq, timingAxilReadMaster, timingAxilWriteMaster, wordClkFreq, wordRst) is
+   comb : process (r, refClkFreq, rowOrderRamOut, timingAxilReadMaster, timingAxilWriteMaster,
+                   wordClkFreq, wordRst) is
       variable v      : RegType;
       variable axilEp : AxiLiteEndpointType;
    begin
