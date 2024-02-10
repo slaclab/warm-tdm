@@ -782,91 +782,98 @@ begin
          mAxisSlave  => dataRssiIbSlaves(DEST_LOCAL_SRP_DATA_C));  -- [in]
 
    -- Could get rid of this fifo and just drop incomming data
-   U_AxiStreamFifoV2_LOC_RX : entity surf.AxiStreamFifoV2
-      generic map (
-         TPD_G               => TPD_G,
-         INT_PIPE_STAGES_G   => 1,
-         PIPE_STAGES_G       => 0,
-         SLAVE_READY_EN_G    => true,
-         VALID_THOLD_G       => 1,
-         VALID_BURST_MODE_G  => false,
-         SYNTH_MODE_G        => "inferred",
-         MEMORY_TYPE_G       => "distributed",
-         GEN_SYNC_FIFO_G     => false,
-         FIFO_ADDR_WIDTH_G   => 4,
-         FIFO_FIXED_THRESH_G => true,
---         FIFO_PAUSE_THRESH_G => 2**12-32,
-         SLAVE_AXI_CONFIG_G  => AXIS_CONFIG_C,
-         MASTER_AXI_CONFIG_G => DATA_AXIS_CONFIG_C)
-      port map (
-         sAxisClk    => ethClk,                                    -- [in]
-         sAxisRst    => ethRst,                                    -- [in]
-         sAxisMaster => dataRssiObMasters(DEST_LOCAL_SRP_DATA_C),  -- [in]
-         sAxisSlave  => dataRssiObSlaves(DEST_LOCAL_SRP_DATA_C),   -- [out]
-         mAxisClk    => axisClk,                                   -- [in]
-         mAxisRst    => axisRst,                                   -- [in]
-         mAxisMaster => localDataRxAxisMaster,                     -- [out]
-         mAxisSlave  => localDataRxAxisSlave);                     -- [in]
+--    U_AxiStreamFifoV2_LOC_RX : entity surf.AxiStreamFifoV2
+--       generic map (
+--          TPD_G               => TPD_G,
+--          INT_PIPE_STAGES_G   => 1,
+--          PIPE_STAGES_G       => 0,
+--          SLAVE_READY_EN_G    => true,
+--          VALID_THOLD_G       => 1,
+--          VALID_BURST_MODE_G  => false,
+--          SYNTH_MODE_G        => "inferred",
+--          MEMORY_TYPE_G       => "distributed",
+--          GEN_SYNC_FIFO_G     => false,
+--          FIFO_ADDR_WIDTH_G   => 4,
+--          FIFO_FIXED_THRESH_G => true,
+-- --         FIFO_PAUSE_THRESH_G => 2**12-32,
+--          SLAVE_AXI_CONFIG_G  => AXIS_CONFIG_C,
+--          MASTER_AXI_CONFIG_G => DATA_AXIS_CONFIG_C)
+--       port map (
+--          sAxisClk    => ethClk,                                    -- [in]
+--          sAxisRst    => ethRst,                                    -- [in]
+--          sAxisMaster => dataRssiObMasters(DEST_LOCAL_SRP_DATA_C),  -- [in]
+--          sAxisSlave  => dataRssiObSlaves(DEST_LOCAL_SRP_DATA_C),   -- [out]
+--          mAxisClk    => axisClk,                                   -- [in]
+--          mAxisRst    => axisRst,                                   -- [in]
+--          mAxisMaster => localDataRxAxisMaster,                     -- [out]
+--          mAxisSlave  => localDataRxAxisSlave);                     -- [in]
 
-
+   localDataRxAxisMaster                   <= dataRssiObMasters(DEST_LOCAL_SRP_DATA_C);
+   dataRssiObSlaves(DEST_LOCAL_SRP_DATA_C) <= localDataRxAxisSlave;
 
    -------------------------------------------------------------------------------------------------
    -- SRP TDEST 0x10 - Local Loopback
    -------------------------------------------------------------------------------------------------
-   U_AxiStreamFifoV2_SRP_LOOPBACK : entity surf.AxiStreamFifoV2
-      generic map (
-         TPD_G               => TPD_G,
-         INT_PIPE_STAGES_G   => 1,
-         PIPE_STAGES_G       => 0,
-         SLAVE_READY_EN_G    => true,
-         VALID_THOLD_G       => 1,
-         VALID_BURST_MODE_G  => false,
-         SYNTH_MODE_G        => "inferred",
-         MEMORY_TYPE_G       => "block",
-         GEN_SYNC_FIFO_G     => false,
-         FIFO_ADDR_WIDTH_G   => 9,
-         FIFO_FIXED_THRESH_G => true,
---         FIFO_PAUSE_THRESH_G => 2**12-32,
-         SLAVE_AXI_CONFIG_G  => AXIS_CONFIG_C,
-         MASTER_AXI_CONFIG_G => AXIS_CONFIG_C)
-      port map (
-         sAxisClk    => ethClk,                                   -- [in]
-         sAxisRst    => ethRst,                                   -- [in]
-         sAxisMaster => srpRssiObMasters(DEST_LOCAL_LOOPBACK_C),  -- [in]
-         sAxisSlave  => srpRssiObSlaves(DEST_LOCAL_LOOPBACK_C),   -- [out]
-         mAxisClk    => ethClk,                                   -- [in]
-         mAxisRst    => ethRst,                                   -- [in]
-         mAxisMaster => srpRssiIbMasters(DEST_LOCAL_LOOPBACK_C),  -- [out]
-         mAxisSlave  => srpRssiIbSlaves(DEST_LOCAL_LOOPBACK_C));  -- [in]
+--    U_AxiStreamFifoV2_SRP_LOOPBACK : entity surf.AxiStreamFifoV2
+--       generic map (
+--          TPD_G               => TPD_G,
+--          INT_PIPE_STAGES_G   => 1,
+--          PIPE_STAGES_G       => 0,
+--          SLAVE_READY_EN_G    => true,
+--          VALID_THOLD_G       => 1,
+--          VALID_BURST_MODE_G  => false,
+--          SYNTH_MODE_G        => "inferred",
+--          MEMORY_TYPE_G       => "block",
+--          GEN_SYNC_FIFO_G     => false,
+--          FIFO_ADDR_WIDTH_G   => 9,
+--          FIFO_FIXED_THRESH_G => true,
+-- --         FIFO_PAUSE_THRESH_G => 2**12-32,
+--          SLAVE_AXI_CONFIG_G  => AXIS_CONFIG_C,
+--          MASTER_AXI_CONFIG_G => AXIS_CONFIG_C)
+--       port map (
+--          sAxisClk    => ethClk,                                   -- [in]
+--          sAxisRst    => ethRst,                                   -- [in]
+--          sAxisMaster => srpRssiObMasters(DEST_LOCAL_LOOPBACK_C),  -- [in]
+--          sAxisSlave  => srpRssiObSlaves(DEST_LOCAL_LOOPBACK_C),   -- [out]
+--          mAxisClk    => ethClk,                                   -- [in]
+--          mAxisRst    => ethRst,                                   -- [in]
+--          mAxisMaster => srpRssiIbMasters(DEST_LOCAL_LOOPBACK_C),  -- [out]
+--          mAxisSlave  => srpRssiIbSlaves(DEST_LOCAL_LOOPBACK_C));  -- [in]
+   srpRssiIbMasters(DEST_LOCAL_LOOPBACK_C) <= srpRssiObMasters(DEST_LOCAL_LOOPBACK_C);
+   srpRssiObSlaves(DEST_LOCAL_LOOPBACK_C)  <= srpRssiIbSlaves(DEST_LOCAL_LOOPBACK_C);
+
 
    -------------------------------------------------------------------------------------------------
    -- DATA TDEST 0x10 - Local Loopback
    -------------------------------------------------------------------------------------------------
-   U_AxiStreamFifoV2_DATA_LOOPBACK : entity surf.AxiStreamFifoV2
-      generic map (
-         TPD_G               => TPD_G,
-         INT_PIPE_STAGES_G   => 1,
-         PIPE_STAGES_G       => 0,
-         SLAVE_READY_EN_G    => true,
-         VALID_THOLD_G       => 1,
-         VALID_BURST_MODE_G  => false,
-         SYNTH_MODE_G        => "inferred",
-         MEMORY_TYPE_G       => "block",
-         GEN_SYNC_FIFO_G     => false,
-         FIFO_ADDR_WIDTH_G   => 9,
-         FIFO_FIXED_THRESH_G => true,
---         FIFO_PAUSE_THRESH_G => 2**12-32,
-         SLAVE_AXI_CONFIG_G  => AXIS_CONFIG_C,
-         MASTER_AXI_CONFIG_G => AXIS_CONFIG_C)
-      port map (
-         sAxisClk    => ethClk,                                    -- [in]
-         sAxisRst    => ethRst,                                    -- [in]
-         sAxisMaster => dataRssiObMasters(DEST_LOCAL_LOOPBACK_C),  -- [in]
-         sAxisSlave  => dataRssiObSlaves(DEST_LOCAL_LOOPBACK_C),   -- [out]
-         mAxisClk    => ethClk,                                    -- [in]
-         mAxisRst    => ethRst,                                    -- [in]
-         mAxisMaster => dataRssiIbMasters(DEST_LOCAL_LOOPBACK_C),  -- [out]
-         mAxisSlave  => dataRssiIbSlaves(DEST_LOCAL_LOOPBACK_C));  -- [in]
+--    U_AxiStreamFifoV2_DATA_LOOPBACK : entity surf.AxiStreamFifoV2
+--       generic map (
+--          TPD_G               => TPD_G,
+--          INT_PIPE_STAGES_G   => 1,
+--          PIPE_STAGES_G       => 0,
+--          SLAVE_READY_EN_G    => true,
+--          VALID_THOLD_G       => 1,
+--          VALID_BURST_MODE_G  => false,
+--          SYNTH_MODE_G        => "inferred",
+--          MEMORY_TYPE_G       => "block",
+--          GEN_SYNC_FIFO_G     => false,
+--          FIFO_ADDR_WIDTH_G   => 9,
+--          FIFO_FIXED_THRESH_G => true,
+-- --         FIFO_PAUSE_THRESH_G => 2**12-32,
+--          SLAVE_AXI_CONFIG_G  => AXIS_CONFIG_C,
+--          MASTER_AXI_CONFIG_G => AXIS_CONFIG_C)
+--       port map (
+--          sAxisClk    => ethClk,                                    -- [in]
+--          sAxisRst    => ethRst,                                    -- [in]
+--          sAxisMaster => dataRssiObMasters(DEST_LOCAL_LOOPBACK_C),  -- [in]
+--          sAxisSlave  => dataRssiObSlaves(DEST_LOCAL_LOOPBACK_C),   -- [out]
+--          mAxisClk    => ethClk,                                    -- [in]
+--          mAxisRst    => ethRst,                                    -- [in]
+--          mAxisMaster => dataRssiIbMasters(DEST_LOCAL_LOOPBACK_C),  -- [out]
+--          mAxisSlave  => dataRssiIbSlaves(DEST_LOCAL_LOOPBACK_C));  -- [in]
+
+   dataRssiIbMasters(DEST_LOCAL_LOOPBACK_C) <= dataRssiObMasters(DEST_LOCAL_LOOPBACK_C);
+   dataRssiObSlaves(DEST_LOCAL_LOOPBACK_C)  <= dataRssiIbSlaves(DEST_LOCAL_LOOPBACK_C);
 
 
    -------------------------------
