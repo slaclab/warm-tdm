@@ -84,22 +84,7 @@ kwargs = {}
 #kwargs['groups'] = groups
 #kwargs = warm_tdm.CONFIGS['hw'][args.cfg]
 
-if args.path is None:
-    BasePackage = importlib.import_module('warm_tdm')
-    args.path = BasePackage.ImageDir
-    
-if os.path.isdir(args.path):
-    # Get a list of images
-    images = glob.glob('{}/*.mcs*'.format(args.path))
-    images = list(reversed(sorted(images)))
 
-    for i, l in enumerate(images):
-        print('{} : {}'.format(i, l))
-
-    idx = int(input('Enter image: '))
-    image = images[idx]
-else:
-    image = args.path
 
 
 #rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
@@ -111,20 +96,55 @@ with warm_tdm.WarmTdmRoot(
         rowBoards=args.rows,
         **kwargs) as root:
 
-    av = root.find(name='AxiVersion')[0]
+    print('Finding and reading group')
 
-    av.readBlocks()
-    av.checkBlocks()
-    av.printStatus()
+    avs = root.find(name='AxiVersion')
+
+    for av in avs.values():
+        av.readBlocks()
+        av.checkBlocks()
+        av.printStatus()
 
     x = input('Are you sure you wish to procede [y]/n: ')
     if x == 'n':
         exit()
+
+    proms = root.find(name='AxiMicronN25Q')
+
+    print('Found the following PROMs')
+
+    for i, prom in enumerate(proms):
+        print(f'{i} - {prom.path}')
+
+    idx = int(input('Select which PROM you wish to flash'))
    
-    prom = root.find(name='AxiMicronN25Q')[0]
+    prom = proms[idx]
     prom.enable.set(True)
 
-    print(f'Load MCS file: {image}')
+    if args.path is None:
+        BasePackage = importlib.import_module('warm_tdm')
+        args.path = BasePackage.ImageDir
+    
+    if os.path.isdir(args.path):
+        # Get a list of images
+        images = glob.glob('{}/*.mcs*'.format(args.path))
+        images = list(reversed(sorted(images)))
+
+        for i, l in enumerate(images):
+            print('{} : {}'.format(i, l))
+
+            idx = int(input('Enter image for flash: '))
+            image = images[idx]
+    else:
+        image = args.path
+
+
+    print(f'Loading {image} to {prom.path}')
+    x = input('Are you sure you wish to procede [y]/n: ')
+    if x == 'n':
+        exit()
+        
+    print(f'Loading MCS file: {image}')
     prom.LoadMcsFile(image)
        
 
