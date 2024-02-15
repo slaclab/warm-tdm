@@ -373,7 +373,7 @@ def sq1FbSweep(*, group, bias, fbRange, process):
     Iterates through Sq1Fb values determined by lowoffset,
     highoffset,step. Generates curve points with saOffset()
     """
-    print(f'sq1FbSweep({bias=}, {fbRange=})')
+    #print(f'sq1FbSweep({bias=}, {fbRange=})')
     colCount = len(group.ColumnMap.get())
     curves = [warm_tdm_api.Curve(bias[i]) for i in range(colCount)]
     numSteps = len(fbRange[0])
@@ -489,13 +489,18 @@ def sq1Tune(group, process):
         # Run the sq1 bias sweep
         print(f'saBiasSweep({rowIndex=})')        
         results = sq1BiasSweep(group, process)
+        for i, r in enumerate(results):
+            print(f'Results col {i}')
+            print(f'bias - {r.biasOut}, xOut - {r.xOut}, yOut - {r.yOut}')
+            
         outputs.append(results)
         
-        for col in range(numColumns):
-            if colTuneEnable[col]:
-                group.Sq1BiasCurrent.set(index=(col, rowIndex), value=results[col].biasOut)
-                group.Sq1FbCurrent.set(index=(col, rowIndex), value=results[col].xOut)
-                group.SaFbCurrent.set(index=(col, rowIndex), value=results[col].yOut)
+#         for col in range(numColumns):
+#             if colTuneEnable[col]:
+#                 print(f'Seeting results for column {col}')
+#                 group.Sq1BiasCurrent.set(index=(col, rowIndex), value=results[col].biasOut)
+#                 group.Sq1FbCurrent.set(index=(col, rowIndex), value=results[col].xOut)
+#                 group.SaFbCurrent.set(index=(col, rowIndex), value=results[col].yOut)
 
         group.DeactivateRowIndex(rowIndex)
 

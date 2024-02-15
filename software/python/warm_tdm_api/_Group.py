@@ -177,6 +177,7 @@ class FastDacVariable(GroupLinkVariable):
         super().__init__(disp = '{:0.04f}', **kwargs)
 
     def _set(self, value, index, write):
+        print(f'{self.path}.set({value=}, {index=}')
         with self.parent.root.updateGroup():
 
             # index access
