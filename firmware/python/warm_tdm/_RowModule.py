@@ -9,6 +9,8 @@ class RowModule(pr.Device):
     def __init__(self, num_row_selects=32, num_chip_selects=0, **kwargs):
         super().__init__(**kwargs)
 
+        self.forceCheckEach = True
+
         self.add(warm_tdm.WarmTdmCore(
             offset = 0x00000000,
             expand = True,
