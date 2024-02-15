@@ -591,7 +591,7 @@ begin
          TPD_G               => TPD_G,
          INT_PIPE_STAGES_G   => 1,
          PIPE_STAGES_G       => 0,
-         FIFO_ADDR_WIDTH_G   => 9,
+         FIFO_ADDR_WIDTH_G   => 10,
 --         FIFO_PAUSE_THRESH_G   => 8,
 --          FIFO_SYNTH_MODE_G     => FIFO_SYNTH_MODE_G,
 --          TX_VALID_THOLD_G      => TX_VALID_THOLD_G,
