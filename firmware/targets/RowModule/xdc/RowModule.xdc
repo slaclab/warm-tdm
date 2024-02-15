@@ -94,10 +94,10 @@ set_property PACKAGE_PIN F6 [get_ports {gtRefClk1P}]
 set_property PACKAGE_PIN F5 [get_ports {gtRefClk1N}]
 
 # PGP
-set_property PACKAGE_PIN F2 [get_ports {pgpTxP[1]}]
-set_property PACKAGE_PIN F1 [get_ports {pgpTxN[1]}]
-set_property PACKAGE_PIN G4 [get_ports {pgpRxP[1]}]
-set_property PACKAGE_PIN G3 [get_ports {pgpRxN[1]}]
+# set_property PACKAGE_PIN F2 [get_ports {pgpTxP[1]}]
+# set_property PACKAGE_PIN F1 [get_ports {pgpTxN[1]}]
+# set_property PACKAGE_PIN G4 [get_ports {pgpRxP[1]}]
+# set_property PACKAGE_PIN G3 [get_ports {pgpRxN[1]}]
 
 # Timing
 set_property PACKAGE_PIN D2 [get_ports {pgpTxP[0]}]

@@ -43,10 +43,10 @@ set_property PACKAGE_PIN K5 [get_ports {gtRefClk1N}]
 # set_property PACKAGE_PIN R3 [get_ports {pgpRxN[1]}]
 
 # # GT Timing
-# set_property PACKAGE_PIN N4 [get_ports {pgpRxP[0]}]
-# set_property PACKAGE_PIN N3 [get_ports {pgpRxN[0]}]
-# set_property PACKAGE_PIN M2 [get_ports {pgpTxP[0]}]
-# set_property PACKAGE_PIN M1 [get_ports {pgpTxN[0]}]
+set_property PACKAGE_PIN N4 [get_ports {pgpRxP[0]}]
+set_property PACKAGE_PIN N3 [get_ports {pgpRxN[0]}]
+set_property PACKAGE_PIN M2 [get_ports {pgpTxP[0]}]
+set_property PACKAGE_PIN M1 [get_ports {pgpTxN[0]}]
 
 
 # IO Timing
