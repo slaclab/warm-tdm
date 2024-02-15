@@ -44,15 +44,15 @@ entity PgpCore is
 
    port (
       -- GT Ports and clock
-      refRst    : in  sl;
-      gtRefClk  : in  sl;
-      fabRefClk : in  sl;
-      pgpTxP    : out slv(1 downto 0) := (others => '0');
-      pgpTxN    : out slv(1 downto 0) := (others => '1');
-      pgpRxP    : in  slv(1 downto 0);
-      pgpRxN    : in  slv(1 downto 0);
-      pgpTxLink : out sl;
-      pgpRxLink : out sl;
+      refRst           : in  sl;
+      gtRefClk         : in  sl;
+      fabRefClk        : in  sl;
+      pgpTxP           : out slv(1 downto 0)       := (others => '0');
+      pgpTxN           : out slv(1 downto 0)       := (others => '1');
+      pgpRxP           : in  slv(1 downto 0);
+      pgpRxN           : in  slv(1 downto 0);
+      pgpTxLink        : out sl;
+      pgpRxLink        : out sl;
       -- Main clock and reset 
       axiClk           : out sl;
       axiRst           : out sl;
@@ -190,7 +190,7 @@ begin
    axiClk <= iAxiClk;
    axiRst <= iAxiRst;
 
-    REAL_PGP_GEN : if (true) generate --SIM_PORT_NUM_G = 0) generate
+   REAL_PGP_GEN : if (true) generate    --SIM_PORT_NUM_G = 0) generate
       Pgp2bGtx7VarLat_Inst_0 : entity surf.Pgp2bGtx7VarLat
          generic map (
             TPD_G                 => TPD_G,
@@ -216,7 +216,7 @@ begin
             -- VC Configuration
             VC_INTERLEAVE_G   => 1,
             PAYLOAD_CNT_TOP_G => 7,
-            NUM_VC_EN_G       => 4)
+            NUM_VC_EN_G       => 2)
          port map (
             -- GT Clocking
             stableClk        => fabRefClk,
@@ -359,7 +359,7 @@ begin
 --             axilWriteMaster  => locAxilWriteMasters(AXIL_GTX_1_C),
 --             axilWriteSlave   => locAxilWriteSlaves(AXIL_GTX_1_C));
 
-  end generate;
+   end generate;
 
 --    SIM_GEN : if (SIM_PORT_NUM_G > 0) generate
 
@@ -441,7 +441,7 @@ begin
 
 
 
-   RING_ROUTER_GEN : for i in 3 downto 0 generate
+   RING_ROUTER_GEN : for i in 1 downto 0 generate
       -- buffers
       U_PgpRXVcFifo_1 : entity surf.PgpRXVcFifo
          generic map (
@@ -455,7 +455,7 @@ begin
             SYNTH_MODE_G        => "inferred",
             MEMORY_TYPE_G       => "block",
             GEN_SYNC_FIFO_G     => false,
-            FIFO_ADDR_WIDTH_G   => 8,
+            FIFO_ADDR_WIDTH_G   => 10,
             FIFO_PAUSE_THRESH_G => PACKET_SIZE_BYTES_C/4,
             PHY_AXI_CONFIG_G    => SSI_PGP2B_CONFIG_C,
             APP_AXI_CONFIG_G    => AXIS_CONFIG_C)
@@ -517,7 +517,7 @@ begin
             SYNTH_MODE_G       => "inferred",
             MEMORY_TYPE_G      => "block",
             GEN_SYNC_FIFO_G    => false,
-            FIFO_ADDR_WIDTH_G  => 8,
+            FIFO_ADDR_WIDTH_G  => 10,
             APP_AXI_CONFIG_G   => AXIS_CONFIG_C,
             PHY_AXI_CONFIG_G   => SSI_PGP2B_CONFIG_C)
          port map (
@@ -538,7 +538,7 @@ begin
    -------------------------------------------------------------------------------------------------
    -- Mux Ethernet streams in to local PGP streams
    -------------------------------------------------------------------------------------------------
-   ETH_STREAM_MUX : for i in 3 downto 0 generate
+   ETH_STREAM_MUX : for i in 1 downto 0 generate
       U_AxiStreamDeMux_1 : entity surf.AxiStreamDeMux
          generic map (
             TPD_G          => TPD_G,
@@ -646,59 +646,65 @@ begin
    dataRxAxisMaster                 <= appLocalRxAxisMasters(VC_DATA_C);
 
    ---------------------------------
-   -- VC 2 and 3 are Loopback
+   -- VC 2 and 3 are unused
    ---------------------------------
-   U_AxiStreamFifoV2_LOOPBACK_2 : entity surf.AxiStreamFifoV2
-      generic map (
-         TPD_G               => TPD_G,
-         INT_PIPE_STAGES_G   => 1,
-         PIPE_STAGES_G       => 0,
-         SLAVE_READY_EN_G    => true,
-         VALID_THOLD_G       => 1,
-         VALID_BURST_MODE_G  => false,
-         SYNTH_MODE_G        => "inferred",
-         MEMORY_TYPE_G       => "block",
-         GEN_SYNC_FIFO_G     => true,
-         FIFO_ADDR_WIDTH_G   => 9,
-         FIFO_FIXED_THRESH_G => true,
---         FIFO_PAUSE_THRESH_G => 2**12-32,
-         SLAVE_AXI_CONFIG_G  => AXIS_CONFIG_C,
-         MASTER_AXI_CONFIG_G => AXIS_CONFIG_C)
-      port map (
-         sAxisClk    => iAxiClk,                                 -- [in]
-         sAxisRst    => iAxiRst,                                 -- [in]
-         sAxisMaster => appLocalRxAxisMasters(VC_LOOPBACK_2_C),  -- [in]
-         sAxisSlave  => appLocalRxAxisSlaves(VC_LOOPBACK_2_C),   -- [out]
-         mAxisClk    => iAxiClk,                                 -- [in]
-         mAxisRst    => iAxiRst,                                 -- [in]
-         mAxisMaster => appLocalTxAxisMasters(VC_LOOPBACK_2_C),  -- [out]
-         mAxisSlave  => appLocalTxAxisSlaves(VC_LOOPBACK_2_C));  -- [in]
+   appLocalTxAxisMasters(VC_LOOPBACK_2_C) <= AXI_STREAM_MASTER_INIT_C;
+   appLocalRxAxisSlaves(VC_LOOPBACK_2_C) <= AXI_STREAM_SLAVE_FORCE_C;
 
-   U_AxiStreamFifoV2_LOOPBACK_3 : entity surf.AxiStreamFifoV2
-      generic map (
-         TPD_G               => TPD_G,
-         INT_PIPE_STAGES_G   => 1,
-         PIPE_STAGES_G       => 0,
-         SLAVE_READY_EN_G    => true,
-         VALID_THOLD_G       => 1,
-         VALID_BURST_MODE_G  => false,
-         SYNTH_MODE_G        => "inferred",
-         MEMORY_TYPE_G       => "block",
-         GEN_SYNC_FIFO_G     => true,
-         FIFO_ADDR_WIDTH_G   => 9,
-         FIFO_FIXED_THRESH_G => true,
---         FIFO_PAUSE_THRESH_G => 2**12-32,
-         SLAVE_AXI_CONFIG_G  => AXIS_CONFIG_C,
-         MASTER_AXI_CONFIG_G => AXIS_CONFIG_C)
-      port map (
-         sAxisClk    => iAxiClk,                                 -- [in]
-         sAxisRst    => iAxiRst,                                 -- [in]
-         sAxisMaster => appLocalRxAxisMasters(VC_LOOPBACK_3_C),  -- [in]
-         sAxisSlave  => appLocalRxAxisSlaves(VC_LOOPBACK_3_C),   -- [out]
-         mAxisClk    => iAxiClk,                                 -- [in]
-         mAxisRst    => iAxiRst,                                 -- [in]
-         mAxisMaster => appLocalTxAxisMasters(VC_LOOPBACK_3_C),  -- [out]
-         mAxisSlave  => appLocalTxAxisSlaves(VC_LOOPBACK_3_C));  -- [in]
+   appLocalTxAxisMasters(VC_LOOPBACK_3_C) <= AXI_STREAM_MASTER_INIT_C;
+   appLocalRxAxisSlaves(VC_LOOPBACK_3_C) <= AXI_STREAM_SLAVE_FORCE_C;
+   
+--    U_AxiStreamFifoV2_LOOPBACK_2 : entity surf.AxiStreamFifoV2
+--       generic map (
+--          TPD_G               => TPD_G,
+--          INT_PIPE_STAGES_G   => 1,
+--          PIPE_STAGES_G       => 0,
+--          SLAVE_READY_EN_G    => true,
+--          VALID_THOLD_G       => 1,
+--          VALID_BURST_MODE_G  => false,
+--          SYNTH_MODE_G        => "inferred",
+--          MEMORY_TYPE_G       => "block",
+--          GEN_SYNC_FIFO_G     => true,
+--          FIFO_ADDR_WIDTH_G   => 9,
+--          FIFO_FIXED_THRESH_G => true,
+-- --         FIFO_PAUSE_THRESH_G => 2**12-32,
+--          SLAVE_AXI_CONFIG_G  => AXIS_CONFIG_C,
+--          MASTER_AXI_CONFIG_G => AXIS_CONFIG_C)
+--       port map (
+--          sAxisClk    => iAxiClk,                                 -- [in]
+--          sAxisRst    => iAxiRst,                                 -- [in]
+--          sAxisMaster => appLocalRxAxisMasters(VC_LOOPBACK_2_C),  -- [in]
+--          sAxisSlave  => appLocalRxAxisSlaves(VC_LOOPBACK_2_C),   -- [out]
+--          mAxisClk    => iAxiClk,                                 -- [in]
+--          mAxisRst    => iAxiRst,                                 -- [in]
+--          mAxisMaster => appLocalTxAxisMasters(VC_LOOPBACK_2_C),  -- [out]
+--          mAxisSlave  => appLocalTxAxisSlaves(VC_LOOPBACK_2_C));  -- [in]
+
+--    U_AxiStreamFifoV2_LOOPBACK_3 : entity surf.AxiStreamFifoV2
+--       generic map (
+--          TPD_G               => TPD_G,
+--          INT_PIPE_STAGES_G   => 1,
+--          PIPE_STAGES_G       => 0,
+--          SLAVE_READY_EN_G    => true,
+--          VALID_THOLD_G       => 1,
+--          VALID_BURST_MODE_G  => false,
+--          SYNTH_MODE_G        => "inferred",
+--          MEMORY_TYPE_G       => "block",
+--          GEN_SYNC_FIFO_G     => true,
+--          FIFO_ADDR_WIDTH_G   => 9,
+--          FIFO_FIXED_THRESH_G => true,
+-- --         FIFO_PAUSE_THRESH_G => 2**12-32,
+--          SLAVE_AXI_CONFIG_G  => AXIS_CONFIG_C,
+--          MASTER_AXI_CONFIG_G => AXIS_CONFIG_C)
+--       port map (
+--          sAxisClk    => iAxiClk,                                 -- [in]
+--          sAxisRst    => iAxiRst,                                 -- [in]
+--          sAxisMaster => appLocalRxAxisMasters(VC_LOOPBACK_3_C),  -- [in]
+--          sAxisSlave  => appLocalRxAxisSlaves(VC_LOOPBACK_3_C),   -- [out]
+--          mAxisClk    => iAxiClk,                                 -- [in]
+--          mAxisRst    => iAxiRst,                                 -- [in]
+--          mAxisMaster => appLocalTxAxisMasters(VC_LOOPBACK_3_C),  -- [out]
+--          mAxisSlave  => appLocalTxAxisSlaves(VC_LOOPBACK_3_C));  -- [in]
 
 
 
