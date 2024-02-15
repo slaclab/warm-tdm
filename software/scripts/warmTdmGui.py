@@ -99,9 +99,7 @@ with warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=arg
 #    root.Group.ColTuneEnable.set(False, index=0)
 #    root.Group.ColTuneEnable.set(False, index=1)
 
-    rowTuneEnable = [False for _ in range(32)]
-    rowTuneEnable[0] = True
-    root.Group.RowTuneEnable.set(rowTuneEnable)
+    root.Group.RowIndexOrderList.set([0, 1, 2, 3])
     colTuneEnable = [False for _ in range(8)]
     colTuneEnable[4] = True
     root.Group.ColTuneEnable.set(colTuneEnable)

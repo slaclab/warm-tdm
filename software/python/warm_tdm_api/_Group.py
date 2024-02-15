@@ -80,51 +80,56 @@ class GroupLinkVariable(pr.LinkVariable):
             #if read: print(f'{self.path}.get({index=}, {read=}) - {ret}')
             return ret
 
-class RowTuneEnVariable(GroupLinkVariable):
-    def __init__(self, **kwargs):
+# class RowTuneEnVariable(GroupLinkVariable):
+#     def __init__(self, **kwargs):
 
-        self._value = False
-        super().__init__(**kwargs)
+#         self._value = False
+#         super().__init__(**kwargs)
 
-    def _set(self, *, value, write):
-        with self.parent.root.updateGroup():
-            mode = 'Tune' if value is True else 'Run'
-            for var in self.dependencies:
-                var.set(value=mode, write=write)
-            self._value = value
+#     def _set(self, *, value, write):
+#         with self.parent.root.updateGroup():
+#             mode = 'Tune' if value is True else 'Run'
+#             for var in self.dependencies:
+#                 var.set(value=mode, write=write)
+#             self._value = value
 
-    def _get(self, read):
-        with self.parent.root.updateGroup():
-            return self._value
+#     def _get(self, read):
+#         with self.parent.root.updateGroup():
+#             return self._value
 
-class RowTuneIndexVariable(GroupLinkVariable):
-    def __init__(self, config, **kwargs):
+# class RowTuneIndexVariable(pr.LinkVariable):
+#     def __init__(self, config, fastDacDrivers, **kwargs):
 
-        self._value = 0
-        self._config = config
-        self._rows = len(config.rowMap)
+#         self._value = 0
+#         self._config = config
+#         self._rows = len(config.rowMap)
+#         self._onVar = onVar
+#         self._offVar = offVar
 
-        super().__init__(**kwargs)
+#         super().__init__(dependencies = [onVar, offVar], **kwargs)
 
-    def _set(self, *, value, write):
+#     def _set(self, *, value, write):
 
-        # Corner case of no row boards in group
-        if self._rows == 0:
-            self._value = value
-            return
+#         self._value = value        
 
-        with self.parent.root.updateGroup():
-            # First turn off any channel that is on
-            for var in self.dependencies:
-                if var.get() is True:
-                    var.set(value=False, write=write)
-            #Then turn on the selected channel
-            self.dependencies[value].set(value=True, write=write)
-            self._value = value
+#         # Corner case of no row boards in group
+#         if self._rows == 0:
+#             return
 
-    def _get(self, read):
-        with self.parent.root.updateGroup():
-            return self._value
+#         with self.parent.root.updateGroup():
+#             # Get current on and off values
+#             on = self._onVar.get()
+#             off = self._offVar.get()
+#             # First turn off all rows
+#             self._onVar.set(value=off, write=True) # change this to offVar with new firmware
+#             # Then turn on the row
+#             self._onVar.set(value=on[value], index=value, write=True)
+
+
+
+#     def _get(self, read):
+#         with self.parent.root.updateGroup():
+#             return self._value
 
 
 class SaOutVariable(GroupLinkVariable):
@@ -336,16 +341,20 @@ class Group(pr.Device):
         # Tuning row enables
         # Determines if a given row is activated
         # during the tuning process
-        rtsize = len(self.config.rowMap) if self.config.rowBoards > 0 else 1
-        self.add(pr.LocalVariable(
-            name='RowTuneEnable',
-            description='Array of booleans which enable the tuning of each row.'
-                        'Total length = RowBoards * 32.'
-                        'Values can be accessed as a full array or as single values using an index key.'
-                        'Not yet implemented in the tuning routines.',
-            value=np.ones(rtsize, bool),
-            groups='TopApi',
-            mode='RW'))
+#         rtsize = len(self.config.rowMap) if self.config.rowBoards > 0 else 1
+#         self.add(pr.LocalVariable(
+#             name='RowTuneEnable',
+#             description='Array of booleans which enable the tuning of each row.'
+#                         'Total length = RowBoards * 32.'
+#                         'Values can be accessed as a full array or as single values using an index key.'
+#                         'Not yet implemented in the tuning routines.',
+#             value=np.ones(rtsize, bool),
+#             groups='TopApi',
+#             mode='RW'))
+
+        self.add(pr.LinkVariable(
+            name = 'RowIndexOrderList',
+            variable = self.HardwareGroup.ReadoutList))
 
         # Tuning column enables
         # Determines if a column is activated
@@ -360,9 +369,59 @@ class Group(pr.Device):
             groups='TopApi',
             mode='RW'))
 
+#         self.add(pr.LinkVariable(
+#             name='ColTuneMask',
+#             dependencies = [self.ColTuneEnable],
+#             disp = '{x:02}',
+#             linkedGet = lambda read: sum(v << i for i, v in enumerate(reversed(self.ColTuneEnable.get(read=read)))),
+#             linkedSet = lambda value, write: self.ColTuneEnable.set([value >> i & 1 == 1 for i in range(8)], write=write)))
+        
+
         ##################################
         # Row board access variables
         ##################################
+
+        def numBits(integer):
+            if integer == 0:
+                return 0
+            return math.ceil(math.log2(integer))
+        
+        def getField(value, highBit, lowBit):
+            mask = 2**(highBit-lowBit+1)-1
+            return (value >> lowBit) & mask
+        
+        def rowIndexToPhysical(index):
+            # Pull these from config instead
+            num_row_selects = 32
+            num_chip_selects = 0
+            num_row_boards = 1
+
+            rs_bits = numBits(num_row_selects)
+            cs_bits = numBits(num_chip_selects)
+            rb_bits = numBits(num_row_boards)
+
+            ret = {
+                'rs': getField(index, rs_bits-1, 0),
+                'cs': getField(index, cs_bits+rs_bits-1, rs_bits),
+                'rb': 0 # hack for now, only allow 1 row board
+                }
+            return ret
+
+        # Activate a RowIndex for tuning SQ1
+        # Deactivate any previously active row
+        @self.command()
+        def ActivateRowIndex(arg):
+            rowBoards = list(self.HardwareGroup.RowBoard.values())
+
+            # Activate the new index                    
+            for board in rowBoards:                    
+                board.RowDacDriver.ActivateRowIndex.set(arg, write=True)
+
+        @self.command()
+        def DeactivateRowIndex(arg):
+            rowBoards = list(self.HardwareGroup.RowBoard.values())
+            for board in rowBoards:
+                board.RowDacDriver.DeactivateRowIndex.set(arg, write=True)
 
         # Enable Row Tune Override
         # Puts all hardware row selects into tuning mode
@@ -398,6 +457,15 @@ class Group(pr.Device):
 
 
         # FAS Flux off values, accessed with row index
+        # This is a hack for now. Need to allow for 2-level row muxing
+#         self.add(pr.LinkVariable(
+#             name = 'FasFluxOff',
+#             variable = self.HardwareGroup.RowBoard[0].FastDacDriver.rowFasOff[0].Current))
+
+#         self.add(pr.LinkVariable(
+#             name = 'FasFluxOn',
+#             variable = self.HardwareGroup.RowBoard[0].FastDacDriver.rowFasOn[0].Current))
+        
 #         self.add(GroupLinkVariable(
 #             name='FasFluxOff',
 #             description='FasFluxOff value for each row. Total length = RowBoards * 32.'

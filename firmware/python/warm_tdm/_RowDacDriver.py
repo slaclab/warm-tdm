@@ -55,6 +55,19 @@ class RowDacDriver(pr.Device):
                 bitSize = rowBoardIdBits,
                 base = pr.UInt))
 
+        self.add(pr.RemoteVariable(
+            name = 'ActivateRowIndex',
+            offset = 0x10,
+            bitSize = 8,
+            base = pr.UInt))
+
+        self.add(pr.RemoteVariable(
+            name = 'DeactivateRowIndex',
+            offset = 0x14,
+            bitSize = 8,
+            base = pr.UInt))
+        
+
         self.add(pr.RemoteCommand(
             name = 'DacReset',
             offset = 0x08,

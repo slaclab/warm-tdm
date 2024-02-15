@@ -127,48 +127,51 @@ architecture rtl of RowDacDriver is
       CLK_1_RISE_S);
 
    type RegType is record
-      startup    : sl;
-      state      : StateType;
-      mode       : sl;
-      cfgBoardId : slv(BOARD_SELECT_BITS_C-1 downto 0);
-
-      boardId        : slv(BOARD_SELECT_BITS_C-1 downto 0);
-      rowNum         : slv(ROW_SELECT_BITS_C-1 downto 0);
-      chipNum        : slv(CHIP_SELECT_BITS_C-1 downto 0);
-      rowChipNum     : slv(ROW_CHIP_BITS_C-1 downto 0);
-      dacReset       : slv(15 downto 0);
-      dacDb          : slv(13 downto 0);
-      dacClk         : slv(15 downto 0);
-      dacWrt         : slv(15 downto 0);
-      dacSel         : slv(15 downto 0);
---       rsDacWrt       : slv(NUM_RS_DACS_C-1 downto 0);
---       rsDacSel       : slv(NUM_RS_DACS_C-1 downto 0);
---       csDacWrt       : slv(NUM_CS_DACS_C-1 downto 0);
---       csDacSel       : slv(NUM_CS_DACS_C-1 downto 0);
-      axilWriteSlave : AxiLiteWriteSlaveType;
-      axilReadSlave  : AxiLiteReadSlaveType;
+      startup         : sl;
+      state           : StateType;
+      mode            : sl;
+      offIndex        : slv(7 downto 0);
+      onIndex         : slv(7 downto 0);
+      cfgBoardId      : slv(BOARD_SELECT_BITS_C-1 downto 0);
+      boardId         : slv(BOARD_SELECT_BITS_C-1 downto 0);
+      rowNum          : slv(ROW_SELECT_BITS_C-1 downto 0);
+      chipNum         : slv(CHIP_SELECT_BITS_C-1 downto 0);
+      rowChipNum      : slv(ROW_CHIP_BITS_C-1 downto 0);
+      dacReset        : slv(15 downto 0);
+      dacDb           : slv(13 downto 0);
+      dacClk          : slv(15 downto 0);
+      dacWrt          : slv(15 downto 0);
+      dacSel          : slv(15 downto 0);
+      activateIndex   : slv(7 downto 0);
+      activateEn      : sl;
+      deactivateIndex : slv(7 downto 0);
+      deactivateEn    : sl;
+      axilWriteSlave  : AxiLiteWriteSlaveType;
+      axilReadSlave   : AxiLiteReadSlaveType;
    end record RegType;
 
    constant REG_INIT_C : RegType := (
-      startup        => '1',
-      state          => INIT_A_S,
-      mode           => MANUAL_MODE_C,
-      cfgBoardId     => (others => '0'),
-      boardId        => (others => '0'),
-      rowNum         => (others => '0'),
-      chipNum        => (others => '0'),
-      rowChipNum     => (others => '0'),
-      dacReset       => (others => '0'),
-      dacDb          => (others => '0'),
-      dacClk         => (others => '0'),
-      dacWrt         => (others => '0'),
-      dacSel         => (others => '0'),
---       rsDacWrt       => (others => '0'),
---       rsDacSel       => (others => '0'),
---       csDacWrt       => (others => '0'),
---       csDacSel       => (others => '0'),
-      axilWriteSlave => AXI_LITE_WRITE_SLAVE_EMPTY_DECERR_C,
-      axilReadSlave  => AXI_LITE_READ_SLAVE_EMPTY_DECERR_C);
+      startup         => '1',
+      state           => INIT_A_S,
+      mode            => MANUAL_MODE_C,
+      offIndex        => (others => '0'),
+      onIndex         => (others => '0'),
+      cfgBoardId      => (others => '0'),
+      boardId         => (others => '0'),
+      rowNum          => (others => '0'),
+      chipNum         => (others => '0'),
+      rowChipNum      => (others => '0'),
+      dacReset        => (others => '0'),
+      dacDb           => (others => '0'),
+      dacClk          => (others => '0'),
+      dacWrt          => (others => '0'),
+      dacSel          => (others => '0'),
+      activateIndex   => (others => '0'),
+      activateEn      => '0',
+      deactivateIndex => (others => '0'),
+      deactivateEn    => '0',
+      axilWriteSlave  => AXI_LITE_WRITE_SLAVE_EMPTY_DECERR_C,
+      axilReadSlave   => AXI_LITE_READ_SLAVE_EMPTY_DECERR_C);
 
    signal r   : RegType := REG_INIT_C;
    signal rin : RegType;
@@ -338,9 +341,10 @@ begin
 
 
 
-   comb : process (csOffDout, csOnDout, csOnWrAddr, csOnWrData, csOnWrValid, locAxilReadMasters,
-                   locAxilWriteMasters, r, rsOffDout, rsOnDout, rsOnWrAddr, rsOnWrData, rsOnWrValid,
-                   timingRxData, timingRxRst125) is
+   comb : process (csOffDout, csOffWrAddr, csOffWrData, csOffWrValid, csOnDout, csOnWrAddr,
+                   csOnWrData, csOnWrValid, locAxilReadMasters, locAxilWriteMasters, r, rsOffDout,
+                   rsOffWrAddr, rsOffWrData, rsOffWrValid, rsOnDout, rsOnWrAddr, rsOnWrData,
+                   rsOnWrValid, timingRxData, timingRxRst125) is
       variable v         : RegType;
       variable axilEp    : AxiLiteEndpointType;
       variable rsDacInt  : integer;
@@ -361,6 +365,13 @@ begin
          axiSlaveRegister(axilEp, X"04", 0, v.cfgBoardId);
       end if;
       axiSlaveRegister(axilEp, X"08", 0, v.dacReset);
+
+      axiSlaveRegister(axilEp, X"10", 0, v.activateIndex);
+      axiWrDetect(axilEp, X"10", v.activateEn);
+
+      axiSlaveRegister(axilEp, X"14", 0, v.deactivateIndex);
+      axiWrDetect(axilEp, X"14", v.deactivateEn);
+
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
 
@@ -418,20 +429,34 @@ begin
             if (r.mode = TIMING_MODE_C) then
                -- Start setting DACs after sampling of current row is done
                if (timingRxData.lastSample = '1') then
-                  v.state := OFF_PRE_S;
+                  v.state    := OFF_PRE_S;
+                  v.offIndex := timingRxData.rowIndex;
+                  v.onIndex  := timingRxData.rowIndexNext;
                end if;
             elsif (r.mode = MANUAL_MODE_C) then
                if (rsOnWrValid = '1') then
                   v.rowNum := rsOnWrAddr(ROW_HIGH_C downto ROW_LOW_C);
                   v.dacDb  := rsOnWrData(13 downto 0);
                   v.state  := MANUAL_RS_DATA_S;
-               end if;
-               if (csOnWrValid = '1') then
+               elsif (rsOffWrValid = '1') then
+                  v.rowNum := rsOffWrAddr(ROW_HIGH_C downto ROW_LOW_C);
+                  v.dacDb  := rsOffWrData(13 downto 0);
+                  v.state  := MANUAL_RS_DATA_S;
+               elsif (csOnWrValid = '1') then
                   v.chipNum := csOnWrAddr;
                   v.dacDb   := csOnWrData(13 downto 0);
                   v.state   := MANUAL_CS_DATA_S;
+               elsif (csOffWrValid = '1') then
+                  v.chipNum := csOffWrAddr;
+                  v.dacDb   := csOffWrData(13 downto 0);
+                  v.state   := MANUAL_CS_DATA_S;
+               elsif (r.deactivateEn = '1') then
+                  v.offIndex := r.deactivateIndex;
+                  v.state    := OFF_PRE_S;
+               elsif (r.activateEn = '1') then
+                  v.onIndex := r.activateIndex;
+                  v.state   := ON_PRE_S;
                end if;
-
             end if;
 
          -------------------------------------------------------------------------------------------
@@ -439,13 +464,13 @@ begin
          -- Turn off row, turn off chip, turn on row, turn on chip
          -------------------------------------------------------------------------------------------
          when OFF_PRE_S =>
-            v.rowNum     := timingRxData.rowIndex(ROW_HIGH_C downto ROW_LOW_C);
+            v.rowNum := r.offIndex(ROW_HIGH_C downto ROW_LOW_C);
             if (CHIP_SELECT_BITS_C > 0) then
-               v.chipNum    := timingRxData.rowIndex(CHIP_HIGH_C downto CHIP_LOW_C);
+               v.chipNum := r.offIndex(CHIP_HIGH_C downto CHIP_LOW_C);
             end if;
-            v.rowChipNum := timingRxData.rowIndex(ROW_CHIP_HIGH_C downto ROW_CHIP_LOW_C);
+            v.rowChipNum := r.offIndex(ROW_CHIP_HIGH_C downto ROW_CHIP_LOW_C);
             if (BOARD_SELECT_BITS_C > 0) then
-               v.boardId := timingRxData.rowIndex(BOARD_HIGH_C downto BOARD_LOW_C);
+               v.boardId := r.offIndex(BOARD_HIGH_C downto BOARD_LOW_C);
             end if;
             v.state := ROW_OFF_DATA_S;
 
@@ -460,6 +485,9 @@ begin
             end if;
             if (NUM_CHIP_SELECTS_G > 0) then
                v.state := CHIP_OFF_DATA_S;
+            elsif (r.deactivateEn = '1') then
+               -- Clock in value right away
+               v.state := CLK_0_RISE_S;
             else
                v.state := ON_PRE_S;
             end if;
@@ -473,24 +501,28 @@ begin
             if (r.boardId = r.cfgBoardId) then
                v.dacWrt(csDacChip) := '1';
             end if;
-            v.state := ON_PRE_S;
+            if (r.deactivateEn = '1') then
+               v.state := CLK_0_RISE_S;
+            else
+               v.state := ON_PRE_S;
+            end if;
 
          when ON_PRE_S =>
             -- Switch to next row index for DAC address
-            v.rowNum     := timingRxData.rowIndexNext(ROW_HIGH_C downto ROW_LOW_C);
+            v.rowNum := r.onIndex(ROW_HIGH_C downto ROW_LOW_C);
             if (NUM_CHIP_SELECTS_G > 0) then
-               v.chipNum    := timingRxData.rowIndexNext(CHIP_HIGH_C downto CHIP_LOW_C);
+               v.chipNum := r.onIndex(CHIP_HIGH_C downto CHIP_LOW_C);
             end if;
-            v.rowChipNum := timingRxData.rowIndexNext(ROW_CHIP_HIGH_C downto ROW_CHIP_LOW_C);
+            v.rowChipNum := r.onIndex(ROW_CHIP_HIGH_C downto ROW_CHIP_LOW_C);
             if (BOARD_SELECT_BITS_C > 0) then
-               v.boardId    := timingRxData.rowIndexNext(BOARD_HIGH_C downto BOARD_LOW_C);
+               v.boardId := r.onIndex(BOARD_HIGH_C downto BOARD_LOW_C);
             end if;
-            v.state      := ROW_ON_DATA_S;
+            v.state := ROW_ON_DATA_S;
 
          when ROW_ON_DATA_S =>
             v.dacDb             := rsOnDout(13 downto 0);
             v.dacSel(rsDacChip) := not r.rowNum(0);
-            v.state := ROW_ON_WRITE_S;
+            v.state             := ROW_ON_WRITE_S;
 
          when ROW_ON_WRITE_S =>
             if (r.boardId = r.cfgBoardId) then
@@ -505,7 +537,7 @@ begin
          when CHIP_ON_DATA_S =>
             v.dacDb             := csOnDout(13 downto 0);
             v.dacSel(csDacChip) := not r.chipNum(0);
-            v.state := CHIP_ON_WRITE_S;
+            v.state             := CHIP_ON_WRITE_S;
 
          when CHIP_ON_WRITE_S =>
             if (r.boardId = r.cfgBoardId) then
@@ -534,8 +566,10 @@ begin
             -- Wait for row strobe to clock new DAC values if in TIMING_MODE
             if (r.mode = TIMING_MODE_C and timingRxData.rowStrobe = '1') or
                (r.mode = MANUAL_MODE_C) then
-               v.dacClk := (others => '1');
-               v.state  := CLK_0_FALL_S;
+               v.dacClk       := (others => '1');
+               v.activateEn   := '0';
+               v.deactivateEn := '0';
+               v.state        := CLK_0_FALL_S;
             end if;
 
          when CLK_0_FALL_S =>
