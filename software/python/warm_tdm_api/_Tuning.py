@@ -477,7 +477,7 @@ def sq1Tune(group, process):
     numRows = group.NumRows.get()
     rowTuneEnable = group.RowTuneEnable.value()
     colTuneEnable = group.ColTuneEnable.value()    
-    numEnabledRows = rowTuneEnable.sum() # This will count number of True in array
+    numEnabledRows = len([x for x in rowTuneEnable if x == True]) # This will count number of True in array
     numColumns = group.NumColumns.get()
 
     totalSteps = numEnabledRows * process.Sq1BiasNumSteps.get() * process.Sq1FbNumSteps.get()
