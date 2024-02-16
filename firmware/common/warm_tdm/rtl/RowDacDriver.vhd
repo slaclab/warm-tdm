@@ -103,6 +103,12 @@ architecture rtl of RowDacDriver is
    signal locAxilReadMasters  : AxiLiteReadMasterArray(NUM_AXIL_C-1 downto 0);
    signal locAxilReadSlaves   : AxiLiteReadSlaveArray(NUM_AXIL_C-1 downto 0)  := (others => AXI_LITE_READ_SLAVE_EMPTY_DECERR_C);
 
+   signal timingAxilWriteMaster : AxiLiteWriteMasterType;
+   signal timingAxilWriteSlave  : AxiLiteWriteSlaveType;
+   signal timingAxilReadMaster  : AxiLiteReadMasterType;
+   signal timingAxilReadSlave   : AxiLiteReadSlaveType;
+
+
    type StateType is (
       INIT_A_S,
       INIT_B_S,
@@ -217,6 +223,25 @@ begin
          mAxiWriteSlaves     => locAxilWriteSlaves,   -- [in]
          mAxiReadMasters     => locAxilReadMasters,   -- [out]
          mAxiReadSlaves      => locAxilReadSlaves);   -- [in]
+
+   U_AxiLiteAsync_1 : entity surf.AxiLiteAsync
+      generic map (
+         TPD_G         => TPD_G,
+         PIPE_STAGES_G => 0)
+      port map (
+         sAxiClk         => axilClk,                 -- [in]
+         sAxiClkRst      => axilRst,                 -- [in]
+         sAxiReadMaster  => locAxilReadMasters(LOCAL_AXIL_C),   -- [in]
+         sAxiReadSlave   => locAxilReadSlaves(LOCAL_AXIL_C),    -- [out]
+         sAxiWriteMaster => locAxilWriteMasters(LOCAL_AXIL_C),  -- [in]
+         sAxiWriteSlave  => locAxilWriteSlaves(LOCAL_AXIL_C),   -- [out]
+         mAxiClk         => timingRxClk125,                 -- [in]
+         mAxiClkRst      => timingRxRst125,                 -- [in]
+         mAxiReadMaster  => timingAxilReadMaster,    -- [out]
+         mAxiReadSlave   => timingAxilReadSlave,     -- [in]
+         mAxiWriteMaster => timingAxilWriteMaster,   -- [out]
+         mAxiWriteSlave  => timingAxilWriteSlave);   -- [in]
+   
 
 
    -- Store RS_ON value for each row that can be addressed by this board
@@ -342,9 +367,9 @@ begin
 
 
    comb : process (csOffDout, csOffWrAddr, csOffWrData, csOffWrValid, csOnDout, csOnWrAddr,
-                   csOnWrData, csOnWrValid, locAxilReadMasters, locAxilWriteMasters, r, rsOffDout,
-                   rsOffWrAddr, rsOffWrData, rsOffWrValid, rsOnDout, rsOnWrAddr, rsOnWrData,
-                   rsOnWrValid, timingRxData, timingRxRst125) is
+                   csOnWrData, csOnWrValid, r, rsOffDout, rsOffWrAddr, rsOffWrData, rsOffWrValid,
+                   rsOnDout, rsOnWrAddr, rsOnWrData, rsOnWrValid, timingAxilReadMaster,
+                   timingAxilWriteMaster, timingRxData, timingRxRst125) is
       variable v         : RegType;
       variable axilEp    : AxiLiteEndpointType;
       variable rsDacInt  : integer;
@@ -358,7 +383,7 @@ begin
       ----------------------------------------------------------------------------------------------
       -- Configuration Registers
       ----------------------------------------------------------------------------------------------
-      axiSlaveWaitTxn(axilEp, locAxilWriteMasters(0), locAxilReadMasters(0), v.axilWriteSlave, v.axilReadSlave);
+      axiSlaveWaitTxn(axilEp, timingAxilWriteMaster, timingAxilReadMaster, v.axilWriteSlave, v.axilReadSlave);
 
       axiSlaveRegister(axilEp, X"00", 0, v.mode);
       if (BOARD_SELECT_BITS_C > 0) then
@@ -608,8 +633,8 @@ begin
       dacClk   <= r.dacClk;
       dacReset <= r.dacReset;
 
-      locAxilReadSlaves(0)  <= r.axilReadSlave;
-      locAxilWriteSlaves(0) <= r.axilWriteSlave;
+      timingAxilReadSlave  <= r.axilReadSlave;
+      timingAxilWriteSlave <= r.axilWriteSlave;
 
       rin <= v;
 
