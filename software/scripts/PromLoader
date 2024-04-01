@@ -99,15 +99,19 @@ with warm_tdm.WarmTdmRoot(
     print('Finding and reading group')
 
     avs = root.find(name='AxiVersion')
+    print(avs)
 
-    for av in avs.values():
+    print('Found the following boards')
+    for i, av in enumerate(avs):
+        print(f'Board {i}')
         av.readBlocks()
         av.checkBlocks()
         av.printStatus()
+        print()
 
-    x = input('Are you sure you wish to procede [y]/n: ')
-    if x == 'n':
-        exit()
+#     x = input('Are you sure you wish to procede [y]/n: ')
+#     if x == 'n':
+#         exit()
 
     proms = root.find(name='AxiMicronN25Q')
 
@@ -116,7 +120,7 @@ with warm_tdm.WarmTdmRoot(
     for i, prom in enumerate(proms):
         print(f'{i} - {prom.path}')
 
-    idx = int(input('Select which PROM you wish to flash'))
+    idx = int(input('Select which PROM you wish to flash: '))
    
     prom = proms[idx]
     prom.enable.set(True)
@@ -133,8 +137,8 @@ with warm_tdm.WarmTdmRoot(
         for i, l in enumerate(images):
             print('{} : {}'.format(i, l))
 
-            idx = int(input('Enter image for flash: '))
-            image = images[idx]
+        idx = int(input('Enter image for flash: '))
+        image = images[idx]
     else:
         image = args.path
 
