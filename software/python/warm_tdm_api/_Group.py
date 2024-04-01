@@ -184,6 +184,7 @@ class FastDacVariable(GroupLinkVariable):
             if index != -1:
                 colIndex = index[0]
                 rowIndex = index[1]
+                print(f'{colIndex=}, {rowIndex=}')
                 self.dependencies[colIndex].set(value=value, index=rowIndex, write=write)
 
             # Full array access

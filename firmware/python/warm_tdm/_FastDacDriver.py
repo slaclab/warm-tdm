@@ -81,11 +81,13 @@ class FastDacMem(pr.Device):
         return currents
 
     def setCurrent(self, value, index, write):
+        print(f'{self.path}.setCurrent({value=}, {index=}, {write=})')
         if index == -1:
             dacs = [self.amps[i].outCurrentToDac(current) for i, current in enumerate(value)]
         else:
             dacs = self.amps[index].outCurrentToDac(value)
 
+        print(f'Raw.set({index=}, {write=}, value={dacs})')
         self.Raw.set(index=index, write=write, value=dacs)
 
     def getVoltage(self, index, read):
