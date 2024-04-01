@@ -24,7 +24,7 @@ class GroupRoot(pyrogue.Root):
                                        "This interface supports configuration load and save as well as the top level reset control.",
                          **kwargs)
 
-        self.zmqServer = pyrogue.interfaces.ZmqServer(root=self, addr='*', port=0)
+        self.zmqServer = pyrogue.interfaces.ZmqServer(root=self, addr='127.0.0.1', port=0)
         self.addInterface(self.zmqServer)
         
 
