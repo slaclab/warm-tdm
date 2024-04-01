@@ -98,6 +98,7 @@ class HardwareGroup(pyrogue.Device):
                     chDbg.setDebug(100, f'DataStream_App_{i}')
                     rateDrop = rogue.interfaces.stream.RateDrop(True, 0.1)
                     self.addInterface(rateDrop)
+                    packetizer.application(i) >> dataWriter.getChannel(i)
                     packetizer.application(i) >> rateDrop >> pidDebug[i]                    
 #                    packetizer.application(i) >> chDbg
                     #self.addInterface(chDbg, pidDebug[i])

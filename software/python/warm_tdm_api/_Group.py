@@ -587,7 +587,7 @@ class Group(pr.Device):
                          '2D array with total length = (ColumnBoards * 8) * 256.'
                          'Values can be accessed as a full 2D array or pass a (col, row) tuple for the index key to access each value.',
             config = self.config,
-            hidden = True,
+            hidden = False,
 #            units = 'mA',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SAFb.Column[m.channel].Current
                             for m in self.config.columnMap]))
@@ -631,7 +631,7 @@ class Group(pr.Device):
                          '2D array with total length = (ColumnBoards * 8) * (RowBoards * 32).'
                          'Values can be accessed as a full 2D array or pass a (col, row) tuple for the index key to access each value.',
             config = self.config,
-            hidden = True,
+            hidden = False,
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SQ1Bias.Column[m.channel].Current
                             for m in self.config.columnMap]))
 
@@ -673,7 +673,7 @@ class Group(pr.Device):
                          '2D array with total length = (ColumnBoards * 8) * (RowBoards * 32).'
                          'Values can be accessed as a full 2D array or pass a (col, row) tuple for the index key to access each value.',
             config = self.config,
-            hidden = True,
+            hidden = False,
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SQ1Fb.Column[m.channel].Current
                             for m in self.config.columnMap]))
 

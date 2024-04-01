@@ -37,5 +37,7 @@ package WarmTdmPkg is
 
    constant DATA_AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 8, tDestBits => 4, tUserBits => 2);
 
+   constant SQ1FB_DATA_AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 2, tDestBits => 8);
+
 end package;
 
