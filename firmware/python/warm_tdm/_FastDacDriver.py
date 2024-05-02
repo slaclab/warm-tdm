@@ -18,7 +18,7 @@ class FastDacMem(pr.Device):
             
         self.add(pr.RemoteVariable(
             name = f'Raw',
-            offset = kwargs['offset'],
+            offset = 0x0,
             base = pr.UInt,
             numValues = size,
             valueBits = 14,
