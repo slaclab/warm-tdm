@@ -106,7 +106,7 @@ def saFbSweep(*, group, bias, saFbRange, process):
             curves[col].addPoint(points[col])
 
         if process is not None:
-            process.Advance()
+            process._incrementSteps(1)
             #Progress.set(pctLow + pctRange*((idx+1)/numSteps))
             
 
@@ -310,7 +310,7 @@ def fasSweep(*, group, row, process):
 
         # check for stopped process
         if process is not None:
-            process.Advance()
+            process._incrementSteps(1)
             if process._runEn == False:
                 print('Process stopped, exiting fasSweep()')
                 break     
@@ -396,7 +396,7 @@ def sq1FbSweep(*, group, bias, fbRange, process):
         for col in range(colCount):
             curves[col].addPoint(points[col])
 
-        process.Advance()
+        process._incrementSteps(1)
 
         # check for stopped process
         if process is not None and process._runEn == False:

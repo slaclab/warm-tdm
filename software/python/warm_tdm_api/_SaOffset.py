@@ -185,7 +185,7 @@ class SaOffsetSweepProcess(pr.Process):
                     curves[i, j] = group.SaOut.get() #group.SaOffset.get()
                     #curves[i, j] = group.SaOffset.get()                    
 
-                    self.Advance() #Progress.set((i*biasSteps + j) / totalSteps)
+                    self._incrementSteps(1) #Progress.set((i*biasSteps + j) / totalSteps)
                     if self._runEn is False:
                         self.Message.set('Stopped by user')
                         return
