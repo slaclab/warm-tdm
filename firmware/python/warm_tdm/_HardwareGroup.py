@@ -41,7 +41,9 @@ class HardwareGroup(pyrogue.Device):
             self.add(dataUdp)
             self.addInterface(srpUdp, dataUdp)
 
-
+        # Direct SRP
+        COL_SIM_SRP_PORTS = [10000 + (i * 1000) for i in range(colBoards)]
+        ROW_SIM_SRP_PORTS = [10000 + (i * 1000) for i in range(colBoards, colBoards+rowBoards)]        
 
         # Instantiate and link each board in the Group
         for index in range(colBoards):
@@ -51,7 +53,8 @@ class HardwareGroup(pyrogue.Device):
                 dataStream = rogue.interfaces.stream.Master()
 
             elif simulation is True:
-                srpStream = rogue.interfaces.stream.TcpClient('localhost', SIM_SRP_PORT + (0x00 <<4 | index)*2)
+                srpStream = rogue.interfaces.stream.TcpClient('localhost', COL_SIM_SRP_PORTS[index])
+#                srpStream = rogue.interfaces.stream.TcpClient('localhost', SIM_SRP_PORT + (0x00 <<4 | index)*2)
                 dataStream = rogue.interfaces.stream.TcpClient('localhost', SIM_DATA_PORT + (0x00 <<4 | index)*2)
                 self.addInterface(srpStream, dataStream)
 
@@ -118,7 +121,8 @@ class HardwareGroup(pyrogue.Device):
                 srp = pyrogue.interfaces.simulation.MemEmulate()
 
             elif simulation is True:
-                srpStream = rogue.interfaces.stream.TcpClient('localhost', SIM_SRP_PORT + (0x00 <<4 | boardIndex)*2)
+                srpStream = rogue.interfaces.stream.TcpClient('localhost', ROW_SIM_SRP_PORTS[rowIndex])
+#                srpStream = rogue.interfaces.stream.TcpClient('localhost', SIM_SRP_PORT + (0x00 <<4 | boardIndex)*2)
                 dataStream = rogue.interfaces.stream.TcpClient('localhost', SIM_DATA_PORT + (0x00 <<4 | boardIndex)*2)
                 self.addInterface(srpStream, dataStream)
                 srp = rogue.protocols.srp.SrpV3()

@@ -190,7 +190,7 @@ begin
    axiClk <= iAxiClk;
    axiRst <= iAxiRst;
 
-   REAL_PGP_GEN : if (true) generate    --SIM_PORT_NUM_G = 0) generate
+   REAL_PGP_GEN : if (SIM_PORT_NUM_G = 0) generate
       Pgp2bGtx7VarLat_Inst_0 : entity surf.Pgp2bGtx7VarLat
          generic map (
             TPD_G                 => TPD_G,
@@ -366,7 +366,7 @@ begin
 --       U_RoguePgp2bSim_1 : entity surf.RoguePgp2bSim
 --          generic map (
 --             TPD_G         => TPD_G,
---             PORT_NUM_G    => 7000,         --SIM_PORT_NUM_G,
+--             PORT_NUM_G    => SIM_PORT_NUM_G,
 --             NUM_VC_G      => 4,
 --             EN_SIDEBAND_G => true)
 --          port map (

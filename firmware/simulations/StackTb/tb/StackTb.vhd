@@ -2,7 +2,7 @@
 -- File       : RceSimTb.vhd
 -- Company    : SLAC National Accelerator Laboratory
 -- Created    : 2018-06-23
--- Last update: 2024-02-01
+-- Last update: 2024-05-08
 -------------------------------------------------------------------------------
 -- Description: Simulation Testbed for testing the SimpleRogueSim module
 -------------------------------------------------------------------------------
@@ -31,6 +31,8 @@ end StackTb;
 
 architecture sim of StackTb is
 
+   constant SIM_PGP_GT_C : boolean := true;
+
    constant COLUMN_BOARDS_C : integer := 1;
    constant ROW_BOARDS_C    : integer := 1;
 
@@ -57,7 +59,7 @@ begin
          generic map (
             TPD_G                   => TPD_G,
             RING_ADDR_0_G           => (i = 0),
-            SIM_PGP_PORT_NUM_G      => 0,                                               --7000,
+            SIM_PGP_PORT_NUM_G      => 7000 + (40 *i),  --ite(SIM_PGP_GT_C, 0, 7000),
             SIM_ETH_SRP_PORT_NUM_G  => 10000 + (i * 1000),
             SIM_ETH_DATA_PORT_NUM_G => 20000 + (i * 1000))
          port map (
@@ -71,14 +73,14 @@ begin
             rj45PgpRxMgtP     => rj45PgpMgtP((i+GROUP_SIZE_C-1) mod GROUP_SIZE_C),      -- [in]
             rj45PgpRxMgtN     => rj45PgpMgtN((i+GROUP_SIZE_C-1) mod GROUP_SIZE_C),      -- [in]
             -- Outgoing connections
-            rj45TimingTxClkP  => rj45TimingClkP(i),                                     -- [out]
-            rj45TimingTxClkN  => rj45TimingClkN(i),                                     -- [out]
-            rj45TimingTxDataP => rj45TimingDataP(i),                                    -- [out]
-            rj45TimingTxDataN => rj45TimingDataN(i),                                    -- [out]
-            rj45TimingTxMgtP  => rj45TimingMgtP(i),                                     -- [out]
-            rj45TimingTxMgtN  => rj45TimingMgtN(i),                                     -- [out]
-            rj45PgpTxMgtP     => rj45PgpMgtP(i),                                        -- [out]
-            rj45PgpTxMgtN     => rj45PgpMgtN(i));                                       -- [out]
+            rj45TimingTxClkP  => rj45TimingClkP(i),     -- [out]
+            rj45TimingTxClkN  => rj45TimingClkN(i),     -- [out]
+            rj45TimingTxDataP => rj45TimingDataP(i),    -- [out]
+            rj45TimingTxDataN => rj45TimingDataN(i),    -- [out]
+            rj45TimingTxMgtP  => rj45TimingMgtP(i),     -- [out]
+            rj45TimingTxMgtN  => rj45TimingMgtN(i),     -- [out]
+            rj45PgpTxMgtP     => rj45PgpMgtP(i),        -- [out]
+            rj45PgpTxMgtN     => rj45PgpMgtN(i));       -- [out]
 
    end generate GEN_COL_BOARDS;
 
@@ -87,7 +89,7 @@ begin
          generic map (
             TPD_G                   => TPD_G,
             RING_ADDR_0_G           => false,
-            SIM_PGP_PORT_NUM_G      => 0,                                               --7000 + 40,
+            SIM_PGP_PORT_NUM_G      => 70000 + (40*i),                                  --7000 + 40,
             SIM_ETH_SRP_PORT_NUM_G  => 10000 + (i * 1000),                              -- Not used
             SIM_ETH_DATA_PORT_NUM_G => 20000 + (i * 1000))                              -- Not used
          port map (

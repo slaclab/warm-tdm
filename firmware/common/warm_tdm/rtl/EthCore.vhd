@@ -554,7 +554,7 @@ begin
 
    end generate REAL_ETH_GEN;
 
-   SIM_GEN : if (SIMULATION_G and RING_ADDR_0_G) generate
+   SIM_GEN : if (SIMULATION_G) generate
       ethClk <= fabRefClk;
 
       PwrUpRst_Inst : entity surf.PwrUpRst
