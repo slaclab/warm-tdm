@@ -33,7 +33,7 @@ entity Ad9767 is
       iqsel   : in  sl;
       iqwrt   : in  sl;
       iqclk   : in  sl;
-      iqreset : in  sl;
+      iqreset : in  sl := '0';
       iOut1A  : out real;
       iOut1B  : out real;
       iOut2A  : out real;

@@ -43,6 +43,7 @@ entity ColumnModule is
    generic (
       TPD_G                   : time             := 1 ns;
       SIMULATION_G            : boolean          := false;
+      SIMULATE_PGP_G          : boolean          := true;
       SIM_PGP_PORT_NUM_G      : integer          := 0;
       SIM_ETH_SRP_PORT_NUM_G  : integer          := 8000;
       SIM_ETH_DATA_PORT_NUM_G : integer          := 9000;
@@ -275,6 +276,7 @@ begin
       generic map (
          TPD_G                   => TPD_G,
          SIMULATION_G            => SIMULATION_G,
+         SIMULATE_PGP_G          => SIMULATE_PGP_G,
          SIM_PGP_PORT_NUM_G      => SIM_PGP_PORT_NUM_G,
          SIM_ETH_SRP_PORT_NUM_G  => SIM_ETH_SRP_PORT_NUM_G,
          SIM_ETH_DATA_PORT_NUM_G => SIM_ETH_DATA_PORT_NUM_G,
@@ -284,7 +286,7 @@ begin
          DHCP_G                  => DHCP_G,
          IP_ADDR_G               => IP_ADDR_G,
          MAC_ADDR_G              => MAC_ADDR_G,
-         XADC_AUX_CHANS_G        => (9, 1, 8, 0))         
+         XADC_AUX_CHANS_G        => (9, 1, 8, 0))
       port map (
          gtRefClk0P       => gtRefClk0P,          -- [in]
          gtRefClk0N       => gtRefClk0N,          -- [in]

@@ -2,7 +2,7 @@
 -- File       : RceSimTb.vhd
 -- Company    : SLAC National Accelerator Laboratory
 -- Created    : 2018-06-23
--- Last update: 2024-05-08
+-- Last update: 2024-06-11
 -------------------------------------------------------------------------------
 -- Description: Simulation Testbed for testing the SimpleRogueSim module
 -------------------------------------------------------------------------------
@@ -59,6 +59,7 @@ begin
          generic map (
             TPD_G                   => TPD_G,
             RING_ADDR_0_G           => (i = 0),
+            SIMULATE_PGP_G          => SIM_PGP_GT_C,
             SIM_PGP_PORT_NUM_G      => 7000 + (40 *i),  --ite(SIM_PGP_GT_C, 0, 7000),
             SIM_ETH_SRP_PORT_NUM_G  => 10000 + (i * 1000),
             SIM_ETH_DATA_PORT_NUM_G => 20000 + (i * 1000))
@@ -89,6 +90,7 @@ begin
          generic map (
             TPD_G                   => TPD_G,
             RING_ADDR_0_G           => false,
+            SIMULATE_PGP_G          => SIM_PGP_GT_C,
             SIM_PGP_PORT_NUM_G      => 70000 + (40*i),                                  --7000 + 40,
             SIM_ETH_SRP_PORT_NUM_G  => 10000 + (i * 1000),                              -- Not used
             SIM_ETH_DATA_PORT_NUM_G => 20000 + (i * 1000))                              -- Not used

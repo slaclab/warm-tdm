@@ -152,7 +152,7 @@ begin
                v.ldacMask := data;
 
             when SOFT_RST_CMD_C =>
-               if (addr = X"0" and data = X"1234") then
+               if (addr = 0 and data = X"1234") then
                   v := REG_INIT_C;
                end if;
 

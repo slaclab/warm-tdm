@@ -41,6 +41,9 @@ architecture sim of ColumnModuleBoardTb is
    signal rj45TimingClkN  : slv(NUM_COLUMN_MODULES_C-1 downto 0);  -- [in]
    signal rj45TimingDataP : slv(NUM_COLUMN_MODULES_C-1 downto 0);  -- [in]
    signal rj45TimingDataN : slv(NUM_COLUMN_MODULES_C-1 downto 0);  -- [in]
+   signal rj45TimingMgtP  : slv(NUM_COLUMN_MODULES_C-1 downto 0);  -- [in]
+   signal rj45TimingMgtN  : slv(NUM_COLUMN_MODULES_C-1 downto 0);  -- [in]
+
 
 begin
 
@@ -48,20 +51,28 @@ begin
    ColumnModGen : for i in 0 to NUM_COLUMN_MODULES_C-1 generate
       U_ColumnModuleBoard : entity warm_tdm.ColumnModuleBoard
          generic map (
-            TPD_G                  => TPD_G,
-            RING_ADDR_0_G          => (i = 0),
-            SIM_PGP_PORT_NUM_G     => 7000, --7000 + (10*i),
-            SIM_ETH_SRP_PORT_NUM_G => 10000 + (1000*i),
+            TPD_G                   => TPD_G,
+            RING_ADDR_0_G           => (i = 0),
+            SIMULATE_PGP_G          => false,
+            SIM_PGP_PORT_NUM_G      => 7000,  --7000 + (10*i),
+            SIM_ETH_SRP_PORT_NUM_G  => 10000 + (1000*i),
             SIM_ETH_DATA_PORT_NUM_G => 20000 + (1000*i))
          port map (
             rj45TimingRxClkP  => rj45TimingClkP(ite(i = 0, NUM_COLUMN_MODULES_C-1, i-1)),   -- [in]
             rj45TimingRxClkN  => rj45TimingClkN(ite(i = 0, NUM_COLUMN_MODULES_C-1, i-1)),   -- [in]
             rj45TimingRxDataP => rj45TimingDataP(ite(i = 0, NUM_COLUMN_MODULES_C-1, i-1)),  -- [in]
             rj45TimingRxDataN => rj45TimingDataN(ite(i = 0, NUM_COLUMN_MODULES_C-1, i-1)),  -- [in]
+            rj45TimingRxMgtP  => rj45TimingMgtP(ite(i = 0, NUM_COLUMN_MODULES_C-1, i-1)),   -- [in]
+            rj45TimingRxMgtN  => rj45TimingMgtN(ite(i = 0, NUM_COLUMN_MODULES_C-1, i-1)),   -- [in]
+            rj45PgpRxMgtP     => '1',   -- [in]
+            rj45PgpRxMgtN     => '0',   -- [in]
             rj45TimingTxClkP  => rj45TimingClkP(i),                                         -- [out]
             rj45TimingTxClkN  => rj45TimingClkN(i),                                         -- [out]
             rj45TimingTxDataP => rj45TimingDataP(i),                                        -- [out]
-            rj45TimingTxDataN => rj45TimingDataN(i));                                       -- [out]
+            rj45TimingTxDataN => rj45TimingDataN(i),                                        -- [out]
+            rj45TimingTxMgtP  => rj45TimingMgtP(i),
+            rj45TimingTxMgtN  => rj45TimingMgtN(i));
+
    end generate ColumnModGen;
 
 

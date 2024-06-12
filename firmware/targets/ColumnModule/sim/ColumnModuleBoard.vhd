@@ -33,6 +33,7 @@ entity ColumnModuleBoard is
    generic (
       TPD_G                   : time    := 1 ns;
       RING_ADDR_0_G           : boolean := false;
+      SIMULATE_PGP_G          : boolean := false;
       SIM_PGP_PORT_NUM_G      : integer := 7000;
       SIM_ETH_SRP_PORT_NUM_G  : integer := 8000;
       SIM_ETH_DATA_PORT_NUM_G : integer := 9000);
@@ -193,6 +194,7 @@ begin
       generic map (
          TPD_G                   => TPD_G,
          SIMULATION_G            => SIMULATION_G,
+         SIMULATE_PGP_G          => SIMULATE_PGP_G,
          SIM_PGP_PORT_NUM_G      => SIM_PGP_PORT_NUM_G,
          SIM_ETH_SRP_PORT_NUM_G  => SIM_ETH_SRP_PORT_NUM_G,
          SIM_ETH_DATA_PORT_NUM_G => SIM_ETH_DATA_PORT_NUM_G,
@@ -543,7 +545,7 @@ begin
       amplitude(i)    <= ite(amplitudeTmp(i) < 0.0, 0.0, amplitudeTmp(i));
 
       fbCurrent(i)    <= saFbOut(i)/R_FB_SHUNT_C;
-      saResistance(i) <= 100.0; --125.0 + amplitude(i) * cos(fbCurrent(i) * 2 * MATH_PI / PHI_NOT_C - saBias(i)) + amplitude(i);
+      saResistance(i) <= 100.0;  --125.0 + amplitude(i) * cos(fbCurrent(i) * 2 * MATH_PI / PHI_NOT_C - saBias(i)) + amplitude(i);
 
       saSig(i) <= saBias(i) * saResistance(i) / (saResistance(i) + R_BIAS_C);
 

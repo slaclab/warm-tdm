@@ -37,6 +37,7 @@ entity WarmTdmCore is
    generic (
       TPD_G                   : time                     := 1 ns;
       SIMULATION_G            : boolean                  := false;
+      SIMULATE_PGP_G          : boolean                  := true;
       SIM_PGP_PORT_NUM_G      : integer                  := 7000;
       SIM_ETH_SRP_PORT_NUM_G  : integer                  := 8000;
       SIM_ETH_DATA_PORT_NUM_G : integer                  := 9000;
@@ -324,7 +325,7 @@ begin
          timingRxClkOut  => locTimingRxClk125,                   -- [out]
          timingRxRstOut  => timingRxRst125,                      -- [out]
          timingRxDataOut => timingRxData,   -- [out]
-         timingRxLocked  => timingRxLocked, -- [out]
+         timingRxLocked  => timingRxLocked,                      -- [out]
          timingTxClkP    => timingTxClkP,   -- [out]
          timingTxClkN    => timingTxClkN,   -- [out]
          timingTxDataP   => timingTxDataP,  -- [out]
@@ -347,6 +348,7 @@ begin
       generic map (
          TPD_G                   => TPD_G,
          SIMULATION_G            => SIMULATION_G,
+         SIMULATE_PGP_G          => SIMULATE_PGP_G,
          SIM_PGP_PORT_NUM_G      => SIM_PGP_PORT_NUM_G,
          SIM_ETH_SRP_PORT_NUM_G  => SIM_ETH_SRP_PORT_NUM_G,
          SIM_ETH_DATA_PORT_NUM_G => SIM_ETH_DATA_PORT_NUM_G,

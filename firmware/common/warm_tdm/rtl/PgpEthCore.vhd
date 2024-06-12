@@ -40,6 +40,7 @@ entity PgpEthCore is
    generic (
       TPD_G                   : time             := 1 ns;
       SIMULATION_G            : boolean          := false;
+      SIMULATE_PGP_G          : boolean          := true;
       SIM_PGP_PORT_NUM_G      : integer          := 7000;
       SIM_ETH_SRP_PORT_NUM_G  : integer          := 8000;
       SIM_ETH_DATA_PORT_NUM_G : integer          := 9000;
@@ -166,42 +167,44 @@ begin
    -----------------
    -- PGP Interface
    -----------------
-   U_PgpCore_1 : entity warm_tdm.PgpCore
-      generic map (
-         TPD_G            => TPD_G,
-         SIMULATION_G     => SIMULATION_G,
-         SIM_PORT_NUM_G   => SIM_PGP_PORT_NUM_G,
-         REF_CLK_FREQ_G   => REF_CLK_FREQ_G,
-         RING_ADDR_0_G    => RING_ADDR_0_G,
-         AXIL_BASE_ADDR_G => AXIL_BASE_ADDR_G)
-      port map (
-         refRst           => refRst,                            -- [in]
-         gtRefClk         => gtRefClk,                          -- [in]
-         fabRefClk        => fabRefClk,                         -- [in]
-         pgpTxP           => pgpTxP,                            -- [out]
-         pgpTxN           => pgpTxN,                            -- [out]
-         pgpRxP           => pgpRxP,                            -- [in]
-         pgpRxN           => pgpRxN,                            -- [in]
-         pgpTxLink        => pgpTxLink,                         -- [out]
-         pgpRxLink        => pgpRxLink,                         -- [out]
-         axiClk           => axilClk,                           -- [out]
-         axiRst           => axilRst,                           -- [out]
-         mAxilReadMaster  => mLocAxilReadMasters(AXIL_PGP_C),   -- [out]
-         mAxilReadSlave   => mLocAxilReadSlaves(AXIL_PGP_C),    -- [in]
-         mAxilWriteMaster => mLocAxilWriteMasters(AXIL_PGP_C),  -- [out]
-         mAxilWriteSlave  => mLocAxilWriteSlaves(AXIL_PGP_C),   -- [in]
-         sAxilReadMaster  => sLocAxilReadMasters(AXIL_PGP_C),   -- [in]
-         sAxilReadSlave   => sLocAxilReadSlaves(AXIL_PGP_C),    -- [out]
-         sAxilWriteMaster => sLocAxilWriteMasters(AXIL_PGP_C),  -- [in]
-         sAxilWriteSlave  => sLocAxilWriteSlaves(AXIL_PGP_C),   -- [out]
-         ethRxAxisMasters => ethRemoteRxAxisMasters,            -- [in]
-         ethRxAxisSlaves  => ethRemoteRxAxisSlaves,             -- [out]
-         ethTxAxisMasters => ethRemoteTxAxisMasters,            -- [out]
-         ethTxAxisSlaves  => ethRemoteTxAxisSlaves,             -- [in]
-         dataTxAxisMaster => pgpDataTxAxisMaster,               -- [in]
-         dataTxAxisSlave  => pgpDataTxAxisSlave,                -- [out]
-         dataRxAxisMaster => pgpDataRxAxisMaster,               -- [out]
-         dataRxAxisSlave  => pgpDataRxAxisSlave);               -- [in]
+   GEN_PGP : if (not (SIMULATION_G and SIMULATE_PGP_G)) generate
+      U_PgpCore_1 : entity warm_tdm.PgpCore
+         generic map (
+            TPD_G            => TPD_G,
+            SIMULATION_G     => SIMULATION_G,
+            SIM_PORT_NUM_G   => SIM_PGP_PORT_NUM_G,
+            REF_CLK_FREQ_G   => REF_CLK_FREQ_G,
+            RING_ADDR_0_G    => RING_ADDR_0_G,
+            AXIL_BASE_ADDR_G => AXIL_BASE_ADDR_G)
+         port map (
+            refRst           => refRst,                            -- [in]
+            gtRefClk         => gtRefClk,                          -- [in]
+            fabRefClk        => fabRefClk,                         -- [in]
+            pgpTxP           => pgpTxP,                            -- [out]
+            pgpTxN           => pgpTxN,                            -- [out]
+            pgpRxP           => pgpRxP,                            -- [in]
+            pgpRxN           => pgpRxN,                            -- [in]
+            pgpTxLink        => pgpTxLink,                         -- [out]
+            pgpRxLink        => pgpRxLink,                         -- [out]
+            axiClk           => axilClk,                           -- [out]
+            axiRst           => axilRst,                           -- [out]
+            mAxilReadMaster  => mLocAxilReadMasters(AXIL_PGP_C),   -- [out]
+            mAxilReadSlave   => mLocAxilReadSlaves(AXIL_PGP_C),    -- [in]
+            mAxilWriteMaster => mLocAxilWriteMasters(AXIL_PGP_C),  -- [out]
+            mAxilWriteSlave  => mLocAxilWriteSlaves(AXIL_PGP_C),   -- [in]
+            sAxilReadMaster  => sLocAxilReadMasters(AXIL_PGP_C),   -- [in]
+            sAxilReadSlave   => sLocAxilReadSlaves(AXIL_PGP_C),    -- [out]
+            sAxilWriteMaster => sLocAxilWriteMasters(AXIL_PGP_C),  -- [in]
+            sAxilWriteSlave  => sLocAxilWriteSlaves(AXIL_PGP_C),   -- [out]
+            ethRxAxisMasters => ethRemoteRxAxisMasters,            -- [in]
+            ethRxAxisSlaves  => ethRemoteRxAxisSlaves,             -- [out]
+            ethTxAxisMasters => ethRemoteTxAxisMasters,            -- [out]
+            ethTxAxisSlaves  => ethRemoteTxAxisSlaves,             -- [in]
+            dataTxAxisMaster => pgpDataTxAxisMaster,               -- [in]
+            dataTxAxisSlave  => pgpDataTxAxisSlave,                -- [out]
+            dataRxAxisMaster => pgpDataRxAxisMaster,               -- [out]
+            dataRxAxisSlave  => pgpDataRxAxisSlave);               -- [in]
+   end generate GEN_PGP;
 
    ---------------------
    -- Ethernet Interfacepcie
