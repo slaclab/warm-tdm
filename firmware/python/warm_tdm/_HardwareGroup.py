@@ -41,7 +41,9 @@ class HardwareGroup(pyrogue.Device):
             self.add(dataUdp)
             self.addInterface(srpUdp, dataUdp)
 
-
+        # Direct SRP
+        COL_SIM_SRP_PORTS = [10000 + (i * 1000) for i in range(colBoards)]
+        ROW_SIM_SRP_PORTS = [10000 + (i * 1000) for i in range(colBoards, colBoards+rowBoards)]        
 
         # Instantiate and link each board in the Group
         for index in range(colBoards):
@@ -51,7 +53,8 @@ class HardwareGroup(pyrogue.Device):
                 dataStream = rogue.interfaces.stream.Master()
 
             elif simulation is True:
-                srpStream = rogue.interfaces.stream.TcpClient('localhost', SIM_SRP_PORT + (0x00 <<4 | index)*2)
+                srpStream = rogue.interfaces.stream.TcpClient('localhost', COL_SIM_SRP_PORTS[index])
+#                srpStream = rogue.interfaces.stream.TcpClient('localhost', SIM_SRP_PORT + (0x00 <<4 | index)*2)
                 dataStream = rogue.interfaces.stream.TcpClient('localhost', SIM_DATA_PORT + (0x00 <<4 | index)*2)
                 self.addInterface(srpStream, dataStream)
 
@@ -79,7 +82,7 @@ class HardwareGroup(pyrogue.Device):
                 expand=True,
                 rows=rows))
             
-            pidDebug = [warm_tdm.PidDebugger(name=f'PidDebug[{i}]', hidden=False, col=i, fastDacDriver=self.ColumnBoard[index].SQ1Fb) for i in range(8)]
+            pidDebug = [warm_tdm.PidDebugger(name=f'PidDebug[{i}]', hidden=False, numRows=rows, col=i, fastDacDriver=self.ColumnBoard[index].SQ1Fb) for i in range(8)]
             waveGui = warm_tdm.WaveformCaptureReceiver(hidden=False, amplifiers=self.ColumnBoard[index].amplifiers)
 
             # Link the data stream to the DataWriter
@@ -98,6 +101,7 @@ class HardwareGroup(pyrogue.Device):
                     chDbg.setDebug(100, f'DataStream_App_{i}')
                     rateDrop = rogue.interfaces.stream.RateDrop(True, 0.1)
                     self.addInterface(rateDrop)
+                    packetizer.application(i) >> dataWriter.getChannel(i)
                     packetizer.application(i) >> rateDrop >> pidDebug[i]                    
 #                    packetizer.application(i) >> chDbg
                     #self.addInterface(chDbg, pidDebug[i])
@@ -117,7 +121,8 @@ class HardwareGroup(pyrogue.Device):
                 srp = pyrogue.interfaces.simulation.MemEmulate()
 
             elif simulation is True:
-                srpStream = rogue.interfaces.stream.TcpClient('localhost', SIM_SRP_PORT + (0x00 <<4 | boardIndex)*2)
+                srpStream = rogue.interfaces.stream.TcpClient('localhost', ROW_SIM_SRP_PORTS[rowIndex])
+#                srpStream = rogue.interfaces.stream.TcpClient('localhost', SIM_SRP_PORT + (0x00 <<4 | boardIndex)*2)
                 dataStream = rogue.interfaces.stream.TcpClient('localhost', SIM_DATA_PORT + (0x00 <<4 | boardIndex)*2)
                 self.addInterface(srpStream, dataStream)
                 srp = rogue.protocols.srp.SrpV3()
@@ -136,10 +141,43 @@ class HardwareGroup(pyrogue.Device):
                 expand=True,
                 enabled=True))
 
-        self.add(pyrogue.LocalVariable(
-            name = 'ReadoutList',
-            typeStr = 'int',
-            value = [0,1,2,3] )) #list(range(48))))
+        def rl_get(read):
+            print(f'rl_get({read=})')
+            length = self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.NumRows.get(read=read)
+            print(f'{length=}')
+            order = self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.RowIndexOrder.get(read=read)
+            print(f'{order=}')
+            print(f'ret - {order[0:length]}')
+            return order[0:length]
+
+        def rl_set(value, write):
+            tx = self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx
+            tx.NumRows.set(len(value), write=write)            
+            tx.RowIndexOrder.set(value=value, write=write)
+#             for i,v in enumerate(value):
+#                 tx.RowIndexOrder.set(value=v, index=i, write=False)
+#             if write is True:
+#                 tx.RowIndexOrder.write()
+
+
+        if colBoards > 0:
+            self.add(pyrogue.LinkVariable(
+                name = 'ReadoutList',
+                typeStr = 'int',
+                value = [0] ,
+                dependencies = [
+                    self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.NumRows,
+                    self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.RowIndexOrder],
+                linkedSet = rl_set,
+                linkedGet = rl_get)) #list(range(48))))
+
+        @self.command()
+        def Readout2():
+            self.ReadoutList.set([0, 1])
+
+        @self.command()
+        def Readout22():
+            self.ReadoutList.set(list(range(22)))
 
         if colBoards > 0:
             self.add(waveGui)

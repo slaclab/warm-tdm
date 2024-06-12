@@ -51,7 +51,7 @@ package TimingPkg is
       firstSample  : sl;
       lastSample   : sl;
       loadDacs     : sl;
-      rowSeq       : slv(9 downto 0);   -- Sequence in row readout list
+      rowSeq       : slv(7 downto 0);   -- Sequence in row readout list
       rowIndex     : slv(7 downto 0);   -- Current row index
       rowIndexNext : slv(7 downto 0);   -- Next row index
       rowTime      : slv(31 downto 0);  -- timingClk counts since last row strobe

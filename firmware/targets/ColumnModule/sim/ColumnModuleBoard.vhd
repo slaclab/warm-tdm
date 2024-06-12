@@ -43,16 +43,16 @@ entity ColumnModuleBoard is
       rj45TimingRxDataN : in  sl;          -- [in]
       rj45TimingRxMgtP  : in  sl;          -- [in]
       rj45TimingRxMgtN  : in  sl;          -- [in]
-      rj45PgpRxP        : in  sl;          -- [in]
-      rj45PgpRxN        : in  sl;          -- [in]
+      rj45PgpRxMgtP     : in  sl;          -- [in]
+      rj45PgpRxMgtN     : in  sl;          -- [in]
       rj45TimingTxClkP  : out sl;          -- [out]
       rj45TimingTxClkN  : out sl;          -- [out]
       rj45TimingTxDataP : out sl;          -- [out]
       rj45TimingTxDataN : out sl;          -- [out]
       rj45TimingTxMgtP  : out sl;          -- [out]
       rj45TimingTxMgtN  : out sl;          -- [out]
-      rj45PgpTxP        : out sl := '0';   -- [out]
-      rj45PgpTxN        : out sl := '0');  -- [out]
+      rj45PgpTxMgtP     : out sl := '0';   -- [out]
+      rj45PgpTxMgtN     : out sl := '0');  -- [out]
 
 
 end entity ColumnModuleBoard;
@@ -319,11 +319,11 @@ begin
    pgpRxP(0) <= rj45TimingRxMgtP when xbarMgtSel(1) = '0' else pgpTxP(0);
    pgpRxN(0) <= rj45TimingRxMgtN when xbarMgtSel(1) = '0' else pgpTxN(0);
 
-   rj45PgpTxP <= pgpTxP(1);
-   rj45PgpTxN <= pgpTxN(1);
+   rj45PgpTxMgtP <= pgpTxP(1);
+   rj45PgpTxMgtN <= pgpTxN(1);
 
-   pgpRxP(1) <= rj45PgpRxP;
-   pgpRxN(1) <= rj45PgpRxN;
+   pgpRxP(1) <= rj45PgpRxMgtP;
+   pgpRxN(1) <= rj45PgpRxMgtN;
 
    -------------------------------------------------------------------------------------------------
    -- Clock and reset for things that need it
@@ -519,10 +519,10 @@ begin
 
    GEN_AMPLIFIER : for i in 7 downto 0 generate
       constant R_BIAS_C     : real := 15.0e3;
-      constant R_OFFSET_C   : real := 4.22e3;
+      constant R_OFFSET_C   : real := 4.02e3;
       constant R_GAIN_C     : real := 100.0;
       constant R_FB_C       : real := 1.1e3;
-      constant R_CABLE_C    : real := 200.0;
+      constant R_CABLE_C    : real := 0.001;
       constant R_FB_SHUNT_C : real := 7.15e3;
       constant G_BIAS_C     : real := 1.0/R_BIAS_C;
       constant G_OFFSET_C   : real := 1.0/R_OFFSET_C;
@@ -539,18 +539,19 @@ begin
       saBiasCurrent(i) <= saBias(i)/R_BIAS_C;
 
       -- Calculate max SA Resistance based on current
-      amplitudeTmp(i) <= (-100.0e9) * (saBiasCurrent(i)-20.0e-6) * (saBiasCurrent(i)-60.0e-6);
+      amplitudeTmp(i) <= (100.0e9) * (saBiasCurrent(i)-20.0e-6) * (saBiasCurrent(i)-60.0e-6);
       amplitude(i)    <= ite(amplitudeTmp(i) < 0.0, 0.0, amplitudeTmp(i));
 
       fbCurrent(i)    <= saFbOut(i)/R_FB_SHUNT_C;
-      saResistance(i) <= 125.0 + amplitude(i) * cos(fbCurrent(i) * 2 * MATH_PI / PHI_NOT_C - saBias(i)) + amplitude(i);
+      saResistance(i) <= 100.0; --125.0 + amplitude(i) * cos(fbCurrent(i) * 2 * MATH_PI / PHI_NOT_C - saBias(i)) + amplitude(i);
 
       saSig(i) <= saBias(i) * saResistance(i) / (saResistance(i) + R_BIAS_C);
 
-      ampInP(i) <= ((saSig(i) * G_CABLE_C) + (saBias(i) * G_BIAS_C)) / (G_BIAS_C + G_CABLE_C);
+      --ampInP(i) <= ((saSig(i) * G_CABLE_C) + (saBias(i) * G_BIAS_C)) / (G_BIAS_C + G_CABLE_C);
 --      ampInP <= saBias(i) * R_CABLE_C/(R_BIAS_C+R_CABLE_C) + saSig(i);
 
-      adcVin(i) <= R_FB_C * (ampInP(i) * (G_GAIN_C + G_OFFSET_C + G_FB_C) - (saOffset(i) * G_OFFSET_C)) * G2_C * G3_C * (-1.0);
+--      adcVin(i) <= R_FB_C * (saSig(i) * (G_GAIN_C + G_OFFSET_C + G_FB_C) - (saOffset(i) * G_OFFSET_C)) * G2_C * G3_C * (-1.0);
+      adcVin(i) <= (((saSig(i) * (G_FB_C + G_GAIN_C)) + (G_OFFSET_C * (saSig(i)-saOffset(i)))) / G_FB_C) * G2_C * G3_C * (-1.0);
 
       --adcVin(i) <= 0.080044 * (saBias(i)-1.08288*(saOffset(i)-138.621*saSig(i))) * 11 * (-1.5);
 

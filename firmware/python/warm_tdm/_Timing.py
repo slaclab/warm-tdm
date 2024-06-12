@@ -8,7 +8,7 @@ class Timing(pr.Device):
         super().__init__(**kwargs)
 
         self.add(warm_tdm.TimingRx(
-            offset = 0x000))
+            offset = 0x00000))
 
         self.add(warm_tdm.TimingTx(
-            offset = 0x100))
+            offset = 0x10000))

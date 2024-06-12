@@ -177,6 +177,7 @@ class TimingRx(pr.Device):
             pollInterval = 2,
             disp = '{:d}'))
 
+
         @self.command()
         def ReadDebug():
             for x in range(5000):

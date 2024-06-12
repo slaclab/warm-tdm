@@ -44,16 +44,16 @@ entity RowModuleBoard is
       rj45TimingRxClkN  : in  sl;          -- [in]
       rj45TimingRxDataP : in  sl;          -- [in]
       rj45TimingRxDataN : in  sl;          -- [in]
---       rj45TimingRxMgtP  : in  sl;          -- [in]
---       rj45TimingRxMgtN  : in  sl;          -- [in]
+      rj45TimingRxMgtP  : in  sl;          -- [in]
+      rj45TimingRxMgtN  : in  sl;          -- [in]
       rj45PgpRxMgtP     : in  sl;          -- [in]
       rj45PgpRxMgtN     : in  sl;          -- [in]
       rj45TimingTxClkP  : out sl;          -- [out]
       rj45TimingTxClkN  : out sl;          -- [out]
       rj45TimingTxDataP : out sl;          -- [out]
       rj45TimingTxDataN : out sl;          -- [out]
---       rj45TimingTxMgtP  : out sl;          -- [out]
---       rj45TimingTxMgtN  : out sl;          -- [out]
+      rj45TimingTxMgtP  : out sl;          -- [out]
+      rj45TimingTxMgtN  : out sl;          -- [out]
       rj45PgpTxMgtP     : out sl := '0';   -- [out]
       rj45PgpTxMgtN     : out sl := '0');  -- [out]
 
@@ -228,17 +228,17 @@ begin
    timingRxClkN <= rj45TimingRxClkN when xbarClkSel(1) = '0' else timingTxClkN;
 
    -- Put PGP on timingMgt
-   rj45PgpTxMgtP <= rj45PgpRxMgtP when xbarMgtSel(0) = '0' else pgpTxP(0);
-   rj45PgpTxMgtN <= rj45PgpRxMgtN when xbarMgtSel(0) = '0' else pgpTxN(0);
+   rj45TimingTxMgtP <= rj45TimingRxMgtP when xbarMgtSel(0) = '0' else pgpTxP(0);
+   rj45TimingTxMgtN <= rj45TimingRxMgtN when xbarMgtSel(0) = '0' else pgpTxN(0);
 
-   pgpRxP(0) <= rj45PgpRxMgtP when xbarMgtSel(1) = '0' else pgpTxP(0);
-   pgpRxN(0) <= rj45PgpRxMgtN when xbarMgtSel(1) = '0' else pgpTxN(0);
+   pgpRxP(0) <= rj45TimingRxMgtP when xbarMgtSel(1) = '0' else pgpTxP(0);
+   pgpRxN(0) <= rj45TimingRxMgtN when xbarMgtSel(1) = '0' else pgpTxN(0);
 
---    rj45TimingTxMgtP <= rj45TimingRxMgtP when xbarTimingSel(0) = '0' else pgpTxP(1);
---    rj45TimingTxMgtN <= rj45TimingRxMgtN when xbarTimingSel(0) = '0' else pgpTxN(1);
+   rj45PgpTxMgtP <= rj45PgpRxMgtP when xbarTimingSel(0) = '0' else pgpTxP(1);
+   rj45PgpTxMgtN <= rj45PgpRxMgtN when xbarTimingSel(0) = '0' else pgpTxN(1);
 
---    pgpRxP(1) <= rj45TimingRxMgtP when xbarTimingSel(1) = '0' else pgpTxP(1);
---    pgpRxN(1) <= rj45TimingRxMgtN when xbarTimingSel(1) = '0' else pgpTxN(1);
+   pgpRxP(1) <= rj45PgpRxMgtP when xbarTimingSel(1) = '0' else pgpTxP(1);
+   pgpRxN(1) <= rj45PgpRxMgtN when xbarTimingSel(1) = '0' else pgpTxN(1);
 
 
    -------------------------------------------------------------------------------------------------

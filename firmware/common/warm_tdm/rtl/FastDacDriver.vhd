@@ -257,7 +257,7 @@ begin
 
             -- Use lastSample instead of loadDacs for now since it doesn't exist yet               
             elsif (timingRxData.rowStrobe = '1') then
-               v.rowIndex := timingRxData.rowIndexNext;
+               v.rowIndex := timingRxData.rowIndexNext;  -- This shouldn't be necessary
                v.state    := DATA_S;
             end if;
 

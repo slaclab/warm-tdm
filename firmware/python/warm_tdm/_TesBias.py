@@ -9,16 +9,17 @@ class TesBias(pr.Device):
             self.add(pr.LinkVariable(
                 name = f'BiasCurrent[{i}]',
                 disp = '{:1.3f}',                
-                units = 'mA',
+                units = '\u03bcA',
                 dependencies = [self._dac.DacVoltage[i], self._dac.DacVoltage[i+8]],
                 linkedSet = self._setChannelFunc(i),
                 linkedGet = self._getChannelFunc(i)))
 
 
+    # TES Bias current source gain is 1 mA / V
     def _setChannelFunc(self, channel):
         def _setChannel(value, write):
             #dacChannels = [self._dac.InpVoltage[channel], self._dac.InpVoltage[channel+8]]
-            v1 = value  / .5
+            v1 = value  / .5e3
             if v1 > 0:
                 self._dac.setVoltages([channel, channel+8], [v1, 0])
             else:
@@ -30,6 +31,6 @@ class TesBias(pr.Device):
             dacChannels = [self._dac.DacVoltage[channel], self._dac.DacVoltage[channel+8]]
             dacValues = [dacChannels[0].value(), dacChannels[1].value()]
             v1 = dacValues[0] - dacValues[1]
-            iOut = (v1*.5)
+            iOut = (v1*.5) * 1e3
             return iOut
         return _getChannel

@@ -4,8 +4,14 @@ class SaAmplifier(pr.Device):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def addGainVars(self, sa_vars):
+        self.add(pr.LocalVariable(
+            name = 'Type',
+            mode = 'RO',
+            value = self.__class__.__name__))
         
+
+    def addGainVars(self, sa_vars):
+
         self.add(pr.LinkVariable(
             name = 'AmpInConvFactor',
             units = u'\u03bcV/ADC',
@@ -150,6 +156,11 @@ class FastDacAmplifierSE(pr.Device):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+        self.add(pr.LocalVariable(
+            name = 'Type',
+            mode = 'RO',
+            value = self.__class__.__name__))
+        
         self.add(pr.LocalVariable(
             name = 'FSADJ',
             value = 2.0e3,
