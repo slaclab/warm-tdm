@@ -71,12 +71,14 @@ class AdcDsp(pr.Device):
     def __init__(self, column, numRows=256, **kwargs):
         super().__init__(**kwargs)
 
-        ACCUM_BITS = 22
+        ACCUM_BITS = 32
 #        COEF_BITS = 10
 #        SUM_BITS = 18
-        RESULT_BITS = 32
+        RESULT_BITS = 56
 
-        COEF_BASE = pr.Fixed(18, 17)
+        COEF_BASE = pr.Fixed(24, 24)
+        ACCUM_BASE = pr.Fixed(32, 0)
+        RESULT_BASE = pr.Fixed(56, 24)
 
         numRows = 4
 
@@ -158,32 +160,32 @@ class AdcDsp(pr.Device):
             name = 'AccumError_DBG',
             mode = 'RO',
             offset = 0x10,
-            base = pr.Fixed(22, 0),
-            bitSize = 22,
+            base = ACCUM_BASE,
+            bitSize = 32,
             bitOffset = 0))
 
         self.add(pr.RemoteVariable(
             name = 'LastAccum_DBG',
             mode = 'RO',
             offset = 0x14,
-            base = pr.Fixed(22, 0),
-            bitSize = 22,
+            base = ACCUM_BASE,
+            bitSize = 32,
             bitOffset = 0))
         
         self.add(pr.RemoteVariable(
             name = 'SumAccum_DBG',
             mode = 'RO',
             offset = 0x18,
-            base = pr.Fixed(22, 0),
-            bitSize = 22,
+            base = ACCUM_BASE,
+            bitSize = 32,
             bitOffset = 0))
 
         self.add(pr.RemoteVariable(
             name = 'PidResult_DBG',
             mode = 'RO',
             offset = 0x20,
-            base = pr.Fixed(40, 17),
-            bitSize = 40,
+            base = RESULT_BASE,
+            bitSize = 56,
             bitOffset = 0))
         
         self.add(pr.RemoteVariable(
