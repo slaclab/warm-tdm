@@ -472,22 +472,22 @@ begin
          CNT_WIDTH_G    => 16,
          WIDTH_G        => 8)
       port map (
-         statusIn(0)  => locked,                      -- [in]
-         statusIn(1)  => errorDet,                    -- [in]
-         statusIn(2)  => r.timingRxData.startRun,     -- [in]
-         statusIn(3)  => r.timingRxData.endRun,       -- [in]
-         statusIn(4)  => r.timingRxData.rowStrobe,    -- [in]
-         statusIn(5)  => r.timingRxData.firstSample,  -- [in]
-         statusIn(6)  => r.timingRxData.lastSample,   -- [in]
-         statusIn(7)  => r.timingRxData.rawAdc,       -- [in]
-         statusOut    => statusVector,                -- [out]
-         cntRstIn     => axilR.counterReset,          -- [in]
-         rollOverEnIn => "01110000",                  -- [in]
-         cntOut       => counterVector,               -- [out]
-         wrClk        => wordClk,                     -- [in]
-         wrRst        => wordRst,                     -- [in]
-         rdClk        => axilClk,                     -- [in]
-         rdRst        => axilRst);                    -- [in]
+         statusIn(0)  => locked,                          -- [in]
+         statusIn(1)  => errorDet,                        -- [in]
+         statusIn(2)  => r.timingRxData.startRun,         -- [in]
+         statusIn(3)  => r.timingRxData.endRun,           -- [in]
+         statusIn(4)  => r.timingRxData.rowStrobe,        -- [in]
+         statusIn(5)  => r.timingRxData.firstSample,      -- [in]
+         statusIn(6)  => r.timingRxData.lastSample,       -- [in]
+         statusIn(7)  => r.timingRxData.waveformCapture,  -- [in]
+         statusOut    => statusVector,                    -- [out]
+         cntRstIn     => axilR.counterReset,              -- [in]
+         rollOverEnIn => "01110000",                      -- [in]
+         cntOut       => counterVector,                   -- [out]
+         wrClk        => wordClk,                         -- [in]
+         wrRst        => wordRst,                         -- [in]
+         rdClk        => axilClk,                         -- [in]
+         rdRst        => axilRst);                        -- [in]
 
    U_AxiLiteCrossbar_1 : entity surf.AxiLiteCrossbar
       generic map (
@@ -528,13 +528,13 @@ begin
          v.timingRxData.rowTime := r.timingRxData.rowTime + 1;
       end if;
 
-      v.timingRxData.startRun    := '0';
-      v.timingRxData.endRun      := '0';
-      v.timingRxData.rowStrobe   := '0';
-      v.timingRxData.firstSample := '0';
-      v.timingRxData.lastSample  := '0';
-      v.timingRxData.loadDacs    := '0';
-      v.timingRxData.rawAdc      := '0';
+      v.timingRxData.startRun        := '0';
+      v.timingRxData.endRun          := '0';
+      v.timingRxData.rowStrobe       := '0';
+      v.timingRxData.firstSample     := '0';
+      v.timingRxData.lastSample      := '0';
+      v.timingRxData.loadDacs        := '0';
+      v.timingRxData.waveformCapture := '0';
 
 --      v.nextRowSeq := r.timingRxData.rowSeq + 1;
 
@@ -570,8 +570,8 @@ begin
                v.timingRxData.lastSample := '1';
             when LOAD_DACS_C =>
                v.timingRxData.loadDacs := '1';
-            when RAW_ADC_C =>
-               v.timingRxData.rawAdc := '1';
+            when WAVEFORM_CAPTURE_C =>
+               v.timingRxData.waveformCapture := '1';
             when others => null;
          end case;
       end if;

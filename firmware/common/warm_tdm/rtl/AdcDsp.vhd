@@ -3,6 +3,7 @@ use ieee.std_logic_1164.all;
 
 package local_fixed_pkg is new ieee.fixed_generic_pkg  generic map (
    fixed_round_style => IEEE.fixed_float_types.fixed_truncate,
+   fixed_overflow_style => IEEE.fixed_float_types.fixed_saturate,
    fixed_guard_bits  => 0);
 
 use work.local_fixed_pkg.all;
@@ -10,7 +11,7 @@ use work.local_fixed_pkg.all;
 library ieee;
 use ieee.std_logic_1164.all;
 
-use ieee.numeric_std.all;
+--use ieee.numeric_std.all;
 
 library unisim;
 use unisim.vcomponents.all;
@@ -59,9 +60,7 @@ entity AdcDsp is
       axisClk        : in  sl;
       axisRst        : in  sl;
       pidDebugMaster : out AxiStreamMasterType;
-      pidDebugSlave  : in  AxiStreamSlaveType;
-      dataMaster     : out AxiStreamMasterType;
-      dataSlave      : in  AxiStreamSlaveType);
+      pidDebugSlave  : in  AxiStreamSlaveType);
 
 end entity;
 
@@ -94,9 +93,9 @@ architecture rtl of AdcDsp is
 
 
    -- Max of 256 accumulations adds 8 bits to 14 bit ADC
-   constant ACCUM_BITS_C : integer := 22;
-   constant COEF_HIGH_C  : integer := 0;
-   constant COEF_LOW_C   : integer := -17;
+   constant ACCUM_BITS_C : integer := 32;
+   constant COEF_HIGH_C  : integer := -1;
+   constant COEF_LOW_C   : integer := -24;
    constant COEF_BITS_C  : integer := COEF_HIGH_C - COEF_LOW_C + 1;
 
    constant SUM_BITS_C    : integer := ACCUM_BITS_C;
@@ -123,7 +122,7 @@ architecture rtl of AdcDsp is
       WAIT_FIRST_SAMPLE_S,
       ACCUMULATE_S,
       PREP_PID_S,
-      PID_PRESHIFT_S,
+--      PID_PRESHIFT_S,
       PID_P_S,
       PID_I_S,
       PID_D_S,
@@ -596,17 +595,17 @@ begin
 
                -- Third word is accum error
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
-               v.pidDebugMaster.tData(31 downto 0) := resize(to_slv(r.accumError), 32);
+               v.pidDebugMaster.tData(31 downto 0) := to_slv(resize(r.accumError, 31, 0));
 
                -- Prep for P stage
                v.pidCoef       := pSfixed;
                v.pidMultiplier := r.accumError;     -- Prep accumError for P stage
                v.pidResult     := (others => '0');  -- Clear pid result
-               v.state         := PID_PRESHIFT_S;
+               v.state         := PID_P_S; --PID_PRESHIFT_S;
 
-            when PID_PRESHIFT_S =>
-               v.pidMultiplier := shift_right(r.pidMultiplier, to_integer(unsigned(r.accumShift)));
-               v.state         := PID_P_S;
+--             when PID_PRESHIFT_S =>
+--                v.pidMultiplier := shift_right(r.pidMultiplier, to_integer(unsigned(r.accumShift)));
+--                v.state         := PID_P_S;
 
             when PID_P_S =>
                -- Fourth Word is starting SQ1FB
@@ -623,7 +622,7 @@ begin
             when PID_I_S =>
                -- Fifth Word is SumAccum
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
-               v.pidDebugMaster.tData(31 downto 0) := resize(to_slv(r.pidMultiplier), 32);
+               v.pidDebugMaster.tData(31 downto 0) := to_slv(resize(r.pidMultiplier, 31, 0));
 
                -- Calculate PID stage
                v.pidResult     := resize(r.pidResult + (r.pidCoef * r.pidMultiplier), v.pidResult);  -- r.sumAccum
@@ -635,7 +634,7 @@ begin
             when PID_D_S =>
                -- Sixth Word is diff multiplier result
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
-               v.pidDebugMaster.tData(31 downto 0) := resize(to_slv(r.pidMultiplier), 32);
+               v.pidDebugMaster.tData(31 downto 0) := to_slv(resize(r.pidMultiplier, 31, 0));
 
 
                -- Calculate PID Stage
@@ -737,32 +736,32 @@ begin
          mAxisMaster => pidDebugMaster,    -- [out]
          mAxisSlave  => pidDebugSlave);    -- [in]
 
-   U_AxiStreamFifoV2_DATA : entity surf.AxiStreamFifoV2
-      generic map (
-         TPD_G               => TPD_G,
-         INT_PIPE_STAGES_G   => 0,
-         PIPE_STAGES_G       => 0,
-         SLAVE_READY_EN_G    => false,
-         VALID_THOLD_G       => 0,
-         VALID_BURST_MODE_G  => true,
-         FIFO_PAUSE_THRESH_G => 15,
-         GEN_SYNC_FIFO_G     => false,
-         FIFO_ADDR_WIDTH_G   => 5,
-         SYNTH_MODE_G        => "xpm",
-         MEMORY_TYPE_G       => "distributed",
-         INT_WIDTH_SELECT_G  => "WIDE",
-         SLAVE_AXI_CONFIG_G  => AXIS_DATA_CFG_C,
-         MASTER_AXI_CONFIG_G => SQ1FB_DATA_AXIS_CONFIG_C)
-      port map (
-         sAxisClk    => timingRxClk125,      -- [in]
-         sAxisRst    => timingRxRst125,      -- [in]
-         sAxisMaster => pidStreamMaster,  -- [in]
-         sAxisSlave  => open,                -- [out]
-         sAxisCtrl   => open,        -- [out]
-         mAxisClk    => axisClk,             -- [in]
-         mAxisRst    => axisRst,             -- [in]
-         mAxisMaster => dataMaster,      -- [out]
-         mAxisSlave  => dataSlave);      -- [in]
+--    U_AxiStreamFifoV2_DATA : entity surf.AxiStreamFifoV2
+--       generic map (
+--          TPD_G               => TPD_G,
+--          INT_PIPE_STAGES_G   => 0,
+--          PIPE_STAGES_G       => 0,
+--          SLAVE_READY_EN_G    => false,
+--          VALID_THOLD_G       => 0,
+--          VALID_BURST_MODE_G  => true,
+--          FIFO_PAUSE_THRESH_G => 15,
+--          GEN_SYNC_FIFO_G     => false,
+--          FIFO_ADDR_WIDTH_G   => 5,
+--          SYNTH_MODE_G        => "xpm",
+--          MEMORY_TYPE_G       => "distributed",
+--          INT_WIDTH_SELECT_G  => "WIDE",
+--          SLAVE_AXI_CONFIG_G  => AXIS_DATA_CFG_C,
+--          MASTER_AXI_CONFIG_G => SQ1FB_DATA_AXIS_CONFIG_C)
+--       port map (
+--          sAxisClk    => timingRxClk125,      -- [in]
+--          sAxisRst    => timingRxRst125,      -- [in]
+--          sAxisMaster => pidStreamMaster,  -- [in]
+--          sAxisSlave  => open,                -- [out]
+--          sAxisCtrl   => open,        -- [out]
+--          mAxisClk    => axisClk,             -- [in]
+--          mAxisRst    => axisRst,             -- [in]
+--          mAxisMaster => dataMaster,      -- [out]
+--          mAxisSlave  => dataSlave);      -- [in]
 
 
 

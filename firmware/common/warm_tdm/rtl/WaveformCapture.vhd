@@ -93,8 +93,8 @@ architecture rtl of WaveformCapture is
 
    type RegType is record
       reset            : sl;
-      sample           : slv32Array(7 downto 0);
       average          : slv32Array(7 downto 0);
+      sample           : slv16Array(7 downto 0);
       alpha            : slv(3 downto 0);
       pauseThresh      : slv(13 downto 0);
       waveformTrigger  : sl;
@@ -113,8 +113,8 @@ architecture rtl of WaveformCapture is
 
    constant REG_INIT_C : RegType := (
       reset            => '0',
-      sample           => (others => (others => '0')),
       average          => (others => (others => '0')),
+      sample           => (others => (others => '0')),
       alpha            => toSlv(15, 4),
       pauseThresh      => toSlv(2**14-8, 14),
       waveformTrigger  => '0',
@@ -168,7 +168,6 @@ begin
       variable average         : signed(31 downto 0);
       variable avgDiv          : signed(31 downto 0);
       variable sample          : signed(31 downto 0);
-      variable shiftedSample   : signed(31 downto 0);
       variable alpha           : integer range 0 to 15;
    begin
       v := r;
@@ -185,8 +184,6 @@ begin
       axiSlaveRegister(axilEp, X"00", 3, v.allChannels);
       axiSlaveRegister(axilEp, X"04", 0, v.waveformTrigger);
       axiSlaveRegister(axilEp, X"04", 1, v.reset);
---      axiSlaveRegister(axilEp, X"04", 2, v.startAccum);
---      axiSlaveRegister(axilEp, X"04", 16, v.accumSamples);
       axiSlaveRegister(axilEp, X"08", 0, v.decimation);
       axiSlaveRegister(axilEp, X"08", 16, v.pauseThresh);
       axiSlaveRegister(axilEp, X"0C", 0, v.alpha);
@@ -208,18 +205,9 @@ begin
       axiSlaveRegisterR(axilEp, X"44", 0, r.sample(5));
       axiSlaveRegisterR(axilEp, X"48", 0, r.sample(6));
       axiSlaveRegisterR(axilEp, X"4C", 0, r.sample(7));
+      
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
-
-
-      ----------------------------------------------------------------------------------------------
-      -- Accumulator
-      ----------------------------------------------------------------------------------------------
---       if (r.startAccum = '1') then
---          if (r.accumulations /= r.accumSamples) then
-
---          end if;
---       end if;
 
       ----------------------------------------------------------------------------------------------
       -- Pedastal
@@ -230,14 +218,16 @@ begin
             average      := signed(r.average(i));
             avgDiv       := shift_right(average, alpha);
             sample       := resize(signed(adcStreams(i).tData(15 downto 0)), 32);
+            v.sample(i)  := adcStreams(i).tData(15 downto 0);
             sample       := shift_right(shift_left(sample, 16), alpha);
             average      := average - avgDiv + sample;
             v.average(i) := slv(average);
-            v.sample(i)  := slv(sample);
+
          end loop;
       end if;
       if (r.reset = '1') then
          v.average := (others => (others => '0'));
+         v.sample := (others => (others => '0'));         
       end if;
 
 
@@ -278,7 +268,7 @@ begin
       -- Dump data info FIFO when triggered
       -- Multiplex combined or resized channel streams
       ----------------------------------------------------------------------------------------------
-      if (timingRxData.rawAdc = '1' or r.waveformTrigger = '1') then
+      if (timingRxData.waveformCapture = '1' or r.waveformTrigger = '1') then
          v.doWaveform                       := '1';
          v.bufferStream.tValid              := '1';
          v.bufferStream.tData(2 downto 0)   := r.selectedChannel;
