@@ -348,11 +348,11 @@ set_property -dict {PACKAGE_PIN A15 IOSTANDARD LVCMOS33 } [get_ports { feVrSyncB
 #FE I2C
 set_property -dict {PACKAGE_PIN A8  IOSTANDARD LVCMOS33 } [get_ports { feI2cScl[0] }];
 set_property -dict {PACKAGE_PIN B9  IOSTANDARD LVCMOS33 } [get_ports { feI2cSda[0] }];
-set_property -dict {PACKAGE_PIN B10  IOSTANDARD LVCMOS33 } [get_ports { feI2cScl[1] }];
-set_property -dict {PACKAGE_PIN A10  IOSTANDARD LVCMOS33 } [get_ports { feI2cSda[1] }];
-set_property -dict {PACKAGE_PIN C11  IOSTANDARD LVCMOS33 } [get_ports { feI2cScl[2] }];
-set_property -dict {PACKAGE_PIN B11  IOSTANDARD LVCMOS33 } [get_ports { feI2cSda[2] }];
-set_property -dict {PACKAGE_PIN B12  IOSTANDARD LVCMOS33 } [get_ports { feI2cScl[3] }];
+set_property -dict {PACKAGE_PIN A9  IOSTANDARD LVCMOS33 } [get_ports { feI2cScl[1] }];
+set_property -dict {PACKAGE_PIN B10  IOSTANDARD LVCMOS33 } [get_ports { feI2cSda[1] }];
+set_property -dict {PACKAGE_PIN A10  IOSTANDARD LVCMOS33 } [get_ports { feI2cScl[2] }];
+set_property -dict {PACKAGE_PIN C11  IOSTANDARD LVCMOS33 } [get_ports { feI2cSda[2] }];
+set_property -dict {PACKAGE_PIN B11  IOSTANDARD LVCMOS33 } [get_ports { feI2cScl[3] }];
 set_property -dict {PACKAGE_PIN A12  IOSTANDARD LVCMOS33 } [get_ports { feI2cSda[3] }];
 
 set_property BITSTREAM.CONFIG.CONFIGRATE 33  [current_design]
