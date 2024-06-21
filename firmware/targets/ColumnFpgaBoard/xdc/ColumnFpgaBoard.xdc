@@ -317,20 +317,20 @@ set_property -dict { PACKAGE_PIN G26 IOSTANDARD LVCMOS33 } [get_ports { anaPwrEn
 set_property -dict { PACKAGE_PIN B15 IOSTANDARD LVCMOS33 } [get_ports { conRxGreenLed }];
 set_property -dict { PACKAGE_PIN A14 IOSTANDARD LVCMOS33 } [get_ports { conRxYellowLed }];
 set_property -dict { PACKAGE_PIN B12 IOSTANDARD LVCMOS33 } [get_ports { conTxGreenLed }];
-set_property -dict { PACKAGE_PIN A12 IOSTANDARD LVCMOS33 } [get_ports { conTxYellowLed }];
+set_property -dict { PACKAGE_PIN A13 IOSTANDARD LVCMOS33 } [get_ports { conTxYellowLed }];
 
 ## Thermistors
 set_property -dict { PACKAGE_PIN C19 IOSTANDARD LVCMOS33 } [get_ports { localThermistorP[0] }];
-set_property -dict { PACKAGE_PIN H16 IOSTANDARD LVCMOS33 } [get_ports { localThermistorP[1] }];
-set_property -dict { PACKAGE_PIN B17 IOSTANDARD LVCMOS33 } [get_ports { localThermistorP[2] }];
-set_property -dict { PACKAGE_PIN J15 IOSTANDARD LVCMOS33 } [get_ports { localThermistorP[3] }];
-set_property -dict { PACKAGE_PIN C16 IOSTANDARD LVCMOS33 } [get_ports { localThermistorP[4] }];
-set_property -dict { PACKAGE_PIN G15 IOSTANDARD LVCMOS33 } [get_ports { localThermistorP[5] }];
 set_property -dict { PACKAGE_PIN B19 IOSTANDARD LVCMOS33 } [get_ports { localThermistorN[0] }];
+set_property -dict { PACKAGE_PIN H16 IOSTANDARD LVCMOS33 } [get_ports { localThermistorP[1] }];
 set_property -dict { PACKAGE_PIN G16 IOSTANDARD LVCMOS33 } [get_ports { localThermistorN[1] }];
+set_property -dict { PACKAGE_PIN B17 IOSTANDARD LVCMOS33 } [get_ports { localThermistorP[2] }];
 set_property -dict { PACKAGE_PIN A17 IOSTANDARD LVCMOS33 } [get_ports { localThermistorN[2] }];
+set_property -dict { PACKAGE_PIN J15 IOSTANDARD LVCMOS33 } [get_ports { localThermistorP[3] }];
 set_property -dict { PACKAGE_PIN J16 IOSTANDARD LVCMOS33 } [get_ports { localThermistorN[3] }];
+set_property -dict { PACKAGE_PIN C16 IOSTANDARD LVCMOS33 } [get_ports { localThermistorP[4] }];
 set_property -dict { PACKAGE_PIN B16 IOSTANDARD LVCMOS33 } [get_ports { localThermistorN[4] }];
+set_property -dict { PACKAGE_PIN G15 IOSTANDARD LVCMOS33 } [get_ports { localThermistorP[5] }];
 set_property -dict { PACKAGE_PIN F15 IOSTANDARD LVCMOS33 } [get_ports { localThermistorN[5] }];
 
 set_property -dict { PACKAGE_PIN C17 IOSTANDARD LVCMOS33 } [get_ports { feThermistorP[0] }];

@@ -249,18 +249,36 @@ begin
          SEQ_VCCBRAM_SEL_EN_G     => true,
          SEQ_VAUX_SEL_EN_G        => SEQ_VAUX_SEL_EN_C)
       port map (
-         axilClk         => axilClk,                           -- [in]
-         axilRst         => axilRst,                           -- [in]
-         axilReadMaster  => locAxilReadMasters(AXIL_XADC_C),   -- [in]
-         axilReadSlave   => locAxilReadSlaves(AXIL_XADC_C),    -- [out]
-         axilWriteMaster => locAxilWriteMasters(AXIL_XADC_C),  -- [in]
-         axilWriteSlave  => locAxilWriteSlaves(AXIL_XADC_C),   -- [out]
-         xadcClk         => axilClk,                           -- [in]
-         xadcRst         => axilClk,                           -- [in]
-         vAuxP           => locAuxP,                           -- [in]
-         vAuxN           => locAuxN,                           -- [in]
-         alm             => open,                              -- [out]
-         ot              => open);                             -- [out]
+         axilClk             => axilClk,                           -- [in]
+         axilRst             => axilRst,                           -- [in]
+         axilReadMaster      => locAxilReadMasters(AXIL_XADC_C),   -- [in]
+         axilReadSlave       => locAxilReadSlaves(AXIL_XADC_C),    -- [out]
+         axilWriteMaster     => locAxilWriteMasters(AXIL_XADC_C),  -- [in]
+         axilWriteSlave      => locAxilWriteSlaves(AXIL_XADC_C),   -- [out]
+         xadcClk             => axilClk,                           -- [in]
+         xadcRst             => axilClk,                           -- [in]
+         vAuxP(0)            => localThermistorP(4),               -- [in]
+         vAuxP(1)            => localThermistorP(2),
+         vAuxP(2)            => feThermistorP(0),
+         vAuxP(3)            => localThermistorP(5),
+         vAuxP(7 downto 4)   => "0000",
+         vAuxP(8)            => feThermistorP(1),
+         vAuxP(9)            => localThermistorP(0),
+         vAuxP(10)           => localThermistorP(1),
+         vAuxP(11)           => localThermistorP(3),
+         vAuxP(15 downto 12) => "0000",
+         vAuxN(0)            => localThermistorN(4),               -- [in]
+         vAuxN(1)            => localThermistorN(2),
+         vAuxN(2)            => feThermistorN(0),
+         vAuxN(3)            => localThermistorN(5),
+         vAuxN(7 downto 4)   => "0000",
+         vAuxN(8)            => feThermistorN(1),
+         vAuxN(9)            => localThermistorN(0),
+         vAuxN(10)           => localThermistorN(1),
+         vAuxN(11)           => localThermistorN(3),
+         vAuxN(15 downto 12) => "0000",
+         alm                 => open,                              -- [out]
+         ot                  => open);                             -- [out]
 
    ----------------------
    -- AXI-Lite: Boot Prom
