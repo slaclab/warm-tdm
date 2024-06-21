@@ -33,12 +33,13 @@ library warm_tdm;
 entity WarmTdmCommon2 is
 
    generic (
-      TPD_G            : time                     := 1 ns;
-      SIMULATION_G     : boolean                  := false;
-      BUILD_INFO_G     : BuildInfoType;
-      AXIL_BASE_ADDR_G : slv(31 downto 0)         := (others => '0');
-      XADC_AUX_CHANS_G : IntegerArray(3 downto 0) := (12, 4, 11, 3);
-      AXIL_CLK_FREQ_G  : real                     := 125.0E6);
+      TPD_G                : time                     := 1 ns;
+      SIMULATION_G         : boolean                  := false;
+      BUILD_INFO_G         : BuildInfoType;
+      AXIL_BASE_ADDR_G     : slv(31 downto 0)         := (others => '0');
+      LOC_XADC_AUX_CHANS_G : IntegerArray(5 downto 0) := (9, 10, 1, 11, 0, 3);
+      FE_XADC_AUX_CHANS_G  : IntegerArray(1 downto 0) := (2, 8);
+      AXIL_CLK_FREQ_G      : real                     := 125.0E6);
 
    port (
       axilClk         : in  sl;
@@ -54,48 +55,82 @@ entity WarmTdmCommon2 is
       bootMiso : in  sl;
 
       -- Local I2C PROM
-      promScl : inout sl;
-      promSda : inout sl;
+      locScl     : inout sl;
+      locSda     : inout sl;
+      tempAlertL : in    sl;
 
       -- Power Monitor I2C
       pwrScl : inout sl;
       pwrSda : inout sl;
 
-      vAuxP : in slv(3 downto 0);
-      vAuxN : in slv(3 downto 0));
+      -- SFP I2C
+      sfpScl : inout slv(1 downto 0);
+      sfpSda : inout slv(1 downto 0);
+
+      -- VR Synchronization
+      pwrSyncA : out sl := '0';
+      pwrSyncB : out sl := '0';
+      pwrSyncC : out sl := '0';
+
+      -- XADC
+      localThermistorP : in slv(5 downto 0);
+      localThermistorN : in slv(5 downto 0);
+      feThermistorP    : in slv(1 downto 0);
+      feThermistorN    : in slv(1 downto 0);
+
+      -- Amplifier power down
+      ampPdB : out slv(7 downto 0) := (others => '1'));
+
 
 end entity WarmTdmCommon2;
 
 architecture rtl of WarmTdmCommon2 is
 
-   constant NUM_AXIL_MASTERS_C : integer := 5;
+   constant NUM_AXIL_MASTERS_C : integer := 8;
    constant AXIL_VERSION_C     : integer := 0;
    constant AXIL_XADC_C        : integer := 1;
    constant AXIL_BOOT_C        : integer := 2;
-   constant AXIL_PWR_C         : integer := 3;
-   constant AXIL_EEPROM_C      : integer := 4;
+   constant AXIL_PWR_I2C_C     : integer := 3;
+   constant AXIL_LOC_I2C_C     : integer := 4;
+   constant AXIL_AMP_PD_C      : integer := 5;
+   constant AXIL_SFP_I2C_0_C   : integer := 6;
+   constant AXIL_SFP_I2C_1_C   : integer := 7;
+
 
    constant AXIL_XBAR_CFG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := (
-      AXIL_VERSION_C  => (
-         baseAddr     => AXIL_BASE_ADDR_G + X"00000000",
-         addrBits     => 12,
-         connectivity => X"FFFF"),
-      AXIL_XADC_C     => (
-         baseAddr     => AXIL_BASE_ADDR_G + X"00001000",
-         addrBits     => 12,
-         connectivity => X"FFFF"),
-      AXIL_BOOT_C     => (
-         baseAddr     => AXIL_BASE_ADDR_G + X"00002000",
-         addrBits     => 12,
-         connectivity => X"FFFF"),
-      AXIL_PWR_C      => (
-         baseAddr     => AXIL_BASE_ADDR_G + X"00010000",
-         addrBits     => 16,
-         connectivity => X"FFFF"),
-      AXIL_EEPROM_C   => (
-         baseAddr     => AXIL_BASE_ADDR_G + X"00080000",
-         addrBits     => 19,
-         connectivity => X"FFFF"));
+      AXIL_VERSION_C   => (
+         baseAddr      => AXIL_BASE_ADDR_G + X"00000000",
+         addrBits      => 12,
+         connectivity  => X"FFFF"),
+      AXIL_XADC_C      => (
+         baseAddr      => AXIL_BASE_ADDR_G + X"00001000",
+         addrBits      => 12,
+         connectivity  => X"FFFF"),
+      AXIL_BOOT_C      => (
+         baseAddr      => AXIL_BASE_ADDR_G + X"00002000",
+         addrBits      => 12,
+         connectivity  => X"FFFF"),
+      AXIL_PWR_I2C_C   => (
+         baseAddr      => AXIL_BASE_ADDR_G + X"00003000",
+         addrBits      => 12,
+         connectivity  => X"FFFF"),
+      AXIL_LOC_I2C_C   => (
+         baseAddr      => AXIL_BASE_ADDR_G + X"00100000",
+         addrBits      => 20,
+         connectivity  => X"FFFF"),
+      AXIL_AMP_PD_C    => (
+         baseAddr      => AXIL_BASE_ADDR_G + X"00004000",
+         addrBits      => 8,
+         connectivity  => X"FFFF"),
+      AXIL_SFP_I2C_0_C => (
+         baseAddr      => AXIL_BASE_ADDR_G + X"00005000",
+         addrBits      => 12,
+         connectivity  => X"FFFF"),
+      AXIL_SFP_I2C_1_C => (
+         baseAddr      => AXIL_BASE_ADDR_G + X"00006000",
+         addrBits      => 12,
+         connectivity  => X"FFFF"));
+
 
    signal locAxilWriteMasters : AxiLiteWriteMasterArray(NUM_AXIL_MASTERS_C-1 downto 0);
    signal locAxilWriteSlaves  : AxiLiteWriteSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0);
@@ -111,8 +146,11 @@ architecture rtl of WarmTdmCommon2 is
       return BooleanArray is
       variable ret : BooleanArray(15 downto 0) := (others => false);
    begin
-      for i in XADC_AUX_CHANS_G'range loop
-         ret(XADC_AUX_CHANS_G(i)) := true;
+      for i in LOC_XADC_AUX_CHANS_G'range loop
+         ret(LOC_XADC_AUX_CHANS_G(i)) := true;
+      end loop;
+      for i in FE_XADC_AUX_CHANS_G'range loop
+         ret(FE_XADC_AUX_CHANS_G(i)) := true;
       end loop;
       return ret;
    end function genSeqVauxSelEn;
@@ -169,10 +207,16 @@ begin
    -------------------------------------------------------------------------------------------------
    -- XADC
    -------------------------------------------------------------------------------------------------
-   AUX_LOOP : for i in XADC_AUX_CHANS_G'range generate
-      locAuxP(XADC_AUX_CHANS_G(i)) <= vAuxP(i);
-      locAuxN(XADC_AUX_CHANS_G(i)) <= vAuxN(i);
-   end generate AUX_LOOP;
+   LOC_AUX_LOOP : for i in LOC_XADC_AUX_CHANS_G'range generate
+      locAuxP(LOC_XADC_AUX_CHANS_G(i)) <= localThermistorP(i);
+      locAuxN(LOC_XADC_AUX_CHANS_G(i)) <= localThermistorN(i);
+   end generate LOC_AUX_LOOP;
+
+   FE_AUX_LOOP : for i in FE_XADC_AUX_CHANS_G'range generate
+      locAuxP(FE_XADC_AUX_CHANS_G(i)) <= feThermistorP(i);
+      locAuxN(FE_XADC_AUX_CHANS_G(i)) <= feThermistorN(i);
+   end generate FE_AUX_LOOP;
+
 
    U_XadcSimpleCore_1 : entity surf.XadcSimpleCore
       generic map (
@@ -267,28 +311,28 @@ begin
       generic map (
          TPD_G            => TPD_G,
          DEVICE_MAP_G     => (
-            0             => MakeI2cAxiLiteDevType(          -- LTC4151 Digital Power
+            0             => MakeI2cAxiLiteDevType(              -- LTC4151 Digital Power
                i2cAddress => "1101111",
                dataSize   => 8,
                addrSize   => 8,
                endianness => '0'),
-            1             => MakeI2cAxiLiteDevType(          -- LTC4151 Analog Power
-               i2cAddress => "1100111",
+            1             => MakeI2cAxiLiteDevType(              -- LTC4151 Analog Power
+               i2cAddress => "1101010",
                dataSize   => 8,
                addrSize   => 8,
                endianness => '0')),
          I2C_SCL_FREQ_G   => ite(SIMULATION_G, 2.0e6, 100.0E+3),
          I2C_MIN_PULSE_G  => ite(SIMULATION_G, 50.0e-9, 100.0E-9),
-         AXI_CLK_FREQ_G   => AXIL_CLK_FREQ_G)                --156.25E+6)
+         AXI_CLK_FREQ_G   => AXIL_CLK_FREQ_G)                    --156.25E+6)
       port map (
-         axiClk         => axilClk,                          -- [in]
-         axiRst         => axilRst,                          -- [in]
-         axiReadMaster  => locAxilReadMasters(AXIL_PWR_C),   -- [in]
-         axiReadSlave   => locAxilReadSlaves(AXIL_PWR_C),    -- [out]
-         axiWriteMaster => locAxilWriteMasters(AXIL_PWR_C),  -- [in]
-         axiWriteSlave  => locAxilWriteSlaves(AXIL_PWR_C),   -- [out]
-         scl            => pwrScl,                           -- [inout]
-         sda            => pwrSda);                          -- [inout]
+         axiClk         => axilClk,                              -- [in]
+         axiRst         => axilRst,                              -- [in]
+         axiReadMaster  => locAxilReadMasters(AXIL_PWR_I2C_C),   -- [in]
+         axiReadSlave   => locAxilReadSlaves(AXIL_PWR_I2C_C),    -- [out]
+         axiWriteMaster => locAxilWriteMasters(AXIL_PWR_I2C_C),  -- [in]
+         axiWriteSlave  => locAxilWriteSlaves(AXIL_PWR_I2C_C),   -- [out]
+         scl            => pwrScl,                               -- [inout]
+         sda            => pwrSda);                              -- [inout]
 
    -------------------------------------------------------------------------------------------------
    -- I2C EEPROM - 24LC64F
@@ -297,13 +341,13 @@ begin
       generic map (
          TPD_G            => TPD_G,
          DEVICE_MAP_G     => (
-            0             => MakeI2cAxiLiteDevType(             -- 24LC64FT
+            0             => MakeI2cAxiLiteDevType(              -- 24LC64FT
                i2cAddress => "1010000",
                dataSize   => 8,
                addrSize   => 16,
                endianness => '1'),
-            1             => MakeI2cAxiLiteDevType(             -- SA56004ATK Temp Monitor
-               i2cAddress => "1001000",
+            1             => MakeI2cAxiLiteDevType(              -- SA56004EDP Temp Monitor
+               i2cAddress => "1001100",
                dataSize   => 8,
                addrSize   => 8,
                endianness => '1')),
@@ -311,14 +355,14 @@ begin
          I2C_MIN_PULSE_G  => ite(SIMULATION_G, 50.0e-9, 100.0E-9),
          AXI_CLK_FREQ_G   => AXIL_CLK_FREQ_G)
       port map (
-         axiClk         => axilClk,                             -- [in]
-         axiRst         => axilRst,                             -- [in]
-         axiReadMaster  => locAxilReadMasters(AXIL_EEPROM_C),   -- [in]
-         axiReadSlave   => locAxilReadSlaves(AXIL_EEPROM_C),    -- [out]
-         axiWriteMaster => locAxilWriteMasters(AXIL_EEPROM_C),  -- [in]
-         axiWriteSlave  => locAxilWriteSlaves(AXIL_EEPROM_C),   -- [out]
-         scl            => promScl,                             -- [inout]
-         sda            => promSda);                            -- [inout]
+         axiClk         => axilClk,                              -- [in]
+         axiRst         => axilRst,                              -- [in]
+         axiReadMaster  => locAxilReadMasters(AXIL_LOC_I2C_C),   -- [in]
+         axiReadSlave   => locAxilReadSlaves(AXIL_LOC_I2C_C),    -- [out]
+         axiWriteMaster => locAxilWriteMasters(AXIL_LOC_I2C_C),  -- [in]
+         axiWriteSlave  => locAxilWriteSlaves(AXIL_LOC_I2C_C),   -- [out]
+         scl            => locScl,                               -- [inout]
+         sda            => locSda);                              -- [inout]
 
    -------------------------------------------------------------------------------------------------
    -- SFP I2C 0
@@ -328,16 +372,16 @@ begin
          TPD_G           => TPD_G,
          I2C_SCL_FREQ_G  => ite(SIMULATION_G, 2.0e6, 100.0E+3),
          I2C_MIN_PULSE_G => ite(SIMULATION_G, 50.0e-9, 100.0E-9),
-         AXI_CLK_FREQ_G  => AXI_CLK_FREQ_G)
+         AXI_CLK_FREQ_G  => AXIL_CLK_FREQ_G)
       port map (
-         scl             => sfpScl(0),                         -- [inout]
-         sda             => sfpSda(0),                         -- [inout]
-         axilReadMaster  => locAxilReadMasters(AXIL_SFP0_C),   -- [in]
-         axilReadSlave   => locAxilReadSlaves(AXIL_SFP0_C),    -- [out]
-         axilWriteMaster => locAxilWriteMasters(AXIL_SFP0_C),  -- [in]
-         axilWriteSlave  => locAxilWriteSlaves(AXIL_SFP0_C),   -- [out]
-         axilClk         => axilClk,                           -- [in]
-         axilRst         => axilRst);                          -- [in]
+         scl             => sfpScl(0),                              -- [inout]
+         sda             => sfpSda(0),                              -- [inout]
+         axilReadMaster  => locAxilReadMasters(AXIL_SFP_I2C_0_C),   -- [in]
+         axilReadSlave   => locAxilReadSlaves(AXIL_SFP_I2C_0_C),    -- [out]
+         axilWriteMaster => locAxilWriteMasters(AXIL_SFP_I2C_0_C),  -- [in]
+         axilWriteSlave  => locAxilWriteSlaves(AXIL_SFP_I2C_0_C),   -- [out]
+         axilClk         => axilClk,                                -- [in]
+         axilRst         => axilRst);                               -- [in]
 
    -------------------------------------------------------------------------------------------------
    -- SFP I2C 0
@@ -347,17 +391,17 @@ begin
          TPD_G           => TPD_G,
          I2C_SCL_FREQ_G  => ite(SIMULATION_G, 2.0e6, 100.0E+3),
          I2C_MIN_PULSE_G => ite(SIMULATION_G, 50.0e-9, 100.0E-9),
-         AXI_CLK_FREQ_G  => AXI_CLK_FREQ_G)
+         AXI_CLK_FREQ_G  => AXIL_CLK_FREQ_G)
       port map (
-         scl             => sfpScl(1),                         -- [inout]
-         sda             => sfpSda(1),                         -- [inout]
-         axilReadMaster  => locAxilReadMasters(AXIL_SFP1_C),   -- [in]
-         axilReadSlave   => locAxilReadSlaves(AXIL_SFP1_C),    -- [out]
-         axilWriteMaster => locAxilWriteMasters(AXIL_SFP1_C),  -- [in]
-         axilWriteSlave  => locAxilWriteSlaves(AXIL_SFP1_C),   -- [out]
-         axilClk         => axilClk,                           -- [in]
-         axilRst         => axilRst);                          -- [in]
-   
+         scl             => sfpScl(1),                              -- [inout]
+         sda             => sfpSda(1),                              -- [inout]
+         axilReadMaster  => locAxilReadMasters(AXIL_SFP_I2C_1_C),   -- [in]
+         axilReadSlave   => locAxilReadSlaves(AXIL_SFP_I2C_1_C),    -- [out]
+         axilWriteMaster => locAxilWriteMasters(AXIL_SFP_I2C_1_C),  -- [in]
+         axilWriteSlave  => locAxilWriteSlaves(AXIL_SFP_I2C_1_C),   -- [out]
+         axilClk         => axilClk,                                -- [in]
+         axilRst         => axilRst);                               -- [in]
+
 
 
 end architecture rtl;
