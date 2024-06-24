@@ -207,15 +207,15 @@ begin
    -------------------------------------------------------------------------------------------------
    -- XADC
    -------------------------------------------------------------------------------------------------
-   LOC_AUX_LOOP : for i in LOC_XADC_AUX_CHANS_G'range generate
-      locAuxP(LOC_XADC_AUX_CHANS_G(i)) <= localThermistorP(i);
-      locAuxN(LOC_XADC_AUX_CHANS_G(i)) <= localThermistorN(i);
-   end generate LOC_AUX_LOOP;
+--    LOC_AUX_LOOP : for i in LOC_XADC_AUX_CHANS_G'range generate
+--       locAuxP(LOC_XADC_AUX_CHANS_G(i)) <= localThermistorP(i);
+--       locAuxN(LOC_XADC_AUX_CHANS_G(i)) <= localThermistorN(i);
+--    end generate LOC_AUX_LOOP;
 
-   FE_AUX_LOOP : for i in FE_XADC_AUX_CHANS_G'range generate
-      locAuxP(FE_XADC_AUX_CHANS_G(i)) <= feThermistorP(i);
-      locAuxN(FE_XADC_AUX_CHANS_G(i)) <= feThermistorN(i);
-   end generate FE_AUX_LOOP;
+--    FE_AUX_LOOP : for i in FE_XADC_AUX_CHANS_G'range generate
+--       locAuxP(FE_XADC_AUX_CHANS_G(i)) <= feThermistorP(i);
+--       locAuxN(FE_XADC_AUX_CHANS_G(i)) <= feThermistorN(i);
+--    end generate FE_AUX_LOOP;
 
 
    U_XadcSimpleCore_1 : entity surf.XadcSimpleCore
