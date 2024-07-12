@@ -24,7 +24,9 @@ class HardwareGroup(pyrogue.Device):
             emulate=False,
             host='192.168.3.11',
             colBoards=4,
+            colDevClass=warm_tdm.ColumnModule,
             rowBoards=1,
+            rowDevClas=warm_tdm.RowModule,
             rows=256,
             plots=False,
             **kwargs):
@@ -76,7 +78,7 @@ class HardwareGroup(pyrogue.Device):
                 
 
             # Instantiate the board Device tree and link it to the SRP
-            self.add(warm_tdm.ColumnModule(
+            self.add(colDevClass(
                 name=f'ColumnBoard[{index}]',
                 memBase=srp,
                 expand=True,
@@ -135,7 +137,7 @@ class HardwareGroup(pyrogue.Device):
                 srp == srpStream
 
             # Instantiate the board Device tree and link it to the SRP
-            self.add(warm_tdm.RowModule(
+            self.add(rowDevClass(
                 name=f'RowBoard[{rowIndex}]',
                 memBase=srp,
                 expand=True,

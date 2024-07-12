@@ -231,7 +231,7 @@ class Group(pr.Device):
                 linkedGet = lambda read, x=i: arrVar.get(read=read, index=x),
                 linkedSet = None if arrVar.mode == 'RO' else lambda value, write, x=i: arrVar.set(value, write=write, index=x)))
             
-    def __init__(self, groupConfig, groupId, dataWriter, simulation=False, emulate=False, plots=False, **kwargs):
+    def __init__(self, colDevClass, rowDevClass, groupConfig, groupId, dataWriter, simulation=False, emulate=False, plots=False, **kwargs):
         """
         Warm TDM Device
         Parameters
@@ -260,7 +260,9 @@ class Group(pr.Device):
             emulate=emulate,
             host=groupConfig.host,
             colBoards=groupConfig.columnBoards,
+            colDevClass=colDevClass,
             rowBoards=groupConfig.rowBoards,
+            rowDevClass=rowDevClass,
             rows=32,
             plots=plots,
             groups=['Hardware'],

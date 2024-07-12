@@ -72,6 +72,11 @@ parser.add_argument(
     default = '',
     help     = "Path To Store Docs")
 
+parser.add_argument(
+    "--legacy",
+    action = 'store_true',
+    default = False)
+
 
 args = parser.parse_known_args()[0]
 print(args)
@@ -87,11 +92,19 @@ config = warm_tdm_api.GroupConfig(rowBoards=groups[0]['rowBoards'],
                                   host=groups[0]['host'],
                                   rowOrder=None)
 
+if args.legacy:
+    colDevClass = warm_tdm.ColumnModule
+    rowDevClass = warm_tdm.RowModule
+else:
+    colDevClass = warm_tdm.ColumnFpgaBoard
+    rowDevClass = None
+
 # root = warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=args.emulate, plots=args.plots)
 # root.start()
 # #pyrogue.waitCntrlC()
 
-with warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=args.emulate, plots=args.plots, initRead=not args.sim) as root:
+with warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=args.emulate, plots=args.plots, initRead=not args.sim,
+                            colDevClass=colDevClass, rowDevClas=rowDevClass) as root:
 
     if args.docs != '':
         root.genDocuments(path=args.docs,incGroups=['DocApi'],excGroups=['NoDoc','Enable','Hardware'])

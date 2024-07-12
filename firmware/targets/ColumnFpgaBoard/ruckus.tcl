@@ -25,3 +25,4 @@ loadSource      -lib warm_tdm -dir  "$::DIR_PATH/rtl/"
 loadSource      -lib warm_tdm -sim_only -dir "$::DIR_PATH/sim/"
 loadConstraints -dir  "$::DIR_PATH/xdc/"
 
+set_property top "ColumnFpgaBoardTb"     [get_filesets sim_1]
