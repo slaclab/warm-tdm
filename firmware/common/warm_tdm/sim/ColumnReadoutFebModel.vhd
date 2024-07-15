@@ -75,6 +75,13 @@ end entity ColumnReadoutFebModel;
 
 architecture sim of ColumnReadoutFebModel is
 
+   signal saOffsetDacP : RealArray(7 downto 0);
+   signal saOffsetDacN : RealArray(7 downto 0);
+   signal saBiasDacP   : RealArray(7 downto 0);
+   signal saBiasDacN   : RealArray(7 downto 0);
+   signal tesBiasDacP  : RealArray(7 downto 0);
+   signal tesBiasDacN  : RealArray(7 downto 0);
+
 begin
 
    U_Ad5679R_SA_OFFSET : entity warm_tdm.Ad5679R
@@ -183,11 +190,11 @@ begin
       -- TES Bias Amp Model
       U_ColumnFebTesBiasAmp_1 : entity warm_tdm.ColumnFebTesBiasAmp
          port map (
-            tesDacP  => tesBiasDacP(i),  -- [in]
-            tesDacN  => tesBiasDacN(i),  -- [in]
-            delatch  => tesDelatch(i),   -- [in]
-            tesBiasP => tesBiasP(i),     -- [out]
-            tesBiasN => tesBiasN(i));    -- [out]
+            tesBiasDacP => tesBiasDacP(i),  -- [in]
+            tesBiasDacN => tesBiasDacN(i),  -- [in]
+            delatch     => tesDelatch(i),   -- [in]
+            tesBiasP    => tesBiasP(i),     -- [out]
+            tesBiasN    => tesBiasN(i));    -- [out]
 
       -- SA FB Amp Model
       U_ColumnFebFastDacAmp_SA_FB : entity warm_tdm.ColumnFebFastDacAmp
@@ -203,7 +210,7 @@ begin
             outN => saFbN(i));          -- [out]
 
       -- SQ1 Bias Amp Model
-      U_ColumnFebFastDacAmp_SA_FB : entity warm_tdm.ColumnFebFastDacAmp
+      U_ColumnFebFastDacAmp_SQ1_BIAS : entity warm_tdm.ColumnFebFastDacAmp
          generic map (
 --             IN_LOAD_R_G => IN_LOAD_R_G,
 --             FB_R_G      => FB_R_G,
@@ -216,7 +223,7 @@ begin
             outN => sq1BiasN(i));       -- [out]
 
       -- SQ1 FB Amp Model
-      U_ColumnFebFastDacAmp_SA_FB : entity warm_tdm.ColumnFebFastDacAmp
+      U_ColumnFebFastDacAmp_SQ1_FB : entity warm_tdm.ColumnFebFastDacAmp
          generic map (
 --             IN_LOAD_R_G => IN_LOAD_R_G,
 --             FB_R_G      => FB_R_G,

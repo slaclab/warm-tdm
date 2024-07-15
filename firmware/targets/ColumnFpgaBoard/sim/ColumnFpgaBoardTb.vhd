@@ -22,6 +22,7 @@ library surf;
 use surf.StdRtlPkg.all;
 
 library warm_tdm;
+use warm_tdm.SimPkg.all;
 ----------------------------------------------------------------------------------------------------
 
 entity ColumnFpgaBoardTb is
@@ -44,7 +45,7 @@ architecture sim of ColumnFpgaBoardTb is
 
    type RealArray8Array is array (natural range <>) of RealArray(7 downto 0);
 
-   signal feThermistor : Slv2Array(NUM_COLUMN_MODULES_C-1 downto 0) := (others => (others => "00"));
+   signal feThermistor : Slv2Array(NUM_COLUMN_MODULES_C-1 downto 0) := (others => "00");
    signal feI2cScl     : Slv4Array(NUM_COLUMN_MODULES_C-1 downto 0);
    signal feI2cSda     : Slv4Array(NUM_COLUMN_MODULES_C-1 downto 0);
    signal resetB       : slv(NUM_COLUMN_MODULES_C-1 downto 0);
@@ -153,8 +154,8 @@ begin
             sq1BiasDacN  => sq1BiasDacN(i),   -- [in]
             auxDacP      => auxDacP(i),       -- [in]
             auxDacN      => auxDacN(i),       -- [in]
-            saSigOutP    => saSigOutP(i),     -- [out]
-            saSigOutN    => saSigOutN(i),     -- [out]
+            saSigOutP    => saOutP(i),        -- [out]
+            saSigOutN    => saOutN(i),        -- [out]
             -- CRYO connector
             tesBiasP     => tesBiasP(i),      -- [out]
             tesBiasN     => tesBiasN(i),      -- [out]

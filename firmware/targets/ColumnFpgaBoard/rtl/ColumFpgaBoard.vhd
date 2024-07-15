@@ -174,6 +174,13 @@ entity ColumnFpgaBoard is
       saFbSel   : out slv(3 downto 0);
       saFbReset : out slv(3 downto 0);
 
+      auxDb    : out slv(13 downto 0);
+      auxWrt   : out slv(3 downto 0);
+      auxClk   : out slv(3 downto 0);
+      auxSel   : out slv(3 downto 0);
+      auxReset : out slv(3 downto 0);
+
+
 
       ----------------------------------------------------------------------------------------------
       -- Front End Connector IO
@@ -209,14 +216,15 @@ end entity ColumnFpgaBoard;
 
 architecture rtl of ColumnFpgaBoard is
 
-   constant NUM_AXIL_MASTERS_C  : integer := 7;
+   constant NUM_AXIL_MASTERS_C  : integer := 8;
    constant AXIL_ADC_CONFIG_C   : integer := 0;
    constant AXIL_DATA_PATH_C    : integer := 1;
    constant AXIL_SQ1_BIAS_DAC_C : integer := 2;
    constant AXIL_SQ1_FB_DAC_C   : integer := 3;
    constant AXIL_SA_FB_DAC_C    : integer := 4;
-   constant AXIL_FE_SPI_C       : integer := 5;
-   constant AXIL_FE_I2C_C       : integer := 6;
+   constant AXIL_AUX_DAC_C      : integer := 5;
+   constant AXIL_FE_SPI_C       : integer := 6;
+   constant AXIL_FE_I2C_C       : integer := 7;
 
    constant AXIL_XBAR_CFG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := (
       AXIL_ADC_CONFIG_C   => (
@@ -237,6 +245,10 @@ architecture rtl of ColumnFpgaBoard is
          connectivity     => X"FFFF"),
       AXIL_SA_FB_DAC_C    => (
          baseAddr         => APP_BASE_ADDR_C + X"00600000",
+         addrBits         => 20,
+         connectivity     => X"FFFF"),
+      AXIL_AUX_DAC_C      => (
+         baseAddr         => APP_BASE_ADDR_C + X"00700000",
          addrBits         => 20,
          connectivity     => X"FFFF"),
       AXIL_FE_SPI_C       => (
@@ -613,6 +625,27 @@ begin
          axilWriteSlave  => locAxilWriteSlaves(AXIL_SA_FB_DAC_C),   -- [out]
          axilReadMaster  => locAxilReadMasters(AXIL_SA_FB_DAC_C),   -- [in]
          axilReadSlave   => locAxilReadSlaves(AXIL_SA_FB_DAC_C));   -- [out]
+
+   U_FastDacDriver_AUX : entity warm_tdm.FastDacDriver
+      generic map (
+         TPD_G            => TPD_G,
+         AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_AUX_DAC_C).baseAddr)
+      port map (
+         timingRxClk125  => timingRxClk125,                       -- [in]
+         timingRxRst125  => timingRxRst125,                       -- [in]
+         timingRxData    => timingRxData,                         -- [in]
+         dacDb           => auxDb,                                -- [out]
+         dacWrt          => auxWrt,                               -- [out]
+         dacClk          => auxClk,                               -- [out]
+         dacSel          => auxSel,                               -- [out]
+         dacReset        => auxReset,                             -- [out]
+         axilClk         => axilClk,                              -- [in]
+         axilRst         => axilRst,                              -- [in]
+         axilWriteMaster => locAxilWriteMasters(AXIL_AUX_DAC_C),  -- [in]
+         axilWriteSlave  => locAxilWriteSlaves(AXIL_AUX_DAC_C),   -- [out]
+         axilReadMaster  => locAxilReadMasters(AXIL_AUX_DAC_C),   -- [in]
+         axilReadSlave   => locAxilReadSlaves(AXIL_AUX_DAC_C));   -- [out]
+
 
 
 end architecture rtl;

@@ -37,6 +37,7 @@ class ArrayDevice(pr.Device):
 
 class ColumnFpgaBoard(pr.Device):
     def __init__(self,
+                 feb,
                  amplifierClass=warm_tdm.ColumnBoardC00SaAmp,
 #                 loading={},
                  rows=256,

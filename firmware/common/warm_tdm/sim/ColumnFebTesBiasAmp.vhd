@@ -27,8 +27,8 @@ library warm_tdm;
 entity ColumnFebTesBiasAmp is
    port (
       -- DAC inputs
-      tesBiasDacP : in Real;
-      tesBiasDacN : in Real;
+      tesBiasDacP : in real;
+      tesBiasDacN : in real;
 
       delatch : in sl;
 
@@ -40,8 +40,8 @@ end entity ColumnFebTesBiasAmp;
 
 architecture sim of ColumnFebTesBiasAmp is
 
-   signal tesN2 : real;
-   signal tesN3 : real;
+   signal tesN2          : real;
+   signal tesN3          : real;
    signal gainResistance : real;
 
 begin
@@ -54,5 +54,5 @@ begin
    -- Schematic swaps P and N
    tesBiasP <= (tesN3 / gainResistance) * (-1.0);
    tesBiasN <= (tesN3 / gainResistance);
-   
+
 end sim;
