@@ -68,7 +68,7 @@ class RowPidStatusArray(pr.Device):
                 rowNum = row))
 
 class AdcDsp(pr.Device):
-    def __init__(self, column, numRows=256, **kwargs):
+    def __init__(self, frontEnd, column, numRows=256, **kwargs):
         super().__init__(**kwargs)
 
         ACCUM_BITS = 32
@@ -81,6 +81,8 @@ class AdcDsp(pr.Device):
         RESULT_BASE = pr.Fixed(56, 24)
 
         numRows = 4
+
+        self.amp = frontEnd.Channel[column].SQ1FbAmp
 
         self.add(pr.RemoteVariable(
             name = 'PidEnable',
@@ -127,17 +129,15 @@ class AdcDsp(pr.Device):
             bitOffset = 0))
 
         def _set(value, write):
-            amp = self.parent.parent.SQ1Fb.AmpLoading.Amp[column]
-            dac = amp.outCurrentToDac(value)
+            dac = self.amp.outCurrentToDac(value)
             # Convert inverted offset binary to 2s complement
             dac = (dac & 0x2000) | (~dac & 0x1fff)
             self.FluxQuantumRaw.set(dac, write=write)
 
         def _get(read):
-            amp = self.parent.parent.SQ1Fb.AmpLoading.Amp[column]
             dac = self.FluxQuantumRaw.get(read=read)
             dac = (dac & 0x2000) | (~dac & 0x1fff)            
-            current = amp.dacToOutCurrent(dac)
+            current = self.amp.dacToOutCurrent(dac)
             return current
             
         self.add(pr.LinkVariable(

@@ -4,7 +4,7 @@ import warm_tdm_api
 
 
 class GroupRoot(pyrogue.Root):
-    def __init__(self, groupConfig, simulation=False, emulate=False, plots=False, **kwargs):
+    def __init__(self, groupConfig, frontEndClass, simulation=False, emulate=False, plots=False, **kwargs):
         """
         Root class container for Warm-TDM Groups.
         Parameters
@@ -48,6 +48,7 @@ class GroupRoot(pyrogue.Root):
         self.add(warm_tdm_api.Group(
             groupConfig=groupConfig,
             groupId=0,
+            frontEndClass=frontEndClass,
             expand=True,
             dataWriter=self.DataWriter,
             simulation=simulation,

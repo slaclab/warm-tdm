@@ -18,20 +18,25 @@ class SaAmplifier(pr.Device):
             disp = '{:0.3f}',
             mode = 'RO',
             dependencies = sa_vars,
-            linkedGet = lambda read: 1.0e6 * self.ampVin(1/2**13, 0.0)))
+            linkedGet = lambda read: 1.0e6 * (self.ampVin(2/2**13, 0.0)-self.ampVin(1/2**13, 0.0))))
 
         self.add(pr.LinkVariable(
             name = 'AmpSaGain',
             disp = '{:0.3f}',
             mode = 'RO',
             dependencies = sa_vars,
-            linkedGet = lambda read: 1 / self.ampVin(1.0, 0.0)))
+            linkedGet = lambda read: (1-0.9) / (self.ampVin(1.0, 0.0)-self.ampVin(0.9, 0.0))))
 
 
 class ColumnBoardC00SaAmp(SaAmplifier):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+        self.add(pr.LocalVariable(
+            name = 'SA_BIAS_SHUNT_R',
+            value = 15.0e3,
+            units = u'\u03a9'))
 
         self.add(pr.LocalVariable(
             name = 'SA_OFFSET_R',
@@ -50,13 +55,14 @@ class ColumnBoardC00SaAmp(SaAmplifier):
         
         self.add(pr.LocalVariable(
             name = 'SA_AMP_GAIN_2',
-            value = 11,))
+            value = 11))
         
         self.add(pr.LocalVariable(
             name = 'SA_AMP_GAIN_3',
-            value = 1.5,))
+            value = 1.0))
         
         sa_vars = [
+            self.SA_BIAS_SHUNT_R,
             self.SA_OFFSET_R,
             self.SA_AMP_FB_R,
             self.SA_AMP_GAIN_R,
@@ -65,9 +71,13 @@ class ColumnBoardC00SaAmp(SaAmplifier):
 
         self.addGainVars(sa_vars)
 
+    def saBiasCurrent(self, saBiasDacVoltageP, saBiasDacVoltageN=0.0):
+        return saBiasDacVoltageP / self.SA_BIAS_SHUNT_R.get()
 
+    def saBiasDacVoltage(self, saBiasCurrent):
+        return saBiasCurrent * self.SA_BIAS_SHUNT_R.get()
         
-    def ampVin(self, vout, voffset):
+    def ampVin(self, vout, voffsetP, voffsetN=0):
         """Calculate SA_OUT an amplifier input given amp output and voffset"""
 
         G_OFF = 1.0/self.SA_OFFSET_R.value()
@@ -76,7 +86,7 @@ class ColumnBoardC00SaAmp(SaAmplifier):
 
         V_OUT_1 = vout/(self.SA_AMP_GAIN_2.value()*self.SA_AMP_GAIN_3.value())
 
-        SA_OUT = ((G_OFF * voffset) + (G_FB * V_OUT_1)) / (G_OFF + G_FB + G_GAIN)
+        SA_OUT = ((G_OFF * voffsetP) + (G_FB * V_OUT_1)) / (G_OFF + G_FB + G_GAIN)
 
         return SA_OUT
 
@@ -86,24 +96,110 @@ class FEAmplifier3(SaAmplifier):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        # Make these into variables
+        self.add(pr.LocalVariable(
+            name = 'R_CABLE',
+            description = 'Cable resistance on SA Bias',
+            value = 100.0,
+            units = u'\u03a9'))
+        
+        self.add(pr.LocalVariable(
+            name = 'BIAS_SHUNT_R_P',
+            description = 'Shunt resistance on high side of SA Bias',
+            value = 10e3 + 4.990e3,
+            units = u'\u03a9'))
+
+        self.add(pr.LocalVariable(
+            name = 'BIAS_SHUNT_R_N',
+            description = 'Shunt resistance on low side of SA bias',
+            value = 100.0,
+            units = u'\u03a9'))            
+
 
         # Stage 1 Instrumentation Amplifier
         # RF1 = R34/R33
         # RG1 = R6
-        self.RF1 = 100.0
-        self.RG1 = 18.20
+        self.add(pr.LocalVariable(
+            name = 'RF1',
+            description = 'R33 and R34',
+            value = 100.0,
+            units = u'\u03a9'))
 
+        self.add(pr.LocalVariable(
+            name = 'RG1',
+            description = 'R6',
+            value = 18.20,
+            units = u'\u03a9'))
 
-        self.GAIN_1 = 1 + (( 2 * self.RF1) / self.RG1 )
+        #self.RF1 = 100.0
+        #self.RG1 = 18.20
+
+        self.add(pr.LinkVariable(
+            name = 'GAIN_1',
+            description = 'First stage gain',
+            mode = 'RO',
+            dependencies = [self.RF1, self.RG1],
+            linkedGet = lambda read: 1 + (( 2 * self.RF1.get(read=read)) / self.RG1.get(read=read))))
+
+        self.add(pr.LocalVariable(
+            name = 'BIAS_DAC_N',
+            description = 'Voltage developed at SA_BIAS_IN_RET_SQ1B',
+            value = 50.0e-3,
+            units = 'V'))
+
 
         # Stage 2 Summing Differential Input Amplifier
-        self.RF2 = 100.0
-        self.RG2 = 33.2
-        self.ROFF = 33.2 # Offset gain
+        self.add(pr.LocalVariable(
+            name = 'RF2',
+            description = 'R35',
+            value = 100.0,
+            units = u'\u03a9'))
 
-        self.GAIN_COLUMN = 3.67
+        self.add(pr.LocalVariable(
+            name = 'RG2',
+            description = 'R15 and R17',
+            value = 33.2,
+            units = u'\u03a9'))
+
+        self.add(pr.LocalVariable(
+            name = 'R_OFFSET',
+            description = 'R16',
+            value = 402.0,
+            units = u'\u03a9'))
         
+        #self.RF2 = 100.0
+        #self.RG2 = 33.2
+        #self.ROFF = 33.2 # Offset gain
+
+        self.add(pr.LocalVariable(
+            name = 'GAIN_COLUMN',
+            description = 'Gain of final amplification state on Column board',
+            value = 3.67))
+
+        sa_vars = [
+            self.R_CABLE,
+            self.BIAS_SHUNT_R_P,
+            self.BIAS_SHUNT_R_N,
+            self.RF1,
+            self.RG1,
+            self.GAIN_1,
+            self.BIAS_DAC_N,
+            self.RF2,
+            self.RG2,
+            self.R_OFFSET,
+            self.GAIN_COLUMN]
+
+        self.addGainVars([])        
+
+        
+    def saBiasCurrent(self, saBiasDacVoltageP, saBiasDacVoltageN=0.0):
+        vdiff = saBiasDacVoltageP - (saBiasDacVoltageN + self.BIAS_DAC_N.get())
+        return vdiff / (self.R_CABLE.get() + self.BIAS_SHUNT_R_P.get() + self.BIAS_SHUNT_R_N.get())
+
+    def saBiasDacVoltage(self, saBiasCurrent):
+        resistance = self.R_CABLE.get() + self.BIAS_SHUNT_R_P.get() + self.BIAS_SHUNT_R_N.get()
+        voltage = saBiasCurrent * resistance
+        # apply neg offset
+        voltage = voltage + self.BIAS_DAC_N.get()
 
     def ampVout(self, vin, voffset):
         # Make it more readable
@@ -132,22 +228,29 @@ class FEAmplifier3(SaAmplifier):
         return vout
                            
 
-    def ampVin(self, vadc, voffset):
+    def ampVin(self, vadc, voffsetP, voffsetN=0.0):
+        print(f'ampVin({vadc=}, {voffsetP=})')
+        RF2 = self.RF2.value()
+        RG2 = self.RG2.value()
+        ROFF = self.R_OFFSET.value()
 
-        RF2 = self.RF2
-        RG2 = self.RG2
-        ROFF = self.ROFF
-
-        vout2 = vadc / self.GAIN_COLUMN
+        vout2 = vadc / self.GAIN_COLUMN.value()
+        print(f'{vout2=}')
         
 
         # Ugly equation from wolfram alpha
-        v1p = (2 * RG2 * (RF2 + RG2) * (RF2 * voffset + vout2 * ROFF)) / (RF2 * (RF2 * (RG2 - (2 * ROFF)) - (2 * RG2 * ROFF)))
-        v1p = -1.0 * v1n
+        v1p = (2 * RG2 * (RF2 + RG2) * (RF2 * voffsetP + vout2 * ROFF)) / (RF2 * (RF2 * (RG2 - (2 * ROFF)) - (2 * RG2 * ROFF)))
+        v1p = -1.0 * v1p
+        print(f'{v1p=}')
 
-        v1 = v1p - v1n
+        #v1 = v1p - v1n
+        vnn = self.BIAS_DAC_N.value()
+        print(f'{vnn=}')
 
-        vin = v1 / self.GAIN_1
+        vin = (v1p + (vnn * self.GAIN_1.value())) / self.GAIN_1.value()
+        print(f'{vin=}')
+
+        #vin = vin - self.BIAS_DAC_N.get() # Not sure this is right
 
         return vin
         

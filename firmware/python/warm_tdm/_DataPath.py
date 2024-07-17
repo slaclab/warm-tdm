@@ -9,12 +9,13 @@ import warm_tdm
 
 
 class DataPath(pr.Device):
-    def __init__(self,  **kwargs):
+    def __init__(self, frontEnd, **kwargs):
         super().__init__(**kwargs)
 
         for i in range(8):
             self.add(warm_tdm.AdcDsp(
                 name = f'AdcDsp[{i}]',
+                frontEnd = frontEnd,
                 column = i,
                 offset = (i+1) << 16))
 

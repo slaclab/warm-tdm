@@ -37,20 +37,22 @@ class ArrayDevice(pr.Device):
 
 class ColumnModule(pr.Device):
     def __init__(self,
-                 amplifierClass=warm_tdm.ColumnBoardC00SaAmp,
+                 frontEndClass,
 #                 loading={},
                  rows=256,
                  **kwargs):
         super().__init__(**kwargs)
 
         # SA Signal Amplifier Models        
-        self.add(pr.ArrayDevice(
-            name = 'AmpLoading',
-            arrayClass = amplifierClass,
-            number = 8,
-            arrayArgs = [{'name': f'Amp[{i}]'} for i in range(8)]))
+#         self.add(pr.ArrayDevice(
+#             name = 'AmpLoading',
+#             arrayClass = amplifierClass,
+#             number = 8,
+#             arrayArgs = [{'name': f'Amp[{i}]'} for i in range(8)]))
         
-        self.amplifiers = [self.AmpLoading.Amp[i] for i in range(8)]
+#         self.amplifiers = [self.AmpLoading.Amp[i] for i in range(8)]
+        self.add(frontEndClass(
+            name='AnalogFrontEnd'))
  
         self.add(warm_tdm.WarmTdmCore(
             offset = 0x00000000,
@@ -59,7 +61,8 @@ class ColumnModule(pr.Device):
 
         self.add(warm_tdm.DataPath(
             offset = 0xC0300000,
-            expand = True,))
+            expand = True,
+            frontEnd=self.AnalogFrontEnd))
 
         self.add(warm_tdm.Ad5679R(
             name = 'SaBiasDac',
@@ -68,6 +71,7 @@ class ColumnModule(pr.Device):
 
         self.add(warm_tdm.SaBiasOffset(
             dac = self.SaBiasDac,
+            frontEnd = self.AnalogFrontEnd,
             waveformTrigger = self.DataPath.WaveformCapture.WaveformTrigger))
 
         self.add(warm_tdm.Ad5679R(
@@ -81,21 +85,24 @@ class ColumnModule(pr.Device):
         self.add(warm_tdm.FastDacDriver(
             name = 'SAFb',
             offset = 0xC0600000,
-            shunt = 7.15e3,
+            frontEnd = self.AnalogFrontEnd,            
+#            shunt = 7.15e3,
             rows = rows,            
         ))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Bias',
             offset = 0xC0400000,
-            shunt = 10.0e3,
+            frontEnd = self.AnalogFrontEnd,            
+#            shunt = 10.0e3,
             rows = rows,
         ))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Fb',
             offset =0xC0500000,
-            shunt = 11.3e3,
+            frontEnd = self.AnalogFrontEnd,            
+ #           shunt = 11.3e3,
             rows = rows,
         ))
 
@@ -117,16 +124,18 @@ class ColumnModule(pr.Device):
 
         cols = list(range(8))
 
+        saOutAmps = [self.AnalogFrontEnd.Channel[x].SAAmp for x in range(8)]
+
         def _saOutGet(*, read=True, index=-1, check=True):
             #print(f'ColumnModule._saOutGet({read=}, {index=}, {check=})')
             with self.root.updateGroup():
                 adcs = self.SaOutAdc.get(read=read, index=index, check=check)
                 offsets = self.SaBiasOffset.OffsetVoltageArray.get(read=read, index=index, check=check)
                 if index == -1:
-                    ret = np.array([self.amplifiers[i].ampVin(adcs[i], offsets[i]) * 1e3 for i in range(8)])
+                    ret = np.array([saOutAmps[i].ampVin(adcs[i], offsets[i]) * 1e3 for i in range(8)])
                     return ret
                 else:
-                    ret = self.amplifiers[index].ampVin(adcs, offsets) * 1e3
+                    ret = saOutAmps[index].ampVin(adcs, offsets) * 1e3
                     return ret
 
         def _saOutNormGet(*, read=True, index=-1, check=True):
@@ -135,10 +144,10 @@ class ColumnModule(pr.Device):
                 adcs = self.SaOutAdc.get(read=read, index=index, check=check)
                 offset = 0.0
                 if index == -1:
-                    ret = np.array([self.amplifiers[i].ampVin(adcs[i], offset) * 1e3 for i in range(8)])
+                    ret = np.array([saOutAmps[i].ampVin(adcs[i], offset) * 1e3 for i in range(8)])
                     return ret
                 else:
-                    ret = self.amplifiers[index].ampVin(adcs, offset) * 1e3
+                    ret = saOutAmps[index].ampVin(adcs, offset) * 1e3
                     return ret
 
 

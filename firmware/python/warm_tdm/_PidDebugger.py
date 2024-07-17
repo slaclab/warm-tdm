@@ -65,7 +65,7 @@ class PidRowDebugger(pr.Device):
 
 class PidDebugger(pr.DataReceiver):
 
-    def __init__(self, numRows, col, fastDacDriver, **kwargs):
+    def __init__(self, numRows, col, frontEnd, **kwargs):
         self.mem = pyrogue.interfaces.simulation.MemEmulate()
 
         self.col = col
@@ -130,7 +130,7 @@ class PidDebugger(pr.DataReceiver):
             disp = '{:0.03f}',
             units = u'\u03bcA',
             dependencies = [self.Sq1FbPreRaw, self.Column],
-            linkedGet = lambda: fastDacDriver.AmpLoading.Amp[self.Column.value()].dacToOutCurrent(self.Sq1FbPreRaw.value())))
+            linkedGet = lambda: frontEnd.Channel[self.Column.value()].SQ1FbAmp.dacToOutCurrent(self.Sq1FbPreRaw.value())))
 
         self.add(pr.RemoteVariable(
             name = 'Sq1FbPostRaw',
@@ -145,7 +145,7 @@ class PidDebugger(pr.DataReceiver):
             disp = '{:0.03f}',
             units = u'\u03bcA',
             dependencies = [self.Sq1FbPostRaw, self.Column],
-            linkedGet = lambda: fastDacDriver.AmpLoading.Amp[self.Column.value()].dacToOutCurrent(self.Sq1FbPostRaw.value())))
+            linkedGet = lambda: frontEnd.Channel[self.Column.value()].SQ1FbAmp.dacToOutCurrent(self.Sq1FbPostRaw.value())))
 
         self.add(pr.RemoteVariable(
             name = 'FluxJumps',

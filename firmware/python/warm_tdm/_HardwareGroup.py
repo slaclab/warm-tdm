@@ -19,6 +19,7 @@ class HardwareGroup(pyrogue.Device):
     def __init__(
             self,
             groupId,
+            frontEndClass,
             dataWriter,
             simulation=False,
             emulate=False,
@@ -78,12 +79,14 @@ class HardwareGroup(pyrogue.Device):
             # Instantiate the board Device tree and link it to the SRP
             self.add(warm_tdm.ColumnModule(
                 name=f'ColumnBoard[{index}]',
+                frontEndClass=frontEndClass,
                 memBase=srp,
                 expand=True,
                 rows=rows))
             
-            pidDebug = [warm_tdm.PidDebugger(name=f'PidDebug[{i}]', hidden=False, numRows=rows, col=i, fastDacDriver=self.ColumnBoard[index].SQ1Fb) for i in range(8)]
-            waveGui = warm_tdm.WaveformCaptureReceiver(hidden=False, amplifiers=self.ColumnBoard[index].amplifiers)
+            pidDebug = [warm_tdm.PidDebugger(name=f'PidDebug[{i}]', hidden=False, numRows=rows, col=i, frontEnd=self.ColumnBoard[index].AnalogFrontEnd) for i in range(8)]
+            saAmps = [self.ColumnBoard[index].AnalogFrontEnd.Channel[x].SAAmp for x in range(8)]
+            waveGui = warm_tdm.WaveformCaptureReceiver(hidden=False, amplifiers=saAmps)
 
             # Link the data stream to the DataWriter
             if emulate is False:
