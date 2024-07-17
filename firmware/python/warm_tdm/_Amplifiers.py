@@ -200,6 +200,7 @@ class FEAmplifier3(SaAmplifier):
         voltage = saBiasCurrent * resistance
         # apply neg offset
         voltage = voltage + self.BIAS_DAC_N.get()
+        return voltage
 
     def ampVout(self, vin, voffset):
         # Make it more readable
