@@ -72,10 +72,10 @@ class ColumnBoardC00SaAmp(SaAmplifier):
         self.addGainVars(sa_vars)
 
     def saBiasCurrent(self, saBiasDacVoltageP, saBiasDacVoltageN=0.0):
-        return saBiasDacVoltageP / self.SA_BIAS_SHUNT_R.get()
+        return saBiasDacVoltageP / self.SA_BIAS_SHUNT_R.value()
 
     def saBiasDacVoltage(self, saBiasCurrent):
-        return saBiasCurrent * self.SA_BIAS_SHUNT_R.get()
+        return saBiasCurrent * self.SA_BIAS_SHUNT_R.value()
         
     def ampVin(self, vout, voffsetP, voffsetN=0):
         """Calculate SA_OUT an amplifier input given amp output and voffset"""
@@ -188,18 +188,18 @@ class FEAmplifier3(SaAmplifier):
             self.R_OFFSET,
             self.GAIN_COLUMN]
 
-        self.addGainVars([])        
+        self.addGainVars(sa_vars)        
 
         
     def saBiasCurrent(self, saBiasDacVoltageP, saBiasDacVoltageN=0.0):
-        vdiff = saBiasDacVoltageP - (saBiasDacVoltageN + self.BIAS_DAC_N.get())
-        return vdiff / (self.R_CABLE.get() + self.BIAS_SHUNT_R_P.get() + self.BIAS_SHUNT_R_N.get())
+        vdiff = saBiasDacVoltageP - (saBiasDacVoltageN + self.BIAS_DAC_N.value())
+        return vdiff / (self.R_CABLE.value() + self.BIAS_SHUNT_R_P.value() + self.BIAS_SHUNT_R_N.value())
 
     def saBiasDacVoltage(self, saBiasCurrent):
-        resistance = self.R_CABLE.get() + self.BIAS_SHUNT_R_P.get() + self.BIAS_SHUNT_R_N.get()
+        resistance = self.R_CABLE.value() + self.BIAS_SHUNT_R_P.value() + self.BIAS_SHUNT_R_N.value()
         voltage = saBiasCurrent * resistance
         # apply neg offset
-        voltage = voltage + self.BIAS_DAC_N.get()
+        voltage = voltage + self.BIAS_DAC_N.value()
         return voltage
 
     def ampVout(self, vin, voffset):
@@ -251,7 +251,7 @@ class FEAmplifier3(SaAmplifier):
         vin = (v1p + (vnn * self.GAIN_1.value())) / self.GAIN_1.value()
         print(f'{vin=}')
 
-        #vin = vin - self.BIAS_DAC_N.get() # Not sure this is right
+        #vin = vin - self.BIAS_DAC_N.value() # Not sure this is right
 
         return vin
         
