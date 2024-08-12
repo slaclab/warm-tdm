@@ -112,7 +112,7 @@ architecture rtl of TimingTx is
       sampleStartTime     => toSlv(32, 32),
       sampleEndTime       => toSlv(160, 32),                  -- Could be corner case here?
       loadDacsTime        => toSlv(200, 32),
-      waveformCaptureTime => toSlv(1, 32),
+      waveformCaptureTime => toSlv(2, 32),
       timingTx            => IDLE_C,
       timingTxK           => "1",
       timingData          => LOCAL_TIMING_INIT_C,
