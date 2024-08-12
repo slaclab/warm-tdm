@@ -76,9 +76,9 @@ class AdcDsp(pr.Device):
 #        SUM_BITS = 18
         RESULT_BITS = 56
 
-        COEF_BASE = pr.Fixed(24, 24)
+        COEF_BASE = pr.Fixed(24, 23)
         ACCUM_BASE = pr.Fixed(32, 0)
-        RESULT_BASE = pr.Fixed(56, 24)
+        RESULT_BASE = pr.Fixed(56, 23)
 
         numRows = 4
 
@@ -104,21 +104,21 @@ class AdcDsp(pr.Device):
             name = 'P_Coef',
             offset = 0x04,
             base = COEF_BASE,
-            bitSize = 18,
+            bitSize = 24,
             bitOffset = 0))
 
         self.add(pr.RemoteVariable(
             name = 'I_Coef',
             offset = 0x08,
             base = COEF_BASE,
-            bitSize = 18,
+            bitSize = 24,
             bitOffset = 0))
 
         self.add(pr.RemoteVariable(
             name = 'D_Coef',
             offset = 0x0C,
             base = COEF_BASE,
-            bitSize = 18,
+            bitSize = 24,
             bitOffset = 0))
 
         self.add(pr.RemoteVariable(
