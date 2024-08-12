@@ -32,6 +32,7 @@ entity RowModuleBoard is
    generic (
       TPD_G                   : time    := 1 ns;
       RING_ADDR_0_G           : boolean := false;
+      SIMULATE_PGP_G          : boolean := false;
       SIM_PGP_PORT_NUM_G      : integer := 7000;
       SIM_ETH_SRP_PORT_NUM_G  : integer := 8000;
       SIM_ETH_DATA_PORT_NUM_G : integer := 9000;
@@ -137,6 +138,7 @@ begin
       generic map (
          TPD_G                   => TPD_G,
          SIMULATION_G            => SIMULATION_G,
+         SIMULATE_PGP_G          => SIMULATE_PGP_G,
          SIM_PGP_PORT_NUM_G      => SIM_PGP_PORT_NUM_G,
          SIM_ETH_SRP_PORT_NUM_G  => SIM_ETH_SRP_PORT_NUM_G,
          SIM_ETH_DATA_PORT_NUM_G => SIM_ETH_DATA_PORT_NUM_G,
