@@ -14,6 +14,7 @@ class RowModule(pr.Device):
         self.add(warm_tdm.WarmTdmCore(
             offset = 0x00000000,
             expand = True,
+            disable_timing_tx = True,
             therm_channels = [3, 11, 4, 12]))
         
         self.add(surf.protocols.ssi.SsiPrbsRx(
