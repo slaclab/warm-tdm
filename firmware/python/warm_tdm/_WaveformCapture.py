@@ -365,6 +365,9 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
             else:
                 self.RmsNoiseRaw.set(value=adcs.std(), index=channel)
 
+            
+            adcs = adcs[5000:]
+
             voltages = self.conv(adcs)
             ampVin = np.zeros_like(voltages)
 

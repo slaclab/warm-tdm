@@ -65,8 +65,20 @@ parser.add_argument(
     default = 1,
     help     = "Number of column modules")
 
+parser.add_argument(
+    "--frontEnd",
+    choices= ['Standard', 'Ch0Feb'],
+    default= 'Standard')
+
 args = parser.parse_known_args()[0]
 print(args)
+
+feDict = {
+    'Standard': warm_tdm.ColumnBoardC00StandardFrontEnd,
+    'Ch0Feb': warm_tdm.ColumnBoardC00FebBypassCh0}
+
+feClass = feDict[args.frontEnd]
+
 
 groups = [{
     'host': args.ip,
@@ -92,6 +104,7 @@ kwargs = {}
 with warm_tdm.WarmTdmRoot(
         pollEn=False,
         host=args.ip,
+        frontEndClass = feClass,
         colBoards=args.cols,
         rowBoards=args.rows,
         **kwargs) as root:

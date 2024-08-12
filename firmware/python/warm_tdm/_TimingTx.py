@@ -84,12 +84,12 @@ class TimingTx(pr.Device):
             bitSize = 1,
             function = pr.Command.touchOne))
 
-        self.add(pr.RemoteCommand(
-            name = 'WaveformCaptureTime',
-            offset = 0x28,
-            bitOffset = 0,
-            bitSize = 32,
-            disp = '{:d}'))        
+        # self.add(pr.RemoteVariable(
+        #     name = 'WaveformCaptureTime',
+        #     offset = 0x28,
+        #     bitOffset = 0,
+        #     bitSize = 32,
+        #     disp = '{:d}'))        
 
         self.add(pr.RemoteVariable(
             name = 'RowPeriod',

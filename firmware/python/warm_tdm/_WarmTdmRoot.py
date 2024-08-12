@@ -42,9 +42,11 @@ class WarmTdmRoot(pyrogue.Root):
             host,
             rowBoards,
             colBoards,
+            frontEndClass,            
             simulation=False,
             emulate=False,
             plots=False,
+
             **kwargs):
 
         # Disable polling and set a longer timeout in simulation mode
@@ -65,6 +67,7 @@ class WarmTdmRoot(pyrogue.Root):
 
         self.add(warm_tdm.HardwareGroup(
             groupId=0,
+            frontEndClass=frontEndClass,
             dataWriter=self.DataWriter,
             simulation=simulation,
             emulate=emulate,

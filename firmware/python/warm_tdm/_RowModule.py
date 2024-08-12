@@ -17,10 +17,12 @@ class RowModule(pr.Device):
             therm_channels = [3, 11, 4, 12]))
         
         self.add(surf.protocols.ssi.SsiPrbsRx(
+            enabled = False,
             hidden = True,
             offset = 0xC0200000))
         
         self.add(surf.protocols.ssi.SsiPrbsTx(
+            enabled = False,
             hidden = True,
             offset = 0xC0201000))
 
