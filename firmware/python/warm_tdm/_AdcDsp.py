@@ -78,24 +78,7 @@ class AdcDsp(pr.Device):
 
         COEF_BASE = pr.Fixed(24, 23)
         ACCUM_BASE = pr.Fixed(32, 0)
-        RESULT_BASE = pr.Fixed(56, 23)
-
-        numRows = 4
-
-        self.amp = frontEnd.Channel[column].SQ1FbAmp
-
-        self.add(pr.RemoteVariable(
-            name = 'PidEnable',
-            offset = 0x00,
-            base = pr.Bool,
-            mode = 'RW',
-            bitSize = 1,
-            bitOffset = 0))
-
-        self.add(pr.RemoteVariable(
-            name = 'AccumShift',
-            offset = 0x00,
-            base = pr.UInt,
+        RESULT_BASE = pr.Fixed(56, 23
             mode = 'RW',
             bitSize = 4,
             bitOffset = 16))
@@ -146,6 +129,14 @@ class AdcDsp(pr.Device):
             units = u'\u03bcA',            
             linkedSet = _set,
             linkedGet = _get))
+
+        self.add(pr.RemoteVariable(
+            name = 'PidDebugEnable',
+            offset = 0x50,
+            mode = 'RW',
+            base = pr.Bool,
+            bitSize = 1,
+            bitOffset = 0))
 
         self.add(pr.RemoteVariable(
             name = 'FluxJumps_DBG',
