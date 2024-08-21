@@ -78,10 +78,21 @@ class AdcDsp(pr.Device):
 
         COEF_BASE = pr.Fixed(24, 23)
         ACCUM_BASE = pr.Fixed(32, 0)
-        RESULT_BASE = pr.Fixed(56, 23
+        RESULT_BASE = pr.Fixed(56, 23)
+
+        numRows = 4
+
+        self.amp = frontEnd.Channel[column].SQ1FbAmp
+
+        self.add(pr.RemoteVariable(
+            name = 'PidEnable',
+            offset = 0x00,
+            base = pr.Bool,
             mode = 'RW',
-            bitSize = 4,
-            bitOffset = 16))
+            bitSize = 1,
+            bitOffset = 0))
+
+
 
         self.add(pr.RemoteVariable(
             name = 'P_Coef',
