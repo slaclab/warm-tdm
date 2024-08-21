@@ -20,10 +20,8 @@ class ArrayDevice(pr.Device):
         elif isinstance(arrayArgs, dict):
             arrayArgs = [arrayArgs.copy() for x in range(number)]
 
-        print(f'{arrayArgs=}')
         for i in range(number):
             args = arrayArgs[i]
-            print(f'Adding device, args={args}')
             if 'name' in args:
                 name = args.pop('name')
                 name = f'{name}[{i}]'

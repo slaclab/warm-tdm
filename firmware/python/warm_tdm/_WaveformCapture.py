@@ -385,7 +385,7 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
                      for ch in range(8)}
 
             else:
-                print(f'Setting data for channel {channel}')
+                #print(f'Setting data for channel {channel}')
                 for sample in range(len(voltages)):
                     ampVin[sample] = self.amplifiers[channel].ampVin(voltages[sample], 0.0)
 

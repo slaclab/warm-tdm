@@ -230,26 +230,21 @@ class FEAmplifier3(SaAmplifier):
                            
 
     def ampVin(self, vadc, voffsetP, voffsetN=0.0):
-        print(f'ampVin({vadc=}, {voffsetP=})')
+        #print(f'ampVin({vadc=}, {voffsetP=})')
         RF2 = self.RF2.value()
         RG2 = self.RG2.value()
         ROFF = self.R_OFFSET.value()
 
         vout2 = vadc / self.GAIN_COLUMN.value()
-        print(f'{vout2=}')
-        
 
         # Ugly equation from wolfram alpha
         v1p = (2 * RG2 * (RF2 + RG2) * (RF2 * voffsetP + vout2 * ROFF)) / (RF2 * (RF2 * (RG2 - (2 * ROFF)) - (2 * RG2 * ROFF)))
         v1p = -1.0 * v1p
-        print(f'{v1p=}')
 
         #v1 = v1p - v1n
         vnn = self.BIAS_DAC_N.value()
-        print(f'{vnn=}')
 
         vin = (v1p + (vnn * self.GAIN_1.value())) / self.GAIN_1.value()
-        print(f'{vin=}')
 
         #vin = vin - self.BIAS_DAC_N.value() # Not sure this is right
 

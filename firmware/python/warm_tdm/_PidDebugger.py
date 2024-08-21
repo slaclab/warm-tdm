@@ -171,7 +171,7 @@ class PidDebugger(pr.DataReceiver):
         raw = bytearray(fl)
         frame.read(raw, 0)
 
-        print(f'Got PID Debug frame for col {self.col}, row {raw[1]}, size {fl}')
+        #print(f'Got PID Debug frame for col {self.col}, row {raw[1]}, size {fl}')
         if fl != 72:
             return
 

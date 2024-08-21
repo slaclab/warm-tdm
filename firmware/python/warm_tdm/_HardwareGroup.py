@@ -145,12 +145,12 @@ class HardwareGroup(pyrogue.Device):
                 enabled=True))
 
         def rl_get(read):
-            print(f'rl_get({read=})')
+            #print(f'rl_get({read=})')
             length = self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.NumRows.get(read=read)
-            print(f'{length=}')
+            #print(f'{length=}')
             order = self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.RowIndexOrder.get(read=read)
-            print(f'{order=}')
-            print(f'ret - {order[0:length]}')
+            #print(f'{order=}')
+            #print(f'ret - {order[0:length]}')
             return order[0:length]
 
         def rl_set(value, write):
