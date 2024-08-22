@@ -79,14 +79,29 @@ class AdcDsp(pr.Device):
         self.amp = frontEnd.Channel[column].SQ1FbAmp
 
         self.add(pr.RemoteVariable(
-            name = 'PidEnable',
+            name = 'PidEnableRaw',
             offset = 0x00,
             base = pr.Bool,
+            hidden = True,
+            groups = ['NoConfig'],
             mode = 'RW',
             bitSize = 1,
             bitOffset = 0))
 
+        def _enablePid(value, write):
+            self.ClearPids()
+            self.PidEnableRaw.set(value, write)
 
+        self.add(pr.LinkVariable(
+            name = 'PidEnable',
+            groups = ['NoConfig'],
+            base = pr.Bool,
+            enum = {
+                False: 'False',
+                True: 'True'},
+            dependencies = [self.PidEnableRaw],
+            linkedSet = _enablePid,
+            linkedGet = self.PidEnableRaw.get))
 
         self.add(pr.RemoteVariable(
             name = 'P_Coef',
