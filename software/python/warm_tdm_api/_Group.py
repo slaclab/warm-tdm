@@ -171,6 +171,7 @@ class FastDacVariable(GroupLinkVariable):
     def __init__(self, config, **kwargs):
 
         self._config = config
+
         if 'hidden' not in kwargs:
             kwargs['hidden'] = True
 
@@ -206,7 +207,7 @@ class FastDacVariable(GroupLinkVariable):
 
             # Full array access
             else:
-                rows = 32 #256 #len(self._config.rowMap)
+                rows = 32
                 cols = len(self._config.columnMap)
 
                 ret = np.zeros((cols, rows), np.float64)
@@ -231,7 +232,7 @@ class Group(pr.Device):
                 linkedGet = lambda read, x=i: arrVar.get(read=read, index=x),
                 linkedSet = None if arrVar.mode == 'RO' else lambda value, write, x=i: arrVar.set(value, write=write, index=x)))
             
-    def __init__(self, groupConfig, groupId, frontEndClass, dataWriter, simulation=False, emulate=False, plots=False, **kwargs):
+    def __init__(self, groupConfig, groupId, rows, frontEndClass, dataWriter, simulation=False, emulate=False, plots=False, **kwargs):
         """
         Warm TDM Device
         Parameters
@@ -262,7 +263,7 @@ class Group(pr.Device):
             host=groupConfig.host,
             colBoards=groupConfig.columnBoards,
             rowBoards=groupConfig.rowBoards,
-            rows=32,
+            rows=rows,
             plots=plots,
             groups=['Hardware'],
             expand=True))

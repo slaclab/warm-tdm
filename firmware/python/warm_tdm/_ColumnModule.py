@@ -60,6 +60,7 @@ class ColumnModule(pr.Device):
         self.add(warm_tdm.DataPath(
             offset = 0xC0300000,
             expand = True,
+            rows = rows,
             frontEnd=self.AnalogFrontEnd))
 
         self.add(warm_tdm.Ad5679R(
