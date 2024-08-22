@@ -1,6 +1,7 @@
 import pyrogue as pr
 import pyrogue.interfaces.simulation
 import numpy as np
+import warm_tdm
 
 class PidRowDebugger(pr.Device):
     def __init__(self, debugDev, row, **kwargs):
@@ -91,31 +92,31 @@ class PidDebugger(pr.DataReceiver):
             name = 'AccumError',
             mode = 'RO',
             offset = 2 * 8,
-            base = pr.Fixed(22, 0),
-            bitSize = 22))
+            base = warm_tdm.AdcDsp.ACCUM_BASE,
+            bitSize = warm_tdm.AdcDsp.ACCUM_BASE.bitSize))
 
         self.add(pr.RemoteVariable(
             name = 'SumAccum',
             mode = 'RO',
             offset = 4 * 8,
-            base = pr.Fixed(22, 0),
-            bitSize = 22))
+            base = warm_tdm.AdcDsp.ACCUM_BASE,
+            bitSize = warm_tdm.AdcDsp.ACCUM_BASE.bitSize))
 
 
         self.add(pr.RemoteVariable(
             name = 'Diff',
             mode = 'RO',
             offset = 5 * 8,
-            base = pr.Fixed(22, 0),
-            bitSize = 22))
+            base = warm_tdm.AdcDsp.ACCUM_BASE,
+            bitSize = warm_tdm.AdcDsp.ACCUM_BASE.bitSize))
 
         self.add(pr.RemoteVariable(
             name = 'PidResult',
             mode = 'RO',
             offset = 6 * 8,
             disp = '{:0.03f}',
-            base = pr.Fixed(40, 17),
-            bitSize = 40))
+            base = warm_tdm.AdcDsp.RESULT_BASE,
+            bitSize = warm_tdm.AdcDsp.RESULT_BASE.bitSize))
 
         self.add(pr.RemoteVariable(
             name = 'Sq1FbPreRaw',

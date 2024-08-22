@@ -68,17 +68,20 @@ class RowPidStatusArray(pr.Device):
                 rowNum = row))
 
 class AdcDsp(pr.Device):
+    
+    ACCUM_BITS = 32
+#        COEF_BITS = 10
+#        SUM_BITS = 18
+    RESULT_BITS = 56
+
+    COEF_BASE = pr.Fixed(24, 23)
+    ACCUM_BASE = pr.Fixed(32, 0)
+    RESULT_BASE = pr.Fixed(56, 23)
+        
     def __init__(self, frontEnd, column, numRows=256, **kwargs):
         super().__init__(**kwargs)
 
-        ACCUM_BITS = 32
-#        COEF_BITS = 10
-#        SUM_BITS = 18
-        RESULT_BITS = 56
 
-        COEF_BASE = pr.Fixed(24, 23)
-        ACCUM_BASE = pr.Fixed(32, 0)
-        RESULT_BASE = pr.Fixed(56, 23)
 
         numRows = 4
 
@@ -97,22 +100,22 @@ class AdcDsp(pr.Device):
         self.add(pr.RemoteVariable(
             name = 'P_Coef',
             offset = 0x04,
-            base = COEF_BASE,
-            bitSize = 24,
+            base = AdcDsp.COEF_BASE,
+            bitSize = AdcDsp.COEF_BASE.bitSize,
             bitOffset = 0))
 
         self.add(pr.RemoteVariable(
             name = 'I_Coef',
             offset = 0x08,
-            base = COEF_BASE,
-            bitSize = 24,
+            base = AdcDsp.COEF_BASE,
+            bitSize = AdcDsp.COEF_BASE.bitSize,
             bitOffset = 0))
 
         self.add(pr.RemoteVariable(
             name = 'D_Coef',
             offset = 0x0C,
-            base = COEF_BASE,
-            bitSize = 24,
+            base = AdcDsp.COEF_BASE,
+            bitSize = AdcDsp.COEF_BASE.bitSize,
             bitOffset = 0))
 
         self.add(pr.RemoteVariable(
@@ -162,32 +165,32 @@ class AdcDsp(pr.Device):
             name = 'AccumError_DBG',
             mode = 'RO',
             offset = 0x10,
-            base = ACCUM_BASE,
-            bitSize = 32,
+            base = AdcDsp.ACCUM_BASE,
+            bitSize = AdcDsp.ACCUM_BASE.bitSize,
             bitOffset = 0))
 
         self.add(pr.RemoteVariable(
             name = 'LastAccum_DBG',
             mode = 'RO',
             offset = 0x14,
-            base = ACCUM_BASE,
-            bitSize = 32,
+            base = AdcDsp.ACCUM_BASE,
+            bitSize = AdcDsp.ACCUM_BASE.bitSize,
             bitOffset = 0))
         
         self.add(pr.RemoteVariable(
             name = 'SumAccum_DBG',
             mode = 'RO',
             offset = 0x18,
-            base = ACCUM_BASE,
-            bitSize = 32,
+            base = AdcDsp.ACCUM_BASE,
+            bitSize = AdcDsp.ACCUM_BASE.bitSize,
             bitOffset = 0))
 
         self.add(pr.RemoteVariable(
             name = 'PidResult_DBG',
             mode = 'RO',
             offset = 0x20,
-            base = RESULT_BASE,
-            bitSize = 56,
+            base = AdcDsp.RESULT_BASE,
+            bitSize = AdcDsp.RESULT_BASE.bitSize,
             bitOffset = 0))
         
         self.add(pr.RemoteVariable(
@@ -204,7 +207,6 @@ class AdcDsp(pr.Device):
             offset = 0x1000,
             base = pr.Int,
             mode = 'RW',
-#            bitSize = 32*numRows,
             numValues = numRows,
             valueBits = 14,
             valueStride = 32))
@@ -213,22 +215,20 @@ class AdcDsp(pr.Device):
         self.add(pr.RemoteVariable(
             name = 'AccumError',
             offset = 0x2000,
-            base = pr.Int,
+            base = AdcDsp.ACCUM_BASE,
             mode = 'RO',
-#            bitSize = 32*numRows,
             numValues = numRows,
-            valueBits = ACCUM_BITS,
+            valueBits = AdcDsp.ACCUM_BASE.bitSize,
             valueStride = 32))
 
 
         self.add(pr.RemoteVariable(
             name = 'SumAccum',
             offset = 0x3000,
-            base = pr.Int,
+            base = AdcDsp.ACCUM_BASE,
             mode = 'RW',
-#            bitSize = 32*numRows,
             numValues = numRows,
-            valueBits = ACCUM_BITS,
+            valueBits = AdcDsp.ACCUM_BASE.bitSize,
             valueStride = 32))
         
 
@@ -236,9 +236,9 @@ class AdcDsp(pr.Device):
             name = 'PidResults',
             offset = 0x4000,
             mode = 'RW',
-#            bitSize = 32*numRows,
+            base = AdcDsp.RESULT_BASE,
             numValues = numRows,
-            valueBits = 40, #RESULT_BITS,
+            valueBits = AdcDsp.RESULT_BASE.bitSize,
             valueStride = 64))
         
         
@@ -246,9 +246,9 @@ class AdcDsp(pr.Device):
             name = 'FilterResults',
             offset = 0x5000,
             mode = 'RO',
-#            bitSize = 32*numRows,
+            base = AdcDsp.RESULT_BASE,
             numValues = numRows,
-            valueBits = 40, #16,
+            valueBits = AdcDsp.RESULT_BASE.bitSize,
             valueStride = 64))
 
         self.add(pr.RemoteVariable(
