@@ -67,6 +67,7 @@ class WarmTdmRoot(pyrogue.Root):
 
         self.add(warm_tdm.HardwareGroup(
             groupId=0,
+            rows=32,
             frontEndClass=frontEndClass,
             dataWriter=self.DataWriter,
             simulation=simulation,
