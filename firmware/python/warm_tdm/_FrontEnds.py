@@ -40,6 +40,9 @@ class ColumnBoardC00StandardChannel(FrontEndDevice):
                 'ShuntR': 11.3e3,
                 'FbR': 4.7e3}))
 
+        self.add(warm_tdm.TesBiasAmpC00(
+            name = 'TesBiasAmp'))
+
         
 class ColumnBoardC00FebBypassChannel(FrontEndDevice):
     
@@ -78,6 +81,9 @@ class ColumnBoardC00FebBypassChannel(FrontEndDevice):
                 'ShuntR': 10149.7
             }
         ))
+
+        self.add(warm_tdm.TesBiasAmpC00(
+            name = 'TesBiasAmp'))
 
 class ColumnBoardC00StandardFrontEnd(FrontEndDevice):
 

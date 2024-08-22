@@ -1,4 +1,5 @@
 import pyrogue as pr
+import numpy as np
 
 class SaAmplifier(pr.Device):
     def __init__(self, **kwargs):
@@ -8,7 +9,7 @@ class SaAmplifier(pr.Device):
             name = 'Type',
             mode = 'RO',
             value = self.__class__.__name__))
-        
+
 
     def addGainVars(self, sa_vars):
 
@@ -42,25 +43,25 @@ class ColumnBoardC00SaAmp(SaAmplifier):
             name = 'SA_OFFSET_R',
             value = 4.02e3,
             units = u'\u03a9'))
-        
+
         self.add(pr.LocalVariable(
             name = 'SA_AMP_FB_R',
             value = 1.1e3,
             units = u'\u03a9'))
-        
+
         self.add(pr.LocalVariable(
             name = 'SA_AMP_GAIN_R',
             value = 100,
             units = u'\u03a9'))
-        
+
         self.add(pr.LocalVariable(
             name = 'SA_AMP_GAIN_2',
             value = 11))
-        
+
         self.add(pr.LocalVariable(
             name = 'SA_AMP_GAIN_3',
             value = 1.0))
-        
+
         sa_vars = [
             self.SA_BIAS_SHUNT_R,
             self.SA_OFFSET_R,
@@ -76,7 +77,7 @@ class ColumnBoardC00SaAmp(SaAmplifier):
 
     def saBiasDacVoltage(self, saBiasCurrent):
         return saBiasCurrent * self.SA_BIAS_SHUNT_R.value()
-        
+
     def ampVin(self, vout, voffsetP, voffsetN=0):
         """Calculate SA_OUT an amplifier input given amp output and voffset"""
 
@@ -101,7 +102,7 @@ class FEAmplifier3(SaAmplifier):
             description = 'Cable resistance on SA Bias',
             value = 100.0,
             units = u'\u03a9'))
-        
+
         self.add(pr.LocalVariable(
             name = 'BIAS_SHUNT_R_P',
             description = 'Shunt resistance on high side of SA Bias',
@@ -112,7 +113,7 @@ class FEAmplifier3(SaAmplifier):
             name = 'BIAS_SHUNT_R_N',
             description = 'Shunt resistance on low side of SA bias',
             value = 100.0,
-            units = u'\u03a9'))            
+            units = u'\u03a9'))
 
 
         # Stage 1 Instrumentation Amplifier
@@ -165,7 +166,7 @@ class FEAmplifier3(SaAmplifier):
             description = 'R16',
             value = 402.0,
             units = u'\u03a9'))
-        
+
         #self.RF2 = 100.0
         #self.RG2 = 33.2
         #self.ROFF = 33.2 # Offset gain
@@ -188,9 +189,9 @@ class FEAmplifier3(SaAmplifier):
             self.R_OFFSET,
             self.GAIN_COLUMN]
 
-        self.addGainVars(sa_vars)        
+        self.addGainVars(sa_vars)
 
-        
+
     def saBiasCurrent(self, saBiasDacVoltageP, saBiasDacVoltageN=0.0):
         vdiff = saBiasDacVoltageP - (saBiasDacVoltageN + self.BIAS_DAC_N.value())
         return vdiff / (self.R_CABLE.value() + self.BIAS_SHUNT_R_P.value() + self.BIAS_SHUNT_R_N.value())
@@ -207,8 +208,8 @@ class FEAmplifier3(SaAmplifier):
         RF2 = self.RF2
         RG2 = self.RG2
         ROFF = self.ROFF
-        
-        # Gain of stage 1 Intrumentation Amplifier    
+
+        # Gain of stage 1 Intrumentation Amplifier
         gain1 = self.GAIN_1
 
         # Differential stage 1 voltage
@@ -227,7 +228,7 @@ class FEAmplifier3(SaAmplifier):
         vout = vout2 * self.GAIN_COLUMN
 
         return vout
-                           
+
 
     def ampVin(self, vadc, voffsetP, voffsetN=0.0):
         #print(f'ampVin({vadc=}, {voffsetP=})')
@@ -249,8 +250,8 @@ class FEAmplifier3(SaAmplifier):
         #vin = vin - self.BIAS_DAC_N.value() # Not sure this is right
 
         return vin
-        
-    
+
+
 class FastDacAmplifierSE(pr.Device):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -259,7 +260,7 @@ class FastDacAmplifierSE(pr.Device):
             name = 'Type',
             mode = 'RO',
             value = self.__class__.__name__))
-        
+
         self.add(pr.LocalVariable(
             name = 'FSADJ',
             value = 2.0e3,
@@ -376,4 +377,120 @@ class FastDacAmplifierDiff(FastDacAmplifierSE):
     def rout(self):
         return (2 * self.FilterR.value()) + (2 * self.ShuntR.value()) + self.CableR.value()
 
-    
+
+class TesBiasAmpC00(pr.Device):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        self.add(pr.LocalVariable(
+            name = 'Type',
+            mode = 'RO',
+            value = self.__class__.__name__))
+
+        self.add(pr.LocalVariable(
+            name = 'GainR',
+            value = 1.0e3,
+            units = '\u03A9'))
+
+        self.add(pr.LocalVariable(
+            name = 'DelatchR',
+            value = 174.0,
+            units = '\u03A9'))
+
+        self.add(pr.LocalVariable(
+            name = 'Filter1R',
+            value = 800.0,
+            units = '\u03A9'))
+
+        self.add(pr.LocalVariable(
+            name = 'Filter2R',
+            value = 200.0,
+            units = '\u03A9'))
+
+        self.add(pr.LocalVariable(
+            name = 'CableR',
+            value = 174.0,
+            units = '\u03A9'))
+
+
+    def outCurrentToDac(self, current, delatch):
+        #print(f'{self.path}.outCurrentToDac({current=}, {delatch=})')
+
+        iout = current * 1.0e-6
+        #print(f'{iout=}')
+
+        if delatch is False:
+            gainR = self.GainR.value()
+            filterR = self.Filter1R.value() + self.Filter2R.value()
+        else:
+            # Calculate parallel resistance
+            gainR = self.GainR.value()
+            delatchR = self.DelatchR.value()
+            gainR = (gainR * delatchR) / (gainR + delatchR)
+
+            # Delatch has only second filter
+            filterR = self.Filter2R.value()
+
+
+        #print(f'{gainR=}')
+
+        v1 = 2 * iout * gainR
+        #print(f'{v1=}')
+
+        # Start with both dacs at midpoint
+        dacVp = 1.25 + (0.5 * v1)
+        dacVn = 1.25 - (0.5 * v1)
+
+        # Clip to the dac range
+        dacVp = np.clip(dacVp, 0, 2.5)
+        dacVn = np.clip(dacVn, 0, 2.5)
+
+        #print(f'{dacVp=}, {dacVn=}')
+
+        return (dacVp, dacVn)
+
+
+    def dacToOutCurrent(self, dacVp, dacVn, delatch):
+        #print(f'{self.path}.dacToOutCurrent({dacVp=}, {dacVn=}, {delatch=})')
+
+        # First stage amp has gain 1
+        v1 = dacVp - dacVn
+        #print(f'{v1=}')
+
+        # input to second stage is half v1
+        v2 = 0.5 * v1
+        #print(f'{v2=}')
+
+        gainR = self.GainR.value()
+        #print(f'{gainR=}')
+
+        if delatch is False:
+            gainR = self.GainR.value()
+            filterR = self.Filter1R.value() + self.Filter2R.value()
+        else:
+            # Calculate parallel resistance
+            gainR = self.GainR.value()
+            delatchR = self.DelatchR.value()
+            gainR = (gainR * delatchR) / (gainR + delatchR)
+
+            # Delatch has only second filter
+            filterR = self.Filter2R.value()
+
+        # Calculate Vout needed to drive the current
+        totalR = filterR + self.CableR.value()
+        vout = -0.5 * v1 * (totalR / gainR - 1)
+
+        #print(f'{totalR=}')
+        #print(f'{vout=}')
+
+        # Clicp vout to amplifier rails
+        vout = np.clip(vout, -5.0, 5.0)
+
+        #print(f'Clipped {vout=}')
+
+        # Calculate output current
+        iout = (v2 - vout) / totalR
+        iout = iout * 1.0e6
+
+        #print(f'{iout=}')
+        return iout

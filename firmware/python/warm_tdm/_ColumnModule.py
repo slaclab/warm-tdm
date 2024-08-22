@@ -78,7 +78,9 @@ class ColumnModule(pr.Device):
             offset = 0xC0701000))
 
         self.add(warm_tdm.TesBias(
-            dac = self.TesBiasDac))
+            offset = 0xC0702000,
+            dac = self.TesBiasDac,
+            frontEnd = self.AnalogFrontEnd))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SAFb',
