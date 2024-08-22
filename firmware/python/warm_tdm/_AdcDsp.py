@@ -69,14 +69,9 @@ class RowPidStatusArray(pr.Device):
 
 class AdcDsp(pr.Device):
     
-    ACCUM_BITS = 32
-#        COEF_BITS = 10
-#        SUM_BITS = 18
-    RESULT_BITS = 56
-
     COEF_BASE = pr.Fixed(24, 23)
-    ACCUM_BASE = pr.Fixed(32, 0)
-    RESULT_BASE = pr.Fixed(56, 23)
+    ACCUM_BASE = pr.Fixed(18, 0)
+    RESULT_BASE = pr.Fixed(48, 23)
         
     def __init__(self, frontEnd, column, numRows=256, **kwargs):
         super().__init__(**kwargs)
