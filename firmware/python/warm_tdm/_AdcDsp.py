@@ -77,6 +77,7 @@ class AdcDsp(pr.Device):
         super().__init__(**kwargs)
 
         self.amp = frontEnd.Channel[column].SQ1FbAmp
+        self.rows = rows
 
         self.add(pr.RemoteVariable(
             name = 'PidEnableRaw',
@@ -273,7 +274,7 @@ class AdcDsp(pr.Device):
 
         @self.command()
         def ClearPids():
-            blank = [0 for x in range(numRows)]
+            blank = [0 for x in range(self.rows)]
             self.SumAccum.set(blank)
             self.PidResults.set(blank)
             self.FluxJumps.set(blank)
