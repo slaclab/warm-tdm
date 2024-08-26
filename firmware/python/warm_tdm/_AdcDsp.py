@@ -91,7 +91,7 @@ class AdcDsp(pr.Device):
 
         def _enablePid(value, write):
             self.ClearPids()
-            self.PidEnableRaw.set(value, write)
+            self.PidEnableRaw.set(value, write=write)
 
         self.add(pr.LinkVariable(
             name = 'PidEnable',
