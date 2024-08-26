@@ -556,10 +556,11 @@ begin
 
                   -- First word is Column number
                   ssiSetUserSof(AXIS_DEBUG_CFG_C, v.pidDebugMaster, '1');
-                  v.pidDebugMaster.tValid             := v.pidDebugEnable;
-                  v.pidDebugMaster.tData(3 downto 0)  := toSlv(COLUMN_NUM_G, 4);
-                  v.pidDebugMaster.tData(15 downto 8) := v.rowIndex;
-                  v.state                             := WAIT_FIRST_SAMPLE_S;
+                  v.pidDebugMaster.tValid              := v.pidDebugEnable;
+                  v.pidDebugMaster.tData(3 downto 0)   := toSlv(COLUMN_NUM_G, 4);
+                  v.pidDebugMaster.tData(15 downto 8)  := v.rowIndex;
+                  v.pidDebugMaster.tData(63 downto 16) := timingRxData.runTime(47 downto 0);
+                  v.state                              := WAIT_FIRST_SAMPLE_S;
                end if;
 
 
@@ -601,7 +602,7 @@ begin
                v.pidCoef       := pSfixed;
                v.pidMultiplier := r.accumError;     -- Prep accumError for P stage
                v.pidResult     := (others => '0');  -- Clear pid result
-               v.state         := PID_P_S; --PID_PRESHIFT_S;
+               v.state         := PID_P_S;          --PID_PRESHIFT_S;
 
 --             when PID_PRESHIFT_S =>
 --                v.pidMultiplier := shift_right(r.pidMultiplier, to_integer(unsigned(r.accumShift)));
@@ -690,8 +691,8 @@ begin
 
       rin <= v;
 
-      pidStreamMaster.tValid                            <= r.sq1FbValid;
-      pidStreamMaster.tData(13 downto 0)                <= to_slv(r.sq1Fb);
+      pidStreamMaster.tValid                          <= r.sq1FbValid;
+      pidStreamMaster.tData(13 downto 0)              <= to_slv(r.sq1Fb);
       pidStreamMaster.tId(ROW_ADDR_BITS_C-1 downto 0) <= r.rowIndex;
 
       timingAxilWriteSlave <= r.axilWriteSlave;

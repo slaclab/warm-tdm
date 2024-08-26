@@ -84,9 +84,19 @@ class PidDebugger(pr.DataReceiver):
             name = 'RowIndex',
             mode = 'RO',
             offset = 0,
+            disp = '{:d}',
             base = pr.UInt,
             bitOffset = 8,
             bitSize = 8))
+
+        self.add(pr.RemoteVariable(
+            name = 'RunTime',
+            mode = 'RO',
+            offset = 0,
+            bitOffset = 16,
+            bitSize = 48,
+            disp = '{:d}',
+            base = pr.UInt))
 
         self.add(pr.RemoteVariable(
             name = 'AccumError',
