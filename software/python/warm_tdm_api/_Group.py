@@ -21,13 +21,16 @@ class ArrayVariableDevice(pr.Device):
 # Dependencies must be passed in Column order for generic
 # get and set functions to work.
 class GroupLinkVariable(pr.LinkVariable):
-    def __init__(self, tuneEnVar=None, groups='TopApi', disp='{:0.4f}', **kwargs):
+    def __init__(self, tuneEnVar=None, groups=[], disp='{:0.4f}', **kwargs):
+        lgroups = groups[:]
+        lgroups.append('NoConfig')
+        lgroups.append('TopApi')
+            
         super().__init__(
             linkedSet=self._set,
             linkedGet=self._get,
-            groups=groups,
             disp=disp,
-            groups = ['NoConfig'],
+            groups = lgroups,
             **kwargs)
         self.tuneEnVar = tuneEnVar
         deps =  kwargs['dependencies']
@@ -360,7 +363,7 @@ class Group(pr.Device):
 
         self.add(pr.LinkVariable(
             name = 'RowIndexOrderList',
-            groups = ['NoConfig']
+            groups = ['NoConfig'],
             variable = self.HardwareGroup.ReadoutList))
 
         # Tuning column enables
