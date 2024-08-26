@@ -268,7 +268,7 @@ begin
       -- Dump data info FIFO when triggered
       -- Multiplex combined or resized channel streams
       ----------------------------------------------------------------------------------------------
-      if (timingRxData.waveformCapture = '1' or r.waveformTrigger = '1') then
+      if ((adcStreams(0).tValid = '1' and adcStreams(0).tUser(3) = '1') or r.waveformTrigger = '1') then
          v.doWaveform                       := '1';
          v.bufferStream.tValid              := '1';
          v.bufferStream.tData(2 downto 0)   := r.selectedChannel;
