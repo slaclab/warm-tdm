@@ -65,6 +65,7 @@ class ColumnModule(pr.Device):
 
         self.add(warm_tdm.Ad5679R(
             name = 'SaBiasDac',
+            groups = ['NoConfig'],
             hidden = True,
             offset = 0xC0700000))
 
@@ -109,7 +110,7 @@ class ColumnModule(pr.Device):
 
 
         self.add(surf.devices.analog_devices.Ad9681Config(
-            enabled = True,
+            enabled = False,
             offset = 0xC0200000))
 
         #########################################
@@ -203,12 +204,14 @@ class ColumnModule(pr.Device):
 
         @self.command()
         def InitDacAdc():
+            enable = self.Ad9681Config.enable.get()
             self.Ad9681Config.enable.set(True)
             self.Ad9681Config.ReadDevice()
             self.Ad9681Config.InternalPdwnMode.setDisp('Full Power Down')
             self.Ad9681Config.InternalPdwnMode.setDisp('Chip Run')
             self.Ad9681Config.InternalPdwnMode.setDisp('Digital Reset')
             self.Ad9681Config.InternalPdwnMode.setDisp('Chip Run')
+            self.Ad9681Config.enable.set(enable)
 
             self.DataPath.Ad9681Readout.Relock()
             self.DataPath.Ad9681Readout.LostLockCountReset()

@@ -36,8 +36,8 @@ class HardwareGroup(pyrogue.Device):
 
         # Open rUDP connections to the Manager board
         if simulation is False and emulate is False:
-            srpUdp = pyrogue.protocols.UdpRssiPack(host=host, port=SRP_PORT, packVer=2, name='SrpRssi')
-            dataUdp = pyrogue.protocols.UdpRssiPack(host=host, port=DATA_PORT, packVer=2, name='DataRssi', enSsi=False)
+            srpUdp = pyrogue.protocols.UdpRssiPack(host=host, port=SRP_PORT, packVer=2, name='SrpRssi', groups=['NoConfig'])
+            dataUdp = pyrogue.protocols.UdpRssiPack(host=host, port=DATA_PORT, packVer=2, name='DataRssi', enSsi=False, groups=['NoConfig'])
             self.add(srpUdp)
             self.add(dataUdp)
             self.addInterface(srpUdp, dataUdp)
@@ -168,6 +168,7 @@ class HardwareGroup(pyrogue.Device):
                 name = 'ReadoutList',
                 typeStr = 'int',
                 value = [0] ,
+                groups = ['NoConfig'],
                 dependencies = [
                     self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.NumRows,
                     self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.RowIndexOrder],

@@ -158,6 +158,7 @@ class PidDebugger(pr.DataReceiver):
 
         self.add(pr.ArrayDevice(
             name = 'RowPids',
+            groups = ['NoConfig'],
             arrayClass = PidRowDebugger,
             number = numRows,
             arrayArgs = [{

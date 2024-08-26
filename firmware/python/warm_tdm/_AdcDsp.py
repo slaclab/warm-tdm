@@ -127,6 +127,7 @@ class AdcDsp(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'FluxQuantumRaw',
+            groups = ['NoConfig'],            
             offset = 0x40,
             base = pr.Int,
             bitSize = 14,
@@ -269,6 +270,7 @@ class AdcDsp(pr.Device):
 
         self.add(RowPidStatusArray(
             name = 'RowPidStatus',
+            groups = ['NoConfig'],            
             dsp = self,
             rows = rows))
 

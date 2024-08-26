@@ -20,35 +20,42 @@ class WarmTdmCommon(pr.Device):
         self.add(surf.xilinx.Xadc(
             enabled = False,
             offset = 0x00001000,
+            groups = ['NoConfig'],
             auxChannels = therm_channels))
 
         self.add(surf.devices.micron.AxiMicronN25Q(
             enabled = False,
+            groups = ['NoConfig'],
             offset = 0x00002000))
 
         self.add(surf.devices.nxp.Sa56004x(
             enabled = False,
+            groups = ['NoConfig'],
             offset = 0x00010000))
 
         self.add(surf.devices.linear.Ltc4151(
             name = 'Ltc4151_Digital',
             enabled = False,
+            groups = ['NoConfig'],
             senseRes = 0.02,
             offset = 0x00010400))
 
         self.add(surf.devices.linear.Ltc4151(
             name = 'Ltc4151_Analog',
             enabled = False,
-            senseRes = 0.02,            
+            groups = ['NoConfig'],
+            senseRes = 0.02,
             offset = 0x00010800))
-        
+
         self.add(surf.devices.microchip.Axi24LC64FT(
             enabled = False,
+            groups = ['NoConfig'],
             offset = 0x00080000))
 
         self.add(warm_tdm.Ad5263(
             enabled = False,
             hidden = True,
+            groups = ['NoConfig'],
             offset = 0x000C0000))
 
         self.add(warm_tdm.BoardTemp(

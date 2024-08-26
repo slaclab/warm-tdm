@@ -37,7 +37,7 @@ class GroupRoot(pyrogue.Root):
         self.Initialize.addToGroup('DocApi')
 
         # Add the data writer
-        self.add(pyrogue.utilities.fileio.StreamWriter(name='DataWriter',groups='DocApi'))
+        self.add(pyrogue.utilities.fileio.StreamWriter(name='DataWriter',groups=['DocApi', 'NoConfig']))
         #self >> self.DataWriter.getChannel(100)
         self.DataWriter.ReadDevice.addToGroup('NoDoc')
         self.DataWriter.WriteDevice.addToGroup('NoDoc')

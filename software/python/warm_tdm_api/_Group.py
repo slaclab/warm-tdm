@@ -27,6 +27,7 @@ class GroupLinkVariable(pr.LinkVariable):
             linkedGet=self._get,
             groups=groups,
             disp=disp,
+            groups = ['NoConfig'],
             **kwargs)
         self.tuneEnVar = tuneEnVar
         deps =  kwargs['dependencies']
@@ -229,6 +230,7 @@ class Group(pr.Device):
                 units = arrVar.units,
                 guiGroup = arrVar.name,
                 dependencies = [arrVar],
+                groups = ['NoConfig'],
                 linkedGet = lambda read, x=i: arrVar.get(read=read, index=x),
                 linkedSet = None if arrVar.mode == 'RO' else lambda value, write, x=i: arrVar.set(value, write=write, index=x)))
             
@@ -358,6 +360,7 @@ class Group(pr.Device):
 
         self.add(pr.LinkVariable(
             name = 'RowIndexOrderList',
+            groups = ['NoConfig']
             variable = self.HardwareGroup.ReadoutList))
 
         # Tuning column enables
@@ -567,7 +570,6 @@ class Group(pr.Device):
                             for m in self.config.columnMap],
             config = self.config,
             disp = '{:0.03f}',))
-#            units = 'mV'))
 
 
         self.add(SaOutVariable(
@@ -577,7 +579,6 @@ class Group(pr.Device):
             'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SaOutNorm
                             for m in self.config.columnMap],
-#            units = 'mV',            
             config = self.config,
             disp = '{:0.03f}'))
 
@@ -590,7 +591,6 @@ class Group(pr.Device):
                          'Values can be accessed as a full 2D array or pass a (col, row) tuple for the index key to access each value.',
             config = self.config,
             hidden = False,
-#            units = 'mA',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SAFb.Column[m.channel].Current
                             for m in self.config.columnMap]))
 
@@ -601,7 +601,6 @@ class Group(pr.Device):
                          'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SAFb.OverrideCurrent[m.channel]
                             for m in self.config.columnMap],
-#            units = 'mA',
             tuneEnVar = self.ColTuneEnable))
 
 
@@ -612,7 +611,6 @@ class Group(pr.Device):
                          'Values can be accessed as a full 2D array or pass a (col, row) tuple for the index key to access each value.',
             config = self.config,
             hidden = True,
-#            units = 'V',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SAFb.Column[m.channel].Voltage
                             for m in self.config.columnMap]))
 
@@ -623,7 +621,6 @@ class Group(pr.Device):
                          'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SAFb.OverrideVoltage[m.channel]
                             for m in self.config.columnMap],
-#            units = 'V',
             tuneEnVar = self.ColTuneEnable))
 
 
@@ -782,7 +779,7 @@ class Group(pr.Device):
 #            linkedGet=self._fllEnableGet,
             description="FLL Enable Control."))
 
-        self.add(warm_tdm_api.ConfigSelect(self,groups=['NoDoc']))
+        self.add(warm_tdm_api.ConfigSelect(self,groups=['NoDoc', 'NoConfig']))
 
         #############################################
         # Tuning and diagnostic Processes

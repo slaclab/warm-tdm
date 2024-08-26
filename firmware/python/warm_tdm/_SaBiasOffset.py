@@ -13,6 +13,7 @@ class SaBiasOffset(pr.Device):
 
         self.add(pr.LocalVariable(
             name = 'TriggerWaveform',
+            groups = ['NoConfig'],
             value = False))
 
 
@@ -24,6 +25,7 @@ class SaBiasOffset(pr.Device):
 
             self.add(pr.LinkVariable(
                 name = f'BiasVoltage[{i}]',
+                groups = ['NoConfig'],                
                 dependencies = [self._dac.DacVoltage[i]],
                 linkedSet = _setBias,
                 linkedGet = lambda read, ch=i: self._dac.DacVoltage[ch].get(read=read),
@@ -57,6 +59,7 @@ class SaBiasOffset(pr.Device):
         self.add(pr.LinkVariable(
             name = 'OffsetVoltageArray',
             hidden = True,
+            groups = ['NoConfig'],            
             dependencies = [x for x in self.OffsetVoltage.values()],
             linkedGet = lambda read, index: self.OffsetVoltage[index].get(read) if index != -1 else np.array([x.get(read=read) for x in self.OffsetVoltage.values()])))
 
