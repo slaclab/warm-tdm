@@ -307,7 +307,7 @@ begin
    -- Shared logic
    -- PGP, Ethernet, Timing, AxiVersion, Etc
    -------------------------------------------------------------------------------------------------
-   U_WarmTdmCore2_1 : entity warm_tdm.WarmTdmCore2
+   U_WarmTdmCore_1 : entity warm_tdm.WarmTdmCore2
       generic map (
          TPD_G                   => TPD_G,
          SIMULATION_G            => SIMULATION_G,

@@ -405,7 +405,7 @@ begin
    -------------------------------------------------------------------------------------------------
    -- Common components
    -------------------------------------------------------------------------------------------------
-   U_WarmTdmCommon2_1: entity warm_tdm.WarmTdmCommon2
+   U_WarmTdmCommon_1: entity warm_tdm.WarmTdmCommon2
       generic map (
          TPD_G                => TPD_G,
          SIMULATION_G         => SIMULATION_G,
