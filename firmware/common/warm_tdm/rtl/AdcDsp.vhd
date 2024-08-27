@@ -479,7 +479,8 @@ begin
          dout           => open);                                               -- [in]
 
    comb : process (accumRamOut, adcAxisMaster, adcBaselineRamOut, fluxJumpRamOut, pidDebugCtrl, r,
-                   sumRamOut, timingAxilReadMaster, timingAxilWriteMaster, timingRxRst125) is
+                   sumRamOut, timingAxilReadMaster, timingAxilWriteMaster, timingRxData,
+                   timingRxRst125) is
       variable v                 : RegType;
       variable sq1FbSlv          : slv(13 downto 0);
       variable adcValueSfixed    : sfixed(13 downto 0);
