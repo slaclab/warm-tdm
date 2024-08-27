@@ -126,7 +126,7 @@ with warm_tdm_api.GroupRoot(groupConfig=config, frontEndClass=feClass, numRows=3
         serverList=root.zmqServer.address,
         title='Warm TDM',
         sizeX=2000,
-        sizeY=2000,
+        sizeY=1600,
         ui=warm_tdm_api.pydmUi)
 
 

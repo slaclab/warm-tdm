@@ -39,6 +39,7 @@ class WaveformCapture(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'SelectedChannel',
+            disp = '{:d}',
             offset = 0x00,
             bitOffset = 0,
             bitSize = 3))
@@ -366,7 +367,7 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
                 self.RmsNoiseRaw.set(value=adcs.std(), index=channel)
 
             
-            adcs = adcs[5000:]
+            #adcs = adcs[5000:]
 
             voltages = self.conv(adcs)
             ampVin = np.zeros_like(voltages)
