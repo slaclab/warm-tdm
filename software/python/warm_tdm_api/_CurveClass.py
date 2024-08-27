@@ -12,6 +12,11 @@ def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title)
         ax.set_xlabel(xlabel)
         ax.grid(True)
 
+        # Special case for no data
+        if curveDataDict is None:
+            ax.text(.5, .5, 'Not Tuned', ha='center', va='center', fontsize=28)
+            return
+
         # Special case for CurveData with no curves
         if len(curveDataDict['biasValues']) == 0:
             ax.text(.5, .5, 'Not Tuned', ha='center', va='center', fontsize=28)

@@ -1,4 +1,3 @@
-
 import pyrogue as pr
 import warm_tdm_api
 
@@ -17,7 +16,14 @@ class SinglePlot(pr.LinkVariable):
         self._ax = self._fig.add_subplot()
         self._fig.suptitle(u'SA FB (\u03bcA) vs. SQ1 FB (\u03bcA)')
 
-    def _plot_ax(self, ax, col, row, curves):
+    def _plot_ax(self, ax, col, row, tune):
+        if row >= len(tune):
+            curves = None
+        elif col >= len(tune[row]):
+            curves = None
+        else:
+            curves = tune[row][col]
+
         warm_tdm_api.plotCurveDataDict(
             ax=ax,
             curveDataDict=curves,
@@ -25,10 +31,10 @@ class SinglePlot(pr.LinkVariable):
             xlabel=u'SQ1 FB (\u03bcA)',
             ylabel=u'SA FB (\u03bcA)',
             legend_title='SQ1 Bias Curves')
-        
+
     def linkedGet(self, index=-1, read=False):
         tune = self.parent.Sq1TuneOutput.value()
-        
+
         if tune == {} or tune == []:
             return self._fig
 
@@ -41,9 +47,9 @@ class SinglePlot(pr.LinkVariable):
 
         print(f'Sq1TunePlot - {row=}, {col=}')
 
- #       shunts = [self.parent.Loading.Column[x].SQ1_FB_SHUNT_R.value() for x in range(8)]            
- 
-        self._plot_ax(self._ax, col, row, tune[row][col])
+ #       shunts = [self.parent.Loading.Column[x].SQ1_FB_SHUNT_R.value() for x in range(8)]
+
+        self._plot_ax(self._ax, col, row, tune)
 
         return self._fig
 
@@ -54,14 +60,14 @@ class MultiPlot(SinglePlot):
             self,
             linkedGet = self.linkedGet,
             **kwargs)
-        
+
         self._fig = plt.Figure(tight_layout=True, figsize=(20, 20))
         self._ax = self._fig.subplots(4, 2, sharey=True)
         self._fig.suptitle(u'SA FB (\u03bcA) vs. SQ1 FB (\u03bcA)')
 
     def linkedGet(self, index=-1):
         tune = self.parent.Sq1TuneOutput.value()
-#        shunt = self.parent.parent.SQ1_FB_SHUNT_R.value()        
+#        shunt = self.parent.parent.SQ1_FB_SHUNT_R.value()
 
         if tune == {} or tune == []:
             return self._fig
@@ -73,10 +79,10 @@ class MultiPlot(SinglePlot):
 
         axes = self._ax.reshape(8)
         for col, ax in enumerate(axes):
-            self._plot_ax(ax, col, row, tune[row][col], )
+            self._plot_ax(ax, col, row, tune)
 
         return self._fig
-    
+
 class Sq1TuneProcess(pr.Process):
 
     def __init__(self, *, config, **kwargs):
@@ -97,7 +103,7 @@ class Sq1TuneProcess(pr.Process):
             name='Sq1FbHighOffset',
             value=77.0,
             mode='RW',
-            units=u'\u03bcA',            
+            units=u'\u03bcA',
             description="Ending point offset for SQ1 FB Tuning"))
 
         # Step size for SQ1 FB Tuning
@@ -112,7 +118,7 @@ class Sq1TuneProcess(pr.Process):
             name='Sq1BiasLowOffset',
             value=0.0,
             mode='RW',
-            units=u'\u03bcA',                        
+            units=u'\u03bcA',
             description="Starting point offset for SQ1 Bias Tuning"))
 
         # High offset for SQ1 Bias Tuning
@@ -120,7 +126,7 @@ class Sq1TuneProcess(pr.Process):
             name='Sq1BiasHighOffset',
             value=75.0,
             mode='RW',
-            units=u'\u03bcA',                        
+            units=u'\u03bcA',
             description="Ending point offset for SQ1 Bias Tuning"))
 
         # Step size for SQ1 Bias Tuning
@@ -160,13 +166,13 @@ class Sq1TuneProcess(pr.Process):
             value=500,
             mode='RW',
             description="Max number of loops for PID convergance"))
-        
+
         self.add(pr.LocalVariable(
             name='ServoDisable',
             value=False,
             mode='RW',
             description="Disable the servo and grab SaOutAdc directly"))
-        
+
 
         # SQ1 Tuning Results
         self.add(pr.LocalVariable(
@@ -191,7 +197,7 @@ class Sq1TuneProcess(pr.Process):
             maximum=len(config.rowMap)-1,
             mode='RW',
             description="Controls which row is selected for the resulting plot and fitted value variables below"))
-        
+
 
         self.add(pr.LinkVariable(
             name='FittedSq1Fb',
@@ -233,7 +239,7 @@ class Sq1TuneProcess(pr.Process):
             value='',
             function=self._saveData,
             description="Command to save the plot data as a numpy binary file (np.save). The arg is the filename to write the data to. "))
-        
+
 
     def _getHelper(self, field):
         with self.root.updateGroup():
@@ -271,8 +277,3 @@ class Sq1TuneProcess(pr.Process):
             filename = f'SQ1Tune_{timestr}.npy'
 
         np.save(filename, self.Sq1TuneOutput.value())
-
-
-
-
-

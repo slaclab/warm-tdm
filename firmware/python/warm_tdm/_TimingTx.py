@@ -61,7 +61,7 @@ class TimingTx(pr.Device):
             units = 'MHz',
             dependencies = [self.TxWordClkFreqRaw],
             linkedGet = lambda: self.TxWordClkFreqRaw.value()*1.0E-6))
-        
+
 
         self.add(pr.RemoteCommand(
             name = 'StartRun',
@@ -84,20 +84,38 @@ class TimingTx(pr.Device):
             bitSize = 1,
             function = pr.Command.touchOne))
 
-        self.add(pr.RemoteCommand(
+        self.add(pr.RemoteVariable(
             name = 'WaveformCaptureTime',
             offset = 0x28,
             bitOffset = 0,
             bitSize = 32,
-            disp = '{:d}'))        
+            disp = '{:d}'))
 
         self.add(pr.RemoteVariable(
-            name = 'RowPeriod',
+            name = 'RowPeriodCycles',
             mode = 'RW',
             offset = 0x08,
             bitOffset = 0,
             bitSize = 32,
             disp = '{:d}'))
+
+        self.add(pr.LinkVariable(
+            name = 'RowRate',
+            mode = 'RW',
+            dependencies = [self.RowPeriodCycles],
+            disp = '{:0.03f}',
+            units = 'kHz (kRows/sec)',
+            linkedGet = lambda read: 1.0e-3 / (self.RowPeriod.get(read=read) * 8.0e-9),
+            linkedSet = lambda value, write: self.RowPeriod.set(1.0 / ((value * 1.0e3) * 8.0e-9), write=write)))
+
+        self.add(pr.LinkVariable(
+            name = 'RowPeriod',
+            mode = 'RW',
+            dependencies = [self.RowRate],
+            disp = '{:0.03f}',
+            units = '\u03bcSec',
+            linkedGet = lambda read: 1.0e3 / self.RowRate.get(read=read),
+            linkedSet = lambda value, write: self.RowRate.set(1.0e-3 / value)))
 
         self.add(pr.RemoteVariable(
             name = 'NumRows',
@@ -114,7 +132,7 @@ class TimingTx(pr.Device):
             bitOffset = 0,
             bitSize = 32,
             disp = '{:d}'))
-        
+
         self.add(pr.RemoteVariable(
             name = 'SampleEndTime',
             mode = 'RW',
@@ -122,7 +140,7 @@ class TimingTx(pr.Device):
             bitOffset = 0,
             bitSize = 32,
             disp = '{:d}'))
-        
+
         self.add(pr.RemoteVariable(
             name = 'LoadDacsTime',
             mode = 'RW',
@@ -130,7 +148,7 @@ class TimingTx(pr.Device):
             bitOffset = 0,
             bitSize = 32,
             disp = '{:d}'))
-        
+
         self.add(pr.RemoteVariable(
             name = 'Running',
             mode = 'RO',
@@ -199,7 +217,7 @@ class TimingTx(pr.Device):
             enum = {
                 0: 'RJ-45 RX',
                 1: 'FPGA TX'}))
-        
+
         self.add(pr.RemoteVariable(
             name = 'XbarTxDataSrc',
             mode = 'RW',
@@ -262,8 +280,8 @@ class TimingTx(pr.Device):
             enum = {
                 0: 'RJ-45 RX',
                 1: 'FPGA TX'}))
-        
-        
+
+
         self.add(pr.RemoteVariable(
             name = 'RowIndexOrder',
             offset = 0x1000,

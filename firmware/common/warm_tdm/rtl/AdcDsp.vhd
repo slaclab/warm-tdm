@@ -46,7 +46,7 @@ entity AdcDsp is
       -- AXI-Lite
 --       axilClk          : in  sl;
 --       timingRxRst125          : in  sl;
-      -- Local register access      
+      -- Local register access
       sAxilReadMaster  : in  AxiLiteReadMasterType;
       sAxilReadSlave   : out AxiLiteReadSlaveType  := AXI_LITE_READ_SLAVE_EMPTY_DECERR_C;
       sAxilWriteMaster : in  AxiLiteWriteMasterType;
@@ -93,9 +93,9 @@ architecture rtl of AdcDsp is
 
 
    -- Max of 256 accumulations adds 8 bits to 14 bit ADC
-   constant ACCUM_BITS_C : integer := 32;
-   constant COEF_HIGH_C  : integer := -1;
-   constant COEF_LOW_C   : integer := -24;
+   constant ACCUM_BITS_C : integer := 18;
+   constant COEF_HIGH_C  : integer := 0;
+   constant COEF_LOW_C   : integer := -23;
    constant COEF_BITS_C  : integer := COEF_HIGH_C - COEF_LOW_C + 1;
 
    constant SUM_BITS_C    : integer := ACCUM_BITS_C;
@@ -365,7 +365,7 @@ begin
          axiWriteSlave  => locAxilWriteSlaves(ACCUM_ERROR_C),   -- [out]
          clk            => timingRxClk125,                      -- [in]
          rst            => timingRxRst125,                      -- [in]
-         addr           => r.rowIndex,                          -- [in]         
+         addr           => r.rowIndex,                          -- [in]
          we             => r.accumValid,                        -- [in]
          din            => accumError,                          -- [in]
          dout           => accumRamOut);                        -- [in]
@@ -393,10 +393,10 @@ begin
          axiWriteSlave  => locAxilWriteSlaves(SUM_ACCUM_C),   -- [out]
          clk            => timingRxClk125,                    -- [in]
          rst            => timingRxRst125,                    -- [in]
-         addr           => r.rowIndex,                        -- [in]         
+         addr           => r.rowIndex,                        -- [in]
          we             => r.pidValid,                        -- [in]
          din            => sumAccum,                          -- [in]
-         dout           => sumRamOut);                        -- [in]   
+         dout           => sumRamOut);                        -- [in]
 
    pidResult <= to_slv(r.pidResult);
    U_AxiDualPortRam_PID_RESULTS : entity surf.AxiDualPortRam
@@ -420,7 +420,7 @@ begin
          axiWriteSlave  => locAxilWriteSlaves(PID_RESULTS_C),   -- [out]
          clk            => timingRxClk125,                      -- [in]
          rst            => timingRxRst125,                      -- [in]
-         addr           => r.rowIndex,                          -- [in]         
+         addr           => r.rowIndex,                          -- [in]
          we             => r.pidValid,                          -- [in]
          din            => pidResult,                           -- [in]
          dout           => pidRamOut);                          -- [in]
@@ -473,7 +473,7 @@ begin
          axiWriteSlave  => locAxilWriteSlaves(FILTER_RESULTS_C),                -- [out]
          clk            => timingRxClk125,                                      -- [in]
          rst            => timingRxRst125,                                      -- [in]
-         addr           => filterStreamMaster.tDest(7 downto 0),                -- [in]         
+         addr           => filterStreamMaster.tDest(7 downto 0),                -- [in]
          we             => filterStreamMaster.tValid,                           -- [in]
          din            => filterStreamMaster.tData(RESULT_BITS_C-1 downto 0),  -- [in]
          dout           => open);                                               -- [in]
@@ -556,10 +556,11 @@ begin
 
                   -- First word is Column number
                   ssiSetUserSof(AXIS_DEBUG_CFG_C, v.pidDebugMaster, '1');
-                  v.pidDebugMaster.tValid             := v.pidDebugEnable;
-                  v.pidDebugMaster.tData(3 downto 0)  := toSlv(COLUMN_NUM_G, 4);
-                  v.pidDebugMaster.tData(15 downto 8) := v.rowIndex;
-                  v.state                             := WAIT_FIRST_SAMPLE_S;
+                  v.pidDebugMaster.tValid              := v.pidDebugEnable;
+                  v.pidDebugMaster.tData(3 downto 0)   := toSlv(COLUMN_NUM_G, 4);
+                  v.pidDebugMaster.tData(15 downto 8)  := v.rowIndex;
+                  v.pidDebugMaster.tData(63 downto 16) := timingRxData.runTime(47 downto 0);
+                  v.state                              := WAIT_FIRST_SAMPLE_S;
                end if;
 
 
@@ -601,7 +602,7 @@ begin
                v.pidCoef       := pSfixed;
                v.pidMultiplier := r.accumError;     -- Prep accumError for P stage
                v.pidResult     := (others => '0');  -- Clear pid result
-               v.state         := PID_P_S; --PID_PRESHIFT_S;
+               v.state         := PID_P_S;          --PID_PRESHIFT_S;
 
 --             when PID_PRESHIFT_S =>
 --                v.pidMultiplier := shift_right(r.pidMultiplier, to_integer(unsigned(r.accumShift)));
@@ -690,8 +691,8 @@ begin
 
       rin <= v;
 
-      pidStreamMaster.tValid                            <= r.sq1FbValid;
-      pidStreamMaster.tData(13 downto 0)                <= to_slv(r.sq1Fb);
+      pidStreamMaster.tValid                          <= r.sq1FbValid;
+      pidStreamMaster.tData(13 downto 0)              <= to_slv(r.sq1Fb);
       pidStreamMaster.tId(ROW_ADDR_BITS_C-1 downto 0) <= r.rowIndex;
 
       timingAxilWriteSlave <= r.axilWriteSlave;
@@ -806,7 +807,7 @@ begin
          axilWriteSlave  => mAxilWriteSlave,   -- [in]
          axilReadMaster  => mAxilReadMaster,   -- [out]
          axilReadSlave   => mAxilReadSlave);   -- [in]
-   -- 
+   --
    axilComb : process (ack, axilR, fifoDout, fifoValid, timingRxRst125) is
       variable v : AxilRegType := AXIL_REG_INIT_C;
    begin

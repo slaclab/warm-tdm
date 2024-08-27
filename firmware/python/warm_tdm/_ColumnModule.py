@@ -20,10 +20,8 @@ class ArrayDevice(pr.Device):
         elif isinstance(arrayArgs, dict):
             arrayArgs = [arrayArgs.copy() for x in range(number)]
 
-        print(f'{arrayArgs=}')
         for i in range(number):
             args = arrayArgs[i]
-            print(f'Adding device, args={args}')
             if 'name' in args:
                 name = args.pop('name')
                 name = f'{name}[{i}]'
@@ -37,20 +35,22 @@ class ArrayDevice(pr.Device):
 
 class ColumnModule(pr.Device):
     def __init__(self,
-                 amplifierClass=warm_tdm.ColumnBoardC00SaAmp,
+                 frontEndClass,
 #                 loading={},
                  rows=256,
                  **kwargs):
         super().__init__(**kwargs)
 
         # SA Signal Amplifier Models        
-        self.add(pr.ArrayDevice(
-            name = 'AmpLoading',
-            arrayClass = amplifierClass,
-            number = 8,
-            arrayArgs = [{'name': f'Amp[{i}]'} for i in range(8)]))
+#         self.add(pr.ArrayDevice(
+#             name = 'AmpLoading',
+#             arrayClass = amplifierClass,
+#             number = 8,
+#             arrayArgs = [{'name': f'Amp[{i}]'} for i in range(8)]))
         
-        self.amplifiers = [self.AmpLoading.Amp[i] for i in range(8)]
+#         self.amplifiers = [self.AmpLoading.Amp[i] for i in range(8)]
+        self.add(frontEndClass(
+            name='AnalogFrontEnd'))
  
         self.add(warm_tdm.WarmTdmCore(
             offset = 0x00000000,
@@ -59,49 +59,58 @@ class ColumnModule(pr.Device):
 
         self.add(warm_tdm.DataPath(
             offset = 0xC0300000,
-            expand = True,))
+            expand = True,
+            rows = rows,
+            frontEnd=self.AnalogFrontEnd))
 
         self.add(warm_tdm.Ad5679R(
             name = 'SaBiasDac',
+            groups = ['NoConfig'],
             hidden = True,
             offset = 0xC0700000))
 
         self.add(warm_tdm.SaBiasOffset(
             dac = self.SaBiasDac,
+            frontEnd = self.AnalogFrontEnd,
             waveformTrigger = self.DataPath.WaveformCapture.WaveformTrigger))
 
         self.add(warm_tdm.Ad5679R(
             name = 'TesBiasDac',
-            hidden = True,
+            hidden = False,
             offset = 0xC0701000))
 
         self.add(warm_tdm.TesBias(
-            dac = self.TesBiasDac))
+            offset = 0xC0702000,
+            dac = self.TesBiasDac,
+            frontEnd = self.AnalogFrontEnd))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SAFb',
             offset = 0xC0600000,
-            shunt = 7.15e3,
+            frontEnd = self.AnalogFrontEnd,            
+#            shunt = 7.15e3,
             rows = rows,            
         ))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Bias',
             offset = 0xC0400000,
-            shunt = 10.0e3,
+            frontEnd = self.AnalogFrontEnd,            
+#            shunt = 10.0e3,
             rows = rows,
         ))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Fb',
             offset =0xC0500000,
-            shunt = 11.3e3,
+            frontEnd = self.AnalogFrontEnd,            
+ #           shunt = 11.3e3,
             rows = rows,
         ))
 
 
         self.add(surf.devices.analog_devices.Ad9681Config(
-            enabled = True,
+            enabled = False,
             offset = 0xC0200000))
 
         #########################################
@@ -117,16 +126,18 @@ class ColumnModule(pr.Device):
 
         cols = list(range(8))
 
+        saOutAmps = [self.AnalogFrontEnd.Channel[x].SAAmp for x in range(8)]
+
         def _saOutGet(*, read=True, index=-1, check=True):
             #print(f'ColumnModule._saOutGet({read=}, {index=}, {check=})')
             with self.root.updateGroup():
                 adcs = self.SaOutAdc.get(read=read, index=index, check=check)
                 offsets = self.SaBiasOffset.OffsetVoltageArray.get(read=read, index=index, check=check)
                 if index == -1:
-                    ret = np.array([self.amplifiers[i].ampVin(adcs[i], offsets[i]) * 1e3 for i in range(8)])
+                    ret = np.array([saOutAmps[i].ampVin(adcs[i], offsets[i]) * 1e3 for i in range(8)])
                     return ret
                 else:
-                    ret = self.amplifiers[index].ampVin(adcs, offsets) * 1e3
+                    ret = saOutAmps[index].ampVin(adcs, offsets) * 1e3
                     return ret
 
         def _saOutNormGet(*, read=True, index=-1, check=True):
@@ -135,10 +146,10 @@ class ColumnModule(pr.Device):
                 adcs = self.SaOutAdc.get(read=read, index=index, check=check)
                 offset = 0.0
                 if index == -1:
-                    ret = np.array([self.amplifiers[i].ampVin(adcs[i], offset) * 1e3 for i in range(8)])
+                    ret = np.array([saOutAmps[i].ampVin(adcs[i], offset) * 1e3 for i in range(8)])
                     return ret
                 else:
-                    ret = self.amplifiers[index].ampVin(adcs, offset) * 1e3
+                    ret = saOutAmps[index].ampVin(adcs, offset) * 1e3
                     return ret
 
 
@@ -193,12 +204,14 @@ class ColumnModule(pr.Device):
 
         @self.command()
         def InitDacAdc():
+            enable = self.Ad9681Config.enable.get()
             self.Ad9681Config.enable.set(True)
             self.Ad9681Config.ReadDevice()
             self.Ad9681Config.InternalPdwnMode.setDisp('Full Power Down')
             self.Ad9681Config.InternalPdwnMode.setDisp('Chip Run')
             self.Ad9681Config.InternalPdwnMode.setDisp('Digital Reset')
             self.Ad9681Config.InternalPdwnMode.setDisp('Chip Run')
+            self.Ad9681Config.enable.set(enable)
 
             self.DataPath.Ad9681Readout.Relock()
             self.DataPath.Ad9681Readout.LostLockCountReset()

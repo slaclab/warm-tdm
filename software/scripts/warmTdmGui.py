@@ -11,6 +11,7 @@ pyrogue.addLibraryPath(f'../../firmware/python/')
 pyrogue.addLibraryPath(f'../../firmware/submodules/surf/python')
 
 import warm_tdm_api
+import warm_tdm
 
 from warm_tdm_api import PhysicalMap as pm
 
@@ -73,13 +74,25 @@ parser.add_argument(
     help     = "Path To Store Docs")
 
 parser.add_argument(
-    "--legacy",
-    action = 'store_true',
-    default = False)
+    "--columnBoard",
+    choices= ['Legacy', 'FPGA'],
+    default= 'Legacy')
+
+parser.add_argument(
+    "--frontEnd",
+    choices= ['Standard', 'Ch0Feb'],
+    default= 'Standard')
+
 
 
 args = parser.parse_known_args()[0]
 print(args)
+
+feDict = {
+    'Standard': warm_tdm.ColumnBoardC00StandardFrontEnd,
+    'Ch0Feb': warm_tdm.ColumnBoardC00FebBypassCh0}
+
+feClass = feDict[args.frontEnd]
 
 groups = [{
     'host': args.ip,
@@ -103,7 +116,7 @@ else:
 # root.start()
 # #pyrogue.waitCntrlC()
 
-with warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=args.emulate, plots=args.plots, initRead=not args.sim,
+with warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=args.emulate, numRows=32, plots=args.plots, initRead=not args.sim,
                             colDevClass=colDevClass, rowDevClas=rowDevClass) as root:
 
     if args.docs != '':
