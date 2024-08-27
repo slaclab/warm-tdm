@@ -215,48 +215,49 @@ begin
 
 
    FIR_FILTER_GEN : for i in 7 downto 0 generate
-      U_FirFilterSingleChannel_1 : entity surf.FirFilterSingleChannel
-         generic map (
-            TPD_G            => TPD_G,
-            COMMON_CLK_G     => true,
-            NUM_TAPS_G       => 41,
-            SIDEBAND_WIDTH_G => 12+14,
-            DATA_WIDTH_G     => 16,
-            COEFF_WIDTH_G    => 26,
-            COEFFICIENTS_G   => FILTER_COEFFICIENTS_C)
-         port map (
-            clk                 => timingRxClk125,                             -- [in]
-            rst                 => timingRxRst125,                             -- [in]
-            ibValid             => adcStreams(i).tvalid,                       -- [in]
-            din                 => adcStreams(i).tData(15 downto 0),           -- [in]
-            sbIn(7 downto 0)    => timingRxData.rowIndex,                      -- [in]
-            sbIn(8)             => timingRxData.firstSample,                   -- [in]
-            sbIn(9)             => timingRxData.lastSample,                    -- [in]
-            sbIn(10)            => timingRxData.rowStrobe,                     -- [in]
-            sbIn(11)            => timingRxData.waveformCapture,               -- [in]            
-            sbIn(25 downto 12)  => sq1FbDacs(i),                               -- [in]
-            obValid             => filteredAdcStreams(i).tvalid,               -- [out]
-            dout                => filteredAdcStreams(i).tData(15 downto 0),   -- [out]
-            sbOut(7 downto 0)   => filteredAdcStreams(i).tid(7 downto 0),      -- [out]
-            sbOut(8)            => filteredAdcStreams(i).tUser(0),             -- [out]
-            sbOut(9)            => filteredAdcStreams(i).tUser(1),             -- [out]
-            sbOut(10)           => filteredAdcStreams(i).tUser(2),             -- [out]
-            sbOut(11)           => filteredAdcStreams(i).tUser(3),             -- [out]
-            sbOut(25 downto 12) => filteredAdcStreams(i).tData(29 downto 16),  -- [out]
-            axilClk             => timingRxClk125,                             -- [in]
-            axilRst             => timingRxRst125,                             -- [in]
-            axilReadMaster      => filterAxilReadMasters(i),                   -- [in]
-            axilReadSlave       => filterAxilReadSlaves(i),                    -- [out]
-            axilWriteMaster     => filterAxilWriteMasters(i),                  -- [in]
-            axilWriteSlave      => filterAxilWriteSlaves(i));                  -- [out]
+--       U_FirFilterSingleChannel_1 : entity surf.FirFilterSingleChannel
+--          generic map (
+--             TPD_G            => TPD_G,
+--             COMMON_CLK_G     => true,
+--             NUM_TAPS_G       => 41,
+--             SIDEBAND_WIDTH_G => 12+14,
+--             DATA_WIDTH_G     => 16,
+--             COEFF_WIDTH_G    => 26,
+--             COEFFICIENTS_G   => FILTER_COEFFICIENTS_C)
+--          port map (
+--             clk                 => timingRxClk125,                             -- [in]
+--             rst                 => timingRxRst125,                             -- [in]
+--             ibValid             => adcStreams(i).tvalid,                       -- [in]
+--             din                 => adcStreams(i).tData(15 downto 0),           -- [in]
+--             sbIn(7 downto 0)    => timingRxData.rowIndex,                      -- [in]
+--             sbIn(8)             => timingRxData.firstSample,                   -- [in]
+--             sbIn(9)             => timingRxData.lastSample,                    -- [in]
+--             sbIn(10)            => timingRxData.rowStrobe,                     -- [in]
+--             sbIn(11)            => timingRxData.waveformCapture,               -- [in]            
+--             sbIn(25 downto 12)  => sq1FbDacs(i),                               -- [in]
+--             obValid             => filteredAdcStreams(i).tvalid,               -- [out]
+--             dout                => filteredAdcStreams(i).tData(15 downto 0),   -- [out]
+--             sbOut(7 downto 0)   => filteredAdcStreams(i).tid(7 downto 0),      -- [out]
+--             sbOut(8)            => filteredAdcStreams(i).tUser(0),             -- [out]
+--             sbOut(9)            => filteredAdcStreams(i).tUser(1),             -- [out]
+--             sbOut(10)           => filteredAdcStreams(i).tUser(2),             -- [out]
+--             sbOut(11)           => filteredAdcStreams(i).tUser(3),             -- [out]
+--             sbOut(25 downto 12) => filteredAdcStreams(i).tData(29 downto 16),  -- [out]
+--             axilClk             => timingRxClk125,                             -- [in]
+--             axilRst             => timingRxRst125,                             -- [in]
+--             axilReadMaster      => filterAxilReadMasters(i),                   -- [in]
+--             axilReadSlave       => filterAxilReadSlaves(i),                    -- [out]
+--             axilWriteMaster     => filterAxilWriteMasters(i),                  -- [in]
+--             axilWriteSlave      => filterAxilWriteSlaves(i));                  -- [out]
 
---       filteredAdcStreams(i).tValid              <= adcStreams(i).tValid;
---       filteredAdcStreams(i).tData(15 downto 0)  <= adcStreams(i).tData(15 downto 0);
---       filteredAdcStreams(i).tid(7 downto 0)     <= timingRxData.rowIndex;
---       filteredAdcStreams(i).tuser(0)            <= timingRxData.firstSample;
---       filteredAdcStreams(i).tuser(1)            <= timingRxData.lastSample;
---       filteredAdcStreams(i).tuser(2)            <= timingRxData.rowStrobe;
---       filteredAdcStreams(i).tData(29 downto 16) <= sq1FbDacs(i);
+      filteredAdcStreams(i).tValid              <= adcStreams(i).tValid;
+      filteredAdcStreams(i).tData(15 downto 0)  <= adcStreams(i).tData(15 downto 0);
+      filteredAdcStreams(i).tid(7 downto 0)     <= timingRxData.rowIndex;
+      filteredAdcStreams(i).tuser(0)            <= timingRxData.firstSample;
+      filteredAdcStreams(i).tuser(1)            <= timingRxData.lastSample;
+      filteredAdcStreams(i).tuser(2)            <= timingRxData.rowStrobe;
+      filteredAdcStreams(i).tuser(3)            <= timingRxData.waveformCapture;
+      filteredAdcStreams(i).tData(29 downto 16) <= sq1FbDacs(i);
 
    end generate FIR_FILTER_GEN;
 
