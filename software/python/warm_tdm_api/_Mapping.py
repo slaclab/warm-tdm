@@ -34,7 +34,13 @@ class GroupConfig(object):
     """
 
 
-    def __init__(self, *, rowBoards, columnBoards, host, rowOrder=None):
+    def __init__(self, *,
+                 groupId,
+                 numColumnBoards,
+                 
+                 rowBoards,
+
+                 columnBoards, host, rowOrder=None):
 
         self.rowBoards = rowBoards
         self.columnBoards = columnBoards

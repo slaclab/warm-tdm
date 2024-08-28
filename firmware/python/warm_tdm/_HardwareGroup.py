@@ -19,17 +19,17 @@ class HardwareGroup(pyrogue.Device):
     def __init__(
             self,
             groupId,
-            frontEndClass,
+            colDevClass,
+            colFeClass,
+            rowDevClass,
+            rowFeClass,
             dataWriter,
             simulation=False,
             emulate=False,
             host='192.168.3.11',
             colBoards=4,
-            colDevClass=warm_tdm.ColumnModule,
             rowBoards=1,
-            rowDevClas=warm_tdm.RowModule,
-            rows=256,
-            plots=False,
+            rows=32,
             **kwargs):
 
         super().__init__(**kwargs)
@@ -81,7 +81,7 @@ class HardwareGroup(pyrogue.Device):
             # Instantiate the board Device tree and link it to the SRP
             self.add(colDevClass(
                 name=f'ColumnBoard[{index}]',
-                frontEndClass=frontEndClass,
+                frontEndClass=colFeClass,
                 memBase=srp,
                 expand=True,
                 rows=rows))
