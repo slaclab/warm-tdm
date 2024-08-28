@@ -68,9 +68,9 @@ entity WarmTdmCommon2 is
       sfpSda : inout slv(1 downto 0);
 
       -- VR Synchronization
-      pwrSyncA : out sl := '0';
-      pwrSyncB : out sl := '0';
-      pwrSyncC : out sl := '0';
+      pwrSyncA : out sl := '1';
+      pwrSyncB : out sl := '1';
+      pwrSyncC : out sl := '1';
 
       -- XADC
       localThermistorP : in slv(5 downto 0);
