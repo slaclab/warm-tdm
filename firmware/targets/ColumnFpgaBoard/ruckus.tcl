@@ -23,6 +23,7 @@ loadRuckusTcl $::env(TOP_DIR)/common/warm_tdm
 # Load target's source code and constraints
 loadSource      -lib warm_tdm -dir  "$::DIR_PATH/rtl/"
 loadSource      -lib warm_tdm -sim_only -dir "$::DIR_PATH/sim/"
+loadConstraints  -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore2.xdc
 loadConstraints -dir  "$::DIR_PATH/xdc/"
 
 set_property top "ColumnFpgaBoardTb"     [get_filesets sim_1]
