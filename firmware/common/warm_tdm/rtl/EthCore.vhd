@@ -50,7 +50,7 @@ entity EthCore is
    port (
       extRst                : in  sl                    := '0';
       -- GT ports and clock
-      gtRefClk              : in  sl;                         -- GT Ref Clock 156.25 MHz
+      gtRefClk              : in  sl;
       fabRefClk             : in  sl;
       gtRxP                 : in  sl;
       gtRxN                 : in  sl;
@@ -291,11 +291,11 @@ begin
                NUM_CLOCKS_G       => 2,
                -- MMCM attributes
                BANDWIDTH_G        => "OPTIMIZED",
-               CLKIN_PERIOD_G     => 8.0,   -- 250 MHz
-               DIVCLK_DIVIDE_G    => 1,     -- 250 MHz = 156.25 MHz/5
-               CLKFBOUT_MULT_F_G  => 8.0,   -- 1.0GHz = 250 MHz * 4
-               CLKOUT0_DIVIDE_F_G => 8.0,   -- 125 MHz = 1.0GHz/8
-               CLKOUT1_DIVIDE_G   => 16)    -- 62.5 MHz = 1.0GHz/16
+               CLKIN_PERIOD_G     => 8.0,
+               DIVCLK_DIVIDE_G    => 1,
+               CLKFBOUT_MULT_F_G  => 8.0,
+               CLKOUT0_DIVIDE_F_G => 8.0,
+               CLKOUT1_DIVIDE_G   => 16)
             port map(
                clkIn     => fabRefClk,
                rstIn     => refRst,
@@ -346,7 +346,27 @@ begin
       end generate GIG_ETH_GEN;
 
       TEN_GIG_ETH_GEN : if (ETH_10G_G) generate
-         ethClk <= fabRefClk;
+
+         U_MMCM : entity surf.ClockManager7
+            generic map(
+               TPD_G              => TPD_G,
+               TYPE_G             => "MMCM",
+               INPUT_BUFG_G       => false,
+               FB_BUFG_G          => true,  -- Without this, will never lock in simulation
+               RST_IN_POLARITY_G  => '1',
+               NUM_CLOCKS_G       => 1,
+               -- MMCM attributes
+               BANDWIDTH_G        => "HIGH",
+               CLKIN_PERIOD_G     => 8.0,   -- 125 MHz
+               DIVCLK_DIVIDE_G    => 1,
+               CLKFBOUT_MULT_F_G  => 9.375,
+               CLKOUT0_DIVIDE_F_G => 7.5)   -- 156.25 MHz
+            port map(
+               clkIn     => fabRefClk,
+               rstIn     => refRst,
+               clkOut(0) => ethClk,
+               rstOut(0) => ethRst,
+               locked    => open);
 
          PwrUpRst_Inst : entity surf.PwrUpRst
             generic map (
@@ -354,7 +374,7 @@ begin
             port map (
                arst   => extRst,
                clk    => ethClk,
-               rstOut => ethRst);
+               rstOut => refRst);
 
          Gtx7QuadPll_Inst : entity surf.Gtx7QuadPll
             generic map (
