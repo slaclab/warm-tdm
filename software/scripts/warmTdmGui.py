@@ -11,6 +11,7 @@ pyrogue.addLibraryPath(f'../../firmware/python/')
 pyrogue.addLibraryPath(f'../../firmware/submodules/surf/python')
 
 import warm_tdm_api
+import warm_tdm
 
 from warm_tdm_api import PhysicalMap as pm
 
@@ -72,9 +73,21 @@ parser.add_argument(
     default = '',
     help     = "Path To Store Docs")
 
+parser.add_argument(
+    "--frontEnd",
+    choices= ['Standard', 'Ch0Feb'],
+    default= 'Standard')
+
+
 
 args = parser.parse_known_args()[0]
 print(args)
+
+feDict = {
+    'Standard': warm_tdm.ColumnBoardC00StandardFrontEnd,
+    'Ch0Feb': warm_tdm.ColumnBoardC00FebBypassCh0}
+
+feClass = feDict[args.frontEnd]
 
 groups = [{
     'host': args.ip,
@@ -91,7 +104,7 @@ config = warm_tdm_api.GroupConfig(rowBoards=groups[0]['rowBoards'],
 # root.start()
 # #pyrogue.waitCntrlC()
 
-with warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=args.emulate, plots=args.plots, initRead=not args.sim) as root:
+with warm_tdm_api.GroupRoot(groupConfig=config, frontEndClass=feClass, numRows=32, simulation=args.sim, emulate=args.emulate, plots=args.plots, initRead=not args.sim) as root:
 
     if args.docs != '':
         root.genDocuments(path=args.docs,incGroups=['DocApi'],excGroups=['NoDoc','Enable','Hardware'])
@@ -113,7 +126,7 @@ with warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=arg
         serverList=root.zmqServer.address,
         title='Warm TDM',
         sizeX=2000,
-        sizeY=2000,
+        sizeY=1600,
         ui=warm_tdm_api.pydmUi)
 
 

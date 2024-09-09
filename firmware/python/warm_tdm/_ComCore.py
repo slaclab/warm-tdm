@@ -23,6 +23,7 @@ class PgpCore(pr.Device):
             name = 'Gtxe2Channel[0]',
             enabled = False,
             hidden = True,
+            groups = ['NoConfig'],            
             offset = 0x0001000))
 
 #         self.add(surf.protocols.pgp.Pgp2bAxi(
@@ -46,23 +47,27 @@ class EthCore(pr.Device):
         self.add(surf.protocols.rssi.RssiCore(
             enabled = False,
             name = "SRP_RSSI",
+            groups = ['NoConfig'],
             offset = 0x11000,
             expand = False))
 
         self.add(surf.protocols.rssi.RssiCore(
             enabled = False,
             name = "Data_RSSI",
+            groups = ['NoConfig'],            
             offset = 0x12000,
             expand = False))
         
         self.add(surf.ethernet.udp.UdpEngine(
             enabled = False,
             offset = 0x10000,
+            groups = ['NoConfig'],            
             numSrv = 2))
 
         self.add(surf.ethernet.gige.GigEthGtx7(
             enabled = False,
             gtxe2_read_only = True,
+            groups = ['NoConfig'],            
             offset = 0x00000))
 
 

@@ -94,6 +94,7 @@ architecture rtl of WaveformCapture is
    type RegType is record
       reset            : sl;
       average          : slv32Array(7 downto 0);
+      sample           : slv16Array(7 downto 0);
       alpha            : slv(3 downto 0);
       pauseThresh      : slv(13 downto 0);
       waveformTrigger  : sl;
@@ -113,6 +114,7 @@ architecture rtl of WaveformCapture is
    constant REG_INIT_C : RegType := (
       reset            => '0',
       average          => (others => (others => '0')),
+      sample           => (others => (others => '0')),
       alpha            => toSlv(15, 4),
       pauseThresh      => toSlv(2**14-8, 14),
       waveformTrigger  => '0',
@@ -195,6 +197,16 @@ begin
       axiSlaveRegisterR(axilEp, X"28", 0, r.average(6));
       axiSlaveRegisterR(axilEp, X"2C", 0, r.average(7));
 
+      axiSlaveRegisterR(axilEp, X"30", 0, r.sample(0));
+      axiSlaveRegisterR(axilEp, X"34", 0, r.sample(1));
+      axiSlaveRegisterR(axilEp, X"38", 0, r.sample(2));
+      axiSlaveRegisterR(axilEp, X"3C", 0, r.sample(3));
+      axiSlaveRegisterR(axilEp, X"40", 0, r.sample(4));
+      axiSlaveRegisterR(axilEp, X"44", 0, r.sample(5));
+      axiSlaveRegisterR(axilEp, X"48", 0, r.sample(6));
+      axiSlaveRegisterR(axilEp, X"4C", 0, r.sample(7));
+      
+
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
 
       ----------------------------------------------------------------------------------------------
@@ -206,13 +218,16 @@ begin
             average      := signed(r.average(i));
             avgDiv       := shift_right(average, alpha);
             sample       := resize(signed(adcStreams(i).tData(15 downto 0)), 32);
+            v.sample(i)  := adcStreams(i).tData(15 downto 0);
             sample       := shift_right(shift_left(sample, 16), alpha);
             average      := average - avgDiv + sample;
             v.average(i) := slv(average);
+
          end loop;
       end if;
       if (r.reset = '1') then
          v.average := (others => (others => '0'));
+         v.sample := (others => (others => '0'));         
       end if;
 
 
@@ -253,7 +268,7 @@ begin
       -- Dump data info FIFO when triggered
       -- Multiplex combined or resized channel streams
       ----------------------------------------------------------------------------------------------
-      if (timingRxData.rawAdc = '1' or r.waveformTrigger = '1') then
+      if ((adcStreams(0).tValid = '1' and adcStreams(0).tUser(3) = '1') or r.waveformTrigger = '1') then
          v.doWaveform                       := '1';
          v.bufferStream.tValid              := '1';
          v.bufferStream.tData(2 downto 0)   := r.selectedChannel;

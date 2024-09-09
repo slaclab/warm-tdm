@@ -2,10 +2,10 @@
 -- Title      : Warm TDM Row Module
 -------------------------------------------------------------------------------
 -- Company    : SLAC National Accelerator Laboratory
--- Platform   : 
+-- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
--- Description: Top level of ColumnModule 
+-- Description: Top level of ColumnModule
 -------------------------------------------------------------------------------
 -- This file is part of Warm TDM. It is subject to
 -- the license terms in the LICENSE.txt file found in the top-level directory
@@ -43,6 +43,7 @@ entity ColumnModule is
    generic (
       TPD_G                   : time             := 1 ns;
       SIMULATION_G            : boolean          := false;
+      SIMULATE_PGP_G          : boolean          := true;
       SIM_PGP_PORT_NUM_G      : integer          := 0;
       SIM_ETH_SRP_PORT_NUM_G  : integer          := 8000;
       SIM_ETH_DATA_PORT_NUM_G : integer          := 9000;
@@ -189,7 +190,7 @@ end entity ColumnModule;
 
 architecture rtl of ColumnModule is
 
-   constant NUM_AXIL_MASTERS_C  : integer := 7;
+   constant NUM_AXIL_MASTERS_C  : integer := 8;
    constant AXIL_ADC_CONFIG_C   : integer := 0;
    constant AXIL_DATA_PATH_C    : integer := 1;
    constant AXIL_SQ1_BIAS_DAC_C : integer := 2;
@@ -197,6 +198,7 @@ architecture rtl of ColumnModule is
    constant AXIL_SA_FB_DAC_C    : integer := 4;
    constant AXIL_SA_BIAS_DAC_C  : integer := 5;
    constant AXIL_TES_BIAS_DAC_C : integer := 6;
+   constant AXIL_TES_DELATCH_C : integer := 7;
 
    constant AXIL_XBAR_CFG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := (
       AXIL_ADC_CONFIG_C   => (
@@ -226,7 +228,12 @@ architecture rtl of ColumnModule is
       AXIL_TES_BIAS_DAC_C => (
          baseAddr         => APP_BASE_ADDR_C + X"00701000",
          addrBits         => 12,
+         connectivity     => X"FFFF"),
+      AXIL_TES_DELATCH_C => (
+         baseAddr         => APP_BASE_ADDR_C + X"00702000",
+         addrBits         => 8,
          connectivity     => X"FFFF"));
+
 
    signal axilClk : sl;
    signal axilRst : sl;
@@ -263,7 +270,7 @@ architecture rtl of ColumnModule is
 
    signal adc : Ad9681SerialType;
 
-
+   signal tesDelatchInt : slv(31 downto 0);
 
 begin
 
@@ -275,6 +282,7 @@ begin
       generic map (
          TPD_G                   => TPD_G,
          SIMULATION_G            => SIMULATION_G,
+         SIMULATE_PGP_G          => SIMULATE_PGP_G,
          SIM_PGP_PORT_NUM_G      => SIM_PGP_PORT_NUM_G,
          SIM_ETH_SRP_PORT_NUM_G  => SIM_ETH_SRP_PORT_NUM_G,
          SIM_ETH_DATA_PORT_NUM_G => SIM_ETH_DATA_PORT_NUM_G,
@@ -284,7 +292,7 @@ begin
          DHCP_G                  => DHCP_G,
          IP_ADDR_G               => IP_ADDR_G,
          MAC_ADDR_G              => MAC_ADDR_G,
-         XADC_AUX_CHANS_G        => (9, 1, 8, 0))         
+         XADC_AUX_CHANS_G        => (9, 1, 8, 0))
       port map (
          gtRefClk0P       => gtRefClk0P,          -- [in]
          gtRefClk0N       => gtRefClk0N,          -- [in]
@@ -334,7 +342,7 @@ begin
          dataTxAxisMaster => dataTxAxisMaster,    -- [in]
          dataTxAxisSlave  => dataTxAxisSlave,     -- [out]
          dataRxAxisMaster => dataRxAxisMaster,    -- [out]
-         dataRxAxisSlave  => dataRxAxisSlave,     -- [in]         
+         dataRxAxisSlave  => dataRxAxisSlave,     -- [in]
          timingRxClk125   => timingRxClk125,      -- [out]
          timingRxRst125   => timingRxRst125,      -- [out]
          timingRxData     => timingRxData);       -- [out]
@@ -419,6 +427,21 @@ begin
          coreSDout      => tesDacMosi,                                -- [out]
          coreMCsb(0)    => tesDacSyncB);                              -- [out]
 
+   U_AxiLiteRegs_1 : entity surf.AxiLiteRegs
+      generic map (
+         TPD_G           => TPD_G,
+         NUM_WRITE_REG_G => 1,
+         NUM_READ_REG_G  => 1)
+      port map (
+         axiClk           => axilClk,                                  -- [in]
+         axiClkRst        => axilRst,                                  -- [in]
+         axiReadMaster    => locAxilReadMasters(AXIL_TES_DELATCH_C),   -- [in]
+         axiReadSlave     => locAxilReadSlaves(AXIL_TES_DELATCH_C),    -- [out]
+         axiWriteMaster   => locAxilWriteMasters(AXIL_TES_DELATCH_C),  -- [in]
+         axiWriteSlave    => locAxilWriteSlaves(AXIL_TES_DELATCH_C),   -- [out]
+         writeRegister(0) => tesDelatchInt);                           -- [out]
+
+   tesDelatch <= tesDelatchInt(7 downto 0);
 
    -------------------------------------------------------------------------------------------------
    -- ADC Config

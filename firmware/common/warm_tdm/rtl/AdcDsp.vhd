@@ -3,6 +3,7 @@ use ieee.std_logic_1164.all;
 
 package local_fixed_pkg is new ieee.fixed_generic_pkg  generic map (
    fixed_round_style => IEEE.fixed_float_types.fixed_truncate,
+   fixed_overflow_style => IEEE.fixed_float_types.fixed_saturate,
    fixed_guard_bits  => 0);
 
 use work.local_fixed_pkg.all;
@@ -10,7 +11,7 @@ use work.local_fixed_pkg.all;
 library ieee;
 use ieee.std_logic_1164.all;
 
-use ieee.numeric_std.all;
+--use ieee.numeric_std.all;
 
 library unisim;
 use unisim.vcomponents.all;
@@ -45,7 +46,7 @@ entity AdcDsp is
       -- AXI-Lite
 --       axilClk          : in  sl;
 --       timingRxRst125          : in  sl;
-      -- Local register access      
+      -- Local register access
       sAxilReadMaster  : in  AxiLiteReadMasterType;
       sAxilReadSlave   : out AxiLiteReadSlaveType  := AXI_LITE_READ_SLAVE_EMPTY_DECERR_C;
       sAxilWriteMaster : in  AxiLiteWriteMasterType;
@@ -59,9 +60,7 @@ entity AdcDsp is
       axisClk        : in  sl;
       axisRst        : in  sl;
       pidDebugMaster : out AxiStreamMasterType;
-      pidDebugSlave  : in  AxiStreamSlaveType;
-      dataMaster     : out AxiStreamMasterType;
-      dataSlave      : in  AxiStreamSlaveType);
+      pidDebugSlave  : in  AxiStreamSlaveType);
 
 end entity;
 
@@ -94,9 +93,9 @@ architecture rtl of AdcDsp is
 
 
    -- Max of 256 accumulations adds 8 bits to 14 bit ADC
-   constant ACCUM_BITS_C : integer := 22;
+   constant ACCUM_BITS_C : integer := 18;
    constant COEF_HIGH_C  : integer := 0;
-   constant COEF_LOW_C   : integer := -17;
+   constant COEF_LOW_C   : integer := -23;
    constant COEF_BITS_C  : integer := COEF_HIGH_C - COEF_LOW_C + 1;
 
    constant SUM_BITS_C    : integer := ACCUM_BITS_C;
@@ -123,7 +122,7 @@ architecture rtl of AdcDsp is
       WAIT_FIRST_SAMPLE_S,
       ACCUMULATE_S,
       PREP_PID_S,
-      PID_PRESHIFT_S,
+--      PID_PRESHIFT_S,
       PID_P_S,
       PID_I_S,
       PID_D_S,
@@ -366,7 +365,7 @@ begin
          axiWriteSlave  => locAxilWriteSlaves(ACCUM_ERROR_C),   -- [out]
          clk            => timingRxClk125,                      -- [in]
          rst            => timingRxRst125,                      -- [in]
-         addr           => r.rowIndex,                          -- [in]         
+         addr           => r.rowIndex,                          -- [in]
          we             => r.accumValid,                        -- [in]
          din            => accumError,                          -- [in]
          dout           => accumRamOut);                        -- [in]
@@ -394,10 +393,10 @@ begin
          axiWriteSlave  => locAxilWriteSlaves(SUM_ACCUM_C),   -- [out]
          clk            => timingRxClk125,                    -- [in]
          rst            => timingRxRst125,                    -- [in]
-         addr           => r.rowIndex,                        -- [in]         
+         addr           => r.rowIndex,                        -- [in]
          we             => r.pidValid,                        -- [in]
          din            => sumAccum,                          -- [in]
-         dout           => sumRamOut);                        -- [in]   
+         dout           => sumRamOut);                        -- [in]
 
    pidResult <= to_slv(r.pidResult);
    U_AxiDualPortRam_PID_RESULTS : entity surf.AxiDualPortRam
@@ -421,7 +420,7 @@ begin
          axiWriteSlave  => locAxilWriteSlaves(PID_RESULTS_C),   -- [out]
          clk            => timingRxClk125,                      -- [in]
          rst            => timingRxRst125,                      -- [in]
-         addr           => r.rowIndex,                          -- [in]         
+         addr           => r.rowIndex,                          -- [in]
          we             => r.pidValid,                          -- [in]
          din            => pidResult,                           -- [in]
          dout           => pidRamOut);                          -- [in]
@@ -474,7 +473,7 @@ begin
          axiWriteSlave  => locAxilWriteSlaves(FILTER_RESULTS_C),                -- [out]
          clk            => timingRxClk125,                                      -- [in]
          rst            => timingRxRst125,                                      -- [in]
-         addr           => filterStreamMaster.tDest(7 downto 0),                -- [in]         
+         addr           => filterStreamMaster.tDest(7 downto 0),                -- [in]
          we             => filterStreamMaster.tValid,                           -- [in]
          din            => filterStreamMaster.tData(RESULT_BITS_C-1 downto 0),  -- [in]
          dout           => open);                                               -- [in]
@@ -557,10 +556,11 @@ begin
 
                   -- First word is Column number
                   ssiSetUserSof(AXIS_DEBUG_CFG_C, v.pidDebugMaster, '1');
-                  v.pidDebugMaster.tValid             := v.pidDebugEnable;
-                  v.pidDebugMaster.tData(3 downto 0)  := toSlv(COLUMN_NUM_G, 4);
-                  v.pidDebugMaster.tData(15 downto 8) := v.rowIndex;
-                  v.state                             := WAIT_FIRST_SAMPLE_S;
+                  v.pidDebugMaster.tValid              := v.pidDebugEnable;
+                  v.pidDebugMaster.tData(3 downto 0)   := toSlv(COLUMN_NUM_G, 4);
+                  v.pidDebugMaster.tData(15 downto 8)  := v.rowIndex;
+                  v.pidDebugMaster.tData(63 downto 16) := timingRxData.runTime(47 downto 0);
+                  v.state                              := WAIT_FIRST_SAMPLE_S;
                end if;
 
 
@@ -596,17 +596,17 @@ begin
 
                -- Third word is accum error
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
-               v.pidDebugMaster.tData(31 downto 0) := resize(to_slv(r.accumError), 32);
+               v.pidDebugMaster.tData(31 downto 0) := to_slv(resize(r.accumError, 31, 0));
 
                -- Prep for P stage
                v.pidCoef       := pSfixed;
                v.pidMultiplier := r.accumError;     -- Prep accumError for P stage
                v.pidResult     := (others => '0');  -- Clear pid result
-               v.state         := PID_PRESHIFT_S;
+               v.state         := PID_P_S;          --PID_PRESHIFT_S;
 
-            when PID_PRESHIFT_S =>
-               v.pidMultiplier := shift_right(r.pidMultiplier, to_integer(unsigned(r.accumShift)));
-               v.state         := PID_P_S;
+--             when PID_PRESHIFT_S =>
+--                v.pidMultiplier := shift_right(r.pidMultiplier, to_integer(unsigned(r.accumShift)));
+--                v.state         := PID_P_S;
 
             when PID_P_S =>
                -- Fourth Word is starting SQ1FB
@@ -623,7 +623,7 @@ begin
             when PID_I_S =>
                -- Fifth Word is SumAccum
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
-               v.pidDebugMaster.tData(31 downto 0) := resize(to_slv(r.pidMultiplier), 32);
+               v.pidDebugMaster.tData(31 downto 0) := to_slv(resize(r.pidMultiplier, 31, 0));
 
                -- Calculate PID stage
                v.pidResult     := resize(r.pidResult + (r.pidCoef * r.pidMultiplier), v.pidResult);  -- r.sumAccum
@@ -635,7 +635,7 @@ begin
             when PID_D_S =>
                -- Sixth Word is diff multiplier result
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
-               v.pidDebugMaster.tData(31 downto 0) := resize(to_slv(r.pidMultiplier), 32);
+               v.pidDebugMaster.tData(31 downto 0) := to_slv(resize(r.pidMultiplier, 31, 0));
 
 
                -- Calculate PID Stage
@@ -691,8 +691,8 @@ begin
 
       rin <= v;
 
-      pidStreamMaster.tValid                            <= r.sq1FbValid;
-      pidStreamMaster.tData(13 downto 0)                <= to_slv(r.sq1Fb);
+      pidStreamMaster.tValid                          <= r.sq1FbValid;
+      pidStreamMaster.tData(13 downto 0)              <= to_slv(r.sq1Fb);
       pidStreamMaster.tId(ROW_ADDR_BITS_C-1 downto 0) <= r.rowIndex;
 
       timingAxilWriteSlave <= r.axilWriteSlave;
@@ -737,32 +737,32 @@ begin
          mAxisMaster => pidDebugMaster,    -- [out]
          mAxisSlave  => pidDebugSlave);    -- [in]
 
-   U_AxiStreamFifoV2_DATA : entity surf.AxiStreamFifoV2
-      generic map (
-         TPD_G               => TPD_G,
-         INT_PIPE_STAGES_G   => 0,
-         PIPE_STAGES_G       => 0,
-         SLAVE_READY_EN_G    => false,
-         VALID_THOLD_G       => 0,
-         VALID_BURST_MODE_G  => true,
-         FIFO_PAUSE_THRESH_G => 15,
-         GEN_SYNC_FIFO_G     => false,
-         FIFO_ADDR_WIDTH_G   => 5,
-         SYNTH_MODE_G        => "xpm",
-         MEMORY_TYPE_G       => "distributed",
-         INT_WIDTH_SELECT_G  => "WIDE",
-         SLAVE_AXI_CONFIG_G  => AXIS_DATA_CFG_C,
-         MASTER_AXI_CONFIG_G => SQ1FB_DATA_AXIS_CONFIG_C)
-      port map (
-         sAxisClk    => timingRxClk125,      -- [in]
-         sAxisRst    => timingRxRst125,      -- [in]
-         sAxisMaster => pidStreamMaster,  -- [in]
-         sAxisSlave  => open,                -- [out]
-         sAxisCtrl   => open,        -- [out]
-         mAxisClk    => axisClk,             -- [in]
-         mAxisRst    => axisRst,             -- [in]
-         mAxisMaster => dataMaster,      -- [out]
-         mAxisSlave  => dataSlave);      -- [in]
+--    U_AxiStreamFifoV2_DATA : entity surf.AxiStreamFifoV2
+--       generic map (
+--          TPD_G               => TPD_G,
+--          INT_PIPE_STAGES_G   => 0,
+--          PIPE_STAGES_G       => 0,
+--          SLAVE_READY_EN_G    => false,
+--          VALID_THOLD_G       => 0,
+--          VALID_BURST_MODE_G  => true,
+--          FIFO_PAUSE_THRESH_G => 15,
+--          GEN_SYNC_FIFO_G     => false,
+--          FIFO_ADDR_WIDTH_G   => 5,
+--          SYNTH_MODE_G        => "xpm",
+--          MEMORY_TYPE_G       => "distributed",
+--          INT_WIDTH_SELECT_G  => "WIDE",
+--          SLAVE_AXI_CONFIG_G  => AXIS_DATA_CFG_C,
+--          MASTER_AXI_CONFIG_G => SQ1FB_DATA_AXIS_CONFIG_C)
+--       port map (
+--          sAxisClk    => timingRxClk125,      -- [in]
+--          sAxisRst    => timingRxRst125,      -- [in]
+--          sAxisMaster => pidStreamMaster,  -- [in]
+--          sAxisSlave  => open,                -- [out]
+--          sAxisCtrl   => open,        -- [out]
+--          mAxisClk    => axisClk,             -- [in]
+--          mAxisRst    => axisRst,             -- [in]
+--          mAxisMaster => dataMaster,      -- [out]
+--          mAxisSlave  => dataSlave);      -- [in]
 
 
 
@@ -807,7 +807,7 @@ begin
          axilWriteSlave  => mAxilWriteSlave,   -- [in]
          axilReadMaster  => mAxilReadMaster,   -- [out]
          axilReadSlave   => mAxilReadSlave);   -- [in]
-   -- 
+   --
    axilComb : process (ack, axilR, fifoDout, fifoValid, timingRxRst125) is
       variable v : AxilRegType := AXIL_REG_INIT_C;
    begin

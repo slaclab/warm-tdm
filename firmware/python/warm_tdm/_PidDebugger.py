@@ -1,6 +1,7 @@
 import pyrogue as pr
 import pyrogue.interfaces.simulation
 import numpy as np
+import warm_tdm
 
 class PidRowDebugger(pr.Device):
     def __init__(self, debugDev, row, **kwargs):
@@ -65,7 +66,7 @@ class PidRowDebugger(pr.Device):
 
 class PidDebugger(pr.DataReceiver):
 
-    def __init__(self, numRows, col, fastDacDriver, **kwargs):
+    def __init__(self, numRows, col, frontEnd, **kwargs):
         self.mem = pyrogue.interfaces.simulation.MemEmulate()
 
         self.col = col
@@ -83,39 +84,49 @@ class PidDebugger(pr.DataReceiver):
             name = 'RowIndex',
             mode = 'RO',
             offset = 0,
+            disp = '{:d}',
             base = pr.UInt,
             bitOffset = 8,
             bitSize = 8))
 
         self.add(pr.RemoteVariable(
+            name = 'RunTime',
+            mode = 'RO',
+            offset = 0,
+            bitOffset = 16,
+            bitSize = 48,
+            disp = '{:d}',
+            base = pr.UInt))
+
+        self.add(pr.RemoteVariable(
             name = 'AccumError',
             mode = 'RO',
             offset = 2 * 8,
-            base = pr.Fixed(22, 0),
-            bitSize = 22))
+            base = warm_tdm.AdcDsp.ACCUM_BASE,
+            bitSize = warm_tdm.AdcDsp.ACCUM_BASE.bitSize))
 
         self.add(pr.RemoteVariable(
             name = 'SumAccum',
             mode = 'RO',
             offset = 4 * 8,
-            base = pr.Fixed(22, 0),
-            bitSize = 22))
+            base = warm_tdm.AdcDsp.ACCUM_BASE,
+            bitSize = warm_tdm.AdcDsp.ACCUM_BASE.bitSize))
 
 
         self.add(pr.RemoteVariable(
             name = 'Diff',
             mode = 'RO',
             offset = 5 * 8,
-            base = pr.Fixed(22, 0),
-            bitSize = 22))
+            base = warm_tdm.AdcDsp.ACCUM_BASE,
+            bitSize = warm_tdm.AdcDsp.ACCUM_BASE.bitSize))
 
         self.add(pr.RemoteVariable(
             name = 'PidResult',
             mode = 'RO',
             offset = 6 * 8,
             disp = '{:0.03f}',
-            base = pr.Fixed(40, 17),
-            bitSize = 40))
+            base = warm_tdm.AdcDsp.RESULT_BASE,
+            bitSize = warm_tdm.AdcDsp.RESULT_BASE.bitSize))
 
         self.add(pr.RemoteVariable(
             name = 'Sq1FbPreRaw',
@@ -130,7 +141,7 @@ class PidDebugger(pr.DataReceiver):
             disp = '{:0.03f}',
             units = u'\u03bcA',
             dependencies = [self.Sq1FbPreRaw, self.Column],
-            linkedGet = lambda: fastDacDriver.AmpLoading.Amp[self.Column.value()].dacToOutCurrent(self.Sq1FbPreRaw.value())))
+            linkedGet = lambda: frontEnd.Channel[self.Column.value()].SQ1FbAmp.dacToOutCurrent(self.Sq1FbPreRaw.value())))
 
         self.add(pr.RemoteVariable(
             name = 'Sq1FbPostRaw',
@@ -145,7 +156,7 @@ class PidDebugger(pr.DataReceiver):
             disp = '{:0.03f}',
             units = u'\u03bcA',
             dependencies = [self.Sq1FbPostRaw, self.Column],
-            linkedGet = lambda: fastDacDriver.AmpLoading.Amp[self.Column.value()].dacToOutCurrent(self.Sq1FbPostRaw.value())))
+            linkedGet = lambda: frontEnd.Channel[self.Column.value()].SQ1FbAmp.dacToOutCurrent(self.Sq1FbPostRaw.value())))
 
         self.add(pr.RemoteVariable(
             name = 'FluxJumps',
@@ -157,6 +168,7 @@ class PidDebugger(pr.DataReceiver):
 
         self.add(pr.ArrayDevice(
             name = 'RowPids',
+            groups = ['NoConfig'],
             arrayClass = PidRowDebugger,
             number = numRows,
             arrayArgs = [{
@@ -171,7 +183,7 @@ class PidDebugger(pr.DataReceiver):
         raw = bytearray(fl)
         frame.read(raw, 0)
 
-        print(f'Got PID Debug frame for col {self.col}, row {raw[1]}, size {fl}')
+        #print(f'Got PID Debug frame for col {self.col}, row {raw[1]}, size {fl}')
         if fl != 72:
             return
 

@@ -1,4 +1,5 @@
 import pyrogue as pr
+import numpy as np
 
 class Ad5679R(pr.Device):
     def __init__(self, gain=1, **kwargs):
@@ -66,13 +67,11 @@ class Ad5679R(pr.Device):
         @self.command()
         def ZeroVoltages():
             self.setVoltages(list(range(16)), [0 for x in range(16)])
-            
+
 
     def _setVoltageFunc(self, chVar):
         def _setVoltage(value, write):
-            if 0 > value > self.gain * 2.5:
-                raise VariableError(f'Tried to set DAC voltage {value} outside of range 0 - {self.gain*2.5}')
-
+            value = np.clip(value, 0.0, 2.499)
             dacValue = int(round((value / (self.gain * 2.5)) * 2**16))
             chVar.set(value=dacValue, write=write)
 
@@ -100,6 +99,3 @@ class Ad5679R(pr.Device):
         # For display only
         for ch, v in zip(channels, voltages):
             self.DacVoltage[ch].set(v, write=True)
-        
-
-

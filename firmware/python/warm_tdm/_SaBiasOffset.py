@@ -2,16 +2,18 @@ import pyrogue as pr
 import numpy as np
 
 class SaBiasOffset(pr.Device):
-    def __init__(self, dac, waveformTrigger, **kwargs):
+    def __init__(self, dac, frontEnd, waveformTrigger, **kwargs):
         super().__init__(**kwargs)
 
         self.shunt = 15.0e3
 
         self._dac = dac
+        self._amps = [frontEnd.Channel[x].SAAmp for x in range(8)]
         self._waveformTrigger = waveformTrigger
 
         self.add(pr.LocalVariable(
             name = 'TriggerWaveform',
+            groups = ['NoConfig'],
             value = False))
 
 
@@ -23,6 +25,7 @@ class SaBiasOffset(pr.Device):
 
             self.add(pr.LinkVariable(
                 name = f'BiasVoltage[{i}]',
+                groups = ['NoConfig'],                
                 dependencies = [self._dac.DacVoltage[i]],
                 linkedSet = _setBias,
                 linkedGet = lambda read, ch=i: self._dac.DacVoltage[ch].get(read=read),
@@ -37,18 +40,26 @@ class SaBiasOffset(pr.Device):
                 variable = self._dac.DacVoltage[i+8],
                 units = 'V'))
 
+
         for i in range(8):
+            def biasCurrentGet(read, ch=i):
+                return self._amps[ch].saBiasCurrent(self.BiasVoltage[ch].get(read=read)) * 1.0e6
+
+            def biasCurrentSet(value, write, ch=i):
+                self.BiasVoltage[ch].set(self._amps[ch].saBiasDacVoltage(value/1.0e6), write=write)
+            
             self.add(pr.LinkVariable(
                 name = f'BiasCurrent[{i}]',
                 dependencies = [self.BiasVoltage[i]],
-                linkedGet = lambda read, ch=i: self.BiasVoltage[ch].get(read=read) * 1e6 / self.shunt,
-                linkedSet = lambda value, write, ch=i: self.BiasVoltage[ch].set((value/1e6) * self.shunt, write=write),
+                linkedGet = biasCurrentGet,
+                linkedSet = biasCurrentSet,
                 disp = '{:0.01f}',
                 units = u'\u03bcA'))
 
         self.add(pr.LinkVariable(
             name = 'OffsetVoltageArray',
             hidden = True,
+            groups = ['NoConfig'],            
             dependencies = [x for x in self.OffsetVoltage.values()],
             linkedGet = lambda read, index: self.OffsetVoltage[index].get(read) if index != -1 else np.array([x.get(read=read) for x in self.OffsetVoltage.values()])))
 

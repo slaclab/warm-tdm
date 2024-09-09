@@ -83,39 +83,41 @@ architecture rtl of TimingTx is
       xbarTimingSel : slv(1 downto 0);
 
       -- Config
-      runMode           : sl;
-      softwareRowStrobe : sl;
-      rowPeriod         : slv(31 downto 0);
-      numRows           : slv(15 downto 0);
-      sampleStartTime   : slv(31 downto 0);
-      sampleEndTime     : slv(31 downto 0);
-      loadDacsTime      : slv(31 downto 0);
+      runMode             : sl;
+      softwareRowStrobe   : sl;
+      rowPeriod           : slv(31 downto 0);
+      numRows             : slv(15 downto 0);
+      sampleStartTime     : slv(31 downto 0);
+      sampleEndTime       : slv(31 downto 0);
+      loadDacsTime        : slv(31 downto 0);
+      waveformCaptureTime : slv(31 downto 0);
       -- State
-      timingData        : LocalTimingType;
-      timingTx          : slv(7 downto 0);
-      timingTxK         : slv(0 downto 0);
+      timingData          : LocalTimingType;
+      timingTx            : slv(7 downto 0);
+      timingTxK           : slv(0 downto 0);
       -- AXIL
-      axilWriteSlave    : AxiLiteWriteSlaveType;
-      axilReadSlave     : AxiLiteReadSlaveType;
+      axilWriteSlave      : AxiLiteWriteSlaveType;
+      axilReadSlave       : AxiLiteReadSlaveType;
    end record RegType;
 
    constant REG_INIT_C : RegType := (
-      xbarDataSel       => ite(RING_ADDR_0_G, "11", "00"),  -- Temporary loopback only
-      xbarClkSel        => ite(RING_ADDR_0_G, "11", "00"),
-      xbarMgtSel        => "01",
-      xbarTimingSel     => "01",
-      runMode           => SOFTWARE_C,
-      softwareRowStrobe => '0',
-      rowPeriod         => toSlv(250, 32),                  -- 125 MHz / 256 = 488 kHz
-      numRows           => toSlv(256, 16),                  -- Default of 64 rows
-      sampleStartTime   => toSlv(32, 32),
-      sampleEndTime     => toSlv(160, 32),                  -- Could be corner case here?
-      loadDacsTime      => toSlv(200, 32),
-      timingTx          => IDLE_C,
-      timingTxK         => "1",
-      timingData        => LOCAL_TIMING_INIT_C,
-      axilWriteSlave    => AXI_LITE_WRITE_SLAVE_INIT_C,
-      axilReadSlave     => AXI_LITE_READ_SLAVE_INIT_C);
+      xbarDataSel         => ite(RING_ADDR_0_G, "11", "00"),  -- Temporary loopback only
+      xbarClkSel          => ite(RING_ADDR_0_G, "11", "00"),
+      xbarMgtSel          => "01",
+      xbarTimingSel       => "01",
+      runMode             => SOFTWARE_C,
+      softwareRowStrobe   => '0',
+      rowPeriod           => toSlv(250, 32),                  -- 125 MHz / 256 = 488 kHz
+      numRows             => toSlv(256, 16),                  -- Default of 64 rows
+      sampleStartTime     => toSlv(32, 32),
+      sampleEndTime       => toSlv(160, 32),                  -- Could be corner case here?
+      loadDacsTime        => toSlv(200, 32),
+      waveformCaptureTime => toSlv(2, 32),
+      timingTx            => IDLE_C,
+      timingTxK           => "1",
+      timingData          => LOCAL_TIMING_INIT_C,
+      axilWriteSlave      => AXI_LITE_WRITE_SLAVE_INIT_C,
+      axilReadSlave       => AXI_LITE_READ_SLAVE_INIT_C);
 
    signal r   : RegType := REG_INIT_C;
    signal rin : RegType;
@@ -218,8 +220,6 @@ begin
 
       -- Strobed signals
       v.softwareRowStrobe := '0';
-      v.timingData.rawAdc := '0';
-
 
       -- Configuration
       axiSlaveRegister(axilEp, X"00", 0, v.timingData.startRun);
@@ -231,8 +231,9 @@ begin
       axiSlaveRegister(axilEp, X"18", 0, v.runMode);
       axiSlaveRegister(axilEp, X"1C", 0, v.softwareRowStrobe);
 
-      axiSlaveRegister(axilEp, X"20", 0, v.timingData.rawAdc);
+      axiSlaveRegister(axilEp, X"20", 0, v.timingData.waveformCapture);
       axiSlaveRegister(axilEp, X"24", 0, v.loadDacsTime);
+      axiSlaveRegister(axilEp, X"28", 0, v.waveformCaptureTime);
 
       -- Status
       axiSlaveRegisterR(axilEp, X"30", 0, r.timingData.running);
@@ -266,8 +267,9 @@ begin
 
       v.timingData.rowStrobe := '0';
 
-      if (r.timingData.rawAdc = '1') then
-         v.timingTx := RAW_ADC_C;
+      if (r.timingData.waveformCapture = '1' and r.waveformCaptureTime = r.timingData.rowTime) then
+         v.timingTx                   := WAVEFORM_CAPTURE_C;
+         v.timingData.waveformCapture := '0';
       end if;
 
       -- Start run
@@ -278,15 +280,15 @@ begin
          v.timingData.rowTime      := (others => '0');
          v.timingData.readoutCount := (others => '0');
 
-         v.timingTx                := START_RUN_C;
+         v.timingTx := START_RUN_C;
       end if;
 
 
       if (r.timingData.running = '1') then
-         v.timingData.startRun     := '0';         
+         v.timingData.startRun := '0';
          -- Count the things
-         v.timingData.runTime := r.timingData.runTime + 1;
-         v.timingData.rowTime := r.timingData.rowTime + 1;
+         v.timingData.runTime  := r.timingData.runTime + 1;
+         v.timingData.rowTime  := r.timingData.rowTime + 1;
 
          if ((r.runMode = HARDWARE_C and r.timingData.rowTime = r.rowPeriod-1) or
              (r.runMode = SOFTWARE_C and r.softwareRowStrobe = '1')) then
