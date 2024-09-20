@@ -8,32 +8,6 @@ import numpy as np
 import warm_tdm
 
 
-class ArrayDevice(pr.Device):
-    """ """
-    def __init__(self, *, arrayClass, number, stride=0, arrayArgs=None, **kwargs):
-        if 'name' not in kwargs:
-            kwargs['name'] = f'{arrayClass.__name__}Array'
-        super().__init__(**kwargs)
-
-        if arrayArgs is None:
-            arrayArgs = [{} for x in range(number)]
-        elif isinstance(arrayArgs, dict):
-            arrayArgs = [arrayArgs.copy() for x in range(number)]
-
-        print(f'{arrayArgs=}')
-        for i in range(number):
-            args = arrayArgs[i]
-            print(f'Adding device, args={args}')
-            if 'name' in args:
-                name = args.pop('name')
-                name = f'{name}[{i}]'
-            else:
-                name = f'{arrayClass.__name__}[{i}]'
-            self.add(arrayClass(
-                name=name,
-                offset=i*stride,
-                **args))
-
 
 class ColumnFpgaBoard(pr.Device):
     def __init__(self,
@@ -43,17 +17,8 @@ class ColumnFpgaBoard(pr.Device):
                  **kwargs):
         super().__init__(**kwargs)
 
-        # SA Signal Amplifier Models        
-#         self.add(pr.ArrayDevice(
-#             name = 'AmpLoading',
-#             arrayClass = amplifierClass,
-#             number = 8,
-#             arrayArgs = [{'name': f'Amp[{i}]'} for i in range(8)]))
-        
-#         self.amplifiers = [self.AmpLoading.Amp[i] for i in range(8)]
-
         self.add(frontEndClass(
-            name='FrontEnd'))
+            name='AnalogFrontEnd'))
  
         self.add(warm_tdm.WarmTdmCore2(
             name = 'WarmTdmCore',
@@ -63,47 +28,55 @@ class ColumnFpgaBoard(pr.Device):
 
         self.add(warm_tdm.DataPath(
             offset = 0xC0300000,
-            expand = True,))
+            expand = True,
+            rows=rows,
+            frontEnd=self.AnalogFrontEnd))
 
         self.add(warm_tdm.Ad5679R(
             name = 'SaBiasDac',
-            hidden = True,
-            offset = 0xC0700000))
+            hidden = False,
+            offset = 0xC0800400))
 
-        self.add(warm_tdm.SaBiasOffset(
-            dac = self.SaBiasDac,
-            frontEnd = self.FrontEnd,
-            waveformTrigger = self.DataPath.WaveformCapture.WaveformTrigger))
+        self.add(warm_tdm.Ad5679R(
+            name = 'SaOffsetDac',
+            hidden = False,
+            offset = 0xC0800800))
+        
+        self.add(warm_tdm.SaBiasOffset2(
+            name = 'SaBiasOffset',            
+            saBiasDac = self.SaBiasDac,
+            saOffsetDac = self.SaOffsetDac,
+            frontEnd = self.AnalogFrontEnd))
 
         self.add(warm_tdm.Ad5679R(
             name = 'TesBiasDac',
-            hidden = True,
-            offset = 0xC0701000))
+            hidden = False,
+            offset = 0xC0800000))
 
-        self.add(warm_tdm.TesBias(
-            dac = self.TesBiasDac))
+        self.add(warm_tdm.TesBias2(
+            name = 'TesBias',
+            offset = 0xE0000000,            
+            dac = self.TesBiasDac,
+            frontEnd = self.AnalogFrontEnd))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SAFb',
             offset = 0xC0600000,
-            frontEnd = self.FrontEnd,
-            shunt = 7.15e3,
+            frontEnd = self.AnalogFrontEnd,
             rows = rows,            
         ))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Bias',
             offset = 0xC0400000,
-            frontEnd = self.FrontEnd,
-            shunt = 10.0e3,
+            frontEnd = self.AnalogFrontEnd,
             rows = rows,
         ))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Fb',
             offset =0xC0500000,
-            frontEnd = self.FrontEnd,
-            shunt = 11.3e3,
+            frontEnd = self.AnalogFrontEnd,
             rows = rows,
         ))
 
@@ -129,12 +102,13 @@ class ColumnFpgaBoard(pr.Device):
             #print(f'ColumnModule._saOutGet({read=}, {index=}, {check=})')
             with self.root.updateGroup():
                 adcs = self.SaOutAdc.get(read=read, index=index, check=check)
-                offsets = self.SaBiasOffset.OffsetVoltageArray.get(read=read, index=index, check=check)
+                offsetsP = self.SaBiasOffset.OffsetVoltagePArray.get(read=read, index=index, check=check)
+                offsetsN = self.SaBiasOffset.OffsetVoltageNArray.get(read=read, index=index, check=check)                
                 if index == -1:
-                    ret = np.array([self.FrontEnd.Channel[i].SaAmp.ampVin(adcs[i], offsets[i]) * 1e3 for i in range(8)])
+                    ret = np.array([self.AnalogFrontEnd.Channel[i].SAAmp.ampVin(adcs[i], offsetsP[i], offsetsN[i]) * 1e3 for i in range(8)])
                     return ret
                 else:
-                    ret = self.FrontEnd.Channel[index].SaAmp.ampVin(adcs, offsets) * 1e3
+                    ret = self.AnalogFrontEnd.Channel[index].SAAmp.ampVin(adcs, offsetsP, offsetsN) * 1e3
                     return ret
 
         def _saOutNormGet(*, read=True, index=-1, check=True):
@@ -143,10 +117,10 @@ class ColumnFpgaBoard(pr.Device):
                 adcs = self.SaOutAdc.get(read=read, index=index, check=check)
                 offset = 0.0
                 if index == -1:
-                    ret = np.array([self.FrontEnd.Channel[i].SaAmp.ampVin(adcs[i], offset) * 1e3 for i in range(8)])
+                    ret = np.array([self.AnalogFrontEnd.Channel[i].SAAmp.ampVin(adcs[i], offset) * 1e3 for i in range(8)])
                     return ret
                 else:
-                    ret = self.FrontEnd.Channel[i].SaAmp.ampVin(adcs, offset) * 1e3
+                    ret = self.AnalogFrontEnd.Channel[index].SAAmp.ampVin(adcs, offset) * 1e3
                     return ret
 
 

@@ -36,11 +36,9 @@ class GroupConfig(object):
 
     def __init__(self, *,
                  groupId,
-                 numColumnBoards,
-                 
                  rowBoards,
-
-                 columnBoards, host, rowOrder=None):
+                 columnBoards,
+                 host):
 
         self.rowBoards = rowBoards
         self.columnBoards = columnBoards
@@ -55,9 +53,7 @@ class GroupConfig(object):
         if self.numRows == 0:
             self.numRows = 1
 
-        self.rowOrder = rowOrder
-        if self.rowOrder is None:
-            self.rowOrder = [i for i in range(len(self.rowMap))],
+        self.rowOrder = [i for i in range(len(self.rowMap))],
 
     def colSetIter(self, value, index):
         # Construct a generator to loop over

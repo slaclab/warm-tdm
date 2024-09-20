@@ -21,11 +21,12 @@ class ArrayVariableDevice(pr.Device):
 # Dependencies must be passed in Column order for generic
 # get and set functions to work.
 class GroupLinkVariable(pr.LinkVariable):
+    def __init__(self, tuneEnVar=None, groups='TopApi', disp='{:0.4f}', **kwargs):
         super().__init__(
             linkedSet=self._set,
             linkedGet=self._get,
             disp=disp,
-            groups = lgroups,
+            groups = groups,
             **kwargs)
         self.tuneEnVar = tuneEnVar
         deps =  kwargs['dependencies']
@@ -256,15 +257,17 @@ class Group(pr.Device):
         # Add the Hardware Device tree
         self.add(warm_tdm.HardwareGroup(
             groupId=groupId,
-            frontEndClass=frontEndClass,
+#            frontEndClass=frontEndClass,
             dataWriter=dataWriter,
             simulation=simulation,
             emulate=emulate,
             host=groupConfig.host,
             colBoards=groupConfig.columnBoards,
-            colDevClass=colDevClass,
+            colBoardClass=colBoardClass,
+            colFeClass=colFeClass,
             rowBoards=groupConfig.rowBoards,
-            rowDevClass=rowDevClass,
+            rowBoardClass=rowBoardClass,
+            rowFeClass=rowFeClass,
             rows=rows,
             groups=['Hardware'],
             expand=True))

@@ -106,3 +106,53 @@ class ColumnBoardC00FebBypassCh0(FrontEndDevice):
         for i in range(1, 8):
             self.add(warm_tdm.ColumnBoardC00StandardChannel(
                 name = f'Channel[{i}]'))
+
+class FpgaBoardColumnFebChannel(FrontEndDevice):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        self.add(warm_tdm.FEAmplifier4(
+            name = 'SAAmp'))
+
+        self.add(warm_tdm.FastDacAmplifierDiff(
+            name = 'SAFbAmp',
+            defaults = {
+                'Invert': False,
+                'InputR': 100.0,
+                'FbR': 402.0,        
+                'ShuntR': 3.48e3        
+            }
+        ))
+
+        self.add(warm_tdm.FastDacAmplifierDiff(
+            name = 'SQ1BiasAmp',
+            defaults = {
+                'Invert': False,
+                'InputR': 100.0,
+                'FbR': 402.0,                
+                'ShuntR': 4.99e3
+            }
+        ))
+
+        self.add(warm_tdm.FastDacAmplifierDiff(
+            name = 'SQ1FbAmp',
+            defaults = {
+                'Invert': False,
+                'InputR': 100.0,
+                'FbR': 402.0,
+                'ShuntR': 1.0e3
+            }
+        ))
+
+        self.add(warm_tdm.TesBiasAmpC00(
+            name = 'TesBiasAmp',
+            defaults = {
+                'Invert': True}))
+        
+class FpgaBoardColumnFeb(FrontEndDevice):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        
+        for i in range(8):
+            self.add(warm_tdm.FpgaBoardColumnFebChannel(
+                name = f'Channel[{i}]'))

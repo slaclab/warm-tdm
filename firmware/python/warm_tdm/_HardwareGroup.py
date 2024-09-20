@@ -19,9 +19,9 @@ class HardwareGroup(pyrogue.Device):
     def __init__(
             self,
             groupId,
-            colDevClass,
+            colBoardClass,
             colFeClass,
-            rowDevClass,
+            rowBoardClass,
             rowFeClass,
             dataWriter,
             simulation=False,
@@ -79,7 +79,7 @@ class HardwareGroup(pyrogue.Device):
                 
 
             # Instantiate the board Device tree and link it to the SRP
-            self.add(colDevClass(
+            self.add(colBoardClass(
                 name=f'ColumnBoard[{index}]',
                 frontEndClass=colFeClass,
                 memBase=srp,
@@ -140,7 +140,7 @@ class HardwareGroup(pyrogue.Device):
                 srp == srpStream
 
             # Instantiate the board Device tree and link it to the SRP
-            self.add(rowDevClass(
+            self.add(rowBoardClass(
                 name=f'RowBoard[{rowIndex}]',
                 memBase=srp,
                 expand=True,

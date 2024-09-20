@@ -85,13 +85,13 @@ parser.add_argument(
 
 parser.add_argument(
     "--columnFrontEnd",
-    choices= ['Standard', 'Ch0Feb'],
-    default= 'Standard')
+    choices= ['Legacy', 'LegacyCh0Feb', 'FpgaColFeb'],
+    default= 'Legacy')
 
 parser.add_argument(
     "--rowFrontEnd",
-    choices= ['Standard'],
-    default= 'Standard')
+    choices= ['Legacy'],
+    default= 'Legacy')
 
 
 args = parser.parse_known_args()[0]
@@ -102,33 +102,36 @@ colBoardDict = {
     'Legacy': warm_tdm.ColumnModule,
     'FPGA': warm_tdm.ColumnFpgaBoard}
 
-colBoardClass = colBoardDict[args.columnBoard]
+colBoardClass = colBoardDict[args.columnBoardType]
 
 colFeDict = {
-    'Standard': warm_tdm.ColumnBoardC00StandardFrontEnd,
-    'Ch0Feb': warm_tdm.ColumnBoardC00FebBypassCh0}
+    'Legacy': warm_tdm.ColumnBoardC00StandardFrontEnd,
+    'LegacyCh0Feb': warm_tdm.ColumnBoardC00FebBypassCh0,
+    'FpgaColFeb': warm_tdm.FpgaBoardColumnFeb
+}
 
 colFeClass = colFeDict[args.columnFrontEnd]
 
 rowBoardDict = {
     'Legacy': warm_tdm.RowModule}
 
-rowBoardClass = rowBoardDict[args.rowBoard]
+rowBoardClass = rowBoardDict[args.rowBoardType]
 
 rowFeDict = {
-    'Standard': warm_tdm.RowBoardC00StandardFrontEnd}
+    'Legacy': None}
 
-colFeClass = colFeDict[args.columnFrontEnd]
+rowFeClass = colFeDict[args.columnFrontEnd]
 groups = [{
     'host': args.ip,
-    'colBoards': args.cols,
-    'rowBoards': args.rows}]
+    'colBoards': args.columnBoards,
+    'rowBoards': args.rowBoards}]
 
 # Setup configuration
-config = warm_tdm_api.GroupConfig(rowBoards=groups[0]['rowBoards'],
+config = warm_tdm_api.GroupConfig(groupId = 0,
+                                  rowBoards=groups[0]['rowBoards'],
                                   columnBoards=groups[0]['colBoards'],
-                                  host=groups[0]['host'],
-                                  rowOrder=None)
+                                  host=groups[0]['host'])
+
 
 with warm_tdm_api.GroupRoot(
         colBoardClass=colBoardClass,

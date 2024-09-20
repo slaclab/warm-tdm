@@ -84,7 +84,7 @@ class Ad5679R(pr.Device):
 
         return _getVoltage
 
-
+    # This is broken
     def setVoltages(self, channels, voltages):
         # Set the input voltages
         for ch, v in zip(channels, voltages):

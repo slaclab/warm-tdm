@@ -28,7 +28,8 @@ def saOffset(*, group, process=None):
 
     # Final output should be near SaBias, so start near there
     # Start at half the current bias
-    control =  group.SaBiasVoltage.get()/2.0  #np.zeros(len(group.ColumnMap.value()))
+    control = np.zeros(len(group.ColumnMap.value()))
+#     control = group.SaBiasVoltage.get()/2.0  
 
     group.SaOffset.set(value=control)
 
@@ -43,22 +44,29 @@ def saOffset(*, group, process=None):
     mult = np.array([1 if en else 0 for en in group.ColTuneEnable.value()],np.float64)
     count = 0
 
+    print('Starting PID')
     while count < maxLoops:
         count += 1
+        print(f'Loop {count}')
 
         current = group.SaOutAdc.get()
         masked = current * mult
 
         # All channels have converged
-        if (max(masked) < precision) and (min(masked) > (-1.0*precision)):
+        done = [precision > masked[i] > (-1.0)*precision for i in range(len(masked))]
+        if all(done):
             break
+#         if (max(masked) < precision) and (min(masked) > (-1.0*precision)):
+#             break
 
         for i, p in enumerate(pid):
-            change = p(masked[i])
-            control[i] = np.clip(control[i] + change, 0.0, 2.499)
-            #print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')
+            if done[i] == False:
+                change = p(masked[i])
+                control[i] = np.clip(control[i] + change, -2.499, 2.499)
+                group.SaOffset.set(control[i], index=i)
+                print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')
 
-        group.SaOffset.set(control)
+#         group.SaOffset.set(control)
 
         if process is not None and process._runEn is False:
             return control
