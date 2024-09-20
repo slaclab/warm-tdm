@@ -188,13 +188,14 @@ begin
 
 
       -- TES Bias Amp Model
+      -- Output is swapped on schematic
       U_ColumnFebTesBiasAmp_1 : entity warm_tdm.ColumnFebTesBiasAmp
          port map (
             tesBiasDacP => tesBiasDacP(i),  -- [in]
             tesBiasDacN => tesBiasDacN(i),  -- [in]
             delatch     => tesDelatch(i),   -- [in]
-            tesBiasP    => tesBiasP(i),     -- [out]
-            tesBiasN    => tesBiasN(i));    -- [out]
+            tesBiasP    => tesBiasN(i),     -- [out]
+            tesBiasN    => tesBiasP(i));    -- [out]
 
       -- SA FB Amp Model
       U_ColumnFebFastDacAmp_SA_FB : entity warm_tdm.ColumnFebFastDacAmp
@@ -202,7 +203,7 @@ begin
 --             IN_LOAD_R_G => IN_LOAD_R_G,
 --             FB_R_G      => FB_R_G,
 --             GAIN_R_G    => GAIN_R_G,
-            SHUNT_R_G => 3.84e3)
+            SHUNT_R_G => 3.48e3)
          port map (
             dacP => saFbDacP(i),        -- [in]
             dacN => saFbDacN(i),        -- [in]

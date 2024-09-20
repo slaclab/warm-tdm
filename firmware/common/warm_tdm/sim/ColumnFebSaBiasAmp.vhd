@@ -29,9 +29,12 @@ entity ColumnFebSaBiasAmp is
 
    generic (
       SA_BIAS_OUT_IMPEDANCE_G : real := 14.99e3;
-      AMP_1_GAIN_G            : real := 11.99;
-      AMP_2_GAIN_G            : real := (100.0 / 33.0));
-
+      STAGE_1_RG_G            : real := 18.2;
+      STAGE_1_RFB_G           : real := 100.0;
+      STAGE_2_RGAIN_G         : real := 33.0;
+      STAGE_2_RGND_G          : real := 100.0;
+      STAGE_2_ROFFSET_G       : real := 33.0;
+      STAGE_2_RFB_G           : real := 100.0);
    port (
       -- DAC inputs
       saOffsetDacP : in real;
@@ -56,9 +59,6 @@ end entity ColumnFebSaBiasAmp;
 
 architecture sim of ColumnFebSaBiasAmp is
 
-   signal amp1InP : real;
-   signal amp1InN : real;
-
    signal amp1OutP : real;
    signal amp1OutN : real;
 
@@ -75,11 +75,11 @@ begin
 
 
    -- First stage amplification
-   amp1OutP <= saBiasInP * AMP_1_GAIN_G;
-   amp1OutN <= saBiasInN * AMP_1_GAIN_G;
+   amp1OutP <= (STAGE_1_RG_G * saBiasInP + STAGE_1_RFB_G * saBiasInP - saBiasInN * STAGE_1_RG_G) / STAGE_1_RG_G;
+   amp1OutN <= (STAGE_1_RG_G * saBiasInN + STAGE_1_RFB_G * saBiasInN - saBiasInP * STAGE_1_RG_G) / STAGE_1_RG_G;
 
    -- Second stage amplification
-   saSigOutP <= (amp1OutP * AMP_2_GAIN_G) - (saOffsetDacP * AMP_2_GAIN_G);
-   saSigOutN <= (amp1OutN * AMP_2_GAIN_G) - (saOffsetDacN * AMP_2_GAIN_G);
+   saSigOutP <= ((-1.0)*STAGE_2_RFB_G*STAGE_2_RGAIN_G*saOffsetDacP - STAGE_2_RFB_G*STAGE_2_RGND_G*saOffsetDacP + STAGE_2_RFB_G*STAGE_2_RGND_G*amp1OutP + STAGE_2_RGND_G*STAGE_2_ROFFSET_G*amp1OutP)/(STAGE_2_RGAIN_G*STAGE_2_ROFFSET_G + STAGE_2_RGND_G*STAGE_2_ROFFSET_G);
+   saSigOutN <= ((-1.0)*STAGE_2_RFB_G*STAGE_2_RGAIN_G*saOffsetDacN - STAGE_2_RFB_G*STAGE_2_RGND_G*saOffsetDacN + STAGE_2_RFB_G*STAGE_2_RGND_G*amp1OutN + STAGE_2_RGND_G*STAGE_2_ROFFSET_G*amp1OutN)/(STAGE_2_RGAIN_G*STAGE_2_ROFFSET_G + STAGE_2_RGND_G*STAGE_2_ROFFSET_G);
 
 end sim;

@@ -30,7 +30,7 @@ entity ColumnFebFastDacAmp is
       IN_LOAD_R_G  : real := 24.9;
       FB_R_G       : real := 402.0;
       GAIN_R_G     : real := 100.0;
-      SHUNT_R_G    : real := 3.84e3);
+      SHUNT_R_G    : real := 3.48e3);
    port (
       -- DAC input currents
       dacP : in real;

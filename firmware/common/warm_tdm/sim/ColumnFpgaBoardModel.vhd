@@ -35,8 +35,8 @@ entity ColumnFpgaBoardModel is
       SIM_PGP_PORT_NUM_G      : integer               := 7000;
       SIM_ETH_SRP_PORT_NUM_G  : integer               := 8000;
       SIM_ETH_DATA_PORT_NUM_G : integer               := 9000;
-      ADC_R_GAIN_G            : RealArray(7 downto 0) := (others => 4.99e3);
-      ADC_R_FB_G              : RealArray(7 downto 0) := (others => 4.99e3));
+      ADC_R_GAIN_G            : RealArray(7 downto 0) := (others => 1.00e3);
+      ADC_R_FB_G              : RealArray(7 downto 0) := (others => 3.66e3));
    port (
       -- Front End Connector
       feThermistor : in    slv(1 downto 0) := "00";
@@ -326,17 +326,17 @@ begin
    -------------------------------------------------------------------------------------------------
    -- Clocks
    -------------------------------------------------------------------------------------------------
-   U_ClkRst_REFCLK_312 : entity surf.ClkRst
+   U_ClkRst_REFCLK_250 : entity surf.ClkRst
       generic map (
-         CLK_PERIOD_G => 3.2 ns,
+         CLK_PERIOD_G => 4.0 ns,
          CLK_DELAY_G  => 1 ns)
       port map (
          clkP => gtRefClk0P,
          clkN => gtRefClk0N);
 
-   U_ClkRst_REFCLK_250 : entity surf.ClkRst
+   U_ClkRst_REFCLK_125 : entity surf.ClkRst
       generic map (
-         CLK_PERIOD_G => 4 ns,
+         CLK_PERIOD_G => 8.0 ns,
          CLK_DELAY_G  => 1 ns)
       port map (
          clkP => gtRefClk1P,
