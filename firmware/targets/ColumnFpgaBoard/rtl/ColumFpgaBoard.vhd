@@ -2,10 +2,10 @@
 -- Title      : Warm TDM Row Module
 -------------------------------------------------------------------------------
 -- Company    : SLAC National Accelerator Laboratory
--- Platform   : 
+-- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
--- Description: Top level of ColumnFpgaBoard 
+-- Description: Top level of ColumnFpgaBoard
 -------------------------------------------------------------------------------
 -- This file is part of Warm TDM. It is subject to
 -- the license terms in the LICENSE.txt file found in the top-level directory
@@ -216,7 +216,7 @@ end entity ColumnFpgaBoard;
 
 architecture rtl of ColumnFpgaBoard is
 
-   constant NUM_AXIL_MASTERS_C  : integer := 8;
+   constant NUM_AXIL_MASTERS_C  : integer := 9;
    constant AXIL_ADC_CONFIG_C   : integer := 0;
    constant AXIL_DATA_PATH_C    : integer := 1;
    constant AXIL_SQ1_BIAS_DAC_C : integer := 2;
@@ -225,6 +225,7 @@ architecture rtl of ColumnFpgaBoard is
    constant AXIL_AUX_DAC_C      : integer := 5;
    constant AXIL_FE_SPI_C       : integer := 6;
    constant AXIL_FE_I2C_C       : integer := 7;
+   constant AXIL_TES_DELATCH_C  : integer := 8;
 
    constant AXIL_XBAR_CFG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := (
       AXIL_ADC_CONFIG_C   => (
@@ -258,6 +259,10 @@ architecture rtl of ColumnFpgaBoard is
       AXIL_FE_I2C_C       => (
          baseAddr         => APP_BASE_ADDR_C + X"10000000",
          addrBits         => 24,
+         connectivity     => X"FFFF"),
+      AXIL_TES_DELATCH_C  => (
+         baseAddr         => APP_BASE_ADDR_C + X"20000000",
+         addrBits         => 8,
          connectivity     => X"FFFF"));
 
    signal axilClk : sl;
@@ -300,6 +305,8 @@ architecture rtl of ColumnFpgaBoard is
    signal sq1FbDacs      : Slv14Array(7 downto 0);
 
    signal adc : Ad9681SerialType;
+
+   signal tesDelatchInt : slv(31 downto 0);
 
 begin
 
@@ -483,6 +490,26 @@ begin
             scl            => feI2cScl(i),              -- [inout]
             sda            => feI2cSda(i));             -- [inout]
    end generate GEN_FE_I2C;
+
+   -------------------------------------------------------------------------------------------------
+   -- TES Bias Delatch
+   -------------------------------------------------------------------------------------------------
+   U_AxiLiteRegs_1 : entity surf.AxiLiteRegs
+      generic map (
+         TPD_G           => TPD_G,
+         NUM_WRITE_REG_G => 1,
+         NUM_READ_REG_G  => 1)
+      port map (
+         axiClk           => axilClk,                                  -- [in]
+         axiClkRst        => axilRst,                                  -- [in]
+         axiReadMaster    => locAxilReadMasters(AXIL_TES_DELATCH_C),   -- [in]
+         axiReadSlave     => locAxilReadSlaves(AXIL_TES_DELATCH_C),    -- [out]
+         axiWriteMaster   => locAxilWriteMasters(AXIL_TES_DELATCH_C),  -- [in]
+         axiWriteSlave    => locAxilWriteSlaves(AXIL_TES_DELATCH_C),   -- [out]
+         writeRegister(0) => tesDelatchInt);                           -- [out]
+
+   tesDelatch <= tesDelatchInt(7 downto 0);
+
 
 
    -------------------------------------------------------------------------------------------------
