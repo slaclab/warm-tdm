@@ -170,10 +170,12 @@ begin
 
       -- SA Bias Amp Model
       U_ColumnFebSaBiasAmp_1 : entity warm_tdm.ColumnFebSaBiasAmp
---          generic map (
---             SA_BIAS_OUT_IMPEDANCE_G => SA_BIAS_OUT_IMPEDANCE_G,
---             AMP_1_GAIN_G            => AMP_1_GAIN_G,
---             AMP_2_GAIN_G            => AMP_2_GAIN_G)
+         generic map (
+            STAGE_1_RG_G      => 40.2,
+            STAGE_1_RFB_G     => 100.0,
+            STAGE_2_RGND_G    => 21.0,
+            STAGE_2_ROFFSET_G => 402.0,
+            STAGE_2_RFB_G     => 100.0)
          port map (
             saOffsetDacP => saOffsetDacP(i),  -- [in]
             saOffsetDacN => saOffsetDacN(i),  -- [in]

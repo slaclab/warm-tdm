@@ -27,10 +27,10 @@ use warm_tdm.SimPkg.all;
 entity ColumnLoadBoard is
 
    generic (
-      SA_BIAS_LOADS_G  : RealArray(7 downto 0) := (others => 100.0);
-      SA_FB_LOADS_G    : RealArray(7 downto 0) := (others => 100.0);
-      SQ1_BIAS_LOADS_G : RealArray(7 downto 0) := (others => 100.0);
-      SQ1_FB_LOADS_G   : RealArray(7 downto 0) := (others => 100.0));
+      SA_BIAS_LOADS_G  : RealArray(7 downto 0) := (others => 200.0);
+      SA_FB_LOADS_G    : RealArray(7 downto 0) := (others => 200.0);
+      SQ1_BIAS_LOADS_G : RealArray(7 downto 0) := (others => 200.0);
+      SQ1_FB_LOADS_G   : RealArray(7 downto 0) := (others => 200.0));
    port (
       tesBiasP   : in  RealArray(7 downto 0);
       tesBiasN   : in  RealArray(7 downto 0);
