@@ -41,6 +41,7 @@ entity DataPath is
    generic (
       TPD_G            : time             := 1 ns;
       SIMULATION_G     : boolean          := false;
+      NEGATE_ADC_G     : boolean          := true;
       AXIL_BASE_ADDR_G : slv(31 downto 0) := (others => '0');
       SQ1FB_RAM_ADDR_G : slv(31 downto 0) := (others => '0');
       IODELAY_GROUP_G  : string           := "DEFAULT_GROUP");
@@ -178,7 +179,7 @@ begin
          SIMULATION_G    => SIMULATION_G,
          DEFAULT_DELAY_G => 12,
          IODELAY_GROUP_G => IODELAY_GROUP_G,
-         NEGATE_G        => true)
+         NEGATE_G        => NEGATE_ADC_G)
       port map (
          axilClk         => timingRxClk125,          -- [in]
          axilRst         => timingRxRst125,          -- [in]

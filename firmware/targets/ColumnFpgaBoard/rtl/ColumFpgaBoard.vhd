@@ -563,6 +563,7 @@ begin
       generic map (
          TPD_G            => TPD_G,
          SIMULATION_G     => SIMULATION_G,
+         NEGATE_ADC_G     => false,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_DATA_PATH_C).baseAddr,
          SQ1FB_RAM_ADDR_G => AXIL_XBAR_CFG_C(AXIL_SQ1_FB_DAC_C).baseAddr,
          IODELAY_GROUP_G  => "IODELAY0")
