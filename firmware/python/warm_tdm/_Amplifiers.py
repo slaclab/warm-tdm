@@ -29,12 +29,12 @@ class SaAmplifier(pr.Device):
             dependencies = sa_vars,
             linkedGet = lambda read: (1-0.9) / (self.ampVin(1.0, 0.0)-self.ampVin(0.9, 0.0))))
 
-        self.add(pr.LinkVariable(
-            name = 'OffsetGain',
-            disp = '{:0.3f}',
-            mode = 'RO',
-            dependencies = sa_vars,
-            linkedGet = lambda read: (1-0.9) / (self.ampVin(0.0, 1.0)-self.ampVin(0.0, 0.9))))
+#         self.add(pr.LinkVariable(
+#             name = 'OffsetGain',
+#             disp = '{:0.3f}',
+#             mode = 'RO',
+#             dependencies = sa_vars,
+#             linkedGet = lambda read: (1-0.9) / (self.ampVin(0.0, 1.0)-self.ampVin(0.0, 0.9))))
             
 
 
@@ -268,7 +268,7 @@ class FEAmplifier4(SaAmplifier):
         self.add(pr.LocalVariable(
             name = 'R_CABLE',
             description = 'Cable resistance on SA Bias',
-            value = 100.0,
+            value = 200.0,
             units = u'\u03a9'))
 
         self.add(pr.LocalVariable(
@@ -289,15 +289,15 @@ class FEAmplifier4(SaAmplifier):
         self.add(pr.LocalVariable(
             name = 'RG1',
             description = 'R6',
-            value = 18.20,
+            value = 40.2,
             units = u'\u03a9'))
 
-        self.add(pr.LinkVariable(
-            name = 'GAIN_1',
-            description = 'First stage gain',
-            mode = 'RO',
-            dependencies = [self.RF1, self.RG1],
-            linkedGet = lambda read: 1 + (( 2 * self.RF1.get(read=read)) / self.RG1.get(read=read))))
+#         self.add(pr.LinkVariable(
+#             name = 'GAIN_1',
+#             description = 'First stage gain',
+#             mode = 'RO',
+#             dependencies = [self.RF1, self.RG1],
+#             linkedGet = lambda read: 1 + (( 2 * self.RF1.get(read=read)) / self.RG1.get(read=read))))
 
 
         # Stage 2 Summing Differential Input Amplifier
@@ -306,21 +306,22 @@ class FEAmplifier4(SaAmplifier):
             value = 100.0,
             units = u'\u03a9'))
 
-        self.add(pr.LocalVariable(
-            name = 'RIN2',
-            description = 'R15 and R17',
-            value = 33.0,
-            units = u'\u03a9'))
+#         self.add(pr.LocalVariable(
+#             name = 'RIN2',
+#             description = 'R15 and R17',
+#             value = 100.0,
+#             units = u'\u03a9'))
 
         self.add(pr.LocalVariable(
             name = 'ROFF2',
-            value = 33.0,
+            value = 402.0,
             units = u'\u03a9'))
 
         self.add(pr.LocalVariable(
             name = 'RGND2',
-            value = 100.0,
+            value = 21.0,
             units = u'\u03a9'))
+
 
         # Stage 3 Differential Amplifier
         self.add(pr.LocalVariable(
@@ -338,7 +339,7 @@ class FEAmplifier4(SaAmplifier):
             self.RF1,
             self.RG1,
             self.RF2,
-            self.RIN2,
+#            self.RIN2,
             self.ROFF2,
             self.RGND2,
             self.RF3,
@@ -391,35 +392,61 @@ class FEAmplifier4(SaAmplifier):
         eq2 = sympy.Eq((sa_signal_out0_n-sa_bias_out_n)/rf1, (sa_bias_out_n-sa_bias_out_p)/rg1)
 
         # Stage 2 differential amp equations
-        eq3 = sympy.Eq((sa_signal_out0_p-sa_signal_out1_p)/rin2, sa_signal_out1_p/rgnd2)
-        eq4 = sympy.Eq((sa_signal_out2_p-sa_signal_out1_p)/rf2, (sa_signal_out1_p-sa_offset_p)/roff2)
-        
-        eq5 = sympy.Eq((sa_signal_out0_n-sa_signal_out1_n)/rin2, sa_signal_out1_n/rgnd2)
-        eq6 = sympy.Eq((sa_signal_out2_n-sa_signal_out1_n)/rf2, (sa_signal_out1_n-sa_offset_n)/roff2)
+        eq3 = sympy.Eq((sa_signal_out2_p-sa_signal_out0_p)/rf2, sa_signal_out0_p/rgnd2 + (sa_signal_out0_p-sa_offset_p)/roff2)
+        eq4 = sympy.Eq((sa_signal_out2_n-sa_signal_out0_n)/rf2, sa_signal_out0_n/rgnd2 + (sa_signal_out0_n-sa_offset_n)/roff2)
 
         # Stage 3 differential amp equations
-        eq7 = sympy.Eq((sa_signal_out2_p-v)/rg3, (v-sa_signal_out3_n)/rf3)
-        eq8 = sympy.Eq((sa_signal_out2_n-v)/rg3, (v-sa_signal_out3_p)/rf3)        
+        eq5 = sympy.Eq((sa_signal_out2_p-v)/rg3, (v-sa_signal_out3_n)/rf3)
+        eq6 = sympy.Eq((sa_signal_out2_n-v)/rg3, (v-sa_signal_out3_p)/rf3)
+        
 
-        solutions = sympy.solve([eq1, eq2, eq3, eq4, eq5, eq6, eq7, eq8],
-                                [sa_bias_out_p, sa_bias_out_n, sa_signal_out0_p, sa_signal_out0_n,
-                                 sa_signal_out1_p, sa_signal_out1_n, sa_signal_out2_p, sa_signal_out2_n, sa_signal_out3_p, sa_signal_out3_n])
+        solve_vars =  [sa_bias_out_p, sa_bias_out_n, sa_signal_out0_p, sa_signal_out0_n,
+                       sa_signal_out2_p, sa_signal_out2_n, sa_signal_out3_p, sa_signal_out3_n]
 
-        self.sa_bias_expr = sympy.simplify(solutions[sa_bias_out_p]-solutions[sa_bias_out_n])
+        self.solutions = sympy.solve([eq1, eq2, eq3, eq4, eq5, eq6], [sa_bias_out_p, sa_bias_out_n, sa_signal_out0_p, sa_signal_out0_n, sa_signal_out2_p, sa_signal_out2_n])
+                               
+        # Expression for sa_bias_out (differential) given sa_signal_out3 and voffset
+        self.sa_bias_expr = sympy.simplify(self.solutions[sa_bias_out_p]-self.solutions[sa_bias_out_n])
+        print(self.sa_bias_expr)
 
+        self.solutions2 = sympy.solve([eq1, eq2, eq3, eq4, eq5, eq6], list(reversed(solve_vars)))
+
+        # Expressions to compute gain of each stage
+        self.sa_signal_out3_expr = sympy.simplify(self.solutions2[sa_signal_out3_p]-self.solutions2[sa_signal_out3_n])
+        self.sa_signal_out2_expr = sympy.simplify(self.solutions2[sa_signal_out2_p]-self.solutions2[sa_signal_out2_n])
+        self.sa_signal_out1_expr = sympy.simplify(self.solutions2[sa_signal_out0_p]-self.solutions2[sa_signal_out0_n])        
+
+        self.gain3_expr = (self.sa_signal_out3_expr/self.sa_signal_out2_expr).subs({sa_bias_out_p:.5, sa_bias_out_n:-.5, sa_offset_p:0, sa_offset_n:0})
+        self.gain2_expr = (self.sa_signal_out2_expr/self.sa_signal_out1_expr).subs({sa_bias_out_p:.5, sa_bias_out_n:-.5, sa_offset_p:0, sa_offset_n:0})
+        self.gain1_expr = (self.sa_signal_out1_expr).subs({sa_bias_out_p:.5, sa_bias_out_n:-.5, sa_offset_p:0, sa_offset_n:0})
+        self.offset_gain_expr = self.sa_signal_out3_expr.subs({sa_bias_out_p:0, sa_bias_out_n:0, sa_offset_p:.5, sa_offset_n:-.5})
 
         def setConversions():
+            resistors = {
+                rf1: self.RF1.value(),
+                rg1: self.RG1.value(),
+                rf2: self.RF2.value(),
+                rgnd2: self.RGND2.value(),
+#                rin2 : self.RIN2.value(),
+                roff2 : self.ROFF2.value(),
+                rf3: self.RF3.value(),
+                rg3: self.RG3.value()}
+
+            print(resistors)
+            print(self.sa_bias_expr.subs(resistors))
+            
             self.sa_bias_func = sympy.lambdify([sa_signal_out3_p, sa_signal_out3_n, sa_offset_p, sa_offset_n],
-                                         self.sa_bias_expr.subs({
-                                             rf1: self.RF1.value(),
-                                             rg1: self.RG1.value(),
-                                             rf2: self.RF2.value(),
-                                             rgnd2: self.RGND2.value(),
-                                             rin2 : self.RIN2.value(),
-                                             roff2 : self.ROFF2.value(),
-                                             rf3: self.RF3.value(),
-                                             rg3: self.RG3.value()}),
-                                         'numpy')
+                                               self.sa_bias_expr.subs(resistors),
+                                               'numpy')
+            
+            g3=  self.gain3_expr.subs(resistors)
+            g2=  self.gain2_expr.subs(resistors)
+            g1=  self.gain1_expr.subs(resistors)
+
+            self.gain3_func = sympy.lambdify([], self.gain3_expr.subs(resistors), 'numpy')
+            self.gain2_func = sympy.lambdify([], self.gain2_expr.subs(resistors), 'numpy')
+            self.gain1_func = sympy.lambdify([], self.gain1_expr.subs(resistors), 'numpy')
+            self.offset_gain_func = sympy.lambdify([], self.offset_gain_expr.subs(resistors), 'numpy')                        
             return 0
         
         setConversions()
@@ -430,11 +457,40 @@ class FEAmplifier4(SaAmplifier):
             linkedGet = setConversions))
 
         self.addGainVars(sa_vars)
+
+        self.add(pr.LinkVariable(
+            name = 'GAIN_1',
+            description = 'First stage gain',
+            mode = 'RO',
+            dependencies = [self.Conv],
+            linkedGet = lambda read: self.gain1_func()))
+
+        self.add(pr.LinkVariable(
+            name = 'GAIN_2',
+            description = 'Second stage gain',
+            mode = 'RO',
+            dependencies = [self.Conv],
+            linkedGet = lambda read: self.gain2_func()))
             
+        self.add(pr.LinkVariable(
+            name = 'GAIN_3',
+            description = 'Third stage gain',
+            mode = 'RO',
+            dependencies = [self.Conv],
+            linkedGet = lambda read: self.gain3_func()))
+
+        self.add(pr.LinkVariable(
+            name = 'OFFSET_GAIN',
+            description = 'Overall gain of offset voltage',
+            mode = 'RO',
+            dependencies = [self.Conv],
+            linkedGet = lambda read: self.offset_gain_func()))
+        
                                                         
 
     def saBiasCurrent(self, saBiasDacVoltageP, saBiasDacVoltageN=0.0):
-        vdiff = saBiasDacVoltageP - saBiasDacVoltageN
+        #vdiff = saBiasDacVoltageP + saBiasDacVoltageN # Invert negative side
+        vdiff = saBiasDacVoltageP * 2 # Invert P to double the voltage
         return vdiff / (self.R_CABLE.value() + (2*self.BIAS_SHUNT_R.value()))
 
     def saBiasDacVoltage(self, saBiasCurrent):
@@ -442,18 +498,22 @@ class FEAmplifier4(SaAmplifier):
         voltage = saBiasCurrent * resistance
 
         # Start with both dacs at midpoint
-        vp = 1.25 + (0.5 * voltage)
-        vn = 1.25 - (0.5 * voltage)
+        vp = (0.5 * voltage)
+        vn = (0.5 * voltage)
 
         # Clip to the dac range
         vp = np.clip(vp, 0, 2.5)
-        vn = np.clip(vn, 0, 2.5)
+        vn = 0.0#vn = np.clip(vn, 0, 2.5)
 
         return (vp, vn)
 
 
     def ampVin(self, vadc, voffsetP, voffsetN=0.0):
-        return self.sa_bias_func(vadc, 0, voffsetP, voffsetN)
+        print(f'ampVin({vadc=}, {voffsetP=}, {voffsetN=})')
+        print(f'Calling sa_bias_func({vadc/2}, {-vadc/2}, {voffsetP}, {-voffsetP})')
+        ret = self.sa_bias_func(vadc/2, -vadc/2, voffsetP, -voffsetP)
+        print(f'Result - {ret}')
+        return ret
 
 
 class FastDacAmplifierSE(pr.Device):
