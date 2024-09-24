@@ -28,8 +28,8 @@ def saOffset(*, group, process=None):
 
     # Final output should be near SaBias, so start near there
     # Start at half the current bias
-    control = np.zeros(len(group.ColumnMap.value()))
-#     control = group.SaBiasVoltage.get()/2.0  
+    # control = np.zeros(len(group.ColumnMap.value()))
+    control = group.SaBiasVoltage.get() * 0.9
 
     group.SaOffset.set(value=control)
 
@@ -62,7 +62,7 @@ def saOffset(*, group, process=None):
         for i, p in enumerate(pid):
             if done[i] == False:
                 change = p(masked[i])
-                control[i] = np.clip(control[i] + change, -2.499, 2.499)
+                control[i] = np.clip(control[i] + change, 0, 4.999)
                 group.SaOffset.set(control[i], index=i)
                 print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')
 
