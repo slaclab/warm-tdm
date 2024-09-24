@@ -262,6 +262,79 @@ class FEAmplifier3(SaAmplifier):
 
 class FEAmplifier4(SaAmplifier):
 
+    # Declare schematic nets and resistors
+    sa_bias_dac_p = sympy.symbols('sa_bias_dac_p')
+    sa_bias_dac_n = sympy.symbols('sa_bias_dac_n')
+    sa_bias_dac_cm = sympy.symbols('sa_bias_dac_cm')
+    sa_bias_dac_diff = sympy.symbols('sa_bias_dac_diff')
+    sa_bias_shunt_r = sympy.symbols('sa_bias_shunt_r')
+    sa_bias_cable_r = sympy.symbols('sa_bias_cable_r')
+    sa_bias_squid_r = sympy.symbols('sa_bias_squid_r')
+
+    sa_bias_out_p = sympy.symbols('sa_bias_out_p')
+    sa_bias_out_n = sympy.symbols('sa_bias_out_n')
+    sa_bias_out_diff = sympy.symbols('sa_bias_out_diff')
+    sa_bias_current = sympy.symbols('sa_bias_current')
+    sa_signal_out0_p = sympy.symbols('sa_signal_out0_p')
+    sa_signal_out0_n = sympy.symbols('sa_signal_out0_n')
+    sa_signal_out1_p = sympy.symbols('sa_signal_out1_p')
+    sa_signal_out1_n = sympy.symbols('sa_signal_out1_n')
+    sa_offset_p = sympy.symbols('sa_offset_p')
+    sa_offset_n = sympy.symbols('sa_offset_n')
+    sa_signal_out2_p = sympy.symbols('sa_signal_out2_p')
+    sa_signal_out2_n = sympy.symbols('sa_signal_out2_n')
+    sa_signal_out3_p = sympy.symbols('sa_signal_out3_p')
+    sa_signal_out3_n = sympy.symbols('sa_signal_out3_n')
+
+
+    # Stage 1 Resistors
+    rf1 = sympy.symbols('rf1')
+    rg1 = sympy.symbols('rg1')
+
+    # Stage 2 Resistors
+    rf2 = sympy.symbols('rf2') # Feedback
+    rgnd2 = sympy.symbols('rgnd2') 
+    rin2 = sympy.symbols('rin2')
+    roff2 = sympy.symbols('roff2')
+
+    # Stage 3 Resistors
+    rf3 = sympy.symbols('rf3')
+    rg3 = sympy.symbols('rg3')
+    v = sympy.symbols('v')
+
+    # Stage 1 instrumentation amp equations
+    eq1 = sympy.Eq((sa_signal_out0_p-sa_bias_out_p)/rf1, (sa_bias_out_p-sa_bias_out_n)/rg1)
+    eq2 = sympy.Eq((sa_signal_out0_n-sa_bias_out_n)/rf1, (sa_bias_out_n-sa_bias_out_p)/rg1)
+
+    # Stage 2 differential amp equations
+    eq3 = sympy.Eq((sa_signal_out2_p-sa_signal_out0_p)/rf2, sa_signal_out0_p/rgnd2 + (sa_signal_out0_p-sa_offset_p)/roff2)
+    eq4 = sympy.Eq((sa_signal_out2_n-sa_signal_out0_n)/rf2, sa_signal_out0_n/rgnd2 + (sa_signal_out0_n-sa_offset_n)/roff2)
+
+    # Stage 3 differential amp equations
+    eq5 = sympy.Eq((sa_signal_out2_p-v)/rg3, (v-sa_signal_out3_n)/rf3)
+    eq6 = sympy.Eq((sa_signal_out2_n-v)/rg3, (v-sa_signal_out3_p)/rf3)
+
+
+    solve_vars =  [sa_bias_out_p, sa_bias_out_n, sa_signal_out0_p, sa_signal_out0_n,
+                   sa_signal_out2_p, sa_signal_out2_n, sa_signal_out3_p, sa_signal_out3_n]
+
+    solutions = sympy.solve([eq1, eq2, eq3, eq4, eq5, eq6], [sa_bias_out_p, sa_bias_out_n, sa_signal_out0_p, sa_signal_out0_n, sa_signal_out2_p, sa_signal_out2_n])
+
+    # Expression for sa_bias_out (differential) given sa_signal_out3 and voffset
+    sa_bias_expr = sympy.simplify(solutions[sa_bias_out_p]-solutions[sa_bias_out_n])
+
+    solutions2 = sympy.solve([eq1, eq2, eq3, eq4, eq5, eq6], list(reversed(solve_vars)))
+
+    # Expressions to compute gain of each stage
+    sa_signal_out3_expr = sympy.simplify(solutions2[sa_signal_out3_p]-solutions2[sa_signal_out3_n])
+    sa_signal_out2_expr = sympy.simplify(solutions2[sa_signal_out2_p]-solutions2[sa_signal_out2_n])
+    sa_signal_out1_expr = sympy.simplify(solutions2[sa_signal_out0_p]-solutions2[sa_signal_out0_n])        
+
+    gain3_expr = (sa_signal_out3_expr/sa_signal_out2_expr).subs({sa_bias_out_p:.5, sa_bias_out_n:-.5, sa_offset_p:0, sa_offset_n:0})
+    gain2_expr = (sa_signal_out2_expr/sa_signal_out1_expr).subs({sa_bias_out_p:.5, sa_bias_out_n:-.5, sa_offset_p:0, sa_offset_n:0})
+    gain1_expr = (sa_signal_out1_expr).subs({sa_bias_out_p:.5, sa_bias_out_n:-.5, sa_offset_p:0, sa_offset_n:0})
+    offset_gain_expr = sa_signal_out3_expr.subs({sa_bias_out_p:0, sa_bias_out_n:0, sa_offset_p:.5, sa_offset_n:-.5})    
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -292,25 +365,11 @@ class FEAmplifier4(SaAmplifier):
             value = 40.2,
             units = u'\u03a9'))
 
-#         self.add(pr.LinkVariable(
-#             name = 'GAIN_1',
-#             description = 'First stage gain',
-#             mode = 'RO',
-#             dependencies = [self.RF1, self.RG1],
-#             linkedGet = lambda read: 1 + (( 2 * self.RF1.get(read=read)) / self.RG1.get(read=read))))
-
-
         # Stage 2 Summing Differential Input Amplifier
         self.add(pr.LocalVariable(
             name = 'RF2',
             value = 100.0,
             units = u'\u03a9'))
-
-#         self.add(pr.LocalVariable(
-#             name = 'RIN2',
-#             description = 'R15 and R17',
-#             value = 100.0,
-#             units = u'\u03a9'))
 
         self.add(pr.LocalVariable(
             name = 'ROFF2',
@@ -334,108 +393,26 @@ class FEAmplifier4(SaAmplifier):
             value = 1.0e3,
             units = u'\u03a9'))
 
-
         sa_vars = [
             self.RF1,
             self.RG1,
             self.RF2,
-#            self.RIN2,
             self.ROFF2,
             self.RGND2,
             self.RF3,
             self.RG3]
 
-        #self.addGainVars(sa_vars)
-
-        # Declare schematic nets and resistors
-        sa_bias_dac_p = sympy.symbols('sa_bias_dac_p')
-        sa_bias_dac_n = sympy.symbols('sa_bias_dac_n')
-        sa_bias_dac_cm = sympy.symbols('sa_bias_dac_cm')
-        sa_bias_dac_diff = sympy.symbols('sa_bias_dac_diff')
-        sa_bias_shunt_r = sympy.symbols('sa_bias_shunt_r')
-        sa_bias_cable_r = sympy.symbols('sa_bias_cable_r')
-        sa_bias_squid_r = sympy.symbols('sa_bias_squid_r')
-        
-        sa_bias_out_p = sympy.symbols('sa_bias_out_p')
-        sa_bias_out_n = sympy.symbols('sa_bias_out_n')
-        sa_bias_out_diff = sympy.symbols('sa_bias_out_diff')
-        sa_bias_current = sympy.symbols('sa_bias_current')
-        sa_signal_out0_p = sympy.symbols('sa_signal_out0_p')
-        sa_signal_out0_n = sympy.symbols('sa_signal_out0_n')
-        sa_signal_out1_p = sympy.symbols('sa_signal_out1_p')
-        sa_signal_out1_n = sympy.symbols('sa_signal_out1_n')
-        sa_offset_p = sympy.symbols('sa_offset_p')
-        sa_offset_n = sympy.symbols('sa_offset_n')
-        sa_signal_out2_p = sympy.symbols('sa_signal_out2_p')
-        sa_signal_out2_n = sympy.symbols('sa_signal_out2_n')
-        sa_signal_out3_p = sympy.symbols('sa_signal_out3_p')
-        sa_signal_out3_n = sympy.symbols('sa_signal_out3_n')
-        
-
-        # Stage 1 Resistors
-        rf1 = sympy.symbols('rf1')
-        rg1 = sympy.symbols('rg1')
-        
-        # Stage 2 Resistors
-        rf2 = sympy.symbols('rf2') # Feedback
-        rgnd2 = sympy.symbols('rgnd2') 
-        rin2 = sympy.symbols('rin2')
-        roff2 = sympy.symbols('roff2')
-
-        # Stage 3 Resistors
-        rf3 = sympy.symbols('rf3')
-        rg3 = sympy.symbols('rg3')
-        v = sympy.symbols('v')
-
-        # Stage 1 instrumentation amp equations
-        eq1 = sympy.Eq((sa_signal_out0_p-sa_bias_out_p)/rf1, (sa_bias_out_p-sa_bias_out_n)/rg1)
-        eq2 = sympy.Eq((sa_signal_out0_n-sa_bias_out_n)/rf1, (sa_bias_out_n-sa_bias_out_p)/rg1)
-
-        # Stage 2 differential amp equations
-        eq3 = sympy.Eq((sa_signal_out2_p-sa_signal_out0_p)/rf2, sa_signal_out0_p/rgnd2 + (sa_signal_out0_p-sa_offset_p)/roff2)
-        eq4 = sympy.Eq((sa_signal_out2_n-sa_signal_out0_n)/rf2, sa_signal_out0_n/rgnd2 + (sa_signal_out0_n-sa_offset_n)/roff2)
-
-        # Stage 3 differential amp equations
-        eq5 = sympy.Eq((sa_signal_out2_p-v)/rg3, (v-sa_signal_out3_n)/rf3)
-        eq6 = sympy.Eq((sa_signal_out2_n-v)/rg3, (v-sa_signal_out3_p)/rf3)
-        
-
-        solve_vars =  [sa_bias_out_p, sa_bias_out_n, sa_signal_out0_p, sa_signal_out0_n,
-                       sa_signal_out2_p, sa_signal_out2_n, sa_signal_out3_p, sa_signal_out3_n]
-
-        self.solutions = sympy.solve([eq1, eq2, eq3, eq4, eq5, eq6], [sa_bias_out_p, sa_bias_out_n, sa_signal_out0_p, sa_signal_out0_n, sa_signal_out2_p, sa_signal_out2_n])
-                               
-        # Expression for sa_bias_out (differential) given sa_signal_out3 and voffset
-        self.sa_bias_expr = sympy.simplify(self.solutions[sa_bias_out_p]-self.solutions[sa_bias_out_n])
-        print(self.sa_bias_expr)
-
-        self.solutions2 = sympy.solve([eq1, eq2, eq3, eq4, eq5, eq6], list(reversed(solve_vars)))
-
-        # Expressions to compute gain of each stage
-        self.sa_signal_out3_expr = sympy.simplify(self.solutions2[sa_signal_out3_p]-self.solutions2[sa_signal_out3_n])
-        self.sa_signal_out2_expr = sympy.simplify(self.solutions2[sa_signal_out2_p]-self.solutions2[sa_signal_out2_n])
-        self.sa_signal_out1_expr = sympy.simplify(self.solutions2[sa_signal_out0_p]-self.solutions2[sa_signal_out0_n])        
-
-        self.gain3_expr = (self.sa_signal_out3_expr/self.sa_signal_out2_expr).subs({sa_bias_out_p:.5, sa_bias_out_n:-.5, sa_offset_p:0, sa_offset_n:0})
-        self.gain2_expr = (self.sa_signal_out2_expr/self.sa_signal_out1_expr).subs({sa_bias_out_p:.5, sa_bias_out_n:-.5, sa_offset_p:0, sa_offset_n:0})
-        self.gain1_expr = (self.sa_signal_out1_expr).subs({sa_bias_out_p:.5, sa_bias_out_n:-.5, sa_offset_p:0, sa_offset_n:0})
-        self.offset_gain_expr = self.sa_signal_out3_expr.subs({sa_bias_out_p:0, sa_bias_out_n:0, sa_offset_p:.5, sa_offset_n:-.5})
-
         def setConversions():
             resistors = {
-                rf1: self.RF1.value(),
-                rg1: self.RG1.value(),
-                rf2: self.RF2.value(),
-                rgnd2: self.RGND2.value(),
-#                rin2 : self.RIN2.value(),
-                roff2 : self.ROFF2.value(),
-                rf3: self.RF3.value(),
-                rg3: self.RG3.value()}
+                self.rf1: self.RF1.value(),
+                self.rg1: self.RG1.value(),
+                self.rf2: self.RF2.value(),
+                self.rgnd2: self.RGND2.value(),
+                self.roff2 : self.ROFF2.value(),
+                self.rf3: self.RF3.value(),
+                self.rg3: self.RG3.value()}
 
-            print(resistors)
-            print(self.sa_bias_expr.subs(resistors))
-            
-            self.sa_bias_func = sympy.lambdify([sa_signal_out3_p, sa_signal_out3_n, sa_offset_p, sa_offset_n],
+            self.sa_bias_func = sympy.lambdify([self.sa_signal_out3_p, self.sa_signal_out3_n, self.sa_offset_p, self.sa_offset_n],
                                                self.sa_bias_expr.subs(resistors),
                                                'numpy')
             
@@ -454,6 +431,7 @@ class FEAmplifier4(SaAmplifier):
         self.add(pr.LinkVariable(
             name = 'Conv',
             dependencies = sa_vars,
+            hidden = True,
             linkedGet = setConversions))
 
         self.addGainVars(sa_vars)
@@ -485,7 +463,6 @@ class FEAmplifier4(SaAmplifier):
             mode = 'RO',
             dependencies = [self.Conv],
             linkedGet = lambda read: self.offset_gain_func()))
-        
                                                         
 
     def saBiasCurrent(self, saBiasDacVoltageP, saBiasDacVoltageN=0.0):
@@ -509,10 +486,7 @@ class FEAmplifier4(SaAmplifier):
 
 
     def ampVin(self, vadc, voffsetP, voffsetN=0.0):
-        print(f'ampVin({vadc=}, {voffsetP=}, {voffsetN=})')
-        print(f'Calling sa_bias_func({vadc/2}, {-vadc/2}, {voffsetP}, {-voffsetP})')
         ret = self.sa_bias_func(vadc/2, -vadc/2, voffsetP, -voffsetP)
-        print(f'Result - {ret}')
         return ret
 
 
