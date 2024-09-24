@@ -110,7 +110,7 @@ entity WarmTdmCore2 is
       -- VR Synchronization
       pwrSyncA : out sl := '0';
       pwrSyncB : out sl := '0';
-      pwrSyncC : out sl := '0';
+      pwrSyncC : out sl := '1';
 
       -- XADC
       localThermistorP : in slv(5 downto 0);

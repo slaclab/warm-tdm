@@ -118,9 +118,9 @@ entity ColumnFpgaBoard is
       sfpSda : inout slv(1 downto 0);
 
       -- VR Synchronization
-      pwrSyncA : out sl;
-      pwrSyncB : out sl;
-      pwrSyncC : out sl;
+      pwrSyncA : out sl := '0';
+      pwrSyncB : out sl := '0';
+      pwrSyncC : out sl := '1';
 
       -- LEMO IO
       lemoIn  : in  slv(1 downto 0);
