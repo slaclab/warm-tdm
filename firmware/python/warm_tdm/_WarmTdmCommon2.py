@@ -59,10 +59,12 @@ class WarmTdmCommon2(pr.Device):
 
         self.add(surf.devices.transceivers.Sfp(
             name = 'SFP0',
+            enabled = False,
             offset = 0x5000))
 
         self.add(surf.devices.transceivers.Sfp(
             name = 'SFP1',
+            enabled = False,
             offset = 0x6000))
         
 
