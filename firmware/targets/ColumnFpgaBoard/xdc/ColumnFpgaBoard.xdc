@@ -304,6 +304,10 @@ set_property -dict { PACKAGE_PIN C21 IOSTANDARD LVCMOS33 } [get_ports { sfpSda[0
 set_property -dict { PACKAGE_PIN B21 IOSTANDARD LVCMOS33 } [get_ports { sfpScl[1] }];
 set_property -dict { PACKAGE_PIN A20 IOSTANDARD LVCMOS33 } [get_ports { sfpSda[1] }];
 
+# Analog Power Enable
+set_property -dict { PACKAGE_PIN G26 IOSTANDARD LVCMOS33 } [get_ports { anaPwrEn }];
+
+# VR Sync
 set_property -dict { PACKAGE_PIN K22 IOSTANDARD LVCMOS33 } [get_ports { pwrSyncA }];
 set_property -dict { PACKAGE_PIN H24 IOSTANDARD LVCMOS33 } [get_ports { pwrSyncB }];
 set_property -dict { PACKAGE_PIN J25 IOSTANDARD LVCMOS33 } [get_ports { pwrSyncC }];

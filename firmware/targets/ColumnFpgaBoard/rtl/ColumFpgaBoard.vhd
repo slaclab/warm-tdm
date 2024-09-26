@@ -117,6 +117,9 @@ entity ColumnFpgaBoard is
       sfpScl : inout slv(1 downto 0);
       sfpSda : inout slv(1 downto 0);
 
+      -- Analog Power Enable
+      anaPwrEn : out sl := '1';
+
       -- VR Synchronization
       pwrSyncA : out sl := '0';
       pwrSyncB : out sl := '0';

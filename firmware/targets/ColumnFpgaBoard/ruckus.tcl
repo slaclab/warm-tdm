@@ -1,5 +1,5 @@
 ##############################################################################
-## This file is part of 'kpix-dev'.
+## This file is part of 'warm-tdm'.
 ## It is subject to the license terms in the LICENSE.txt file found in the 
 ## top-level directory of this distribution and at: 
 ##    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html. 
