@@ -27,7 +27,7 @@ loadSource      -lib warm_tdm -sim_only -dir "$::DIR_PATH/../ColumnFpgaBoard/sim
 loadConstraints  -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore2.xdc
 loadConstraints -dir  "$::DIR_PATH/../ColumnFpgaBoard/xdc/"
 
-set_property top {ColumnModule} [get_filesets {sources_1}]
+set_property top {ColumnFpgaBoard} [get_filesets {sources_1}]
 set sysGeneric [get_property generic -object [current_fileset]]
 set testGeneric "${sysGeneric}, RING_ADDR_0_G=true"
 set_property generic ${testGeneric} -object [current_fileset]
