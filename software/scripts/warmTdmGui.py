@@ -56,6 +56,20 @@ parser.add_argument(
     help     = "IP address")
 
 parser.add_argument(
+    "--pollEn",
+    type = bool,
+    required = False,
+    default = True,
+    help = 'Enable or disable polling on startup')
+
+parser.add_argument(
+    "--initRead",
+    type = bool,
+    required = False,
+    default = True,
+    help = 'Enable or disable read of all register on startup')
+
+parser.add_argument(
     "--rowBoards",
     type     = int,
     default  = 1,
@@ -134,6 +148,7 @@ config = warm_tdm_api.GroupConfig(groupId = 0,
 
 
 with warm_tdm_api.GroupRoot(
+        pollEn = args.pollEn,
         colBoardClass=colBoardClass,
         colFeClass=colFeClass,
         rowBoardClass=rowBoardClass,
@@ -142,7 +157,7 @@ with warm_tdm_api.GroupRoot(
         simulation=args.sim,
         emulate=args.emulate,
         numRows=args.maxRows,
-        initRead=not args.sim) as root:
+        initRead=args.initRead and not args.sim) as root:
 
     if args.docs != '':
         root.genDocuments(path=args.docs,incGroups=['DocApi'],excGroups=['NoDoc','Enable','Hardware'])
