@@ -26,7 +26,7 @@ class SaOffsetProcess(pr.Process):
 
         self.add(pr.LocalVariable(
             name='Kp',
-            value=-.1,
+            value=-1.0,
             mode='RW',
             description="Proportional PID coefficient"))
 
