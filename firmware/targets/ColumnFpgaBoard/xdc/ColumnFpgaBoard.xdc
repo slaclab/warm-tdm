@@ -126,8 +126,9 @@ set_property -dict { PACKAGE_PIN W14  IOSTANDARD LVDS } [get_ports { adcClkN }];
 
 set_property -dict { PACKAGE_PIN AF2 IOSTANDARD LVCMOS18 } [get_ports { adcSclk }];
 set_property -dict { PACKAGE_PIN AE2 IOSTANDARD LVCMOS18 } [get_ports { adcSdio }];
-set_property -dict { PACKAGE_PIN AE1  IOSTANDARD LVCMOS18 } [get_ports { adcCsb }];
-set_property -dict { PACKAGE_PIN AF3  IOSTANDARD LVCMOS18 } [get_ports { adcSync }];
+set_property -dict { PACKAGE_PIN AE1 IOSTANDARD LVCMOS18 } [get_ports { adcCsb }];
+set_property -dict { PACKAGE_PIN AF3 IOSTANDARD LVCMOS18 } [get_ports { adcSync }];
+set_property -dict { PACKAGE_PIN AE6 IOSTANDARD LVCMOS18 } [get_ports { adcPdwn }];
 
 
 ## Fast DACS

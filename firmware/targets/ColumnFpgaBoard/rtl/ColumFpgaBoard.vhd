@@ -157,6 +157,7 @@ entity ColumnFpgaBoard is
       adcSdio : inout sl;
       adcCsb  : out   sl;
       adcSync : out   sl;
+      adcPdwn : out   sl := '0';
 
       -- Fast DAC Interfaces - 3.3V
       sq1BiasDb    : out slv(13 downto 0);
