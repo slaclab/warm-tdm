@@ -147,6 +147,7 @@ class FEAmplifier3(SaAmplifier):
             name = 'GAIN_1',
             description = 'First stage gain',
             mode = 'RO',
+            disp = '{:0.3f}',            
             dependencies = [self.RF1, self.RG1],
             linkedGet = lambda read: 1 + (( 2 * self.RF1.get(read=read)) / self.RG1.get(read=read))))
 
@@ -440,6 +441,7 @@ class FEAmplifier4(SaAmplifier):
             name = 'GAIN_1',
             description = 'First stage gain',
             mode = 'RO',
+            disp = '{:0.3f}',            
             dependencies = [self.Conv],
             linkedGet = lambda read: self.gain1_func()))
 
@@ -447,6 +449,7 @@ class FEAmplifier4(SaAmplifier):
             name = 'GAIN_2',
             description = 'Second stage gain',
             mode = 'RO',
+            disp = '{:0.3f}',            
             dependencies = [self.Conv],
             linkedGet = lambda read: self.gain2_func()))
             
@@ -454,6 +457,7 @@ class FEAmplifier4(SaAmplifier):
             name = 'GAIN_3',
             description = 'Third stage gain',
             mode = 'RO',
+            disp = '{:0.3f}',            
             dependencies = [self.Conv],
             linkedGet = lambda read: self.gain3_func()))
 
@@ -461,6 +465,7 @@ class FEAmplifier4(SaAmplifier):
             name = 'OFFSET_GAIN',
             description = 'Overall gain of offset voltage',
             mode = 'RO',
+            disp = '{:0.3f}',            
             dependencies = [self.Conv],
             linkedGet = lambda read: self.offset_gain_func()))
                                                         
