@@ -259,13 +259,13 @@ architecture rtl of ColumnFpgaBoard is
          baseAddr         => APP_BASE_ADDR_C + X"00800000",
          addrBits         => 16,
          connectivity     => X"FFFF"),
+      AXIL_TES_DELATCH_C  => (
+         baseAddr         => APP_BASE_ADDR_C + X"00900000",
+         addrBits         => 9,
+         connectivity     => X"FFFF"),
       AXIL_FE_I2C_C       => (
          baseAddr         => APP_BASE_ADDR_C + X"10000000",
          addrBits         => 24,
-         connectivity     => X"FFFF"),
-      AXIL_TES_DELATCH_C  => (
-         baseAddr         => APP_BASE_ADDR_C + X"20000000",
-         addrBits         => 8,
          connectivity     => X"FFFF"));
 
    signal axilClk : sl;
