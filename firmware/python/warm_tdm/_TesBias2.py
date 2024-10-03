@@ -22,7 +22,7 @@ class TesBias2(pr.Device):
                 name = f'BiasCurrent[{i}]',
                 disp = '{:1.3f}',                
                 units = '\u03bcA',
-                dependencies = [self._dac.DacVoltage[i], self._dac.DacVoltage[i+8], self.Delatch[i]],
+                dependencies = [self._dac.DacVoltage[2*i], self._dac.DacVoltage[2*i+1], self.Delatch[i]],
                 linkedSet = self._setChannelFunc(i),
                 linkedGet = self._getChannelFunc(i)))
 
