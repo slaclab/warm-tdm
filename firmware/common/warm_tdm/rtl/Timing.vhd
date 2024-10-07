@@ -61,7 +61,8 @@ entity Timing is
       timingRxDataOut : out LocalTimingType;
 
       -- Debug for LED
-      timingRxLocked : out sl;
+      timingRxClkLocked : out sl;
+      timingRxLocked    : out sl;
 
       -- TX Timing Serial Interface
       timingTxClkP  : out sl;
@@ -197,27 +198,28 @@ begin
          DEFAULT_DELAY_G   => DEFAULT_DELAY_G,
          AXIL_BASE_ADDR_G  => AXIL_XBAR_CFG_C(AXIL_RX_C).baseAddr)
       port map (
-         timingRxClkP    => timingRxClkP,            -- [in]
-         timingRxClkN    => timingRxClkN,            -- [in]
-         timingRxDataP   => timingRxDataP,           -- [in]
-         timingRxDataN   => timingRxDataN,           -- [in]
-         timingRxClkOut  => timingRxClkOut,          -- [out]
-         timingRxRstOut  => timingRxRstOut,          -- [out]
-         timingRxDataOut => timingRxDataOut,         -- [out]
-         timingRxLocked => timingRxLocked,  -- [out]
-         axilClk         => axilClk,                 -- [in]
-         axilRst         => axilRst,                 -- [in]
-         axilWriteMaster => locAxilWriteMasters(0),  -- [in]
-         axilWriteSlave  => locAxilWriteSlaves(0),   -- [out]
-         axilReadMaster  => locAxilReadMasters(0),   -- [in]
-         axilReadSlave   => locAxilReadSlaves(0));   -- [out]
+         timingRxClkP      => timingRxClkP,            -- [in]
+         timingRxClkN      => timingRxClkN,            -- [in]
+         timingRxDataP     => timingRxDataP,           -- [in]
+         timingRxDataN     => timingRxDataN,           -- [in]
+         timingRxClkOut    => timingRxClkOut,          -- [out]
+         timingRxRstOut    => timingRxRstOut,          -- [out]
+         timingRxClkLocked => timingRxClkLocked,       -- [out]
+         timingRxDataOut   => timingRxDataOut,         -- [out]
+         timingRxLocked    => timingRxLocked,          -- [out]
+         axilClk           => axilClk,                 -- [in]
+         axilRst           => axilRst,                 -- [in]
+         axilWriteMaster   => locAxilWriteMasters(0),  -- [in]
+         axilWriteSlave    => locAxilWriteSlaves(0),   -- [out]
+         axilReadMaster    => locAxilReadMasters(0),   -- [in]
+         axilReadSlave     => locAxilReadSlaves(0));   -- [out]
 
    U_TimingTx_1 : entity warm_tdm.TimingTx
       generic map (
-         TPD_G           => TPD_G,
-         SIMULATION_G    => SIMULATION_G,
-         RING_ADDR_0_G   => RING_ADDR_0_G,
-         AXIL_CLK_FREQ_G => AXIL_CLK_FREQ_G,
+         TPD_G            => TPD_G,
+         SIMULATION_G     => SIMULATION_G,
+         RING_ADDR_0_G    => RING_ADDR_0_G,
+         AXIL_CLK_FREQ_G  => AXIL_CLK_FREQ_G,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_TX_C).baseAddr)
       port map (
          timingRefClk    => timingFabRefClk,         -- [in]

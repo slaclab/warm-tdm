@@ -49,9 +49,10 @@ entity TimingRx is
       timingRxDataP : in sl;
       timingRxDataN : in sl;
 
-      timingRxClkOut  : out sl;
-      timingRxRstOut  : out sl;
-      timingRxDataOut : out LocalTimingType;
+      timingRxClkOut    : out sl;
+      timingRxRstOut    : out sl;
+      timingRxClkLocked : out sl;
+      timingRxDataOut   : out LocalTimingType;
 
       timingRxLocked : out sl;
 
@@ -216,12 +217,13 @@ begin
          CLKOUT0_DIVIDE_G => 2,
          CLKOUT1_DIVIDE_G => 10)
       port map (
-         clkIn     => timingRxClk,      -- [in]
-         rstIn     => timingRxRst,      -- [in]
-         clkOut(0) => bitClk,           -- [out]
-         clkOut(1) => wordClk,          -- [out]         
-         rstOut(0) => bitRst,           -- [out]
-         rstOut(1) => wordRst);         -- [out]
+         clkIn     => timingRxClk,         -- [in]
+         rstIn     => timingRxRst,         -- [in]
+         clkOut(0) => bitClk,              -- [out]
+         clkOut(1) => wordClk,             -- [out]         
+         rstOut(0) => bitRst,              -- [out]
+         rstOut(1) => wordRst,             -- [out]
+         locked    => timingRxClkLocked);  -- [out]
 
 --    U_TimingMmcm_1 : entity warm_tdm.TimingMmcm
 --       generic map (

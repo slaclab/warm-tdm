@@ -67,10 +67,15 @@ entity WarmTdmCommon2 is
       sfpScl : inout slv(1 downto 0);
       sfpSda : inout slv(1 downto 0);
 
+      -- Analog Power
+      anaPwrEn : out sl := '0';
+
       -- VR Synchronization
       pwrSyncA : out sl := '0';
       pwrSyncB : out sl := '0';
       pwrSyncC : out sl := '1';
+
+      timingRxClkLocked : in sl;
 
       -- XADC
       localThermistorP : in slv(5 downto 0);
@@ -86,7 +91,7 @@ end entity WarmTdmCommon2;
 
 architecture rtl of WarmTdmCommon2 is
 
-   constant NUM_AXIL_MASTERS_C : integer := 8;
+   constant NUM_AXIL_MASTERS_C : integer := 9;
    constant AXIL_VERSION_C     : integer := 0;
    constant AXIL_XADC_C        : integer := 1;
    constant AXIL_BOOT_C        : integer := 2;
@@ -95,6 +100,7 @@ architecture rtl of WarmTdmCommon2 is
    constant AXIL_AMP_PD_C      : integer := 5;
    constant AXIL_SFP_I2C_0_C   : integer := 6;
    constant AXIL_SFP_I2C_1_C   : integer := 7;
+   constant AXIL_CONFIG_C      : integer := 8;
 
 
    constant AXIL_XBAR_CFG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := (
@@ -129,6 +135,10 @@ architecture rtl of WarmTdmCommon2 is
       AXIL_SFP_I2C_1_C => (
          baseAddr      => AXIL_BASE_ADDR_G + X"00006000",
          addrBits      => 12,
+         connectivity  => X"FFFF"),
+      AXIL_CONFIG_C    => (
+         baseAddr      => AXIL_BASE_ADDR_G + X"00007000",
+         addrBits      => 8,
          connectivity  => X"FFFF"));
 
 
@@ -203,6 +213,27 @@ begin
          axiReadSlave   => locAxilReadSlaves(AXIL_VERSION_C),    -- [out]
          axiWriteMaster => locAxilWriteMasters(AXIL_VERSION_C),  -- [in]
          axiWriteSlave  => locAxilWriteSlaves(AXIL_VERSION_C));  -- [out]
+
+   -------------------------------------------------------------------------------------------------
+   -- Config
+   -------------------------------------------------------------------------------------------------
+   U_WarmTdmConfig_1 : entity warm_tdm.WarmTdmConfig
+      generic map (
+         TPD_G           => TPD_G,
+         AXIL_CLK_FREQ_G => AXIL_CLK_FREQ_G)
+      port map (
+         axilClk           => axilClk,                             -- [in]
+         axilRst           => axilRst,                             -- [in]
+         axilWriteMaster   => locAxilWriteMasters(AXIL_CONFIG_C),  -- [in]
+         axilWriteSlave    => locAxilWriteSlaves(AXIL_CONFIG_C),   -- [out]
+         axilReadMaster    => locAxilReadMasters(AXIL_CONFIG_C),   -- [in]
+         axilReadSlave     => locAxilReadSlaves(AXIL_CONFIG_C),    -- [out]
+         timingRxClkLocked => timingRxClkLocked,                   -- [in]
+         anaPwrEn          => anaPwrEn,                            -- [out]
+         pwrSyncA          => pwrSyncA,                            -- [out]
+         pwrSyncB          => pwrSyncB,                            -- [out]
+         pwrSyncC          => pwrSyncC,                            -- [out]
+         ampPdB            => ampPdB);                             -- [out]
 
    -------------------------------------------------------------------------------------------------
    -- XADC

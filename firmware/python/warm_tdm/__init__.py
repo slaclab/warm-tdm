@@ -38,3 +38,4 @@ from ._WarmTdmCommon2 import *
 from ._WarmTdmCore2 import *
 from ._SaBiasOffset2 import *
 from ._TesBias2 import *
+from ._WarmTdmConfig import *

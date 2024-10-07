@@ -34,12 +34,12 @@ class ColumnFpgaBoard(pr.Device):
 
         self.add(warm_tdm.Ad5679R(
             name = 'SaBiasDac',
-            hidden = True,
+            hidden = False,
             offset = 0xC0800400))
 
         self.add(warm_tdm.Ad5679R(
             name = 'SaOffsetDac',
-            hidden = True,
+            hidden = False,
             offset = 0xC0800800))
         
         self.add(warm_tdm.SaBiasOffset2(
