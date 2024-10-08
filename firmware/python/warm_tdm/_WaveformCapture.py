@@ -474,7 +474,7 @@ def plot_psd_channel(ch, ax, values, src, multi_channel):
     ax.set_ylim(1e-3,1000)
     ax.loglog(freqs, pxx, label='PSD')
     #ax.loglog(freqs,wiener(pxx,mysize=100),label='Wiener filtered PSD')
-    ax.loglog(freqs,[3 for _ in freqs],label='3 nV/rt.Hz',color='r', linestyle='dashed')
+    ax.loglog(freqs,[1 for _ in freqs],label='1 nV/rt.Hz',color='r', linestyle='dashed')
     #ax.legend()
 
     #ax.text(0.05, 0.8, f'Ch {ch}', transform=ax.transAxes)
