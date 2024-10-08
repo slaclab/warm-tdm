@@ -318,8 +318,6 @@ set_property -dict { PACKAGE_PIN D23 IOSTANDARD LVCMOS33 } [get_ports { lemoIn[1
 set_property -dict { PACKAGE_PIN A24 IOSTANDARD LVCMOS33 } [get_ports { lemoOut[0] }];
 set_property -dict { PACKAGE_PIN A23 IOSTANDARD LVCMOS33 } [get_ports { lemoOut[1] }];
 
-set_property -dict { PACKAGE_PIN G26 IOSTANDARD LVCMOS33 } [get_ports { anaPwrEn }];
-
 
 # RJ-45 LEDs
 
