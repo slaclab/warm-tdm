@@ -136,6 +136,10 @@ begin
          v.anaPwrEn := '1';
       end if;
 
+      if (r.anaPwrEnAxi = '0') then
+         v.anaPwrEn := '0';
+      end if;
+
 
       -- Run the clock divide counter
       v.clkCount := r.clkCount + 1;
