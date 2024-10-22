@@ -134,23 +134,18 @@ class AdcDsp(pr.Device):
             bitOffset = 0))
 
         def _set(value, write):
-            print(f'Set flux quanta to {value}')
             dac = self.amp.outCurrentToDac(value)
-            print(f'Initial dac value {dac} - 0x{dac:x}')
-            # Convert inverted offset binary to 2s complement
+            # Convert offset binary to 2s complement
             if self.amp.Invert.value() == True:
-                dac = (dac & 0x2000) | (~dac & 0x1fff)
-            else:
-                dac = (dac ^ 0x2000) 
-            print(f'Converted dac value {dac} - 0x{dac:x}')
+                dac = dac ^ 0x3fff
+            dac = dac ^ 0x2000
             self.FluxQuantumRaw.set(dac, write=write)
 
         def _get(read):
             dac = self.FluxQuantumRaw.get(read=read)
             if self.amp.Invert.value() == True:
-                dac = (dac & 0x2000) | (~dac & 0x1fff)
-            else:
-                dac = (dac ^ 0x2000)
+                dac = dac ^ 0x3fff
+            dac = dac ^ 0x2000
             current = self.amp.dacToOutCurrent(dac)
             return current
 
