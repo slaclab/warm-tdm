@@ -116,8 +116,15 @@ def saFbSweep(*, group, bias, saFbRange, process):
         if process is not None:
             process._incrementSteps(1)
             #Progress.set(pctLow + pctRange*((idx+1)/numSteps))
-            
 
+        adcs = group.SaOutAdc.get()
+        if np.any(np.abs(adcs), 0.8):
+            print('High ADC value seen')
+            print('SaBias - {bias}')
+            print('SaFb - {saFbRange[:, idx]}')
+            print('ADCs - {adcs}')
+            print('Running SA Offset Process')
+            saOffset(group=group)
 
     # Reset FB to zero after sweep
     group.SaFbForceCurrent.set(value=np.zeros(colCount, np.float64))
