@@ -238,7 +238,7 @@ architecture rtl of AdcDsp is
          ret(13)          := vec(13);
          ret(12 downto 0) := not vec(12 downto 0);
       else
-         ret(13) := not vec(13);
+         ret(13)          := not vec(13);
          ret(12 downto 0) := vec(12 downto 0);
       end if;
       return ret;
@@ -790,16 +790,16 @@ begin
          DATA_WIDTH_G    => 22,
          ADDR_WIDTH_G    => 4)
       port map (
-         rst               => timingRxRst125,     -- [in]
-         wr_clk            => timingRxClk125,     -- [in]
-         wr_en             => r.sq1FbValid,       -- [in]
-         din(13 downto 0)  => sq1fbInvOffsetBin,  -- [in]
-         din(21 downto 14) => r.rowIndex,         -- [in]
-         overflow          => open,               -- [out]
-         rd_clk            => timingRxClk125,     -- [in]
-         rd_en             => axilR.fifoRd,       -- [in]
-         dout              => fifoDout,           -- [out]
-         valid             => fifoValid);         -- [out]
+         rst               => timingRxRst125,  -- [in]
+         wr_clk            => timingRxClk125,  -- [in]
+         wr_en             => r.sq1FbValid,    -- [in]
+         din(13 downto 0)  => sq1fbOffsetBin,  -- [in]
+         din(21 downto 14) => r.rowIndex,      -- [in]
+         overflow          => open,            -- [out]
+         rd_clk            => timingRxClk125,  -- [in]
+         rd_en             => axilR.fifoRd,    -- [in]
+         dout              => fifoDout,        -- [out]
+         valid             => fifoValid);      -- [out]
 
    U_AxiLiteMaster_1 : entity surf.AxiLiteMaster
       generic map (
