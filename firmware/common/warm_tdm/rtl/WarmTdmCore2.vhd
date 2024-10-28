@@ -212,6 +212,8 @@ architecture rtl of WarmTdmCore2 is
    signal timingRxClkLocked : sl;
    signal pgpTxLink         : sl;
    signal pgpRxLink         : sl;
+   signal ledEn             : sl;
+   signal ledsTmp           : slv(7 downto 0);
 
 
 begin
@@ -230,7 +232,7 @@ begin
          PERIOD_OUT_G => 0.4)
       port map (
          clk => fabRefClk0,
-         o   => leds(0));
+         o   => ledsTmp(0));
 
    Heartbeat_RefClk1 : entity surf.Heartbeat
       generic map (
@@ -239,7 +241,7 @@ begin
          PERIOD_OUT_G => 0.8)
       port map (
          clk => fabRefClk1,
-         o   => leds(1));
+         o   => ledsTmp(1));
 
    Heartbeat_axilClk : entity surf.Heartbeat
       generic map (
@@ -248,7 +250,7 @@ begin
          PERIOD_OUT_G => 0.8)
       port map (
          clk => locAxilClk,
-         o   => leds(2));
+         o   => ledsTmp(2));
 
    Heartbeat_timingRxClk : entity surf.Heartbeat
       generic map (
@@ -257,11 +259,13 @@ begin
          PERIOD_OUT_G => 0.8)
       port map (
          clk => locTimingRxClk125,
-         o   => leds(3));
+         o   => ledsTmp(3));
 
-   leds(4) <= rssiStatus(0)(0);
-   leds(5) <= rssiStatus(1)(0);
-   leds(6) <= ethPhyReady;
+   ledsTmp(4) <= rssiStatus(0)(0);
+   ledsTmp(5) <= rssiStatus(1)(0);
+   ledsTmp(6) <= ethPhyReady;
+
+   leds <= ledsTmp when ledEn = '1' else (others => '0');
 
    conRxGreenLed  <= pgpRxLink;
    conRxYellowLed <= timingRxLocked;

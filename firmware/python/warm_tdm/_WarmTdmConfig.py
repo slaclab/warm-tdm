@@ -24,6 +24,17 @@ class WarmTdmConfig(pr.Device):
                 1: 'Enabled'}))
 
         self.add(pr.RemoteVariable(
+            name = 'LedEn',
+            mode = 'RW',
+            offset = 0x14,
+            bitOffset = 0,
+            bitSize = 1,
+            enum = {
+                0: 'Disabled',
+                1: 'Enabled'}))
+        
+
+        self.add(pr.RemoteVariable(
             name = 'PwrSyncA',
             offset = 0x04,
             bitOffset = 0,

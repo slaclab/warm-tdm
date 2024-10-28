@@ -44,6 +44,7 @@ entity WarmTdmConfig is
       timingRxClkLocked : in sl;
 
       -- Output ports
+      ledEn    : out sl              := '1';
       anaPwrEn : out sl              := '1';
       pwrSyncA : out sl              := '0';
       pwrSyncB : out sl              := '0';
@@ -70,6 +71,7 @@ architecture rtl of WarmTdmConfig is
       pwrSyncA       : sl;
       pwrSyncB       : sl;
       pwrSyncC       : sl;
+      ledEn          : sl;
       syncPeriodDiv2 : slv(31 downto 0);
       clkCount       : slv(31 downto 0);
       resetCounter   : sl;
@@ -86,6 +88,7 @@ architecture rtl of WarmTdmConfig is
       pwrSyncA       => '0',
       pwrSyncB       => '0',
       pwrSyncC       => '1',
+      ledEn          => '1',
       syncPeriodDiv2 => toSlv(DIV_CLK_COUNT_C, 32),
       clkCount       => (others => '0'),
       resetCounter   => '0',
@@ -128,6 +131,7 @@ begin
       axiSlaveRegister(axilEp, X"0C", 0, v.pwrSyncCCfg);
       axiSlaveRegister(axilEp, X"10", 0, v.syncPeriodDiv2);
       axiWrDetect(axilEp, X"10", v.resetCounter);
+      axiSlaveRegister(axilEp, X"14", 0, v.ledEn);
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
 
@@ -187,6 +191,7 @@ begin
       axilWriteSlave <= r.axilWriteSlave;
       axilReadSlave  <= r.axilReadSlave;
 
+      ledEn    <= r.ledEn;
       pwrSyncA <= r.pwrSyncA;
       pwrSyncB <= r.pwrSyncB;
       pwrSyncC <= r.pwrSyncC;

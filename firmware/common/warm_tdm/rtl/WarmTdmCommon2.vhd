@@ -67,6 +67,9 @@ entity WarmTdmCommon2 is
       sfpScl : inout slv(1 downto 0);
       sfpSda : inout slv(1 downto 0);
 
+      -- Enable LEDs
+      ledEn : out sl;
+
       -- Analog Power
       anaPwrEn : out sl := '0';
 
@@ -229,6 +232,7 @@ begin
          axilReadMaster    => locAxilReadMasters(AXIL_CONFIG_C),   -- [in]
          axilReadSlave     => locAxilReadSlaves(AXIL_CONFIG_C),    -- [out]
          timingRxClkLocked => timingRxClkLocked,                   -- [in]
+         ledEn             => ledEn,                               -- [out]
          anaPwrEn          => anaPwrEn,                            -- [out]
          pwrSyncA          => pwrSyncA,                            -- [out]
          pwrSyncB          => pwrSyncB,                            -- [out]
