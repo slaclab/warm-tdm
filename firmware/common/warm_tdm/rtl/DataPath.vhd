@@ -42,6 +42,7 @@ entity DataPath is
       TPD_G            : time             := 1 ns;
       SIMULATION_G     : boolean          := false;
       NEGATE_ADC_G     : boolean          := true;
+      INVERT_SQ1FB_G   : boolean          := true;
       AXIL_BASE_ADDR_G : slv(31 downto 0) := (others => '0');
       SQ1FB_RAM_ADDR_G : slv(31 downto 0) := (others => '0');
       IODELAY_GROUP_G  : string           := "DEFAULT_GROUP");
@@ -288,6 +289,7 @@ begin
          generic map (
             TPD_G            => TPD_G,
             COLUMN_NUM_G     => i,
+            INVERT_SQ1FB_G   => INVERT_SQ1FB_G,
             AXIL_BASE_ADDR_G => XBAR_COFNIG_C(i+1).baseAddr,
             SQ1FB_RAM_ADDR_G => SQ1FB_RAM_ADDR_G(31 downto 16) & toslv(i, 4) & X"000")
          port map (

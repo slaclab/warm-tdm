@@ -32,6 +32,7 @@ entity AdcDsp is
 
    generic (
       TPD_G            : time                 := 1 ns;
+      INVERT_SQ1FB_G   : boolean              := true;
       COLUMN_NUM_G     : integer range 0 to 7 := 0;
       AXIL_BASE_ADDR_G : slv(31 downto 0)     := (others => '0');
       SQ1FB_RAM_ADDR_G : slv(31 downto 0)     := (others => '0'));
@@ -228,17 +229,22 @@ architecture rtl of AdcDsp is
    -------------------------------------------------------------------------------------------------
    -- Convert DAC format to 2s complement and back
    -------------------------------------------------------------------------------------------------
-   function convInvOffsetBin (
+   function convOffsetBin (
       vec : slv(13 downto 0))
       return slv is
       variable ret : slv(13 downto 0);
    begin
-      ret(13)          := vec(13);
-      ret(12 downto 0) := not vec(12 downto 0);
+      if (INVERT_SQ1FB_G) then
+         ret(13)          := vec(13);
+         ret(12 downto 0) := not vec(12 downto 0);
+      else
+         ret(13) := not vec(13);
+         ret(12 downto 0) := vec(12 downto 0);
+      end if;
       return ret;
-   end function convInvOffsetBin;
+   end function convOffsetBin;
 
-   signal sq1fbInvOffsetBin : slv(13 downto 0);
+   signal sq1fbOffsetBin : slv(13 downto 0);
 
 
 
@@ -591,9 +597,9 @@ begin
                v.sumAccum     := to_sfixed(sumRamOut, r.sumAccum);
                v.numFluxJumps := fluxJumpRamOut;
                -- Register current sq1FB here
-               -- Invert LSB to convert inverted offset binary to 2-s complement
+               -- Convert offset binary to 2-s complement
                -- Store in sfixed type register
-               v.sq1FB        := to_sfixed(convInvOffsetBin(adcAxisMaster.tData(29 downto 16)), r.sq1FB);
+               v.sq1FB        := to_sfixed(convOffsetBin(adcAxisMaster.tData(29 downto 16)), r.sq1FB);
 
                -- Third word is accum error
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
@@ -612,7 +618,7 @@ begin
             when PID_P_S =>
                -- Fourth Word is starting SQ1FB
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
-               v.pidDebugMaster.tData(13 downto 0) := resize(convInvOffsetBin(to_slv(r.sq1FB)), 14);
+               v.pidDebugMaster.tData(13 downto 0) := resize(convOffsetBin(to_slv(r.sq1FB)), 14);
 
                -- Calcualte PID Stage
                v.pidResult     := resize(r.pidResult + (r.pidCoef * r.pidMultiplier), v.pidResult);  -- r.accumError;
@@ -677,7 +683,7 @@ begin
             when LOOP_DONE_S =>
                -- Ninth word is new sq1Fb
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
-               v.pidDebugMaster.tData(13 downto 0) := resize(convInvOffsetBin(to_slv(r.sq1Fb)), 14);
+               v.pidDebugMaster.tData(13 downto 0) := resize(convOffsetBin(to_slv(r.sq1Fb)), 14);
                v.pidDebugMaster.tLast              := '1';
 
                v.state := WAIT_ROW_STROBE_S;
@@ -771,7 +777,7 @@ begin
    -- sq1Fb Updates written to fifo
    -- Convert back to inverted offsset binary first
    -------------------------------------------------------------------------------------------------
-   sq1fbInvOffsetBin <= convInvOffsetBin(to_slv(r.sq1Fb));
+   sq1fbOffsetBin <= convOffsetBin(to_slv(r.sq1Fb));
 
    U_Fifo_1 : entity surf.Fifo
       generic map (
