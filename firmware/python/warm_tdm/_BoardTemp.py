@@ -6,6 +6,9 @@ class BoardTemp(pr.Device):
     def __init__(self, xadc, therm_channels, sa56004x, **kwargs):
         super().__init__(**kwargs)
 
+        self.xadc = xadc
+        self.sa56004x = sa56004x
+
         self.add(pr.LinkVariable(
             name = 'FpgaTempXadc',
             mode = 'RO',
@@ -43,7 +46,7 @@ class BoardTemp(pr.Device):
                 linkedGet = getThermistor))
 
     def readAndCheckBlocks(self, recurse=True, variable=None, checkEach=False):
-        xadc.readAndCheckBlocks(recurse, variable, checkEach)
-        sa56004x.readAndCheckBlocks(recurse, variable, checkEach)
+        self.xadc.readAndCheckBlocks(recurse, variable, checkEach)
+        self.sa56004x.readAndCheckBlocks(recurse, variable, checkEach)
             
         
