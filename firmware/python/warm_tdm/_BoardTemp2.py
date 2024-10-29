@@ -24,7 +24,7 @@ class BoardTemp2(pr.Device):
             mode = 'RO',
             variable = sa56004x.LocalTemperature))
 
-        def getThermistor(read, var):
+        def getLocalThermistor(read, var):
             print(f'getThermistor(read={read}, var={var.path})')
             voltage = var.dependencies[0].get(read=read)
             if voltage == 0.0:
@@ -35,6 +35,31 @@ class BoardTemp2(pr.Device):
             tempKelvin = 3750 / math.log( resistance / 0.03448533 )
             tempCelcius = tempKelvin - 273.15
             return tempCelcius
+
+        def getLocalThermistor(read, var):
+            print(f'getLocalThermistor(read={read}, var={var.path})')
+            voltage = var.dependencies[0].get(read=read)
+            if voltage == 0.0:
+                #math.log call will die if voltage -> resistance = 0
+                return -273.15
+            current = (1.0 - voltage) / 10000
+            resistance = voltage / current
+            tempKelvin = 3750 / math.log( resistance / 0.03448533 )
+            tempCelcius = tempKelvin - 273.15
+            return tempCelcius
+
+        def getFeThermistor(read, var):
+            print(f'getFeThermistor(read={read}, var={var.path})')
+            voltage = var.dependencies[0].get(read=read)
+            if voltage == 0.0:
+                #math.log call will die if voltage -> resistance = 0
+                return -273.15
+            current = (5.0 - voltage) / 56000
+            resistance = voltage / current
+            tempKelvin = 3750 / math.log( resistance / 0.03448533 )
+            tempCelcius = tempKelvin - 273.15
+            return tempCelcius
+        
         
 
         for i, ch in enumerate(local_therm_channels):
@@ -43,7 +68,7 @@ class BoardTemp2(pr.Device):
                 dependencies = [xadc.Aux[ch]],
                 units = 'degC',
                 disp = '{:0.3f}',
-                linkedGet = getThermistor))
+                linkedGet = getLocalThermistor))
 
         for i, ch in enumerate(fe_therm_channels):
             self.add(pr.LinkVariable(
@@ -51,7 +76,7 @@ class BoardTemp2(pr.Device):
                 dependencies = [xadc.Aux[ch]],
                 units = 'degC',
                 disp = '{:0.3f}',
-                linkedGet = getThermistor))
+                linkedGet = getFeThermistor))
             
 
     def readAndCheckBlocks(self, recurse=True, variable=None, checkEach=False):
