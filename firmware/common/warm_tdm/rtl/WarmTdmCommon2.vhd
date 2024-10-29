@@ -368,12 +368,14 @@ begin
                i2cAddress => "1101111",
                dataSize   => 8,
                addrSize   => 8,
-               endianness => '0'),
+               endianness => '0',
+               repeatStart => '1'),
             1             => MakeI2cAxiLiteDevType(              -- LTC4151 Analog Power
                i2cAddress => "1101010",
                dataSize   => 8,
                addrSize   => 8,
-               endianness => '0')),
+               endianness => '0',
+               repeatStart => '1')),
          I2C_SCL_FREQ_G   => ite(SIMULATION_G, 2.0e6, 100.0E+3),
          I2C_MIN_PULSE_G  => ite(SIMULATION_G, 50.0e-9, 100.0E-9),
          AXI_CLK_FREQ_G   => AXIL_CLK_FREQ_G)                    --156.25E+6)
