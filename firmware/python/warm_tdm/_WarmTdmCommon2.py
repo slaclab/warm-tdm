@@ -73,7 +73,9 @@ class WarmTdmCommon2(pr.Device):
             offset = 0x6000))
         
 
-        self.add(warm_tdm.BoardTemp(
+        self.add(warm_tdm.BoardTemp2(
+            name = 'BoardTemp',
             xadc = self.Xadc,
-            therm_channels = therm_channels,
+            local_therm_channels = local_therm_channels,
+            fe_therm_channels = fe_therm_channels,
             sa56004x = self.Sa56004x))

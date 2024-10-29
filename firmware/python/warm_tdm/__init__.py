@@ -33,6 +33,7 @@ from ._Plotter import *
 from ._WaveformCapture import *
 from ._PidDebugger import *
 from ._BoardTemp import *
+from ._BoardTemp2 import *
 from ._ColumnFpgaBoard import *
 from ._WarmTdmCommon2 import *
 from ._WarmTdmCore2 import *
