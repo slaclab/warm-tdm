@@ -441,6 +441,7 @@ begin
          pwrSda            => pwrSda,                              -- [inout]
          sfpScl            => sfpScl,                              -- [inout]
          sfpSda            => sfpSda,                              -- [inout]
+         ledEn             => ledEn,                               -- [out]
          pwrSyncA          => pwrSyncA,                            -- [out]
          pwrSyncB          => pwrSyncB,                            -- [out]
          pwrSyncC          => pwrSyncC,                            -- [out] 
