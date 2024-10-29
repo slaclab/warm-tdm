@@ -27,17 +27,18 @@ import rogue
 if '--local' in sys.argv:
     baseDir = os.path.dirname(os.path.realpath(__file__))
     pyrogue.addLibraryPath(f'{baseDir}/../../firmware/python')
+    pyrogue.addLibraryPath(f'{baseDir}/../python')    
     pyrogue.addLibraryPath(f'{baseDir}/../../firmware/submodules/surf/python')
 
 import warm_tdm
+import warm_tdm_api
 
 #rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
 #rogue.Logging.setFilter('pyrogue._Device', rogue.Logging.Info)
 
 # Set the argument parser
-parser = argparse.ArgumentParser()
+parser = warm_tdm_api.WarmTdmArgparse()
 
-# Add arguments
 parser.add_argument(
     "--path", '-p', 
     type     = str,
@@ -46,69 +47,13 @@ parser.add_argument(
     help     = "path to image",
 )
 
-parser.add_argument(
-    "--ip",
-    type     = str,
-    required = False,
-    default = '192.168.3.11',
-    help     = "IP address")
-
-parser.add_argument(
-    "--rows",
-    type     = int,
-    default = 0,
-    help     = "Number of row modules")
-
-parser.add_argument(
-    "--cols",
-    type     = int,
-    default = 1,
-    help     = "Number of column modules")
-
-parser.add_argument(
-    "--frontEnd",
-    choices= ['Standard', 'Ch0Feb'],
-    default= 'Standard')
-
 args = parser.parse_known_args()[0]
 print(args)
 
-feDict = {
-    'Standard': warm_tdm.ColumnBoardC00StandardFrontEnd,
-    'Ch0Feb': warm_tdm.ColumnBoardC00FebBypassCh0}
+arg_dict = warm_tdm_api.arg_dict(args)
 
-feClass = feDict[args.frontEnd]
-
-
-groups = [{
-    'host': args.ip,
-    'colBoards': args.cols,
-    'rowBoards': args.rows}]
-
-
-
-# Get the arguments
-args = parser.parse_known_args()[0]
-
-print(args)
-
-kwargs = {}
-#kwargs['groups'] = groups
-#kwargs = warm_tdm.CONFIGS['hw'][args.cfg]
-
-
-
-
-#rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
-
-with warm_tdm.WarmTdmRoot(
-        pollEn=False,
-        host=args.ip,
-        frontEndClass = feClass,
-        colBoards=args.cols,
-        rowBoards=args.rows,
-        **kwargs) as root:
-
+with warm_tdm_api.GroupRoot(**arg_dict) as root:
+    
     print('Finding and reading group')
 
     avs = root.find(name='AxiVersion')
@@ -121,10 +66,6 @@ with warm_tdm.WarmTdmRoot(
         av.checkBlocks()
         av.printStatus()
         print()
-
-#     x = input('Are you sure you wish to procede [y]/n: ')
-#     if x == 'n':
-#         exit()
 
     proms = root.find(name='AxiMicronN25Q')
 
