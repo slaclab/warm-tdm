@@ -24,7 +24,8 @@ class ColumnFpgaBoard(pr.Device):
             name = 'WarmTdmCore',
             offset = 0x00000000,
             expand = True,
-            therm_channels = [0, 1, 8, 9]))
+            local_therm_channels = [9, 10, 1, 11, 0, 3],
+            fe_therm_channels = [2, 8]))
 
         self.add(warm_tdm.DataPath(
             offset = 0xC0300000,

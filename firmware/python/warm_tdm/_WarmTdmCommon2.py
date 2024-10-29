@@ -11,7 +11,7 @@ import surf.devices.transceivers
 import warm_tdm
 
 class WarmTdmCommon2(pr.Device):
-    def __init__(self, therm_channels, **kwargs):
+    def __init__(self, local_therm_channels, fe_therm_channels, **kwargs):
         super().__init__(**kwargs)
 
         self.add(surf.axi.AxiVersion(
@@ -20,7 +20,9 @@ class WarmTdmCommon2(pr.Device):
         self.add(warm_tdm.WarmTdmConfig(
             offset = 0x7000))
 
+        therm_channels = local_therm_channels + fe_therm_channels
         print(f'Creating XADC with channels = {therm_channels}')
+        
         self.add(surf.xilinx.Xadc(
             enabled = False,
             offset = 0x00001000,
