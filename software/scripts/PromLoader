@@ -51,8 +51,14 @@ args = parser.parse_known_args()[0]
 print(args)
 
 arg_dict = warm_tdm_api.arg_dict(args)
+arg_dict['pollEn'] = False
+arg_dict['initRead'] = False
 
 with warm_tdm_api.GroupRoot(**arg_dict) as root:
+
+#     devs = root.find(name='WarmTdmCore')
+#     for d in devs:
+#         d.enable.set(False)
     
     print('Finding and reading group')
 
