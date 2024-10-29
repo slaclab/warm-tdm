@@ -394,12 +394,12 @@ begin
       generic map (
          TPD_G            => TPD_G,
          DEVICE_MAP_G     => (
-            0             => MakeI2cAxiLiteDevType(              -- 24LC64FT
-               i2cAddress => "1010000",
-               dataSize   => 8,
-               addrSize   => 16,
-               endianness => '1'),
-            1             => MakeI2cAxiLiteDevType(              -- SA56004EDP Temp Monitor
+--             0             => MakeI2cAxiLiteDevType(              -- 24LC64FT
+--                i2cAddress => "1010000",
+--                dataSize   => 8,
+--                addrSize   => 16,
+--                endianness => '1'),
+            0             => MakeI2cAxiLiteDevType(              -- SA56004EDP Temp Monitor
                i2cAddress => "1001100",
                dataSize   => 8,
                addrSize   => 8,

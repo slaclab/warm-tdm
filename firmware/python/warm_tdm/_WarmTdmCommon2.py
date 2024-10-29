@@ -54,13 +54,13 @@ class WarmTdmCommon2(pr.Device):
         self.add(surf.devices.nxp.Sa56004x(
             enabled = False,
             groups = ['NoConfig'],
-            offset = 0x140000))
+            offset = 0x100000))
         
 
-        self.add(surf.devices.microchip.Axi24LC64FT(
-            enabled = False,
-            groups = ['NoConfig'],
-            offset = 0x100000))
+#         self.add(surf.devices.microchip.Axi24LC64FT(
+#             enabled = False,
+#             groups = ['NoConfig'],
+#             offset = 0x100000))
 
         self.add(surf.devices.transceivers.Sfp(
             name = 'SFP0',
