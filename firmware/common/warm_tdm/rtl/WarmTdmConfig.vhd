@@ -153,7 +153,7 @@ begin
 
 
       if (r.pwrSyncACfg = PWR_SYNC_HIGH_C) then
-         v.pwrSyncA := '1';
+         v.pwrSyncA := '0';             -- Don't allow pwrSyncA set high
       elsif (r.pwrSyncACfg = PWR_SYNC_LOW_C) then
          v.pwrSyncA := '0';
       elsif (r.pwrSyncACfg = PWR_SYNC_OSC_C) then

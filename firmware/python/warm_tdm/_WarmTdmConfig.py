@@ -41,7 +41,7 @@ class WarmTdmConfig(pr.Device):
             bitSize = 2,
             enum = {
                 0: 'LOW',
-                1: 'HIGH',
+                #1: 'HIGH',
                 2: 'OSC'}))
 
         self.add(pr.RemoteVariable(
