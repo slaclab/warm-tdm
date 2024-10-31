@@ -37,10 +37,12 @@ create_generated_clock -name timingRxBitClk  [get_pins -hier -filter {NAME =~ */
 create_generated_clock -name timingRxWordClk [get_pins -hier -filter {NAME =~ */U_Timing_1/U_TimingRx_1/*/*/CLKOUT1}]
 
 set_clock_groups -asynchronous \
+    -group [get_clocks {fabRefClk0}] \    
     -group [get_clocks {fabRefClk1}] \
     -group [get_clocks {ethClk}] 
 
 set_clock_groups -asynchronous \
+    -group [get_clocks {fabRefClk0}] \    
     -group [get_clocks {fabRefClk1}] \
     -group [get_clocks {pgpClk}]
 
@@ -59,8 +61,9 @@ set_clock_groups -asynchronous \
     -group [get_clocks -include_generated_clocks timingRxClk] 
 
 set_clock_groups -asynchronous \
-    -group [get_clocks axilClk] \
-    -group [get_clocks fabRefClk1]
+    -group [get_clocks fabRefClk0] \
+    -group [get_clocks fabRefClk1] \
+    -group [get_clocks axilClk]
 
  set_clock_groups -asynchronous \
      -group [get_clocks axilClk] \
