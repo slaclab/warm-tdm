@@ -118,7 +118,7 @@ def saFbSweep(*, group, bias, saFbRange, process):
             #Progress.set(pctLow + pctRange*((idx+1)/numSteps))
 
         adcs = group.SaOutAdc.get()
-        if np.any(np.abs(adcs), 0.8):
+        if np.any(np.abs(adcs) > 0.8):
             print('High ADC value seen')
             print('SaBias - {bias}')
             print('SaFb - {saFbRange[:, idx]}')
