@@ -174,11 +174,10 @@ class WaveformCapture(pr.Device):
 
 
 
-class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
+class WaveformCaptureReceiver(pr.DataReceiver):
 
-    def __init__(self, amplifiers, **kwargs):
-        rogue.interfaces.stream.Slave.__init__(self)
-        pr.Device.__init__(self, **kwargs)
+    def __init__(self, captureDev, amplifiers, **kwargs):
+        super().__init__(**kwargs)
 
         self.amplifiers = amplifiers
 
@@ -339,7 +338,14 @@ class WaveformCaptureReceiver(pr.Device, rogue.interfaces.stream.Slave):
             name = 'SaveData',
             value = False))
 
-    def _acceptFrame(self, frame):
+        @self.command()
+        def CaptureAndWait():
+            self.Updated.set(False)
+            self.captureDev.CaptureWaveform()
+            while self.Updated.get() == False:
+                time.sleep(.1)
+
+    def process(self, frame):
         if frame.getError():
             print('Frame Error!')
             return
