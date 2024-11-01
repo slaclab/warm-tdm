@@ -32,6 +32,7 @@ class RowModule(pr.Device):
 
         self.add(warm_tdm.RowDacDriver(
             offset = 0xC100_0000,
+            frontEnd = self.AnalogFrontEnd,
             num_row_selects = num_row_selects,
             num_chip_selects = num_chip_selects,
             expand = True))
