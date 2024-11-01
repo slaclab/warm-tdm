@@ -142,6 +142,7 @@ class HardwareGroup(pyrogue.Device):
             # Instantiate the board Device tree and link it to the SRP
             self.add(rowBoardClass(
                 name=f'RowBoard[{rowIndex}]',
+                frontEndClass=rowFeClass,
                 memBase=srp,
                 expand=True,
                 enabled=True))

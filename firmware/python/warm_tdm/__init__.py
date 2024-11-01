@@ -35,6 +35,7 @@ from ._PidDebugger import *
 from ._BoardTemp import *
 from ._BoardTemp2 import *
 from ._ColumnFpgaBoard import *
+from ._RowFpgaBoard import *
 from ._WarmTdmCommon2 import *
 from ._WarmTdmCore2 import *
 from ._SaBiasOffset2 import *

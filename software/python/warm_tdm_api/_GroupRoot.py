@@ -49,7 +49,7 @@ class GroupRoot(pyrogue.Root):
             colBoardClass=colBoardClass,
             colFeClass=colFeClass,
             rowBoardClass=rowBoardClass,
-            rowFeClass=None,
+            rowFeClass=rowFeClass,
             groupConfig=groupConfig,
             groupId=0,
             rows=numRows,

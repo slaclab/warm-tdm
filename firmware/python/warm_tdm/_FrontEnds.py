@@ -156,3 +156,43 @@ class FpgaBoardColumnFeb(FrontEndDevice):
         for i in range(8):
             self.add(warm_tdm.FpgaBoardColumnFebChannel(
                 name = f'Channel[{i}]'))
+
+
+
+
+            
+class RowBoardC01StandardFrontEnd(FrontEndDevice):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        # Channels 0 and 1 use differential amplifier configuration
+        for i in range(2):
+            self.add(warm_tdm.FastDacAmplifierDiff(
+                name = f'Amp[{i}]',
+                guiGroup = 'Amp_',
+                hidden = False))
+
+        for i in range(2, 32):
+            self.add(warm_tdm.FastDacAmplifierSE(
+                name = f'Amp[{i}]',
+                guiGroup = 'Amp_',
+                hidden = False))
+
+class FpgaBoardRowFeb(FrontEndDevice):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        # Channels 0 and 1 use differential amplifier configuration
+        for i in range(32):
+            self.add(warm_tdm.FastDacAmplifierDiff(
+                name = f'Amp[{i}]',
+                guiGroup = 'Amp_',
+                hidden = False,
+                defaults = {
+                    'Invert': False,
+                    'InputR': 100.0,
+                    'FbR': 402.0,                
+                    'ShuntR': 1.000e3
+                }))
+
+       

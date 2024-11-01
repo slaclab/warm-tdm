@@ -80,7 +80,7 @@ class WarmTdmArgparse(argparse.ArgumentParser):
 
         self.add_argument(
             "--rowFrontEnd",
-            choices= ['Legacy'],
+            choices= ['Legacy', 'FpgaRowFeb'],
             default= 'Legacy')
 
 
@@ -96,10 +96,12 @@ colFeDict = {
 }
 
 rowBoardDict = {
-    'Legacy': warm_tdm.RowModule}
+    'Legacy': warm_tdm.RowModule,
+    'FPGA': warm_tdm.RowFpgaBoard}
 
 rowFeDict = {
-    'Legacy': None}
+    'Legacy': warm_tdm.RowBoardC01StandardFrontEnd,
+    'FpgaRowFeb': warm_tdm.FpgaBoardRowFeb}
 
 
 def arg_dict(args):

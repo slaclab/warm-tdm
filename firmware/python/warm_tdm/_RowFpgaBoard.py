@@ -5,7 +5,7 @@ import surf.protocols.ssi
 
 import warm_tdm
 
-class RowModule(pr.Device):
+class RowFpgaBoard(pr.Device):
     def __init__(self, frontEndClass, num_row_selects=32, num_chip_selects=0, **kwargs):
         super().__init__(**kwargs)
 
@@ -14,11 +14,12 @@ class RowModule(pr.Device):
         self.add(frontEndClass(
             name='AnalogFrontEnd'))
 
-        self.add(warm_tdm.WarmTdmCore(
+        self.add(warm_tdm.WarmTdmCore2(
             offset = 0x00000000,
             expand = True,
             disable_timing_tx = True,
-            therm_channels = [3, 11, 4, 12]))
+            local_therm_channels = [9, 10, 1, 11, 0, 3],
+            fe_therm_channels = [2, 8]))
         
         self.add(surf.protocols.ssi.SsiPrbsRx(
             enabled = False,
@@ -32,6 +33,7 @@ class RowModule(pr.Device):
 
         self.add(warm_tdm.RowDacDriver(
             offset = 0xC100_0000,
+            frontEnd = self.AnalogFrontEnd,
             num_row_selects = num_row_selects,
             num_chip_selects = num_chip_selects,
             expand = True))
