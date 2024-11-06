@@ -44,12 +44,13 @@ entity WarmTdmConfig is
       timingRxClkLocked : in sl;
 
       -- Output ports
-      ledEn    : out sl              := '1';
-      anaPwrEn : out sl              := '1';
-      pwrSyncA : out sl              := '0';
-      pwrSyncB : out sl              := '0';
-      pwrSyncC : out sl              := '1';
-      ampPdB   : out slv(7 downto 0) := (others => '1')
+      tempAlertL : in  sl;
+      ledEn      : out sl              := '1';
+      anaPwrEn   : out sl              := '1';
+      pwrSyncA   : out sl              := '0';
+      pwrSyncB   : out sl              := '0';
+      pwrSyncC   : out sl              := '1';
+      ampPdB     : out slv(7 downto 0) := (others => '1')
 
       );
 
@@ -132,6 +133,7 @@ begin
       axiSlaveRegister(axilEp, X"10", 0, v.syncPeriodDiv2);
       axiWrDetect(axilEp, X"10", v.resetCounter);
       axiSlaveRegister(axilEp, X"14", 0, v.ledEn);
+      axiSlaveRegisterR(axilEp, X"18", 0, tempAlertL);
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
 

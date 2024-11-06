@@ -24,6 +24,16 @@ class WarmTdmConfig(pr.Device):
                 1: 'Enabled'}))
 
         self.add(pr.RemoteVariable(
+            name = 'TempAlert',
+            mode = 'RO',
+            offset = 0x18,
+            bitOffset = 0,
+            bitSize = 1,
+            enum = {
+                0: 'True',
+                1: 'False'}))
+
+        self.add(pr.RemoteVariable(
             name = 'LedEn',
             mode = 'RW',
             offset = 0x14,

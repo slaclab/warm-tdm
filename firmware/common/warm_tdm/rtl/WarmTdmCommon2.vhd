@@ -232,6 +232,7 @@ begin
          axilReadMaster    => locAxilReadMasters(AXIL_CONFIG_C),   -- [in]
          axilReadSlave     => locAxilReadSlaves(AXIL_CONFIG_C),    -- [out]
          timingRxClkLocked => timingRxClkLocked,                   -- [in]
+         tempAlertL        => tempAlertL,                          -- [in]
          ledEn             => ledEn,                               -- [out]
          anaPwrEn          => anaPwrEn,                            -- [out]
          pwrSyncA          => pwrSyncA,                            -- [out]
@@ -362,23 +363,23 @@ begin
    -------------------------------------------------------------------------------------------------
    U_AxiI2cRegMaster_POWER : entity surf.AxiI2cRegMaster
       generic map (
-         TPD_G            => TPD_G,
-         DEVICE_MAP_G     => (
-            0             => MakeI2cAxiLiteDevType(              -- LTC4151 Digital Power
-               i2cAddress => "1101111",
-               dataSize   => 8,
-               addrSize   => 8,
-               endianness => '0',
+         TPD_G             => TPD_G,
+         DEVICE_MAP_G      => (
+            0              => MakeI2cAxiLiteDevType(             -- LTC4151 Digital Power
+               i2cAddress  => "1101111",
+               dataSize    => 8,
+               addrSize    => 8,
+               endianness  => '0',
                repeatStart => '1'),
-            1             => MakeI2cAxiLiteDevType(              -- LTC4151 Analog Power
-               i2cAddress => "1101010",
-               dataSize   => 8,
-               addrSize   => 8,
-               endianness => '0',
+            1              => MakeI2cAxiLiteDevType(             -- LTC4151 Analog Power
+               i2cAddress  => "1101010",
+               dataSize    => 8,
+               addrSize    => 8,
+               endianness  => '0',
                repeatStart => '1')),
-         I2C_SCL_FREQ_G   => ite(SIMULATION_G, 2.0e6, 100.0E+3),
-         I2C_MIN_PULSE_G  => ite(SIMULATION_G, 50.0e-9, 100.0E-9),
-         AXI_CLK_FREQ_G   => AXIL_CLK_FREQ_G)                    --156.25E+6)
+         I2C_SCL_FREQ_G    => ite(SIMULATION_G, 2.0e6, 100.0E+3),
+         I2C_MIN_PULSE_G   => ite(SIMULATION_G, 50.0e-9, 100.0E-9),
+         AXI_CLK_FREQ_G    => AXIL_CLK_FREQ_G)                   --156.25E+6)
       port map (
          axiClk         => axilClk,                              -- [in]
          axiRst         => axilRst,                              -- [in]

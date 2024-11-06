@@ -319,7 +319,7 @@ set_property -dict { PACKAGE_PIN H26 IOSTANDARD LVCMOS33 } [get_ports { locSda }
 # Power Monitoring
 set_property -dict { PACKAGE_PIN B20 IOSTANDARD LVCMOS33 } [get_ports { pwrScl }];
 set_property -dict { PACKAGE_PIN D21 IOSTANDARD LVCMOS33 } [get_ports { pwrSda }];
-#set_property -dict { PACKAGE_PIN J24 IOSTANDARD LVCMOS33 } [get_ports { tempAlertL }];
+set_property -dict { PACKAGE_PIN J24 IOSTANDARD LVCMOS33 } [get_ports { tempAlertL }];
 
 # SFP I2C
 set_property -dict { PACKAGE_PIN C22 IOSTANDARD LVCMOS33 } [get_ports { sfpScl[0] }];
