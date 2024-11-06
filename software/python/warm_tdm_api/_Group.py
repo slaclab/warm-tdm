@@ -360,10 +360,11 @@ class Group(pr.Device):
 #             groups='TopApi',
 #             mode='RW'))
 
-        self.add(pr.LinkVariable(
-            name = 'RowIndexOrderList',
-            groups = ['NoConfig'],
-            variable = self.HardwareGroup.ReadoutList))
+        if groupConfig.columnBoards > 0:
+            self.add(pr.LinkVariable(
+                name = 'RowIndexOrderList',
+                groups = ['NoConfig'],
+                variable = self.HardwareGroup.ReadoutList))
 
         # Tuning column enables
         # Determines if a column is activated
