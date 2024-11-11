@@ -45,6 +45,8 @@ print(args)
 
 arg_dict = warm_tdm_api.arg_dict(args)
 
+print(arg_dict)
+
 with warm_tdm.WarmTdmRoot(**arg_dict) as root:
 
     print('Built root. Starting PyDM')

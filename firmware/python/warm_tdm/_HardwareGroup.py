@@ -34,6 +34,8 @@ class HardwareGroup(pyrogue.Device):
 
         super().__init__(**kwargs)
 
+        print(f'Starting HardwareGroup with {colBoards=}')
+
 #        print(f'HardwareGroup with {rows} rows')
 
         # Open rUDP connections to the Manager board

@@ -39,20 +39,17 @@ class StreamDebug(rogue.interfaces.stream.Slave):
 class WarmTdmRoot(pyrogue.Root):
     def __init__(
             self,
+            groupConfig,
             colBoardClass,
             colFeClass,
             rowBoardClass,
             rowFeClass,
             simulation=False,
             emulate=False,
-            host='192.168.3.11',
-            colBoards=4,
-            rowBoards=1,
             numRows=32,
             **kwargs):
 
-        if 'groupConfig' in kwargs:
-            del kwargs['groupConfig']
+        print(f'Starting WarmTdmRoot with {groupConfig.columnBoards=}')
 
         # Disable polling and set a longer timeout in simulation mode
         if simulation:
@@ -71,15 +68,15 @@ class WarmTdmRoot(pyrogue.Root):
         #self >> self.DataWriter.getChannel(len(groups))
 
         self.add(warm_tdm.HardwareGroup(
-            groupId=0,
+            groupId=0, #groupConfig.groupId,
             dataWriter=self.DataWriter,
             simulation=simulation,
             emulate=emulate,
-            host=host,
-            colBoards=colBoards,
+            host=groupConfig.host,
+            colBoards=groupConfig.columnBoards,
             colBoardClass=colBoardClass,
             colFeClass=colFeClass,
-            rowBoards=rowBoards,
+            rowBoards=groupConfig.rowBoards,
             rowBoardClass=rowBoardClass,
             rowFeClass=rowFeClass,
             rows=numRows,
