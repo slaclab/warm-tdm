@@ -110,7 +110,7 @@ def arg_dict(args):
     ret['simulation'] = args.sim
     ret['emulate'] = args.emulate
     ret['numRows'] = args.maxRows
-    ret['initRead'] = args.initRead and not args.sim
+    ret['initRead'] = False #args.initRead and not args.sim
     ret['colBoardClass'] = colBoardDict[args.columnBoardType]
     ret['colFeClass'] = colFeDict[args.columnFrontEnd]
     ret['rowBoardClass'] = rowBoardDict[args.rowBoardType]
