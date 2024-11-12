@@ -8,4 +8,4 @@
 ## the terms contained in the LICENSE.txt file.
 ##############################################################################
 # Set top level sim
-set_property top "RowModuleBoardTb"     [get_filesets sim_1]
+
