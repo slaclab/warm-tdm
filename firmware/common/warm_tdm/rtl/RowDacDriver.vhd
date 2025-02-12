@@ -426,7 +426,7 @@ begin
             v.state  := INIT_B_S;
 
          when INIT_B_S =>
-            -- Write channel 0 and all dacs
+            -- Write channel 0 on all dacs
             v.dacWrt := (others => '1');
             if (r.dacWrt(0) = '1') then
                -- After write, set channel 1 and clear wrt
