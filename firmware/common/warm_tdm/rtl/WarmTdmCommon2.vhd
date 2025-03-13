@@ -73,11 +73,6 @@ entity WarmTdmCommon2 is
       -- Analog Power
       anaPwrEn : out sl := '0';
 
-      -- VR Synchronization
-      pwrSyncA : out sl := '0';
-      pwrSyncB : out sl := '0';
-      pwrSyncC : out sl := '1';
-
       timingRxClkLocked : in sl;
 
       -- XADC
@@ -235,9 +230,6 @@ begin
          tempAlertL        => tempAlertL,                          -- [in]
          ledEn             => ledEn,                               -- [out]
          anaPwrEn          => anaPwrEn,                            -- [out]
-         pwrSyncA          => pwrSyncA,                            -- [out]
-         pwrSyncB          => pwrSyncB,                            -- [out]
-         pwrSyncC          => pwrSyncC,                            -- [out]
          ampPdB            => ampPdB);                             -- [out]
 
    -------------------------------------------------------------------------------------------------

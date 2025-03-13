@@ -161,16 +161,22 @@ end entity WarmTdmCore2;
 
 architecture rtl of WarmTdmCore2 is
 
-   constant NUM_AXIL_MASTERS_C : integer := 4;
+   constant NUM_AXIL_MASTERS_C : integer := 5;
    constant AXIL_COMMON_C      : integer := 0;
-   constant AXIL_TIMING_C      : integer := 1;
-   constant AXIL_COM_C         : integer := 2;
-   constant AXIL_APP_C         : integer := 3;
+   constant AXIL_PWR_C         : integer := 1;
+   constant AXIL_TIMING_C      : integer := 2;
+   constant AXIL_COM_C         : integer := 3;
+   constant AXIL_APP_C         : integer := 4;
+
 
    constant AXIL_XBAR_CFG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := (
       AXIL_COMMON_C   => (
          baseAddr     => X"00000000",
          addrBits     => 20,
+         connectivity => X"FFFF"),
+      AXIL_PWR_C      => (
+         baseAddr     => X"00100000",
+         addrBits     => 8,
          connectivity => X"FFFF"),
       AXIL_TIMING_C   => (
          baseAddr     => X"01000000",
@@ -208,6 +214,8 @@ architecture rtl of WarmTdmCore2 is
    signal ethPhyReady : sl;
 
    signal locTimingRxClk125 : sl;
+   signal locTimingRxRst125 : sl;
+   signal locTimingRxData   : LocalTimingType;
    signal timingRxLocked    : sl;
    signal timingRxClkLocked : sl;
    signal pgpTxLink         : sl;
@@ -224,6 +232,8 @@ begin
    axisRst <= locAxilRst;
 
    timingRxClk125 <= locTimingRxClk125;
+   timingRxRst125 <= locTimingRxRst125;
+   timingRxData   <= locTimingRxData;
 
    Heartbeat_RefClk0 : entity surf.Heartbeat
       generic map (
@@ -342,9 +352,9 @@ begin
          timingRxDataP     => timingRxDataP,  -- [in]
          timingRxDataN     => timingRxDataN,  -- [in]
          timingRxClkOut    => locTimingRxClk125,                   -- [out]
-         timingRxRstOut    => timingRxRst125,                      -- [out]
+         timingRxRstOut    => locTimingRxRst125,                   -- [out]
          timingRxClkLocked => timingRxClkLocked,                   -- [out]
-         timingRxDataOut   => timingRxData,   -- [out]
+         timingRxDataOut   => locTimingRxData,                     -- [out]
          timingRxLocked    => timingRxLocked,                      -- [out]
          timingTxClkP      => timingTxClkP,   -- [out]
          timingTxClkN      => timingTxClkN,   -- [out]
@@ -442,15 +452,29 @@ begin
          sfpScl            => sfpScl,                              -- [inout]
          sfpSda            => sfpSda,                              -- [inout]
          ledEn             => ledEn,                               -- [out]
-         pwrSyncA          => pwrSyncA,                            -- [out]
-         pwrSyncB          => pwrSyncB,                            -- [out]
-         pwrSyncC          => pwrSyncC,                            -- [out] 
          timingRxClkLocked => timingRxClkLocked,                   -- [in]
          localThermistorP  => localThermistorP,                    -- [in]
          localThermistorN  => localThermistorN,                    -- [in]
          feThermistorP     => feThermistorP,                       -- [in]
          feThermistorN     => feThermistorN,                       -- [in]
          ampPdB            => ampPdB);                             -- [out]
+
+   U_PwrSync_1 : entity warm_tdm.PwrSync
+      generic map (
+         TPD_G => TPD_G)
+      port map (
+         axilClk         => locAxilClk,                       -- [in]
+         axilRst         => locAxilRst,                       -- [in]
+         axilWriteMaster => locAxilWriteMasters(AXIL_PWR_C),  -- [in]
+         axilWriteSlave  => locAxilWriteSlaves(AXIL_PWR_C),   -- [out]
+         axilReadMaster  => locAxilReadMasters(AXIL_PWR_C),   -- [in]
+         axilReadSlave   => locAxilReadSlaves(AXIL_PWR_C),    -- [out]
+         timingRxClk     => locTimingRxClk125,                -- [out]
+         timingRxRst     => locTimingRxRst125,                -- [out]
+         timingRxData    => locTimingRxData,                  -- [out]
+         pwrSyncA        => pwrSyncA,                         -- [out]
+         pwrSyncB        => pwrSyncB,                         -- [out]
+         pwrSyncC        => pwrSyncC);                        -- [out]
 
 
 end rtl;
