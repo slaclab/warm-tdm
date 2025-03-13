@@ -24,33 +24,39 @@ library surf;
 use surf.StdRtlPkg.all;
 use surf.I2cPkg.all;
 
-entity AwaXe is
+library warm_tdm;
+
+entity AwaXeAsic is
    generic (
-      TPD_G      : time            := 1 ns;
-      ADDR_G     : slv(2 downto 0) := "000";
-      LNA_FB_R_G : real            := 17.1e3;
-      LNA_RS_R_G : real            := 20.0e3);
+      TPD_G  : time            := 1 ns;
+      ADDR_G : slv(2 downto 0) := "000");
    port (
       sda     : inout sl;
       scl     : inout sl;
-      saBias  :       RealArray(1 downto 0);
-      saFb    :       RealArray(1 downto 0);
-      sq1Bias :       RealArray(1 downto 0);
-      sq1Fb   :       RealArray(1 downto 0);
-      tesBias :       RealArray(1 downto 0);
-      lnaInP  :       RealArray(1 downto 0);
-      lnaInN  :       RealArray(1 downto 0);
-      lnaOutP :       RealArray(1 downto 0);
-      lnaOutN :       RealArray(1 downto 0));
-end entity AwaXe;
+      saBias  : out   RealArray(1 downto 0);
+      saFb    : out   RealArray(1 downto 0);
+      sq1Bias : out   RealArray(1 downto 0);
+      sq1Fb   : out   RealArray(1 downto 0);
+      tesBias : out   RealArray(1 downto 0);
+      lnaInP  : in    RealArray(1 downto 0);
+      lnaInN  : in    RealArray(1 downto 0);
+      lnaOutP : out   RealArray(1 downto 0);
+      lnaOutN : out   RealArray(1 downto 0));
+end entity AwaXeAsic;
 
 
-architecture rtl of AwaXe is
+architecture rtl of AwaXeAsic is
 
-   constant LNA_GAIN_C : real := ((2 * LNA_FB_R_G) / LNA_RS_R_G) - 1;
+   constant LNA_GAIN_C : real := 80.0;
+
+   signal clk : sl;
+   signal rst : sl;
 
    type CurrentArray is array (1 downto 0) of RealArray(4 downto 0);
-   signal current CurrentArray;
+   signal current : CurrentArray;
+
+   signal lnaOutDiff : RealArray(1 downto 0);
+   signal lnaInDiff  : RealArray(1 downto 0);
 
 begin
 
@@ -66,9 +72,8 @@ begin
          U_AwaXeChannel_1 : entity warm_tdm.AwaXeChannel
             generic map (
                TPD_G      => TPD_G,
-               RANGE_G    => ite(dac = 0, 1.8e3, 300e6),
-               I2C_ADDR_G => toSl(dac = 0) & toSl(ch = 0) & ite(dac > 0, toSlv(dac-1, 2), "00") & ADDR_G,
-               ADDR_G     => ADDR_G)
+               RANGE_G    => ite(dac = 0, 1.8e3, 300.0e6),
+               I2C_ADDR_G => toSl(dac = 0) & toSl(ch = 0) & ite(dac > 0, toSlv(dac-1, 2), "00") & ADDR_G)
             port map (
                clk     => clk,                -- [in]
                rst     => rst,                -- [in]
@@ -78,6 +83,7 @@ begin
       end generate GEN_DACS;
 
       tesBias(ch) <= current(ch)(0);
+--      tesBiasN(ch) <= (-1.0)*current(ch)(0);
       saBias(ch)  <= current(ch)(4);
       saFb(ch)    <= current(ch)(3);
       sq1Bias(ch) <= current(ch)(1);
@@ -86,8 +92,8 @@ begin
       lnaInDiff(ch)  <= lnaInP(ch) - lnaInN(ch);
       lnaOutDiff(ch) <= lnaInDiff(ch) * LNA_GAIN_C;
 
-      lnaOutP(ch) <= lnaOutDiff(ch) / 2
-         lnaOutN(ch) <= lnaInN(ch) * LNA_GAIN_C;
+      lnaOutP(ch) <= lnaOutDiff(ch) / 2.0;
+      lnaOutN(ch) <= (-1.0) * lnaOutDiff(ch) / 2.0;
 
    end generate GEN_CHANNEL;
 

@@ -27,19 +27,18 @@ use surf.I2cPkg.all;
 entity AwaXeChannel is
    generic (
       TPD_G      : time            := 1 ns;
-      RANGE_G    : real            := 300e-6;
-      I2C_ADDR_G : slv(6 downto 0) := (others => '0');
-      ADDR_G     : slv(2 downto 0) := "000");
+      RANGE_G    : real            := 300.0e-6;
+      I2C_ADDR_G : slv(6 downto 0) := (others => '0'));
    port (
-      clk : in sl;
-      rst : in sl;
+      clk     : in    sl;
+      rst     : in    sl;
       sda     : inout sl;
       scl     : inout sl;
       current : out   real);
 end entity AwaXeChannel;
 
 
-architecture rtl of AwaXe is
+architecture rtl of AwaXeChannel is
 
    type RegType is record
       dac : slv(7 downto 0);
@@ -53,7 +52,7 @@ architecture rtl of AwaXe is
 
    -- I2C RegSlave IO
    signal i2ci : i2c_in_type;
-   signal i2co : i2c_out_type;;
+   signal i2co : i2c_out_type;
 
    signal i2cSlaveIn  : I2cSlaveInType;
    signal i2cSlaveOut : I2cSlaveOutType;
@@ -98,7 +97,7 @@ begin
 
       rin <= v;
 
-      current <= RANGE_G * real(to_integer(r.dac))/(2**8-1);
+      current <= RANGE_G * real(conv_integer(r.dac))/(2**8-1);
 
    end process;
 

@@ -265,8 +265,8 @@ architecture rtl of ColumnFpgaBoard is
          addrBits         => 9,
          connectivity     => X"FFFF"),
       AXIL_FE_I2C_C       => (
-         baseAddr         => APP_BASE_ADDR_C + X"10000000",
-         addrBits         => 24,
+         baseAddr         => APP_BASE_ADDR_C + X"08000000",
+         addrBits         => 27,
          connectivity     => X"FFFF"));
 
    signal axilClk : sl;
@@ -472,10 +472,27 @@ begin
          mAxiReadMasters     => i2cAxilReadMasters,                  -- [out]
          mAxiReadSlaves      => i2cAxilReadSlaves);                  -- [in]
 
-   U_AwaXeI2c_1 : entity warm_tdm.AwaXeI2c
+--    U_AwaXeI2c_1 : entity warm_tdm.AwaXeI2c
+--       generic map (
+--          TPD_G           => TPD_G,
+--          SIMULATION_G    => SIMULATION_G,
+--          CHIP_ADDR_G     => "000",
+--          AXIL_CLK_FREQ_G => AXIL_CLK_FREQ_C)
+--       port map (
+--          axilClk         => axilClk,                 -- [in]
+--          axilRst         => axilRst,                 -- [in]
+--          axilReadMaster  => i2cAxilReadMasters(0),   -- [in]
+--          axilReadSlave   => i2cAxilReadSlaves(0),    -- [out]
+--          axilWriteMaster => i2cAxilWriteMasters(0),  -- [in]
+--          axilWriteSlave  => i2cAxilWriteSlaves(0),   -- [out]
+--          sda             => feI2cSda(0),             -- [inout]
+--          scl             => feI2cScl(0));            -- [inout]
+
+   U_AwaXeAxiI2cBridge_1 : entity warm_tdm.AwaXeAxiI2cBridge
       generic map (
          TPD_G           => TPD_G,
-         CHIP_ADDR_G     => "000",
+         I2C_SCL_FREQ_G  => ite(SIMULATION_G, 2.0e6, 100.0E+3),
+         I2C_MIN_PULSE_G => ite(SIMULATION_G, 50.0e-9, 100.0E-9),
          AXIL_CLK_FREQ_G => AXIL_CLK_FREQ_C)
       port map (
          axilClk         => axilClk,                 -- [in]
@@ -484,8 +501,8 @@ begin
          axilReadSlave   => i2cAxilReadSlaves(0),    -- [out]
          axilWriteMaster => i2cAxilWriteMasters(0),  -- [in]
          axilWriteSlave  => i2cAxilWriteSlaves(0),   -- [out]
-         sda             => feI2cSda(i),             -- [inout]
-         scl             => feI2cScl(i));            -- [inout]
+         sda             => feI2cSda(0),             -- [inout]
+         scl             => feI2cScl(0));            -- [inout]
 
    GEN_FE_I2C : for i in 3 downto 1 generate
       U_AxiI2cRegMaster_FE_I2C : entity surf.AxiI2cRegMaster

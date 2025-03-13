@@ -23,7 +23,7 @@ class AwaXeI2c(pr.Device):
 
             self.add(pr.RemoteVariable(
                 name = f'Ch{col}Dac1800Raw',
-                offset = 0x80*5*col,
+                offset = 0x4*5*col,
                 bitOffset = 0,
                 bitSize = 8,
                 base = pr.UInt))
@@ -45,7 +45,7 @@ class AwaXeI2c(pr.Device):
 
                 self.add(pr.RemoteVariable(
                     name = varNameRaw,
-                    offset = 0x80*5*col + 0x80*pos,
+                    offset = 0x4*5*col + 0x4*pos,
                     bitOffset = 0,
                     bitSize = 8,
                     base = pr.UInt))

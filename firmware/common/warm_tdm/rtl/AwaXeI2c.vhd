@@ -30,6 +30,7 @@ entity AwaXeI2c is
 
    generic (
       TPD_G           : time            := 1 ns;
+      SIMULATION_G    : boolean         := false;
       CHIP_ADDR_G     : slv(2 downto 0) := "000";
       AXIL_CLK_FREQ_G : real            := 125.0e6);
 
@@ -48,7 +49,7 @@ end entity AwaXeI2c;
 
 architecture rtl of AwaXeI2c is
 
-   constant I2C_CONFIG_C : I2cAxiLiteDevArray(9 downto 0) := (
+   constant I2C_CONFIG_C : I2cAxiLiteDevArray(10 downto 0) := (
       -- Channel 0 DACs
       0              => MakeI2cAxiLiteDevType(  -- 1.8mA CH 0 - AXIL 0x000
          i2cAddress  => "0000" & CHIP_ADDR_G,
@@ -110,6 +111,12 @@ architecture rtl of AwaXeI2c is
          i2cAddress  => "1111" & CHIP_ADDR_G,
          dataSize    => 8,
          addrSize    => 0,
+         endianness  => '0',
+         repeatStart => '0'),
+      10             => MakeI2cAxiLiteDevType(  -- Fake chip to make the other zero address chips work
+         i2cAddress  => "0000000",
+         dataSize    => 8,
+         addrSize    => 8,
          endianness  => '0',
          repeatStart => '0'));
 

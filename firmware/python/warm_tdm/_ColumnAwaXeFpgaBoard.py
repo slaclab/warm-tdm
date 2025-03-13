@@ -36,7 +36,7 @@ class ColumnAwaXeFpgaBoard(pr.Device):
         # AwaXe ASIC takes over channels 0 and 1
         self.add(warm_tdm.AwaXeI2c(
             name = 'AwaXe',
-            offset = 0xD0000000))
+            offset = 0xC8000000))
 
         self.add(warm_tdm.Ad5679R(
             name = 'SaBiasDac',

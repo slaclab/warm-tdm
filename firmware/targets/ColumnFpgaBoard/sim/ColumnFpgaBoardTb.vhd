@@ -35,6 +35,7 @@ architecture sim of ColumnFpgaBoardTb is
 
    -- component generics
    constant TPD_G                : time    := 1 ns;
+   constant AWAXE_G              : boolean := true;
    constant NUM_COLUMN_MODULES_C : integer := 1;
 
    -- component ports
@@ -130,7 +131,8 @@ begin
 
       U_ColumnReadoutFebModel_1 : entity warm_tdm.ColumnReadoutFebModel
          generic map (
-            TPD_G => TPD_G)
+            TPD_G   => TPD_G,
+            AWAXE_G => AWAXE_G)
          port map (
             -- FEB Connector
             feThermistor => feThermistor(i),  -- [out]

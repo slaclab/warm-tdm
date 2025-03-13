@@ -167,15 +167,39 @@ begin
          vout(14) => tesBiasDacP(7),    -- [out]
          vout(15) => tesBiasDacN(7));   -- [out]         
 
+   feI2cSda(0) <= 'H';
+   feI2cSda(0) <= 'H';
+   feI2cSda(0) <= 'H';
+   feI2cSda(0) <= 'H';
+   feI2cScl(0) <= 'H';
+   feI2cScl(0) <= 'H';
+   feI2cScl(0) <= 'H';
+   feI2cScl(0) <= 'H';
+
    GEN_CHANNELS : for i in 7 downto 0 generate
 
       GEN_AWAXE : if (AWAXE_G and i < 2) generate
+         U_AwaXe_1 : entity warm_tdm.AwaXeAsic
+            generic map (
+               TPD_G  => TPD_G,
+               ADDR_G => "000")
+            port map (
+               sda     => feI2cSda(0),  -- [inout]
+               scl     => feI2cScl(0),  -- [inout]
+               saBias  => open,
+               saFb    => open,
+               sq1Bias => open,
+               sq1Fb   => open,
+               tesBias => open,
+               lnaInP  => (0.0, 0.0),
+               lnaInN  => (0.0, 0.0),
+               lnaOutP => open,
+               lnaOutN => open);
+
 
       end generate;
 
       GEN_FEB : if (AWAXE_G = false or i >= 2) generate
-
-
 
          -- SA Bias Amp Model
          U_ColumnFebSaBiasAmp_1 : entity warm_tdm.ColumnFebSaBiasAmp
