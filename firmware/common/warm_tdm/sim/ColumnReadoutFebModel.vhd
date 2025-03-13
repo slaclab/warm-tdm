@@ -27,7 +27,8 @@ use warm_tdm.SimPkg.all;
 entity ColumnReadoutFebModel is
 
    generic (
-      TPD_G : time := 1 ns);
+      TPD_G   : time    := 1 ns;
+      AWAXE_G : boolean := false);
 
    port (
       -- FEB Connector
@@ -168,76 +169,85 @@ begin
 
    GEN_CHANNELS : for i in 7 downto 0 generate
 
-      -- SA Bias Amp Model
-      U_ColumnFebSaBiasAmp_1 : entity warm_tdm.ColumnFebSaBiasAmp
-         generic map (
-            STAGE_1_RG_G      => 40.2,
-            STAGE_1_RFB_G     => 100.0,
-            STAGE_2_RGND_G    => 21.0,
-            STAGE_2_ROFFSET_G => 402.0,
-            STAGE_2_RFB_G     => 100.0)
-         port map (
-            saOffsetDacP => saOffsetDacP(i),  -- [in]
-            saOffsetDacN => saOffsetDacN(i),  -- [in]
-            saBiasDacP   => saBiasDacP(i),    -- [in]
-            saBiasDacN   => saBiasDacN(i),    -- [in]
-            saBiasOutP   => saBiasOutP(i),    -- [out]
-            saBiasOutN   => saBiasOutN(i),    -- [out]
-            saBiasInP    => saBiasInP(i),     -- [in]
-            saBiasInN    => saBiasInN(i),     -- [in]
-            saSigOutP    => saSigOutP(i),     -- [out]
-            saSigOutN    => saSigOutN(i));    -- [out]
+      GEN_AWAXE : if (AWAXE_G and i < 2) generate
+
+      end generate;
+
+      GEN_FEB : if (AWAXE_G = false or i >= 2) generate
 
 
-      -- TES Bias Amp Model
-      -- Output is swapped on schematic
-      U_ColumnFebTesBiasAmp_1 : entity warm_tdm.ColumnFebTesBiasAmp
-         port map (
-            tesBiasDacP => tesBiasDacP(i),  -- [in]
-            tesBiasDacN => tesBiasDacN(i),  -- [in]
-            delatch     => tesDelatch(i),   -- [in]
-            tesBiasP    => tesBiasN(i),     -- [out]
-            tesBiasN    => tesBiasP(i));    -- [out]
 
-      -- SA FB Amp Model
-      U_ColumnFebFastDacAmp_SA_FB : entity warm_tdm.ColumnFebFastDacAmp
-         generic map (
+         -- SA Bias Amp Model
+         U_ColumnFebSaBiasAmp_1 : entity warm_tdm.ColumnFebSaBiasAmp
+            generic map (
+               STAGE_1_RG_G      => 40.2,
+               STAGE_1_RFB_G     => 100.0,
+               STAGE_2_RGND_G    => 21.0,
+               STAGE_2_ROFFSET_G => 402.0,
+               STAGE_2_RFB_G     => 100.0)
+            port map (
+               saOffsetDacP => saOffsetDacP(i),  -- [in]
+               saOffsetDacN => saOffsetDacN(i),  -- [in]
+               saBiasDacP   => saBiasDacP(i),    -- [in]
+               saBiasDacN   => saBiasDacN(i),    -- [in]
+               saBiasOutP   => saBiasOutP(i),    -- [out]
+               saBiasOutN   => saBiasOutN(i),    -- [out]
+               saBiasInP    => saBiasInP(i),     -- [in]
+               saBiasInN    => saBiasInN(i),     -- [in]
+               saSigOutP    => saSigOutP(i),     -- [out]
+               saSigOutN    => saSigOutN(i));    -- [out]
+
+
+         -- TES Bias Amp Model
+         -- Output is swapped on schematic
+         U_ColumnFebTesBiasAmp_1 : entity warm_tdm.ColumnFebTesBiasAmp
+            port map (
+               tesBiasDacP => tesBiasDacP(i),  -- [in]
+               tesBiasDacN => tesBiasDacN(i),  -- [in]
+               delatch     => tesDelatch(i),   -- [in]
+               tesBiasP    => tesBiasN(i),     -- [out]
+               tesBiasN    => tesBiasP(i));    -- [out]
+
+         -- SA FB Amp Model
+         U_ColumnFebFastDacAmp_SA_FB : entity warm_tdm.ColumnFebFastDacAmp
+            generic map (
 --             IN_LOAD_R_G => IN_LOAD_R_G,
 --             FB_R_G      => FB_R_G,
 --             GAIN_R_G    => GAIN_R_G,
-            SHUNT_R_G => 3.48e3)
-         port map (
-            dacP => saFbDacP(i),        -- [in]
-            dacN => saFbDacN(i),        -- [in]
-            outP => saFbP(i),           -- [out]
-            outN => saFbN(i));          -- [out]
+               SHUNT_R_G => 3.48e3)
+            port map (
+               dacP => saFbDacP(i),     -- [in]
+               dacN => saFbDacN(i),     -- [in]
+               outP => saFbP(i),        -- [out]
+               outN => saFbN(i));       -- [out]
 
-      -- SQ1 Bias Amp Model
-      U_ColumnFebFastDacAmp_SQ1_BIAS : entity warm_tdm.ColumnFebFastDacAmp
-         generic map (
+         -- SQ1 Bias Amp Model
+         U_ColumnFebFastDacAmp_SQ1_BIAS : entity warm_tdm.ColumnFebFastDacAmp
+            generic map (
 --             IN_LOAD_R_G => IN_LOAD_R_G,
 --             FB_R_G      => FB_R_G,
 --             GAIN_R_G    => GAIN_R_G,
-            SHUNT_R_G => 4.99e3)
-         port map (
-            dacP => sq1BiasDacP(i),     -- [in]
-            dacN => sq1BiasDacN(i),     -- [in]
-            outP => sq1BiasP(i),        -- [out]
-            outN => sq1BiasN(i));       -- [out]
+               SHUNT_R_G => 4.99e3)
+            port map (
+               dacP => sq1BiasDacP(i),  -- [in]
+               dacN => sq1BiasDacN(i),  -- [in]
+               outP => sq1BiasP(i),     -- [out]
+               outN => sq1BiasN(i));    -- [out]
 
-      -- SQ1 FB Amp Model
-      U_ColumnFebFastDacAmp_SQ1_FB : entity warm_tdm.ColumnFebFastDacAmp
-         generic map (
+         -- SQ1 FB Amp Model
+         U_ColumnFebFastDacAmp_SQ1_FB : entity warm_tdm.ColumnFebFastDacAmp
+            generic map (
 --             IN_LOAD_R_G => IN_LOAD_R_G,
 --             FB_R_G      => FB_R_G,
 --             GAIN_R_G    => GAIN_R_G,
-            SHUNT_R_G => 1.00e3)
-         port map (
-            dacP => sq1FbDacP(i),       -- [in]
-            dacN => sq1FbDacN(i),       -- [in]
-            outP => sq1FbP(i),          -- [out]
-            outN => sq1FbN(i));         -- [out]
+               SHUNT_R_G => 1.00e3)
+            port map (
+               dacP => sq1FbDacP(i),    -- [in]
+               dacN => sq1FbDacN(i),    -- [in]
+               outP => sq1FbP(i),       -- [out]
+               outN => sq1FbN(i));      -- [out]
 
+      end generate GEN_FEB;
 
    end generate GEN_CHANNELS;
 

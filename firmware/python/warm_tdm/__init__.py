@@ -35,9 +35,13 @@ from ._PidDebugger import *
 from ._BoardTemp import *
 from ._BoardTemp2 import *
 from ._ColumnFpgaBoard import *
+from ._ColumnAwaXeFpgaBoard import *
 from ._RowFpgaBoard import *
 from ._WarmTdmCommon2 import *
 from ._WarmTdmCore2 import *
 from ._SaBiasOffset2 import *
 from ._TesBias2 import *
 from ._WarmTdmConfig import *
+from ._AwaXeI2c import *
+from ._SaBiasOffsetAwaXe import *
+from ._TesBiasAwaXe import *

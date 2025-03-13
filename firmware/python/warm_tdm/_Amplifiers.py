@@ -494,6 +494,173 @@ class FEAmplifier4(SaAmplifier):
         ret = self.sa_bias_func(vadc/2, -vadc/2, voffsetP, -voffsetP)
         return ret
 
+class AwaXeLna(SaAmplifier):
+
+    # Declare schematic nets and resistors
+    sa_bias_current = sympy.symbols('sa_bias_current')
+    sa_signal_p = sympy.symbols('sa_signal_p')
+    sa_signal_n = sympy.symbols('sa_signal_n')
+
+    # LNA stage symbols
+    lna_out_p = sympy.symbols('lna_out_p')
+    lna_out_n = sympy.symbols('lna_out_n')
+    lna_gain = sympy.symbols('awaxe_lna_gain')    
+
+    # Offset amp symbols
+    sa_offset_p = sympy.symbols('sa_offset_p')
+    sa_offset_n = sympy.symbols('sa_offset_n')
+    offset_out_p = sympy.symbols('offset_out_p')
+    offset_out_n = sympy.symbols('offset_out_n')
+    rf2 = sympy.symbols('rf2') # Feedback
+    rgnd2 = sympy.symbols('rgnd2') 
+    rin2 = sympy.symbols('rin2')
+    roff2 = sympy.symbols('roff2')
+
+    # ADC Amp Symbols
+    adc_p = sympy.symbols('adc_p')
+    adc_n = sympy.symbols('adc_n')        
+    rf3 = sympy.symbols('rf3')
+    rg3 = sympy.symbols('rg3')
+    v = sympy.symbols('v')
+
+    # Stage 1 LNA equations
+    eq1 = sympy.Eq(lna_out_p, sa_signal_p * lna_gain)
+    eq2 = sympy.Eq(lna_out_n, sa_signal_n * lna_gain)
+
+    # Stage 2 Offset Amp
+    eq3 = sympy.Eq((offset_out_p-lna_out_p)/rf2, (lna_out_p-sa_offset_p)/roff2)
+    eq4 = sympy.Eq((offset_out_n-lna_out_n)/rf2, (lna_out_n-sa_offset_n)/roff2)
+
+    # Stage 3 differential amp equations
+    eq5 = sympy.Eq((offset_out_p-v)/rg3, (v-adc_n)/rf3)
+    eq6 = sympy.Eq((offset_out_n-v)/rg3, (v-adc_p)/rf3)
+    
+    solve_vars = [sa_signal_p, sa_signal_n, lna_out_p, lna_out_n, offset_out_p, offset_out_n, adc_p, adc_n]
+
+    solutions = sympy.solve([eq1, eq2, eq3, eq4, eq5, eq6], solve_vars)
+
+    # Expression for sa_signal (differential) given adc voltage and offset voltage
+    sa_bias_expr = sympy.simplify(solutions[sa_signal_p]-solutions[sa_signal_n])
+
+    solutions2 = sympy.solve([eq1, eq2, eq3, eq4, eq5, eq6],list(reversed(solve_vars)))
+    
+    # Expressions to compute gain of each stage
+    adc_expr = sympy.simplify(solutions2[adc_p]-solutions2[adc_n])
+    offset_stage_expr = sympy.simplify(solutions2[offset_out_p]-solutions2[offset_out_n])
+    lna_expr = sympy.simplify(solutions2[lna_out_p]-solutions2[lna_out_n])        
+
+    gain3_expr = (adc_expr/offset_stage_expr).subs({sa_signal_p:.5, sa_signal_n:-.5, sa_offset_p:0, sa_offset_n:0})
+    gain2_expr = (offset_stage_expr/lna_expr).subs({sa_signal_p:.5, sa_signal_n:-.5, sa_offset_p:0, sa_offset_n:0})
+#    gain1_expr = (sa_signal_out1_expr).subs({sa_bias_out_p:.5, sa_bias_out_n:-.5, sa_offset_p:0, sa_offset_n:0})
+    offset_gain_expr = adc_expr.subs({sa_signal_p:0, sa_signal_n:0, sa_offset_p:.5, sa_offset_n:-.5})
+    
+    def __init__(self, **kwargs):
+        """ AwaXe LNA amplifier chain consists of AwaXe LNA
+        followed by a unity gain stage to allow offset subtraction
+        followed by the ADC amplifier"""
+        super().__init__(**kwargs)
+
+        self.add(pr.LocalVariable(
+            name = 'LNA_GAIN',
+            value = 80.0))
+
+        # Stage 2 Summing Differential Input Amplifier
+        self.add(pr.LocalVariable(
+            name = 'RF2',
+            value = 100.0,
+            units = u'\u03a9'))
+
+        self.add(pr.LocalVariable(
+            name = 'ROFF2',
+            value = 100.0,
+            units = u'\u03a9'))
+
+        # Stage 3 Differential Amplifier
+        self.add(pr.LocalVariable(
+            name = 'RF3',
+            value = 1.0e3,
+            units = u'\u03a9'))
+
+        self.add(pr.LocalVariable(
+            name = 'RG3',
+            value = 1.0e3,
+            units = u'\u03a9'))
+
+        sa_vars = [
+            self.LNA_GAIN,
+            self.RF2,
+            self.ROFF2,
+            self.RF3,
+            self.RG3]
+        
+        def setConversions():
+            resistors = {
+                self.lna_gain: self.LNA_GAIN.value(),
+                self.rf2: self.RF2.value(),
+                self.roff2 : self.ROFF2.value(),
+                self.rf3: self.RF3.value(),
+                self.rg3: self.RG3.value()}
+
+            self.sa_bias_func = sympy.lambdify([self.adc_p, self.adc_n, self.sa_offset_p, self.sa_offset_n],
+                                               self.sa_bias_expr.subs(resistors),
+                                               'numpy')
+            
+            g3=  self.gain3_expr.subs(resistors)
+            g2=  self.gain2_expr.subs(resistors)
+
+            self.gain3_func = sympy.lambdify([], self.gain3_expr.subs(resistors), 'numpy')
+            self.gain2_func = sympy.lambdify([], self.gain2_expr.subs(resistors), 'numpy')
+            self.gain1_func = lambda: self.LNA_GAIN.value()
+            self.offset_gain_func = sympy.lambdify([], self.offset_gain_expr.subs(resistors), 'numpy')                        
+            return 0
+        
+        setConversions()
+
+        self.add(pr.LinkVariable(
+            name = 'Conv',
+            dependencies = sa_vars,
+            hidden = True,
+            linkedGet = setConversions))
+
+        self.addGainVars(sa_vars)
+
+        self.add(pr.LinkVariable(
+            name = 'GAIN_1',
+            description = 'First stage gain',
+            mode = 'RO',
+            disp = '{:0.3f}',            
+            dependencies = [self.Conv],
+            linkedGet = lambda read: self.gain1_func()))
+
+        self.add(pr.LinkVariable(
+            name = 'GAIN_2',
+            description = 'Second stage gain',
+            mode = 'RO',
+            disp = '{:0.3f}',            
+            dependencies = [self.Conv],
+            linkedGet = lambda read: self.gain2_func()))
+            
+        self.add(pr.LinkVariable(
+            name = 'GAIN_3',
+            description = 'Third stage gain',
+            mode = 'RO',
+            disp = '{:0.3f}',            
+            dependencies = [self.Conv],
+            linkedGet = lambda read: self.gain3_func()))
+
+        self.add(pr.LinkVariable(
+            name = 'OFFSET_GAIN',
+            description = 'Overall gain of offset voltage',
+            mode = 'RO',
+            disp = '{:0.3f}',            
+            dependencies = [self.Conv],
+            linkedGet = lambda read: self.offset_gain_func()))
+                                                        
+
+    def ampVin(self, vadc, voffsetP, voffsetN=0.0):
+        ret = self.sa_bias_func(vadc/2, -vadc/2, voffsetP, -voffsetP)
+        return ret
+
 
 class FastDacAmplifierSE(pr.Device):
     def __init__(self, **kwargs):

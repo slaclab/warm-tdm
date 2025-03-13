@@ -472,7 +472,22 @@ begin
          mAxiReadMasters     => i2cAxilReadMasters,                  -- [out]
          mAxiReadSlaves      => i2cAxilReadSlaves);                  -- [in]
 
-   GEN_FE_I2C : for i in 3 downto 0 generate
+   U_AwaXeI2c_1 : entity warm_tdm.AwaXeI2c
+      generic map (
+         TPD_G           => TPD_G,
+         CHIP_ADDR_G     => "000",
+         AXIL_CLK_FREQ_G => AXIL_CLK_FREQ_C)
+      port map (
+         axilClk         => axilClk,                 -- [in]
+         axilRst         => axilRst,                 -- [in]
+         axilReadMaster  => i2cAxilReadMasters(0),   -- [in]
+         axilReadSlave   => i2cAxilReadSlaves(0),    -- [out]
+         axilWriteMaster => i2cAxilWriteMasters(0),  -- [in]
+         axilWriteSlave  => i2cAxilWriteSlaves(0),   -- [out]
+         sda             => feI2cSda(i),             -- [inout]
+         scl             => feI2cScl(i));            -- [inout]
+
+   GEN_FE_I2C : for i in 3 downto 1 generate
       U_AxiI2cRegMaster_FE_I2C : entity surf.AxiI2cRegMaster
          generic map (
             TPD_G            => TPD_G,
