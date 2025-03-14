@@ -91,8 +91,8 @@ begin
    -- Main Comb Process
    -------------------------------------------------------------------------------------------------
    comb : process (axilReadMaster, axilRst, axilWriteMaster, i2cMasterOut, r) is
-      variable v         : RegType;
-      variable axilResp  : slv(1 downto 0);
+      variable v          : RegType;
+      variable axilResp   : slv(1 downto 0);
       variable axilStatus : AxiLiteStatusType;
 
    begin
@@ -100,7 +100,7 @@ begin
 
       v.i2cMasterIn.enable   := '1';
       v.i2cMasterIn.prescale := (others => '0');
-      v.i2cMasterIn.filter   := (others => '0');                   -- Not using dynamic filtering
+      v.i2cMasterIn.filter   := (others => '0');  -- Not using dynamic filtering
       v.i2cMasterIn.tenbit   := '0';
 
       axiSlaveWaitTxn(axilWriteMaster, axilReadMaster, v.axilWriteSlave, v.axilReadSlave, axilStatus);
@@ -129,6 +129,7 @@ begin
 
 
          when WR_ACK_S =>
+            v.i2cMasterIn.txnReq := '0';
             if (i2cMasterOut.wrAck = '1') then
                v.i2cMasterIn.wrValid := '0';
                v.i2cMasterIn.txnReq  := '0';
@@ -138,6 +139,7 @@ begin
             end if;
 
          when RD_ACK_S =>
+            v.i2cMasterIn.txnReq := '0';
             if (i2cMasterOut.rdValid = '1') then
                v.i2cMasterIn.rdAck               := '1';
                v.i2cMasterIn.txnReq              := '0';

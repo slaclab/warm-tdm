@@ -23,7 +23,7 @@ class AwaXeI2c(pr.Device):
 
             self.add(pr.RemoteVariable(
                 name = f'Ch{col}Dac1800Raw',
-                offset = 0x4*5*col,
+                offset = col * 0x10,
                 bitOffset = 0,
                 bitSize = 8,
                 base = pr.UInt))
@@ -38,14 +38,14 @@ class AwaXeI2c(pr.Device):
                 linkedGet = partial(_getCurrent, scale=1.8e-3),
                 linkedSet = partial(_setCurrent, scale=1.8e-3)))
 
-            for pos, dac in zip(range(1,5), ['A', 'B', 'C', 'D']):
+            for pos, dac in enumerate(['A', 'B', 'C', 'D']):
 
                 varName = f'Ch{col}Dac300{dac}'
                 varNameRaw = f'Ch{col}Dac300{dac}Raw'
 
                 self.add(pr.RemoteVariable(
                     name = varNameRaw,
-                    offset = 0x4*5*col + 0x4*pos,
+                    offset = 0x20 + (0x10 * col) + (0x4 * pos),
                     bitOffset = 0,
                     bitSize = 8,
                     base = pr.UInt))

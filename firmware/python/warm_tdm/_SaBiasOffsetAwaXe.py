@@ -26,25 +26,25 @@ class SaBiasOffsetAwaXe(pr.Device):
         # Create Link Variables to DAC P and N channels for each column
         for i in range(8):
             def _lgp(read, ch=i):
-                if self.SaBiasSrc[ch].get() == 'AwaXe':
+                if self.SaBiasSrc[ch].value() == 'AwaXe':
                     return 0
                 else:
                     return self._biasDac.DacVoltage[2*ch].get(read=read)
 
             def _lsp(value, write, ch=i):
-                if self.SaBiasSrc[ch].get() == 'AwaXe':
+                if self.SaBiasSrc[ch].value() == 'AwaXe':
                     return
                 else:
                     self._biasDac.DacVoltage[2*ch].set(value, write=write)
 
             def _lgn(read, ch=i):
-                if self.SaBiasSrc[ch].get() == 'AwaXe':
+                if self.SaBiasSrc[ch].value() == 'AwaXe':
                     return 0
                 else:
                     return self._biasDac.DacVoltage[2*ch+1].get(read=read)
 
             def _lsn(value, write, ch=i):
-                if self.SaBiasSrc[ch].get() == 'AwaXe':
+                if self.SaBiasSrc[ch].value() == 'AwaXe':
                     return
                 else:
                     self._biasDac.DacVoltage[2*ch+1].set(value, write=write),                                
@@ -73,7 +73,7 @@ class SaBiasOffsetAwaXe(pr.Device):
                 units = 'V'))
 
             def biasVoltageGet(read, ch=i):
-                if self.SaBiasSrc[ch].get() == 'FEB':
+                if self.SaBiasSrc[ch].value() == 'FEB':
                     vp = self.BiasVoltageP[ch].get(read=read)
                     # vn = self.BiasVoltageN[ch].get(read=read)
                     return vp*2 #vp-vn
@@ -81,7 +81,7 @@ class SaBiasOffsetAwaXe(pr.Device):
                     return 0
 
             def biasVoltageSet(value, write, ch=i):
-                if self.SaBiasSrc[ch].get() == 'FEB':                
+                if self.SaBiasSrc[ch].value() == 'FEB':                
                     vp = 0.5 * value
                     vn = 0
                     vp = np.clip(vp, 0, 2.5)
@@ -102,19 +102,19 @@ class SaBiasOffsetAwaXe(pr.Device):
         # to convert between current and DAC values
         for i in range(8):
             def biasCurrentGet(read, ch=i):
-                if self.SaBiasSrc[ch].get() == 'FEB':
+                if self.SaBiasSrc[ch].value() == 'FEB':
                     vp = self.BiasVoltageP[ch].get(read=read)
                     #vn = self.BiasVoltageN[ch].get(read=read)
                     vn = 0
                     return self._amps[ch].saBiasCurrent(vp, vn) * 1.0e6
-                elif self.SaBiasSrc[ch].get() == 'AwaXe':
-                    return self._awaXeBias[ch].get()
+                elif self.SaBiasSrc[ch].value() == 'AwaXe':
+                    return self._awaXeBias[ch].get(read=read)
 
             def biasCurrentSet(value, write, ch=i):
-                if self.SaBiasSrc[ch].get() == 'FEB':
+                if self.SaBiasSrc[ch].value() == 'FEB':
                     vp, vn = self._amps[ch].saBiasDacVoltage(value/1.0e6)
                     self.BiasVoltageP[ch].set(vp, write=write)
-                elif self.SaBiasSrc[ch].get() == 'AwaXe':                    
+                elif self.SaBiasSrc[ch].value() == 'AwaXe':                    
                     self._awaXeBias[ch].set(value, write=write)
 
             deps = [self.SaBiasSrc[i], self.BiasVoltageP[i], self.BiasVoltageN[i]]

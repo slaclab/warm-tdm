@@ -41,21 +41,21 @@ class TesBiasAwaXe(pr.Device):
     # TES Bias current 
     def _setChannelFunc(self, channel):
         def _setChannel(value, write, tesAmp=self._frontEnd.Channel[channel].TesBiasAmp):
-            if self.TesBiasSrc[channel].get() == 'FEB':
+            if self.TesBiasSrc[channel].value() == 'FEB':
                 # Calculate the DAC voltages to drive
                 vp, vn = tesAmp.outCurrentToDac(value, self.Delatch[channel].value())
                 # Set the DAC voltages
                 with self.root.updateGroup():
                     self._dac.DacVoltage[2*channel].set(vp)
                     self._dac.DacVoltage[2*channel+1].set(vn)
-            elif self.TesBiasSrc[channel].get() == 'AwaXe':
+            elif self.TesBiasSrc[channel].value() == 'AwaXe':
                 self._awaXeDacs[channel].set(value)
                 
         return _setChannel
 
     def _getChannelFunc(self, channel):
         def _getChannel(read, tesAmp=self._frontEnd.Channel[channel].TesBiasAmp):
-            if self.TesBiasSrc[channel].get() == 'FEB':            
+            if self.TesBiasSrc[channel].value() == 'FEB':            
                 dacChannels = [self._dac.DacVoltage[2*channel], self._dac.DacVoltage[2*channel+1]]
                 dacVp = dacChannels[0].value()
                 dacVn = dacChannels[1].value()
@@ -63,7 +63,7 @@ class TesBiasAwaXe(pr.Device):
 
                 iout = tesAmp.dacToOutCurrent(dacVp, dacVn, delatch)
                 return iout
-            elif self.TesBiasSrc[channel].get() == 'AwaXe':
-                return self._awaXeDacs[channel].get()
+            elif self.TesBiasSrc[channel].value() == 'AwaXe':
+                return self._awaXeDacs[channel].get(read=read)
             
         return _getChannel

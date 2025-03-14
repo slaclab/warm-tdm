@@ -45,7 +45,7 @@ architecture rtl of AwaXeChannel is
    end record RegType;
 
    constant REG_INIT_C : RegType := (
-      dac => (others => '0'));
+      dac => X"A5");
 
    signal r   : RegType := REG_INIT_C;
    signal rin : RegType;
@@ -83,8 +83,10 @@ begin
    scl      <= i2co.scl when i2co.scloen = '0' else 'Z';
 
 
-   i2cSlaveIn.txData <= r.dac;
-   i2cSlaveIn.rxAck  <= i2cSlaveOut.rxValid;  -- Always ack   
+   i2cSlaveIn.enable  <= '1';
+   i2cSlaveIn.txData  <= r.dac;
+   i2cSlaveIn.txValid <= '1';
+   i2cSlaveIn.rxAck   <= i2cSlaveOut.rxValid;  -- Always ack   
 
    comb : process (i2cSlaveOut, r) is
       variable v : RegType;

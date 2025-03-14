@@ -62,7 +62,7 @@ begin
 
    U_ClkRst_1 : entity surf.ClkRst
       generic map (
-         CLK_PERIOD_G => 10 ns)
+         CLK_PERIOD_G => 5 ns)
       port map (
          clkP => clk,                   -- [out]
          rst  => rst);                  -- [out]
@@ -73,7 +73,7 @@ begin
             generic map (
                TPD_G      => TPD_G,
                RANGE_G    => ite(dac = 0, 1.8e3, 300.0e6),
-               I2C_ADDR_G => toSl(dac = 0) & toSl(ch = 0) & ite(dac > 0, toSlv(dac-1, 2), "00") & ADDR_G)
+               I2C_ADDR_G => not(toSl(dac = 0)) & toSl(ch = 1) & ite(dac > 0, toSlv(dac-1, 2), "00") & ADDR_G)
             port map (
                clk     => clk,                -- [in]
                rst     => rst,                -- [in]
