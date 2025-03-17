@@ -197,7 +197,7 @@ entity ColumnFpgaBoard is
       feI2cSda : inout slv(3 downto 0);
 
       -- Asic Reset
-      resetB : out sl;
+      resetB : out sl := '1';
 
       -- VR Synchronization
       feVrSyncA : out sl;
