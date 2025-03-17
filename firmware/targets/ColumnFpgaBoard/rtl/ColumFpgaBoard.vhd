@@ -452,6 +452,21 @@ begin
          coreMCsb       => feDacSyncB);                         -- [out]
 
    -------------------------------------------------------------------------------------------------
+   -- Reset ASIC at startup
+   -------------------------------------------------------------------------------------------------
+   U_PwrUpRst_1 : entity surf.PwrUpRst
+      generic map (
+         TPD_G          => TPD_G,
+         SIM_SPEEDUP_G  => SIMULATION_G,
+         OUT_POLARITY_G => '0',
+--         USE_DSP_G      => USE_DSP_G,
+         DURATION_G     => ite(SIMULATION_G, 1250, 125000000))
+      port map (
+         arst   => '0',                 -- [in]
+         clk    => axilClk,             -- [in]
+         rstOut => resetB);             -- [out]
+
+   -------------------------------------------------------------------------------------------------
    -- FE I2C
    -------------------------------------------------------------------------------------------------
    U_AxiLiteCrossbar_I2C : entity surf.AxiLiteCrossbar
