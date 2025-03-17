@@ -11,7 +11,7 @@ class AwaXeI2c(pr.Device):
 
         def _currentToDac(current, scale):
             """ Convert current in uA to DAC units """
-            return (current/(scale * 1e6)) * (2**8-1)
+            return int((current/(scale * 1e6)) * (2**8-1))
 
         def _getCurrent(var, read, scale):
             return _dacToCurrent(var.dependencies[0].get(read=read), scale)
