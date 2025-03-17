@@ -788,6 +788,31 @@ class FastDacAmplifierDiff(FastDacAmplifierSE):
 
     def rout(self):
         return (2 * self.FilterR.value()) + (2 * self.ShuntR.value()) + self.CableR.value()
+
+class AwaXeTesBiasAmp(pr.Device):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        self.add(pr.LocalVariable(
+            name = 'Type',
+            mode = 'RO',
+            value = self.__class__.__name__))
+
+        self.add(pr.LocalVariable(
+            name = '2X',
+            value = False))
+
+    def outCurrentToDac(self, current, delatch):
+        # For now only allow 0-1.8mA
+        iout = current * 1.0e6
+        if iout > 1.8e3:
+            iout = 1.8e3
+        if iout < 0:
+            iout = 0.0
+
+        dac = (iout / 1.8e3) * 256
+        return (dac, 0)
+        
     
 class TesBiasAmpC00(pr.Device):
     def __init__(self, **kwargs):
