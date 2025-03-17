@@ -460,9 +460,9 @@ begin
          SIM_SPEEDUP_G  => SIMULATION_G,
          OUT_POLARITY_G => '0',
 --         USE_DSP_G      => USE_DSP_G,
-         DURATION_G     => ite(SIMULATION_G, 1250, 125000000))
+         DURATION_G     => ite(SIMULATION_G, 1250, 5*125000000))
       port map (
-         arst   => '0',                 -- [in]
+         arst   => axilRst,             -- [in]
          clk    => axilClk,             -- [in]
          rstOut => resetB);             -- [out]
 
