@@ -493,6 +493,7 @@ begin
    U_AwaXeAxiI2cBridge_1 : entity warm_tdm.AwaXeAxiI2cBridge
       generic map (
          TPD_G           => TPD_G,
+         SIMULATION_G    => SIMULATION_G,
          I2C_SCL_FREQ_G  => ite(SIMULATION_G, 2.0e6, 100.0E+3),
          I2C_MIN_PULSE_G => ite(SIMULATION_G, 50.0e-9, 100.0E-9),
          AXIL_CLK_FREQ_G => AXIL_CLK_FREQ_C)

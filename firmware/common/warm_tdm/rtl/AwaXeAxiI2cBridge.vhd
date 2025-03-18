@@ -26,10 +26,11 @@ use surf.I2cPkg.all;
 entity AwaXeAxiI2cBridge is
 
    generic (
-      TPD_G           : time := 1 ns;
-      I2C_SCL_FREQ_G  : real := 100.0E+3;    -- units of Hz
-      I2C_MIN_PULSE_G : real := 100.0E-9;    -- units of seconds
-      AXIL_CLK_FREQ_G : real := 156.25E+6);  -- units of Hz
+      TPD_G           : time    := 1 ns;
+      SIMULATION_G    : boolean := false;
+      I2C_SCL_FREQ_G  : real    := 100.0E+3;    -- units of Hz
+      I2C_MIN_PULSE_G : real    := 100.0E-9;    -- units of seconds
+      AXIL_CLK_FREQ_G : real    := 156.25E+6);  -- units of Hz
    port (
       axilClk : in sl;
       axilRst : in sl;
@@ -50,10 +51,11 @@ architecture rtl of AwaXeAxiI2cBridge is
    constant PRESCALE_C       : natural := (getTimeRatio(AXIL_CLK_FREQ_G, I2C_SCL_5xFREQ_C)) - 1;
    constant FILTER_C         : natural := natural(AXIL_CLK_FREQ_G * I2C_MIN_PULSE_G) + 1;
 
-   type StateType is (WAIT_AXIL_S, WR_ACK_S, RD_ACK_S);
+   type StateType is (WAIT_AXIL_S, START_ACK_S, WR_ACK_S, RD_ACK_S);
 
    type RegType is record
       state          : StateType;
+      startup        : sl;
       axilReadSlave  : AxiLiteReadSlaveType;
       axilWriteSlave : AxiLiteWriteSlaveType;
       i2cMasterIn    : I2cMasterInType;
@@ -61,6 +63,7 @@ architecture rtl of AwaXeAxiI2cBridge is
 
    constant REG_INIT_C : RegType := (
       state          => WAIT_AXIL_S,
+      startup        => '0',
       axilReadSlave  => AXI_LITE_READ_SLAVE_INIT_C,
       axilWriteSlave => AXI_LITE_WRITE_SLAVE_INIT_C,
       i2cMasterIn    => (
@@ -85,18 +88,32 @@ architecture rtl of AwaXeAxiI2cBridge is
    signal i2ci : i2c_in_type;
    signal i2co : i2c_out_type;
 
+   signal startup : sl;
+
 begin
+
+   U_PwrUpRst_1 : entity surf.PwrUpRst
+      generic map (
+         TPD_G          => TPD_G,
+         OUT_POLARITY_G => '0',
+         DURATION_G     => ite(SIMULATION_G, 12500, 125000000))
+      port map (
+         arst   => axilRst,             -- [in]
+         clk    => axilClk,             -- [in]
+         rstOut => startup);            -- [out]
 
    -------------------------------------------------------------------------------------------------
    -- Main Comb Process
    -------------------------------------------------------------------------------------------------
-   comb : process (axilReadMaster, axilRst, axilWriteMaster, i2cMasterOut, r) is
+   comb : process (axilReadMaster, axilRst, axilWriteMaster, i2cMasterOut, r, startup) is
       variable v          : RegType;
       variable axilResp   : slv(1 downto 0);
       variable axilStatus : AxiLiteStatusType;
 
    begin
       v := r;
+
+      v.startup := startup;
 
       v.i2cMasterIn.enable   := '1';
       v.i2cMasterIn.prescale := (others => '0');
@@ -119,6 +136,17 @@ begin
                v.state               := WR_ACK_S;
             end if;
 
+            -- Send a dummy transaction after power up to unstick the bus
+            if (startup = '1' and r.startup = '0') then
+               v.i2cMasterIn.txnReq  := '1';
+               v.i2cMasterIn.op      := '1';
+               v.i2cMasterIn.stop    := '1';
+               v.i2cMasterIn.addr    := "0000000000";
+               v.i2cMasterIn.wrValid := '1';
+               v.i2cMasterIn.wrData  := "00000000";
+               v.state               := START_ACK_S;
+            end if;
+
             if (axilStatus.readEnable = '1' and i2cMasterOut.rdValid = '0') then
                v.i2cMasterIn.txnReq := '1';
                v.i2cMasterIn.op     := '0';
@@ -127,9 +155,17 @@ begin
                v.state              := RD_ACK_S;
             end if;
 
+         when START_ACK_S =>
+            -- Don't care about response
+            v.i2cMasterIn.txnReq := '0';
+            if (i2cMasterOut.wrAck = '1') then
+               v.i2cMasterIn.wrValid := '0';
+               v.i2cMasterIn.txnReq  := '0';
+               v.state               := WAIT_AXIL_S;
+            end if;
 
          when WR_ACK_S =>
-            v.i2cMasterIn.txnReq := '0';
+
             if (i2cMasterOut.wrAck = '1') then
                v.i2cMasterIn.wrValid := '0';
                v.i2cMasterIn.txnReq  := '0';
