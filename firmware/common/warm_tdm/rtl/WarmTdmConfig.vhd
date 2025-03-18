@@ -92,7 +92,7 @@ architecture rtl of WarmTdmConfig is
       pwrSyncA       => '0',
       pwrSyncB       => '0',
       pwrSyncC       => '1',
-      asicReset      => '1';
+      asicReset      => '1',
       ledEn          => '1',
       syncPeriodDiv2 => toSlv(DIV_CLK_COUNT_C, 32),
       clkCount       => (others => '0'),
