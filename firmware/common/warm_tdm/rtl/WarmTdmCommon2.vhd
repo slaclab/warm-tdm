@@ -78,6 +78,8 @@ entity WarmTdmCommon2 is
       pwrSyncB : out sl := '0';
       pwrSyncC : out sl := '1';
 
+      asicResetB : out sl;
+
       timingRxClkLocked : in sl;
 
       -- XADC
@@ -223,6 +225,7 @@ begin
    U_WarmTdmConfig_1 : entity warm_tdm.WarmTdmConfig
       generic map (
          TPD_G           => TPD_G,
+         SIMULATION_G    => SIMULATION_G,
          AXIL_CLK_FREQ_G => AXIL_CLK_FREQ_G)
       port map (
          axilClk           => axilClk,                             -- [in]
@@ -238,6 +241,7 @@ begin
          pwrSyncA          => pwrSyncA,                            -- [out]
          pwrSyncB          => pwrSyncB,                            -- [out]
          pwrSyncC          => pwrSyncC,                            -- [out]
+         asicResetB        => asicResetB,                          -- [out]
          ampPdB            => ampPdB);                             -- [out]
 
    -------------------------------------------------------------------------------------------------

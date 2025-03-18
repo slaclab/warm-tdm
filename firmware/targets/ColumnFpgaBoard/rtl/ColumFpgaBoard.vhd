@@ -375,6 +375,7 @@ begin
          localThermistorN => localThermistorN,    -- [in]
          feThermistorP    => feThermistorP,       -- [in]
          feThermistorN    => feThermistorN,       -- [in]
+         asicResetB => asicResetB,      -- [out]
          ampPdB           => ampPdB,              -- [out]
          leds             => leds,                -- [out]
          conRxGreenLed    => conRxGreenLed,       -- [out]

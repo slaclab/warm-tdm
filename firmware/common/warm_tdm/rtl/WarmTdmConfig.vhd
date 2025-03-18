@@ -30,8 +30,9 @@ use warm_tdm.WarmTdmPkg.all;
 entity WarmTdmConfig is
 
    generic (
-      TPD_G           : time := 1 ns;
-      AXIL_CLK_FREQ_G : real := 125.0e6);
+      TPD_G           : time    := 1 ns;
+      SIMULATION_G    : boolean := false;
+      AXIL_CLK_FREQ_G : real    := 125.0e6);
    port (
       axilClk         : in  sl;
       axilRst         : in  sl;
@@ -50,6 +51,7 @@ entity WarmTdmConfig is
       pwrSyncA   : out sl              := '0';
       pwrSyncB   : out sl              := '0';
       pwrSyncC   : out sl              := '1';
+      asicResetB : out sl;
       ampPdB     : out slv(7 downto 0) := (others => '1')
 
       );
@@ -72,6 +74,7 @@ architecture rtl of WarmTdmConfig is
       pwrSyncA       : sl;
       pwrSyncB       : sl;
       pwrSyncC       : sl;
+      asicReset      : sl;
       ledEn          : sl;
       syncPeriodDiv2 : slv(31 downto 0);
       clkCount       : slv(31 downto 0);
@@ -89,6 +92,7 @@ architecture rtl of WarmTdmConfig is
       pwrSyncA       => '0',
       pwrSyncB       => '0',
       pwrSyncC       => '1',
+      asicReset      => '1';
       ledEn          => '1',
       syncPeriodDiv2 => toSlv(DIV_CLK_COUNT_C, 32),
       clkCount       => (others => '0'),
@@ -112,6 +116,22 @@ begin
          dataIn  => timingRxClkLocked,       -- [in]
          dataOut => timingRxClkLockedSync);  -- [out]
 
+   -------------------------------------------------------------------------------------------------
+   -- Reset ASIC at startup
+   -------------------------------------------------------------------------------------------------
+   U_PwrUpRst_1 : entity surf.PwrUpRst
+      generic map (
+         TPD_G          => TPD_G,
+         SIM_SPEEDUP_G  => SIMULATION_G,
+         OUT_POLARITY_G => '0',
+--         USE_DSP_G      => USE_DSP_G,
+         DURATION_G     => ite(SIMULATION_G, 1250, 5*125000000))
+      port map (
+         arst   => r.asicReset,         -- [in]
+         clk    => axilClk,             -- [in]
+         rstOut => asicResetB);         -- [out]
+
+
    comb : process (axilReadMaster, axilRst, axilWriteMaster, r, timingRxClkLockedSync) is
       variable v      : RegType;
       variable axilEp : AxiLiteEndpointType;
@@ -119,6 +139,7 @@ begin
       v := r;
 
       v.resetCounter := '0';
+      v.asicReset    := '0';
 
       --------------------
       -- AXI Lite
@@ -134,6 +155,7 @@ begin
       axiWrDetect(axilEp, X"10", v.resetCounter);
       axiSlaveRegister(axilEp, X"14", 0, v.ledEn);
       axiSlaveRegisterR(axilEp, X"18", 0, tempAlertL);
+      axiSlaveRegister(axilEp, X"20", 0, v.asicReset);
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
 

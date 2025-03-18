@@ -121,6 +121,8 @@ entity WarmTdmCore2 is
       feThermistorP    : in slv(1 downto 0);
       feThermistorN    : in slv(1 downto 0);
 
+      asicResetB : out sl;
+
       -- Amplifier power down
       ampPdB : out slv(7 downto 0) := (others => '1');
 
@@ -444,7 +446,8 @@ begin
          ledEn             => ledEn,                               -- [out]
          pwrSyncA          => pwrSyncA,                            -- [out]
          pwrSyncB          => pwrSyncB,                            -- [out]
-         pwrSyncC          => pwrSyncC,                            -- [out] 
+         pwrSyncC          => pwrSyncC,                            -- [out]
+         asicResetB        => asicResetB,                          -- [out]
          timingRxClkLocked => timingRxClkLocked,                   -- [in]
          localThermistorP  => localThermistorP,                    -- [in]
          localThermistorN  => localThermistorN,                    -- [in]
