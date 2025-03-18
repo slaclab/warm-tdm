@@ -578,7 +578,7 @@ class AwaXeLna(SaAmplifier):
         # Stage 3 Differential Amplifier
         self.add(pr.LocalVariable(
             name = 'RF3',
-            value = 1.0e3,
+            value = 825.0,
             units = u'\u03a9'))
 
         self.add(pr.LocalVariable(
