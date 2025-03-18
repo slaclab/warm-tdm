@@ -375,7 +375,7 @@ begin
          localThermistorN => localThermistorN,    -- [in]
          feThermistorP    => feThermistorP,       -- [in]
          feThermistorN    => feThermistorN,       -- [in]
-         asicResetB => asicResetB,      -- [out]
+         asicResetB       => resetB,              -- [out]
          ampPdB           => ampPdB,              -- [out]
          leds             => leds,                -- [out]
          conRxGreenLed    => conRxGreenLed,       -- [out]
@@ -452,20 +452,6 @@ begin
          coreSDout      => feDacMosi,                           -- [out]
          coreMCsb       => feDacSyncB);                         -- [out]
 
-   -------------------------------------------------------------------------------------------------
-   -- Reset ASIC at startup
-   -------------------------------------------------------------------------------------------------
-   U_PwrUpRst_1 : entity surf.PwrUpRst
-      generic map (
-         TPD_G          => TPD_G,
-         SIM_SPEEDUP_G  => SIMULATION_G,
-         OUT_POLARITY_G => '0',
---         USE_DSP_G      => USE_DSP_G,
-         DURATION_G     => ite(SIMULATION_G, 1250, 5*125000000))
-      port map (
-         arst   => axilRst,             -- [in]
-         clk    => axilClk,             -- [in]
-         rstOut => resetB);             -- [out]
 
    -------------------------------------------------------------------------------------------------
    -- FE I2C
