@@ -95,5 +95,17 @@ class WarmTdmConfig(pr.Device):
             disp = '{:0.3f}',
             units = 'MHz',
             linkedGet = lambda read: 1.0e-6 * axil_clk_freq / (2*self.SyncPeriodDiv2.get(read=read))))
+
+        @self.command()
+        def AnaPowerOff():
+            self.PwrSyncB.set(1, write=False)
+            self.PwrSyncC.set(0, write=False)
+            self.writeBlocks()
+
+        @self.command()
+        def AnaPowerOn():
+            self.PwrSyncB.set(0, write=False)
+            self.PwrSyncC.set(1, write=False)
+            self.writeBlocks()
             
         
