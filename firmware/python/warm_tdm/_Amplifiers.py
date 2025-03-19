@@ -562,7 +562,7 @@ class AwaXeLna(SaAmplifier):
 
         self.add(pr.LocalVariable(
             name = 'LNA_GAIN',
-            value = 80.0))
+            value = 85.5))
 
         # Stage 2 Summing Differential Input Amplifier
         self.add(pr.LocalVariable(
