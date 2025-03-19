@@ -149,8 +149,8 @@ begin
       axiSlaveRegister(axilEp, X"00", 0, v.anaPwrEnAxi);
       axiSlaveRegisterR(axilEp, X"00", 1, r.anaPwrEn);
       axiSlaveRegister(axilEp, X"04", 0, v.pwrSyncACfg);
-      axiSlaveRegister(axilEp, X"08", 0, v.pwrSyncBCfg);
-      axiSlaveRegister(axilEp, X"0C", 0, v.pwrSyncCCfg);
+      axiSlaveRegister(axilEp, X"04", 2, v.pwrSyncBCfg);
+      axiSlaveRegister(axilEp, X"04", 4, v.pwrSyncCCfg);
       axiSlaveRegister(axilEp, X"10", 0, v.syncPeriodDiv2);
       axiWrDetect(axilEp, X"10", v.resetCounter);
       axiSlaveRegister(axilEp, X"14", 0, v.ledEn);

@@ -56,8 +56,8 @@ class WarmTdmConfig(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'PwrSyncB',
-            offset = 0x08,
-            bitOffset = 0,
+            offset = 0x04,
+            bitOffset = 2,
             bitSize = 2,
             enum = {
                 0: 'LOW',
@@ -66,8 +66,8 @@ class WarmTdmConfig(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'PwrSyncC',
-            offset = 0x0C,
-            bitOffset = 0,
+            offset = 0x04,
+            bitOffset = 4,
             bitSize = 2,
             enum = {
                 0: 'LOW',
