@@ -50,6 +50,7 @@ architecture rtl of AwaXeAxiI2cBridge is
    constant I2C_SCL_5xFREQ_C : real    := 5.0 * I2C_SCL_FREQ_G;
    constant PRESCALE_C       : natural := (getTimeRatio(AXIL_CLK_FREQ_G, I2C_SCL_5xFREQ_C)) - 1;
    constant FILTER_C         : natural := natural(AXIL_CLK_FREQ_G * I2C_MIN_PULSE_G) + 1;
+   constant TIMOUT_COUNT_C : integer := ite(SIMULATION_G, 12500, 12500000);
 
    type StateType is (WAIT_AXIL_S, START_ACK_S, WR_ACK_S, RD_ACK_S);
 
@@ -126,6 +127,7 @@ begin
          when WAIT_AXIL_S =>
             v.i2cMasterIn.txnReq := '0';
             v.i2cMasterIn.rdAck  := '0';
+            v.i2cMasterIn.wrValid := '0';
             if (axilStatus.writeEnable = '1' and i2cMasterOut.wrAck = '0') then
                v.i2cMasterIn.txnReq  := '1';
                v.i2cMasterIn.op      := '1';
@@ -144,7 +146,7 @@ begin
                v.i2cMasterIn.addr    := "0000000000";
                v.i2cMasterIn.wrValid := '1';
                v.i2cMasterIn.wrData  := "00000000";
-               v.state               := START_ACK_S;
+--               v.state               := START_ACK_S;
             end if;
 
             if (axilStatus.readEnable = '1' and i2cMasterOut.rdValid = '0') then
