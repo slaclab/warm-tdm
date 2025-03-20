@@ -52,7 +52,7 @@ architecture rtl of AwaXeAxiI2cBridge is
    constant FILTER_C         : natural := natural(AXIL_CLK_FREQ_G * I2C_MIN_PULSE_G) + 1;
    constant TIMOUT_COUNT_C   : integer := ite(SIMULATION_G, 12500, 12500000);
 
-   type StateType is (WAIT_AXIL_S, START_ACK_S, WR_ACK_S, RD_ACK_S);
+   type StateType is (WAIT_AXIL_S, WR_ACK_S, RD_ACK_S);
 
    type RegType is record
       state          : StateType;
@@ -88,6 +88,9 @@ architecture rtl of AwaXeAxiI2cBridge is
 
    signal i2ci : i2c_in_type;
    signal i2co : i2c_out_type;
+
+   signal scloen : sl;
+   signal sdaoen : sl;
 
    signal startup : sl;
 
@@ -139,16 +142,16 @@ begin
             end if;
 
             -- Send a dummy transaction after power up to unstick the bus
-            if (startup = '1' and r.startup = '0') then
-               v.i2cMasterIn.txnReq := '1';
-               v.i2cMasterIn.op     := '1';
-               v.i2cMasterIn.stop   := '1';
-               v.i2cMasterIn.addr   := "0000000000";
---               v.i2cMasterIn.wrValid := '1';
-               v.i2cMasterIn.wrData := "00000000";
-               v.i2cMasterIn.busReq := '1';
-               v.state              := START_ACK_S;
-            end if;
+--             if (startup = '1' and r.startup = '0') then
+--                v.i2cMasterIn.txnReq := '1';
+--                v.i2cMasterIn.op     := '1';
+--                v.i2cMasterIn.stop   := '1';
+--                v.i2cMasterIn.addr   := "0000000000";
+-- --               v.i2cMasterIn.wrValid := '1';
+--                v.i2cMasterIn.wrData := "00000000";
+--                v.i2cMasterIn.busReq := '1';
+--                v.state              := START_ACK_S;
+--             end if;
 
             if (axilStatus.readEnable = '1' and i2cMasterOut.rdValid = '0') then
                v.i2cMasterIn.txnReq := '1';
@@ -158,13 +161,13 @@ begin
                v.state              := RD_ACK_S;
             end if;
 
-         when START_ACK_S =>
-            -- Don't care about response
-            if (i2cMasterOut.busAck = '1') then
-               v.i2cMasterIn.txnReq := '0';
-               v.i2cMasterIn.busReq := '0';
-               v.state              := WAIT_AXIL_S;
-            end if;
+--          when START_ACK_S =>
+--             -- Don't care about response
+--             if (i2cMasterOut.busAck = '1') then
+--                v.i2cMasterIn.txnReq := '0';
+--                v.i2cMasterIn.busReq := '0';
+--                v.state              := WAIT_AXIL_S;
+--             end if;
 
          when WR_ACK_S =>
             v.i2cMasterIn.txnReq := '0';
@@ -230,19 +233,22 @@ begin
          i2ci         => i2ci,
          i2co         => i2co);
 
+   scloen <= '0' when startup = '0' else i2co.scloen;
+   sdaoen <= '0' when startup = '0' else i2co.sdaoen;
+
    IOBUF_SCL : entity surf.IoBufWrapper
       port map (
          O  => i2ci.scl,                -- Buffer output
          IO => scl,                     -- Buffer inout port (connect directly to top-level port)
          I  => i2co.scl,                -- Buffer input
-         T  => i2co.scloen);            -- 3-state enable input, high=input, low=output
+         T  => scloen);                 -- 3-state enable input, high=input, low=output
 
    IOBUF_SDA : entity surf.IoBufWrapper
       port map (
          O  => i2ci.sda,                -- Buffer output
          IO => sda,                     -- Buffer inout port (connect directly to top-level port)
          I  => i2co.sda,                -- Buffer input
-         T  => i2co.sdaoen);            -- 3-state enable input, high=input, low=output
+         T  => sdaoen);                 -- 3-state enable input, high=input, low=output
 
 end architecture rtl;
 
