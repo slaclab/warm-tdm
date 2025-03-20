@@ -50,13 +50,14 @@ architecture rtl of AwaXeAxiI2cBridge is
    constant I2C_SCL_5xFREQ_C : real    := 5.0 * I2C_SCL_FREQ_G;
    constant PRESCALE_C       : natural := (getTimeRatio(AXIL_CLK_FREQ_G, I2C_SCL_5xFREQ_C)) - 1;
    constant FILTER_C         : natural := natural(AXIL_CLK_FREQ_G * I2C_MIN_PULSE_G) + 1;
-   constant TIMOUT_COUNT_C   : integer := ite(SIMULATION_G, 12500, 12500000);
+   constant ONE_MS_COUNT_C   : integer := 200000;
 
    type StateType is (WAIT_AXIL_S, WR_ACK_S, RD_ACK_S);
 
    type RegType is record
       state          : StateType;
       startup        : sl;
+      count          : integer range 0 to ONE_MS_COUNT_C;
       axilReadSlave  : AxiLiteReadSlaveType;
       axilWriteSlave : AxiLiteWriteSlaveType;
       i2cMasterIn    : I2cMasterInType;
@@ -65,6 +66,7 @@ architecture rtl of AwaXeAxiI2cBridge is
    constant REG_INIT_C : RegType := (
       state          => WAIT_AXIL_S,
       startup        => '0',
+      count          => 0,
       axilReadSlave  => AXI_LITE_READ_SLAVE_INIT_C,
       axilWriteSlave => AXI_LITE_WRITE_SLAVE_INIT_C,
       i2cMasterIn    => (
@@ -128,6 +130,7 @@ begin
 
       case r.state is
          when WAIT_AXIL_S =>
+            v.count               := 0;
             v.i2cMasterIn.txnReq  := '0';
             v.i2cMasterIn.rdAck   := '0';
             v.i2cMasterIn.wrValid := '0';
@@ -170,6 +173,12 @@ begin
 --             end if;
 
          when WR_ACK_S =>
+            v.count := r.count + 1;
+            if (r.count = ONE_MS_COUNT_C-1) then
+               v.count := 0;
+               axiSlaveReadResponse(v.axilReadSlave, AXI_RESP_SLVERR_C);
+               v.state := WAIT_AXIL_S;
+            end if;
             v.i2cMasterIn.txnReq := '0';
             if (i2cMasterOut.wrAck = '1') then
                v.i2cMasterIn.wrValid := '0';
@@ -180,6 +189,12 @@ begin
             end if;
 
          when RD_ACK_S =>
+            v.count := r.count + 1;
+            if (r.count = ONE_MS_COUNT_C-1) then
+               v.count := 0;
+               axiSlaveReadResponse(v.axilReadSlave, AXI_RESP_SLVERR_C);
+               v.state := WAIT_AXIL_S;
+            end if;
             v.i2cMasterIn.txnReq := '0';
             if (i2cMasterOut.rdValid = '1') then
                v.i2cMasterIn.rdAck               := '1';
