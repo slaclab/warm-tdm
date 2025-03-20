@@ -176,7 +176,7 @@ begin
             v.count := r.count + 1;
             if (r.count = ONE_MS_COUNT_C-1) then
                v.count := 0;
-               axiSlaveReadResponse(v.axilReadSlave, AXI_RESP_SLVERR_C);
+               axiSlaveWriteResponse(v.axilWriteSlave, AXI_RESP_SLVERR_C);
                v.state := WAIT_AXIL_S;
             end if;
             v.i2cMasterIn.txnReq := '0';
