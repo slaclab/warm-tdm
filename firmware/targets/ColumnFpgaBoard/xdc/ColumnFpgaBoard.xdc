@@ -346,7 +346,7 @@ set_property -dict { PACKAGE_PIN C18 IOSTANDARD LVCMOS33 } [get_ports { feThermi
 set_property -dict { PACKAGE_PIN A19 IOSTANDARD LVCMOS33 } [get_ports { feThermistorN[1] }];
 
 # ASIC signal
-set_property -dict {PACKAGE_PIN C13 IOSTANDARD LVCMOS33 } [get_ports { resetB }];
+set_property -dict {PACKAGE_PIN C13 IOSTANDARD LVCMOS33 PULLUP TRUE} [get_ports { resetB }];
 
 # FE VR Sync
 set_property -dict {PACKAGE_PIN D14 IOSTANDARD LVCMOS33 } [get_ports { feVrSyncA }];

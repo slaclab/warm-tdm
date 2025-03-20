@@ -119,17 +119,17 @@ begin
    -------------------------------------------------------------------------------------------------
    -- Reset ASIC at startup
    -------------------------------------------------------------------------------------------------
-   U_PwrUpRst_1 : entity surf.PwrUpRst
-      generic map (
-         TPD_G          => TPD_G,
-         SIM_SPEEDUP_G  => SIMULATION_G,
-         OUT_POLARITY_G => '0',
---         USE_DSP_G      => USE_DSP_G,
-         DURATION_G     => ite(SIMULATION_G, 1250, 5*125000000))
-      port map (
-         arst   => r.asicReset,         -- [in]
-         clk    => axilClk,             -- [in]
-         rstOut => asicResetB);         -- [out]
+--    U_PwrUpRst_1 : entity surf.PwrUpRst
+--       generic map (
+--          TPD_G          => TPD_G,
+--          SIM_SPEEDUP_G  => SIMULATION_G,
+--          OUT_POLARITY_G => '0',
+-- --         USE_DSP_G      => USE_DSP_G,
+--          DURATION_G     => ite(SIMULATION_G, 1250, 5*125000000))
+--       port map (
+--          arst   => r.asicReset,         -- [in]
+--          clk    => axilClk,             -- [in]
+--          rstOut => asicResetB);         -- [out]
 
 
    comb : process (axilReadMaster, axilRst, axilWriteMaster, r, timingRxClkLockedSync) is
@@ -139,7 +139,6 @@ begin
       v := r;
 
       v.resetCounter := '0';
-      v.asicReset    := '0';
 
       --------------------
       -- AXI Lite
@@ -229,5 +228,7 @@ begin
          r <= rin after TPD_G;
       end if;
    end process;
+
+   asicResetB <= '0' when r.asicReset = '1' else 'Z';
 
 end architecture rtl;

@@ -74,12 +74,12 @@ class WarmTdmConfig(pr.Device):
                 1: 'HIGH',
                 2: 'OSC'}))
 
-        self.add(pr.RemoteCommand(
+        self.add(pr.RemoteVariable(
             name = 'AsicReset',
             offset = 0x20,
             bitOffset = 0,
             bitSize = 1,
-            function = pr.Command.touchOne))
+            base = pr.Bool))
 
         self.add(pr.RemoteVariable(
             name = 'SyncPeriodDiv2',
