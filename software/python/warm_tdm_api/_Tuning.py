@@ -284,7 +284,8 @@ def saFbServo(*, group, process):
         group.SaFbForceCurrent.set(control)
 
     else:
-        raise Exception(f"saFb PID loop failed to converge after {maxLoops} loops")
+        print(f"saFb PID loop failed to converge after {maxLoops} loops")
+        return control
 
     print(f'saFb PID loop Converged after {count} loops')
 
