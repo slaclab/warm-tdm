@@ -137,6 +137,7 @@ architecture rtl of AdcDsp is
       state              : StateType;
       rowIndex           : slv(ROW_ADDR_BITS_C-1 downto 0);
       accumValid         : sl;
+      accumSamples       : slv(31 downto 0);
       accumError         : sfixed(ACCUM_BITS_C-1 downto 0);
       lastAccum          : sfixed(ACCUM_BITS_C-1 downto 0);
       sumAccum           : sfixed(SUM_BITS_C-1 downto 0);
@@ -166,6 +167,7 @@ architecture rtl of AdcDsp is
       state              => WAIT_ROW_STROBE_S,
       rowIndex           => (others => '0'),
       accumValid         => '0',
+      accumSamples       => (others => '0'),
       accumError         => (others => '0'),
       lastAccum          => (others => '0'),
       sumAccum           => (others => '0'),
@@ -561,7 +563,7 @@ begin
                   v.rowIndex   := adcAxisMaster.tId(7 downto 0);
                   v.accumError := (others => '0');
 
-                  -- First word is Column number
+                  -- Word 0 is Column and Row
                   ssiSetUserSof(AXIS_DEBUG_CFG_C, v.pidDebugMaster, '1');
                   v.pidDebugMaster.tValid              := v.pidDebugEnable;
                   v.pidDebugMaster.tData(3 downto 0)   := toSlv(COLUMN_NUM_G, 4);
@@ -576,15 +578,16 @@ begin
                -- RAMs have a 3 cycle latency so this needs to happen at least 3 cycles after row strobe
                -- In practice it will always be much longer than 3 cycles
                if (adcAxisMaster.tUser(0) = '1') then
-                  -- Second word is baseline
+                  -- Word 1 is baseline
                   v.pidDebugMaster.tValid             := r.pidDebugEnable;
                   v.pidDebugMaster.tData(31 downto 0) := resize(adcBaselineRamOut, 32);
+                  v.accumSamples                      := (others => '0');
                   v.state                             := ACCUMULATE_S;
                end if;
 
             when ACCUMULATE_S =>
-               v.accumError := resize((adcValueSfixed - adcBaselineSfixed) + v.accumError, v.accumError);
-
+               v.accumError   := resize((adcValueSfixed - adcBaselineSfixed) + v.accumError, v.accumError);
+               v.accumSamples := r.accumSamples + 1;
                if (adcAxisMaster.tUser(1) = '1') then
                   v.state := PREP_PID_S;
                end if;
@@ -601,7 +604,7 @@ begin
                -- Store in sfixed type register
                v.sq1FB        := to_sfixed(convOffsetBin(adcAxisMaster.tData(29 downto 16)), r.sq1FB);
 
-               -- Third word is accum error
+               -- Word 2 is accum error
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
                v.pidDebugMaster.tData(31 downto 0) := to_slv(resize(r.accumError, 31, 0));
 
@@ -616,7 +619,7 @@ begin
 --                v.state         := PID_P_S;
 
             when PID_P_S =>
-               -- Fourth Word is starting SQ1FB
+               -- Word 3 is starting SQ1FB
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
                v.pidDebugMaster.tData(13 downto 0) := resize(convOffsetBin(to_slv(r.sq1FB)), 14);
 
@@ -628,7 +631,7 @@ begin
                v.state         := PID_I_S;
 
             when PID_I_S =>
-               -- Fifth Word is SumAccum
+               -- Word 4 is SumAccum
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
                v.pidDebugMaster.tData(31 downto 0) := to_slv(resize(r.pidMultiplier, 31, 0));
 
@@ -640,7 +643,7 @@ begin
                v.state         := PID_D_S;
 
             when PID_D_S =>
-               -- Sixth Word is diff multiplier result
+               -- Word 5 is diff multiplier result
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
                v.pidDebugMaster.tData(31 downto 0) := to_slv(resize(r.pidMultiplier, 31, 0));
 
@@ -652,7 +655,7 @@ begin
                v.state     := SQ1FB_ADJUST_S;
 
             when SQ1FB_ADJUST_S =>
-               -- Seventh Word is PID result
+               -- Word 6 is PID result
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
                v.pidDebugMaster.tData(63 downto 0) := resize(to_slv(r.pidResult), 64);
 
@@ -681,10 +684,18 @@ begin
                v.state := LOOP_DONE_S;
 
             when LOOP_DONE_S =>
-               -- Ninth word is new sq1Fb
+               -- Word 8 is new sq1Fb
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
                v.pidDebugMaster.tData(13 downto 0) := resize(convOffsetBin(to_slv(r.sq1Fb)), 14);
-               v.pidDebugMaster.tLast              := '1';
+
+               v.state := DEBUG_0_S;
+
+            when DEBUG_0_S =>
+               -- Word 9 is Number of accum samples and readout count
+               v.pidDebugMaster.tValid              := r.pidDebugEnable;
+               v.pidDebugMaster.tData(31 downto 0)  := r.accumSamples;
+               v.pidDebugMaster.tData(63 downto 32) := timingRxData.readoutCount(31 downto 0);
+               v.pidDebugMaster.tLast               := '1';
 
                v.state := WAIT_ROW_STROBE_S;
 
