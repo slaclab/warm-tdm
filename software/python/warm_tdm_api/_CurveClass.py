@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.optimize
 import sys
+import math
 
 def _sinfunc(t, A, w, p, c):
         return A*np.sin((2*np.pi/w)*t+p)+c
@@ -46,7 +47,7 @@ def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title)
         ax.axhline(y=curveDataDict['yOut'], linestyle='--')
         ax.axvline(x=curveDataDict['xOut'], linestyle='--')
 
-        ax.legend(title=legend_title)
+        ax.legend(title=legend_title, ncol=math.ceil(n/10))
     
 
 class CurveData():
