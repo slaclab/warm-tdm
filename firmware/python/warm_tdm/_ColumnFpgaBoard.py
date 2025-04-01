@@ -83,6 +83,19 @@ class ColumnFpgaBoard(pr.Device):
             rows = rows,
         ))
 
+        self.add(pr.GroupLinkVariable(
+            name = 'SaFbForceCurrent',
+            dependencies = list(self.SAFb.OverrideCurrent.values())))
+
+        self.add(pr.GroupLinkVariable(
+            name = 'Sq1BiasForceCurrent',
+            dependencies = list(self.SQ1Bias.OverrideCurrent.values())))
+
+        self.add(pr.GroupLinkVariable(
+            name = 'Sq1FbForceCurrent',
+            dependencies = list(self.SQ1Fb.OverrideCurrent.values())))
+                
+
 
         self.add(surf.devices.analog_devices.Ad9681Config(
             enabled = True,

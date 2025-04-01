@@ -7,7 +7,7 @@ import numpy as np
 
 import warm_tdm
 
-
+    
 
 class ColumnAwaXeFpgaBoard(pr.Device):
     def __init__(self,
@@ -90,7 +90,19 @@ class ColumnAwaXeFpgaBoard(pr.Device):
             rows = rows,
         ))
 
+        self.add(pr.GroupLinkVariable(
+            name = 'SaFbForceCurrent',
+            dependencies = list(self.SAFb.OverrideCurrent.values())))
 
+        self.add(pr.GroupLinkVariable(
+            name = 'Sq1BiasForceCurrent',
+            dependencies = [self.AwaXeI2c.Ch0Dac300C, self.AwaXeI2c.Ch1Dac300C] +
+            [list(self.SQ1Bias.OverrideCurrent.values())[2:8]]))
+
+        self.add(pr.GroupLinkVariable(
+            name = 'Sq1FbForceCurrent',
+            dependencies = list(self.SQ1Fb.OverrideCurrent.values())))
+        
 
         self.add(surf.devices.analog_devices.Ad9681Config(
             enabled = True,
@@ -152,26 +164,6 @@ class ColumnAwaXeFpgaBoard(pr.Device):
             linkedGet = _saOutNormGet))
 
 
-
-#         self.add(pr.RemoteVariable(
-#             name = f'TestRam',
-#             offset = 0xC0800000,
-#             base = pr.UInt,
-#             mode = 'RW',
-#             bitSize = 8*2**14,
-#             numValues = 1024*4,
-#             valueBits = 32,
-#             valueStride = 32))
-
-#         @self.command()
-#         def SetTestRam(arg):
-#             print(arg)
-#             offset, size = arg
-# #            ram = np.linspace(0, 2**32-1, 2**13-25, endpoint=False, dtype=np.uint32)
-#             ram = np.linspace(0, 2**32-1, size, endpoint=False, dtype=np.uint32)
-#             self.TestRam.set(value=ram, index=offset, write=True)
-
-
         @self.command()
         def AllFastDacs(arg):
             for v in self.SAFb.Override.values():
@@ -201,3 +193,7 @@ class ColumnAwaXeFpgaBoard(pr.Device):
 
     def initialize(self):
         self.InitDacAdc()
+
+
+
+            
