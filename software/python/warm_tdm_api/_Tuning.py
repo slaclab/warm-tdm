@@ -179,6 +179,9 @@ def saBiasSweep(*, group, process):
         # Only set bias for enabled columns
         #print(f'Setting SaBias values = {saBiasRange[:, idx]}')
         group.SaBiasCurrent.set(saBiasRange[:, idx])
+        group.SaOffset.set(value=np.zeros(colCount, np.float64))        
+        adcs = group.SaOutAdc.get()
+        print(f'Starting SA Bias step - ADC Values before offset = {adcs}')
         #print('Starting saOffset()')
         saOffset(group=group)
         #print('Done saOffset()')        
