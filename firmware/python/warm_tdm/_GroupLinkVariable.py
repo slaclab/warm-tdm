@@ -1,4 +1,5 @@
 import pyrogue as pr
+import numpy as np
 
 class GroupLinkVariable(pr.LinkVariable):
     def __init__(self, **kwargs):

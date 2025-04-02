@@ -90,16 +90,16 @@ class ColumnAwaXeFpgaBoard(pr.Device):
             rows = rows,
         ))
 
-        self.add(pr.GroupLinkVariable(
+        self.add(warm_tdm.GroupLinkVariable(
             name = 'SaFbForceCurrent',
             dependencies = list(self.SAFb.OverrideCurrent.values())))
 
-        self.add(pr.GroupLinkVariable(
+        self.add(warm_tdm.GroupLinkVariable(
             name = 'Sq1BiasForceCurrent',
-            dependencies = [self.AwaXeI2c.Ch0Dac300C, self.AwaXeI2c.Ch1Dac300C] +
-            [list(self.SQ1Bias.OverrideCurrent.values())[2:8]]))
+            dependencies = [self.AwaXe.Ch0Dac300C, self.AwaXe.Ch1Dac300C] +
+            list(self.SQ1Bias.OverrideCurrent.values())[2:8]))
 
-        self.add(pr.GroupLinkVariable(
+        self.add(warm_tdm.GroupLinkVariable(
             name = 'Sq1FbForceCurrent',
             dependencies = list(self.SQ1Fb.OverrideCurrent.values())))
         

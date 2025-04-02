@@ -564,6 +564,7 @@ class Group(pr.Device):
                          'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[board].SaFbForceCurrent
                             for board in range(self.config.columnBoards)],
+            config = self.config,
             tuneEnVar = self.ColTuneEnable))
 
 
@@ -604,6 +605,7 @@ class Group(pr.Device):
                          'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[board].Sq1BiasForceCurrent
                             for board in range(self.config.columnBoards)],
+            config = self.config,            
             tuneEnVar = self.ColTuneEnable))
         
 
@@ -646,6 +648,7 @@ class Group(pr.Device):
                          'Values can be accessed as a full array or as single values using an index key.',
             dependencies = [self.HardwareGroup.ColumnBoard[board].Sq1FbForceCurrent
                             for board in range(self.config.columnBoards)],
+            config = self.config,            
             tuneEnVar = self.ColTuneEnable))
         
 
@@ -714,11 +717,11 @@ class Group(pr.Device):
             self.SaOut,
             self.SaOutNorm,
             self.SaFbForceCurrent,
-            self.SaFbForceVoltage,
+#            self.SaFbForceVoltage,
             self.Sq1BiasForceCurrent,
-            self.Sq1BiasForceVoltage,        
+#            self.Sq1BiasForceVoltage,        
             self.Sq1FbForceCurrent,
-            self.Sq1FbForceVoltage,
+#            self.Sq1FbForceVoltage,
             self.TesBias
         ]
 
