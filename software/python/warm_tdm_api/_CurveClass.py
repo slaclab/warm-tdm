@@ -4,50 +4,52 @@ import sys
 import math
 
 def _sinfunc(t, A, w, p, c):
-        return A*np.sin((2*np.pi/w)*t+p)+c
+    return A*np.sin((2*np.pi/w)*t+p)+c
 
-def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title):
+def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title, append=False):
+    if append is False:
         ax.clear()
         ax.set_title(ax_title)        
         ax.set_ylabel(ylabel)
         ax.set_xlabel(xlabel)
         ax.grid(True)
 
-        # Special case for no data
-        if curveDataDict is None:
-            ax.text(.5, .5, 'Not Tuned', ha='center', va='center', fontsize=28)
-            return
+    # Special case for no data
+    if curveDataDict is None:
+        ax.text(.5, .5, 'Not Tuned', ha='center', va='center', fontsize=28)
+        return
 
-        # Special case for CurveData with no curves
-        if len(curveDataDict['biasValues']) == 0:
-            ax.text(.5, .5, 'Not Tuned', ha='center', va='center', fontsize=28)
-            return
+    # Special case for CurveData with no curves
+    if len(curveDataDict['biasValues']) == 0:
+        ax.text(.5, .5, 'Not Tuned', ha='center', va='center', fontsize=28)
+        return
 
-        xValues = curveDataDict['xValues']
+    xValues = curveDataDict['xValues']
 
-        # Plot each curve with heavier line for curve with highest amplitude
-        for biasIndex, value in enumerate(curveDataDict['biasValues']):
-                
-            linewidth = 1.0
-            if biasIndex == curveDataDict['bestIndex']:
-                linewidth = 2.0
-            peak = curveDataDict['peaks'][biasIndex]
-            phinot = curveDataDict['phinots'][biasIndex]
-            label = f'{value:1.3f} - P-P: {peak:1.3f} - $\phi_o$: {phinot:.2f}'
-            color = next(ax._get_lines.prop_cycler)['color']
-            # Plot the curve
-            ax.plot(xValues, curveDataDict['curves'][biasIndex], label=label, linewidth=linewidth, color=color)
-            # Mark the max point
-            ax.plot(*curveDataDict['highPoints'][biasIndex], '^', color=color)
-            # Mark the min point
-            ax.plot(*curveDataDict['lowPoints'][biasIndex], 'v', color=color)
+    # Plot each curve with heavier line for curve with highest amplitude
+    for biasIndex, value in enumerate(curveDataDict['biasValues']):
 
-        # Plot the calculated operating point
-        ax.plot(curveDataDict['xOut'], curveDataDict['yOut'], 's', label='Tune Point')
-        ax.axhline(y=curveDataDict['yOut'], linestyle='--')
-        ax.axvline(x=curveDataDict['xOut'], linestyle='--')
+        linewidth = 1.0
+        if biasIndex == curveDataDict['bestIndex']:
+            linewidth = 2.0
+        peak = curveDataDict['peaks'][biasIndex]
+        phinot = curveDataDict['phinots'][biasIndex]
+        valueLabel = f'{value:1.3f}' if not append else f'{value:1.3f} - 4K'
+        label = f'{valueLabel} - P-P: {peak:1.3f} - $\phi_o$: {phinot:.2f}'
+        color = next(ax._get_lines.prop_cycler)['color']
+        # Plot the curve
+        ax.plot(xValues, curveDataDict['curves'][biasIndex], label=label, linewidth=linewidth, color=color)
+        # Mark the max point
+        ax.plot(*curveDataDict['highPoints'][biasIndex], '^', color=color)
+        # Mark the min point
+        ax.plot(*curveDataDict['lowPoints'][biasIndex], 'v', color=color)
 
-        ax.legend(title=legend_title, ncol=math.ceil(n/10))
+    # Plot the calculated operating point
+    ax.plot(curveDataDict['xOut'], curveDataDict['yOut'], 's', label='Tune Point')
+    ax.axhline(y=curveDataDict['yOut'], linestyle='--')
+    ax.axvline(x=curveDataDict['xOut'], linestyle='--')
+
+    ax.legend(title=legend_title, ncol=math.ceil(n/10))
     
 
 class CurveData():

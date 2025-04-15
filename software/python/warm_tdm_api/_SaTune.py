@@ -38,6 +38,10 @@ class SinglePlot(pr.LinkVariable):
 
         self._plot_ax(self._ax, col, tune[col]) ##, shunts[col])
 
+        # Hack in layering of 4-7 on top of 0-3, respectively
+        if self.parent.Combine.value() and col < 4:
+            self._plot_ax(self._ax, col, tune[col+4], append=True)
+
         return self._fig
 
 class MultiPlot(SinglePlot):
@@ -191,10 +195,14 @@ class SaTuneProcess(pr.Process):
                                  linkedGet=self._saOutGet,
                                  description="Fitted SaOut value for the column selected via the PlotColumn variable above. "))
 
+        self.add(pr.LocalVariable(
+            name='Combine',
+            value=False))
+
         self.add(SinglePlot(name='Plot',
                             mode='RO',
                             hidden=True,
-                            dependencies = [self.SaTuneOutput, self.PlotColumn],
+                            dependencies = [self.SaTuneOutput, self.PlotColumn, self.Combine],
                             description = 'A matplotlib figure of a selected column'))
 
         self.add(MultiPlot(name='MultiPlot',
