@@ -117,7 +117,7 @@ class GroupArrayLinkVariable(GroupLinkVariable):
     def _set(self, *, value, index, write):
         with self.parent.root.updateGroup():
             # Should only need this case thanks to colSetIter()
-            for idx, board, chan, val in self._config.colSetIter(index):
+            for idx, board, chan, val in self._config.colSetIter(value, index):
                 if self.tuneEnVar is not None and self.tuneEnVar.get(index=idx):                    
                     self.dependencies[board].set(value=val, index=idx, write=False)
 
