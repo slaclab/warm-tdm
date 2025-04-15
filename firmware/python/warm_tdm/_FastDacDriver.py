@@ -121,6 +121,8 @@ class FastDacDriver(pr.Device):
 
         self.rows = rows
         self.frontEnd = frontEnd
+        #print(self.frontEnd.Channel[0].find(name=f'{self.name}Amp'))
+        print(self.name)
         self.amps = [self.frontEnd.Channel[x].find(name=f'{self.name}Amp')[0] for x in range(8)]
 
         for col in range(8):

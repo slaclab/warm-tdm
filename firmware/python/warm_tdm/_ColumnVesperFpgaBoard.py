@@ -1,4 +1,6 @@
-import pyroue as pr
+import pyrogue as pr
+
+import warm_tdm
 
 class ColumnVesperFpgaBoard(warm_tdm.ColumnFpgaBoard):
     def __init__(self, **kwargs):

@@ -543,7 +543,7 @@ class FEAmplifier5(SaAmplifier):
     # Stage 3 Resistors
     rf3 = sympy.symbols('rf3')
     rin3 = sympy.symbols('rin3')
-    rgnd3 = sympy.symbols('rgnd3')        
+    rg3 = sympy.symbols('rg3')        
     roff3 = sympy.symbols('roff3')
     v3 = sympy.symbols('v3')
 

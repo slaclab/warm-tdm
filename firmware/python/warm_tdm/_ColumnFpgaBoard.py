@@ -19,7 +19,7 @@ class ColumnFpgaBoard(pr.Device):
 
         self.add(frontEndClass(
             name='AnalogFrontEnd'))
- 
+
         self.add(warm_tdm.WarmTdmCore2(
             name = 'WarmTdmCore',
             offset = 0x00000000,

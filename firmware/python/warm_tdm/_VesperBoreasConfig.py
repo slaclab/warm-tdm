@@ -3,6 +3,8 @@ import pyrogue as pr
 class VesperBoreasConfig(pr.Device):
     def __init__(self, saBiasDac, saOffsetDac, tesBiasDac, saFbDac, sq1BiasDac, sq1FbDac, auxDac, **kwargs):
 
+        super().__init__(**kwargs)
+
         self.add(pr.LocalVariable(
             name = 'FastDacOff',
             value = 0x0))
@@ -11,10 +13,13 @@ class VesperBoreasConfig(pr.Device):
             name = 'FastDacOn',
             value = 0x1444))
 
+        on = self.FastDacOn
+        off = self.FastDacOff
+
         class FastDacLinkVariable(pr.LinkVariable):
             def __init__(self, dac, **kwargs):
-                super.__init__(
-                    dependencies=[dac, self.FastDacOff, self.FastDacOn],
+                super().__init__(
+                    dependencies=[dac, off, on],
                     linkedSet=self._set,
                     linkedGet=self._get,
                     enum = {0: 'Off',
@@ -25,15 +30,15 @@ class VesperBoreasConfig(pr.Device):
 
             def _set(self, value, write):
                 if value == 0:
-                    self._dac.set(self.FastDacOff.value())
+                    self._dac.set(off.value())
                 else:
-                    self._dac.set(set.FastDacOn.value())
+                    self._dac.set(on.value())
 
             def _get(self, read):
                 v = self._dac.get(read=read)
-                if v == self.FastDacOff.value():
+                if v == off.value():
                     return 0
-                if v == self.FastDacOn.value():
+                if v == on.value():
                     return 1
                 print(f'Warning! DAC value for {self.path} ({v}) does not corespond to FastDacOn ({self.FastDacOn.value()}) or FastDacOff ({self.FastDacOff.value()})')
                 return 2
@@ -108,8 +113,8 @@ class VesperBoreasConfig(pr.Device):
 
         class TesLinkVariable(pr.LinkVariable):
             def __init__(self, dac, **kwargs):
-                super.__init__(
-                    dependencies=[dac]
+                super().__init__(
+                    dependencies=[dac],
                     linkedSet=self._set,
                     linkedGet=self._get,
                     units = '\u03bcA',
@@ -125,56 +130,56 @@ class VesperBoreasConfig(pr.Device):
 
         self.add(TesLinkVariable(
             name = 'Boreas_A_Iref_io_INA1',
-            dac = tesDac.Dac[2])) # 2P
+            dac = tesBiasDac.Dac[2])) # 2P
 
         self.add(TesLinkVariable(
             name = 'Boreas_A_Iref_SLVT_INA1',
-            dac = tesDac.Dac[10])) # 2N 
+            dac = tesBiasDac.Dac[10])) # 2N 
 
         self.add(TesLinkVariable(
             name = 'Vesper_D_Iref_io_INA1',
-            dac = tesDac.Dac[3])) # 3P
+            dac = tesBiasDac.Dac[3])) # 3P
 
         self.add(TesLinkVariable(
             name = 'Vesper_D_Iref_SLVT_INA1',
-            dac = tesDac.Dac[11])) # 3N
+            dac = tesBiasDac.Dac[11])) # 3N
 
         self.add(TesLinkVariable(
             name = 'Boreas_A_Iref_io_INA2',
-            dac = tesDac.Dac[4])) # 4P
+            dac = tesBiasDac.Dac[4])) # 4P
 
         self.add(TesLinkVariable(
             name = 'Boreas_A_Iref_SLVT_INA2',
-            dac = tesDac.Dac[12])) # 4N
+            dac = tesBiasDac.Dac[12])) # 4N
 
         self.add(TesLinkVariable(
             name = 'Boreas_B_Iref_io_INA1',
-            dac = tesDac.Dac[5])) # 5P
+            dac = tesBiasDac.Dac[5])) # 5P
 
         self.add(TesLinkVariable(
             name = 'Boreas_B_Iref_SLVT_INA1',
-            dac = tesDac.Dac[13])) # 5P
+            dac = tesBiasDac.Dac[13])) # 5P
 
         self.add(TesLinkVariable(
             name = 'Vesper_C_IRef_io_INA1',
-            dac = tesDac.Dac[6])) # 6P
+            dac = tesBiasDac.Dac[6])) # 6P
 
         self.add(TesLinkVariable(
             name = 'Vesper_C_IRef_SLVT_INA1',
-            dac = tesDac.Dac[14])) # 6N
+            dac = tesBiasDac.Dac[14])) # 6N
 
         self.add(TesLinkVariable(
             name = 'Boreas_B_Iref_io_INA2',
-            dac = tesDac.Dac[7])) # 7P
+            dac = tesBiasDac.Dac[7])) # 7P
 
         self.add(TesLinkVariable(
             name = 'Boreas_B_Iref_SLVT_INA2',
-            dac = tesDac.Dac[15])) # 7N
+            dac = tesBiasDac.Dac[15])) # 7N
 
         class SaBiasLinkVariable(pr.LinkVariable):
             def __init__(self, dac, **kwargs):
-                super.__init__(
-                    dependencies=[dac]
+                super().__init__(
+                    dependencies=[dac],
                     linkedSet=self._set,
                     linkedGet=self._get,
                     units = 'V',
@@ -206,8 +211,8 @@ class VesperBoreasConfig(pr.Device):
 
         class SaOffsetLinkVariable(pr.LinkVariable):
             def __init__(self, dac, **kwargs):
-                super.__init__(
-                    dependencies=[dac]
+                super().__init__(
+                    dependencies=[dac],
                     linkedSet=self._set,
                     linkedGet=self._get,
                     units = 'V',
