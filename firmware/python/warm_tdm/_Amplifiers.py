@@ -552,44 +552,51 @@ class FEAmplifier5(SaAmplifier):
     rg4 = sympy.symbols('rg4')
     v4 = sympy.symbols('v4')
 
+    
     # Stage 1 Instrumentation Amp equations
     eq1 = sympy.Eq((sa_signal_out0_p-sa_bias_out_p)/rf1, (sa_bias_out_p-sa_bias_out_n)/rg1)
     eq2 = sympy.Eq((sa_signal_out0_n-sa_bias_out_n)/rf1, (sa_bias_out_n-sa_bias_out_p)/rg1)
 
     # Stage 2 Common Mode Subtraction
-    eq3 = sympy.Eq(v2, sa_signal_out0_p * (rgnd2 / (rgnd2+rin2)))
+    eq3 = sympy.Eq(v2, (sa_signal_out0_p * (rgnd2 / (rgnd2+rin2))))
     eq4 = sympy.Eq((sa_signal_out2_n - v2) / rf2, (v2-sa_signal_out0_n) / rin2)
 
     # Stage 3 offset subtraction and amplification
-    eq5 = sympy.Eq(v3, sa_signal_out2_n * (rgnd3 / (rgnd3 + rin3)))
-    eq6 = sympy.Eq((sa_signal_out2_p - v2) / rf3, (v3 - sa_offset_p) / roff3)
+    eq5 = sympy.Eq(v3, sa_signal_out2_n * (rg3 / (rg3 + rin3)))
+    eq6 = sympy.Eq((sa_signal_out2_p - v3) / rf3, (v3 - sa_offset_p) / roff3)
 
     # Stage 4 ADC Amplifier
     eq7 = sympy.Eq((sa_signal_out2_p-v4)/rg4, (v4-sa_signal_out3_n)/rf4)
     eq8 = sympy.Eq((0-v4)/rg4, (v4-sa_signal_out3_p)/rf4)
 
-
     equations = [eq1, eq2, eq3, eq4, eq5, eq6, eq7, eq8]
 
-    solve_vars =  [sa_bias_out_p, sa_bias_out_n,
-                   sa_signal_out0_p, sa_signal_out0_n,
-                   sa_signal_out2_p, sa_signal_out2_n,
-                   sa_signal_out3_p, sa_signal_out3_n]
+    # Invars and outvars must be in this order for the solver to work
+    invars =  [
+        v2, v3, v4,
+        sa_bias_out_p, sa_bias_out_n,
+        sa_signal_out0_p, sa_signal_out0_n,
+        sa_signal_out2_p, sa_signal_out2_n,
+        sa_signal_out3_p, sa_signal_out3_n, ]
 
-    solutions = sympy.solve(equations, [sa_bias_out_p, sa_bias_out_n,
-                                        sa_signal_out0_p, sa_signal_out0_n,
-                                        sa_signal_out2_p, sa_signal_out2_n])
+    outvars =  [
+        sa_signal_out3_p, sa_signal_out3_n,
+        v4, v3, v2, 
+        sa_signal_out2_p, sa_signal_out2_n,
+        sa_signal_out0_p, sa_signal_out0_n,
+        sa_bias_out_p, sa_bias_out_n,  ]
+    
+    out_solve = sympy.solve(equations, outvars)
+    in_solve = sympy.solve(equations, invars)
 
-    # Expression for sa_bias_out (differential) given sa_signal_out3 and voffset
-    sa_bias_expr = sympy.simplify(solutions[sa_bias_out_p]-solutions[sa_bias_out_n])
-
-    solutions2 = sympy.solve(equations, list(reversed(solve_vars)))
+    # Create an expression for differential sa_out voltage
+    sa_bias_expr = sympy.simplify(in_solve[sa_bias_out_p]-in_solve[sa_bias_out_n])    
 
     # Expressions to compute gain of each stage
-    sa_signal_out3_expr = sympy.simplify(solutions2[sa_signal_out3_p]-solutions2[sa_signal_out3_n])
-    sa_signal_out2p_expr = solutions2[sa_signal_out2_p]
-    sa_signal_out2n_expr = solutions2[sa_signal_out2_n]
-    sa_signal_out1_expr = sympy.simplify(solutions2[sa_signal_out0_p]-solutions2[sa_signal_out0_n])        
+    sa_signal_out3_expr = sympy.simplify(out_solve[sa_signal_out3_p]-out_solve[sa_signal_out3_n])
+    sa_signal_out2p_expr = out_solve[sa_signal_out2_p]
+    sa_signal_out2n_expr = out_solve[sa_signal_out2_n]
+    sa_signal_out1_expr = sympy.simplify(out_solve[sa_signal_out0_p]-out_solve[sa_signal_out0_n])        
 
     gain4_expr = (sa_signal_out3_expr/sa_signal_out2p_expr).subs({sa_bias_out_p:.5, sa_bias_out_n:-.5, sa_offset_p:0, sa_offset_n:0})
     gain3_expr = (sa_signal_out2p_expr/sa_signal_out2n_expr).subs({sa_bias_out_p:.5, sa_bias_out_n:-.5, sa_offset_p:0, sa_offset_n:0})
