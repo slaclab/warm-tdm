@@ -130,7 +130,8 @@ architecture rtl of AdcDsp is
       SQ1FB_ADJUST_S,
       FLUX_JUMP_S,
       FLUX_DEBUG_S,
-      LOOP_DONE_S);
+      LOOP_DONE_S,
+      DEBUG_0_S);
 
    type RegType is record
       fllEnable          : sl;
