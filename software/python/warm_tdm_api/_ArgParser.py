@@ -65,7 +65,7 @@ class WarmTdmArgparse(argparse.ArgumentParser):
 
         self.add_argument(
             "--columnBoardType",
-            choices= ['Legacy', 'FPGA', 'AwaXe'],
+            choices= ['Legacy', 'FPGA', 'AwaXe', 'Vesper'],
             default= 'Legacy')
 
         self.add_argument(
@@ -87,14 +87,17 @@ class WarmTdmArgparse(argparse.ArgumentParser):
 colBoardDict = {
     'Legacy': warm_tdm.ColumnModule,
     'FPGA': warm_tdm.ColumnFpgaBoard,
-    'AwaXe': warm_tdm.ColumnAwaXeFpgaBoard}
+    'AwaXe': warm_tdm.ColumnAwaXeFpgaBoard,
+    'Vesper': warm_tdm.ColumnVesperFpgaBoard
+}
 
 
 colFeDict = {
     'Legacy': warm_tdm.ColumnBoardC00StandardFrontEnd,
     'LegacyCh0Feb': warm_tdm.ColumnBoardC00FebBypassCh0,
     'FpgaColFeb': warm_tdm.FpgaBoardColumnFeb,
-    'FpgaColAwaXeFeb':warm_tdm.FpgaBoardColumnAwaXeFeb
+    'FpgaColAwaXeFeb':warm_tdm.FpgaBoardColumnAwaXeFeb,
+    'FpgaColVesperFeb': warm_tdm.FpgaBoardColumnVesperFeb
 }
 
 rowBoardDict = {

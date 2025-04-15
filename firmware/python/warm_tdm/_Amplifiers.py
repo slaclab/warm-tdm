@@ -494,6 +494,313 @@ class FEAmplifier4(SaAmplifier):
         ret = self.sa_bias_func(vadc/2, -vadc/2, voffsetP, -voffsetP)
         return ret
 
+class FEAmplifier5(SaAmplifier):
+    """ 
+    This is the amplifier used when connecting the Vesper ASIC.
+    The Vesper ASIC requires a common mode of at least .65V on SA_OUT.
+    The nomimal FEAmplifier4 cannot tolerate such a high common mode.
+    It causes the second stage amp to hit the rail.
+    This configuration takes the stage 1 instrumentation amp through a new stage 2 common mode subtraction amp. 
+    This is then sent to a stage 3 amp for additional amplification and offset subtraction.
+    The ADC amp on the FPGA board then becomes stage 4
+    """
+
+    # Declare schematic nets and resistors
+    sa_bias_dac_p = sympy.symbols('sa_bias_dac_p')
+    sa_bias_dac_n = sympy.symbols('sa_bias_dac_n')
+    sa_bias_dac_cm = sympy.symbols('sa_bias_dac_cm')
+    sa_bias_dac_diff = sympy.symbols('sa_bias_dac_diff')
+    sa_bias_shunt_r = sympy.symbols('sa_bias_shunt_r')
+    sa_bias_cable_r = sympy.symbols('sa_bias_cable_r')
+    sa_bias_squid_r = sympy.symbols('sa_bias_squid_r')
+
+    sa_bias_out_p = sympy.symbols('sa_bias_out_p')
+    sa_bias_out_n = sympy.symbols('sa_bias_out_n')
+    sa_bias_out_diff = sympy.symbols('sa_bias_out_diff')
+    sa_bias_current = sympy.symbols('sa_bias_current')
+    sa_signal_out0_p = sympy.symbols('sa_signal_out0_p')
+    sa_signal_out0_n = sympy.symbols('sa_signal_out0_n')
+    sa_signal_out1_p = sympy.symbols('sa_signal_out1_p')
+    sa_signal_out1_n = sympy.symbols('sa_signal_out1_n')
+    sa_offset_p = sympy.symbols('sa_offset_p')
+    sa_offset_n = sympy.symbols('sa_offset_n')
+    sa_signal_out2_p = sympy.symbols('sa_signal_out2_p')
+    sa_signal_out2_n = sympy.symbols('sa_signal_out2_n')
+    sa_signal_out3_p = sympy.symbols('sa_signal_out3_p')
+    sa_signal_out3_n = sympy.symbols('sa_signal_out3_n')
+    
+
+    # Stage 1 Resistors
+    rf1 = sympy.symbols('rf1')
+    rg1 = sympy.symbols('rg1')
+
+    # Stage 2 Resistors
+    rf2 = sympy.symbols('rf2') # Feedback
+    rgnd2 = sympy.symbols('rgnd2') 
+    rin2 = sympy.symbols('rin2')
+    v2 = sympy.symbols('v2')
+
+    # Stage 3 Resistors
+    rf3 = sympy.symbols('rf3')
+    rin3 = sympy.symbols('rin3')
+    rgnd3 = sympy.symbols('rgnd3')        
+    roff3 = sympy.symbols('roff3')
+    v3 = sympy.symbols('v3')
+
+    # Stage 4 Resistors
+    rf4 = sympy.symbols('rf4')
+    rg4 = sympy.symbols('rg4')
+    v4 = sympy.symbols('v4')
+
+    # Stage 1 Instrumentation Amp equations
+    eq1 = sympy.Eq((sa_signal_out0_p-sa_bias_out_p)/rf1, (sa_bias_out_p-sa_bias_out_n)/rg1)
+    eq2 = sympy.Eq((sa_signal_out0_n-sa_bias_out_n)/rf1, (sa_bias_out_n-sa_bias_out_p)/rg1)
+
+    # Stage 2 Common Mode Subtraction
+    eq3 = sympy.Eq(v2, sa_signal_out0_p * (rgnd2 / (rgnd2+rin2)))
+    eq4 = sympy.Eq((sa_signal_out2_n - v2) / rf2, (v2-sa_signal_out0_n) / rin2)
+
+    # Stage 3 offset subtraction and amplification
+    eq5 = sympy.Eq(v3, sa_signal_out2_n * (rgnd3 / (rgnd3 + rin3)))
+    eq6 = sympy.Eq((sa_signal_out2_p - v2) / rf3, (v3 - sa_offset_p) / roff3)
+
+    # Stage 4 ADC Amplifier
+    eq7 = sympy.Eq((sa_signal_out2_p-v4)/rg4, (v4-sa_signal_out3_n)/rf4)
+    eq8 = sympy.Eq((0-v4)/rg4, (v4-sa_signal_out3_p)/rf4)
+
+
+    equations = [eq1, eq2, eq3, eq4, eq5, eq6, eq7, eq8]
+
+    solve_vars =  [sa_bias_out_p, sa_bias_out_n,
+                   sa_signal_out0_p, sa_signal_out0_n,
+                   sa_signal_out2_p, sa_signal_out2_n,
+                   sa_signal_out3_p, sa_signal_out3_n]
+
+    solutions = sympy.solve(equations, [sa_bias_out_p, sa_bias_out_n,
+                                        sa_signal_out0_p, sa_signal_out0_n,
+                                        sa_signal_out2_p, sa_signal_out2_n])
+
+    # Expression for sa_bias_out (differential) given sa_signal_out3 and voffset
+    sa_bias_expr = sympy.simplify(solutions[sa_bias_out_p]-solutions[sa_bias_out_n])
+
+    solutions2 = sympy.solve(equations, list(reversed(solve_vars)))
+
+    # Expressions to compute gain of each stage
+    sa_signal_out3_expr = sympy.simplify(solutions2[sa_signal_out3_p]-solutions2[sa_signal_out3_n])
+    sa_signal_out2p_expr = solutions2[sa_signal_out2_p]
+    sa_signal_out2n_expr = solutions2[sa_signal_out2_n]
+    sa_signal_out1_expr = sympy.simplify(solutions2[sa_signal_out0_p]-solutions2[sa_signal_out0_n])        
+
+    gain4_expr = (sa_signal_out3_expr/sa_signal_out2p_expr).subs({sa_bias_out_p:.5, sa_bias_out_n:-.5, sa_offset_p:0, sa_offset_n:0})
+    gain3_expr = (sa_signal_out2p_expr/sa_signal_out2n_expr).subs({sa_bias_out_p:.5, sa_bias_out_n:-.5, sa_offset_p:0, sa_offset_n:0})
+    gain2_expr = (sa_signal_out2n_expr/sa_signal_out1_expr).subs({sa_bias_out_p:.5, sa_bias_out_n:-.5, sa_offset_p:0, sa_offset_n:0})
+    gain1_expr = (sa_signal_out1_expr).subs({sa_bias_out_p:.5, sa_bias_out_n:-.5, sa_offset_p:0, sa_offset_n:0})
+    offset_gain_expr = sa_signal_out3_expr.subs({sa_bias_out_p:0, sa_bias_out_n:0, sa_offset_p:1.0}) #, sa_offset_n:-.5})    
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        self.add(pr.LocalVariable(
+            name = 'R_CABLE',
+            description = 'Cable resistance on SA Bias',
+            value = 200.0,
+            units = u'\u03a9'))
+
+        self.add(pr.LocalVariable(
+            name = 'BIAS_SHUNT_R',
+            description = 'Shunt resistance on high side of SA Bias',
+            value = 9e3 * 0.5,
+            units = u'\u03a9'))
+        
+        # Stage 1 Instrumentation Amplifier
+        # RF1 = R34/R33
+        # RG1 = R6
+        self.add(pr.LocalVariable(
+            name = 'RF1',
+            description = 'R33 and R34',
+            value = 100.0,
+            units = u'\u03a9'))
+
+        self.add(pr.LocalVariable(
+            name = 'RG1',
+            description = 'R6',
+            value = 40.2,
+            units = u'\u03a9'))
+
+        # Stage 2 Common Mode subtraction
+        self.add(pr.LocalVariable(
+            name = 'RF2',
+            description = '',
+            value = 100.0,
+            units = u'\u03a9'))        
+
+        self.add(pr.LocalVariable(
+            name = 'RGND2',
+            description = '',
+            value = 100.0,
+            units = u'\u03a9'))        
+
+        self.add(pr.LocalVariable(
+            name = 'RIN2',
+            description = '',
+            value = 100.0,
+            units = u'\u03a9'))
+
+        # Stage 3 Offset Subtraction and Amplification
+        self.add(pr.LocalVariable(
+            name = 'RF3',
+            description = '',
+            value = 100.0,
+            units = u'\u03a9'))
+        
+        self.add(pr.LocalVariable(
+            name = 'RG3',
+            description = '',
+            value = 100.0,
+            units = u'\u03a9'))
+        
+        self.add(pr.LocalVariable(
+            name = 'RIN3',
+            description = '',
+            value = 16.5,
+            units = u'\u03a9'))
+        
+        self.add(pr.LocalVariable(
+            name = 'ROFF3',
+            description = '',
+            value = 16.5,
+            units = u'\u03a9'))
+       
+        # Stage 4 Differential Amplifier
+        self.add(pr.LocalVariable(
+            name = 'RF4',
+            value = 3.66e3,
+            units = u'\u03a9'))
+
+        self.add(pr.LocalVariable(
+            name = 'RG4',
+            value = 1.0e3,
+            units = u'\u03a9'))
+
+        sa_vars = [
+            self.RF1,
+            self.RG1,
+            self.RF2,
+            self.RGND2,
+            self.RIN2,
+            self.RF3,
+            self.RG3,
+            self.RIN3,
+            self.ROFF3,
+            self.RF4,
+            self.RG4]
+        
+        def setConversions():
+            resistors = {
+                self.rf1: self.RF1.value(),
+                self.rg1: self.RG1.value(),
+                self.rf2: self.RF2.value(),
+                self.rgnd2: self.RGND2.value(),
+                self.rin2: self.RIN2.value(),
+                self.rf3: self.RF3.value(),
+                self.rg3: self.RG3.value(),
+                self.rin3: self.RIN3.value(),
+                self.roff3: self.ROFF3.value(),
+                self.rf4: self.RF4.value(),
+                self.rg4: self.RG4.value()}
+            
+            self.sa_bias_func = sympy.lambdify([self.sa_signal_out3_p, self.sa_signal_out3_n, self.sa_offset_p, self.sa_offset_n],
+                                               self.sa_bias_expr.subs(resistors),
+                                               'numpy')
+
+            g4=  self.gain4_expr.subs(resistors)            
+            g3=  self.gain3_expr.subs(resistors)
+            g2=  self.gain2_expr.subs(resistors)
+            g1=  self.gain1_expr.subs(resistors)
+
+            self.gain4_func = sympy.lambdify([], self.gain4_expr.subs(resistors), 'numpy')            
+            self.gain3_func = sympy.lambdify([], self.gain3_expr.subs(resistors), 'numpy')
+            self.gain2_func = sympy.lambdify([], self.gain2_expr.subs(resistors), 'numpy')
+            self.gain1_func = sympy.lambdify([], self.gain1_expr.subs(resistors), 'numpy')
+            self.offset_gain_func = sympy.lambdify([], self.offset_gain_expr.subs(resistors), 'numpy')                        
+            return 0
+        
+        setConversions()
+        
+        self.add(pr.LinkVariable(
+            name = 'Conv',
+            dependencies = sa_vars,
+            hidden = True,
+            linkedGet = setConversions))
+
+        self.addGainVars(sa_vars)
+
+        self.add(pr.LinkVariable(
+            name = 'GAIN_1',
+            description = 'First stage gain',
+            mode = 'RO',
+            disp = '{:0.3f}',            
+            dependencies = [self.Conv],
+            linkedGet = lambda read: self.gain1_func()))
+
+        self.add(pr.LinkVariable(
+            name = 'GAIN_2',
+            description = 'Second stage gain',
+            mode = 'RO',
+            disp = '{:0.3f}',            
+            dependencies = [self.Conv],
+            linkedGet = lambda read: self.gain2_func()))
+            
+        self.add(pr.LinkVariable(
+            name = 'GAIN_3',
+            description = 'Third stage gain',
+            mode = 'RO',
+            disp = '{:0.3f}',            
+            dependencies = [self.Conv],
+            linkedGet = lambda read: self.gain3_func()))
+
+        self.add(pr.LinkVariable(
+            name = 'GAIN_4',
+            description = 'Fouth stage gain',
+            mode = 'RO',
+            disp = '{:0.3f}',            
+            dependencies = [self.Conv],
+            linkedGet = lambda read: self.gain4_func()))
+        
+        self.add(pr.LinkVariable(
+            name = 'OFFSET_GAIN',
+            description = 'Overall gain of offset voltage',
+            mode = 'RO',
+            disp = '{:0.3f}',            
+            dependencies = [self.Conv],
+            linkedGet = lambda read: self.offset_gain_func()))
+
+
+    def saBiasCurrent(self, saBiasDacVoltageP, saBiasDacVoltageN=0.0):
+        vdiff = saBiasDacVoltageP - saBiasDacVoltageN
+        return vdiff / (self.R_CABLE.value() + (2*self.BIAS_SHUNT_R.value()))
+
+    def saBiasDacVoltage(self, saBiasCurrent, commonMode=0):
+        resistance = self.R_CABLE.value() + (2*self.BIAS_SHUNT_R.value())
+        voltage = saBiasCurrent * resistance
+
+        vp = (0.5 * voltage) + commonMode
+        vn = (-0.5 * voltage) + commonMode
+
+        # Clip to the dac range
+        vp = np.clip(vp, 0, 2.5)
+        vn = np.clip(vn, 0, 2.5)
+
+        return (vp, vn)
+
+
+    def ampVin(self, vadc, voffsetP, voffsetN=0.0):
+        ret = self.sa_bias_func(vadc/2, -vadc/2, voffsetP, 0)
+        return ret
+        
+        
+
+    
 class AwaXeLna(SaAmplifier):
 
     # Declare schematic nets and resistors
