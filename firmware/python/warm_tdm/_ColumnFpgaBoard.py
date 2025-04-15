@@ -83,6 +83,13 @@ class ColumnFpgaBoard(pr.Device):
             rows = rows,
         ))
 
+        self.add(warm_tdm.FastDacDriver(
+            name = 'AuxDac',
+            offset =0xC0700000,
+            frontEnd = self.AnalogFrontEnd,
+            rows = rows,
+        ))
+
         self.add(warm_tdm.GroupLinkVariable(
             name = 'SaFbForceCurrent',
             dependencies = list(self.SAFb.OverrideCurrent.values())))
