@@ -138,7 +138,7 @@ architecture rtl of AdcDsp is
       state              : StateType;
       rowIndex           : slv(ROW_ADDR_BITS_C-1 downto 0);
       accumValid         : sl;
-      accumSamples       : slv(31 downto 0);
+      accumSamples       : ufixed(31 downto 0);
       accumError         : sfixed(ACCUM_BITS_C-1 downto 0);
       lastAccum          : sfixed(ACCUM_BITS_C-1 downto 0);
       sumAccum           : sfixed(SUM_BITS_C-1 downto 0);
@@ -588,7 +588,7 @@ begin
 
             when ACCUMULATE_S =>
                v.accumError   := resize((adcValueSfixed - adcBaselineSfixed) + v.accumError, v.accumError);
-               v.accumSamples := r.accumSamples + 1;
+               v.accumSamples := resize(r.accumSamples + 1, r.accumSamples);
                if (adcAxisMaster.tUser(1) = '1') then
                   v.state := PREP_PID_S;
                end if;
@@ -694,7 +694,7 @@ begin
             when DEBUG_0_S =>
                -- Word 9 is Number of accum samples and readout count
                v.pidDebugMaster.tValid              := r.pidDebugEnable;
-               v.pidDebugMaster.tData(31 downto 0)  := r.accumSamples;
+               v.pidDebugMaster.tData(31 downto 0)  := slv(r.accumSamples);
                v.pidDebugMaster.tData(63 downto 32) := timingRxData.readoutCount(31 downto 0);
                v.pidDebugMaster.tLast               := '1';
 
