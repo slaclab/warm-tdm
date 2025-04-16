@@ -274,5 +274,5 @@ class VesperBoreasConfig(pr.Device):
             name = 'GAIN_RAW',
             hidden = True,
             dependencies = [self.INA_gain_0, self.INA_gain_1, self.INA_gain_2],
-            linkedGet = _getGainRaw,
-            linkedSet = _setGainRaw))
+            linkedGet = _getGain,
+            linkedSet = _setGain))
