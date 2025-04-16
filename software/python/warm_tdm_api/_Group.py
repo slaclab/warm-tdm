@@ -710,7 +710,7 @@ class Group(pr.Device):
 
         self.columnSelectedVars = [
             self.ColTuneEnable,
-            self.SaBiasVoltage,
+#            self.SaBiasVoltage,
             self.SaBiasCurrent,
             self.SaOffset,
             self.SaOutAdc,
