@@ -1,4 +1,5 @@
 import pyrogue as pr
+import numpy as np
 
 class VesperBoreasConfig(pr.Device):
     def __init__(self, saBiasDac, saOffsetDac, tesBiasDac, saFbDac, sq1BiasDac, sq1FbDac, auxDac, **kwargs):
