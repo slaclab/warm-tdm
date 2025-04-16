@@ -782,17 +782,23 @@ class FEAmplifier5(SaAmplifier):
             dependencies = [self.Conv],
             linkedGet = lambda read: self.offset_gain_func()))
 
+        self.add(pr.LocalVariable(
+            name = 'SA_BIAS_CM',
+            description = 'Common mode voltage on SA Bias',
+            value = 0.45))
+
 
     def saBiasCurrent(self, saBiasDacVoltageP, saBiasDacVoltageN=0.0):
         vdiff = saBiasDacVoltageP - saBiasDacVoltageN
         return vdiff / (self.R_CABLE.value() + (2*self.BIAS_SHUNT_R.value()))
 
-    def saBiasDacVoltage(self, saBiasCurrent, commonMode=0):
+    def saBiasDacVoltage(self, saBiasCurrent)
         resistance = self.R_CABLE.value() + (2*self.BIAS_SHUNT_R.value())
         voltage = saBiasCurrent * resistance
+        cm = self.SA_BIAS_CM.value()
 
-        vp = (0.5 * voltage) + commonMode
-        vn = (-0.5 * voltage) + commonMode
+        vp = (0.5 * voltage) + cm
+        vn = (-0.5 * voltage) + cm
 
         # Clip to the dac range
         vp = np.clip(vp, 0, 2.5)
