@@ -123,7 +123,7 @@ class VesperBoreasConfig(pr.Device):
 
             # Conversion formulas for DAC units to reference currents
             def _set(self, value, write):
-                self._dac.set(value * (250.0/0xffff), write=write)
+                self._dac.set(int(value * (250.0/0xffff)), write=write)
 
             def _get(self, read):
                 return self._dac.get(read=read) * (0xFFFF/250.0)
