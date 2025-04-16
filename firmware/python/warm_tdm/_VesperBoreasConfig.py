@@ -199,7 +199,7 @@ class VesperBoreasConfig(pr.Device):
                 dac = value / 0.9
                 dac = dac * 0xFFFF
                 dac = int(dac)
-                self._dac.set(dac), write=write)
+                self._dac.set(dac, write=write)
 
             def _get(self, read):
                 ret = self._dac.get(read=read)
