@@ -195,17 +195,17 @@ class VesperBoreasConfig(pr.Device):
 
             # Conversion formulas for DAC units to reference voltages
             def _set(self, value, write):
-                value = np.clip(value, 0.0, 0.9)
-                dac = value / 0.9
+                dac = np.clip(value, 0.0, 0.9)
+                dac = dac / 0.9
                 dac = dac * 0xFFFF
                 dac = int(dac)
                 self._dac.set(dac, write=write)
 
             def _get(self, read):
-                ret = self._dac.get(read=read)
-                ret = raw / 0xFFFF
-                ret = raw * 0.9
-                return ret
+                dac = self._dac.get(read=read)
+                dac = dac / 0xFFFF
+                dac = dac * 0.9
+                return dac
 
         self.add(SaBiasLinkVariable(
             name = 'Boreas_AB_VbulkA_INA1',
