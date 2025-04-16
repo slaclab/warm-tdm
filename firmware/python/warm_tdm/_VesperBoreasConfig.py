@@ -188,7 +188,7 @@ class VesperBoreasConfig(pr.Device):
 
             # Conversion formulas for DAC units to reference voltages
             def _set(self, value, write):
-                self._dac.set(value * (0.9/0xffff), write=write)
+                self._dac.set(int(value * (0.9/0xffff)), write=write)
 
             def _get(self, read):
                 return self._dac.get(read=read) * (0xFFFF/0.9)
