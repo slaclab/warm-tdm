@@ -476,13 +476,13 @@ class Group(pr.Device):
 #             value = {k:v['SQ1_FB_SHUNT_R'] for k,v in self.HardwareGroup.ColumnBoard[0].loading.items()}))
         
 
-        self.add(GroupLinkVariable(
-            name='SaBiasVoltage',
-            description='SaBias value for each column. 1D array with total length = ColumnBoards * 8.'
-                        'Values can be accessed as a full array or as single values using an index key.',
-            dependencies = [self.HardwareGroup.ColumnBoard[m.board].SaBiasOffset.BiasVoltage[m.channel]
-                            for m in self.config.columnMap],
-            tuneEnVar = self.ColTuneEnable))
+#         self.add(GroupLinkVariable(
+#             name='SaBiasVoltage',
+#             description='SaBias value for each column. 1D array with total length = ColumnBoards * 8.'
+#                         'Values can be accessed as a full array or as single values using an index key.',
+#             dependencies = [self.HardwareGroup.ColumnBoard[m.board].SaBiasOffset.BiasVoltage[m.channel]
+#                             for m in self.config.columnMap],
+#             tuneEnVar = self.ColTuneEnable))
 
 
 
