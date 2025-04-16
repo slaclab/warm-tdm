@@ -118,6 +118,7 @@ class VesperBoreasConfig(pr.Device):
                     dependencies=[dac],
                     linkedSet=self._set,
                     linkedGet=self._get,
+                    disp = '{:0.3f}',
                     units = '\u03bcA',
                     **kwargs)
                 self._dac = dac
@@ -191,6 +192,7 @@ class VesperBoreasConfig(pr.Device):
                     linkedSet=self._set,
                     linkedGet=self._get,
                     units = 'V',
+                    disp = '{:0.3f}',
                     **kwargs)
                 self._dac = dac
 
@@ -231,6 +233,7 @@ class VesperBoreasConfig(pr.Device):
                     linkedSet=self._set,
                     linkedGet=self._get,
                     units = 'V',
+                    disp = '{:0.3f}',
                     **kwargs)
                 self._dac = dac
 
