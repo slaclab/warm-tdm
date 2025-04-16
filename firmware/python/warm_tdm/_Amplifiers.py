@@ -792,7 +792,7 @@ class FEAmplifier5(SaAmplifier):
         vdiff = saBiasDacVoltageP - saBiasDacVoltageN
         return vdiff / (self.R_CABLE.value() + (2*self.BIAS_SHUNT_R.value()))
 
-    def saBiasDacVoltage(self, saBiasCurrent)
+    def saBiasDacVoltage(self, saBiasCurrent):
         resistance = self.R_CABLE.value() + (2*self.BIAS_SHUNT_R.value())
         voltage = saBiasCurrent * resistance
         cm = self.SA_BIAS_CM.value()
