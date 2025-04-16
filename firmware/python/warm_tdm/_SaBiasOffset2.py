@@ -35,25 +35,25 @@ class SaBiasOffset2(pr.Device):
                 disp = '{:0.03f}',
                 units = 'V'))
 
-            def biasVoltageGet(read, ch=i):
-                vp = self.BiasVoltageP[ch].get(read=read)
-                # vn = self.BiasVoltageN[ch].get(read=read)
-                return vp*2 #vp-vn
+#             def biasVoltageGet(read, ch=i):
+#                 vp = self.BiasVoltageP[ch].get(read=read)
+#                 # vn = self.BiasVoltageN[ch].get(read=read)
+#                 return vp*2 #vp-vn
 
-            def biasVoltageSet(value, write, ch=i):
-                vp = 0.5 * value
-                vn = 0
-                vp = np.clip(vp, 0, 2.5)
-                self.BiasVoltageP[ch].set(vp, write=write)
-                #self.BiasVoltageN[ch].set(vn, write=write)
+#             def biasVoltageSet(value, write, ch=i):
+#                 vp = 0.5 * value
+#                 vn = 0
+#                 vp = np.clip(vp, 0, 2.5)
+#                 self.BiasVoltageP[ch].set(vp, write=write)
+#                 #self.BiasVoltageN[ch].set(vn, write=write)
 
-            self.add(pr.LinkVariable(
-                name = f'BiasVoltage[{i}]',
-                dependencies = [self.BiasVoltageP[i], self.BiasVoltageN[i]],
-                linkedGet = biasVoltageGet,
-                linkedSet = biasVoltageSet,
-                disp = '{:0.01f}',
-                units = u'\u03bcA'))
+#             self.add(pr.LinkVariable(
+#                 name = f'BiasVoltage[{i}]',
+#                 dependencies = [self.BiasVoltageP[i], self.BiasVoltageN[i]],
+#                 linkedGet = biasVoltageGet,
+#                 linkedSet = biasVoltageSet,
+#                 disp = '{:0.01f}',
+#                 units = u'\u03bcA'))
 
 
         # Create SA Bias Current LinkVariables that use SA front end amplifier properties
@@ -61,14 +61,13 @@ class SaBiasOffset2(pr.Device):
         for i in range(8):
             def biasCurrentGet(read, ch=i):
                 vp = self.BiasVoltageP[ch].get(read=read)
-                #vn = self.BiasVoltageN[ch].get(read=read)
-                vn = 0
+                vn = self.BiasVoltageN[ch].get(read=read)
                 return self._amps[ch].saBiasCurrent(vp, vn) * 1.0e6
 
             def biasCurrentSet(value, write, ch=i):
                 vp, vn = self._amps[ch].saBiasDacVoltage(value/1.0e6)
                 self.BiasVoltageP[ch].set(vp, write=write)
-                #self.BiasVoltageN[ch].set(vn, write=write)
+                self.BiasVoltageN[ch].set(vn, write=write)
 
             self.add(pr.LinkVariable(
                 name = f'BiasCurrent[{i}]',

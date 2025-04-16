@@ -481,11 +481,10 @@ class FEAmplifier4(SaAmplifier):
 
         # Start with both dacs at midpoint
         vp = (0.5 * voltage)
-        vn = (0.5 * voltage)
 
         # Clip to the dac range
         vp = np.clip(vp, 0, 2.5)
-        vn = 0.0#vn = np.clip(vn, 0, 2.5)
+        vn = 0.0 # Unused in this amp config
 
         return (vp, vn)
 
