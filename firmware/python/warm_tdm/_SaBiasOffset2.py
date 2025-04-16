@@ -146,12 +146,12 @@ class SaBiasOffset2(pr.Device):
             linkedGet = lambda read, index: self.OffsetVoltageN[index].get(read) if index != -1 else np.array([x.get(read=read) for x in self.OffsetVoltageN.values()])))
 
 
-        @self.command()
-        def SetAllVoltage(arg):
-            for bias, offset in zip(self.BiasVoltage.values(), self.OffsetVoltage.values()):
-                bias.set(arg, write=False)
-                offset.set(arg, write=False)
+#         @self.command()
+#         def SetAllVoltage(arg):
+#             for bias, offset in zip(self.BiasVoltage.values(), self.OffsetVoltage.values()):
+#                 bias.set(arg, write=False)
+#                 offset.set(arg, write=False)
 
-            self.writeAndVerifyBlocks()
-            self._biasDac.writeAndVerifyBlocks()
-            self._offsetDac.writeAndVerifyBlocks()
+#             self.writeAndVerifyBlocks()
+#             self._biasDac.writeAndVerifyBlocks()
+#             self._offsetDac.writeAndVerifyBlocks()
