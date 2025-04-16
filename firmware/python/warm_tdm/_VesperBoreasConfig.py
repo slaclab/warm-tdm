@@ -123,10 +123,17 @@ class VesperBoreasConfig(pr.Device):
 
             # Conversion formulas for DAC units to reference currents
             def _set(self, value, write):
-                self._dac.set(int(value * (250.0/0xffff)), write=write)
+                dac = np.clip(value, 0.0, 250.0)
+                dac = dac / 250.0
+                dac = dac * 0xFFFF
+                dac = int(dac)
+                self._dac.set(dac, write=write)
 
             def _get(self, read):
-                return self._dac.get(read=read) * (0xFFFF/250.0)
+                dac = self._dac.get(read=read)
+                dac = dac / 0xFFFF
+                dac = dac * 250.0
+                return dac
 
         self.add(TesLinkVariable(
             name = 'Boreas_A_Iref_io_INA1',
@@ -188,10 +195,17 @@ class VesperBoreasConfig(pr.Device):
 
             # Conversion formulas for DAC units to reference voltages
             def _set(self, value, write):
-                self._dac.set(int(value * (0.9/0xffff)), write=write)
+                value = np.clip(value, 0.0, 0.9)
+                dac = value / 0.9
+                dac = dac * 0xFFFF
+                dac = int(dac)
+                self._dac.set(dac), write=write)
 
             def _get(self, read):
-                return self._dac.get(read=read) * (0xFFFF/0.9)
+                ret = self._dac.get(read=read)
+                ret = raw / 0xFFFF
+                ret = raw * 0.9
+                return ret
 
         self.add(SaBiasLinkVariable(
             name = 'Boreas_AB_VbulkA_INA1',
