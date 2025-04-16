@@ -35,13 +35,14 @@ class Ad5679R(pr.Device):
                 bitSize = 16,
                 bitOffset = 0,
                 base = pr.UInt,
-                hidden = False))
+                hidden = True))
 
             self.add(pr.LinkVariable(
                 name = f'InpVoltage[{i}]',
                 mode = 'RW',
                 disp = '{:1.3f}',
                 units = 'V',
+                hidden = True,
                 dependencies = [self.Inp[i]],
                 linkedSet = self._setVoltageFunc(self.Inp[i]),
                 linkedGet = self._getVoltageFunc(self.Inp[i])))
