@@ -488,6 +488,16 @@ class FEAmplifier4(SaAmplifier):
 
         return (vp, vn)
 
+    def saOffsetDacVoltage(self, offsetVoltage):
+        """Convert generic offset voltage to dac_p and dac_n voltage"""
+        # This hardware configuration uses only the P side DAC
+        # Effective amplifier gain is 2
+        return (np.clip(0.5 * offsetVoltage, 0, 2.5), 0)
+
+    def saOffsetVoltageDac(self, vp, vn):
+        """Convert dac voltages to a scalar applied offset value"""
+        return vp*2
+
 
     def ampVin(self, vadc, voffsetP, voffsetN=0.0):
         ret = self.sa_bias_func(vadc/2, -vadc/2, voffsetP, -voffsetP)
@@ -804,6 +814,15 @@ class FEAmplifier5(SaAmplifier):
         vn = np.clip(vn, 0, 2.5)
 
         return (vp, vn)
+
+    def saOffsetDacVoltage(self, offsetVoltage):
+        """Convert generic offset voltage to dac_p and dac_n voltage"""
+        # This hardware configuration uses only the P side
+        return (np.clip(offsetVoltage, 0, 2.5), 0)
+
+    def saOffsetVoltageDac(self, vp, vn):
+        """Convert dac voltages to a scalar applied offset value"""
+        return vp
 
 
     def ampVin(self, vadc, voffsetP, voffsetN=0.0):

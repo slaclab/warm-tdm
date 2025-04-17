@@ -103,17 +103,14 @@ class SaBiasOffset2(pr.Device):
 
 
             def _set(value, write, ch=i):
-                vp = 0.5 * value
-                vn = 0
-                vp = np.clip(vp, 0, 2.5)
-
+                vp, vn = self._amps[ch].saOffsetDacVoltage(value)
                 self.OffsetVoltageP[ch].set(vp, write=write)
-                #self.OffsetVoltageN[ch].set(vn, write=write)
+                self.OffsetVoltageN[ch].set(vn, write=write)
 
             def _get(read, ch=i):
                 vp = self.OffsetVoltageP[ch].get(read=read)
-                #vn = self.OffsetVoltageN[ch].get(read=read)
-                return vp*2#vp-vn
+                vn = self.OffsetVoltageN[ch].get(read=read)
+                return self._amps[ch].saOffsetVoltageDac(vp, vn)
 
             self.add(pr.LinkVariable(
                 name = f'OffsetVoltage[{i}]',
