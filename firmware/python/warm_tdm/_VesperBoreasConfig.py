@@ -1,6 +1,29 @@
 import pyrogue as pr
 import numpy as np
 
+class VectorLinkVariable(pr.LinkVariable):
+    def __init__(self, **kwargs):
+        super().__init__(
+            linkedSet=self._set,
+            linkedGet=self._get,
+            **kwargs)
+
+    def _get(self, read):
+        print(f'{self.path}._get({read=})')
+        with self.root.updateGroup():
+            gain = 0
+            for dep in reversed(self.dependencies):
+                gain <<= 1                
+                gain |= dep.get(read=read)
+                
+            print(f'Returning {gain:03b}')
+            return gain #gain_enum[gain]
+
+    def _set(self, value, write):
+        with self.root.updateGroup():
+            for pos, dep in enumerate(self.dependencies):
+                dep.set(value=(value>>pos)&1, write=write)
+
 class VesperBoreasConfig(pr.Device):
     def __init__(self, saBiasDac, saOffsetDac, tesBiasDac, saFbDac, sq1BiasDac, sq1FbDac, auxDac, **kwargs):
 
@@ -23,13 +46,13 @@ class VesperBoreasConfig(pr.Device):
                     dependencies=[dac, off, on],
                     linkedSet=self._set,
                     linkedGet=self._get,
-                    enum = {0: 'Off',
-                            1: 'On',
-                            2: 'Unknown'},
+                    enum = {0: '0',
+                            1: '1'},
                     **kwargs)
                 self._dac = dac
 
             def _set(self, value, write):
+                print(f'Setting {self.path} to {value}')
                 if value == 0:
                     self._dac.set(off.value())
                 else:
@@ -42,75 +65,120 @@ class VesperBoreasConfig(pr.Device):
                 if v == on.value():
                     return 1
                 print(f'Warning! DAC value for {self.path} ({v}) does not corespond to FastDacOn ({on.value()}) or FastDacOff ({fff.value()})')
-                return 2
+                return 0
+
+                 
 
         # SA FB DAC Variables
         self.add(FastDacLinkVariable(
             name = 'INA_gain_0',
+            hidden = True,
             dac = saFbDac.OverrideRaw[6]))
 
         self.add(FastDacLinkVariable(
-            name = 'I_cntrlb2',
-            dac = saFbDac.OverrideRaw[7]))
-
-        # SQ1 Bias DAC Variables
-        self.add(FastDacLinkVariable(
-            name = 'I_cnrl_c1',
-            dac = sq1BiasDac.OverrideRaw[5]))
+            name = 'INA_gain_1',
+            hidden = True,            
+            dac = auxDac.OverrideRaw[2]))
 
         self.add(FastDacLinkVariable(
             name = 'INA_gain_2',
+            hidden = True,            
             dac = sq1BiasDac.OverrideRaw[6]))
 
-        self.add(FastDacLinkVariable(
-            name = 'Iref_sel_0',
-            dac = sq1BiasDac.OverrideRaw[7]))
 
-        # SQ1 FB DAC Variables
+        self.add(VectorLinkVariable(
+            name = 'GAIN',
+            dependencies = [self.INA_gain_0, self.INA_gain_1, self.INA_gain_2],
+            enum = {
+                0: '20',
+                1: '50',
+                2: '100',
+                3: '150',
+                4: '200',
+                5: '300',
+                6: '600'}))
+
+        self.add(FastDacLinkVariable(
+            name = 'INA_sel',
+            dac = auxDac.OverrideRaw[3]))
+        
         self.add(FastDacLinkVariable(
             name = 'EN_INA',
             dac = sq1FbDac.OverrideRaw[5]))
-
-        self.add(FastDacLinkVariable(
-            name = 'I_cnrl_b0',
-            dac = sq1FbDac.OverrideRaw[6]))
-
-        self.add(FastDacLinkVariable(
-            name = 'Chicken',
-            dac = sq1FbDac.OverrideRaw[7]))
-
-        # AUX DAC Variables
-        self.add(FastDacLinkVariable(
-            name = 'I_cntlc_1',
-            dac = auxDac.OverrideRaw[0]))
 
         self.add(FastDacLinkVariable(
             name = 'EN_BLK_INA',
             dac = auxDac.OverrideRaw[1]))
 
         self.add(FastDacLinkVariable(
-            name = 'INA_gain_1',
-            dac = auxDac.OverrideRaw[2]))
-
+            name = 'Chicken',
+            dac = sq1FbDac.OverrideRaw[7]))
+        
         self.add(FastDacLinkVariable(
-            name = 'INA_sel',
-            dac = auxDac.OverrideRaw[3]))
-
-        self.add(FastDacLinkVariable(
-            name = 'I_cntlb_1',
-            dac = auxDac.OverrideRaw[4]))
-
-        self.add(FastDacLinkVariable(
-            name = 'gallo_INA',
+            name = 'Gallo_INA',
             dac = auxDac.OverrideRaw[5]))
 
         self.add(FastDacLinkVariable(
-            name = 'Iref_sel_1',
-            dac = auxDac.OverrideRaw[6]))
+            name = 'Iref_sel_0',
+            hidden = True,
+            dac = sq1BiasDac.OverrideRaw[7]))
 
         self.add(FastDacLinkVariable(
-            name = 'I_cntlc_2',
+            name = 'Iref_sel_1',
+            hidden = True,            
+            dac = auxDac.OverrideRaw[6]))
+        
+        self.add(VectorLinkVariable(
+            name = 'Iref_sel',
+            dependencies = [self.Iref_sel_0, self.Iref_sel_1],
+            enum = {
+                0: '00',
+                1: '01',
+                2: '10',
+                3: '11'}))
+
+
+        self.add(FastDacLinkVariable(
+            name = 'I_cntrl_b0',
+            hidden = True,
+            dac = sq1FbDac.OverrideRaw[6]))
+
+        self.add(FastDacLinkVariable(
+            name = 'I_cntrl_b1',
+            hidden = True,            
+            dac = auxDac.OverrideRaw[4]))
+
+        self.add(FastDacLinkVariable(
+            name = 'I_cntrl_b2',
+            hidden = True,            
+            dac = saFbDac.OverrideRaw[7]))
+        
+        self.add(VectorLinkVariable(
+            name = 'I_cntrl_b',
+            dependencies = [self.I_cntrl_b0, self.I_cntrl_b1, self.I_cntrl_b2],
+            enum = {k: f'{k:03b}' for k in range(8)}))
+        
+        
+        self.add(FastDacLinkVariable(
+            name = 'I_cntrl_c0',
+            hidden = True,            
+            dac = sq1BiasDac.OverrideRaw[5]))
+
+        self.add(FastDacLinkVariable(
+            name = 'I_cntrl_c1',
+            hidden = True,            
+            dac = auxDac.OverrideRaw[0]))
+
+        self.add(FastDacLinkVariable(
+            name = 'I_cntrl_c2',
+            hidden = True,            
             dac = auxDac.OverrideRaw[7]))
+
+        self.add(VectorLinkVariable(
+            name = 'I_cntrl_c',
+            dependencies = [self.I_cntrl_c0, self.I_cntrl_c1, self.I_cntrl_c2],
+            enum = {k: f'{k:03b}' for k in range(8)}))
+        
 
         class TesLinkVariable(pr.LinkVariable):
             def __init__(self, dac, **kwargs):
@@ -258,39 +326,4 @@ class VesperBoreasConfig(pr.Device):
         self.add(SaOffsetLinkVariable(
             name = 'VDDA',
             dac = saOffsetDac.DacVoltage[7]))
-
-
-        gain_enum = {
-            0: '20',
-            1: '50',
-            2: '100',
-            3: '150',
-            4: '200',
-            5: '300',
-            6: '600'}
-
-        gain_enum_rev = {v:k for k,v in gain_enum.items()}
-
-
-        def _getGain(read):
-            with self.root.updateGroup():
-                gain = self.INA_gain_2.get(read=read)
-                gain <<= 1
-                gain |= self.INA_gain_1.get(read=read)
-                gain <<= 1
-                gain |= self.INA_gain_0.get(read=read)
-                return gain #gain_enum[gain]
-
-        def _setGain(value, write):
-            with self.root.updateGroup():
-                self.INA_gain_0.set(value&1, write=write)
-                self.INA_gain_1.set((value>>1)&1, write=write)
-                self.INA_gain_2.set((value>>2)&1, write=write)
-
-        self.add(pr.LinkVariable(
-            name = 'GAIN_RAW',
-            dependencies = [self.INA_gain_0, self.INA_gain_1, self.INA_gain_2],
-            enum = gain_enum,            
-            linkedGet = _getGain,
-            linkedSet = _setGain))
 
