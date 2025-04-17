@@ -139,47 +139,47 @@ class VesperBoreasConfig(pr.Device):
 
         self.add(TesLinkVariable(
             name = 'Boreas_A_Iref_io_INA1',
-            dac = tesBiasDac.Dac[2])) # 2P
+            dac = tesBiasDac.Dac[4])) # 2P
 
         self.add(TesLinkVariable(
             name = 'Boreas_A_Iref_SLVT_INA1',
-            dac = tesBiasDac.Dac[10])) # 2N
+            dac = tesBiasDac.Dac[5])) # 2N
 
         self.add(TesLinkVariable(
             name = 'Vesper_D_Iref_io_INA1',
-            dac = tesBiasDac.Dac[3])) # 3P
+            dac = tesBiasDac.Dac[6])) # 3P
 
         self.add(TesLinkVariable(
             name = 'Vesper_D_Iref_SLVT_INA1',
-            dac = tesBiasDac.Dac[11])) # 3N
+            dac = tesBiasDac.Dac[7])) # 3N
 
         self.add(TesLinkVariable(
             name = 'Boreas_A_Iref_io_INA2',
-            dac = tesBiasDac.Dac[4])) # 4P
+            dac = tesBiasDac.Dac[8])) # 4P
 
         self.add(TesLinkVariable(
             name = 'Boreas_A_Iref_SLVT_INA2',
-            dac = tesBiasDac.Dac[12])) # 4N
+            dac = tesBiasDac.Dac[9])) # 4N
 
         self.add(TesLinkVariable(
             name = 'Boreas_B_Iref_io_INA1',
-            dac = tesBiasDac.Dac[5])) # 5P
+            dac = tesBiasDac.Dac[10])) # 5P
 
         self.add(TesLinkVariable(
             name = 'Boreas_B_Iref_SLVT_INA1',
-            dac = tesBiasDac.Dac[13])) # 5P
+            dac = tesBiasDac.Dac[11])) # 5P
 
         self.add(TesLinkVariable(
             name = 'Vesper_C_IRef_io_INA1',
-            dac = tesBiasDac.Dac[6])) # 6P
+            dac = tesBiasDac.Dac[12])) # 6P
 
         self.add(TesLinkVariable(
             name = 'Vesper_C_IRef_SLVT_INA1',
-            dac = tesBiasDac.Dac[14])) # 6N
+            dac = tesBiasDac.Dac[13])) # 6N
 
         self.add(TesLinkVariable(
             name = 'Boreas_B_Iref_io_INA2',
-            dac = tesBiasDac.Dac[7])) # 7P
+            dac = tesBiasDac.Dac[14])) # 7P
 
         self.add(TesLinkVariable(
             name = 'Boreas_B_Iref_SLVT_INA2',
@@ -212,15 +212,15 @@ class VesperBoreasConfig(pr.Device):
 
         self.add(SaBiasLinkVariable(
             name = 'Boreas_AB_VbulkA_INA1',
-            dac = saBiasDac.Dac[6])) # 6P
+            dac = saBiasDac.Dac[12])) # 6P
 
         self.add(SaBiasLinkVariable(
             name = 'Boreas_AB_VbulkB_INA1',
-            dac = saBiasDac.Dac[14])) # 6N
+            dac = saBiasDac.Dac[13])) # 6N
 
         self.add(SaBiasLinkVariable(
             name = 'Vesper_CD_VbulkA_INA1',
-            dac = saBiasDac.Dac[7])) # 7P
+            dac = saBiasDac.Dac[14])) # 7P
 
         self.add(SaBiasLinkVariable(
             name = 'Vesper_CD_VbulkB_INA1',
@@ -261,13 +261,13 @@ class VesperBoreasConfig(pr.Device):
 
 
         gain_enum = {
-            0: 20,
-            1: 50,
-            2: 100,
-            3: 150,
-            4: 200,
-            5: 300,
-            6: 600}
+            0: '20',
+            1: '50',
+            2: '100',
+            3: '150',
+            4: '200',
+            5: '300',
+            6: '600'}
 
         gain_enum_rev = {v:k for k,v in gain_enum.items()}
 
@@ -279,18 +279,18 @@ class VesperBoreasConfig(pr.Device):
                 gain |= self.INA_gain_1.get(read=read)
                 gain <<= 1
                 gain |= self.INA_gain_0.get(read=read)
-                return gain_enum[gain]
+                return gain #gain_enum[gain]
 
         def _setGain(value, write):
-            gain = gain_enum_rev[value]
             with self.root.updateGroup():
-                self.INA_gain_0.set(gain&1, write=write)
-                self.INA_gain_1.set((gain>>1)&1, write=write)
-                self.INA_gain_2.set((gain>>2)&1, write=write)
+                self.INA_gain_0.set(value&1, write=write)
+                self.INA_gain_1.set((value>>1)&1, write=write)
+                self.INA_gain_2.set((value>>2)&1, write=write)
 
         self.add(pr.LinkVariable(
             name = 'GAIN_RAW',
-            hidden = True,
             dependencies = [self.INA_gain_0, self.INA_gain_1, self.INA_gain_2],
+            enum = gain_enum,            
             linkedGet = _getGain,
             linkedSet = _setGain))
+
