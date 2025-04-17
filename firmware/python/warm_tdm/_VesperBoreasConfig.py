@@ -64,7 +64,7 @@ class VesperBoreasConfig(pr.Device):
                     return 0
                 if v == on.value():
                     return 1
-                print(f'Warning! DAC value for {self.path} ({v}) does not corespond to FastDacOn ({on.value()}) or FastDacOff ({fff.value()})')
+                print(f'Warning! DAC value for {self.path} ({v}) does not corespond to FastDacOn ({on.value()}) or FastDacOff ({off.value()})')
                 return 0
 
                  
