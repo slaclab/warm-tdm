@@ -48,3 +48,4 @@ from ._TesBiasAwaXe import *
 from ._GroupLinkVariable import *
 from ._ColumnVesperFpgaBoard import *
 from ._VesperBoreasConfig import *
+from ._SaBiasOffsetVesper import *
