@@ -5,8 +5,6 @@ class SaBiasOffset2(pr.Device):
     def __init__(self, saBiasDac, saOffsetDac, frontEnd, **kwargs):
         super().__init__(**kwargs)
 
-        self.shunt = 15.0e3
-
         self._biasDac = saBiasDac
         self._offsetDac = saOffsetDac
         self._amps = [frontEnd.Channel[x].SAAmp for x in range(8)]
