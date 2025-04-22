@@ -194,7 +194,7 @@ class Sq1TuneProcess(pr.Process):
             name='PlotRow',
             value=0,
             minimum=0,
-            maximum=len(config.rowMap)-1,
+            maximum=config.numRows-1 if config.numRows > 0 else 0,
             mode='RW',
             description="Controls which row is selected for the resulting plot and fitted value variables below"))
 
