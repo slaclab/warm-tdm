@@ -26,10 +26,11 @@ def saOffset(*, group, process=None):
         p.output_limits = (-0.5, 0.5)
         p.sample_time = None
 
-    # Final output should be near SaBias, so start near there
-    # Start at half the current bias
-    # control = np.zeros(len(group.ColumnMap.value()))
-    control = group.SaBiasVoltage.get() * 0.9
+    # Need to implement some kind of BiasVoltageGuess
+    # To get an initial starting value based on the bias current
+    # that is specific to each amp type
+    control = np.zeros(len(group.ColumnMap.value()))
+    #control = group.SaBiasVoltage.get() * 0.9
 
     group.SaOffset.set(value=control)
 
