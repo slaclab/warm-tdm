@@ -25,9 +25,11 @@ class VectorLinkVariable(pr.LinkVariable):
                 dep.set(value=(value>>pos)&1, write=write)
 
 class VesperBoreasConfig(pr.Device):
-    def __init__(self, saBiasDac, saOffsetDac, tesBiasDac, saFbDac, sq1BiasDac, sq1FbDac, auxDac, **kwargs):
+    def __init__(self, frontEnd, saBiasDac, saOffsetDac, tesBiasDac, saFbDac, sq1BiasDac, sq1FbDac, auxDac, **kwargs):
 
         super().__init__(**kwargs)
+
+        self._amps = [frontEnd.Channel[x].SAAmp for x in range(8)]
 
         self.add(pr.LocalVariable(
             name = 'FastDacOff',
@@ -97,6 +99,13 @@ class VesperBoreasConfig(pr.Device):
                 4: '200',
                 5: '300',
                 6: '600'}))
+
+        def ampUpdate(path, varValue):
+            # Update the gain in amplifier model whenever it changes here
+            for col in range(4, 8):
+                self._amps[col].CRYO_AMP_GAIN.set(float(self.GAIN.valueDisp()))
+
+        self.GAIN.addListener(ampUpdate)
 
         self.add(FastDacLinkVariable(
             name = 'INA_sel',
