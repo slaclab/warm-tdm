@@ -829,7 +829,7 @@ class FEAmplifier5(SaAmplifier):
         ret = self.sa_bias_func(vadc/2, -vadc/2, voffsetP, 0)
         return ret
         
-class VesperBoreas(SaAmplifier):
+class VesperBoreasAmp(SaAmplifier):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -853,6 +853,12 @@ class VesperBoreas(SaAmplifier):
         self.add(pr.LocalVariable(
             name = 'ADC_AMP_GAIN',
             value = 1.0))
+
+        sa_vars = [
+            self.CRYO_AMP_GAIN,
+            self.ADC_AMP_GAIN]
+
+        self.addGainVars(sa_vars)
 
     def saBiasCurrent(self, saBiasDacVoltageP, saBiasDacVoltageN=0.0):
         vdiff = saBiasDacVoltageP - saBiasDacVoltageN

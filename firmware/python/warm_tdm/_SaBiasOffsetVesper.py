@@ -77,6 +77,13 @@ class SaBiasOffsetVesper(pr.Device):
                 units = u'\u03bcA'))
 
         # Create Offset Voltage Link Variables for P and N DAC channels
+        # Columns 4-7 use Vesper VBulk
+        vbulk_map = {
+            4: self._vesperConfig.Boreas_AB_VbulkA_INA1,
+            5: self._vesperConfig.Boreas_AB_VbulkB_INA1,
+            6: self._vesperConfig.Vesper_CD_VbulkA_INA1,
+            7: self._vesperConfig.Vesper_CD_VbulkB_INA1}
+        
         for i in range(8):
             if i < 4:
                 # Columns 0-3 use normal offset
@@ -103,12 +110,6 @@ class SaBiasOffsetVesper(pr.Device):
                     units = 'V'))
 
             else:
-                # Columns 4-7 use Vesper VBulk
-                vbulk_map = {
-                    4: self._vesperConfig.Boreas_AB_VbulkA_INA1,
-                    5: self._vesperConfig.Boreas_AB_VbulkB_INA1,
-                    6: self._vesperConfig.Vesper_CD_VbulkA_INA1,
-                    7: self._vesperConfig.Vesper_CD_VbulkB_INA1}
 
                 # Link P side to vbulks
                 self.add(pr.LinkVariable(
@@ -116,17 +117,19 @@ class SaBiasOffsetVesper(pr.Device):
                     groups = ['NoConfig'],
                     dependencies = [vbulk_map[i]],
                     linkedSet = lambda value, write, ch=i: vbulk_map.set(value, write=write),
-                    linkedGet = lambda read, ch=i: vbulk_map.get(read=read),
+                    linkedGet = lambda read, ch=i: vbulk_map[ch].get(read=read),
                     hidden = True,
                     mode = 'RW',
                     disp = '{:0.03f}',
                     units = 'V'))
 
                 # Use dummy variables for N side
-                self.add(pr.LocalVariable(
+                self.add(pr.LinkVariable(
                     name = f'OffsetVoltageN[{i}]',
                     groups = ['NoConfig'],
-                    value = 0.0,
+                    dependencies = [vbulk_map[i]],
+                    linkedSet = lambda value, write, ch=i: None,
+                    linkedGet = lambda read, ch=i: 0.0,
                     disp = '{:0.03f}',
                     units = 'V'))
 

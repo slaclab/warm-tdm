@@ -168,6 +168,9 @@ class FpgaBoardColumnAwaXeFebChannel(FpgaBoardColumnFebChannel):
 
 class FpgaBoardColumnVesperFebChannel(FpgaBoardColumnFebChannel):
     feAmpClass = warm_tdm.FEAmplifier5
+
+class FpgaBoardColumnVesperAsicChannel(FpgaBoardColumnFebChannel):
+    feAmpClass = warm_tdm.VesperBoreasAmp
         
 class FpgaBoardColumnFeb(FrontEndDevice):
     def __init__(self, **kwargs):
@@ -196,9 +199,14 @@ class FpgaBoardColumnVesperFeb(FrontEndDevice):
         super().__init__(**kwargs)
 
         # Placeholder
-        for i in range(8):
+        for i in range(4):
             self.add(warm_tdm.FpgaBoardColumnVesperFebChannel(
                 name = f'Channel[{i}]'))
+
+        for i in range(4, 8):
+            self.add(warm_tdm.FpgaBoardColumnVesperAsicChannel(
+                name = f'Channel[{i}]'))
+            
     
 
             

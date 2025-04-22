@@ -9,14 +9,12 @@ class VectorLinkVariable(pr.LinkVariable):
             **kwargs)
 
     def _get(self, read):
-        print(f'{self.path}._get({read=})')
         with self.root.updateGroup():
             gain = 0
             for dep in reversed(self.dependencies):
                 gain <<= 1                
                 gain |= dep.get(read=read)
                 
-            print(f'Returning {gain:03b}')
             return gain #gain_enum[gain]
 
     def _set(self, value, write):
@@ -54,7 +52,6 @@ class VesperBoreasConfig(pr.Device):
                 self._dac = dac
 
             def _set(self, value, write):
-                print(f'Setting {self.path} to {value}')
                 if value == 0:
                     self._dac.set(off.value())
                 else:

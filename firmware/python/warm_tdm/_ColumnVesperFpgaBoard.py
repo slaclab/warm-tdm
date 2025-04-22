@@ -1,9 +1,11 @@
 import pyrogue as pr
+import surf
+import numpy as np
 
 import warm_tdm
 
 class ColumnVesperFpgaBoard(pr.Device):
-    def __init__(self, **kwargs):
+    def __init__(self, frontEndClass, rows=256, **kwargs):
         super().__init__(**kwargs)
 
         self.add(frontEndClass(
@@ -90,6 +92,7 @@ class ColumnVesperFpgaBoard(pr.Device):
             dependencies = list(self.SQ1Fb.OverrideCurrent.values())))
                 
         self.add(warm_tdm.VesperBoreasConfig(
+            frontEnd = self.AnalogFrontEnd,
             saBiasDac = self.SaBiasDac,
             saOffsetDac = self.SaOffsetDac,
             tesBiasDac = self.TesBiasDac,
