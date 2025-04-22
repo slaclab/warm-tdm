@@ -829,8 +829,52 @@ class FEAmplifier5(SaAmplifier):
         ret = self.sa_bias_func(vadc/2, -vadc/2, voffsetP, 0)
         return ret
         
-        
+class VesperBoreas(SaAmplifier):
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        self.add(pr.LocalVariable(
+            name = 'R_CABLE',
+            description = 'Cable resistance on SA Bias',
+            value = 200.0,
+            units = u'\u03a9'))
+
+        self.add(pr.LocalVariable(
+            name = 'BIAS_SHUNT_R',
+            description = 'Shunt resistance on high side of SA Bias',
+            value = 9e3 * 0.5,
+            units = u'\u03a9'))
+
+        self.add(pr.LocalVariable(
+            name = 'CRYO_AMP_GAIN',
+            value = 150.0))
+
+        self.add(pr.LocalVariable(
+            name = 'ADC_AMP_GAIN',
+            value = 1.0))
+
+    def saBiasCurrent(self, saBiasDacVoltageP, saBiasDacVoltageN=0.0):
+        vdiff = saBiasDacVoltageP - saBiasDacVoltageN
+        return vdiff / (self.R_CABLE.value() + (2*self.BIAS_SHUNT_R.value()))
+
+    
+    def saBiasDacVoltage(self, saBiasCurrent):
+        # Not really used
+        return (0.0, 0.0)
+
+    def saOffsetDacVoltage(self, offsetVoltage):
+        v = np.clip(offsetVoltage, 0, 0.9)
+        return v
+
+    def saOffsetVoltageDac(self, vp, vn):
+        """Convert dac voltages to a scalar applied offset value"""
+        return vp    
+
+    def ampVin(self, vadc, voffsetP, voffsetN=0.0):
+        # No model for offset on this amp. Just apply the amplifier gains
+        ret = vadc / (self.ADC_AMP_GAIN.value() * self.CRYO_AMP_GAIN.value())
+        return ret
     
 class AwaXeLna(SaAmplifier):
 
