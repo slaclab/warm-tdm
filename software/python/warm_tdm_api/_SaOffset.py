@@ -26,7 +26,7 @@ class SaOffsetProcess(pr.Process):
 
         self.add(pr.LocalVariable(
             name='Kp',
-            value=-1.0,
+            value=-0.5,
             mode='RW',
             description="Proportional PID coefficient"))
 
@@ -44,7 +44,7 @@ class SaOffsetProcess(pr.Process):
 
         self.add(pr.LocalVariable(
             name='Precision',
-            value=0.001,
+            value=0.0001,
             mode='RW',
             description="Convergance precision"))
 
@@ -174,7 +174,8 @@ class SaOffsetSweepProcess(pr.Process):
                 group.SaBiasCurrent.set(saBias)
                 try:
                     warm_tdm_api.saOffset(group=group)
-                except:
+                except Exception as e:
+                    print(e)
                     print('saOffset timed out')
                 
                 for j, fb in enumerate(fbPoints):

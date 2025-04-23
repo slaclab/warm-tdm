@@ -220,21 +220,13 @@ class VesperBoreasConfig(pr.Device):
             dac = tesBiasDac.Dac[5])) # 2N
 
         self.add(TesLinkVariable(
-            name = 'Vesper_D_Iref_io_INA1',
-            dac = tesBiasDac.Dac[6])) # 3P
-
-        self.add(TesLinkVariable(
-            name = 'Vesper_D_Iref_SLVT_INA1',
-            dac = tesBiasDac.Dac[7])) # 3N
-
-        self.add(TesLinkVariable(
             name = 'Boreas_A_Iref_io_INA2',
             dac = tesBiasDac.Dac[8])) # 4P
 
         self.add(TesLinkVariable(
             name = 'Boreas_A_Iref_SLVT_INA2',
             dac = tesBiasDac.Dac[9])) # 4N
-
+        
         self.add(TesLinkVariable(
             name = 'Boreas_B_Iref_io_INA1',
             dac = tesBiasDac.Dac[10])) # 5P
@@ -244,20 +236,29 @@ class VesperBoreasConfig(pr.Device):
             dac = tesBiasDac.Dac[11])) # 5P
 
         self.add(TesLinkVariable(
-            name = 'Vesper_C_IRef_io_INA1',
-            dac = tesBiasDac.Dac[12])) # 6P
-
-        self.add(TesLinkVariable(
-            name = 'Vesper_C_IRef_SLVT_INA1',
-            dac = tesBiasDac.Dac[13])) # 6N
-
-        self.add(TesLinkVariable(
             name = 'Boreas_B_Iref_io_INA2',
             dac = tesBiasDac.Dac[14])) # 7P
 
         self.add(TesLinkVariable(
             name = 'Boreas_B_Iref_SLVT_INA2',
             dac = tesBiasDac.Dac[15])) # 7N
+        
+        self.add(TesLinkVariable(
+            name = 'Vesper_C_Iref_io_INA1',
+            dac = tesBiasDac.Dac[12])) # 6P
+
+        self.add(TesLinkVariable(
+            name = 'Vesper_C_Iref_SLVT_INA1',
+            dac = tesBiasDac.Dac[13])) # 6N
+
+        self.add(TesLinkVariable(
+            name = 'Vesper_D_Iref_io_INA1',
+            dac = tesBiasDac.Dac[6])) # 3P
+
+        self.add(TesLinkVariable(
+            name = 'Vesper_D_Iref_SLVT_INA1',
+            dac = tesBiasDac.Dac[7])) # 3N
+
 
         class SaBiasLinkVariable(pr.LinkVariable):
             def __init__(self, dac, **kwargs):
@@ -332,4 +333,33 @@ class VesperBoreasConfig(pr.Device):
         self.add(SaOffsetLinkVariable(
             name = 'VDDA',
             dac = saOffsetDac.DacVoltage[7]))
+
+        @self.command()
+        def SetDefaults():
+            self.GAIN.setDisp('20')
+            self.INA_sel.set(0)
+            self.EN_INA.set(0)
+            self.EN_BLK_INA.set(0)
+            self.Chicken.set(0)
+            self.Gallo_INA.set(0)
+            self.Iref_sel.set(0)
+            self.I_cntrl_b.set(0)
+            self.I_cntrl_c.set(0)
+            self.Boreas_A_Iref_io_INA1.set(0)
+            self.Boreas_A_Iref_SLVT_INA1.set(0)
+            self.Boreas_A_Iref_io_INA2.set(0)
+            self.Boreas_A_Iref_SLVT_INA2.set(0)
+            self.Boreas_B_Iref_io_INA1.set(0)
+            self.Boreas_B_Iref_SLVT_INA1.set(0)
+            self.Boreas_B_Iref_io_INA2.set(0)
+            self.Boreas_B_Iref_SLVT_INA2.set(0)
+            self.Vesper_C_Iref_io_INA1
+            self.Vesper_C_Iref_SLVT_INA1.set(0)
+            self.Vesper_D_Iref_io_INA1.set(0)
+            self.Vesper_D_Iref_SLVT_INA1.set(0)
+            self.Boreas_AB_VbulkA_INA1.set(0)
+            self.Boreas_AB_VbulkB_INA1.set(0)
+            self.Vesper_CD_VbulkA_INA1.set(0)
+            self.Vesper_CD_VbulkB_INA1.set(0)
+            
 

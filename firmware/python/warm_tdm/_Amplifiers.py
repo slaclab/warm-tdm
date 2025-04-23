@@ -571,8 +571,9 @@ class FEAmplifier5(SaAmplifier):
     eq4 = sympy.Eq((sa_signal_out2_n - v2) / rf2, (v2-sa_signal_out0_n) / rin2)
 
     # Stage 3 offset subtraction and amplification
+    # Hard code an offset pre-gain of .1
     eq5 = sympy.Eq(v3, sa_signal_out2_n * (rg3 / (rg3 + rin3)))
-    eq6 = sympy.Eq((sa_signal_out2_p - v3) / rf3, (v3 - sa_offset_p) / roff3)
+    eq6 = sympy.Eq((sa_signal_out2_p - v3) / rf3, (v3 - (0.1*sa_offset_p)) / roff3)
 
     # Stage 4 ADC Amplifier
     eq7 = sympy.Eq((sa_signal_out2_p-v4)/rg4, (v4-sa_signal_out3_n)/rf4)

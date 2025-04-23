@@ -45,16 +45,18 @@ def saOffset(*, group, process=None):
     mult = np.array([1 if en else 0 for en in group.ColTuneEnable.value()],np.float64)
     count = 0
 
-    print('Starting PID')
+    #print('Starting PID')
+    done = [False]*8
     while count < maxLoops:
         count += 1
-        print(f'Loop {count}')
+        #print(f'Loop {count}')
 
         current = group.SaOutAdc.get()
         masked = current * mult
 
         # All channels have converged
-        done = [precision > masked[i] > (-1.0)*precision for i in range(len(masked))]
+        done_tmp = [precision > masked[i] > (-1.0)*precision for i in range(len(masked))]
+        done = [a or b for a,b in zip(done_tmp, done)]
         if all(done):
             break
 #         if (max(masked) < precision) and (min(masked) > (-1.0*precision)):
@@ -65,7 +67,7 @@ def saOffset(*, group, process=None):
                 change = p(masked[i])
                 control[i] = np.clip(control[i] + change, 0, 4.999)
                 group.SaOffset.set(control[i], index=i)
-                print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')
+                #print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')
 
 #         group.SaOffset.set(control)
 
@@ -73,9 +75,10 @@ def saOffset(*, group, process=None):
             return control
 
     if count == maxLoops:
-        raise Exception(f"saOffset PID loop failed to converge after {maxLoops} loops")
-    else:
-        print(f'saOffset PID loop Converged after {count} loops')
+        print(f"saOffset PID loop failed to converge after {maxLoops} loops")        
+        #raise Exception(f"saOffset PID loop failed to converge after {maxLoops} loops")
+    #else:
+    print(f'saOffset PID loop done after {count} loops')
 
     return control
 

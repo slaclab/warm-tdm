@@ -204,18 +204,20 @@ class ColumnVesperFpgaBoard(pr.Device):
 
         @self.command()
         def InitDacAdc():
-            self.Ad9681Config.enable.set(True)
-            self.Ad9681Config.ReadDevice()
-            self.Ad9681Config.InternalPdwnMode.setDisp('Full Power Down')
-            self.Ad9681Config.InternalPdwnMode.setDisp('Chip Run')
-            self.Ad9681Config.InternalPdwnMode.setDisp('Digital Reset')
-            self.Ad9681Config.InternalPdwnMode.setDisp('Chip Run')
+            with self.root.updateGroup():
+                self.Ad9681Config.enable.set(True)
+                self.Ad9681Config.ReadDevice()
+                self.Ad9681Config.InternalPdwnMode.setDisp('Full Power Down')
+                self.Ad9681Config.InternalPdwnMode.setDisp('Chip Run')
+                self.Ad9681Config.InternalPdwnMode.setDisp('Digital Reset')
+                self.Ad9681Config.InternalPdwnMode.setDisp('Chip Run')
 
-            self.DataPath.Ad9681Readout.Relock()
-            self.DataPath.Ad9681Readout.LostLockCountReset()
+                self.DataPath.Ad9681Readout.Relock()
+                self.DataPath.Ad9681Readout.LostLockCountReset()
 
-            self.SaBiasDac.ZeroVoltages()
-            self.TesBiasDac.ZeroVoltages()
+                self.SaBiasDac.ZeroVoltages()
+                self.TesBiasDac.ZeroVoltages()
+                self.VesperBoreasConfig.SetDefaults()
 
     def initialize(self):
         self.InitDacAdc()
