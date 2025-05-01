@@ -62,9 +62,9 @@ class WaveformCapture(pr.Device):
         self.add(pr.RemoteVariable(
             name = 'SampleFilterEn',
             descriptions = 'Capture only sampled samples',
-            offset = 0x10,            
+            offset = 0x00,            
             bitSize = 1,
-            bitOffset = 0,
+            bitOffset = 8,
             base = pr.Bool))
 
 

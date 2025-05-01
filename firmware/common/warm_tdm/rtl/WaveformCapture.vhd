@@ -191,7 +191,7 @@ begin
       axiSlaveRegister(axilEp, X"08", 0, v.decimation);
       axiSlaveRegister(axilEp, X"08", 16, v.pauseThresh);
       axiSlaveRegister(axilEp, X"0C", 0, v.alpha);
-      axiSlaveRegister(axilEp, X"10", 0, v.sampleFilterEn);
+      axiSlaveRegister(axilEp, X"00", 8, v.sampleFilterEn);
 
       axiSlaveRegisterR(axilEp, X"10", 0, r.average(0));
       axiSlaveRegisterR(axilEp, X"14", 0, r.average(1));
