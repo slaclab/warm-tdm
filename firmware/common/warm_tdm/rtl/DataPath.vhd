@@ -259,6 +259,7 @@ begin
       filteredAdcStreams(i).tuser(1)            <= timingRxData.lastSample;
       filteredAdcStreams(i).tuser(2)            <= timingRxData.rowStrobe;
       filteredAdcStreams(i).tuser(3)            <= timingRxData.waveformCapture;
+      filteredAdcStreams(i).tuser(4)            <= timingRxData.sample;
       filteredAdcStreams(i).tData(29 downto 16) <= sq1FbDacs(i);
 
    end generate FIR_FILTER_GEN;

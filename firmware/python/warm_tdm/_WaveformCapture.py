@@ -59,6 +59,15 @@ class WaveformCapture(pr.Device):
             hidden = True,
             function = pr.RemoteCommand.touchOne))
 
+        self.add(pr.RemoteVariable(
+            name = 'SampleFilterEn',
+            descriptions = 'Capture only sampled samples',
+            offset = 0x10,            
+            bitSize = 1,
+            bitOffset = 0,
+            base = pr.Bool))
+
+
 #         self.add(pr.LocalVariable(
 #             name = 'WaveformState',
 #             hidden = True,
@@ -364,6 +373,9 @@ class WaveformCaptureReceiver(pr.DataReceiver):
         adcs = frame[8:].view(np.int16).copy()
         adcs = adcs//4
 
+        # Bits 0 and 1 indicate a marker
+        markers = adcs & 0x3
+
         with self.root.updateGroup():
             if channel >= 8:
                 # Construct a view of the adc data
@@ -386,9 +398,9 @@ class WaveformCaptureReceiver(pr.DataReceiver):
                         ampVin[sample, ch] = self.amplifiers[ch].ampVin(voltages[sample, ch], 0.0)
 
                 d = {ch: {
-                    'ADC Counts': adcs[:,ch],
-                    'V@ADC': voltages[:,ch],
-                    'V@AmpIn': ampVin[:,ch]}
+                    'ADC Counts': (adcs[:, ch], markers[:, ch]),
+                    'V@ADC': (voltages[:, ch], markers[:, ch]),
+                    'V@AmpIn': (ampVin[:, ch], markers[:, ch])}
                      for ch in range(8)}
 
             else:
@@ -396,9 +408,9 @@ class WaveformCaptureReceiver(pr.DataReceiver):
                 for sample in range(len(voltages)):
                     ampVin[sample] = self.amplifiers[channel].ampVin(voltages[sample], 0.0)
 
-                d[channel]['ADC Counts'] = adcs
-                d[channel]['V@ADC'] = voltages
-                d[channel]['V@AmpIn'] = ampVin
+                d[channel]['ADC Counts'] = (adcs, markers)
+                d[channel]['V@ADC'] = (voltages, markers)
+                d[channel]['V@AmpIn'] = (ampVin, markers)
 
             #print(d)
             self.RawData.set(d)
@@ -411,12 +423,14 @@ class WaveformCaptureReceiver(pr.DataReceiver):
 
 def plot_waveform_channel(ch, ax, values, src, multi_channel):
     ax.clear()
+    markers = values[1]
+    
     if src == 'ADC Counts':
         units = src
-        plt_values = values
+        plt_values = values[0]
     else:
         units = f'{src} - \u03bcV'
-        plt_values = values * 1.0e6
+        plt_values = values[0] * 1.0e6
 
     if not multi_channel:
         ax.set_title(f'Channel {ch} waveform')
@@ -429,6 +443,15 @@ def plot_waveform_channel(ch, ax, values, src, multi_channel):
             ax.set_title(f'Waveforms')
 
     ax.plot(plt_values)
+
+    # Plot the markers as vlines
+    firstSamples = np.where(markers == 1)
+    lastSamples = np.where(markers == 2)
+    rowStrobes = np.where(markers = 3)
+
+    ax.axvlines(firstSamples, color='g')
+    ax.axvlines(lastSamples, color='r')
+    ax.axvlines(rowStrobes, color='b')
 
 def plot_histogram_channel(ch, ax, values, src, multi_channel):
     #print(f'plot_histogram_channel(ch={ch})')

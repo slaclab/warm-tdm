@@ -97,6 +97,7 @@ architecture rtl of WaveformCapture is
       sample           : slv16Array(7 downto 0);
       alpha            : slv(3 downto 0);
       pauseThresh      : slv(13 downto 0);
+      sampleFilterEn   : sl;
       waveformTrigger  : sl;
       doWaveform       : sl;
       decimation       : slv(15 downto 0);
@@ -104,6 +105,7 @@ architecture rtl of WaveformCapture is
       selectedChannel  : slv(2 downto 0);
       allChannels      : sl;
       decimatedStreams : AxiStreamMasterArray(7 downto 0);
+      sampledStreams   : AxiStreamMasterArray(7 downto 0);
       selectedStream   : AxiStreamMasterType;
       combinedStream   : AxiStreamMasterType;
       bufferStream     : AxiStreamMasterType;
@@ -117,6 +119,7 @@ architecture rtl of WaveformCapture is
       sample           => (others => (others => '0')),
       alpha            => toSlv(15, 4),
       pauseThresh      => toSlv(2**14-8, 14),
+      sampleFilterEn   => '0',
       waveformTrigger  => '0',
       doWaveform       => '0',
       decimation       => (others => '0'),
@@ -124,6 +127,7 @@ architecture rtl of WaveformCapture is
       selectedChannel  => (others => '0'),
       allChannels      => '1',
       decimatedStreams => (others => axiStreamMasterInit(RESIZE_SLAVE_CFG_C)),
+      sampledStreams   => (others => axiStreamMasterInit(RESIZE_SLAVE_CFG_C)),
       selectedStream   => axiStreamMasterInit(RESIZE_SLAVE_CFG_C),
       combinedStream   => axiStreamMasterInit(RESIZE_MASTER_CFG_C),
       bufferStream     => axiStreamMasterInit(INT_AXIS_CONFIG_C),
@@ -187,6 +191,7 @@ begin
       axiSlaveRegister(axilEp, X"08", 0, v.decimation);
       axiSlaveRegister(axilEp, X"08", 16, v.pauseThresh);
       axiSlaveRegister(axilEp, X"0C", 0, v.alpha);
+      axiSlaveRegister(axilEp, X"10", 0, v.sampleFilterEn);
 
       axiSlaveRegisterR(axilEp, X"10", 0, r.average(0));
       axiSlaveRegisterR(axilEp, X"14", 0, r.average(1));
@@ -205,7 +210,7 @@ begin
       axiSlaveRegisterR(axilEp, X"44", 0, r.sample(5));
       axiSlaveRegisterR(axilEp, X"48", 0, r.sample(6));
       axiSlaveRegisterR(axilEp, X"4C", 0, r.sample(7));
-      
+
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
 
@@ -227,7 +232,7 @@ begin
       end if;
       if (r.reset = '1') then
          v.average := (others => (others => '0'));
-         v.sample := (others => (others => '0'));         
+         v.sample  := (others => (others => '0'));
       end if;
 
 
@@ -243,24 +248,44 @@ begin
             if (adcStreams(i).tValid = '1' and (unsigned(r.decCnt) = unsigned(r.decimation)-1 or unsigned(r.decimation) = 0)) then
                v.decimatedStreams(i).tValid             := '1';
                v.decimatedStreams(i).tData(15 downto 0) := adcStreams(i).tData(15 downto 0);
-               v.decCnt                                 := (others => '0');
+               -- Hack - Use unused bits to encode timing flags
+               if (adcStreams(i).tUser(0) = '1') then
+                  v.decimatedStreams(i).tData(1 downto 0) := "01";
+               elsif (adcStream(i).tUser(1) = '1') then
+                  v.decimatedStreams(i).tData(1 downto 0) := "10";
+               elsif (adcStream(i).tUser(2) = '1') then
+                  v.decimatedStreams(i).tData(1 downto 0) := "11";
+               end if;
+               v.decimatedStreams(i).tUser(0) := adcStreams(i).tUser(4);
+               v.decCnt                       := (others => '0');
             end if;
          end loop;
+      end if;
+
+      ----------------------------------------------------------------------------------------------
+      -- Gather only sampled data if enabled
+      ----------------------------------------------------------------------------------------------
+      v.sampledStreams := r.decimatedStreams;
+      if (r.sampleFilterEn = '1') then
+         v.sampledStreams := (others => AXI_STREAM_MASTER_INIT_C);
+         if (r.decimatedStreams(0).tValid = '1' and r.decimatedStreams(0).tUser(0) = '1') then
+            v.sampledStreams := r.decimatedStreams;
+         end if;
       end if;
 
       ----------------------------------------------------------------------------------------------
       -- Multiplex decimated stream to resizer
       ----------------------------------------------------------------------------------------------
       selectedChannel        := to_integer(unsigned(r.selectedChannel));
-      v.selectedStream       := r.decimatedStreams(selectedChannel);
+      v.selectedStream       := r.sampledStreams(selectedChannel);
       v.selectedStream.tDest := toSlv(8, 8);  --resize(r.selectedChannel, 8);
 
       ----------------------------------------------------------------------------------------------
       -- Create a combined stream of all channels
       ----------------------------------------------------------------------------------------------
-      v.combinedStream.tValid := r.decimatedStreams(0).tValid;
+      v.combinedStream.tValid := r.sampledStreams(0).tValid;
       for i in 7 downto 0 loop
-         v.combinedStream.tData(i*16+15 downto i*16) := r.decimatedStreams(i).tData(15 downto 0);
+         v.combinedStream.tData(i*16+15 downto i*16) := r.sampledStreams(i).tData(15 downto 0);
       end loop;
       v.combinedStream.tDest := toSlv(8, 8);
 
