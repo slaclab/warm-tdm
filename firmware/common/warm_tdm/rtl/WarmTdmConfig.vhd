@@ -132,7 +132,7 @@ begin
 --          rstOut => asicResetB);         -- [out]
 
 
-   comb : process (axilReadMaster, axilRst, axilWriteMaster, r, timingRxClkLockedSync) is
+   comb : process (axilReadMaster, axilRst, axilWriteMaster, r, tempAlertL, timingRxClkLockedSync) is
       variable v      : RegType;
       variable axilEp : AxiLiteEndpointType;
    begin
