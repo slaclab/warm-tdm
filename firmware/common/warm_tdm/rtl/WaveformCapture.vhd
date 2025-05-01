@@ -251,9 +251,9 @@ begin
                -- Hack - Use unused bits to encode timing flags
                if (adcStreams(i).tUser(0) = '1') then
                   v.decimatedStreams(i).tData(1 downto 0) := "01";
-               elsif (adcStream(i).tUser(1) = '1') then
+               elsif (adcStreams(i).tUser(1) = '1') then
                   v.decimatedStreams(i).tData(1 downto 0) := "10";
-               elsif (adcStream(i).tUser(2) = '1') then
+               elsif (adcStreams(i).tUser(2) = '1') then
                   v.decimatedStreams(i).tData(1 downto 0) := "11";
                end if;
                v.decimatedStreams(i).tUser(0) := adcStreams(i).tUser(4);
