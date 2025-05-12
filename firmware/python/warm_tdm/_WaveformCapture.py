@@ -206,7 +206,9 @@ class WaveformCaptureReceiver(pr.DataReceiver):
 
         self.add(pr.LocalVariable(
             name = 'RawData',
-            value = {ch: {'ADC Counts': tmpAdc[ch], 'V@ADC': tmpVoltage[ch], 'V@AmpIn': tmpAmpVin[ch]} for ch in range(8)},
+            value = {ch: {'ADC Counts': (tmpAdc[ch], np.zeros_like(tmpAdc[ch])),
+                          'V@ADC': (tmpVoltage[ch], np.zeros_like(tmpVoltage[ch])),
+                          'V@AmpIn': (tmpAmpVin[ch], np.zeros_like(tmpAmpVin[ch]))} for ch in range(8)},
             mode = 'RO',
             groups = ['NoStream'],
             hidden = True))
@@ -299,7 +301,7 @@ class WaveformCaptureReceiver(pr.DataReceiver):
         for i in range(8):
             def _getPkPk(read, x=i):
                 d = self.RawData.value()
-                v = d[x]['V@AmpIn']
+                v = d[x]['V@AmpIn'][0]
                 #v = np.array([self.loading.ampVin(a, 0.0, x) for a in v])
                 r = v.max()-v.min()
                 return r*1.0e6
@@ -315,7 +317,7 @@ class WaveformCaptureReceiver(pr.DataReceiver):
 
             def _getAvg(read, x=i):
                 d = self.RawData.value()
-                v = d[x]['V@AmpIn']
+                v = d[x]['V@AmpIn'][0]
                 #v = np.array([self.loading.ampVin(a, 0.0, x) for a in v])
                 r = v.mean()
                 return r*1.0e6
@@ -371,20 +373,23 @@ class WaveformCaptureReceiver(pr.DataReceiver):
         decimation = frame[1]
 
         adcs = frame[8:].view(np.int16).copy()
+        markers = adcs & 0x3        
         adcs = adcs//4
 
         # Bits 0 and 1 indicate a marker
-        markers = adcs & 0x3
+
+        print(f'{adcs=}')
+        print(f'{markers=}')
 
         with self.root.updateGroup():
             if channel >= 8:
                 # Construct a view of the adc data
                 adcs.resize(adcs.size//8, 8)
+                markers.resize(markers.size//8, 8)
                 self.RmsNoiseRaw.set(adcs.std(0))
             else:
                 self.RmsNoiseRaw.set(value=adcs.std(), index=channel)
 
-            
             #adcs = adcs[5000:]
 
             voltages = self.conv(adcs)
@@ -445,30 +450,40 @@ def plot_waveform_channel(ch, ax, values, src, multi_channel):
     ax.plot(plt_values)
 
     # Plot the markers as vlines
-    firstSamples = np.where(markers == 1)
-    lastSamples = np.where(markers == 2)
-    rowStrobes = np.where(markers = 3)
+    firstSamples = np.where(markers == 1)[0]
+    lastSamples = np.where(markers == 2)[0]
+    rowStrobes = np.where(markers == 3)[0]
 
-    ax.axvlines(firstSamples, color='g')
-    ax.axvlines(lastSamples, color='r')
-    ax.axvlines(rowStrobes, color='b')
+    print(f'{markers=}')
+    print(f'{firstSamples=}')    
+    print(f'{lastSamples=}')    
+    print(f'{rowStrobes=}')
+    
+
+    ymin = plt_values.min()
+    ymax = plt_values.max()
+
+    ax.vlines(firstSamples, ymin=ymin, ymax=ymax, color='g')
+    ax.vlines(lastSamples, ymin=ymin, ymax=ymax, color='r')
+    ax.vlines(rowStrobes,  ymin=ymin, ymax=ymax, color='b')
 
 def plot_histogram_channel(ch, ax, values, src, multi_channel):
     #print(f'plot_histogram_channel(ch={ch})')
     #print(values)
     ax.clear()
 
+    plot_values = values[0]
     if src == 'ADC Counts':
-        mean = np.int32(values.mean())
-        low = np.int32(values.min())
-        high = np.int32(values.max())
+        mean = np.int32(plot_values.mean())
+        low = np.int32(plot_values.min())
+        high = np.int32(plot_values.max())
         bins = np.arange(low-10, high+10, 1)
-        rms = values.std()
+        rms = plot_values.std()
         units = src
-        ax.hist(values, bins, histtype='bar')#, density=True)
+        ax.hist(plot_values, bins, histtype='bar')#, density=True)
     else:
         #print('stepfilled')
-        values_uv = values * 1.0e6
+        values_uv = plot_values * 1.0e6
         units = f'{src} -  \u03bcV'
         bins = 50
         ax.hist(values_uv, bins=bins, histtype='stepfilled')
@@ -489,10 +504,11 @@ def plot_histogram_channel(ch, ax, values, src, multi_channel):
 
 def plot_psd_channel(ch, ax, values, src, multi_channel):
     #print(f'plot_psd_channel(ch={ch})')
+    plot_values = values[0]
 
     # Calculate the PSD
     freq=125.e6 # 125MHz
-    mean_subtracted_TOD = values - np.mean(values)
+    mean_subtracted_TOD = plot_values - np.mean(plot_values)
     freqs,Pxx_den=scipy.signal.periodogram(mean_subtracted_TOD,freq,scaling='density')
     preamp_chain_gain=1 #200.
     pxx = 1e9*np.sqrt(Pxx_den)/preamp_chain_gain
