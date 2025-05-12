@@ -47,6 +47,7 @@ def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title)
         ax.axhline(y=curveDataDict['yOut'], linestyle='--')
         ax.axvline(x=curveDataDict['xOut'], linestyle='--')
 
+        n = len(curveDataDict['biasValues'])
         ax.legend(title=legend_title, ncol=math.ceil(n/10))
     
 
