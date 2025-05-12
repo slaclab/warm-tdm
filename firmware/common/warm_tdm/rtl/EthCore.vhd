@@ -58,7 +58,7 @@ entity EthCore is
       gtTxN                 : out sl;
       -- Eth/RSSI Status
       phyReady              : out sl;
-      rssiStatus            : out slv7Array(1 downto 0);
+      rssiStatus            : out slv9Array(1 downto 0);
       -- AXI-Lite Interface for local register access
       axilClk               : in  sl;
       axilRst               : in  sl;

@@ -82,7 +82,43 @@ class PidDebugMessage:
             accumSamples = accumSamples,
             readoutCount = readoutCount)
         
-        
+PidDebugType = np.dtype([
+    # Word 0
+    ('col', np.uint8),  # Fixed-size array for 6 ADC values
+    ('row', np.uint8),
+    ('runTimeLow', np.uint16),
+    ('runTimeHigh', np.uint32),
+    # Word 1
+    ('baseline', np.uint32),
+    ('dummy1', np.uint32),
+    # Word 2
+    ('accumError', np.int32),# P-term
+    ('dummy2', np.uint32),
+    # Word 3
+    ('sq1FbStart', np.uint16),
+    ('dummy3_0', np.uint16),
+    ('dummy3_1', np.uint32),
+    # Word 4
+    ('sumAccumError', np.int32), # I-term
+    ('dummy4', np.uint32),
+    # Word 5
+    ('diffAccumError', np.int32) # D-term
+    ('dummy5', np.uint32)
+    # Word 6
+    ('pidResult', np.int64),
+    # Word 7
+    ('numFluxJumps', np.int8),
+    ('dummy7_0', np.uint8),
+    ('dummy7_1', np.uint16),
+    ('dummy7_2', np.uint32),
+    # Word 8
+    ('sq1FbEnd', np.uint16),
+    ('dummy8_0', np.uint16),
+    ('dummy8_1', np.uint32),
+    # Word 9
+    ('numSamples', np.uint32),
+    ('readoutCount', np.uint32)
+])
 
 class PidDebugParser(rogue.interfaces.stream.Slave):
     def __init__(self):
@@ -95,18 +131,25 @@ class PidDebugParser(rogue.interfaces.stream.Slave):
         channel = frame.getChannel()
         arr = frame.getNumpy()
 
-        # Size must be 72
+        # Size must be 80
         if len(arr) != 80:
             return
 
-        msg = PidDebugMessage.from_numpy(arr)
-        self.data[msg.col][msg.row]
+        #msg = PidDebugMessage.from_numpy(arr)
+        msg = arr.view(PidDebugType)
+        col = msg['col']&0b111
+        row = msg['row']&0xFF
 
         if not self.data[col][row]:
-            self.data[msg.col][msg.row] = []
-        self.data[msg.col][msg.row].append(msg)
-        print(f'Got PID Debug frame for col {msg.col}, row {msg.row}, size {len(arr)}, sq1fb {msg.sq1Fb:x}')        
-
+            self.data[col][row] = {}
+            self.data[col][row]['sq1fb']=[]
+            self.data[col][row]['accumError']=[]
+            self.data[col][row]['sumAccumError']=[]
+        self.data[col][row]['sq1fb'].append(msg['sq1FbEnd'])
+        self.data[col][row]['accumError'].append(msg['accumError'])
+        self.data[col][row]['sumAccumError'].append(msg['sumAccumError'])
+        
+        
 parser = PidDebugParser()
 
 reader >> parser

@@ -68,7 +68,7 @@ entity PgpEthCore is
       ethTxN : out sl;
 
       -- Debug
-      rssiStatus  : out slv7Array(1 downto 0);
+      rssiStatus  : out slv9Array(1 downto 0);
       ethPhyReady : out sl;
       pgpTxLink   : out sl;
       pgpRxLink   : out sl;
