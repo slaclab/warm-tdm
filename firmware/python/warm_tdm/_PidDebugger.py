@@ -184,7 +184,7 @@ class PidDebugger(pr.DataReceiver):
         frame.read(raw, 0)
 
         #print(f'Got PID Debug frame for col {self.col}, row {raw[1]}, size {fl}')
-        if fl != 72:
+        if fl != 80:
             return
 
         # Overwrite the MemEmulate data with new frame
