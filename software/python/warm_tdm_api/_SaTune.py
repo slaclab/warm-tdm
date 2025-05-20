@@ -68,8 +68,7 @@ class MultiPlot(SinglePlot):
 
 class SaTuneProcess(pr.Process):
 
-    def __init__(self, *, config, maxBiasSteps=10, **kwargs):
-        self._maxBiasSteps = maxBiasSteps
+    def __init__(self, *, config, **kwargs):
         
         self._columns = len(config.columnMap)
 
@@ -133,7 +132,6 @@ class SaTuneProcess(pr.Process):
         # Step size for SA Bias Tuning
         self.add(pr.LocalVariable(name='SaBiasNumSteps',
                                   minimum=1,
-                                  maximum=self._maxBiasSteps,
                                   value=5,
                                   mode='RW',
                                   description='Number of steps between the SaBiasLowOffset and SaBiasHighOffset, inclusively.'))
