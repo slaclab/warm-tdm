@@ -1,5 +1,7 @@
 from collections import defaultdict
 import sys
+from dataclasses import dataclass
+import numpy as np
 
 import pyrogue
 import rogue.utilities
@@ -103,7 +105,7 @@ PidDebugType = np.dtype([
     ('dummy4', np.uint32),
     # Word 5
     ('diffAccumError', np.int32), # D-term
-    ('dummy5', np.uint32)
+    ('dummy5', np.uint32),
     # Word 6
     ('pidResult', np.int64),
     # Word 7

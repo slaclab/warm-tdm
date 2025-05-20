@@ -130,7 +130,7 @@ class FpgaBoardColumnFebChannel(FrontEndDevice):
                 'Invert': False,
                 'InputR': 100.0,
                 'FbR': 402.0,                
-                'ShuntR': 4.99e3
+                'ShuntR': 15.4e3
             }
         ))
 
@@ -140,7 +140,7 @@ class FpgaBoardColumnFebChannel(FrontEndDevice):
                 'Invert': False,
                 'InputR': 100.0,
                 'FbR': 402.0,
-                'ShuntR': 1.0e3
+                'ShuntR': 7.68e3
             }
         ))
 
