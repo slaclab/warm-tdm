@@ -140,9 +140,11 @@ architecture rtl of RowDacDriver is
       onIndex         : slv(7 downto 0);
       cfgBoardId      : slv(BOARD_SELECT_BITS_C-1 downto 0);
       boardId         : slv(BOARD_SELECT_BITS_C-1 downto 0);
-      rowNum          : slv(ROW_SELECT_BITS_C-1 downto 0);
-      chipNum         : slv(CHIP_SELECT_BITS_C-1 downto 0);
-      rowChipNum      : slv(ROW_CHIP_BITS_C-1 downto 0);
+      rowAddr         : slv(ROW_SELECT_BITS_C-1 downto 0);
+      chipAddr        : slv(CHIP_SELECT_BITS_C-1 downto 0);
+      rowChipAddr     : slv(ROW_CHIP_BITS_C-1 downto 0);
+      rsDac           : integer range 0 to 31;
+      csDac           : integer range 0 to 31;
       dacReset        : slv(15 downto 0);
       dacDb           : slv(13 downto 0);
       dacClk          : slv(15 downto 0);
@@ -164,9 +166,11 @@ architecture rtl of RowDacDriver is
       onIndex         => (others => '0'),
       cfgBoardId      => (others => '0'),
       boardId         => (others => '0'),
-      rowNum          => (others => '0'),
-      chipNum         => (others => '0'),
-      rowChipNum      => (others => '0'),
+      rowAddr         => (others => '0'),
+      chipAddr        => (others => '0'),
+      rowChipAddr     => (others => '0'),
+      rsDac           => 0,
+      csDac           => 0,
       dacReset        => (others => '0'),
       dacDb           => (others => '0'),
       dacClk          => (others => '0'),
@@ -202,6 +206,80 @@ architecture rtl of RowDacDriver is
    signal csOffWrAddr  : slv(CHIP_SELECT_BITS_C-1 downto 0);
    signal csOffWrData  : slv(15 downto 0);
 
+   -- Map of logic to physical channel
+   -- Needed because row board reorders the DAC channels
+   -- into the row select signals
+   constant RS_MAP_C : IntegerArray(31 downto 0) := (
+      31, 27, 23, 19, 15, 11, 7, 3,
+      29, 25, 21, 17, 13, 9, 5, 1,
+      30, 26, 22, 18, 14, 10, 6, 2,
+      28, 24, 20, 16, 12, 8, 4, 0);
+
+   function getRsDac (
+      chanSlv : slv)
+      return integer is
+   begin
+      return RS_MAP_C(conv_integer(resize(chanSlv, 5)));
+   end function;
+
+--    function getRsDacFromIndex (
+--       index : slv(7 downto 0))
+--       return integer is
+--    begin
+--       -- Extract dac channel from index
+--       return getRsDac(index(ROW_HIGH_C downto ROW_LOW_C));
+--    end function;
+
+   function getCsDac (
+      chanSlv : slv)
+      return integer is
+   begin
+      return RS_MAP_C(conv_integer(resize(chanSlv, 5))+NUM_ROW_SELECTS_G);
+   end function;
+
+--    function getCsDacFromIndex (
+--       index : slv(7 downto 0))
+--       return integer is
+--       variable ret : integer range 0 to 31 := 0;
+--    begin
+--       -- Extract dac channel from index
+--       if (CHIP_SELECT_BITS_C > 0) then
+--          ret := getCsDac(index(CHIP_HIGH_C downto CHIP_LOW_C));
+--       end if;
+
+--       return ret;
+--    end function;
+
+   -- Get the dacSel value to drive for a given physical dac channel
+   function getDacSel (
+      dacChan : integer range 0 to 31)
+      return slv is
+      variable dacSel     : slv(15 downto 0);
+      variable chip       : integer range 0 to 15;
+      variable dacChanSlv : slv(4 downto 0);
+   begin
+      dacSel       := (others => '0');
+      dacChanSlv   := toSlv(dacChan, 5);
+      chip         := conv_integer(dacChanSlv(4 downto 1));
+      dacSel(chip) := not dacChanSlv(0);
+      return dacSel;
+   end function;
+
+   -- Get the dacWrt value to drive for a given physical dac channel
+   function getDacWrt (
+      dacChan : integer range 0 to 31)
+      return slv is
+      variable dacWrt     : slv(15 downto 0);
+      variable chip       : integer range 0 to 15;
+      variable dacChanSlv : slv(4 downto 0);
+   begin
+      dacWrt       := (others => '0');
+      dacChanSlv   := toSlv(dacChan, 5);
+      chip         := conv_integer(dacChanSlv(4 downto 1));
+      dacWrt(chip) := '1';
+      return dacWrt;
+   end function;
+
 
 begin
 
@@ -229,19 +307,19 @@ begin
          TPD_G         => TPD_G,
          PIPE_STAGES_G => 0)
       port map (
-         sAxiClk         => axilClk,                 -- [in]
-         sAxiClkRst      => axilRst,                 -- [in]
+         sAxiClk         => axilClk,                            -- [in]
+         sAxiClkRst      => axilRst,                            -- [in]
          sAxiReadMaster  => locAxilReadMasters(LOCAL_AXIL_C),   -- [in]
          sAxiReadSlave   => locAxilReadSlaves(LOCAL_AXIL_C),    -- [out]
          sAxiWriteMaster => locAxilWriteMasters(LOCAL_AXIL_C),  -- [in]
          sAxiWriteSlave  => locAxilWriteSlaves(LOCAL_AXIL_C),   -- [out]
-         mAxiClk         => timingRxClk125,                 -- [in]
-         mAxiClkRst      => timingRxRst125,                 -- [in]
-         mAxiReadMaster  => timingAxilReadMaster,    -- [out]
-         mAxiReadSlave   => timingAxilReadSlave,     -- [in]
-         mAxiWriteMaster => timingAxilWriteMaster,   -- [out]
-         mAxiWriteSlave  => timingAxilWriteSlave);   -- [in]
-   
+         mAxiClk         => timingRxClk125,                     -- [in]
+         mAxiClkRst      => timingRxRst125,                     -- [in]
+         mAxiReadMaster  => timingAxilReadMaster,               -- [out]
+         mAxiReadSlave   => timingAxilReadSlave,                -- [in]
+         mAxiWriteMaster => timingAxilWriteMaster,              -- [out]
+         mAxiWriteSlave  => timingAxilWriteSlave);              -- [in]
+
 
 
    -- Store RS_ON value for each row that can be addressed by this board
@@ -268,7 +346,7 @@ begin
          axiWriteSlave  => locAxilWriteSlaves(ROW_FAS_ON_AXIL_C),   -- [out]
          clk            => timingRxClk125,                          -- [in]
          rst            => timingRxRst125,                          -- [in]
-         addr           => r.rowChipNum,                            -- [in]
+         addr           => r.rowChipAddr,                           -- [in]
          dout           => rsOnDout,                                -- [out]
          axiWrValid     => rsOnWrValid,                             -- [out]
          axiWrAddr      => rsOnWrAddr,                              -- [out]
@@ -296,7 +374,7 @@ begin
          axiWriteSlave  => locAxilWriteSlaves(ROW_FAS_OFF_AXIL_C),   -- [out]
          clk            => timingRxClk125,                           -- [in]
          rst            => timingRxRst125,                           -- [in]
-         addr           => r.rowChipNum,                             -- [in]
+         addr           => r.rowChipAddr,                            -- [in]
          dout           => rsOffDout,                                -- [out]
          axiWrValid     => rsOffWrValid,                             -- [out]
          axiWrAddr      => rsOffWrAddr,                              -- [out]
@@ -328,7 +406,7 @@ begin
             axiWriteSlave  => locAxilWriteSlaves(CHIP_FAS_ON_AXIL_C),   -- [out]
             clk            => timingRxClk125,                           -- [in]
             rst            => timingRxRst125,                           -- [in]
-            addr           => r.chipNum,                                -- [in]
+            addr           => r.chipAddr,                               -- [in]
             dout           => csOnDout,                                 -- [out]
             axiWrValid     => csOnWrValid,                              -- [out]
             axiWrAddr      => csOnWrAddr,                               -- [out]
@@ -356,7 +434,7 @@ begin
             axiWriteSlave  => locAxilWriteSlaves(CHIP_FAS_OFF_AXIL_C),   -- [out]
             clk            => timingRxClk125,                            -- [in]
             rst            => timingRxRst125,                            -- [in]
-            addr           => r.chipNum,                                 -- [in]
+            addr           => r.chipAddr,                                -- [in]
             dout           => csOffDout,                                 -- [out]
             axiWrValid     => csOffWrValid,                              -- [out]
             axiWrAddr      => csOffWrAddr,                               -- [out]
@@ -404,12 +482,12 @@ begin
       ----------------------------------------------------------------------------------------------
       -- Convert row and chip registers to Integers
       ----------------------------------------------------------------------------------------------
-      rsDacInt  := conv_integer(r.rowNum);
-      rsDacChip := conv_integer(r.rowNum(ROW_SELECT_BITS_C-1 downto 1));
-      if (NUM_CHIP_SELECTS_G > 0) then
-         csDacInt  := conv_integer(r.chipNum) + NUM_ROW_SELECTS_G;
-         csDacChip := conv_integer(r.chipNum(CHIP_SELECT_BITS_C-1 downto 1)) + NUM_RS_DACS_C;
-      end if;
+--       rsDacInt  := conv_integer(r.rowNum);
+--       rsDacChip := conv_integer(r.rowNum(ROW_SELECT_BITS_C-1 downto 1));
+--       if (NUM_CHIP_SELECTS_G > 0) then
+--          csDacInt  := conv_integer(r.chipNum) + NUM_ROW_SELECTS_G;
+--          csDacChip := conv_integer(r.chipNum(CHIP_SELECT_BITS_C-1 downto 1)) + NUM_RS_DACS_C;
+--       end if;
 
       ----------------------------------------------------------------------------------------------
       -- State Machine
@@ -448,7 +526,7 @@ begin
             end if;
 
          when IDLE_S =>
-            v.rowNum := (others => '0');
+            v.rowAddr := (others => '0');
 
             -- In timing mode, wait for row strobe to set next RS DAC
             if (r.mode = TIMING_MODE_C) then
@@ -460,21 +538,25 @@ begin
                end if;
             elsif (r.mode = MANUAL_MODE_C) then
                if (rsOnWrValid = '1') then
-                  v.rowNum := rsOnWrAddr(ROW_HIGH_C downto ROW_LOW_C);
-                  v.dacDb  := rsOnWrData(13 downto 0);
-                  v.state  := MANUAL_RS_DATA_S;
+                  v.rowAddr := rsOnWrAddr(ROW_HIGH_C downto ROW_LOW_C);
+                  v.rsDac   := getRsDac(v.rowAddr);
+                  v.dacDb   := rsOnWrData(13 downto 0);
+                  v.state   := MANUAL_RS_DATA_S;
                elsif (rsOffWrValid = '1') then
-                  v.rowNum := rsOffWrAddr(ROW_HIGH_C downto ROW_LOW_C);
-                  v.dacDb  := rsOffWrData(13 downto 0);
-                  v.state  := MANUAL_RS_DATA_S;
-               elsif (csOnWrValid = '1') then
-                  v.chipNum := csOnWrAddr;
-                  v.dacDb   := csOnWrData(13 downto 0);
-                  v.state   := MANUAL_CS_DATA_S;
-               elsif (csOffWrValid = '1') then
-                  v.chipNum := csOffWrAddr;
-                  v.dacDb   := csOffWrData(13 downto 0);
-                  v.state   := MANUAL_CS_DATA_S;
+                  v.rowAddr := rsOffWrAddr(ROW_HIGH_C downto ROW_LOW_C);
+                  v.rsDac   := getRsDac(v.rowAddr);
+                  v.dacDb   := rsOffWrData(13 downto 0);
+                  v.state   := MANUAL_RS_DATA_S;
+               elsif (NUM_CHIP_SELECTS_G > 0 and csOnWrValid = '1') then
+                  v.chipAddr := csOnWrAddr;
+                  v.csDac    := getCsDac(csOnWrAddr);
+                  v.dacDb    := csOnWrData(13 downto 0);
+                  v.state    := MANUAL_CS_DATA_S;
+               elsif (NUM_CHIP_SELECTS_G > 0 and csOffWrValid = '1') then
+                  v.chipAddr := csOffWrAddr;
+                  v.csDac    := getCsDac(csOffWrAddr);
+                  v.dacDb    := csOffWrData(13 downto 0);
+                  v.state    := MANUAL_CS_DATA_S;
                elsif (r.deactivateEn = '1') then
                   v.offIndex := r.deactivateIndex;
                   v.state    := OFF_PRE_S;
@@ -489,24 +571,30 @@ begin
          -- Turn off row, turn off chip, turn on row, turn on chip
          -------------------------------------------------------------------------------------------
          when OFF_PRE_S =>
-            v.rowNum := r.offIndex(ROW_HIGH_C downto ROW_LOW_C);
-            if (CHIP_SELECT_BITS_C > 0) then
-               v.chipNum := r.offIndex(CHIP_HIGH_C downto CHIP_LOW_C);
+            v.rowAddr := r.offIndex(ROW_HIGH_C downto ROW_LOW_C);
+            v.rsDac   := getRsDac(v.rowAddr);
+
+            if (NUM_CHIP_SELECTS_G > 0) then
+               v.chipAddr := r.offIndex(CHIP_HIGH_C downto CHIP_LOW_C);
+               v.csDac    := getCsDac(v.chipAddr);
             end if;
-            v.rowChipNum := r.offIndex(ROW_CHIP_HIGH_C downto ROW_CHIP_LOW_C);
+
+            v.rowChipAddr := r.offIndex(ROW_CHIP_HIGH_C downto ROW_CHIP_LOW_C);
             if (BOARD_SELECT_BITS_C > 0) then
                v.boardId := r.offIndex(BOARD_HIGH_C downto BOARD_LOW_C);
             end if;
             v.state := ROW_OFF_DATA_S;
 
          when ROW_OFF_DATA_S =>
-            v.dacDb             := rsOffDout(13 downto 0);
-            v.dacSel(rsDacChip) := not r.rowNum(0);
-            v.state             := ROW_OFF_WRITE_S;
+            -- Drive data and sel lines
+            v.dacDb  := rsOffDout(13 downto 0);
+            v.dacSel := getDacSel(r.rsDac);
+            v.state  := ROW_OFF_WRITE_S;
 
          when ROW_OFF_WRITE_S =>
+            -- Drive wrt if board is selected
             if (BOARD_SELECT_BITS_C > 0 and r.boardId = r.cfgBoardId) then
-               v.dacWrt(rsDacChip) := '1';
+               v.dacWrt := getDacWrt(r.rsDac);
             end if;
             if (NUM_CHIP_SELECTS_G > 0) then
                v.state := CHIP_OFF_DATA_S;
@@ -518,13 +606,15 @@ begin
             end if;
 
          when CHIP_OFF_DATA_S =>
-            v.dacDb             := csOffDout(13 downto 0);
-            v.dacSel(csDacChip) := not r.chipNum(0);
-            v.state             := CHIP_OFF_WRITE_S;
+            -- Drive data and sel lines
+            v.dacDb  := csOffDout(13 downto 0);
+            v.dacSel := getDacSel(r.csDac);
+            v.state  := CHIP_OFF_WRITE_S;
 
          when CHIP_OFF_WRITE_S =>
+            -- Drive wrt if board is selected
             if (r.boardId = r.cfgBoardId) then
-               v.dacWrt(csDacChip) := '1';
+               v.dacWrt := getDacWrt(r.csDac);
             end if;
             if (r.deactivateEn = '1') then
                v.state := CLK_0_RISE_S;
@@ -534,24 +624,30 @@ begin
 
          when ON_PRE_S =>
             -- Switch to next row index for DAC address
-            v.rowNum := r.onIndex(ROW_HIGH_C downto ROW_LOW_C);
+            v.rowAddr := r.onIndex(ROW_HIGH_C downto ROW_LOW_C);
+            v.rsDac   := getRsDac(v.rowAddr);
+
             if (NUM_CHIP_SELECTS_G > 0) then
-               v.chipNum := r.onIndex(CHIP_HIGH_C downto CHIP_LOW_C);
+               v.chipAddr := r.onIndex(CHIP_HIGH_C downto CHIP_LOW_C);
+               v.csDac    := getCsDac(v.chipAddr);
             end if;
-            v.rowChipNum := r.onIndex(ROW_CHIP_HIGH_C downto ROW_CHIP_LOW_C);
+
+            v.rowChipAddr := r.onIndex(ROW_CHIP_HIGH_C downto ROW_CHIP_LOW_C);
             if (BOARD_SELECT_BITS_C > 0) then
                v.boardId := r.onIndex(BOARD_HIGH_C downto BOARD_LOW_C);
             end if;
             v.state := ROW_ON_DATA_S;
 
          when ROW_ON_DATA_S =>
-            v.dacDb             := rsOnDout(13 downto 0);
-            v.dacSel(rsDacChip) := not r.rowNum(0);
-            v.state             := ROW_ON_WRITE_S;
+            -- Drive data and sel lines
+            v.dacDb  := rsOnDout(13 downto 0);
+            v.dacSel := getDacSel(r.rsDac);
+            v.state  := ROW_ON_WRITE_S;
 
          when ROW_ON_WRITE_S =>
+            -- Drive wrt if board is selected
             if (r.boardId = r.cfgBoardId) then
-               v.dacWrt(rsDacChip) := '1';
+               v.dacWrt := getDacWrt(r.rsDac);
             end if;
             if (NUM_CHIP_SELECTS_G > 0) then
                v.state := CHIP_ON_DATA_S;
@@ -560,32 +656,34 @@ begin
             end if;
 
          when CHIP_ON_DATA_S =>
-            v.dacDb             := csOnDout(13 downto 0);
-            v.dacSel(csDacChip) := not r.chipNum(0);
-            v.state             := CHIP_ON_WRITE_S;
+            -- Drive data and sel lines
+            v.dacDb  := csOnDout(13 downto 0);
+            v.dacSel := getDacSel(r.csDac);
+            v.state  := CHIP_ON_WRITE_S;
 
          when CHIP_ON_WRITE_S =>
+            -- Drive wrt if board is selected
             if (r.boardId = r.cfgBoardId) then
-               v.dacWrt(csDacChip) := '1';
+               v.dacWrt := getDacWrt(r.csDac);
             end if;
             v.state := CLK_0_RISE_S;
 
          when MANUAL_RS_DATA_S =>
             -- DB already set, just do SEL
-            v.dacSel(rsDacChip) := not r.rowNum(0);
-            v.state             := MANUAL_RS_WRITE_S;
+            v.dacSel := getDacSel(r.rsDac);
+            v.state  := MANUAL_RS_WRITE_S;
 
          when MANUAL_RS_WRITE_S =>
-            v.dacWrt(rsDacChip) := '1';
-            v.state             := CLK_0_RISE_S;
+            v.dacWrt := getDacWrt(r.rsDac);
+            v.state  := CLK_0_RISE_S;
 
          when MANUAL_CS_DATA_S =>
-            v.dacSel(csDacChip) := not r.chipNum(0);
-            v.state             := MANUAL_CS_WRITE_S;
+            v.dacSel := getDacSel(r.csDac);
+            v.state  := MANUAL_CS_WRITE_S;
 
          when MANUAL_CS_WRITE_S =>
-            v.dacWrt(csDacChip) := '1';
-            v.state             := CLK_0_RISE_S;
+            v.dacWrt := getDacWrt(r.csDac);
+            v.state  := CLK_0_RISE_S;
 
          when CLK_0_RISE_S =>
             -- Wait for row strobe to clock new DAC values if in TIMING_MODE
@@ -611,17 +709,6 @@ begin
       if (timingRxRst125 = '1') then
          v := REG_INIT_C;
       end if;
-
-      ----------------------------------------------------------------------------------------------
-      --
-      ----------------------------------------------------------------------------------------------
---       v.dacWrt(RS_DAC_HIGH_C downto RS_DAC_LOW_C) <= v.rsDacWrt(NUM_RS_DACS_C-1 downto 0);
---       v.dacSel(RS_DAC_HIGH_C downto RS_DAC_LOW_C) <= v.rsDacSel(NUM_RS_DACS_C-1 downto 0);
-
---       if (NUM_CS_DACS_C > 0) then
---          v.dacWrt(CS_DAC_HIGH_C downto CS_DAC_LOW_C) <= v.csDacWrt(NUM_CS_DACS_C-1 downto 0);
---          v.dacSel(CS_DAC_HIGH_C downto CS_DAC_LOW_C) <= v.csDacSel(NUM_CS_DACS_C-1 downto 0);
---       end if;
 
 
       ----------------------------------------------------------------------------------------------
