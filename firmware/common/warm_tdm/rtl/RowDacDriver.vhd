@@ -209,7 +209,7 @@ architecture rtl of RowDacDriver is
    -- Map of logic to physical channel
    -- Needed because row board reorders the DAC channels
    -- into the row select signals
-   constant RS_MAP_C : IntegerArray(31 downto 0) := (
+   constant REMAP_C : IntegerArray(0 to 31) := (
       31, 27, 23, 19, 15, 11, 7, 3,
       29, 25, 21, 17, 13, 9, 5, 1,
       30, 26, 22, 18, 14, 10, 6, 2,
@@ -219,36 +219,15 @@ architecture rtl of RowDacDriver is
       chanSlv : slv)
       return integer is
    begin
-      return RS_MAP_C(conv_integer(resize(chanSlv, 5)));
+      return REMAP_C(conv_integer(resize(chanSlv, 5)));
    end function;
-
---    function getRsDacFromIndex (
---       index : slv(7 downto 0))
---       return integer is
---    begin
---       -- Extract dac channel from index
---       return getRsDac(index(ROW_HIGH_C downto ROW_LOW_C));
---    end function;
 
    function getCsDac (
       chanSlv : slv)
       return integer is
    begin
-      return RS_MAP_C(conv_integer(resize(chanSlv, 5))+NUM_ROW_SELECTS_G);
+      return REMAP_C(conv_integer(resize(chanSlv, 5))+NUM_ROW_SELECTS_G);
    end function;
-
---    function getCsDacFromIndex (
---       index : slv(7 downto 0))
---       return integer is
---       variable ret : integer range 0 to 31 := 0;
---    begin
---       -- Extract dac channel from index
---       if (CHIP_SELECT_BITS_C > 0) then
---          ret := getCsDac(index(CHIP_HIGH_C downto CHIP_LOW_C));
---       end if;
-
---       return ret;
---    end function;
 
    -- Get the dacSel value to drive for a given physical dac channel
    function getDacSel (

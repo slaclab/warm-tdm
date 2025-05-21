@@ -55,6 +55,12 @@ end entity RowFebModel;
 
 architecture sim of RowFebModel is
 
+   constant REMAP_C : IntegerArray(0 to 31) := (
+      31, 15, 23, 7, 30, 14, 22, 6,
+      29, 13, 21, 5, 28, 12, 20, 4,
+      27, 11, 19, 3, 26, 10, 18, 2,
+      25, 9, 17, 1, 24, 8, 16, 0);
+
 
 begin
 
@@ -69,8 +75,8 @@ begin
          port map (
             dacP => rsDacP(i),          -- [in]
             dacN => rsDacN(i),          -- [in]
-            outP => rsP(i),             -- [out]
-            outN => rsN(i));            -- [out]
+            outP => rsP(REMAP_C(i)),    -- [out]
+            outN => rsN(REMAP_C(i)));   -- [out]
 
    end generate GEN_CHANNELS;
 
