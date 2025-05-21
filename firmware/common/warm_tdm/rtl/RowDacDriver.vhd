@@ -210,15 +210,15 @@ architecture rtl of RowDacDriver is
    -- Needed because row board reorders the DAC channels
    -- into the row select signals
    constant REMAP_C : IntegerArray(0 to 31) := (
-      --aux     sq1fb     safb     sq1bias
-      0  => 31,  1 => 15,  2 => 7,  3 => 23,  -- aux[7], sq1fb[7], safb[7], sq1bias[7]
-      4  => 30,  5 => 14,  6 => 6,  7 => 22,  -- aux[6], sq1fb[6], safb[6], sq1bias[6]
-      8  => 29,  9 => 13, 10 => 5, 11 => 21,  -- aux[5], sq1fb[5], safb[5], sq1bias[5]
-      12 => 28, 13 => 12, 14 => 4, 15 => 20,  -- aux[4], sq1fb[4], safb[4], sq1bias[4]
-      16 => 27, 17 => 11, 18 => 3, 19 => 19,  -- aux[3], sq1fb[3], safb[3], sq1bias[3]
-      20 => 26, 21 => 10, 22 => 2, 23 => 18,  -- aux[2], sq1fb[2], safb[2], sq1bias[2]
-      24 => 25, 25 => 9,  26 => 1, 27 => 17,  -- aux[1], sq1fb[1], safb[1], sq1bias[1]
-      28 => 24, 29 => 8,  30 => 0, 31 => 16); -- aux[0], sq1fb[0], safb[0], sq1bias[0]
+      --aux     sq1fb     sq1bias   safb
+      0  => 31,  1 => 15,  2 => 23,  3 => 7,  -- aux[7], sq1fb[7], sq1bias[7], safb[7]
+      4  => 30,  5 => 14,  6 => 22,  7 => 6,  -- aux[6], sq1fb[6], sq1bias[6], safb[6]
+      8  => 29,  9 => 13, 10 => 21, 11 => 5,  -- aux[5], sq1fb[5], sq1bias[5], safb[5]
+      12 => 28, 13 => 12, 14 => 20, 15 => 4,  -- aux[4], sq1fb[4], sq1bias[4], safb[4]
+      16 => 27, 17 => 11, 18 => 19, 19 => 3,  -- aux[3], sq1fb[3], sq1bias[3], safb[3]
+      20 => 26, 21 => 10, 22 => 18, 23 => 2,  -- aux[2], sq1fb[2], sq1bias[2], safb[2]
+      24 => 25, 25 => 9,  26 => 17, 27 => 1,  -- aux[1], sq1fb[1], sq1bias[1], safb[1]
+      28 => 24, 29 => 8,  30 => 16, 31 => 0); -- aux[0], sq1fb[0], sq1bias[0], safb[0]
 
    function getRsDac (
       chanSlv : slv)
