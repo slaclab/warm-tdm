@@ -9,11 +9,11 @@
 ##############################################################################
 create_clock -name timingRxClk -period 8.000 [get_ports {timingRxClkP}]
 create_clock -name gtRefClk0 -period 4.000 [get_ports {gtRefClk0P}]
-create_clock -name gtRefClk1 -period 8.000 [get_ports {gtRefClk1P}]
+create_clock -name gtRefClk1 -period 6.400 [get_ports {gtRefClk1P}]
 
 
-create_generated_clock -name fabRefClk0 [get_pins {U_WarmTdmCore_1/U_ClockDist_1/U_IBUFDS_GTE2_0/ODIV2}]
-create_generated_clock -name fabRefClk1 [get_pins {U_WarmTdmCore_1/U_ClockDist_1/U_IBUFDS_GTE2_1/ODIV2}]
+#create_generated_clock -name fabRefClk0 [get_pins -hier -filter {NAME =~ U_WarmTdmCore_1/U_ClockDist_1/*.U_BUFG_0/O}]
+#create_generated_clock -name fabRefClk1 [get_pins -hier -filter {NAME =~ U_WarmTdmCore_1/U_ClockDist_1/*.U_BUFG_1/O}]
 
 create_generated_clock -name axilClk [get_pins {U_WarmTdmCore_1/U_PgpEthCore_1/GEN_PGP.U_PgpCore_1/ClockManager7_Inst/MmcmGen.U_Mmcm/CLKOUT0}]
 create_generated_clock -name pgpClk [get_pins {U_WarmTdmCore_1/U_PgpEthCore_1/GEN_PGP.U_PgpCore_1/ClockManager7_Inst/MmcmGen.U_Mmcm/CLKOUT1}]
@@ -24,7 +24,7 @@ create_generated_clock -name icapClk [get_pins U_WarmTdmCore_1/U_WarmTdmCommon_1
 create_generated_clock -name ethClk     [get_pins {U_WarmTdmCore_1/U_PgpEthCore_1/U_EthCore_1/REAL_ETH_GEN.GIG_ETH_GEN.U_MMCM/MmcmGen.U_Mmcm/CLKOUT0}]
 create_generated_clock -name ethClkDiv2 [get_pins {U_WarmTdmCore_1/U_PgpEthCore_1/U_EthCore_1/REAL_ETH_GEN.GIG_ETH_GEN.U_MMCM/MmcmGen.U_Mmcm/CLKOUT1}]
 
-#create_generated_clock -name ethClk [get_pins {U_WarmTdmCore_1/U_PgpEthCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_MMCM/MmcmGen.U_Mmcm/CLKOUT0}]
+create_generated_clock -name ethClk156 [get_pins {U_WarmTdmCore_1/U_PgpEthCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_MMCM/MmcmGen.U_Mmcm/CLKOUT0}]
 
 create_generated_clock -name idelayClk [get_pins {U_WarmTdmCore_1/U_Timing_1/U_MMCM_IDELAY/MmcmGen.U_Mmcm/CLKOUT0}]
 
@@ -37,13 +37,19 @@ create_generated_clock -name timingRxBitClk  [get_pins -hier -filter {NAME =~ */
 create_generated_clock -name timingRxWordClk [get_pins -hier -filter {NAME =~ */U_Timing_1/U_TimingRx_1/*/*/CLKOUT1}]
 
 set_clock_groups -asynchronous \
-    -group [get_clocks {fabRefClk0}] \    
-    -group [get_clocks {fabRefClk1}] \
-    -group [get_clocks {ethClk}] 
+    -group [get_clocks -include_generated_clocks gtRefClk0] \
+    -group [get_clocks -include_generated_clocks gtRefClk1]
+    -group [get_clocks {ethClk}]
 
 set_clock_groups -asynchronous \
-    -group [get_clocks {fabRefClk0}] \    
-    -group [get_clocks {fabRefClk1}] \
+    -group [get_clocks -include_generated_clocks gtRefClk0] \
+    -group [get_clocks -include_generated_clocks gtRefClk1]
+    -group [get_clocks {ethClk156}] 
+
+
+set_clock_groups -asynchronous \
+    -group [get_clocks -include_generated_clocks gtRefClk0] \
+    -group [get_clocks -include_generated_clocks gtRefClk1]
     -group [get_clocks {pgpClk}]
 
 set_clock_groups -asynchronous \
@@ -61,13 +67,18 @@ set_clock_groups -asynchronous \
     -group [get_clocks -include_generated_clocks timingRxClk] 
 
 set_clock_groups -asynchronous \
-    -group [get_clocks fabRefClk0] \
-    -group [get_clocks fabRefClk1] \
+    -group [get_clocks -include_generated_clocks gtRefClk0] \
+    -group [get_clocks -include_generated_clocks gtRefClk1]
     -group [get_clocks axilClk]
 
  set_clock_groups -asynchronous \
+    -group [get_clocks axilClk] \
+    -group [get_clocks ethClk] \
+
+ set_clock_groups -asynchronous \
      -group [get_clocks axilClk] \
-     -group [get_clocks ethClk] \
+     -group [get_clocks ethClk156] \
+
 
 set_clock_groups -asynchronous \
     -group [get_clocks axilClk] \
@@ -82,15 +93,18 @@ set_clock_groups -asynchronous \
 
 
 
-#create_generated_clock -name ethClk [get_pins {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_MMCM/MmcmGen.U_Mmcm/CLKOUT0}]
-#create_generated_clock -name ethClkDiv2 [get_pins {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_MMCM/MmcmGen.U_Mmcm/CLKOUT1}]
-
-
-#set ethRxClk {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/U_TenGigEthGtx7Core/U0/gt0_gtwizard_10gbaser_multi_gt_i/gt0_gtwizard_10gbaser_i/gtxe2_i/RXOUTCLK}
-#set ethTxClk {U_ComCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/U_TenGigEthGtx7Core/U0/gt0_gtwizard_10gbaser_multi_gt_i/gt0_gtwizard_10gbaser_i/gtxe2_i/TXOUTCLK}
+# create_generated_clock -name ethRxClk [get_pins -hier * -filter {name=~U_WarmTdmCore_1/U_PgpEthCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/*/RXOUTCLK}]
+# create_generated_clock -name ethTxClk [get_pins -hier * -filter {name=~U_WarmTdmCore_1/U_PgpEthCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/*/TXOUTCLK}]
 
 # set_clock_groups -asynchronous \
-#     -group [get_clocks ethClk] \
-#     -group [get_clocks -of_objects [get_pins U_WarmTdmCore_1/U_PgpEthCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/U_TenGigEthGtx7Core/U0/gt0_gtwizard_10gbaser_multi_gt_i/gt0_gtwizard_10gbaser_i/gtxe2_i/RXOUTCLK]] \
-#     -group [get_clocks -of_objects [get_pins U_WarmTdmCore_1/U_PgpEthCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/U_TenGigEthGtx7Core/U0/gt0_gtwizard_10gbaser_multi_gt_i/gt0_gtwizard_10gbaser_i/gtxe2_i/TXOUTCLK]]
-    
+#     -group [get_clocks ethClk156] \
+#     -group [get_clocks ethRxClk] \
+#     -group [get_clocks ethTxClk] 
+
+set_clock_groups -asynchronous \
+    -group [get_clocks ethClk156] \
+    -group [get_clocks -of_objects [get_pins -hier * -filter {name=~U_WarmTdmCore_1/U_PgpEthCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/*/RXOUTCLK}]] \
+    -group [get_clocks -of_objects [get_pins -hier * -filter {name=~U_WarmTdmCore_1/U_PgpEthCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/*/TXOUTCLK}]]
+
+	    #[get_pins U_WarmTdmCore_1/U_PgpEthCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/U_TenGigEthGtx7Core/U0/gt0_gtwizard_10gbaser_multi_gt_i/gt0_gtwizard_10gbaser_i/gtxe2_i/RXOUTCLK]] \
+#		[get_pins U_WarmTdmCore_1/U_PgpEthCore_1/U_EthCore_1/REAL_ETH_GEN.TEN_GIG_ETH_GEN.U_TenGigEthGtx7_1/U_TenGigEthGtx7Core/U0/gt0_gtwizard_10gbaser_multi_gt_i/gt0_gtwizard_10gbaser_i/gtxe2_i/TXOUTCLK]]

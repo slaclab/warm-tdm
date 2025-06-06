@@ -8,7 +8,7 @@
 ## the terms contained in the LICENSE.txt file.
 ##############################################################################
 create_clock -name gtRefClk0 -period 4.000 [get_ports {gtRefClk0P}]
-create_clock -name gtRefClk1 -period 8.000 [get_ports {gtRefClk1P}]
+create_clock -name gtRefClk1 -period 6.400 [get_ports {gtRefClk1P}]
 
 
 create_clock -name adcDClk0 -period 2.00 [get_ports {adcDClkP[0]}]

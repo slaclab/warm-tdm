@@ -52,9 +52,9 @@ entity WarmTdmCore2 is
       -- IO Interfaces
       ----------------
       -- Clocks
-      gtRefClk0P : in sl;
+      gtRefClk0P : in sl;               -- 250 MHz
       gtRefClk0N : in sl;
-      gtRefClk1P : in sl;
+      gtRefClk1P : in sl;               -- 125 MHz
       gtRefClk1N : in sl;
 
       -- PGP Interface
@@ -230,8 +230,8 @@ begin
    Heartbeat_RefClk0 : entity surf.Heartbeat
       generic map (
          TPD_G        => TPD_G,
-         PERIOD_IN_G  => 4.0E-9,
-         PERIOD_OUT_G => 0.4)
+         PERIOD_IN_G  => 8.0E-9,
+         PERIOD_OUT_G => 0.8)
       port map (
          clk => fabRefClk0,
          o   => ledsTmp(0));
@@ -239,8 +239,8 @@ begin
    Heartbeat_RefClk1 : entity surf.Heartbeat
       generic map (
          TPD_G        => TPD_G,
-         PERIOD_IN_G  => 8.0E-9,
-         PERIOD_OUT_G => 0.8)
+         PERIOD_IN_G  => 6.4E-9,
+         PERIOD_OUT_G => 0.64)
       port map (
          clk => fabRefClk1,
          o   => ledsTmp(1));
@@ -291,7 +291,7 @@ begin
       generic map (
          TPD_G        => TPD_G,
          CLK_0_DIV2_G => true,
-         CLK_1_DIV2_G => true)
+         CLK_1_DIV2_G => false)
       port map (
          gtRefClk0P => gtRefClk0P,      -- [in]
          gtRefClk0N => gtRefClk0N,      -- [in]
@@ -382,8 +382,10 @@ begin
          IP_ADDR_G               => IP_ADDR_G,
          MAC_ADDR_G              => MAC_ADDR_G)
       port map (
-         gtRefClk         => gtRefClk0,                        -- [in]
-         fabRefClk        => fabRefClk0,                       -- [in]
+         gtRefClk250      => gtRefClk0,                        -- [in]
+         fabRefClk125     => fabRefClk0,                       -- [in]
+         gtRefClk156      => gtRefClk1,                        -- [in]
+         fabRefClk156     => fabRefClk1,                       -- [in]
          pgpTxP           => pgpTxP,                           -- [out]
          pgpTxN           => pgpTxN,                           -- [out]
          pgpRxP           => pgpRxP,                           -- [in]

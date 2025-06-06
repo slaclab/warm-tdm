@@ -50,8 +50,10 @@ entity EthCore is
    port (
       extRst                : in  sl                    := '0';
       -- GT ports and clock
-      gtRefClk              : in  sl;
-      fabRefClk             : in  sl;
+      gtRefClk250           : in  sl;
+      fabRefClk125          : in  sl;
+      gtRefClk156           : in  sl;
+      fabRefClk156          : in  sl;
       gtRxP                 : in  sl;
       gtRxN                 : in  sl;
       gtTxP                 : out sl;
@@ -104,7 +106,9 @@ architecture rtl of EthCore is
    constant RSSI_AXIS_CONFIG_C : AxiStreamConfigArray(RSSI_SIZE_C-1 downto 0) := (others => AXIS_CONFIG_C);
 
    -- Need to throttle down to simulate GigEth bandwidth
-   constant ROGUE_AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 1, tDestBits => 8, tUserBits => 8);
+   constant ROGUE_AXIS_CONFIG_C : AxiStreamConfigType := ite(ETH_10G_G,
+                                                             ssiAxiStreamConfig(dataBytes => 8, tDestBits => 8, tUserBits => 8),
+                                                             ssiAxiStreamConfig(dataBytes => 1, tDestBits => 8, tUserBits => 8));
 
    constant DEST_LOCAL_SRP_DATA_C  : integer := 0;
    constant DEST_LOCAL_LOOPBACK_C  : integer := 1;
@@ -275,7 +279,7 @@ begin
                TPD_G => TPD_G)
             port map (
                arst   => extRst,
-               clk    => fabRefClk,
+               clk    => fabRefClk125,
                rstOut => refRst);
 
          ----------------
@@ -297,7 +301,7 @@ begin
                CLKOUT0_DIVIDE_F_G => 8.0,
                CLKOUT1_DIVIDE_G   => 16)
             port map(
-               clkIn     => fabRefClk,
+               clkIn     => fabRefClk125,
                rstIn     => refRst,
                clkOut(0) => ethClk,
                clkOut(1) => ethClkDiv2,
@@ -357,12 +361,12 @@ begin
                NUM_CLOCKS_G       => 1,
                -- MMCM attributes
                BANDWIDTH_G        => "HIGH",
-               CLKIN_PERIOD_G     => 8.0,   -- 125 MHz
+               CLKIN_PERIOD_G     => 6.4,   -- 156.25 MHz
                DIVCLK_DIVIDE_G    => 1,
-               CLKFBOUT_MULT_F_G  => 9.375,
-               CLKOUT0_DIVIDE_F_G => 7.5)   -- 156.25 MHz
+               CLKFBOUT_MULT_F_G  => 7.625,
+               CLKOUT0_DIVIDE_F_G => 7.625)   -- 156.25 MHz
             port map(
-               clkIn     => fabRefClk,
+               clkIn     => fabRefClk156,
                rstIn     => refRst,
                clkOut(0) => ethClk,
                rstOut(0) => ethRst,
@@ -387,7 +391,7 @@ begin
                QPLL_FBDIV_RATIO_G  => '0',           -- 64B/66B Encoding
                QPLL_REFCLK_DIV_G   => 1)
             port map (
-               qPllRefClk     => gtRefClk,           -- 156.25 MHz
+               qPllRefClk     => gtRefClk156,           -- 156.25 MHz
                qPllOutClk     => qPllOutClk,
                qPllOutRefClk  => qPllOutRefClk,
                qPllLock       => qPllLock,
@@ -575,7 +579,7 @@ begin
    end generate REAL_ETH_GEN;
 
    SIM_GEN : if (SIMULATION_G) generate
-      ethClk <= fabRefClk;
+      ethClk <= fabRefClk156 when ETH_10G_G else fabRefClk125;
 
       PwrUpRst_Inst : entity surf.PwrUpRst
          generic map (
