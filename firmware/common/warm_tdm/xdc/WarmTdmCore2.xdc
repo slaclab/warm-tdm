@@ -15,6 +15,8 @@ create_clock -name gtRefClk1 -period 6.400 [get_ports {gtRefClk1P}]
 #create_generated_clock -name fabRefClk0 [get_pins -hier -filter {NAME =~ U_WarmTdmCore_1/U_ClockDist_1/*.U_BUFG_0/O}]
 #create_generated_clock -name fabRefClk1 [get_pins -hier -filter {NAME =~ U_WarmTdmCore_1/U_ClockDist_1/*.U_BUFG_1/O}]
 
+create_generated_clock -name fabRefClk0 [get_pins {U_WarmTdmCore_1/U_ClockDist_1/U_IBUFDS_GTE2_0/ODIV2}]
+
 create_generated_clock -name axilClk [get_pins {U_WarmTdmCore_1/U_PgpEthCore_1/GEN_PGP.U_PgpCore_1/ClockManager7_Inst/MmcmGen.U_Mmcm/CLKOUT0}]
 create_generated_clock -name pgpClk [get_pins {U_WarmTdmCore_1/U_PgpEthCore_1/GEN_PGP.U_PgpCore_1/ClockManager7_Inst/MmcmGen.U_Mmcm/CLKOUT1}]
 
@@ -38,19 +40,21 @@ create_generated_clock -name timingRxWordClk [get_pins -hier -filter {NAME =~ */
 
 set_clock_groups -asynchronous \
     -group [get_clocks -include_generated_clocks gtRefClk0] \
-    -group [get_clocks -include_generated_clocks gtRefClk1]
+    -group [get_clocks -include_generated_clocks gtRefClk1] \
     -group [get_clocks {ethClk}]
 
 set_clock_groups -asynchronous \
     -group [get_clocks -include_generated_clocks gtRefClk0] \
-    -group [get_clocks -include_generated_clocks gtRefClk1]
+    -group [get_clocks -include_generated_clocks gtRefClk1] \
     -group [get_clocks {ethClk156}] 
 
 
 set_clock_groups -asynchronous \
     -group [get_clocks -include_generated_clocks gtRefClk0] \
-    -group [get_clocks -include_generated_clocks gtRefClk1]
+    -group [get_clocks -include_generated_clocks gtRefClk1] \
     -group [get_clocks {pgpClk}]
+
+
 
 set_clock_groups -asynchronous \
     -group [get_clocks {axilClk}] \
@@ -68,16 +72,16 @@ set_clock_groups -asynchronous \
 
 set_clock_groups -asynchronous \
     -group [get_clocks -include_generated_clocks gtRefClk0] \
-    -group [get_clocks -include_generated_clocks gtRefClk1]
+    -group [get_clocks -include_generated_clocks gtRefClk1] \
     -group [get_clocks axilClk]
 
  set_clock_groups -asynchronous \
     -group [get_clocks axilClk] \
-    -group [get_clocks ethClk] \
+    -group [get_clocks ethClk] 
 
  set_clock_groups -asynchronous \
      -group [get_clocks axilClk] \
-     -group [get_clocks ethClk156] \
+     -group [get_clocks ethClk156] 
 
 
 set_clock_groups -asynchronous \
