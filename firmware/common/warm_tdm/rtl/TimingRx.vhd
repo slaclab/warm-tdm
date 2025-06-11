@@ -554,11 +554,12 @@ begin
                v.timingRxData.endRun  := '1';
                v.timingRxData.running := '0';
                v.timingRxData.sample  := '0';
---             when FIRST_ROW_C =>
---                v.timingRxData.rowStrobe    := '1';
---                v.timingRxData.rowNum       := (others => '0');
---                v.timingRxData.rowTime      := (others => '0');
---                v.timingRxData.readoutCount := r.timingRxData.readoutCount + 1;
+            when ROW_SEQ_START_C =>
+               v.timingRxData.rowStrobe    := '1';
+               v.timingRxData.rowSeq       := (others => '0');
+               v.timingRxData.rowIndex     := r.timingRxData.rowIndexNext;
+               v.timingRxData.readoutCount := r.timingRxData.readoutCount + 1;
+               v.timingRxData.rowTime   := (others => '0');               
             when ROW_STROBE_C =>
                v.timingRxData.rowStrobe := '1';
                v.timingRxData.rowSeq    := r.timingRxData.rowSeq + 1;
