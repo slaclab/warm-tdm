@@ -56,6 +56,19 @@ class PidRowDebugger(pr.Device):
             mode = 'RO',
             value = 0))
 
+        self.add(pr.RemoteVariable(
+            name = 'NumSamples',
+            mode = 'RO',
+            disp = '{:d}',
+            value = 0))
+
+        self.add(pr.RemoteVariable(
+            name = 'ReadoutCount',
+            mode = 'RO',
+            disp = '{:d}',
+            value = 0))
+        
+
     def updateFromParser(self):
         with self.root.updateGroup():
             for varName in self.parsedVars:
@@ -165,6 +178,22 @@ class PidDebugger(pr.DataReceiver):
             base = pr.Int,
             bitSize = 8,
             bitOffset = 0))
+
+        self.add(pr.RemoteVariable(
+            name = 'NumSamples',
+            mode = 'RO',
+            disp = '{:d}',
+            base = pr.UInt,
+            offset = 9 * 8))
+
+        self.add(pr.RemoteVariable(
+            name = 'ReadoutCount',
+            mode = 'RO',
+            disp = '{:d}',
+            base = pr.UInt,
+            bitOffset = 32,
+            offset = 9 * 8))
+        
 
         self.add(pr.ArrayDevice(
             name = 'RowPids',
