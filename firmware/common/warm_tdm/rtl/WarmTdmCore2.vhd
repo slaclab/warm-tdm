@@ -54,7 +54,7 @@ entity WarmTdmCore2 is
       -- Clocks
       gtRefClk0P : in sl;               -- 250 MHz
       gtRefClk0N : in sl;
-      gtRefClk1P : in sl;               -- 125 MHz
+      gtRefClk1P : in sl;               -- 156.25MHz
       gtRefClk1N : in sl;
 
       -- PGP Interface

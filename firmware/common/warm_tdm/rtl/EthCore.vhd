@@ -209,6 +209,8 @@ architecture rtl of EthCore is
    signal locAxilWriteMasters : AxiLiteWriteMasterArray(AXIL_NUM_C-1 downto 0);
    signal locAxilWriteSlaves  : AxiLiteWriteSlaveArray(AXIL_NUM_C-1 downto 0) := (others => AXI_LITE_WRITE_SLAVE_EMPTY_DECERR_C);
 
+   signal pwrUpRst      : sl;
+   signal qpllResetLoc  : sl;
    signal qplllock      : sl;
    signal qplloutclk    : sl;
    signal qplloutrefclk : sl;
@@ -356,18 +358,18 @@ begin
                TPD_G              => TPD_G,
                TYPE_G             => "MMCM",
                INPUT_BUFG_G       => false,
-               FB_BUFG_G          => true,  -- Without this, will never lock in simulation
+               FB_BUFG_G          => true,   -- Without this, will never lock in simulation
                RST_IN_POLARITY_G  => '1',
                NUM_CLOCKS_G       => 1,
                -- MMCM attributes
                BANDWIDTH_G        => "HIGH",
-               CLKIN_PERIOD_G     => 6.4,   -- 156.25 MHz
+               CLKIN_PERIOD_G     => 6.4,    -- 156.25 MHz
                DIVCLK_DIVIDE_G    => 1,
                CLKFBOUT_MULT_F_G  => 7.625,
-               CLKOUT0_DIVIDE_F_G => 7.625)   -- 156.25 MHz
+               CLKOUT0_DIVIDE_F_G => 7.625)  -- 156.25 MHz
             port map(
                clkIn     => fabRefClk156,
-               rstIn     => refRst,
+               rstIn     => pwrUpRst,
                clkOut(0) => ethClk,
                rstOut(0) => ethRst,
                locked    => open);
@@ -377,8 +379,10 @@ begin
                TPD_G => TPD_G)
             port map (
                arst   => extRst,
-               clk    => ethClk,
-               rstOut => refRst);
+               clk    => fabRefClk156,
+               rstOut => pwrUpRst);
+
+         qpllResetLoc <= pwrUpRst or qpllReset;
 
          Gtx7QuadPll_Inst : entity surf.Gtx7QuadPll
             generic map (
@@ -391,14 +395,14 @@ begin
                QPLL_FBDIV_RATIO_G  => '0',           -- 64B/66B Encoding
                QPLL_REFCLK_DIV_G   => 1)
             port map (
-               qPllRefClk     => gtRefClk156,           -- 156.25 MHz
+               qPllRefClk     => gtRefClk156,        -- 156.25 MHz
                qPllOutClk     => qPllOutClk,
                qPllOutRefClk  => qPllOutRefClk,
                qPllLock       => qPllLock,
                qPllLockDetClk => '0',                -- IP Core ties this to GND (see note below)
                qPllRefClkLost => open,
                qPllPowerDown  => '0',
-               qPllReset      => qpllReset);
+               qPllReset      => qpllResetLoc);
 
          U_TenGigEthGtx7_1 : entity surf.TenGigEthGtx7
             generic map (
