@@ -56,13 +56,13 @@ class PidRowDebugger(pr.Device):
             mode = 'RO',
             value = 0))
 
-        self.add(pr.RemoteVariable(
+        self.add(pr.LocalVariable(
             name = 'NumSamples',
             mode = 'RO',
             disp = '{:d}',
             value = 0))
 
-        self.add(pr.RemoteVariable(
+        self.add(pr.LocalVariable(
             name = 'ReadoutCount',
             mode = 'RO',
             disp = '{:d}',
