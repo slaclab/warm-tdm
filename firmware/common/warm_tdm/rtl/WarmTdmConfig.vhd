@@ -45,14 +45,15 @@ entity WarmTdmConfig is
       timingRxClkLocked : in sl;
 
       -- Output ports
-      tempAlertL : in  sl;
-      ledEn      : out sl              := '1';
-      anaPwrEn   : out sl              := '1';
-      pwrSyncA   : out sl              := '0';
-      pwrSyncB   : out sl              := '0';
-      pwrSyncC   : out sl              := '1';
-      asicResetB : out sl;
-      ampPdB     : out slv(7 downto 0) := (others => '1')
+      tempAlertL  : in  sl;
+      ledEn       : out sl              := '1';
+      anaPwrEn    : out sl              := '1';
+      pwrSyncA    : out sl              := '0';
+      pwrSyncB    : out sl              := '0';
+      pwrSyncC    : out sl              := '1';
+      asicResetB  : out sl;
+      ampPdB      : out slv(7 downto 0) := (others => '1');
+      adcFilterEn : out slv(7 downto 0) := (others => '0')
 
       );
 
@@ -75,6 +76,7 @@ architecture rtl of WarmTdmConfig is
       pwrSyncB       : sl;
       pwrSyncC       : sl;
       asicReset      : sl;
+      adcFilterEn    : slv(7 downto 0);
       ledEn          : sl;
       syncPeriodDiv2 : slv(31 downto 0);
       clkCount       : slv(31 downto 0);
@@ -93,6 +95,7 @@ architecture rtl of WarmTdmConfig is
       pwrSyncB       => '0',
       pwrSyncC       => '1',
       asicReset      => '1',
+      adcFilterEn    => (others => '0'),
       ledEn          => '1',
       syncPeriodDiv2 => toSlv(DIV_CLK_COUNT_C, 32),
       clkCount       => (others => '0'),
@@ -155,6 +158,7 @@ begin
       axiSlaveRegister(axilEp, X"14", 0, v.ledEn);
       axiSlaveRegisterR(axilEp, X"18", 0, tempAlertL);
       axiSlaveRegister(axilEp, X"20", 0, v.asicReset);
+      axiSlaveRegister(axilEp, X"24", 0, v.adcFilterEn);
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
 
@@ -214,11 +218,12 @@ begin
       axilWriteSlave <= r.axilWriteSlave;
       axilReadSlave  <= r.axilReadSlave;
 
-      ledEn    <= r.ledEn;
-      pwrSyncA <= r.pwrSyncA;
-      pwrSyncB <= r.pwrSyncB;
-      pwrSyncC <= r.pwrSyncC;
-      anaPwrEn <= r.anaPwrEn;
+      ledEn       <= r.ledEn;
+      pwrSyncA    <= r.pwrSyncA;
+      pwrSyncB    <= r.pwrSyncB;
+      pwrSyncC    <= r.pwrSyncC;
+      anaPwrEn    <= r.anaPwrEn;
+      adcFilterEn <= r.adcFilterEn;
 
    end process;
 

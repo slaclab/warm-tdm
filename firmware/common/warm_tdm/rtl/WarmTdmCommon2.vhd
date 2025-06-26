@@ -80,6 +80,8 @@ entity WarmTdmCommon2 is
 
       asicResetB : out sl;
 
+      adcFilterEn : out slv(7 downto 0);
+
       timingRxClkLocked : in sl;
 
       -- XADC
@@ -242,7 +244,8 @@ begin
          pwrSyncB          => pwrSyncB,                            -- [out]
          pwrSyncC          => pwrSyncC,                            -- [out]
          asicResetB        => asicResetB,                          -- [out]
-         ampPdB            => ampPdB);                             -- [out]
+         ampPdB            => ampPdB,                              -- [out]
+         adcFilterEn       => adcFilterEn);                        -- [out]
 
    -------------------------------------------------------------------------------------------------
    -- XADC

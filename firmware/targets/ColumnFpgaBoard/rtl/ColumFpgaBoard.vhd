@@ -272,6 +272,8 @@ architecture rtl of ColumnFpgaBoard is
    signal axilClk : sl;
    signal axilRst : sl;
 
+   signal adcFilterEn : slv(7 downto 0);
+
    signal srpAxilWriteMaster : AxiLiteWriteMasterType;
    signal srpAxilWriteSlave  : AxiLiteWriteSlaveType;
    signal srpAxilReadMaster  : AxiLiteReadMasterType;
@@ -377,6 +379,7 @@ begin
          feThermistorN    => feThermistorN,       -- [in]
          asicResetB       => resetB,              -- [out]
          ampPdB           => ampPdB,              -- [out]
+         adcFilterEn      => adcFilterEn,         -- [out]
          leds             => leds,                -- [out]
          conRxGreenLed    => conRxGreenLed,       -- [out]
          conRxYellowLed   => conRxYellowLed,      -- [out]
@@ -620,6 +623,7 @@ begin
          axisSlave        => dataTxAxisSlave,                        -- [in]
          axilClk          => axilClk,                                -- [in]
          axilRst          => axilRst,                                -- [in]
+         adcFilterEn      => adcFilterEn,                            -- [in]
          sAxilReadMaster  => locAxilReadMasters(AXIL_DATA_PATH_C),   -- [in]
          sAxilReadSlave   => locAxilReadSlaves(AXIL_DATA_PATH_C),    -- [out]
          sAxilWriteMaster => locAxilWriteMasters(AXIL_DATA_PATH_C),  -- [in]

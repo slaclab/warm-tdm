@@ -66,6 +66,7 @@ entity DataPath is
       -- Local register access
       axilClk          : in  sl;
       axilRst          : in  sl;
+      adcFilterEn      : in  slv(7 downto 0);
       sAxilReadMaster  : in  AxiLiteReadMasterType;
       sAxilReadSlave   : out AxiLiteReadSlaveType  := AXI_LITE_READ_SLAVE_EMPTY_DECERR_C;
       sAxilWriteMaster : in  AxiLiteWriteMasterType;
@@ -104,6 +105,9 @@ architecture rtl of DataPath is
 
    signal adcStreams         : AxiStreamMasterArray(7 downto 0) := (others => AXI_STREAM_MASTER_INIT_C);
    signal filteredAdcStreams : AxiStreamMasterArray(7 downto 0) := (others => AXI_STREAM_MASTER_INIT_C);
+   signal bypassedAdcStreams : AxiStreamMasterArray(7 downto 0) := (others => AXI_STREAM_MASTER_INIT_C);
+   signal selectedAdcStreams : AxiStreamMasterArray(7 downto 0) := (others => AXI_STREAM_MASTER_INIT_C);
+   signal adcFilterEnSync    : slv(7 downto 0);
 
    signal sq1FbAxilWriteMasters : AxiLiteWriteMasterArray(7 downto 0);
    signal sq1FbAxilWriteSlaves  : AxiLiteWriteSlaveArray(7 downto 0);
@@ -254,15 +258,26 @@ begin
             axilWriteMaster     => filterAxilWriteMasters(i),                  -- [in]
             axilWriteSlave      => filterAxilWriteSlaves(i));                  -- [out]
 
---       filteredAdcStreams(i).tValid              <= adcStreams(i).tValid;
---       filteredAdcStreams(i).tData(15 downto 0)  <= adcStreams(i).tData(15 downto 0);
---       filteredAdcStreams(i).tid(7 downto 0)     <= timingRxData.rowIndex;
---       filteredAdcStreams(i).tuser(0)            <= timingRxData.firstSample;
---       filteredAdcStreams(i).tuser(1)            <= timingRxData.lastSample;
---       filteredAdcStreams(i).tuser(2)            <= timingRxData.rowStrobe;
---       filteredAdcStreams(i).tuser(3)            <= timingRxData.waveformCapture;
---       filteredAdcStreams(i).tuser(4)            <= timingRxData.sample;
---       filteredAdcStreams(i).tData(29 downto 16) <= sq1FbDacs(i);
+      bypassedAdcStreams(i).tValid              <= adcStreams(i).tValid;
+      bypassedAdcStreams(i).tData(15 downto 0)  <= adcStreams(i).tData(15 downto 0);
+      bypassedAdcStreams(i).tid(7 downto 0)     <= timingRxData.rowIndex;
+      bypassedAdcStreams(i).tuser(0)            <= timingRxData.firstSample;
+      bypassedAdcStreams(i).tuser(1)            <= timingRxData.lastSample;
+      bypassedAdcStreams(i).tuser(2)            <= timingRxData.rowStrobe;
+      bypassedAdcStreams(i).tuser(3)            <= timingRxData.waveformCapture;
+      bypassedAdcStreams(i).tuser(4)            <= timingRxData.sample;
+      bypassedAdcStreams(i).tData(29 downto 16) <= sq1FbDacs(i);
+
+      U_Synchronizer_1 : entity surf.Synchronizer
+         generic map (
+            TPD_G => TPD_G)
+         port map (
+            clk     => timingRxClk125,       -- [in]
+            rst     => timingRxRst125,       -- [in]
+            dataIn  => adcFilterEn(i),       -- [in]
+            dataOut => adcFilterEnSync(i));  -- [out]
+
+      selectedAdcStreams(i) <= filteredAdcStreams(i) when adcFilterEnSync(i) = '1' else bypassedAdcStreams(i);
 
    end generate FIR_FILTER_GEN;
 
@@ -276,7 +291,7 @@ begin
          timingRxClk125  => timingRxClk125,          -- [in]
          timingRxRst125  => timingRxRst125,          -- [in]
          timingRxData    => timingRxData,            -- [in]
-         adcStreams      => filteredAdcStreams,      -- [in]
+         adcStreams      => selectedAdcStreams,      -- [in]
          axilReadMaster  => locAxilReadMasters(9),   -- [in]
          axilReadSlave   => locAxilReadSlaves(9),    -- [out]
          axilWriteMaster => locAxilWriteMasters(9),  -- [in]
@@ -299,7 +314,7 @@ begin
             timingRxClk125   => timingRxClk125,            -- [in]
             timingRxRst125   => timingRxRst125,            -- [in]
             timingRxData     => timingRxData,              -- [in]
-            adcAxisMaster    => filteredAdcStreams(i),     -- [in]
+            adcAxisMaster    => selectedAdcStreams(i),     -- [in]
 --             axilClk         => timingRxClk125,            -- [in]
 --             axilRst         => timingRxRst125,            -- [in]
             sAxilReadMaster  => locAxilReadMasters(i+1),   -- [in]

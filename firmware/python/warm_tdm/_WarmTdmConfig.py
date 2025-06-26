@@ -96,6 +96,13 @@ class WarmTdmConfig(pr.Device):
             units = 'MHz',
             linkedGet = lambda read: 1.0e-6 * axil_clk_freq / (2*self.SyncPeriodDiv2.get(read=read))))
 
+        self.add(pr.RemoteVariable(
+            name = 'AdcFilterEn',
+            offset = 0x24,
+            bitSize = 8,
+            base = pr.UInt,
+            disp = '{:08b}'))
+
         @self.command()
         def AnaPowerOff():
             self.PwrSyncB.set(1, write=False)

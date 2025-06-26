@@ -52,9 +52,9 @@ entity WarmTdmCore2 is
       -- IO Interfaces
       ----------------
       -- Clocks
-      gtRefClk0P : in sl;               -- 250 MHz
+      gtRefClk0P : in sl;                                         -- 250 MHz
       gtRefClk0N : in sl;
-      gtRefClk1P : in sl;               -- 156.25MHz
+      gtRefClk1P : in sl;                                         -- 156.25MHz
       gtRefClk1N : in sl;
 
       -- PGP Interface
@@ -125,6 +125,8 @@ entity WarmTdmCore2 is
 
       -- Amplifier power down
       ampPdB : out slv(7 downto 0) := (others => '1');
+
+      adcFilterEn : out slv(7 downto 0);
 
       -- Status LEDs
       leds           : out slv(7 downto 0) := "00000000";
@@ -455,7 +457,8 @@ begin
          localThermistorN  => localThermistorN,                    -- [in]
          feThermistorP     => feThermistorP,                       -- [in]
          feThermistorN     => feThermistorN,                       -- [in]
-         ampPdB            => ampPdB);                             -- [out]
+         ampPdB            => ampPdB,                              -- [out]
+         adcFilterEn       => adcFilterEn);                        -- [out]
 
 
 end rtl;
