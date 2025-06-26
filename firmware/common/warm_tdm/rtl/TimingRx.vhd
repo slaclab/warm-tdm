@@ -559,7 +559,7 @@ begin
                v.timingRxData.rowSeq       := (others => '0');
                v.timingRxData.rowIndex     := r.timingRxData.rowIndexNext;
                v.timingRxData.readoutCount := r.timingRxData.readoutCount + 1;
-               v.timingRxData.rowTime   := (others => '0');               
+               v.timingRxData.rowTime      := (others => '0');
             when ROW_STROBE_C =>
                v.timingRxData.rowStrobe := '1';
                v.timingRxData.rowSeq    := r.timingRxData.rowSeq + 1;
