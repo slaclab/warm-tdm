@@ -39,27 +39,30 @@ class AdcFilters(pr.Device):
     def __init__(self, numberTaps, **kwargs):
         super().__init__(**kwargs)
 
-        self.filterFreq = 62.49999e6
+        self.filterFreq = 62.499999999e6
 
         for i in range(8):
             self.add(surf.dsp.fixed.FirFilterSingleChannel(
                 name = f'FirFilter[{i}]',
                 offset = i << 12,
                 numberTaps = numberTaps,
-                coeffWordBitSize = 25))
+                coeffWordBitSize = 26))
 
         def setFirTaps(value, write):
             self.filterFreq = value
             taps = scipy.signal.firwin(numberTaps, value, fs=125.0e6, window='hamming')
-            #print(f'Applying filter at {value} with taps {taps}')
+            print(f'Applying filter at {value} with taps {taps}')
             for i in range(8):
                 self.FirFilter[i].Taps.set(taps, write=write)
 
+        def _get(read):
+            return self.filterFreq
+
         self.add(pr.LinkVariable(
             name = 'FilterCuttoffFreq',
+            dependencies = [self.FirFilter[x].Taps for x in range(8)],
             linkedSet = setFirTaps,
-            linkedGet = lambda: self.filterFreq,
-            value = self.filterFreq))
+            linkedGet = _get))
 
 
 
