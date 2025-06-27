@@ -306,6 +306,9 @@ begin
          if (r.runMode = HARDWARE_C and r.timingData.rowTime = 0 and r.timingData.startRun = '0') or
             (r.runMode = SOFTWARE_C and r.softwareRowStrobe = '1') then
             v.timingTx             := ROW_STROBE_C;
+            if (r.timingData.rowSeq = 0) then
+               v.timingTx := ROW_SEQ_START_C;
+            end if;
             v.timingData.rowStrobe := '1';
 
          elsif (r.timingTxK = "1" and (r.timingTx = ROW_STROBE_C or r.timingTx = START_RUN_C)) then
@@ -415,7 +418,7 @@ begin
          tooFast     => open,           -- [out]
          tooSlow     => open,           -- [out]
          clkIn       => timingRefClk,   -- [in]
-         locClk      => axilClk,        -- [in]
+         locClk      => wordClk,        -- [in]
          refClk      => axilClk);       -- [in]
 
    U_SyncClockFreq_WORD : entity surf.SyncClockFreq
@@ -435,7 +438,7 @@ begin
          tooFast     => open,           -- [out]
          tooSlow     => open,           -- [out]
          clkIn       => wordClk,        -- [in]
-         locClk      => axilClk,        -- [in]
+         locClk      => wordClk,        -- [in]
          refClk      => axilClk);       -- [in]
 
 
