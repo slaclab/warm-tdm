@@ -80,7 +80,7 @@ end entity DataPath;
 
 architecture rtl of DataPath is
 
-   constant FILTER_COEFFICIENTS_C : IntegerArray(0 to 40) := (20 => 2**24-1, others => 0);
+   constant FILTER_COEFFICIENTS_C : IntegerArray(0 to 40) := (20 => 2**25-1, others => 0);
 
    constant NUM_AXIL_MASTERS_C : integer                                                         := 11;
    constant XBAR_COFNIG_C      : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_MASTERS_C, AXIL_BASE_ADDR_G, 20, 16);
@@ -227,14 +227,14 @@ begin
             COMMON_CLK_G     => true,
             NUM_TAPS_G       => 41,
             SIDEBAND_WIDTH_G => 13+14,
-            DATA_WIDTH_G     => 16,
+            DATA_WIDTH_G     => 14,
             COEFF_WIDTH_G    => 26,
             COEFFICIENTS_G   => FILTER_COEFFICIENTS_C)
          port map (
             clk                 => timingRxClk125,                             -- [in]
             rst                 => timingRxRst125,                             -- [in]
             ibValid             => adcStreams(i).tvalid,                       -- [in]
-            din                 => adcStreams(i).tData(15 downto 0),           -- [in]
+            din                 => adcStreams(i).tData(15 downto 2),           -- [in]
             sbIn(7 downto 0)    => timingRxData.rowIndex,                      -- [in]
             sbIn(8)             => timingRxData.firstSample,                   -- [in]
             sbIn(9)             => timingRxData.lastSample,                    -- [in]
@@ -243,7 +243,7 @@ begin
             sbIn(12)            => timingRxData.sample,                        -- [in]
             sbIn(26 downto 13)  => sq1FbDacs(i),                               -- [in]
             obValid             => filteredAdcStreams(i).tvalid,               -- [out]
-            dout                => filteredAdcStreams(i).tData(15 downto 0),   -- [out]
+            dout                => filteredAdcStreams(i).tData(15 downto 2),   -- [out]
             sbOut(7 downto 0)   => filteredAdcStreams(i).tid(7 downto 0),      -- [out]
             sbOut(8)            => filteredAdcStreams(i).tUser(0),             -- [out]
             sbOut(9)            => filteredAdcStreams(i).tUser(1),             -- [out]
@@ -257,6 +257,7 @@ begin
             axilReadSlave       => filterAxilReadSlaves(i),                    -- [out]
             axilWriteMaster     => filterAxilWriteMasters(i),                  -- [in]
             axilWriteSlave      => filterAxilWriteSlaves(i));                  -- [out]
+      filteredAdcStreams(i).tData(1 downto 0) <= "00";
 
       bypassedAdcStreams(i).tValid              <= adcStreams(i).tValid;
       bypassedAdcStreams(i).tData(15 downto 0)  <= adcStreams(i).tData(15 downto 0);
