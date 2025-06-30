@@ -46,7 +46,7 @@ class AdcFilters(pr.Device):
                 name = f'FirFilter[{i}]',
                 offset = i << 12,
                 numberTaps = numberTaps,
-                coeffWordBitSize = 26))
+                coeffWordBitSize = 25))
 
         def setFirTaps(value, write):
             self.filterFreq = value
