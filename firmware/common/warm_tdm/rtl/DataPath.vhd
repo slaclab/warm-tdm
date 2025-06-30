@@ -81,7 +81,8 @@ end entity DataPath;
 architecture rtl of DataPath is
 
    constant FILTER_COEFF_WIDTH_C : integer := 25;
-   constant FILTER_COEFFICIENTS_C : IntegerArray(0 to 40) := (20 => (2**FILTER_COEFF_WIDTH_C)-1, others => 0);
+   constant FILTER_NUM_TAPS_C : integer := 61;
+   constant FILTER_COEFFICIENTS_C : IntegerArray(0 to FILTER_NUM_TAPS_C-1) := ((FILTER_NUM_TAPS_C-1)/2 => (2**FILTER_COEFF_WIDTH_C)-1, others => 0);
 
    constant NUM_AXIL_MASTERS_C : integer                                                         := 11;
    constant XBAR_COFNIG_C      : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_MASTERS_C, AXIL_BASE_ADDR_G, 20, 16);
@@ -226,7 +227,7 @@ begin
          generic map (
             TPD_G            => TPD_G,
             COMMON_CLK_G     => true,
-            NUM_TAPS_G       => 41,
+            NUM_TAPS_G       => FILTER_NUM_TAPS_C,
             SIDEBAND_WIDTH_G => 13+14,
             DATA_WIDTH_G     => 14,
             COEFF_WIDTH_G    => FILTER_COEFF_WIDTH_C,

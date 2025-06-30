@@ -27,7 +27,7 @@ class DataPath(pr.Device):
         self.add(AdcFilters(
             enabled = False,
             offset = (10 << 16),
-            numberTaps = 41))
+            numberTaps = 61))
 
         self.add(surf.devices.analog_devices.Ad9681Readout(
             enabled = True,
