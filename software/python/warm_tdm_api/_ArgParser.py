@@ -66,22 +66,22 @@ class WarmTdmArgparse(argparse.ArgumentParser):
         self.add_argument(
             "--columnBoardType",
             choices= ['Legacy', 'FPGA', 'AwaXe'],
-            default= 'Legacy')
+            default= 'FPGA')
 
         self.add_argument(
             "--rowBoardType",
             choices= ['Legacy', 'FPGA'],
-            default= 'Legacy')
+            default= 'FPGA')
 
         self.add_argument(
             "--columnFrontEnd",
             choices= ['Legacy', 'LegacyCh0Feb', 'FpgaColFeb', 'FpgaColAwaXeFeb'],
-            default= 'Legacy')
+            default= 'FpgaColFeb')
 
         self.add_argument(
             "--rowFrontEnd",
             choices= ['Legacy', 'FpgaRowFeb'],
-            default= 'Legacy')
+            default= 'FpgaRowFeb')
 
 
 colBoardDict = {
