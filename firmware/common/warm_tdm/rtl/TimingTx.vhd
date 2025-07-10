@@ -311,7 +311,7 @@ begin
             end if;
             v.timingData.rowStrobe := '1';
 
-         elsif (r.timingTxK = "1" and (r.timingTx = ROW_STROBE_C or r.timingTx = START_RUN_C)) then
+         elsif (r.timingTxK = "1" and (r.timingTx = ROW_SEQ_START_C or r.timingTx = ROW_STROBE_C or r.timingTx = START_RUN_C)) then
             v.timingTxK := "0";
             v.timingTx  := rowOrderRamOut;
 
