@@ -846,7 +846,7 @@ begin
          axilWriteMaster => locAxilWriteMasters(AXIL_BATCHER_C),  -- [in]
          axilWriteSlave  => locAxilWriteSlaves(AXIL_BATCHER_C));  -- [out]
 
-   U_AxiStreamFifoV2_LOC_TX : entity surf.AxiStreamFifoV2
+   U_AxiStreamFifoV2_LOC_TX_BATCHED : entity surf.AxiStreamFifoV2
       generic map (
          TPD_G               => TPD_G,
          INT_PIPE_STAGES_G   => 1,
