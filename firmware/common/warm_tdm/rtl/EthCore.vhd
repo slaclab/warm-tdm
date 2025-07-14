@@ -128,11 +128,12 @@ architecture rtl of EthCore is
       DEST_REMOTE_LOOPBACK_C => 0);
 
 
-   constant AXIL_NUM_C       : integer := 4;
+   constant AXIL_NUM_C       : integer := 5;
    constant AXIL_ETH_C       : integer := 0;
    constant AXIL_UDP_C       : integer := 1;
    constant AXIL_RSSI_SRP_C  : integer := 2;
    constant AXIL_RSSI_DATA_C : integer := 3;
+   constant AXIL_BATCHER_C   : integer := 4;
 
 
    constant AXIL_XBAR_CONFIG_C : AxiLiteCrossbarMasterConfigArray(AXIL_NUM_C-1 downto 0) := (
@@ -151,6 +152,10 @@ architecture rtl of EthCore is
       AXIL_RSSI_DATA_C => (
          baseAddr      => AXIL_BASE_ADDR_G + X"012000",
          addrBits      => 12,
+         connectivity  => X"FFFF"),
+      AXIL_BATCHER_C   => (
+         baseAddr      => AXIL_BASE_ADDR_G + X"013000",
+         addrBits      => 8,
          connectivity  => X"FFFF"));
 
 
@@ -167,6 +172,11 @@ architecture rtl of EthCore is
    signal rxSlave  : AxiStreamSlaveType;
    signal txMaster : AxiStreamMasterType;
    signal txSlave  : AxiStreamSlaveType;
+
+   signal localDataTxFifoAxisMaster    : AxiStreamMasterType;
+   signal localDataTxFifoAxisSlave     : AxiStreamSlaveType;
+   signal localDataTxBatchedAxisMaster : AxiStreamMasterType;
+   signal localDataTxBatchedAxisSlave  : AxiStreamSlaveType;
 
    signal ibServerMasters : AxiStreamMasterArray(SERVER_SIZE_C-1 downto 0);
    signal ibServerSlaves  : AxiStreamSlaveArray(SERVER_SIZE_C-1 downto 0);
@@ -782,6 +792,60 @@ begin
    -- DATA RSSI TDEST 0x00 - Local Streaming Data TX buffer
    -- For clock transition
    -----------------------------------------------------
+
+   U_AxiStreamFifoV2_LOC_TX : entity surf.AxiStreamFifoV2
+      generic map (
+         TPD_G               => TPD_G,
+         INT_PIPE_STAGES_G   => 1,
+         PIPE_STAGES_G       => 0,
+         SLAVE_READY_EN_G    => true,
+         VALID_THOLD_G       => 1,
+         VALID_BURST_MODE_G  => false,
+         SYNTH_MODE_G        => "xpm",
+         MEMORY_TYPE_G       => "bram",
+         GEN_SYNC_FIFO_G     => true,
+         FIFO_ADDR_WIDTH_G   => 9,
+         FIFO_FIXED_THRESH_G => true,
+--         FIFO_PAUSE_THRESH_G => 2**9-32,
+         SLAVE_AXI_CONFIG_G  => DATA_AXIS_CONFIG_C,
+         MASTER_AXI_CONFIG_G => DATA_AXIS_CONFIG_C)
+      port map (
+         sAxisClk    => axisClk,                    -- [in]
+         sAxisRst    => axisRst,                    -- [in]
+         sAxisMaster => localDataTxAxisMaster,      -- [in]
+         sAxisSlave  => localDataTxAxisSlave,       -- [out]
+--         sAxisCtrl   => localTxAxisCtrl,                   -- [out]
+         mAxisClk    => axisClk,                    -- [in]
+         mAxisRst    => axisRst,                    -- [in]
+         mAxisMaster => localDataTxFifoAxisMaster,  -- [out]
+         mAxisSlave  => localDataTxFifoAxisSlave);  -- [in]
+
+
+   U_AxiStreamBatcherAxil_1 : entity surf.AxiStreamBatcherAxil
+      generic map (
+         TPD_G                        => TPD_G,
+         COMMON_CLOCK_G               => true,
+         MAX_NUMBER_SUB_FRAMES_G      => 150,
+         SUPER_FRAME_BYTE_THRESHOLD_G => 8192,
+         MAX_CLK_GAP_G                => 10000,
+         AXIS_CONFIG_G                => DATA_AXIS_CONFIG_C,
+         INPUT_PIPE_STAGES_G          => 1,
+         OUTPUT_PIPE_STAGES_G         => 1)
+      port map (
+         axisClk         => axisClk,                              -- [in]
+         axisRst         => axisRst,                              -- [in]
+         idle            => open,                                 -- [out]
+         sAxisMaster     => localDataTxFifoAxisMaster,            -- [in]
+         sAxisSlave      => localDataTxFifoAxisSlave,             -- [out]
+         mAxisMaster     => localDataTxBatchedAxisMaster,         -- [out]
+         mAxisSlave      => localDataTxBatchedAxisSlave,          -- [in]
+         axilClk         => axilClk,                              -- [in]
+         axilRst         => axilRst,                              -- [in]
+         axilReadMaster  => locAxilReadMasters(AXIL_BATCHER_C),   -- [in]
+         axilReadSlave   => locAxilReadSlaves(AXIL_BATCHER_C),    -- [out]
+         axilWriteMaster => locAxilWriteMasters(AXIL_BATCHER_C),  -- [in]
+         axilWriteSlave  => locAxilWriteSlaves(AXIL_BATCHER_C));  -- [out]
+
    U_AxiStreamFifoV2_LOC_TX : entity surf.AxiStreamFifoV2
       generic map (
          TPD_G               => TPD_G,
@@ -791,9 +855,9 @@ begin
          VALID_THOLD_G       => 1,
          VALID_BURST_MODE_G  => false,
          SYNTH_MODE_G        => "inferred",
-         MEMORY_TYPE_G       => "distributed",
+         MEMORY_TYPE_G       => "bram",
          GEN_SYNC_FIFO_G     => false,
-         FIFO_ADDR_WIDTH_G   => 4,
+         FIFO_ADDR_WIDTH_G   => 8,
          FIFO_FIXED_THRESH_G => true,
 --         FIFO_PAUSE_THRESH_G => 2**9-32,
          SLAVE_AXI_CONFIG_G  => DATA_AXIS_CONFIG_C,
@@ -801,8 +865,8 @@ begin
       port map (
          sAxisClk    => axisClk,                                   -- [in]
          sAxisRst    => axisRst,                                   -- [in]
-         sAxisMaster => localDataTxAxisMaster,                     -- [in]
-         sAxisSlave  => localDataTxAxisSlave,                      -- [out]
+         sAxisMaster => localDataTxBatchedAxisMaster,              -- [in]
+         sAxisSlave  => localDataTxBatchedAxisSlave,               -- [out]
 --         sAxisCtrl   => localTxAxisCtrl,                   -- [out]
          mAxisClk    => ethClk,                                    -- [in]
          mAxisRst    => ethRst,                                    -- [in]

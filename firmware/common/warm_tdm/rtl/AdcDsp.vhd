@@ -739,9 +739,9 @@ begin
          VALID_BURST_MODE_G  => true,
          FIFO_PAUSE_THRESH_G => 15,
          GEN_SYNC_FIFO_G     => false,
-         FIFO_ADDR_WIDTH_G   => 5,
+         FIFO_ADDR_WIDTH_G   => 9,
          SYNTH_MODE_G        => "xpm",
-         MEMORY_TYPE_G       => "distributed",
+         MEMORY_TYPE_G       => "bram",
          INT_WIDTH_SELECT_G  => "WIDE",
          SLAVE_AXI_CONFIG_G  => AXIS_DEBUG_CFG_C,
          MASTER_AXI_CONFIG_G => DATA_AXIS_CONFIG_C)
