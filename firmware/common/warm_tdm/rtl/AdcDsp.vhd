@@ -156,6 +156,7 @@ architecture rtl of AdcDsp is
       fluxQuantum        : slv(13 downto 0);
       fluxJumpWrValid    : sl;
       clearRams          : sl;
+      dropCount : slv(31 downto 0);
       axilPidDebugEnable : sl;
       pidDebugEnable     : sl;
       pidDebugMaster     : AxiStreamMasterType;
@@ -186,6 +187,7 @@ architecture rtl of AdcDsp is
       fluxQuantum        => (others => '0'),
       fluxJumpWrValid    => '0',
       clearRams          => '0',
+      dropCount => (others => '0'),
       axilPidDebugEnable => '0',
       pidDebugEnable     => '0',
       pidDebugMaster     => axiStreamMasterInit(AXIS_DEBUG_CFG_C),
@@ -552,11 +554,18 @@ begin
       fluxQuantumFixed  := to_sfixed(r.fluxQuantum, fluxQuantumFixed);
       numFluxJumpsFixed := to_sfixed(r.numFluxJumps, numFluxJumpsFixed);
 
+      if (timingRxData.startRun = '1') then
+         v.dropCount := (others => '0');
+      end if;
+
       if (r.fllEnable = '1') then
          case r.state is
             when WAIT_ROW_STROBE_S =>
                -- Watch pidDebugPuase while we wait
                v.pidDebugEnable := not pidDebugCtrl.pause and r.axilPidDebugEnable;
+               if (r.axilPidDebugEnable = '1' and pidDebugCtrl.pause = '1') then
+                  v.dropCount := r.dropCount + 1;
+               end if;
 
                -- Row strobe comes first (bit 26).
                -- Register the rowIndex (23:16) and reset accumulated error
@@ -679,6 +688,7 @@ begin
                v.state := FLUX_DEBUG_S;
 
             when FLUX_DEBUG_S =>
+               -- word 7 is number of flux jumps
                v.pidDebugMaster.tValid            := r.pidDebugEnable;
                v.pidDebugMaster.tData(7 downto 0) := resize(to_slv(r.numFluxJumps), 8);
 
@@ -686,8 +696,9 @@ begin
 
             when LOOP_DONE_S =>
                -- Word 8 is new sq1Fb
-               v.pidDebugMaster.tValid             := r.pidDebugEnable;
-               v.pidDebugMaster.tData(13 downto 0) := resize(convOffsetBin(to_slv(r.sq1Fb)), 14);
+               v.pidDebugMaster.tValid              := r.pidDebugEnable;
+               v.pidDebugMaster.tData(13 downto 0)  := resize(convOffsetBin(to_slv(r.sq1Fb)), 14);
+               v.pidDebugMaster.tData(63 downto 32) := r.dropCount;
 
                v.state := DEBUG_0_S;
 

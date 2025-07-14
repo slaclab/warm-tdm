@@ -180,6 +180,14 @@ class PidDebugger(pr.DataReceiver):
             bitOffset = 0))
 
         self.add(pr.RemoteVariable(
+            name = 'DropCount',
+            mode = 'RO',
+            disp = '{:d}',
+            base = pr.UInt,
+            offset = 8*8,
+            bitOffset = 32))
+
+        self.add(pr.RemoteVariable(
             name = 'NumSamples',
             mode = 'RO',
             disp = '{:d}',
