@@ -91,7 +91,7 @@ class PidDebugger(pr.DataReceiver):
             mode = 'RO',
             offset = 0 * 8,
             base = pr.UInt,
-            bitSize = 3))
+            bitSize = 4))
 
         self.add(pr.RemoteVariable(
             name = 'RowIndex',
@@ -214,6 +214,7 @@ class PidDebugger(pr.DataReceiver):
 
         #print(f'Got PID Debug frame for col {self.col}, row {raw[1]}, size {fl}')
         if fl != 80:
+            print(f'Got PID debug frame with wrong size {fl}')
             return
 
         # Overwrite the MemEmulate data with new frame
@@ -224,4 +225,5 @@ class PidDebugger(pr.DataReceiver):
         self.checkBlocks()
 
         row = self.RowIndex.get(read=False)
+        #print(f'{self.name} Got Frame with row index {row}')
         self.RowPids.PID[row].updateFromParser()

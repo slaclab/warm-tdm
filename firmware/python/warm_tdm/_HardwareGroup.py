@@ -41,7 +41,7 @@ class HardwareGroup(pyrogue.Device):
         # Open rUDP connections to the Manager board
         if simulation is False and emulate is False:
             srpUdp = pyrogue.protocols.UdpRssiPack(host=host, port=SRP_PORT, packVer=2, name='SrpRssi', groups=['NoConfig'])
-            dataUdp = pyrogue.protocols.UdpRssiPack(host=host, port=DATA_PORT, packVer=2, name='DataRssi', enSsi=False, groups=['NoConfig'])
+            dataUdp = pyrogue.protocols.UdpRssiPack(host=host, port=DATA_PORT, packVer=2, name='DataRssi', enSsi=False, groups=['NoConfig'], jumbo=True)
             self.add(srpUdp)
             self.add(dataUdp)
             self.addInterface(srpUdp, dataUdp)
@@ -75,7 +75,7 @@ class HardwareGroup(pyrogue.Device):
 
             # Data streams are packetized and need to be unpacked
             packetizer = rogue.protocols.packetizer.CoreV2(False, False, False);
-            fifo = rogue.interfaces.stream.Fifo(10, 0, False)
+            fifo = rogue.interfaces.stream.Fifo(0, 0, False)
             dataStream >> fifo >> packetizer.transport()
             self.addInterface(packetizer, fifo)
                 
@@ -104,12 +104,19 @@ class HardwareGroup(pyrogue.Device):
                 #self.addInterface(debug)
 
                 for i in range(8):
-                    chDbg = rogue.interfaces.stream.Slave()
-                    chDbg.setDebug(100, f'DataStream_App_{i}')
-                    rateDrop = rogue.interfaces.stream.RateDrop(True, 0.1)
-                    self.addInterface(rateDrop)
-                    packetizer.application(i) >> dataWriter.getChannel(i)
-                    packetizer.application(i) >> rateDrop >> pidDebug[i]                    
+                    # chDbg = rogue.interfaces.stream.Slave()
+                    # chDbg.setDebug(100, f'DataStream_App_{i}')
+                    # rateDrop = rogue.interfaces.stream.RateDrop(True, 0.1)
+                    # self.addInterface(rateDrop)
+                    
+                    fifo1 = rogue.interfaces.stream.Fifo(100, 0, False)
+                    fifo2 = rogue.interfaces.stream.Fifo(100, 0, False)
+                    fifo3 = rogue.interfaces.stream.Fifo(100, 0, False)                                        
+                    packetizer.application(i) >> fifo1
+                    fifo1 >> fifo2 >> dataWriter.getChannel(i)
+                    fifo1 >> fifo3 >> pidDebug[i]
+                    self.addInterface(fifo1, fifo2, fifo3, pidDebug[i])
+                    
 #                    packetizer.application(i) >> chDbg
                     #self.addInterface(chDbg, pidDebug[i])
                     
