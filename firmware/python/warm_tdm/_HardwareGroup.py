@@ -75,9 +75,11 @@ class HardwareGroup(pyrogue.Device):
 
             # Data streams are packetized and need to be unpacked
             packetizer = rogue.protocols.packetizer.CoreV2(False, False, False);
-            fifo = rogue.interfaces.stream.Fifo(0, 0, False)
-            dataStream >> fifo >> packetizer.transport()
-            self.addInterface(packetizer, fifo)
+            fifoA = rogue.interfaces.stream.Fifo(0, 0, False)
+            fifoB = rogue.interfaces.stream.Fifo(0, 0, False)            
+            unbatcher = rogue.protocols.batcher.SplitterV1()
+            dataStream >> fifoA >> unbatcher >> fifoB >> packetizer.transport()
+            self.addInterface(unbatcher, packetizer, fifoA, fifoB)
                 
 
             # Instantiate the board Device tree and link it to the SRP
