@@ -114,8 +114,6 @@ class HardwareGroup(pyrogue.Device):
 
             # Link the data stream to the DataWriter
             if emulate is False:
-                dataWriterChannel = (groupId << 3) | index
-
                 for i in range(8):
                     rateDrop = rogue.interfaces.stream.RateDrop(True, 0.1)
                     self.addInterface(rateDrop)
@@ -133,8 +131,12 @@ class HardwareGroup(pyrogue.Device):
 #                 dataDbg.setDebug(1000, f'DataStream_App')
 
                 dataDbg = DataDebug()
-                
-                packetizer.application(9) >> dataDbg
+
+                dataFifo = rogue.interfaces.stream.Fifo(0, 0, False)
+                self.addInterface(dataFifo)
+                packetizer.application(9) >> dataFifo
+
+                dataFifo >> dataWriter.getChannel(9)
 
 
         for rowIndex, boardIndex in enumerate(range(colBoards, colBoards+rowBoards)):
