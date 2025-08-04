@@ -168,6 +168,8 @@ begin
       variable axilEp : AxiLiteEndpointType;
    begin
 
+      v := r;
+
       if (timingRxData.startRun = '1') then
          v.burnCount       := (others => '0');
          v.rssCount        := (others => '0');
