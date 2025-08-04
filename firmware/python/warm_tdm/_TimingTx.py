@@ -146,6 +146,21 @@ class TimingTx(pr.Device):
             offset = 0x2C,
             bitSize = 32,
             disp = '{:d}'))
+
+        self.add(pr.LinkVariable(
+            name = 'DaqReadoutPeriod',
+            dependencies = [self.RowSequencePeriod, self.RowSequencesPerDaqReadout],
+            disp = '{:0.03f}',
+            units = '\u03bcSec',
+            linkedGet = lambda read: self.RowSequencePeriod.get(read=read) * self.RowSequencesPerDaqReadout.get(read=read)))
+
+        self.add(pr.LinkVariable(
+            name = 'DaqReadoutRate',
+            dependencies = [self.DaqReadoutPeriod],
+            disp = '{:0.03f}',
+            units = 'Hz',
+            linkedGet = lambda read: 1.0 / max(self.DaqReadoutPeriod.get(read=read), 1.0e-12)))
+        
             
 
         self.add(pr.RemoteVariable(

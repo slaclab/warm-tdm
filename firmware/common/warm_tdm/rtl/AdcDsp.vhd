@@ -124,7 +124,7 @@ architecture rtl of AdcDsp is
 
    type RegType is record
       fllEnable          : sl;
-      testMode           : sl;
+      outputMode           : slv(1 downto 0);
       state              : StateType;
       rowIndex           : slv(ROW_ADDR_BITS_C-1 downto 0);
       accumValid         : sl;
@@ -157,7 +157,7 @@ architecture rtl of AdcDsp is
 
    constant REG_INIT_C : RegType := (
       fllEnable          => '0',
-      testMode           => '0',
+      outputMode           => (others => '0'),
       state              => WAIT_ROW_STROBE_S,
       rowIndex           => (others => '0'),
       accumValid         => '0',
@@ -508,6 +508,7 @@ begin
       axiSlaveWaitTxn(axilEp, timingAxilWriteMaster, timingAxilReadMaster, v.axilWriteSlave, v.axilReadSlave);
 
       axiSlaveRegister(axilEp, X"00", 0, v.fllEnable);
+      axiSlaveRegister(axilEp, X"00", 8, v.outputMode);      
       axiSlaveRegister(axilEp, X"00", 16, v.accumShift);
       axiSlaveRegister(axilEp, X"04", 0, v.p);
       axiSlaveRegister(axilEp, X"08", 0, v.i);
@@ -526,7 +527,7 @@ begin
 
 
       axiSlaveRegister(axilEp, X"30", 0, v.clearRams);
-      axiSlaveRegister(axilEp, X"40", 0, v.testMode);
+
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
 
@@ -701,10 +702,14 @@ begin
 
                -- Output PID Stream
                v.pidStreamMaster.tValid             := '1';
-               v.pidStreamMaster.tData(13 downto 0) := to_slv(r.sq1Fb);
-               if (r.testMode = '1') then
-                  v.pidStreamMaster.tData(13 downto 0) := timingRxData.rowSeqCount(13 downto 0);
+               if (r.outputMode = "00") then
+                  v.pidStreamMaster.tData(13 downto 0) := to_slv(r.sq1Fb);
+               elsif (r.outputMode = "01") then
+                  v.pidStreamMaster.tData(15 downto 0) :=  to_slv(resize(r.accumError, 15, 0));
+               elsif (r.outputMode = "10") then
+                  v.pidStreamMaster.tData(15 downto 0) := timingRxData.rowSeqCount(15 downto 0);                  
                end if;
+
                v.pidStreamMaster.tId(ROW_ADDR_BITS_C-1 downto 0) := r.rowIndex;
 
                v.state := FLUX_DEBUG_S;

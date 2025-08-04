@@ -105,13 +105,17 @@ class AdcDsp(pr.Device):
             linkedGet = self.PidEnableRaw.get))
 
         self.add(pr.RemoteVariable(
-            name = 'TestMode',
-            offset = 0x40,
-            base = pr.Bool,
+            name = 'OutputMode',
+            offset = 0x00,
+            base = pr.UInt,
             hidden = False,
             mode = 'RW',
-            bitSize = 1,
-            bitOffset = 0))
+            bitSize = 2,
+            bitOffset = 8,
+            enum = {
+                0: 'Sq1Fb',
+                1: 'AccumError',
+                2: 'RowSeqCount'}))
         
 
         self.add(pr.RemoteVariable(
