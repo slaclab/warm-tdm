@@ -13,6 +13,24 @@ SIM_DATA_PORT = 20000
 SRP_PORT = 8192
 DATA_PORT = 8193
 
+class DataDebug(rogue.interfaces.stream.Slave):
+
+    def _acceptFrame(self, frame):
+        arr = frame.getNumpy()
+        readoutCount = int.from_bytes( arr[0:8], byteorder='little', signed=False)
+        rowSeqCount = int.from_bytes(arr[8:16], byteorder='little', signed=False)
+        runTime = int.from_bytes(arr[16:24], byteorder='little', signed=False)
+        samples = arr[24:-4].reshape(-1, 4)
+
+        print('Got Frame')
+        print(f'{readoutCount=}')
+        print(f'{rowSeqCount=}')
+        print(f'{runTime=}')        
+        for s in samples:
+            value = int.from_bytes(s[0:2], byteorder='little', signed=True)
+            print(f'col {s[3]}, row {s[2]}, value {value:x}')
+        
+
 class HardwareGroup(pyrogue.Device):
 
 
@@ -97,17 +115,8 @@ class HardwareGroup(pyrogue.Device):
             # Link the data stream to the DataWriter
             if emulate is False:
                 dataWriterChannel = (groupId << 3) | index
-                #dataStream >> dataWriter.getChannel(dataWriterChannel)
-
-
-                debug = rogue.interfaces.stream.Slave()
-                debug.setDebug(100, 'DataStream')
- #               dataStream >> debug
-                #self.addInterface(debug)
 
                 for i in range(8):
-                    # chDbg = rogue.interfaces.stream.Slave()
-                    # chDbg.setDebug(100, f'DataStream_App_{i}')
                     rateDrop = rogue.interfaces.stream.RateDrop(True, 0.1)
                     self.addInterface(rateDrop)
                     
@@ -117,18 +126,16 @@ class HardwareGroup(pyrogue.Device):
                     fifo1 >> fifo2 >> dataWriter.getChannel(i)
                     fifo1 >> rateDrop >> pidDebug[i]
                     self.addInterface(fifo1, fifo2, pidDebug[i])
-                    
-#                    packetizer.application(i) >> chDbg
-                    #self.addInterface(chDbg, pidDebug[i])
-                    
-                #dataStream >> pidDebug
-                packetizer.application(8) >> waveGui
-#                packetizer.application(0) >> pidDebug
 
-#                 else:
-#                     debug = warm_tdm.StreamDebug()
-#                     dataStream >> debug
-#                     self.addInterface(debug)
+                packetizer.application(8) >> waveGui
+
+#                 dataDbg = rogue.interfaces.stream.Slave()
+#                 dataDbg.setDebug(1000, f'DataStream_App')
+
+                dataDbg = DataDebug()
+                
+                packetizer.application(9) >> dataDbg
+
 
         for rowIndex, boardIndex in enumerate(range(colBoards, colBoards+rowBoards)):
             # Create streams to each board
@@ -195,6 +202,19 @@ class HardwareGroup(pyrogue.Device):
         @self.command()
         def Readout22():
             self.ReadoutList.set(list(range(22)))
+
+        @self.command()
+        def Readout32():
+            self.ReadoutList.set(list(range(32)))
+
+        @self.command()
+        def Readout64():
+            self.ReadoutList.set(list(range(64)))
+            
+        @self.command()
+        def Readout80():
+            self.ReadoutList.set(list(range(80)))
+            
 
         if colBoards > 0:
             self.add(waveGui)

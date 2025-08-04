@@ -28,8 +28,9 @@ class ColumnFpgaBoard(pr.Device):
             fe_therm_channels = [2, 8]))
 
         self.add(warm_tdm.DataPath(
-            offset = 0xC0300000,
+            offset = 0xC1000000,
             expand = True,
+            timingTx = self.WarmTdmCore.Timing.TimingTx,
             rows=rows,
             frontEnd=self.AnalogFrontEnd))
 

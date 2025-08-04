@@ -165,7 +165,7 @@ begin
    -- Main Logic
    -------------------------------------------------------------------------------------------------
    comb : process (adcStreams, axilReadMaster, axilWriteMaster, bufferCtrl, r, resizedStream,
-                   timingRxData, timingRxRst125) is
+                   timingRxRst125) is
       variable v               : RegType;
       variable selectedChannel : integer;
       variable axilEp          : AxiLiteEndpointType;
