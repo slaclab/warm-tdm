@@ -268,6 +268,11 @@ begin
          when others => null;
       end case;
 
+      -- Bleed off data when not running
+      if (timingRxData.running = '0' and r.state = WAIT_RSS_S) then
+         v.muxAxisSlave.tReady := '1';
+      end if;
+
       if (timingRxRst125 = '1') then
          v := REG_INIT_C;
       end if;
