@@ -280,12 +280,13 @@ begin
 
       -- Start run
       if (r.timingData.startRun = '1' and r.timingData.running = '0') then
-         v.timingData.running         := '1';
-         v.timingData.runTime         := (others => '0');
-         v.timingData.rowSeq          := (others => '0');
-         v.timingData.rowTime         := (others => '0');
-         v.timingData.rowSeqCount     := (others => '0');
-         v.timingData.daqReadoutCount := (others => '0');
+         v.timingData.running                 := '1';
+         v.timingData.runTime                 := (others => '0');
+         v.timingData.rowSeq                  := (others => '0');
+         v.timingData.rowTime                 := (others => '0');
+         v.timingData.rowSeqCount             := (others => '0');
+         v.timingData.daqReadoutCount         := (others => '0');
+         v.daqReadoutPeriodCounter := (others => '0');
 
          v.timingTx := START_RUN_C;
       end if;
