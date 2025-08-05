@@ -269,8 +269,9 @@ begin
       end case;
 
       -- Bleed off data when not running
-      if (timingRxData.running = '0' and r.state = WAIT_RSS_S) then
+      if (timingRxData.running = '0') then
          v.muxAxisSlave.tReady := '1';
+         v.state               := WAIT_RSS_S;
       end if;
 
       if (timingRxRst125 = '1') then
