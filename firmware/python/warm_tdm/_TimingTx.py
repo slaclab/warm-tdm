@@ -159,7 +159,7 @@ class TimingTx(pr.Device):
             dependencies = [self.DaqReadoutPeriod],
             disp = '{:0.03f}',
             units = 'Hz',
-            linkedGet = lambda read: 1.0 / max(self.DaqReadoutPeriod.get(read=read), 1.0e-12)))
+            linkedGet = lambda read: 1.0e6 / max(self.DaqReadoutPeriod.get(read=read), 1.0e-12)))
         
             
 
