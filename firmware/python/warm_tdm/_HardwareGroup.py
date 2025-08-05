@@ -17,10 +17,12 @@ class DataDebug(rogue.interfaces.stream.Slave):
 
     def _acceptFrame(self, frame):
         arr = frame.getNumpy()
-        readoutCount = int.from_bytes( arr[0:8], byteorder='little', signed=False)
-        rowSeqCount = int.from_bytes(arr[8:16], byteorder='little', signed=False)
-        runTime = int.from_bytes(arr[16:24], byteorder='little', signed=False)
-        samples = arr[24:-4].reshape(-1, 4)
+        print(f'Got frame with {len(arr)} bytes')
+        words = arr[:-5].reshape(-1, 5)
+        readoutCount = int.from_bytes( words[0:2, 0:8], byteorder='little', signed=False)
+        rowSeqCount = int.from_bytes(words[2:4, 0:8], byteorder='little', signed=False)
+        runTime = int.from_bytes(words[4:6, 0:8], byteorder='little', signed=False)
+        samples = words[6:]
 
         print('Got Frame')
         print(f'{readoutCount=}')
@@ -28,7 +30,7 @@ class DataDebug(rogue.interfaces.stream.Slave):
         print(f'{runTime=}')        
         for s in samples:
             value = int.from_bytes(s[0:2], byteorder='little', signed=True)
-            print(f'col {s[3]}, row {s[2]}, value {value:x}')
+            print(f'col {s[4]}, row {s[3]}, value 0x{value:x}, fluxJumps {s[2]}')
         
 
 class HardwareGroup(pyrogue.Device):

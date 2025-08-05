@@ -59,7 +59,7 @@ end entity EventBuilder;
 
 architecture rtl of EventBuilder is
 
-   constant EVENT_AXIS_CFG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 4, tDestBits => 0);
+   constant EVENT_AXIS_CFG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 5, tDestBits => 0);
 
    type StateType is (
       WAIT_RSS_S,
@@ -252,9 +252,9 @@ begin
                   v.eventAxisMaster.tValid                                  := '0';
                else
                   v.eventAxisMaster.tValid              := not r.burn;
-                  v.eventAxisMaster.tData(15 downto 0)  := muxAxisMaster.tData(15 downto 0);
-                  v.eventAxisMaster.tData(23 downto 16) := muxAxisMaster.tID(7 downto 0);
-                  v.eventAxisMaster.tData(26 downto 24) := muxAxisMaster.tDest(2 downto 0);
+                  v.eventAxisMaster.tData(23 downto 0)  := muxAxisMaster.tData(23 downto 0);
+                  v.eventAxisMaster.tData(31 downto 24) := muxAxisMaster.tID(7 downto 0);
+                  v.eventAxisMaster.tData(39 downto 32) := muxAxisMaster.tDest(7 downto 0);
                end if;
             end if;
 

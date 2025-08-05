@@ -118,6 +118,7 @@ architecture rtl of AdcDsp is
       PID_D_S,
       SQ1FB_ADJUST_S,
       FLUX_JUMP_S,
+      DATA_STREAM_S,
       FLUX_DEBUG_S,
       LOOP_DONE_S,
       DEBUG_0_S);
@@ -699,7 +700,9 @@ begin
                v.numFluxJumps    := to_slv(numFluxJumpsFixed);
                v.fluxJumpWrValid := '1';
                v.sq1FbValid      := '1';
+               v.state := DATA_STREAM_S;
 
+            when DATA_STREAM_S => 
                -- Output PID Stream
                v.pidStreamMaster.tValid             := '1';
                if (r.outputMode = "00") then
@@ -709,6 +712,7 @@ begin
                elsif (r.outputMode = "10") then
                   v.pidStreamMaster.tData(15 downto 0) := timingRxData.rowSeqCount(15 downto 0);                  
                end if;
+               v.pidStreamMaster.tData(23 downto 16) := r.numFluxJumps;
 
                v.pidStreamMaster.tId(ROW_ADDR_BITS_C-1 downto 0) := r.rowIndex;
 
