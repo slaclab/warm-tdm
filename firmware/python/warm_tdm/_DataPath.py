@@ -108,43 +108,51 @@ class BiquadFilterCoeffs(pr.Device):
         
         self.add(pr.RemoteVariable(
             name = f'B0',
-            base = pr.Fixed(25, 23),
-            bitSize = 25,
+            base = pr.Fixed(18, 16),
+            bitSize = 18,
             offset = 0))
 
         self.add(pr.RemoteVariable(
             name = f'B1',
-            base = pr.Fixed(25, 23),
-            bitSize = 25,
+            base = pr.Fixed(18, 16),
+            bitSize = 18,
             offset = 4))
 
         self.add(pr.RemoteVariable(
             name = f'B2',
-            base = pr.Fixed(25, 23),
-            bitSize = 25,
+            base = pr.Fixed(18, 16),
+            bitSize = 18,
             offset = 8))
 
         self.add(pr.RemoteVariable(
             name = f'A1',
-            base = pr.Fixed(25, 23),
-            bitSize = 25,
+            base = pr.Fixed(18, 16),
+            bitSize = 18,
             offset = 12))
 
         self.add(pr.RemoteVariable(
             name = f'A2',
-            base = pr.Fixed(25, 23),
-            bitSize = 25,
+            base = pr.Fixed(18, 16),
+            bitSize = 18,
             offset = 16))
 
 
 class BiquadFilter(pr.Device):
     def __init__(self, cascade=2, **kwargs):
         super().__init__(**kwargs)
+
+        self.add(pr.RemoteCommand(
+            name = 'ClearState',
+            offset = 0x00,
+            bitSize = 1,
+            bitOffset = 0,
+            base = pr.UInt,
+            function = pr.Command.touchOne))
         
         for i in range(cascade):
             self.add(BiquadFilterCoeffs(
                 name = f'Coeffs[{i}]',
-                offset = i * 32))
+                offset = i * 32 + 32))
             
 import scipy.signal
 
@@ -153,6 +161,11 @@ class DownsampleFilters(pr.Device):
         super().__init__(**kwargs)
 
         self.filterFreq = 120.0
+
+        @self.command()
+        def ClearFilters():
+            for col in range(8):
+                self.Filter[col].ClearState()
 
         def _setFilters(value, write):
             self.filterFreq = value
@@ -180,7 +193,7 @@ class DownsampleFilters(pr.Device):
             self.add(BiquadFilter(
                 name = f'Filter[{i}]',
                 cascade = 2,
-                offset = i << 8))
+                offset = i << 12))
 
         self.add(pr.LinkVariable(
             name = 'FilterCuttoffFreq',

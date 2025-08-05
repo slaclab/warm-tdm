@@ -271,7 +271,13 @@ begin
       -- Bleed off data when not running
       if (timingRxData.running = '0') then
          v.muxAxisSlave.tReady := '1';
-         v.state               := WAIT_RSS_S;
+         v.fifoRdEn := readoutFifoValid;
+
+         -- If run stops while in DO_DATA_S state, end the current frame
+         if (r.state = DO_DATA_S) then
+            v.doneCols := "11111111";
+         end if;
+
       end if;
 
       if (timingRxRst125 = '1') then
