@@ -56,7 +56,7 @@ end entity BiquadFilter;
 
 architecture rtl of BiquadFilter is
 
-   constant DATA_MATH_WIDTH_C : integer := 25;
+   constant DATA_MATH_WIDTH_C : integer := 32;
    constant DATA_FRACT_BITS_C : integer := DATA_MATH_WIDTH_C - DATA_WIDTH_G;
    subtype DataSFixedType is sfixed(DATA_WIDTH_G-1 downto -DATA_FRACT_BITS_C);
    type DataSFixedArray is array (CASCADE_SIZE_G-1 downto 0) of DataSFixedType;
