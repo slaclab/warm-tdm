@@ -115,7 +115,7 @@ class HardwareGroup(pyrogue.Device):
                     fifo2 = rogue.interfaces.stream.Fifo(0, 0, False)
                     packetizer.application(i) >> fifo1
                     fifo1 >> fifo2 >> dataWriter.getChannel(i)
-                    fifo1 >> rateDrop >> pidDebug[i]
+                    #fifo1 >> rateDrop >> pidDebug[i]
                     self.addInterface(fifo1, fifo2, pidDebug[i])
                     
 #                    packetizer.application(i) >> chDbg
