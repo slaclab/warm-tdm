@@ -237,8 +237,8 @@ architecture rtl of ColumnFpgaBoard is
          addrBits         => 16,
          connectivity     => X"FFFF"),
       AXIL_DATA_PATH_C    => (
-         baseAddr         => APP_BASE_ADDR_C + X"00300000",
-         addrBits         => 20,
+         baseAddr         => APP_BASE_ADDR_C + X"01000000",
+         addrBits         => 24,
          connectivity     => X"FFFF"),
       AXIL_SQ1_BIAS_DAC_C => (
          baseAddr         => APP_BASE_ADDR_C + X"00400000",
@@ -606,6 +606,7 @@ begin
       generic map (
          TPD_G            => TPD_G,
          SIMULATION_G     => SIMULATION_G,
+         GEN_ADC_FILTER_G => true,
          NEGATE_ADC_G     => false,
          INVERT_SQ1FB_G   => false,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_DATA_PATH_C).baseAddr,

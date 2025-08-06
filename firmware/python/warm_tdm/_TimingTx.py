@@ -22,6 +22,7 @@ class TimingTx(pr.Device):
             bitSize = 1,
             bitOffset = 0,
             function = pr.RemoteCommand.touchOne))
+        
 #         self.add(pr.RemoteVariable(
 #             name = 'EnOutput',
 #             mode = 'RW',
@@ -100,7 +101,7 @@ class TimingTx(pr.Device):
             disp = '{:d}'))
 
         self.add(pr.LinkVariable(
-            name = 'RowRate',
+            name = 'RowVisitRate',
             mode = 'RW',
             dependencies = [self.RowPeriodCycles],
             disp = '{:0.03f}',
@@ -109,13 +110,13 @@ class TimingTx(pr.Device):
             linkedSet = lambda value, write: self.RowPeriodCycles.set(1.0 / ((value * 1.0e3) * 8.0e-9), write=write)))
 
         self.add(pr.LinkVariable(
-            name = 'RowPeriod',
+            name = 'RowVisitPeriod',
             mode = 'RW',
-            dependencies = [self.RowRate],
+            dependencies = [self.RowVisitRate],
             disp = '{:0.03f}',
             units = '\u03bcSec',
-            linkedGet = lambda read: 1.0e3 / self.RowRate.get(read=read),
-            linkedSet = lambda value, write: self.RowRate.set(1.0e-3 / value)))
+            linkedGet = lambda read: 1.0e3 / self.RowVisitRate.get(read=read),
+            linkedSet = lambda value, write: self.RowVisitRate.set(1.0e-3 / value)))
 
         self.add(pr.RemoteVariable(
             name = 'NumRows',
@@ -124,6 +125,43 @@ class TimingTx(pr.Device):
             bitOffset = 0,
             bitSize = 16,
             disp = '{:d}'))
+
+        self.add(pr.LinkVariable(
+            name = 'RowSequencePeriod',
+            dependencies = [self.RowVisitPeriod, self.NumRows],
+            disp = '{:0.03f}',
+            units = '\u03bcSec',
+            linkedGet = lambda read: self.RowVisitPeriod.get(read=read) * self.NumRows.get(read=read)))
+
+        self.add(pr.LinkVariable(
+            name = 'RowSequenceRate',
+            dependencies = [self.RowSequencePeriod],
+            disp = '{:0.03f}',
+            units = 'kHz',
+            linkedGet = lambda read: 1.0e3 / max(self.RowSequencePeriod.get(read=read), 1.0e-12)))
+
+        self.add(pr.RemoteVariable(
+            name = 'RowSequencesPerDaqReadout',
+            description = 'Number of RowSequences per DAQ readout',
+            offset = 0x2C,
+            bitSize = 32,
+            disp = '{:d}'))
+
+        self.add(pr.LinkVariable(
+            name = 'DaqReadoutPeriod',
+            dependencies = [self.RowSequencePeriod, self.RowSequencesPerDaqReadout],
+            disp = '{:0.03f}',
+            units = '\u03bcSec',
+            linkedGet = lambda read: self.RowSequencePeriod.get(read=read) * self.RowSequencesPerDaqReadout.get(read=read)))
+
+        self.add(pr.LinkVariable(
+            name = 'DaqReadoutRate',
+            dependencies = [self.DaqReadoutPeriod],
+            disp = '{:0.03f}',
+            units = 'Hz',
+            linkedGet = lambda read: 1.0e6 / max(self.DaqReadoutPeriod.get(read=read), 1.0e-12)))
+        
+            
 
         self.add(pr.RemoteVariable(
             name = 'SampleStartTime',
@@ -190,12 +228,21 @@ class TimingTx(pr.Device):
             disp = '{:d}'))
 
         self.add(pr.RemoteVariable(
-            name = 'ReadoutCount',
+            name = 'RowSequenceCount',
             mode = 'RO',
-            offset = 0x48,
+            offset = 0x70,
             bitOffset = 0,
             bitSize = 64,
             disp = '{:d}'))
+
+        self.add(pr.RemoteVariable(
+            name = 'DaqReadoutCount',
+            mode = 'RO',
+            offset = 0x78,
+            bitOffset = 0,
+            bitSize = 64,
+            disp = '{:d}'))
+        
 
         self.add(pr.RemoteVariable(
             name = 'XbarTxClkSrc',

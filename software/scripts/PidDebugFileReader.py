@@ -40,6 +40,7 @@ class PidDebugMessage:
     pidResult: int
     fluxJumps: int
     sq1Fb: int
+    dropCount: int
     accumSamples: int
     readoutCount: int
     
@@ -65,6 +66,7 @@ class PidDebugMessage:
         fluxJumps = signed_int(arr[56])
         # Word 8
         sq1Fb = unsigned_int(arr[64:66])
+        dropCount = unsigned_int(arr[68:72]
         # Word 9
         accumSamples = unsigned_int(arr[72:76])
         readoutCount = unsigned_int(arr[76:80])
@@ -81,6 +83,7 @@ class PidDebugMessage:
             pidResult =pidResult,
             fluxJumps = fluxJumps,
             sq1FbEnd = sq1FbEnd,
+            dropCount = dropCount,
             accumSamples = accumSamples,
             readoutCount = readoutCount)
         
@@ -116,7 +119,7 @@ PidDebugType = np.dtype([
     # Word 8
     ('sq1FbEnd', np.uint16),
     ('dummy8_0', np.uint16),
-    ('dummy8_1', np.uint32),
+    ('dropCount', np.uint32),
     # Word 9
     ('numSamples', np.uint32),
     ('readoutCount', np.uint32)

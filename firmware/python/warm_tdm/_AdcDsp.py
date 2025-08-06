@@ -47,10 +47,10 @@ class RowPidStatus(pr.Device):
             dep = dsp.PidResults,
             index = rowNum))
 
-        self.add(IndexedLinkVariable(
-            name = 'FilterResults',
-            dep = dsp.FilterResults,
-            index = rowNum))
+#         self.add(IndexedLinkVariable(
+#             name = 'FilterResults',
+#             dep = dsp.FilterResults,
+#             index = rowNum))
 
         self.add(IndexedLinkVariable(
             name = 'FluxJumps',
@@ -83,7 +83,7 @@ class AdcDsp(pr.Device):
             name = 'PidEnableRaw',
             offset = 0x00,
             base = pr.Bool,
-            hidden = True,
+            hidden = False,
             groups = ['NoConfig'],
             mode = 'RW',
             bitSize = 1,
@@ -103,6 +103,20 @@ class AdcDsp(pr.Device):
             dependencies = [self.PidEnableRaw],
             linkedSet = _enablePid,
             linkedGet = self.PidEnableRaw.get))
+
+        self.add(pr.RemoteVariable(
+            name = 'OutputMode',
+            offset = 0x00,
+            base = pr.UInt,
+            hidden = False,
+            mode = 'RW',
+            bitSize = 2,
+            bitOffset = 8,
+            enum = {
+                0: 'Sq1Fb',
+                1: 'AccumError',
+                2: 'RowSeqCount'}))
+        
 
         self.add(pr.RemoteVariable(
             name = 'P_Coef',
@@ -254,14 +268,14 @@ class AdcDsp(pr.Device):
             valueStride = 64))
 
 
-        self.add(pr.RemoteVariable(
-            name = 'FilterResults',
-            offset = 0x5000,
-            mode = 'RO',
-            base = AdcDsp.RESULT_BASE,
-            numValues = rows,
-            valueBits = AdcDsp.RESULT_BASE.bitSize,
-            valueStride = 64))
+#         self.add(pr.RemoteVariable(
+#             name = 'FilterResults',
+#             offset = 0x5000,
+#             mode = 'RO',
+#             base = AdcDsp.RESULT_BASE,
+#             numValues = rows,
+#             valueBits = AdcDsp.RESULT_BASE.bitSize,
+#             valueStride = 64))
 
         self.add(pr.RemoteVariable(
             name = 'FluxJumps',
@@ -285,24 +299,24 @@ class AdcDsp(pr.Device):
             self.PidResults.set(blank)
             self.FluxJumps.set(blank)
 
-        self.add(surf.dsp.fixed.FirFilterMultiChannel(
-            name = 'FirFilter',
-            offset = 0x6000,
-            numberTaps = 11,
-            coeffWordBitSize = 16))
+#         self.add(surf.dsp.fixed.FirFilterMultiChannel(
+#             name = 'FirFilter',
+#             offset = 0x6000,
+#             numberTaps = 11,
+#             coeffWordBitSize = 16))
 
-        self.filterFreq = 1000.0
+#         self.filterFreq = 1000.0
 
-        def setFirTaps(value, write):
-            self.filterFreq = value
-            taps = scipy.signal.firwin(11, value, fs=7812.5, window='hamming')
-            #print(f'Applying filter at {value} with taps {taps}')
-            ftaps = np.array([int(np.round(x * 2**15)) for x in taps], dtype=np.uint16)
-            #print([f'{t:04x}' for t in ftaps])
-            self.FirFilter.Taps.set(taps, write=write)
+#         def setFirTaps(value, write):
+#             self.filterFreq = value
+#             taps = scipy.signal.firwin(11, value, fs=7812.5, window='hamming')
+#             #print(f'Applying filter at {value} with taps {taps}')
+#             ftaps = np.array([int(np.round(x * 2**15)) for x in taps], dtype=np.uint16)
+#             #print([f'{t:04x}' for t in ftaps])
+#             self.FirFilter.Taps.set(taps, write=write)
 
-        self.add(pr.LinkVariable(
-            name = 'FilterCuttoffFreq',
-            linkedSet = setFirTaps,
-            linkedGet = lambda: self.filterFreq,
-            value = self.filterFreq))
+#         self.add(pr.LinkVariable(
+#             name = 'FilterCuttoffFreq',
+#             linkedSet = setFirTaps,
+#             linkedGet = lambda: self.filterFreq,
+#             value = self.filterFreq))
