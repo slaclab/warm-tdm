@@ -426,8 +426,8 @@ begin
             CASCADE_SIZE_G       => 2,
             CHANNEL_ADDR_WIDTH_G => 8)
          port map (
-            axisClk         => axisClk,                       -- [in]
-            axisRst         => axisRst,                       -- [in]
+            axisClk         => timingRxClk125,                       -- [in]
+            axisRst         => timingRxRst125,                       -- [in]
             sAxisMaster     => pidStreamMasters(i),           -- [in]
             sAxisSlave      => pidStreamSlaves(i),            -- [out]
             mAxisMaster     => pidFilterStreamMasters(i),     -- [out]
@@ -461,7 +461,7 @@ begin
    U_AxiStreamMux_1 : entity surf.AxiStreamMux
       generic map (
          TPD_G         => TPD_G,
-         PIPE_STAGES_G => 0,
+         PIPE_STAGES_G => 1,
          NUM_SLAVES_G  => 8,
          MODE_G        => "INDEXED")
       port map (
@@ -477,7 +477,7 @@ begin
    U_AxiStreamMux_2 : entity surf.AxiStreamMux
       generic map (
          TPD_G          => TPD_G,
-         PIPE_STAGES_G  => 0,
+         PIPE_STAGES_G  => 1,
          NUM_SLAVES_G   => 3,
          MODE_G         => "ROUTED",
          TDEST_ROUTES_G => (
@@ -506,8 +506,8 @@ begin
          MAX_PACKET_BYTES_G   => 256,
          TDEST_BITS_G         => 8,
          OUTPUT_TDEST_G       => "00001000",  -- Direct stream to eth on ring addr 0
-         INPUT_PIPE_STAGES_G  => 0,
-         OUTPUT_PIPE_STAGES_G => 0)
+         INPUT_PIPE_STAGES_G  => 1,
+         OUTPUT_PIPE_STAGES_G => 1)
       port map (
          axisClk     => axisClk,              -- [in]
          axisRst     => axisRst,              -- [in]

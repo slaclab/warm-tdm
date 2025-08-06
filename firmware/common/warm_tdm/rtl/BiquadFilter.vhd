@@ -241,24 +241,24 @@ begin
       ----------------------------------------------------------------------------------------------
       axiSlaveWaitTxn(axilEp, axilWriteMaster, axilReadMaster, v.axilWriteSlave, v.axilReadSlave);
 
-      axiSlaveRegister(axilEp, X"00", 0, v.clearFilters);
+      axiSlaveRegister(axilEp, X"000", 0, v.clearFilters);
 --       axiSlaveRegisterR(axilEp, X"04", 0, to_slv(r.b1_fixed));
 --       axiSlaveRegisterR(axilEp, X"08", 0, to_slv(r.b2_fixed));
 --       axiSlaveRegisterR(axilEp, X"0C", 0, to_slv(r.a1_fixed));
 --       axiSlaveRegisterR(axilEp, X"10", 0, to_slv(r.a2_fixed));
 
       for i in CASCADE_SIZE_G-1 downto 0 loop
-         axiSlaveRegister(axilEp, toSlv((i)*32+32, 8), 0, v.b0(i));
-         axiSlaveRegister(axilEp, toSlv((i)*32+36, 8), 0, v.b1(i));
-         axiSlaveRegister(axilEp, toSlv((i)*32+40, 8), 0, v.b2(i));
-         axiSlaveRegister(axilEp, toSlv((i)*32+44, 8), 0, v.a1(i));
-         axiSlaveRegister(axilEp, toSlv((i)*32+48, 8), 0, v.a2(i));
+         axiSlaveRegister(axilEp, toSlv((i)*32+32, 12), 0, v.b0(i));
+         axiSlaveRegister(axilEp, toSlv((i)*32+36, 12), 0, v.b1(i));
+         axiSlaveRegister(axilEp, toSlv((i)*32+40, 12), 0, v.b2(i));
+         axiSlaveRegister(axilEp, toSlv((i)*32+44, 12), 0, v.a1(i));
+         axiSlaveRegister(axilEp, toSlv((i)*32+48, 12), 0, v.a2(i));
       end loop;
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
 
       v.ramWe                := (others => '0');
-      v.ramWrAddr            := to_ufixed(fifoAxisMaster.tid(CHANNEL_ADDR_WIDTH_G-1 downto 0), r.ramWrAddr);
+      v.ramWrAddr            := to_ufixed(fifoAxisMaster.tId(CHANNEL_ADDR_WIDTH_G-1 downto 0), r.ramWrAddr);
       v.fifoAxisSlave.tReady := '0';
       v.mAxisMaster          := axiStreamMasterInit(AXIS_CONFIG_G);
 
@@ -282,7 +282,7 @@ begin
                      -- Skip straight to output
                      v.state := OUTPUT_S;
                   else
-                     -- Allow tid to address state ram               
+                     -- Allow tdest to address state ram               
                      v.state := WAIT_STATE_RAM_0_S;
                   end if;
                end if;
@@ -388,6 +388,7 @@ begin
             v.mAxisMaster.tValid                         := '1';
             v.mAxisMaster.tData(DATA_WIDTH_G-1 downto 0) := to_slv(resize(r.y1_fixed, DATA_WIDTH_G-1, 0));
             v.mAxisMaster.tId                            := fifoAxisMaster.tId;
+            v.mAxisMaster.tUser                          := fifoAxisMaster.tUser;
             v.mAxisMaster.tKeep                          := fifoAxisMaster.tKeep;
             v.mAxisMaster.tLast                          := fifoAxisMaster.tLast;
             v.fifoAxisSlave.tReady                       := '1';

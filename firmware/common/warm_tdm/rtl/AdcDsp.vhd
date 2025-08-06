@@ -712,8 +712,9 @@ begin
                elsif (r.outputMode = "10") then
                   v.pidStreamMaster.tData(15 downto 0) := timingRxData.rowSeqCount(15 downto 0);                  
                end if;
-               v.pidStreamMaster.tData(23 downto 16) := r.numFluxJumps;
 
+               -- Put flux jumps on 
+               v.pidStreamMaster.tUser(7 downto 0) := r.numFluxJumps;
                v.pidStreamMaster.tId(ROW_ADDR_BITS_C-1 downto 0) := r.rowIndex;
 
                v.state := FLUX_DEBUG_S;
@@ -778,7 +779,7 @@ begin
          FIFO_PAUSE_THRESH_G => 15,
          GEN_SYNC_FIFO_G     => false,
          FIFO_ADDR_WIDTH_G   => 9,
-         SYNTH_MODE_G        => "xpm",
+  --       SYNTH_MODE_G        => "xpm",
          MEMORY_TYPE_G       => "bram",
          INT_WIDTH_SELECT_G  => "WIDE",
          SLAVE_AXI_CONFIG_G  => AXIS_DEBUG_CFG_C,
@@ -805,7 +806,7 @@ begin
          FIFO_PAUSE_THRESH_G => 15,
          GEN_SYNC_FIFO_G     => true,
          FIFO_ADDR_WIDTH_G   => 5,
-         SYNTH_MODE_G        => "xpm",
+--         SYNTH_MODE_G        => "xpm",
          MEMORY_TYPE_G       => "distributed",
          INT_WIDTH_SELECT_G  => "WIDE",
          SLAVE_AXI_CONFIG_G  => PID_DATA_AXIS_CFG_C,

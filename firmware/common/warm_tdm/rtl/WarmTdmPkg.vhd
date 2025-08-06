@@ -42,7 +42,7 @@ package WarmTdmPkg is
    -- Data from AdcDsp to filter and downsampler
    constant PID_DATA_AXIS_CFG_C : AxiStreamConfigType := (
       TSTRB_EN_C => true,
-      TDATA_BYTES_C => 3,
+      TDATA_BYTES_C => 2,
       TDEST_BITS_C => 8,
       TID_BITS_C => 8,
       TKEEP_MODE_C => TKEEP_NORMAL_C,
