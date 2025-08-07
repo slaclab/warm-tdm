@@ -28,6 +28,7 @@ entity AdcDsp is
       TPD_G            : time                 := 1 ns;
       INVERT_SQ1FB_G   : boolean              := true;
       COLUMN_NUM_G     : integer range 0 to 7 := 0;
+      ROW_ADDR_BITS_G  : integer range 3 to 8 := 8;
       AXIL_BASE_ADDR_G : slv(31 downto 0)     := (others => '0');
       SQ1FB_RAM_ADDR_G : slv(31 downto 0)     := (others => '0'));
 
@@ -61,8 +62,6 @@ entity AdcDsp is
 end entity;
 
 architecture rtl of AdcDsp is
-
-   constant ROW_ADDR_BITS_C : integer := 8;
 
    constant NUM_AXIL_MASTERS_C : integer := 8;
    constant LOCAL_C            : integer := 0;
@@ -129,7 +128,7 @@ architecture rtl of AdcDsp is
       fllEnable          : sl;
       outputMode         : slv(1 downto 0);
       state              : StateType;
-      rowIndex           : slv(ROW_ADDR_BITS_C-1 downto 0);
+      rowIndex           : slv(ROW_ADDR_BITS_G-1 downto 0);
       accumValid         : sl;
       accumSamples       : ufixed(31 downto 0);
       accumError         : sfixed(ACCUM_BITS_C-1 downto 0);
@@ -223,6 +222,7 @@ architecture rtl of AdcDsp is
    signal axilR   : AxilRegType := AXIL_REG_INIT_C;
    signal axilRin : AxilRegType;
 
+   signal rowIndex8 : slv(7 downto 0);
    signal fifoDout  : slv(21 downto 0);
    signal fifoValid : sl;
    signal ack       : AxiLiteAckType;
@@ -309,7 +309,7 @@ begin
          SYS_WR_EN_G      => false,
          SYS_BYTE_WR_EN_G => false,
          COMMON_CLK_G     => false,
-         ADDR_WIDTH_G     => ROW_ADDR_BITS_C,
+         ADDR_WIDTH_G     => ROW_ADDR_BITS_G,
          DATA_WIDTH_G     => adcBaselineRamOut'length)
       port map (
          axiClk         => timingRxClk125,                       -- [in]
@@ -333,7 +333,7 @@ begin
          SYS_WR_EN_G      => false,
          SYS_BYTE_WR_EN_G => false,
          COMMON_CLK_G     => false,
-         ADDR_WIDTH_G     => ROW_ADDR_BITS_C,
+         ADDR_WIDTH_G     => ROW_ADDR_BITS_G,
          DATA_WIDTH_G     => 8)
       port map (
          axiClk         => timingRxClk125,                    -- [in]
@@ -361,7 +361,7 @@ begin
          SYS_WR_EN_G      => true,
          SYS_BYTE_WR_EN_G => false,
          COMMON_CLK_G     => false,
-         ADDR_WIDTH_G     => ROW_ADDR_BITS_C,
+         ADDR_WIDTH_G     => ROW_ADDR_BITS_G,
          DATA_WIDTH_G     => ACCUM_BITS_C)
       port map (
          axiClk         => timingRxClk125,                      -- [in]
@@ -389,7 +389,7 @@ begin
          SYS_WR_EN_G      => true,
          SYS_BYTE_WR_EN_G => false,
          COMMON_CLK_G     => false,
-         ADDR_WIDTH_G     => ROW_ADDR_BITS_C,
+         ADDR_WIDTH_G     => ROW_ADDR_BITS_G,
          DATA_WIDTH_G     => SUM_BITS_C)
       port map (
          axiClk         => timingRxClk125,                    -- [in]
@@ -416,7 +416,7 @@ begin
          SYS_WR_EN_G      => true,
          SYS_BYTE_WR_EN_G => false,
          COMMON_CLK_G     => false,
-         ADDR_WIDTH_G     => ROW_ADDR_BITS_C,
+         ADDR_WIDTH_G     => ROW_ADDR_BITS_G,
          DATA_WIDTH_G     => RESULT_BITS_C)
       port map (
          axiClk         => timingRxClk125,                      -- [in]
@@ -469,7 +469,7 @@ begin
 --          SYS_WR_EN_G      => true,
 --          SYS_BYTE_WR_EN_G => false,
 --          COMMON_CLK_G     => false,
---          ADDR_WIDTH_G     => ROW_ADDR_BITS_C,
+--          ADDR_WIDTH_G     => ROW_ADDR_BITS_G,
 --          DATA_WIDTH_G     => RESULT_BITS_C)
 --       port map (
 --          axiClk         => timingRxClk125,                                      -- [in]
@@ -579,14 +579,14 @@ begin
                -- Row strobe comes first (bit 26).
                -- Register the rowIndex (23:16) and reset accumulated error
                if (adcAxisMaster.tUser(2) = '1') then
-                  v.rowIndex   := adcAxisMaster.tId(7 downto 0);
+                  v.rowIndex   := adcAxisMaster.tId(ROW_ADDR_BITS_G-1 downto 0);
                   v.accumError := (others => '0');
 
                   -- Word 0 is Column and Row
                   ssiSetUserSof(AXIS_DEBUG_CFG_C, v.pidDebugMaster, '1');
                   v.pidDebugMaster.tValid              := v.pidDebugEnable;
                   v.pidDebugMaster.tData(3 downto 0)   := toSlv(COLUMN_NUM_G, 4);
-                  v.pidDebugMaster.tData(15 downto 8)  := v.rowIndex;
+                  v.pidDebugMaster.tData(15 downto 8)  := resize(v.rowIndex, 8);
                   v.pidDebugMaster.tData(63 downto 16) := timingRxData.runTime(47 downto 0);
 
                   -- Check for rowSeqStart
@@ -708,11 +708,11 @@ begin
                v.pidResult     := resize(r.sq1Fb, r.pidResult);
                v.pidMultiplier := resize(numFluxJumpsFixed, r.pidMultiplier);
                v.pidCoef       := resize(fluxQuantumFixed, r.pidCoef);
-               v.state := DATA_STREAM_FLUX_JUMP_1_S;
+               v.state         := DATA_STREAM_FLUX_JUMP_1_S;
 
             when DATA_STREAM_FLUX_JUMP_1_S =>
                v.pidResult := resize(r.pidResult + (r.pidCoef * r.pidMultiplier), v.pidResult);
-               v.state := DATA_STREAM_S;
+               v.state     := DATA_STREAM_S;
 
             when DATA_STREAM_S =>
                -- Output PID Stream
@@ -725,8 +725,7 @@ begin
                   v.pidStreamMaster.tData(21 downto 0) := timingRxData.rowSeqCount(21 downto 0);
                end if;
 
-               -- Put flux jumps on 
-               v.pidStreamMaster.tId(ROW_ADDR_BITS_C-1 downto 0) := r.rowIndex;
+               v.pidStreamMaster.tId(ROW_ADDR_BITS_G-1 downto 0) := r.rowIndex;
 
                v.state := FLUX_DEBUG_S;
 
@@ -840,6 +839,7 @@ begin
    -- Convert back to inverted offsset binary first
    -------------------------------------------------------------------------------------------------
    sq1fbOffsetBin <= convOffsetBin(to_slv(r.sq1Fb));
+   rowIndex8      <= resize(r.rowIndex, 8);
 
    U_Fifo_1 : entity surf.Fifo
       generic map (
@@ -856,7 +856,7 @@ begin
          wr_clk            => timingRxClk125,  -- [in]
          wr_en             => r.sq1FbValid,    -- [in]
          din(13 downto 0)  => sq1fbOffsetBin,  -- [in]
-         din(21 downto 14) => r.rowIndex,      -- [in]
+         din(21 downto 14) => rowIndex8,       -- [in]
          overflow          => open,            -- [out]
          rd_clk            => timingRxClk125,  -- [in]
          rd_en             => axilR.fifoRd,    -- [in]

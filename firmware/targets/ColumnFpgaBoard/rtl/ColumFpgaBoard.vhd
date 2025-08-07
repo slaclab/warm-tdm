@@ -41,18 +41,20 @@ use warm_tdm.WarmTdmPkg.all;
 entity ColumnFpgaBoard is
 
    generic (
-      TPD_G                   : time             := 1 ns;
-      SIMULATION_G            : boolean          := false;
-      SIMULATE_PGP_G          : boolean          := true;
-      SIM_PGP_PORT_NUM_G      : integer          := 0;
-      SIM_ETH_SRP_PORT_NUM_G  : integer          := 8000;
-      SIM_ETH_DATA_PORT_NUM_G : integer          := 9000;
+      TPD_G                   : time                 := 1 ns;
+      SIMULATION_G            : boolean              := false;
+      SIMULATE_PGP_G          : boolean              := true;
+      SIM_PGP_PORT_NUM_G      : integer              := 0;
+      SIM_ETH_SRP_PORT_NUM_G  : integer              := 8000;
+      SIM_ETH_DATA_PORT_NUM_G : integer              := 9000;
       BUILD_INFO_G            : BuildInfoType;
-      RING_ADDR_0_G           : boolean          := false;
-      ETH_10G_G               : boolean          := false;
-      DHCP_G                  : boolean          := false;
-      IP_ADDR_G               : slv(31 downto 0) := x"0B03A8C0";  -- 192.168.3.11
-      MAC_ADDR_G              : slv(47 downto 0) := x"0B_00_16_56_00_08");
+      RING_ADDR_0_G           : boolean              := false;
+      ETH_10G_G               : boolean              := false;
+      DHCP_G                  : boolean              := false;
+      IP_ADDR_G               : slv(31 downto 0)     := x"0B03A8C0";  -- 192.168.3.11
+      MAC_ADDR_G              : slv(47 downto 0)     := x"0B_00_16_56_00_08";
+      GEN_ADC_FILTER_G        : boolean              := true;
+      ROW_ADDR_BITS_G         : integer range 3 to 8 := 8);
    port (
       -- Clocks
       gtRefClk0P : in sl;
@@ -606,7 +608,8 @@ begin
       generic map (
          TPD_G            => TPD_G,
          SIMULATION_G     => SIMULATION_G,
-         GEN_ADC_FILTER_G => true,
+         GEN_ADC_FILTER_G => GEN_ADC_FILTER_G,
+         ROW_ADDR_BITS_G  => ROW_ADDR_BITS_G,
          NEGATE_ADC_G     => false,
          INVERT_SQ1FB_G   => false,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_DATA_PATH_C).baseAddr,

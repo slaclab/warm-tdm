@@ -39,14 +39,15 @@ use warm_tdm.WarmTdmPkg.all;
 entity DataPath is
 
    generic (
-      TPD_G            : time             := 1 ns;
-      SIMULATION_G     : boolean          := false;
-      GEN_ADC_FILTER_G : boolean          := true;
-      NEGATE_ADC_G     : boolean          := true;
-      INVERT_SQ1FB_G   : boolean          := true;
-      AXIL_BASE_ADDR_G : slv(31 downto 0) := (others => '0');
-      SQ1FB_RAM_ADDR_G : slv(31 downto 0) := (others => '0');
-      IODELAY_GROUP_G  : string           := "DEFAULT_GROUP");
+      TPD_G            : time                 := 1 ns;
+      SIMULATION_G     : boolean              := false;
+      GEN_ADC_FILTER_G : boolean              := true;
+      ROW_ADDR_BITS_G  : integer range 3 to 8 := 8;
+      NEGATE_ADC_G     : boolean              := true;
+      INVERT_SQ1FB_G   : boolean              := true;
+      AXIL_BASE_ADDR_G : slv(31 downto 0)     := (others => '0');
+      SQ1FB_RAM_ADDR_G : slv(31 downto 0)     := (others => '0');
+      IODELAY_GROUP_G  : string               := "DEFAULT_GROUP");
 
    port (
       -- ADC Serial Interface
@@ -394,6 +395,7 @@ begin
             TPD_G            => TPD_G,
             COLUMN_NUM_G     => i,
             INVERT_SQ1FB_G   => INVERT_SQ1FB_G,
+            ROW_ADDR_BITS_G  => ROW_ADDR_BITS_G,
             AXIL_BASE_ADDR_G => ADC_DSP_XBAR_CFG_C(i).baseAddr,
             SQ1FB_RAM_ADDR_G => SQ1FB_RAM_ADDR_G(31 downto 16) & toslv(i, 4) & X"000")
          port map (
@@ -426,8 +428,8 @@ begin
             CASCADE_SIZE_G       => 2,
             CHANNEL_ADDR_WIDTH_G => 8)
          port map (
-            axisClk         => timingRxClk125,                       -- [in]
-            axisRst         => timingRxRst125,                       -- [in]
+            axisClk         => timingRxClk125,                -- [in]
+            axisRst         => timingRxRst125,                -- [in]
             sAxisMaster     => pidStreamMasters(i),           -- [in]
             sAxisSlave      => pidStreamSlaves(i),            -- [out]
             mAxisMaster     => pidFilterStreamMasters(i),     -- [out]
