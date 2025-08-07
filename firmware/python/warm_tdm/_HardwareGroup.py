@@ -24,7 +24,6 @@ class DataDebug(rogue.interfaces.stream.Slave):
         runTime = int.from_bytes(words[4:6, 0:8], byteorder='little', signed=False)
         samples = words[6:]
 
-        print('Got Frame')
         print(f'{readoutCount=}')
         print(f'{rowSeqCount=}')
         print(f'{runTime=}')        
