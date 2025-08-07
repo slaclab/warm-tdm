@@ -50,15 +50,17 @@ entity EthCore is
    port (
       extRst                : in  sl                    := '0';
       -- GT ports and clock
-      gtRefClk              : in  sl;
-      fabRefClk             : in  sl;
+      gtRefClk250           : in  sl;
+      fabRefClk125          : in  sl;
+      gtRefClk156           : in  sl;
+      fabRefClk156          : in  sl;
       gtRxP                 : in  sl;
       gtRxN                 : in  sl;
       gtTxP                 : out sl;
       gtTxN                 : out sl;
       -- Eth/RSSI Status
       phyReady              : out sl;
-      rssiStatus            : out slv7Array(1 downto 0);
+      rssiStatus            : out slv9Array(1 downto 0);
       -- AXI-Lite Interface for local register access
       axilClk               : in  sl;
       axilRst               : in  sl;
@@ -104,7 +106,9 @@ architecture rtl of EthCore is
    constant RSSI_AXIS_CONFIG_C : AxiStreamConfigArray(RSSI_SIZE_C-1 downto 0) := (others => AXIS_CONFIG_C);
 
    -- Need to throttle down to simulate GigEth bandwidth
-   constant ROGUE_AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 1, tDestBits => 8, tUserBits => 8);
+   constant ROGUE_AXIS_CONFIG_C : AxiStreamConfigType := ite(ETH_10G_G,
+                                                             ssiAxiStreamConfig(dataBytes => 8, tDestBits => 8, tUserBits => 8),
+                                                             ssiAxiStreamConfig(dataBytes => 1, tDestBits => 8, tUserBits => 8));
 
    constant DEST_LOCAL_SRP_DATA_C  : integer := 0;
    constant DEST_LOCAL_LOOPBACK_C  : integer := 1;
@@ -124,11 +128,12 @@ architecture rtl of EthCore is
       DEST_REMOTE_LOOPBACK_C => 0);
 
 
-   constant AXIL_NUM_C       : integer := 4;
+   constant AXIL_NUM_C       : integer := 5;
    constant AXIL_ETH_C       : integer := 0;
    constant AXIL_UDP_C       : integer := 1;
    constant AXIL_RSSI_SRP_C  : integer := 2;
    constant AXIL_RSSI_DATA_C : integer := 3;
+   constant AXIL_BATCHER_C   : integer := 4;
 
 
    constant AXIL_XBAR_CONFIG_C : AxiLiteCrossbarMasterConfigArray(AXIL_NUM_C-1 downto 0) := (
@@ -147,6 +152,10 @@ architecture rtl of EthCore is
       AXIL_RSSI_DATA_C => (
          baseAddr      => AXIL_BASE_ADDR_G + X"012000",
          addrBits      => 12,
+         connectivity  => X"FFFF"),
+      AXIL_BATCHER_C   => (
+         baseAddr      => AXIL_BASE_ADDR_G + X"013000",
+         addrBits      => 8,
          connectivity  => X"FFFF"));
 
 
@@ -163,6 +172,11 @@ architecture rtl of EthCore is
    signal rxSlave  : AxiStreamSlaveType;
    signal txMaster : AxiStreamMasterType;
    signal txSlave  : AxiStreamSlaveType;
+
+   signal localDataTxFifoAxisMaster    : AxiStreamMasterType;
+   signal localDataTxFifoAxisSlave     : AxiStreamSlaveType;
+   signal localDataTxBatchedAxisMaster : AxiStreamMasterType;
+   signal localDataTxBatchedAxisSlave  : AxiStreamSlaveType;
 
    signal ibServerMasters : AxiStreamMasterArray(SERVER_SIZE_C-1 downto 0);
    signal ibServerSlaves  : AxiStreamSlaveArray(SERVER_SIZE_C-1 downto 0);
@@ -205,6 +219,8 @@ architecture rtl of EthCore is
    signal locAxilWriteMasters : AxiLiteWriteMasterArray(AXIL_NUM_C-1 downto 0);
    signal locAxilWriteSlaves  : AxiLiteWriteSlaveArray(AXIL_NUM_C-1 downto 0) := (others => AXI_LITE_WRITE_SLAVE_EMPTY_DECERR_C);
 
+   signal pwrUpRst      : sl;
+   signal qpllResetLoc  : sl;
    signal qplllock      : sl;
    signal qplloutclk    : sl;
    signal qplloutrefclk : sl;
@@ -275,7 +291,7 @@ begin
                TPD_G => TPD_G)
             port map (
                arst   => extRst,
-               clk    => fabRefClk,
+               clk    => fabRefClk125,
                rstOut => refRst);
 
          ----------------
@@ -297,7 +313,7 @@ begin
                CLKOUT0_DIVIDE_F_G => 8.0,
                CLKOUT1_DIVIDE_G   => 16)
             port map(
-               clkIn     => fabRefClk,
+               clkIn     => fabRefClk125,
                rstIn     => refRst,
                clkOut(0) => ethClk,
                clkOut(1) => ethClkDiv2,
@@ -352,18 +368,18 @@ begin
                TPD_G              => TPD_G,
                TYPE_G             => "MMCM",
                INPUT_BUFG_G       => false,
-               FB_BUFG_G          => true,  -- Without this, will never lock in simulation
+               FB_BUFG_G          => true,   -- Without this, will never lock in simulation
                RST_IN_POLARITY_G  => '1',
                NUM_CLOCKS_G       => 1,
                -- MMCM attributes
                BANDWIDTH_G        => "HIGH",
-               CLKIN_PERIOD_G     => 8.0,   -- 125 MHz
+               CLKIN_PERIOD_G     => 6.4,    -- 156.25 MHz
                DIVCLK_DIVIDE_G    => 1,
-               CLKFBOUT_MULT_F_G  => 9.375,
-               CLKOUT0_DIVIDE_F_G => 7.5)   -- 156.25 MHz
+               CLKFBOUT_MULT_F_G  => 7.625,
+               CLKOUT0_DIVIDE_F_G => 7.625)  -- 156.25 MHz
             port map(
-               clkIn     => fabRefClk,
-               rstIn     => refRst,
+               clkIn     => fabRefClk156,
+               rstIn     => pwrUpRst,
                clkOut(0) => ethClk,
                rstOut(0) => ethRst,
                locked    => open);
@@ -373,8 +389,10 @@ begin
                TPD_G => TPD_G)
             port map (
                arst   => extRst,
-               clk    => ethClk,
-               rstOut => refRst);
+               clk    => fabRefClk156,
+               rstOut => pwrUpRst);
+
+         qpllResetLoc <= pwrUpRst or qpllReset;
 
          Gtx7QuadPll_Inst : entity surf.Gtx7QuadPll
             generic map (
@@ -387,14 +405,14 @@ begin
                QPLL_FBDIV_RATIO_G  => '0',           -- 64B/66B Encoding
                QPLL_REFCLK_DIV_G   => 1)
             port map (
-               qPllRefClk     => gtRefClk,           -- 156.25 MHz
+               qPllRefClk     => gtRefClk156,        -- 156.25 MHz
                qPllOutClk     => qPllOutClk,
                qPllOutRefClk  => qPllOutRefClk,
                qPllLock       => qPllLock,
                qPllLockDetClk => '0',                -- IP Core ties this to GND (see note below)
                qPllRefClkLost => open,
                qPllPowerDown  => '0',
-               qPllReset      => qpllReset);
+               qPllReset      => qpllResetLoc);
 
          U_TenGigEthGtx7_1 : entity surf.TenGigEthGtx7
             generic map (
@@ -575,7 +593,7 @@ begin
    end generate REAL_ETH_GEN;
 
    SIM_GEN : if (SIMULATION_G) generate
-      ethClk <= fabRefClk;
+      ethClk <= fabRefClk156 when ETH_10G_G else fabRefClk125;
 
       PwrUpRst_Inst : entity surf.PwrUpRst
          generic map (
@@ -774,6 +792,7 @@ begin
    -- DATA RSSI TDEST 0x00 - Local Streaming Data TX buffer
    -- For clock transition
    -----------------------------------------------------
+
    U_AxiStreamFifoV2_LOC_TX : entity surf.AxiStreamFifoV2
       generic map (
          TPD_G               => TPD_G,
@@ -782,10 +801,63 @@ begin
          SLAVE_READY_EN_G    => true,
          VALID_THOLD_G       => 1,
          VALID_BURST_MODE_G  => false,
+         SYNTH_MODE_G        => "xpm",
+         MEMORY_TYPE_G       => "bram",
+         GEN_SYNC_FIFO_G     => true,
+         FIFO_ADDR_WIDTH_G   => 9,
+         FIFO_FIXED_THRESH_G => true,
+--         FIFO_PAUSE_THRESH_G => 2**9-32,
+         SLAVE_AXI_CONFIG_G  => DATA_AXIS_CONFIG_C,
+         MASTER_AXI_CONFIG_G => DATA_AXIS_CONFIG_C)
+      port map (
+         sAxisClk    => axisClk,                    -- [in]
+         sAxisRst    => axisRst,                    -- [in]
+         sAxisMaster => localDataTxAxisMaster,      -- [in]
+         sAxisSlave  => localDataTxAxisSlave,       -- [out]
+--         sAxisCtrl   => localTxAxisCtrl,                   -- [out]
+         mAxisClk    => axisClk,                    -- [in]
+         mAxisRst    => axisRst,                    -- [in]
+         mAxisMaster => localDataTxFifoAxisMaster,  -- [out]
+         mAxisSlave  => localDataTxFifoAxisSlave);  -- [in]
+
+
+   U_AxiStreamBatcherAxil_1 : entity surf.AxiStreamBatcherAxil
+      generic map (
+         TPD_G                        => TPD_G,
+         COMMON_CLOCK_G               => false,
+         MAX_NUMBER_SUB_FRAMES_G      => 150,
+         SUPER_FRAME_BYTE_THRESHOLD_G => 8192,
+         MAX_CLK_GAP_G                => 10000,
+         AXIS_CONFIG_G                => DATA_AXIS_CONFIG_C,
+         INPUT_PIPE_STAGES_G          => 1,
+         OUTPUT_PIPE_STAGES_G         => 1)
+      port map (
+         axisClk         => axisClk,                              -- [in]
+         axisRst         => axisRst,                              -- [in]
+         idle            => open,                                 -- [out]
+         sAxisMaster     => localDataTxFifoAxisMaster,            -- [in]
+         sAxisSlave      => localDataTxFifoAxisSlave,             -- [out]
+         mAxisMaster     => localDataTxBatchedAxisMaster,         -- [out]
+         mAxisSlave      => localDataTxBatchedAxisSlave,          -- [in]
+         axilClk         => ethClk,                              -- [in]
+         axilRst         => ethRst,                              -- [in]
+         axilReadMaster  => locAxilReadMasters(AXIL_BATCHER_C),   -- [in]
+         axilReadSlave   => locAxilReadSlaves(AXIL_BATCHER_C),    -- [out]
+         axilWriteMaster => locAxilWriteMasters(AXIL_BATCHER_C),  -- [in]
+         axilWriteSlave  => locAxilWriteSlaves(AXIL_BATCHER_C));  -- [out]
+
+   U_AxiStreamFifoV2_LOC_TX_BATCHED : entity surf.AxiStreamFifoV2
+      generic map (
+         TPD_G               => TPD_G,
+         INT_PIPE_STAGES_G   => 1,
+         PIPE_STAGES_G       => 0,
+         SLAVE_READY_EN_G    => true,
+         VALID_THOLD_G       => 1,
+         VALID_BURST_MODE_G  => false,
          SYNTH_MODE_G        => "inferred",
-         MEMORY_TYPE_G       => "distributed",
+         MEMORY_TYPE_G       => "bram",
          GEN_SYNC_FIFO_G     => false,
-         FIFO_ADDR_WIDTH_G   => 4,
+         FIFO_ADDR_WIDTH_G   => 8,
          FIFO_FIXED_THRESH_G => true,
 --         FIFO_PAUSE_THRESH_G => 2**9-32,
          SLAVE_AXI_CONFIG_G  => DATA_AXIS_CONFIG_C,
@@ -793,8 +865,8 @@ begin
       port map (
          sAxisClk    => axisClk,                                   -- [in]
          sAxisRst    => axisRst,                                   -- [in]
-         sAxisMaster => localDataTxAxisMaster,                     -- [in]
-         sAxisSlave  => localDataTxAxisSlave,                      -- [out]
+         sAxisMaster => localDataTxBatchedAxisMaster,              -- [in]
+         sAxisSlave  => localDataTxBatchedAxisSlave,               -- [out]
 --         sAxisCtrl   => localTxAxisCtrl,                   -- [out]
          mAxisClk    => ethClk,                                    -- [in]
          mAxisRst    => ethRst,                                    -- [in]

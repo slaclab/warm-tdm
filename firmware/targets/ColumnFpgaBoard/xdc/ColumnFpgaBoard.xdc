@@ -8,7 +8,7 @@
 ## the terms contained in the LICENSE.txt file.
 ##############################################################################
 create_clock -name gtRefClk0 -period 4.000 [get_ports {gtRefClk0P}]
-create_clock -name gtRefClk1 -period 8.000 [get_ports {gtRefClk1P}]
+create_clock -name gtRefClk1 -period 6.400 [get_ports {gtRefClk1P}]
 
 
 create_clock -name adcDClk0 -period 2.00 [get_ports {adcDClkP[0]}]
@@ -132,40 +132,41 @@ set_property -dict { PACKAGE_PIN AE6 IOSTANDARD LVCMOS18 } [get_ports { adcPdwn 
 
 
 ## Fast DACS
-set_property -dict { PACKAGE_PIN AE26 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[0] }];
-set_property -dict { PACKAGE_PIN AB22 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[1] }];
-set_property -dict { PACKAGE_PIN AD26 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[2] }];
-set_property -dict { PACKAGE_PIN AB25 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[3] }];
-set_property -dict { PACKAGE_PIN AA25 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[4] }];
-set_property -dict { PACKAGE_PIN Y23  IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[5] }];
-set_property -dict { PACKAGE_PIN Y25  IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[6] }];
-set_property -dict { PACKAGE_PIN W26  IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[7] }];
-set_property -dict { PACKAGE_PIN V22  IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[8] }];
-set_property -dict { PACKAGE_PIN Y26  IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[9] }];
-set_property -dict { PACKAGE_PIN V24  IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[10] }];
-set_property -dict { PACKAGE_PIN V23  IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[11] }];
-set_property -dict { PACKAGE_PIN V26  IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[12] }];
-set_property -dict { PACKAGE_PIN U25  IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[13] }];
+# SA FB is labeled as SQ1 Bias on schematic FPGA pins but gets accidentally swapped at schematic top level
+set_property -dict { PACKAGE_PIN AE26 IOSTANDARD LVCMOS33 } [get_ports { saFbDb[0] }];
+set_property -dict { PACKAGE_PIN AB22 IOSTANDARD LVCMOS33 } [get_ports { saFbDb[1] }];
+set_property -dict { PACKAGE_PIN AD26 IOSTANDARD LVCMOS33 } [get_ports { saFbDb[2] }];
+set_property -dict { PACKAGE_PIN AB25 IOSTANDARD LVCMOS33 } [get_ports { saFbDb[3] }];
+set_property -dict { PACKAGE_PIN AA25 IOSTANDARD LVCMOS33 } [get_ports { saFbDb[4] }];
+set_property -dict { PACKAGE_PIN Y23  IOSTANDARD LVCMOS33 } [get_ports { saFbDb[5] }];
+set_property -dict { PACKAGE_PIN Y25  IOSTANDARD LVCMOS33 } [get_ports { saFbDb[6] }];
+set_property -dict { PACKAGE_PIN W26  IOSTANDARD LVCMOS33 } [get_ports { saFbDb[7] }];
+set_property -dict { PACKAGE_PIN V22  IOSTANDARD LVCMOS33 } [get_ports { saFbDb[8] }];
+set_property -dict { PACKAGE_PIN Y26  IOSTANDARD LVCMOS33 } [get_ports { saFbDb[9] }];
+set_property -dict { PACKAGE_PIN V24  IOSTANDARD LVCMOS33 } [get_ports { saFbDb[10] }];
+set_property -dict { PACKAGE_PIN V23  IOSTANDARD LVCMOS33 } [get_ports { saFbDb[11] }];
+set_property -dict { PACKAGE_PIN V26  IOSTANDARD LVCMOS33 } [get_ports { saFbDb[12] }];
+set_property -dict { PACKAGE_PIN U25  IOSTANDARD LVCMOS33 } [get_ports { saFbDb[13] }];
 
-set_property -dict { PACKAGE_PIN AC23 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasWrt[0] }];
-set_property -dict { PACKAGE_PIN AB26 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasWrt[1] }];
-set_property -dict { PACKAGE_PIN W24  IOSTANDARD LVCMOS33 } [get_ports { sq1BiasWrt[2] }];
-set_property -dict { PACKAGE_PIN AC24 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasWrt[3] }];
+set_property -dict { PACKAGE_PIN AC23 IOSTANDARD LVCMOS33 } [get_ports { saFbWrt[0] }];
+set_property -dict { PACKAGE_PIN AB26 IOSTANDARD LVCMOS33 } [get_ports { saFbWrt[1] }];
+set_property -dict { PACKAGE_PIN W24  IOSTANDARD LVCMOS33 } [get_ports { saFbWrt[2] }];
+set_property -dict { PACKAGE_PIN AC24 IOSTANDARD LVCMOS33 } [get_ports { saFbWrt[3] }];
 
-set_property -dict { PACKAGE_PIN AD24 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasClk[0] }];
-set_property -dict { PACKAGE_PIN AC26 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasClk[1] }];
-set_property -dict { PACKAGE_PIN W23  IOSTANDARD LVCMOS33 } [get_ports { sq1BiasClk[2] }];
-set_property -dict { PACKAGE_PIN AE25 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasClk[3] }];
+set_property -dict { PACKAGE_PIN AD24 IOSTANDARD LVCMOS33 } [get_ports { saFbClk[0] }];
+set_property -dict { PACKAGE_PIN AC26 IOSTANDARD LVCMOS33 } [get_ports { saFbClk[1] }];
+set_property -dict { PACKAGE_PIN W23  IOSTANDARD LVCMOS33 } [get_ports { saFbClk[2] }];
+set_property -dict { PACKAGE_PIN AE25 IOSTANDARD LVCMOS33 } [get_ports { saFbClk[3] }];
 
-set_property -dict { PACKAGE_PIN AC22 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasSel[0] }];
-set_property -dict { PACKAGE_PIN AB24 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasSel[1] }];
-set_property -dict { PACKAGE_PIN AA24 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasSel[2] }];
-set_property -dict { PACKAGE_PIN AE23 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasSel[3] }];
+set_property -dict { PACKAGE_PIN AC22 IOSTANDARD LVCMOS33 } [get_ports { saFbSel[0] }];
+set_property -dict { PACKAGE_PIN AB24 IOSTANDARD LVCMOS33 } [get_ports { saFbSel[1] }];
+set_property -dict { PACKAGE_PIN AA24 IOSTANDARD LVCMOS33 } [get_ports { saFbSel[2] }];
+set_property -dict { PACKAGE_PIN AE23 IOSTANDARD LVCMOS33 } [get_ports { saFbSel[3] }];
 
-set_property -dict { PACKAGE_PIN AD23 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasReset[0] }];
-set_property -dict { PACKAGE_PIN AD25 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasReset[1] }];
-set_property -dict { PACKAGE_PIN AA23 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasReset[2] }];
-set_property -dict { PACKAGE_PIN AF25 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasReset[3] }];
+set_property -dict { PACKAGE_PIN AD23 IOSTANDARD LVCMOS33 } [get_ports { saFbReset[0] }];
+set_property -dict { PACKAGE_PIN AD25 IOSTANDARD LVCMOS33 } [get_ports { saFbReset[1] }];
+set_property -dict { PACKAGE_PIN AA23 IOSTANDARD LVCMOS33 } [get_ports { saFbReset[2] }];
+set_property -dict { PACKAGE_PIN AF25 IOSTANDARD LVCMOS33 } [get_ports { saFbReset[3] }];
 
 
 set_property -dict { PACKAGE_PIN U19 IOSTANDARD LVCMOS33 } [get_ports { sq1FbDb[0] }];
@@ -203,41 +204,41 @@ set_property -dict { PACKAGE_PIN R25 IOSTANDARD LVCMOS33 } [get_ports { sq1FbRes
 set_property -dict { PACKAGE_PIN T20 IOSTANDARD LVCMOS33 } [get_ports { sq1FbReset[2] }];
 set_property -dict { PACKAGE_PIN R16 IOSTANDARD LVCMOS33 } [get_ports { sq1FbReset[3] }];
 
-
-set_property -dict { PACKAGE_PIN J18 IOSTANDARD LVCMOS33 } [get_ports { saFbDb[0] }];  
-set_property -dict { PACKAGE_PIN H17 IOSTANDARD LVCMOS33 } [get_ports { saFbDb[1] }];  
-set_property -dict { PACKAGE_PIN H18 IOSTANDARD LVCMOS33 } [get_ports { saFbDb[2] }];  
-set_property -dict { PACKAGE_PIN G19 IOSTANDARD LVCMOS33 } [get_ports { saFbDb[3] }];  
-set_property -dict { PACKAGE_PIN F19 IOSTANDARD LVCMOS33 } [get_ports { saFbDb[4] }];  
-set_property -dict { PACKAGE_PIN F17 IOSTANDARD LVCMOS33 } [get_ports { saFbDb[5] }];  
-set_property -dict { PACKAGE_PIN F20 IOSTANDARD LVCMOS33 } [get_ports { saFbDb[6] }];  
-set_property -dict { PACKAGE_PIN E18 IOSTANDARD LVCMOS33 } [get_ports { saFbDb[7] }];  
-set_property -dict { PACKAGE_PIN E17 IOSTANDARD LVCMOS33 } [get_ports { saFbDb[8] }];  
-set_property -dict { PACKAGE_PIN E16 IOSTANDARD LVCMOS33 } [get_ports { saFbDb[9] }];  
-set_property -dict { PACKAGE_PIN E15 IOSTANDARD LVCMOS33 } [get_ports { saFbDb[10] }]; 
-set_property -dict { PACKAGE_PIN D19 IOSTANDARD LVCMOS33 } [get_ports { saFbDb[11] }]; 
-set_property -dict { PACKAGE_PIN E20 IOSTANDARD LVCMOS33 } [get_ports { saFbDb[12] }]; 
-set_property -dict { PACKAGE_PIN D18 IOSTANDARD LVCMOS33 } [get_ports { saFbDb[13] }]; 
+# SQ1 Bias is labeled as saFB on schematic FPGA pins but gets accidentally swapped at schematic top level
+set_property -dict { PACKAGE_PIN J18 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[0] }];  
+set_property -dict { PACKAGE_PIN H17 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[1] }];  
+set_property -dict { PACKAGE_PIN H18 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[2] }];  
+set_property -dict { PACKAGE_PIN G19 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[3] }];  
+set_property -dict { PACKAGE_PIN F19 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[4] }];  
+set_property -dict { PACKAGE_PIN F17 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[5] }];  
+set_property -dict { PACKAGE_PIN F20 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[6] }];  
+set_property -dict { PACKAGE_PIN E18 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[7] }];  
+set_property -dict { PACKAGE_PIN E17 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[8] }];  
+set_property -dict { PACKAGE_PIN E16 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[9] }];  
+set_property -dict { PACKAGE_PIN E15 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[10] }]; 
+set_property -dict { PACKAGE_PIN D19 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[11] }]; 
+set_property -dict { PACKAGE_PIN E20 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[12] }]; 
+set_property -dict { PACKAGE_PIN D18 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasDb[13] }]; 
 				    						       
-set_property -dict { PACKAGE_PIN K16 IOSTANDARD LVCMOS33 } [get_ports { saFbWrt[0] }]; 
-set_property -dict { PACKAGE_PIN L17 IOSTANDARD LVCMOS33 } [get_ports { saFbWrt[1] }]; 
-set_property -dict { PACKAGE_PIN G17 IOSTANDARD LVCMOS33 } [get_ports { saFbWrt[2] }]; 
-set_property -dict { PACKAGE_PIN J19 IOSTANDARD LVCMOS33 } [get_ports { saFbWrt[3] }]; 
+set_property -dict { PACKAGE_PIN K16 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasWrt[0] }]; 
+set_property -dict { PACKAGE_PIN L17 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasWrt[1] }]; 
+set_property -dict { PACKAGE_PIN G17 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasWrt[2] }]; 
+set_property -dict { PACKAGE_PIN J19 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasWrt[3] }]; 
 				    						       
-set_property -dict { PACKAGE_PIN J20 IOSTANDARD LVCMOS33 } [get_ports { saFbClk[0] }]; 
-set_property -dict { PACKAGE_PIN M17 IOSTANDARD LVCMOS33 } [get_ports { saFbClk[1] }]; 
-set_property -dict { PACKAGE_PIN F18 IOSTANDARD LVCMOS33 } [get_ports { saFbClk[2] }]; 
-set_property -dict { PACKAGE_PIN K17 IOSTANDARD LVCMOS33 } [get_ports { saFbClk[3] }]; 
+set_property -dict { PACKAGE_PIN J20 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasClk[0] }]; 
+set_property -dict { PACKAGE_PIN M17 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasClk[1] }]; 
+set_property -dict { PACKAGE_PIN F18 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasClk[2] }]; 
+set_property -dict { PACKAGE_PIN K17 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasClk[3] }]; 
 				    						       
-set_property -dict { PACKAGE_PIN K20 IOSTANDARD LVCMOS33 } [get_ports { saFbSel[0] }]; 
-set_property -dict { PACKAGE_PIN L19 IOSTANDARD LVCMOS33 } [get_ports { saFbSel[1] }]; 
-set_property -dict { PACKAGE_PIN H19 IOSTANDARD LVCMOS33 } [get_ports { saFbSel[2] }]; 
-set_property -dict { PACKAGE_PIN M16 IOSTANDARD LVCMOS33 } [get_ports { saFbSel[3] }]; 
+set_property -dict { PACKAGE_PIN K20 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasSel[0] }]; 
+set_property -dict { PACKAGE_PIN L19 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasSel[1] }]; 
+set_property -dict { PACKAGE_PIN H19 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasSel[2] }]; 
+set_property -dict { PACKAGE_PIN M16 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasSel[3] }]; 
 				    						       
-set_property -dict { PACKAGE_PIN K18 IOSTANDARD LVCMOS33 } [get_ports { saFbReset[0] }];
-set_property -dict { PACKAGE_PIN L20 IOSTANDARD LVCMOS33 } [get_ports { saFbReset[1] }];
-set_property -dict { PACKAGE_PIN G20 IOSTANDARD LVCMOS33 } [get_ports { saFbReset[2] }];
-set_property -dict { PACKAGE_PIN L18 IOSTANDARD LVCMOS33 } [get_ports { saFbReset[3] }];
+set_property -dict { PACKAGE_PIN K18 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasReset[0] }];
+set_property -dict { PACKAGE_PIN L20 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasReset[1] }];
+set_property -dict { PACKAGE_PIN G20 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasReset[2] }];
+set_property -dict { PACKAGE_PIN L18 IOSTANDARD LVCMOS33 } [get_ports { sq1BiasReset[3] }];
 
 
 set_property -dict { PACKAGE_PIN H8  IOSTANDARD LVCMOS33 } [get_ports { auxDb[0] }];  

@@ -44,12 +44,8 @@ def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title,
         # Mark the min point
         ax.plot(*curveDataDict['lowPoints'][biasIndex], 'v', color=color)
 
-    # Plot the calculated operating point
-    ax.plot(curveDataDict['xOut'], curveDataDict['yOut'], 's', label='Tune Point')
-    ax.axhline(y=curveDataDict['yOut'], linestyle='--')
-    ax.axvline(x=curveDataDict['xOut'], linestyle='--')
-
-    ax.legend(title=legend_title, ncol=math.ceil(n/10))
+        n = len(curveDataDict['biasValues'])
+        ax.legend(title=legend_title, ncol=math.ceil(n/10))
     
 
 class CurveData():

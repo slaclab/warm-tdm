@@ -52,9 +52,9 @@ entity WarmTdmCore2 is
       -- IO Interfaces
       ----------------
       -- Clocks
-      gtRefClk0P : in sl;
+      gtRefClk0P : in sl;                                         -- 250 MHz
       gtRefClk0N : in sl;
-      gtRefClk1P : in sl;
+      gtRefClk1P : in sl;                                         -- 156.25MHz
       gtRefClk1N : in sl;
 
       -- PGP Interface
@@ -125,6 +125,8 @@ entity WarmTdmCore2 is
 
       -- Amplifier power down
       ampPdB : out slv(7 downto 0) := (others => '1');
+
+      adcFilterEn : out slv(7 downto 0);
 
       -- Status LEDs
       leds           : out slv(7 downto 0) := "00000000";
@@ -206,7 +208,7 @@ architecture rtl of WarmTdmCore2 is
    signal gtRefClk0  : sl;
    signal gtRefClk1  : sl;
 
-   signal rssiStatus  : slv7Array(1 downto 0);
+   signal rssiStatus  : slv9Array(1 downto 0);
    signal ethPhyReady : sl;
 
    signal locTimingRxClk125 : sl;
@@ -230,8 +232,8 @@ begin
    Heartbeat_RefClk0 : entity surf.Heartbeat
       generic map (
          TPD_G        => TPD_G,
-         PERIOD_IN_G  => 4.0E-9,
-         PERIOD_OUT_G => 0.4)
+         PERIOD_IN_G  => 8.0E-9,
+         PERIOD_OUT_G => 0.8)
       port map (
          clk => fabRefClk0,
          o   => ledsTmp(0));
@@ -239,8 +241,8 @@ begin
    Heartbeat_RefClk1 : entity surf.Heartbeat
       generic map (
          TPD_G        => TPD_G,
-         PERIOD_IN_G  => 8.0E-9,
-         PERIOD_OUT_G => 0.8)
+         PERIOD_IN_G  => 6.4E-9,
+         PERIOD_OUT_G => 0.64)
       port map (
          clk => fabRefClk1,
          o   => ledsTmp(1));
@@ -291,7 +293,7 @@ begin
       generic map (
          TPD_G        => TPD_G,
          CLK_0_DIV2_G => true,
-         CLK_1_DIV2_G => true)
+         CLK_1_DIV2_G => false)
       port map (
          gtRefClk0P => gtRefClk0P,      -- [in]
          gtRefClk0N => gtRefClk0N,      -- [in]
@@ -382,8 +384,10 @@ begin
          IP_ADDR_G               => IP_ADDR_G,
          MAC_ADDR_G              => MAC_ADDR_G)
       port map (
-         gtRefClk         => gtRefClk0,                        -- [in]
-         fabRefClk        => fabRefClk0,                       -- [in]
+         gtRefClk250      => gtRefClk0,                        -- [in]
+         fabRefClk125     => fabRefClk0,                       -- [in]
+         gtRefClk156      => gtRefClk1,                        -- [in]
+         fabRefClk156     => fabRefClk1,                       -- [in]
          pgpTxP           => pgpTxP,                           -- [out]
          pgpTxN           => pgpTxN,                           -- [out]
          pgpRxP           => pgpRxP,                           -- [in]
@@ -453,7 +457,8 @@ begin
          localThermistorN  => localThermistorN,                    -- [in]
          feThermistorP     => feThermistorP,                       -- [in]
          feThermistorN     => feThermistorN,                       -- [in]
-         ampPdB            => ampPdB);                             -- [out]
+         ampPdB            => ampPdB,                              -- [out]
+         adcFilterEn       => adcFilterEn);                        -- [out]
 
 
 end rtl;

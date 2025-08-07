@@ -35,7 +35,7 @@ architecture sim of ColumnFpgaBoardTb is
 
    -- component generics
    constant TPD_G                : time    := 1 ns;
-   constant AWAXE_G              : boolean := true;
+   constant AWAXE_G              : boolean := false;
    constant NUM_COLUMN_MODULES_C : integer := 1;
 
    -- component ports

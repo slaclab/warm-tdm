@@ -83,41 +83,45 @@ architecture rtl of TimingTx is
       xbarTimingSel : slv(1 downto 0);
 
       -- Config
-      runMode             : sl;
-      softwareRowStrobe   : sl;
-      rowPeriod           : slv(31 downto 0);
-      numRows             : slv(15 downto 0);
-      sampleStartTime     : slv(31 downto 0);
-      sampleEndTime       : slv(31 downto 0);
-      loadDacsTime        : slv(31 downto 0);
-      waveformCaptureTime : slv(31 downto 0);
+      runMode                 : sl;
+      softwareRowStrobe       : sl;
+      rowPeriod               : slv(31 downto 0);
+      numRows                 : slv(15 downto 0);
+      sampleStartTime         : slv(31 downto 0);
+      sampleEndTime           : slv(31 downto 0);
+      loadDacsTime            : slv(31 downto 0);
+      waveformCaptureTime     : slv(31 downto 0);
+      daqReadoutPeriod        : slv(31 downto 0);
+      daqReadoutPeriodCounter : slv(31 downto 0);
       -- State
-      timingData          : LocalTimingType;
-      timingTx            : slv(7 downto 0);
-      timingTxK           : slv(0 downto 0);
+      timingData              : LocalTimingType;
+      timingTx                : slv(7 downto 0);
+      timingTxK               : slv(0 downto 0);
       -- AXIL
-      axilWriteSlave      : AxiLiteWriteSlaveType;
-      axilReadSlave       : AxiLiteReadSlaveType;
+      axilWriteSlave          : AxiLiteWriteSlaveType;
+      axilReadSlave           : AxiLiteReadSlaveType;
    end record RegType;
 
    constant REG_INIT_C : RegType := (
-      xbarDataSel         => ite(RING_ADDR_0_G, "11", "00"),  -- Temporary loopback only
-      xbarClkSel          => ite(RING_ADDR_0_G, "11", "00"),
-      xbarMgtSel          => "01",
-      xbarTimingSel       => "01",
-      runMode             => SOFTWARE_C,
-      softwareRowStrobe   => '0',
-      rowPeriod           => toSlv(250, 32),                  -- 125 MHz / 256 = 488 kHz
-      numRows             => toSlv(256, 16),                  -- Default of 64 rows
-      sampleStartTime     => toSlv(32, 32),
-      sampleEndTime       => toSlv(160, 32),                  -- Could be corner case here?
-      loadDacsTime        => toSlv(200, 32),
-      waveformCaptureTime => toSlv(2, 32),
-      timingTx            => IDLE_C,
-      timingTxK           => "1",
-      timingData          => LOCAL_TIMING_INIT_C,
-      axilWriteSlave      => AXI_LITE_WRITE_SLAVE_INIT_C,
-      axilReadSlave       => AXI_LITE_READ_SLAVE_INIT_C);
+      xbarDataSel             => ite(RING_ADDR_0_G, "11", "00"),  -- Temporary loopback only
+      xbarClkSel              => ite(RING_ADDR_0_G, "11", "00"),
+      xbarMgtSel              => "01",
+      xbarTimingSel           => "01",
+      runMode                 => SOFTWARE_C,
+      softwareRowStrobe       => '0',
+      rowPeriod               => toSlv(250, 32),                  -- 125 MHz / 256 = 488 kHz
+      numRows                 => toSlv(256, 16),
+      sampleStartTime         => toSlv(32, 32),
+      sampleEndTime           => toSlv(160, 32),                  -- Could be corner case here?
+      loadDacsTime            => toSlv(200, 32),
+      waveformCaptureTime     => toSlv(2, 32),
+      daqReadoutPeriod        => toSlv(40, 32),  -- Readout once every 40 rowSequences
+      daqReadoutPeriodCounter => (others => '0'),
+      timingTx                => IDLE_C,
+      timingTxK               => "1",
+      timingData              => LOCAL_TIMING_INIT_C,
+      axilWriteSlave          => AXI_LITE_WRITE_SLAVE_INIT_C,
+      axilReadSlave           => AXI_LITE_READ_SLAVE_INIT_C);
 
    signal r   : RegType := REG_INIT_C;
    signal rin : RegType;
@@ -230,6 +234,7 @@ begin
       axiSlaveRegister(axilEp, X"14", 0, v.sampleEndTime);
       axiSlaveRegister(axilEp, X"18", 0, v.runMode);
       axiSlaveRegister(axilEp, X"1C", 0, v.softwareRowStrobe);
+      axiSlaveRegister(axilEp, X"2C", 0, v.daqReadoutPeriod);
 
       axiSlaveRegister(axilEp, X"20", 0, v.timingData.waveformCapture);
       axiSlaveRegister(axilEp, X"24", 0, v.loadDacsTime);
@@ -243,7 +248,8 @@ begin
       axiSlaveRegisterR(axilEp, X"34", 24, r.timingData.rowIndexNext);
       axiSlaveRegisterR(axilEp, X"38", 0, r.timingData.rowTime);
       axiSlaveRegisterR(axilEp, X"40", 0, r.timingData.runTime);
-      axiSlaveRegisterR(axilEp, X"48", 0, r.timingData.readoutCount);
+      axiSlaveRegisterR(axilEp, X"70", 0, r.timingData.rowSeqCount);
+      axiSlaveRegisterR(axilEp, X"78", 0, r.timingData.daqReadoutCount);
 
       axiSlaveRegister(axilEp, X"50", 0, v.xbarClkSel);
       axiSlaveRegister(axilEp, X"50", 4, v.xbarDataSel);
@@ -274,11 +280,13 @@ begin
 
       -- Start run
       if (r.timingData.startRun = '1' and r.timingData.running = '0') then
-         v.timingData.running      := '1';
-         v.timingData.runTime      := (others => '0');
-         v.timingData.rowSeq       := (others => '0');
-         v.timingData.rowTime      := (others => '0');
-         v.timingData.readoutCount := (others => '0');
+         v.timingData.running                 := '1';
+         v.timingData.runTime                 := (others => '0');
+         v.timingData.rowSeq                  := (others => '0');
+         v.timingData.rowTime                 := (others => '0');
+         v.timingData.rowSeqCount             := (others => '0');
+         v.timingData.daqReadoutCount         := (others => '0');
+         v.daqReadoutPeriodCounter := (others => '0');
 
          v.timingTx := START_RUN_C;
       end if;
@@ -297,18 +305,32 @@ begin
             v.timingData.rowSeq  := r.timingData.rowSeq + 1;
 
             if (r.timingData.rowSeq = r.numRows-1) then
-               v.timingData.rowSeq       := (others => '0');
-               v.timingData.readoutCount := r.timingData.readoutCount + 1;
+               v.timingData.rowSeq      := (others => '0');
+               v.timingData.rowSeqCount := r.timingData.rowSeqCount + 1;
+
+               -- Count sequences for readout period
+               v.daqReadoutPeriodCounter := r.daqReadoutPeriodCounter + 1;
+               if (r.daqReadoutPeriodCounter = r.daqReadoutPeriod -1) then
+                  v.daqReadoutPeriodCounter    := (others => '0');
+                  v.timingData.daqReadoutCount := r.timingData.daqReadoutCount + 1;
+               end if;
             end if;
+
          end if;
 
          -- Send codes
          if (r.runMode = HARDWARE_C and r.timingData.rowTime = 0 and r.timingData.startRun = '0') or
             (r.runMode = SOFTWARE_C and r.softwareRowStrobe = '1') then
-            v.timingTx             := ROW_STROBE_C;
+            v.timingTx := ROW_STROBE_C;
+            if (r.timingData.rowSeq = 1) then
+               v.timingTx := ROW_SEQ_START_C;
+               if (r.daqReadoutPeriodCounter = 0) then
+                  v.timingTx := DAQ_READOUT_START_C;
+               end if;
+            end if;
             v.timingData.rowStrobe := '1';
 
-         elsif (r.timingTxK = "1" and (r.timingTx = ROW_STROBE_C or r.timingTx = START_RUN_C)) then
+         elsif (r.timingTxK = "1" and (r.timingTx = DAQ_READOUT_START_C or r.timingTx = ROW_SEQ_START_C or r.timingTx = ROW_STROBE_C or r.timingTx = START_RUN_C)) then
             v.timingTxK := "0";
             v.timingTx  := rowOrderRamOut;
 
@@ -415,7 +437,7 @@ begin
          tooFast     => open,           -- [out]
          tooSlow     => open,           -- [out]
          clkIn       => timingRefClk,   -- [in]
-         locClk      => axilClk,        -- [in]
+         locClk      => wordClk,        -- [in]
          refClk      => axilClk);       -- [in]
 
    U_SyncClockFreq_WORD : entity surf.SyncClockFreq
@@ -435,7 +457,7 @@ begin
          tooFast     => open,           -- [out]
          tooSlow     => open,           -- [out]
          clkIn       => wordClk,        -- [in]
-         locClk      => axilClk,        -- [in]
+         locClk      => wordClk,        -- [in]
          refClk      => axilClk);       -- [in]
 
 

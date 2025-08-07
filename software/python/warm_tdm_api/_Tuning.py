@@ -175,6 +175,8 @@ def saBiasSweep(*, group, process):
     # Sweep the SaFb range with saFbSweep()
     for idx in range(numBiasSteps):
         group.SaFbForceCurrent.set(np.zeros(colCount, np.float64))
+        group.Sq1BiasForceCurrent.set(np.zeros(colCount, np.float64))
+        group.Sq1FbForceCurrent.set(np.zeros(colCount, np.float64))        
         # Update process message 
         if process is not None:
             process.Message.set(f'SaBias step {idx+1} out of {numBiasSteps}')

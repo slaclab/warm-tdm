@@ -237,8 +237,8 @@ architecture rtl of ColumnFpgaBoard is
          addrBits         => 16,
          connectivity     => X"FFFF"),
       AXIL_DATA_PATH_C    => (
-         baseAddr         => APP_BASE_ADDR_C + X"00300000",
-         addrBits         => 20,
+         baseAddr         => APP_BASE_ADDR_C + X"01000000",
+         addrBits         => 24,
          connectivity     => X"FFFF"),
       AXIL_SQ1_BIAS_DAC_C => (
          baseAddr         => APP_BASE_ADDR_C + X"00400000",
@@ -271,6 +271,8 @@ architecture rtl of ColumnFpgaBoard is
 
    signal axilClk : sl;
    signal axilRst : sl;
+
+   signal adcFilterEn : slv(7 downto 0);
 
    signal srpAxilWriteMaster : AxiLiteWriteMasterType;
    signal srpAxilWriteSlave  : AxiLiteWriteSlaveType;
@@ -377,6 +379,7 @@ begin
          feThermistorN    => feThermistorN,       -- [in]
          asicResetB       => resetB,              -- [out]
          ampPdB           => ampPdB,              -- [out]
+         adcFilterEn      => adcFilterEn,         -- [out]
          leds             => leds,                -- [out]
          conRxGreenLed    => conRxGreenLed,       -- [out]
          conRxYellowLed   => conRxYellowLed,      -- [out]
@@ -603,6 +606,7 @@ begin
       generic map (
          TPD_G            => TPD_G,
          SIMULATION_G     => SIMULATION_G,
+         GEN_ADC_FILTER_G => true,
          NEGATE_ADC_G     => false,
          INVERT_SQ1FB_G   => false,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_DATA_PATH_C).baseAddr,
@@ -620,6 +624,7 @@ begin
          axisSlave        => dataTxAxisSlave,                        -- [in]
          axilClk          => axilClk,                                -- [in]
          axilRst          => axilRst,                                -- [in]
+         adcFilterEn      => adcFilterEn,                            -- [in]
          sAxilReadMaster  => locAxilReadMasters(AXIL_DATA_PATH_C),   -- [in]
          sAxilReadSlave   => locAxilReadSlaves(AXIL_DATA_PATH_C),    -- [out]
          sAxilWriteMaster => locAxilWriteMasters(AXIL_DATA_PATH_C),  -- [in]

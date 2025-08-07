@@ -134,7 +134,7 @@ set_property -dict { PACKAGE_PIN V23  IOSTANDARD LVCMOS33 } [get_ports { dacDb0[
 set_property -dict { PACKAGE_PIN V26  IOSTANDARD LVCMOS33 } [get_ports { dacDb0[12] }];
 set_property -dict { PACKAGE_PIN U25  IOSTANDARD LVCMOS33 } [get_ports { dacDb0[13] }];
 
-set_property -dict { PACKAGE_PIN AC23 IOSTANDARD LVCMOS33 } [get_ports { dacWrt[0] }];
+set_property -dict { PACKAGE_PIN AC23 IOSTANDARD LVCMOS33 } [get_ports { dacWrt[0] }]; # SA FB
 set_property -dict { PACKAGE_PIN AB26 IOSTANDARD LVCMOS33 } [get_ports { dacWrt[1] }];
 set_property -dict { PACKAGE_PIN W24  IOSTANDARD LVCMOS33 } [get_ports { dacWrt[2] }];
 set_property -dict { PACKAGE_PIN AC24 IOSTANDARD LVCMOS33 } [get_ports { dacWrt[3] }];
@@ -170,7 +170,7 @@ set_property -dict { PACKAGE_PIN P23 IOSTANDARD LVCMOS33 } [get_ports { dacDb1[1
 set_property -dict { PACKAGE_PIN P24 IOSTANDARD LVCMOS33 } [get_ports { dacDb1[12] }];
 set_property -dict { PACKAGE_PIN P26 IOSTANDARD LVCMOS33 } [get_ports { dacDb1[13] }];
 				    
-set_property -dict { PACKAGE_PIN R18  IOSTANDARD LVCMOS33 } [get_ports { dacWrt[4] }];
+set_property -dict { PACKAGE_PIN R18  IOSTANDARD LVCMOS33 } [get_ports { dacWrt[4] }]; # SQ1FB
 set_property -dict { PACKAGE_PIN P25  IOSTANDARD LVCMOS33 } [get_ports { dacWrt[5] }];
 set_property -dict { PACKAGE_PIN T22  IOSTANDARD LVCMOS33 } [get_ports { dacWrt[6] }];
 set_property -dict { PACKAGE_PIN R17  IOSTANDARD LVCMOS33 } [get_ports { dacWrt[7] }];
@@ -206,7 +206,7 @@ set_property -dict { PACKAGE_PIN D19 IOSTANDARD LVCMOS33 } [get_ports { dacDb2[1
 set_property -dict { PACKAGE_PIN E20 IOSTANDARD LVCMOS33 } [get_ports { dacDb2[12] }]; 
 set_property -dict { PACKAGE_PIN D18 IOSTANDARD LVCMOS33 } [get_ports { dacDb2[13] }]; 
 				    						       
-set_property -dict { PACKAGE_PIN K16 IOSTANDARD LVCMOS33 } [get_ports { dacWrt[8] }]; 
+set_property -dict { PACKAGE_PIN K16 IOSTANDARD LVCMOS33 } [get_ports { dacWrt[8] }]; # SQ1 Bias
 set_property -dict { PACKAGE_PIN L17 IOSTANDARD LVCMOS33 } [get_ports { dacWrt[9] }]; 
 set_property -dict { PACKAGE_PIN G17 IOSTANDARD LVCMOS33 } [get_ports { dacWrt[10] }]; 
 set_property -dict { PACKAGE_PIN J19 IOSTANDARD LVCMOS33 } [get_ports { dacWrt[11] }]; 
@@ -242,7 +242,7 @@ set_property -dict { PACKAGE_PIN D10 IOSTANDARD LVCMOS33 } [get_ports { dacDb3[1
 set_property -dict { PACKAGE_PIN D8  IOSTANDARD LVCMOS33 } [get_ports { dacDb3[12] }]; 
 set_property -dict { PACKAGE_PIN C9  IOSTANDARD LVCMOS33 } [get_ports { dacDb3[13] }]; 
 				 						       
-set_property -dict { PACKAGE_PIN J8  IOSTANDARD LVCMOS33 } [get_ports { dacWrt[12] }]; 
+set_property -dict { PACKAGE_PIN J8  IOSTANDARD LVCMOS33 } [get_ports { dacWrt[12] }]; # AUX
 set_property -dict { PACKAGE_PIN G11 IOSTANDARD LVCMOS33 } [get_ports { dacWrt[13] }]; 
 set_property -dict { PACKAGE_PIN E12 IOSTANDARD LVCMOS33 } [get_ports { dacWrt[14] }]; 
 set_property -dict { PACKAGE_PIN G14 IOSTANDARD LVCMOS33 } [get_ports { dacWrt[15] }]; 

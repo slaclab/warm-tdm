@@ -69,14 +69,14 @@ begin
          O     => intGtRefClk0);
 
    FAB_0_DIV2_GEN : if (CLK_0_DIV2_G) generate
-      U_BUFG : BUFG
+      U_BUFG_0 : BUFG
          port map (
             I => intDiv2Clk0,
             O => fabRefClk0);
    end generate;
 
    FAB_0_GEN : if (not CLK_0_DIV2_G) generate
-      U_BUFG : BUFG
+      U_BUFG_0 : BUFG
          port map (
             I => intGtRefClk0,
             O => fabRefClk0);
@@ -91,14 +91,14 @@ begin
          O     => intGtRefClk1);
 
    FAB_1_DIV2_GEN : if (CLK_1_DIV2_G) generate
-      U_BUFG : BUFG
+      U_BUFG_1 : BUFG
          port map (
             I => intDiv2Clk1,
             O => fabRefClk1);
    end generate;
 
    FAB_1_GEN : if (not CLK_1_DIV2_G) generate
-      U_BUFG : BUFG
+      U_BUFG_1 : BUFG
          port map (
             I => intGtRefClk1,
             O => fabRefClk1);

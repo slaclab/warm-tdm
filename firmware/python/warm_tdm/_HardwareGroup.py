@@ -13,6 +13,25 @@ SIM_DATA_PORT = 20000
 SRP_PORT = 8192
 DATA_PORT = 8193
 
+class DataDebug(rogue.interfaces.stream.Slave):
+
+    def _acceptFrame(self, frame):
+        arr = frame.getNumpy()
+        print(f'Got frame with {len(arr)} bytes')
+        words = arr[:-5].reshape(-1, 5)
+        readoutCount = int.from_bytes( words[0:2, 0:8], byteorder='little', signed=False)
+        rowSeqCount = int.from_bytes(words[2:4, 0:8], byteorder='little', signed=False)
+        runTime = int.from_bytes(words[4:6, 0:8], byteorder='little', signed=False)
+        samples = words[6:]
+
+        print(f'{readoutCount=}')
+        print(f'{rowSeqCount=}')
+        print(f'{runTime=}')        
+        for s in samples:
+            value = int.from_bytes(s[0:3], byteorder='little', signed=True)
+            print(f'col {s[4]}, row {s[3]}, value 0x{value:x}')
+        
+
 class HardwareGroup(pyrogue.Device):
 
 
@@ -41,7 +60,7 @@ class HardwareGroup(pyrogue.Device):
         # Open rUDP connections to the Manager board
         if simulation is False and emulate is False:
             srpUdp = pyrogue.protocols.UdpRssiPack(host=host, port=SRP_PORT, packVer=2, name='SrpRssi', groups=['NoConfig'])
-            dataUdp = pyrogue.protocols.UdpRssiPack(host=host, port=DATA_PORT, packVer=2, name='DataRssi', enSsi=False, groups=['NoConfig'])
+            dataUdp = pyrogue.protocols.UdpRssiPack(host=host, port=DATA_PORT, packVer=2, name='DataRssi', enSsi=False, groups=['NoConfig'], jumbo=True)
             self.add(srpUdp)
             self.add(dataUdp)
             self.addInterface(srpUdp, dataUdp)
@@ -75,9 +94,11 @@ class HardwareGroup(pyrogue.Device):
 
             # Data streams are packetized and need to be unpacked
             packetizer = rogue.protocols.packetizer.CoreV2(False, False, False);
-            fifo = rogue.interfaces.stream.Fifo(10, 0, False)
-            dataStream >> fifo >> packetizer.transport()
-            self.addInterface(packetizer, fifo)
+            fifoA = rogue.interfaces.stream.Fifo(0, 0, False)
+            fifoB = rogue.interfaces.stream.Fifo(0, 0, False)            
+            unbatcher = rogue.protocols.batcher.SplitterV1()
+            dataStream >> fifoA >> unbatcher >> fifoB >> packetizer.transport()
+            self.addInterface(unbatcher, packetizer, fifoA, fifoB)
                 
 
             # Instantiate the board Device tree and link it to the SRP
@@ -94,33 +115,31 @@ class HardwareGroup(pyrogue.Device):
 
             # Link the data stream to the DataWriter
             if emulate is False:
-                dataWriterChannel = (groupId << 3) | index
-                #dataStream >> dataWriter.getChannel(dataWriterChannel)
-
-
-                debug = rogue.interfaces.stream.Slave()
-                debug.setDebug(100, 'DataStream')
- #               dataStream >> debug
-                #self.addInterface(debug)
-
                 for i in range(8):
-                    chDbg = rogue.interfaces.stream.Slave()
-                    chDbg.setDebug(100, f'DataStream_App_{i}')
                     rateDrop = rogue.interfaces.stream.RateDrop(True, 0.1)
                     self.addInterface(rateDrop)
-                    packetizer.application(i) >> dataWriter.getChannel(i)
-                    packetizer.application(i) >> rateDrop >> pidDebug[i]                    
-#                    packetizer.application(i) >> chDbg
-                    #self.addInterface(chDbg, pidDebug[i])
                     
-                #dataStream >> pidDebug
-                packetizer.application(8) >> waveGui
-#                packetizer.application(0) >> pidDebug
+                    fifo1 = rogue.interfaces.stream.Fifo(0, 0, False)
+                    fifo2 = rogue.interfaces.stream.Fifo(0, 0, False)
+                    packetizer.application(i) >> fifo1
+                    fifo1 >> fifo2 >> dataWriter.getChannel(i)
+                    #fifo1 >> rateDrop >> pidDebug[i]
+                    self.addInterface(fifo1, fifo2, pidDebug[i])
 
-#                 else:
-#                     debug = warm_tdm.StreamDebug()
-#                     dataStream >> debug
-#                     self.addInterface(debug)
+                packetizer.application(8) >> waveGui
+
+#                 dataDbg = rogue.interfaces.stream.Slave()
+#                 dataDbg.setDebug(1000, f'DataStream_App')
+
+                dataDbg = DataDebug()
+
+                dataFifo = rogue.interfaces.stream.Fifo(0, 0, False)
+                self.addInterface(dataFifo)
+                packetizer.application(9) >> dataFifo
+
+                dataFifo >> dataWriter.getChannel(9)
+                dataFifo >> dataDbg
+
 
         for rowIndex, boardIndex in enumerate(range(colBoards, colBoards+rowBoards)):
             # Create streams to each board
@@ -181,12 +200,25 @@ class HardwareGroup(pyrogue.Device):
                 linkedGet = rl_get)) #list(range(48))))
 
         @self.command()
-        def Readout2():
-            self.ReadoutList.set([0, 1])
+        def Readout(arg):
+            self.ReadoutList.set(list(range(arg)))
 
         @self.command()
         def Readout22():
             self.ReadoutList.set(list(range(22)))
+
+        @self.command()
+        def Readout32():
+            self.ReadoutList.set(list(range(32)))
+
+        @self.command()
+        def Readout64():
+            self.ReadoutList.set(list(range(64)))
+            
+        @self.command()
+        def Readout80():
+            self.ReadoutList.set(list(range(80)))
+            
 
         if colBoards > 0:
             self.add(waveGui)

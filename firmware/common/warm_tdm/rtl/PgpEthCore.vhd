@@ -52,8 +52,10 @@ entity PgpEthCore is
       IP_ADDR_G               : slv(31 downto 0) := X"0A01A8C0";  -- 192.168.1.10 (before DHCP)
       MAC_ADDR_G              : slv(47 downto 0) := x"00_00_16_56_00_08");
    port (
-      gtRefClk  : in sl;
-      fabRefClk : in sl;
+      gtRefClk250  : in sl;
+      fabRefClk125 : in sl;
+      gtRefClk156  : in sl;
+      fabRefClk156 : in sl;
 
       -- PGP IO
       pgpTxP : out slv(1 downto 0);
@@ -68,7 +70,7 @@ entity PgpEthCore is
       ethTxN : out sl;
 
       -- Debug
-      rssiStatus  : out slv7Array(1 downto 0);
+      rssiStatus  : out slv9Array(1 downto 0);
       ethPhyReady : out sl;
       pgpTxLink   : out sl;
       pgpRxLink   : out sl;
@@ -136,23 +138,6 @@ begin
    axilRstOut <= axilRst;
 
 
-   ------------------
-   -- Reference Clock
-   ------------------
---    U_IBUFDS_GTE2 : IBUFDS_GTE2
---       port map (
---          I     => gtRefClkP,
---          IB    => gtRefClkN,
---          CEB   => '0',
---          ODIV2 => gtRefClkDiv2,
---          O     => gtRefClk);
-
---    U_BUFG : BUFG
---       port map (
---          I => gtRefClkDiv2,
---          O => gtRefClkDiv2G);
---    gtRefClkDiv2Out <= gtRefClkDiv2G;
-
    -----------------
    -- Power Up Reset
    -----------------
@@ -161,7 +146,7 @@ begin
          TPD_G         => TPD_G,
          SIM_SPEEDUP_G => SIMULATION_G)
       port map (
-         clk    => fabRefClk,
+         clk    => fabRefClk125,
          rstOut => refRst);
 
    -----------------
@@ -178,8 +163,8 @@ begin
             AXIL_BASE_ADDR_G => AXIL_BASE_ADDR_G)
          port map (
             refRst           => refRst,                            -- [in]
-            gtRefClk         => gtRefClk,                          -- [in]
-            fabRefClk        => fabRefClk,                         -- [in]
+            gtRefClk         => gtRefClk250,                       -- [in]
+            fabRefClk        => fabRefClk125,                      -- [in]
             pgpTxP           => pgpTxP,                            -- [out]
             pgpTxN           => pgpTxN,                            -- [out]
             pgpRxP           => pgpRxP,                            -- [in]
@@ -224,8 +209,10 @@ begin
          MAC_ADDR_G          => MAC_ADDR_G)
       port map (
          extRst                => '0',                               -- [in]
-         gtRefClk              => gtRefClk,                          -- [in]
-         fabRefClk             => fabRefClk,                         -- [in]
+         gtRefClk250           => gtRefClk250,                       -- [in]
+         fabRefClk125          => fabRefClk125,                      -- [in]
+         gtRefClk156           => gtRefClk156,                       -- [in]
+         fabRefClk156          => fabRefClk156,                      -- [in]
          gtRxP                 => ethRxP,                            -- [in]
          gtRxN                 => ethRxN,                            -- [in]
          gtTxP                 => ethTxP,                            -- [out]
