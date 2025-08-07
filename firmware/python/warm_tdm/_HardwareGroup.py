@@ -200,8 +200,8 @@ class HardwareGroup(pyrogue.Device):
                 linkedGet = rl_get)) #list(range(48))))
 
         @self.command()
-        def Readout2():
-            self.ReadoutList.set([0, 1])
+        def Readout(arg):
+            self.ReadoutList.set(list(range(arg)))
 
         @self.command()
         def Readout22():
