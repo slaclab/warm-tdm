@@ -824,7 +824,7 @@ begin
    U_AxiStreamBatcherAxil_1 : entity surf.AxiStreamBatcherAxil
       generic map (
          TPD_G                        => TPD_G,
-         COMMON_CLOCK_G               => true,
+         COMMON_CLOCK_G               => false,
          MAX_NUMBER_SUB_FRAMES_G      => 150,
          SUPER_FRAME_BYTE_THRESHOLD_G => 8192,
          MAX_CLK_GAP_G                => 10000,
@@ -839,8 +839,8 @@ begin
          sAxisSlave      => localDataTxFifoAxisSlave,             -- [out]
          mAxisMaster     => localDataTxBatchedAxisMaster,         -- [out]
          mAxisSlave      => localDataTxBatchedAxisSlave,          -- [in]
-         axilClk         => axilClk,                              -- [in]
-         axilRst         => axilRst,                              -- [in]
+         axilClk         => ethClk,                              -- [in]
+         axilRst         => ethRst,                              -- [in]
          axilReadMaster  => locAxilReadMasters(AXIL_BATCHER_C),   -- [in]
          axilReadSlave   => locAxilReadSlaves(AXIL_BATCHER_C),    -- [out]
          axilWriteMaster => locAxilWriteMasters(AXIL_BATCHER_C),  -- [in]

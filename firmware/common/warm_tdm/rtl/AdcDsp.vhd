@@ -118,6 +118,8 @@ architecture rtl of AdcDsp is
       PID_D_S,
       SQ1FB_ADJUST_S,
       FLUX_JUMP_S,
+      DATA_STREAM_FLUX_JUMP_0_S,
+      DATA_STREAM_FLUX_JUMP_1_S,
       DATA_STREAM_S,
       FLUX_DEBUG_S,
       LOOP_DONE_S,
@@ -125,7 +127,7 @@ architecture rtl of AdcDsp is
 
    type RegType is record
       fllEnable          : sl;
-      outputMode           : slv(1 downto 0);
+      outputMode         : slv(1 downto 0);
       state              : StateType;
       rowIndex           : slv(ROW_ADDR_BITS_C-1 downto 0);
       accumValid         : sl;
@@ -158,7 +160,7 @@ architecture rtl of AdcDsp is
 
    constant REG_INIT_C : RegType := (
       fllEnable          => '0',
-      outputMode           => (others => '0'),
+      outputMode         => (others => '0'),
       state              => WAIT_ROW_STROBE_S,
       rowIndex           => (others => '0'),
       accumValid         => '0',
@@ -509,7 +511,7 @@ begin
       axiSlaveWaitTxn(axilEp, timingAxilWriteMaster, timingAxilReadMaster, v.axilWriteSlave, v.axilReadSlave);
 
       axiSlaveRegister(axilEp, X"00", 0, v.fllEnable);
-      axiSlaveRegister(axilEp, X"00", 8, v.outputMode);      
+      axiSlaveRegister(axilEp, X"00", 8, v.outputMode);
       axiSlaveRegister(axilEp, X"00", 16, v.accumShift);
       axiSlaveRegister(axilEp, X"04", 0, v.p);
       axiSlaveRegister(axilEp, X"08", 0, v.i);
@@ -700,20 +702,30 @@ begin
                v.numFluxJumps    := to_slv(numFluxJumpsFixed);
                v.fluxJumpWrValid := '1';
                v.sq1FbValid      := '1';
+               v.state           := DATA_STREAM_FLUX_JUMP_0_S;
+
+            when DATA_STREAM_FLUX_JUMP_0_S =>
+               v.pidResult     := resize(r.sq1Fb, r.pidResult);
+               v.pidMultiplier := resize(numFluxJumpsFixed, r.pidMultiplier);
+               v.pidCoef       := resize(fluxQuantumFixed, r.pidCoef);
+               v.state := DATA_STREAM_FLUX_JUMP_1_S;
+
+            when DATA_STREAM_FLUX_JUMP_1_S =>
+               v.pidResult := resize(r.pidResult + (r.pidCoef * r.pidMultiplier), v.pidResult);
                v.state := DATA_STREAM_S;
 
-            when DATA_STREAM_S => 
+            when DATA_STREAM_S =>
                -- Output PID Stream
-               v.pidStreamMaster.tValid             := '1';
+               v.pidStreamMaster.tValid := '1';
                if (r.outputMode = "00") then
-                  v.pidStreamMaster.tData(13 downto 0) := to_slv(r.sq1Fb);
+                  v.pidStreamMaster.tData(21 downto 0) := to_slv(resize(r.pidResult, 21, 0));
                elsif (r.outputMode = "01") then
-                  v.pidStreamMaster.tData(15 downto 0) :=  to_slv(resize(r.accumError, 15, 0));
+                  v.pidStreamMaster.tData(21 downto 0) := to_slv(resize(r.accumError, 21, 0));
                elsif (r.outputMode = "10") then
-                  v.pidStreamMaster.tData(15 downto 0) := timingRxData.rowSeqCount(15 downto 0);                  
+                  v.pidStreamMaster.tData(21 downto 0) := timingRxData.rowSeqCount(21 downto 0);
                end if;
-               v.pidStreamMaster.tData(23 downto 16) := r.numFluxJumps;
 
+               -- Put flux jumps on 
                v.pidStreamMaster.tId(ROW_ADDR_BITS_C-1 downto 0) := r.rowIndex;
 
                v.state := FLUX_DEBUG_S;
@@ -778,7 +790,7 @@ begin
          FIFO_PAUSE_THRESH_G => 15,
          GEN_SYNC_FIFO_G     => false,
          FIFO_ADDR_WIDTH_G   => 9,
-         SYNTH_MODE_G        => "xpm",
+         --       SYNTH_MODE_G        => "xpm",
          MEMORY_TYPE_G       => "bram",
          INT_WIDTH_SELECT_G  => "WIDE",
          SLAVE_AXI_CONFIG_G  => AXIS_DEBUG_CFG_C,
@@ -805,7 +817,7 @@ begin
          FIFO_PAUSE_THRESH_G => 15,
          GEN_SYNC_FIFO_G     => true,
          FIFO_ADDR_WIDTH_G   => 5,
-         SYNTH_MODE_G        => "xpm",
+--         SYNTH_MODE_G        => "xpm",
          MEMORY_TYPE_G       => "distributed",
          INT_WIDTH_SELECT_G  => "WIDE",
          SLAVE_AXI_CONFIG_G  => PID_DATA_AXIS_CFG_C,

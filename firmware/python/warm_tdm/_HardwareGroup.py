@@ -29,8 +29,8 @@ class DataDebug(rogue.interfaces.stream.Slave):
         print(f'{rowSeqCount=}')
         print(f'{runTime=}')        
         for s in samples:
-            value = int.from_bytes(s[0:2], byteorder='little', signed=True)
-            print(f'col {s[4]}, row {s[3]}, value 0x{value:x}, fluxJumps {s[2]}')
+            value = int.from_bytes(s[0:3], byteorder='little', signed=True)
+            print(f'col {s[4]}, row {s[3]}, value 0x{value:x}')
         
 
 class HardwareGroup(pyrogue.Device):
