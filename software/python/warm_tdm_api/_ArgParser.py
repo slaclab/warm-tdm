@@ -35,7 +35,7 @@ class WarmTdmArgparse(argparse.ArgumentParser):
             "--pollEn",
             type = bool,
             required = False,
-            default = True,
+            default = False,
             help = 'Enable or disable polling on startup')
 
         self.add_argument(
