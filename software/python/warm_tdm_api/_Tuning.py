@@ -44,10 +44,10 @@ def saOffset(*, group, process=None):
     mult = np.array([1 if en else 0 for en in group.ColTuneEnable.value()],np.float64)
     count = 0
 
-    print('Starting PID')
+    #print('Starting PID')
     while count < maxLoops:
         count += 1
-        print(f'Loop {count}')
+        #print(f'Loop {count}')
 
         current = group.SaOutAdc.get()
         masked = current * mult
@@ -64,7 +64,7 @@ def saOffset(*, group, process=None):
                 change = p(masked[i])
                 control[i] = np.clip(control[i] + change, 0, 4.999)
                 group.SaOffset.set(control[i], index=i)
-                print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')
+                #print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')
 
 #         group.SaOffset.set(control)
 
@@ -292,7 +292,7 @@ def saFbServo(*, group, process):
         print(f"saFb PID loop failed to converge after {maxLoops} loops")
         return control
 
-    print(f'saFb PID loop Converged after {count} loops')
+    #print(f'saFb PID loop Converged after {count} loops')
 
     return control
 
