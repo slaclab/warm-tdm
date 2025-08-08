@@ -34,7 +34,7 @@ def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title)
             peak = curveDataDict['peaks'][biasIndex]
             phinot = curveDataDict['phinots'][biasIndex]
             label = f'{value:1.3f} - P-P: {peak:1.3f} - $\phi_o$: {phinot:.2f}'
-            color = next(ax._get_lines.prop_cycler)['color']
+            color = ax._get_lines.get_next_color()
             # Plot the curve
             ax.plot(xValues, curveDataDict['curves'][biasIndex], label=label, linewidth=linewidth, color=color)
             # Mark the max point
