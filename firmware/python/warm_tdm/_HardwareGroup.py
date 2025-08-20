@@ -18,10 +18,10 @@ class DataDebug(rogue.interfaces.stream.Slave):
     def _acceptFrame(self, frame):
         arr = frame.getNumpy()
         print(f'Got frame with {len(arr)} bytes')
-        words = arr[:-8].reshape(-1, 8)
-        readoutCount = int.from_bytes( words[0:2, 0:8], byteorder='little', signed=False)
-        rowSeqCount = int.from_bytes(words[2:4, 0:8], byteorder='little', signed=False)
-        runTime = int.from_bytes(words[4:6, 0:8], byteorder='little', signed=False)
+        words = arr[:-5].reshape(-1, 5)
+        readoutCount = int.from_bytes( words[0:2, 0:5], byteorder='little', signed=False)
+        rowSeqCount = int.from_bytes(words[2:4, 0:5], byteorder='little', signed=False)
+        runTime = int.from_bytes(words[4:6, 0:5], byteorder='little', signed=False)
         samples = words[6:]
 
         print(f'{readoutCount=}')
