@@ -59,7 +59,7 @@ end entity EventBuilder;
 
 architecture rtl of EventBuilder is
 
-   constant EVENT_AXIS_CFG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 5, tDestBits => 0);
+   constant EVENT_AXIS_CFG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 8, tDestBits => 0);
 
    type StateType is (
       WAIT_RSS_S,
@@ -213,35 +213,34 @@ begin
          when DO_HEADER_0_S =>
             v.eventAxisMaster.tValid             := '1';
             ssiSetUserSof(EVENT_AXIS_CFG_C, v.eventAxisMaster, '1');
-            v.eventAxisMaster.tData(31 downto 0) := fifoDaqReadoutCount(31 downto 0);  -- r.timingRxData.daqReadoutCount(31 downto 0);
-            v.state                              := DO_HEADER_1_S;
-
-         when DO_HEADER_1_S =>
-            v.eventAxisMaster.tValid             := '1';
-            v.eventAxisMaster.tData(31 downto 0) := fifoDaqReadoutCount(63 downto 32);  -- r.timingRxData.daqReadoutCount(63 downto 32);
+            v.eventAxisMaster.tData(63 downto 0) := fifoDaqReadoutCount(63 downto 0);  -- r.timingRxData.daqReadoutCount(31 downto 0);
             v.state                              := DO_HEADER_2_S;
+
+--          when DO_HEADER_1_S =>
+--             v.eventAxisMaster.tValid             := '1';
+--             v.eventAxisMaster.tData(31 downto 0) := fifoDaqReadoutCount(63 downto 32);  -- r.timingRxData.daqReadoutCount(63 downto 32);
+--             v.state                              := DO_HEADER_2_S;
 
          when DO_HEADER_2_S =>
             v.eventAxisMaster.tValid             := '1';
-            v.eventAxisMaster.tData(31 downto 0) := fifoRowSeqCount(31 downto 0);  -- r.timingRxData.rowSeqCount(31 downto 0);
-            v.state                              := DO_HEADER_3_S;
-
-         when DO_HEADER_3_S =>
-            v.eventAxisMaster.tValid             := '1';
-            v.eventAxisMaster.tData(31 downto 0) := fifoRowSeqCount(63 downto 32);  -- r.timingRxData.rowSeqCount(63 downto 32);
+            v.eventAxisMaster.tData(63 downto 0) := fifoRowSeqCount(63 downto 0);  -- r.timingRxData.rowSeqCount(31 downto 0);
             v.state                              := DO_HEADER_4_S;
+
+--          when DO_HEADER_3_S =>
+--             v.eventAxisMaster.tValid             := '1';
+--             v.eventAxisMaster.tData(31 downto 0) := fifoRowSeqCount(63 downto 32);  -- r.timingRxData.rowSeqCount(63 downto 32);
+--             v.state                              := DO_HEADER_4_S;
 
          when DO_HEADER_4_S =>
             v.eventAxisMaster.tValid             := '1';
-            v.eventAxisMaster.tData(31 downto 0) := fifoRunTime(31 downto 0);  --r.timingRxData.runTime(31 downto 0);
-            v.state                              := DO_HEADER_5_S;
-
-         when DO_HEADER_5_S =>
-            v.eventAxisMaster.tValid             := '1';
-            v.eventAxisMaster.tData(31 downto 0) := fifoRunTime(63 downto 32);  --r.timingRxData.runTime(63 downto 32);
-            v.fifoRdEn                           := '1';
+            v.eventAxisMaster.tData(63 downto 0) := fifoRunTime(63 downto 0);  --r.timingRxData.runTime(31 downto 0);
             v.state                              := DO_DATA_S;
 
+--          when DO_HEADER_5_S =>
+--             v.eventAxisMaster.tValid             := '1';
+--             v.eventAxisMaster.tData(31 downto 0) := fifoRunTime(63 downto 32);  --r.timingRxData.runTime(63 downto 32);
+--             v.fifoRdEn                           := '1';
+--             v.state                              := DO_DATA_S;
 
          when DO_DATA_S =>
             if (muxAxisMaster.tValid = '1') then
@@ -252,6 +251,7 @@ begin
                   v.eventAxisMaster.tValid                                  := '0';
                else
                   v.eventAxisMaster.tValid              := not r.burn;
+                  v.eventAxisMaster.tDest               := (others => '0');
                   v.eventAxisMaster.tData(23 downto 0)  := muxAxisMaster.tData(23 downto 0);
                   v.eventAxisMaster.tData(31 downto 24) := muxAxisMaster.tID(7 downto 0);
                   v.eventAxisMaster.tData(39 downto 32) := muxAxisMaster.tDest(7 downto 0);
@@ -271,7 +271,7 @@ begin
       -- Bleed off data when not running
       if (timingRxData.running = '0') then
          v.muxAxisSlave.tReady := '1';
-         v.fifoRdEn := readoutFifoValid;
+         v.fifoRdEn            := readoutFifoValid;
 
          -- If run stops while in DO_DATA_S state, end the current frame
          if (r.state = DO_DATA_S) then
