@@ -307,7 +307,7 @@ begin
          VALID_THOLD_G       => 0,
          VALID_BURST_MODE_G  => true,
          FIFO_PAUSE_THRESH_G => 15,
-         GEN_SYNC_FIFO_G     => true,
+         GEN_SYNC_FIFO_G     => false,
          FIFO_ADDR_WIDTH_G   => 9,
          SYNTH_MODE_G        => "xpm",
          MEMORY_TYPE_G       => "bram",
