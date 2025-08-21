@@ -19,8 +19,9 @@ class ColumnVesperFpgaBoard(pr.Device):
             fe_therm_channels = [2, 8]))
 
         self.add(warm_tdm.DataPath(
-            offset = 0xC0300000,
+            offset = 0xC1000000,
             expand = True,
+            timingTx = self.WarmTdmCore.Timing.TimingTx,
             rows=rows,
             frontEnd=self.AnalogFrontEnd))
 
@@ -47,20 +48,16 @@ class ColumnVesperFpgaBoard(pr.Device):
             dac = self.TesBiasDac,
             frontEnd = self.AnalogFrontEnd))
 
-        
-        
-
-        # SAFb and SQ1Bias get swapped on schematic.
         self.add(warm_tdm.FastDacDriver(
             name = 'SAFb',
-            offset = 0xC0400000,
+            offset = 0xC0600000,
             frontEnd = self.AnalogFrontEnd,
             rows = rows,            
         ))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Bias',
-            offset = 0xC0600000,
+            offset = 0xC0400000,
             frontEnd = self.AnalogFrontEnd,
             rows = rows,
         ))
