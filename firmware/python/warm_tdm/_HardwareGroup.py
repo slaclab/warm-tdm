@@ -19,9 +19,9 @@ class DataDebug(rogue.interfaces.stream.Slave):
         arr = frame.getNumpy()
         print(f'Got frame with {len(arr)} bytes')
         words = arr[:-5].reshape(-1, 5)
-        readoutCount = int.from_bytes( words[0:2, 0:5], byteorder='little', signed=False)
-        rowSeqCount = int.from_bytes(words[2:4, 0:5], byteorder='little', signed=False)
-        runTime = int.from_bytes(words[4:6, 0:5], byteorder='little', signed=False)
+        readoutCount = int.from_bytes( words[0:2, 0:4], byteorder='little', signed=False)
+        rowSeqCount = int.from_bytes(words[2:4, 0:4], byteorder='little', signed=False)
+        runTime = int.from_bytes(words[4:6, 0:4], byteorder='little', signed=False)
         samples = words[6:]
 
         print(f'{readoutCount=}')
@@ -101,15 +101,15 @@ class HardwareGroup(pyrogue.Device):
             
             dataStream >> fifoA >> unbatcher >> fifoB >> packetizer.transport()
 
-            dataStreamDebug = rogue.interfaces.stream.Slave()
-            dataStreamDebug.setDebug(100, 'DataStreamDebug')
-            dataStream >> dataStreamDebug
+#             dataStreamDebug = rogue.interfaces.stream.Slave()
+#             dataStreamDebug.setDebug(100, 'DataStreamDebug')
+#             dataStream >> dataStreamDebug
 
-            unbatcherDebug = rogue.interfaces.stream.Slave()
-            unbatcherDebug.setDebug(100, 'UnbatcherDebug')
-            unbatcher >> unbatcherDebug
+#             unbatcherDebug = rogue.interfaces.stream.Slave()
+#             unbatcherDebug.setDebug(100, 'UnbatcherDebug')
+#             unbatcher >> unbatcherDebug
 
-            self.addInterface(dataStreamDebug, unbatcherDebug)            
+#             self.addInterface(dataStreamDebug, unbatcherDebug)            
 
             self.addInterface(unbatcher, packetizer, fifoA, fifoB)
 
