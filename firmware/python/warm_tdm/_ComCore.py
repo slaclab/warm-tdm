@@ -72,6 +72,7 @@ class EthCore(pr.Device):
             offset = 0x00000))
 
         self.add(surf.protocols.batcher.AxiStreamBatcherAxil(
+            enabled = False,
             offset = 0x13000))
 
 
