@@ -151,7 +151,7 @@ class HardwareGroup(pyrogue.Device):
                 packetizer.application(9) >> dataFifo
 
                 dataFifo >> dataWriter.getChannel(9)
-                dataFifo >> dataDbg
+                #dataFifo >> dataDbg
 
 
         for rowIndex, boardIndex in enumerate(range(colBoards, colBoards+rowBoards)):
