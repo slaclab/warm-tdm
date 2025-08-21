@@ -273,7 +273,7 @@ begin
 
       v.timingData.rowStrobe := '0';
 
-      if (r.timingData.waveformCapture = '1' and r.waveformCaptureTime = r.timingData.rowTime) then
+      if (r.timingData.waveformCapture = '1' and r.waveformCaptureTime = r.timingData.rowTime and r.timingData.rowSeq = 0) then
          v.timingTx                   := WAVEFORM_CAPTURE_C;
          v.timingData.waveformCapture := '0';
       end if;

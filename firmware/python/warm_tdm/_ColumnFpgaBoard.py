@@ -92,14 +92,17 @@ class ColumnFpgaBoard(pr.Device):
 
         self.add(warm_tdm.GroupLinkVariable(
             name = 'SaFbForceCurrent',
+            disp = '{:0.03f}',
             dependencies = list(self.SAFb.OverrideCurrent.values())))
 
         self.add(warm_tdm.GroupLinkVariable(
             name = 'Sq1BiasForceCurrent',
+            disp = '{:0.03f}',            
             dependencies = list(self.SQ1Bias.OverrideCurrent.values())))
 
         self.add(warm_tdm.GroupLinkVariable(
             name = 'Sq1FbForceCurrent',
+            disp = '{:0.03f}',            
             dependencies = list(self.SQ1Fb.OverrideCurrent.values())))
                 
 
