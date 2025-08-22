@@ -1,4 +1,5 @@
 import sys
+from collections import defaultdict
 
 import pyrogue
 import rogue.utilities
@@ -13,21 +14,19 @@ import warm_tdm
 
 nesteddict = lambda:defaultdict(nesteddict)
 
-
+datadict = nesteddict()
 def main(args):
-
-    data = nesteddict()
-    
     with pyrogue.utilities.fileio.FileReader(files=args) as fd:
 
         for header, data in fd.records():
             if header.channel == 9:
                 dr = warm_tdm.DataReadout.from_numpy(data)
                 for s in dr.samples:
-                    if not data[s.col][s.row]:
-                        data[s.col][s.row] = []
+                    #print(s)
+                    if not datadict[s.col][s.row]:
+                        datadict[s.col][s.row] = []
 
-                    data[s.col][s.row].append(s.value)
+                    datadict[s.col][s.row].append(s.value)
                 
 
 if __name__ == '__main__':
