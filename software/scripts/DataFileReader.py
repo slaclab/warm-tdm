@@ -13,19 +13,22 @@ import warm_tdm
 
 nesteddict = lambda:defaultdict(nesteddict)
 
-reader = rogue.utilities.fileio.StreamReader()
-
-ampModel = warm_tdm.FastDacAmplifierSE()
 
 def main(args):
+
+    data = nesteddict()
+    
     with pyrogue.utilities.fileio.FileReader(files=args) as fd:
 
         for header, data in fd.records():
             if header.channel == 9:
                 dr = warm_tdm.DataReadout.from_numpy(data)
-                print(dr)
+                for s in dr.samples:
+                    if not data[s.col][s.row]:
+                        data[s.col][s.row] = []
+
+                    data[s.col][s.row].append(s.value)
                 
-            input('')
 
 if __name__ == '__main__':
     main(sys.argv)
