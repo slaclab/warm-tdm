@@ -3,8 +3,8 @@
   "ip_inst": {
     "xci_name": "Int2Fp",
     "component_reference": "xilinx.com:ip:floating_point:7.1",
-    "ip_revision": "18",
-    "gen_directory": "../../../../ColumnFpgaBoard325Coordinator10G_project.gen/sources_1/ip/Int2Fp",
+    "ip_revision": "20",
+    "gen_directory": "../../../../ColumnFpgaBoard_project.gen/sources_1/ip/Int2Fp",
     "parameters": {
       "component_parameters": {
         "Component_Name": [ { "value": "Int2Fp", "resolve_type": "user", "usage": "all" } ],
@@ -53,7 +53,7 @@
       },
       "model_parameters": {
         "C_XDEVICEFAMILY": [ { "value": "kintex7", "resolve_type": "generated", "usage": "all" } ],
-        "C_PART": [ { "value": "xc7k325tffg676-2", "resolve_type": "generated", "usage": "all" } ],
+        "C_PART": [ { "value": "xc7k160tffg676-1", "resolve_type": "generated", "usage": "all" } ],
         "C_HAS_ADD": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_HAS_SUBTRACT": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_HAS_MULTIPLY": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
@@ -130,13 +130,27 @@
         "C_RESULT_TUSER_WIDTH": [ { "value": "1", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_FIXED_DATA_UNSIGNED": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ]
       },
+      "project_parameters": {
+        "ARCHITECTURE": [ { "value": "kintex7" } ],
+        "BASE_BOARD_PART": [ { "value": "" } ],
+        "BOARD_CONNECTIONS": [ { "value": "" } ],
+        "DEVICE": [ { "value": "xc7k160t" } ],
+        "PACKAGE": [ { "value": "ffg676" } ],
+        "PREFHDL": [ { "value": "VERILOG" } ],
+        "SILICON_REVISION": [ { "value": "" } ],
+        "SIMULATOR_LANGUAGE": [ { "value": "MIXED" } ],
+        "SPEEDGRADE": [ { "value": "-1" } ],
+        "STATIC_POWER": [ { "value": "" } ],
+        "TEMPERATURE_GRADE": [ { "value": "" } ]
+      },
       "runtime_parameters": {
         "IPCONTEXT": [ { "value": "IP_Flow" } ],
-        "IPREVISION": [ { "value": "18" } ],
+        "IPREVISION": [ { "value": "20" } ],
         "MANAGED": [ { "value": "TRUE" } ],
+        "OUTPUTDIR": [ { "value": "../../../../ColumnFpgaBoard_project.gen/sources_1/ip/Int2Fp" } ],
         "SELECTEDSIMMODEL": [ { "value": "" } ],
         "SHAREDDIR": [ { "value": "." } ],
-        "SWVERSION": [ { "value": "2024.1" } ],
+        "SWVERSION": [ { "value": "2025.1" } ],
         "SYNTHESISFLOW": [ { "value": "OUT_OF_CONTEXT" } ]
       }
     },
