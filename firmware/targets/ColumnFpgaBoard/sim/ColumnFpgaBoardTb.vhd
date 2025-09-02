@@ -124,10 +124,18 @@ begin
             rj45TimingRxClkN  => rj45TimingClkN(ite(i = 0, NUM_COLUMN_MODULES_C-1, i-1)),   -- [in]
             rj45TimingRxDataP => rj45TimingDataP(ite(i = 0, NUM_COLUMN_MODULES_C-1, i-1)),  -- [in]
             rj45TimingRxDataN => rj45TimingDataN(ite(i = 0, NUM_COLUMN_MODULES_C-1, i-1)),  -- [in]
+            rj45TimingRxMgtP  => '0', -- TODO: connect this to something?                   -- [in]
+            rj45TimingRxMgtN  => '1', -- TODO: connect this to something?                   -- [in]
+            rj45PgpRxMgtP     => '0', -- TODO: connect this to something?                   -- [in]
+            rj45PgpRxMgtN     => '1', -- TODO: connect this to something?                   -- [in]
             rj45TimingTxClkP  => rj45TimingClkP(i),                                         -- [out]
             rj45TimingTxClkN  => rj45TimingClkN(i),                                         -- [out]
             rj45TimingTxDataP => rj45TimingDataP(i),                                        -- [out]
-            rj45TimingTxDataN => rj45TimingDataN(i));                                       -- [out]
+            rj45TimingTxDataN => rj45TimingDataN(i),                                        -- [out]
+            rj45TimingTxMgtP => open,                                                       -- [out]
+            rj45TimingTxMgtN => open,                                                       -- [out]
+            rj45PgpTxMgtP    => open,                                                       -- [out]
+            rj45PgpTxMgtN    => open);                                                      -- [out]
 
       U_ColumnReadoutFebModel_1 : entity warm_tdm.ColumnReadoutFebModel
          generic map (
