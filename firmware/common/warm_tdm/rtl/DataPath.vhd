@@ -421,10 +421,7 @@ begin
       U_BiquadFilter_1 : entity warm_tdm.BiquadFilter
          generic map (
             TPD_G                => TPD_G,
-            AXIS_CONFIG_G        => PID_DATA_AXIS_CFG_C,
-            COEFF_HIGH_G         => 1,
-            COEFF_LOW_G          => -16,
-            DATA_WIDTH_G         => 22,
+            DATA_WIDTH_G         => 24,
             CASCADE_SIZE_G       => 2,
             CHANNEL_ADDR_WIDTH_G => 8)
          port map (

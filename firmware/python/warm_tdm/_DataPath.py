@@ -108,32 +108,32 @@ class BiquadFilterCoeffs(pr.Device):
         
         self.add(pr.RemoteVariable(
             name = f'B0',
-            base = pr.Fixed(18, 16),
-            bitSize = 18,
+            base = pr.Fixed(32, 30),
+            bitSize = 32,
             offset = 0))
 
         self.add(pr.RemoteVariable(
             name = f'B1',
-            base = pr.Fixed(18, 16),
-            bitSize = 18,
+            base = pr.Fixed(32, 30),
+            bitSize = 32,
             offset = 4))
 
         self.add(pr.RemoteVariable(
             name = f'B2',
-            base = pr.Fixed(18, 16),
-            bitSize = 18,
+            base = pr.Fixed(32, 30),
+            bitSize = 32,
             offset = 8))
 
         self.add(pr.RemoteVariable(
             name = f'A1',
-            base = pr.Fixed(18, 16),
-            bitSize = 18,
+            base = pr.Fixed(32, 30),
+            bitSize = 32,
             offset = 12))
 
         self.add(pr.RemoteVariable(
             name = f'A2',
-            base = pr.Fixed(18, 16),
-            bitSize = 18,
+            base = pr.Fixed(32, 30),
+            bitSize = 32,
             offset = 16))
 
 
@@ -175,7 +175,7 @@ class DownsampleFilters(pr.Device):
             print(f'Sample Rate - {sr}')
             print(f'Filter Freq - {self.filterFreq}')
             print(sos)
-            for i, coeff in enumerate(sos):
+            for i, coeff in enumerate(reversed(sos)):
                 for col in range(8):
                     self.Filter[col].Coeffs[i].B0.set(coeff[0], write=False)
                     self.Filter[col].Coeffs[i].B1.set(coeff[1], write=False)

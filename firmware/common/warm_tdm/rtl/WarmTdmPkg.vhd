@@ -49,6 +49,14 @@ package WarmTdmPkg is
       TUSER_BITS_C => 8,
       TUSER_MODE_C => TUSER_NORMAL_C);
 
+   constant DOWNSAMPLE_DATA_AXIS_CFG_C : AxiStreamConfigType := (
+      TSTRB_EN_C => true,
+      TDATA_BYTES_C => 8,
+      TDEST_BITS_C => 8,
+      TID_BITS_C => 8,
+      TKEEP_MODE_C => TKEEP_NORMAL_C,
+      TUSER_BITS_C => 8,
+      TUSER_MODE_C => TUSER_NORMAL_C);
 
 end package;
 

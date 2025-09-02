@@ -18,6 +18,8 @@
 -------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.std_logic_arith.all;
+use ieee.std_logic_unsigned.all;
 
 library surf;
 use surf.StdRtlPkg.all;
@@ -26,16 +28,12 @@ use surf.AxiLitePkg.all;
 
 library warm_tdm;
 use warm_tdm.WarmTdmPkg.all;
-use warm_tdm.FixedPkg.all;
 
 entity BiquadFilter is
 
    generic (
       TPD_G                : time                 := 1 ns;
-      AXIS_CONFIG_G        : AxiStreamConfigtype  := PID_DATA_AXIS_CFG_C;
-      COEFF_HIGH_G         : integer              := 1;
-      COEFF_LOW_G          : integer              := -16;
-      DATA_WIDTH_G         : positive             := 14;
+      DATA_WIDTH_G         : positive             := 24;
       CASCADE_SIZE_G       : positive             := 2;
       CHANNEL_ADDR_WIDTH_G : integer range 1 to 8 := 8);
 
@@ -56,33 +54,36 @@ end entity BiquadFilter;
 
 architecture rtl of BiquadFilter is
 
+   constant ADD_C : slv(7 downto 0) := X"00";
+   constant SUB_C : slv(7 downto 0) := X"01";
+
+
    constant DATA_MATH_WIDTH_C : integer := 32;
-   constant DATA_FRACT_BITS_C : integer := DATA_MATH_WIDTH_C - DATA_WIDTH_G;
-   subtype DataSFixedType is sfixed(DATA_WIDTH_G-1 downto -DATA_FRACT_BITS_C);
-   type DataSFixedArray is array (CASCADE_SIZE_G-1 downto 0) of DataSFixedType;
-   signal dataSFixed          : DataSFixedType;
+--   constant DATA_FRACT_BITS_C : integer := DATA_MATH_WIDTH_C - DATA_WIDTH_G;
+--   subtype DataSFixedType is sfixed(DATA_WIDTH_G-1 downto -DATA_FRACT_BITS_C);
+   type DataArray is array (CASCADE_SIZE_G-1 downto 0) of slv(31 downto 0);
+--   signal dataSFixed          : DataSFixedType;
 
-   type RamDataArray is array (CASCADE_SIZE_G-1 downto 0) of slv(DATA_MATH_WIDTH_C-1 downto 0);
-   type RamStatearray is array (CASCADE_SIZE_G-1 downto 0) of slv(4*DATA_MATH_WIDTH_C-1 downto 0);
+--   type RamDataArray is array (CASCADE_SIZE_G-1 downto 0) of slv(31 downto 0);
+   type RamStatearray is array (CASCADE_SIZE_G-1 downto 0) of slv(4*32-1 downto 0);
 
-   constant COEFF_BITS_C : integer := COEFF_HIGH_G - COEFF_LOW_G + 1;
-   subtype CoeffSFixedType is sfixed(COEFF_HIGH_G downto COEFF_LOW_G);
-   type CoeffSlvArray is array (CASCADE_SIZE_G-1 downto 0) of slv(COEFF_BITS_C-1 downto 0);
-   signal coeffSFixed    : CoeffSFixedType;
+--   constant COEFF_BITS_C : integer := COEFF_HIGH_G - COEFF_LOW_G + 1;
+--   subtype CoeffSFixedType is sfixed(COEFF_HIGH_G downto COEFF_LOW_G);
+--   type CoeffSlvArray is array (CASCADE_SIZE_G-1 downto 0) of slv(31 downto 0);
+--   signal coeffSFixed    : CoeffSFixedType;
 
-   constant RESULT_HIGH_C : integer := sfixed_high(COEFF_HIGH_G, COEFF_LOW_G, '*', DATA_WIDTH_G-1, 0);
-   constant RESULT_LOW_C  : integer := sfixed_low(COEFF_HIGH_G, COEFF_LOW_G, '*', DATA_WIDTH_G-1, 0);
-   subtype ResultSFixedType is sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
+--   constant RESULT_HIGH_C : integer := sfixed_high(COEFF_HIGH_G, COEFF_LOW_G, '*', DATA_WIDTH_G-1, -DATA_FRACT_BITS_C);
+--   constant RESULT_LOW_C  : integer := sfixed_low(COEFF_HIGH_G, COEFF_LOW_G, '*', DATA_WIDTH_G-1, -DATA_FRACT_BITS_C);
+--   subtype ResultSFixedType is sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
 
-   signal x1 : DataSFixedArray;
-   signal x2 : DataSFixedArray;
-   signal y1 : DataSFixedArray;
-   signal y2 : DataSFixedArray;
+   signal x1 : DataArray;
+   signal x2 : DataArray;
+   signal y1 : DataArray;
+   signal y2 : DataArray;
 
    type StateType is (
       WAIT_DATA_S,
-      WAIT_STATE_RAM_0_S,
-      WAIT_STATE_RAM_1_S,
+      WAIT_FP_CONV_S,
       COEFFS_S,
       FILTER_B0_S,
       FILTER_B1_S,
@@ -97,27 +98,33 @@ architecture rtl of BiquadFilter is
    type RegType is record
       state          : StateType;
       filterIndex    : integer range 0 to CASCADE_SIZE_G-1;
-      b0             : CoeffSlvArray;
-      b1             : CoeffSlvArray;
-      b2             : CoeffSlvArray;
-      a1             : CoeffSlvArray;
-      a2             : CoeffSlvArray;
-      x0_fixed       : DataSFixedType;
-      x1_fixed       : DataSFixedType;
-      x2_fixed       : DataSFixedType;
-      y1_fixed       : DataSFixedType;
-      y2_fixed       : DataSFixedType;
-      b0_fixed       : CoeffSFixedType;
-      b1_fixed       : CoeffSFixedType;
-      b2_fixed       : CoeffSFixedType;
-      a1_fixed       : CoeffSFixedType;
-      a2_fixed       : CoeffSFixedType;
-      coeff          : CoeffSFixedType;
-      data           : DataSFixedType;
-      result         : ResultSFixedType;
+      int2FpInValid  : sl;
+      int2FpInData   : slv(23 downto 0);
+      fpMacInValid   : sl;
+      fpMacOp        : slv(7 downto 0);
+--      debugInput     : slv(DATA_WIDTH_G-1 downto 0);
+--      debugOutput    : slv(DATA_WIDTH_G-1 downto 0);
+      b0             : DataArray;
+      b1             : DataArray;
+      b2             : DataArray;
+      a1             : DataArray;
+      a2             : DataArray;
+      x0_active      : slv(31 downto 0);
+      x1_active      : slv(31 downto 0);
+      x2_active      : slv(31 downto 0);
+      y1_active      : slv(31 downto 0);
+      y2_active      : slv(31 downto 0);
+      b0_active      : slv(31 downto 0);
+      b1_active      : slv(31 downto 0);
+      b2_active      : slv(31 downto 0);
+      a1_active      : slv(31 downto 0);
+      a2_active      : slv(31 downto 0);
+      coeff          : slv(31 downto 0);
+      data           : slv(31 downto 0);
+      result         : slv(31 downto 0);
       clearFilters   : sl;
       ramWe          : slv(CASCADE_SIZE_G-1 downto 0);
-      ramWrAddr      : ufixed(CHANNEL_ADDR_WIDTH_G-1 downto 0);
+      ramWrAddr      : slv(CHANNEL_ADDR_WIDTH_G-1 downto 0);
       fifoAxisSlave  : AxiStreamSlaveType;
       mAxisMaster    : AxiStreamMasterType;
       axilReadSlave  : AxiLiteReadSlaveType;
@@ -127,21 +134,27 @@ architecture rtl of BiquadFilter is
    constant REG_INIT_C : RegType := (
       state          => WAIT_DATA_S,
       filterIndex    => 0,
-      b0             => (others => to_slv(to_sfixed(1.0, COEFF_HIGH_G, COEFF_LOW_G))),
+      int2FpInValid  => '0',
+      int2FpInData   => (others => '0'),
+      fpMacInValid   => '0',
+      fpMacOp        => (others => '0'),
+--      debugInput     => (others => '0'),
+--      debugOutput    => (others => '0'),
+      b0             => (others => toSlv(1, 32)),
       b1             => (others => (others => '0')),
       b2             => (others => (others => '0')),
       a1             => (others => (others => '0')),
       a2             => (others => (others => '0')),
-      x0_fixed       => (others => '0'),
-      x1_fixed       => (others => '0'),
-      x2_fixed       => (others => '0'),
-      y1_fixed       => (others => '0'),
-      y2_fixed       => (others => '0'),
-      b0_fixed       => (others => '0'),
-      b1_fixed       => (others => '0'),
-      b2_fixed       => (others => '0'),
-      a1_fixed       => (others => '0'),
-      a2_fixed       => (others => '0'),
+      x0_active      => (others => '0'),
+      x1_active      => (others => '0'),
+      x2_active      => (others => '0'),
+      y1_active      => (others => '0'),
+      y2_active      => (others => '0'),
+      b0_active      => (others => '0'),
+      b1_active      => (others => '0'),
+      b2_active      => (others => '0'),
+      a1_active      => (others => '0'),
+      a2_active      => (others => '0'),
       coeff          => (others => '0'),
       data           => (others => '0'),
       result         => (others => '0'),
@@ -149,7 +162,7 @@ architecture rtl of BiquadFilter is
       ramWe          => (others => '0'),
       ramWrAddr      => (others => '0'),
       fifoAxisSlave  => AXI_STREAM_SLAVE_INIT_C,
-      mAxisMaster    => axiStreamMasterInit(AXIS_CONFIG_G),
+      mAxisMaster    => axiStreamMasterInit(DOWNSAMPLE_DATA_AXIS_CFG_C),
       axilReadSlave  => AXI_LITE_READ_SLAVE_EMPTY_DECERR_C,
       axilWriteSlave => AXI_LITE_WRITE_SLAVE_EMPTY_DECERR_C);
 
@@ -161,12 +174,41 @@ architecture rtl of BiquadFilter is
    signal ramDout        : RamStateArray;
    signal ramWrAddr      : slv(CHANNEL_ADDR_WIDTH_G-1 downto 0);
 
---    signal syncAxilWriteMaster : AxiLiteWriteMasterType;
---    signal syncAxilWriteSlave  : AxiLiteWriteSlaveType;
---    signal syncAxilReadMaster  : AxiLiteReadMasterType;
---    signal syncAxilReadSlave   : AxiLiteReadSlaveType;
+   signal int2FpOutValid : sl;
+   signal int2FpOutData  : slv(31 downto 0);
+
+   signal fpMacOutValid : sl;
+   signal fpMacOutData  : slv(31 downto 0);
+
+   component FpMac
+      port (
+         aclk                    : in  std_logic;
+         s_axis_a_tvalid         : in  std_logic;
+         s_axis_a_tdata          : in  std_logic_vector(31 downto 0);
+         s_axis_b_tvalid         : in  std_logic;
+         s_axis_b_tdata          : in  std_logic_vector(31 downto 0);
+         s_axis_c_tvalid         : in  std_logic;
+         s_axis_c_tdata          : in  std_logic_vector(31 downto 0);
+         s_axis_operation_tvalid : in  std_logic;
+         s_axis_operation_tdata  : in  std_logic_vector(7 downto 0);
+         m_axis_result_tvalid    : out std_logic;
+         m_axis_result_tdata     : out std_logic_vector(31 downto 0)
+         );
+   end component;
+
+   component Int2Fp
+      port (
+         aclk                 : in  std_logic;
+         s_axis_a_tvalid      : in  std_logic;
+         s_axis_a_tdata       : in  std_logic_vector(23 downto 0);
+         m_axis_result_tvalid : out std_logic;
+         m_axis_result_tdata  : out std_logic_vector(31 downto 0)
+         );
+   end component;
 
 begin
+
+
 
    -- Buffer incomming samples just in case
    -- But really there shouldn't be backpressure
@@ -184,8 +226,8 @@ begin
          SYNTH_MODE_G        => "xpm",
          MEMORY_TYPE_G       => "distributed",
          INT_WIDTH_SELECT_G  => "WIDE",
-         SLAVE_AXI_CONFIG_G  => AXIS_CONFIG_G,
-         MASTER_AXI_CONFIG_G => AXIS_CONFIG_G)
+         SLAVE_AXI_CONFIG_G  => PID_DATA_AXIS_CFG_C,
+         MASTER_AXI_CONFIG_G => PID_DATA_AXIS_CFG_C)
       port map (
          sAxisClk    => axisClk,             -- [in]
          sAxisRst    => axisRst,             -- [in]
@@ -204,7 +246,7 @@ begin
             TPD_G         => TPD_G,
             MEMORY_TYPE_G => "bram",
             ADDR_WIDTH_G  => CHANNEL_ADDR_WIDTH_G,
-            DATA_WIDTH_G  => 4*DATA_MATH_WIDTH_C)
+            DATA_WIDTH_G  => 4*32)
          port map (
             -- Port A
             clka  => axisClk,
@@ -217,19 +259,41 @@ begin
             doutb => ramDout(i));
 
       ramWrAddr <= to_slv(r.ramWrAddr);
-      x1(i)     <= to_sfixed(ramDout(i)(DATA_MATH_WIDTH_C-1 downto 0), x1(i));
-      x2(i)     <= to_sfixed(ramDout(i)(2*DATA_MATH_WIDTH_C-1 downto DATA_MATH_WIDTH_C), x2(i));
-      y1(i)     <= to_sfixed(ramDout(i)(3*DATA_MATH_WIDTH_C-1 downto 2*DATA_MATH_WIDTH_C), y1(i));
-      y2(i)     <= to_sfixed(ramDout(i)(4*DATA_MATH_WIDTH_C-1 downto 3*DATA_MATH_WIDTH_C), y2(i));
-      ramDin(i) <= to_slv(r.y2_fixed) &
-                   to_slv(r.y1_fixed) &
-                   to_slv(r.x2_fixed) &
-                   to_slv(r.x1_fixed);
+      x1(i)     <= ramDout(i)(DATA_MATH_WIDTH_C-1 downto 0);
+      x2(i)     <= ramDout(i)(2*DATA_MATH_WIDTH_C-1 downto DATA_MATH_WIDTH_C);
+      y1(i)     <= ramDout(i)(3*DATA_MATH_WIDTH_C-1 downto 2*DATA_MATH_WIDTH_C);
+      y2(i)     <= ramDout(i)(4*DATA_MATH_WIDTH_C-1 downto 3*DATA_MATH_WIDTH_C);
+      ramDin(i) <= to_slv(r.y2_active) &
+                   to_slv(r.y1_active) &
+                   to_slv(r.x2_active) &
+                   to_slv(r.x1_active);
    end generate;
 
+   U_Int2Fp_1 : Int2Fp
+      port map (
+         aclk                 => axisClk,          -- [in]
+         s_axis_a_tvalid      => r.int2FpInValid,  -- [in]
+         s_axis_a_tdata       => r.int2FpInData,   -- [in]
+         m_axis_result_tvalid => int2FpOutValid,   -- [out]
+         m_axis_result_tdata  => int2FpOutData);   -- [out]
 
-   comb : process (axilReadMaster, axilWriteMaster, axisRst, dataSFixed, fifoAxisMaster, r, x1, x2,
-                   y1, y2) is
+   U_FpMac_1 : FpMac
+      port map (
+         aclk                    => axisClk,         -- [in]
+         s_axis_a_tvalid         => r.fpMacInValid,  -- [in]
+         s_axis_a_tdata          => r.data,          -- [in]
+         s_axis_b_tvalid         => r.fpMacInValid,  -- [in]
+         s_axis_b_tdata          => r.coeff,         -- [in]
+         s_axis_c_tvalid         => r.fpMacInValid,  -- [in]
+         s_axis_c_tdata          => r.result,        -- [in]
+         s_axis_operation_tvalid => r.fpMacInValid,  -- [in]
+         s_axis_operation_tdata  => r.fpMacOp,       -- [in]
+         m_axis_result_tvalid    => fpMacOutValid,   -- [out]
+         m_axis_result_tdata     => fpMacOutData);   -- [out]
+
+
+   comb : process (axilReadMaster, axilWriteMaster, axisRst, fifoAxisMaster, fpMacOutData,
+                   fpMacOutValid, int2FpOutData, int2FpOutValid, r, x1, x2, y1, y2) is
       variable v      : RegType;
       variable axilEp : AxiLiteEndpointType;
    begin
@@ -258,15 +322,17 @@ begin
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
 
       v.ramWe                := (others => '0');
-      v.ramWrAddr            := to_ufixed(fifoAxisMaster.tId(CHANNEL_ADDR_WIDTH_G-1 downto 0), r.ramWrAddr);
+      v.ramWrAddr            := fifoAxisMaster.tId(CHANNEL_ADDR_WIDTH_G-1 downto 0);
       v.fifoAxisSlave.tReady := '0';
-      v.mAxisMaster          := axiStreamMasterInit(AXIS_CONFIG_G);
+      v.mAxisMaster          := axiStreamMasterInit(DOWNSAMPLE_DATA_AXIS_CFG_C);
 
 
-
-      ----------------------------------------------------------------------------------------------
-      -- State Machine
-      ----------------------------------------------------------------------------------------------
+      v.int2FpInValid := '0';
+      v.fpMacInValid  := '0';
+      v.fpMacOp       := ADD_C;
+                                        ----------------------------------------------------------------------------------------------
+                                        -- State Machine
+                                        ----------------------------------------------------------------------------------------------
       case r.state is
          when WAIT_DATA_S =>
             if (r.clearFilters = '1') then
@@ -276,131 +342,139 @@ begin
                -- Clear result
                v.filterIndex := 0;
                v.result      := (others => '0');
-               v.x0_fixed    := resize(to_sfixed(fifoAxisMaster.tData(DATA_WIDTH_G-1 downto 0), DATA_WIDTH_G-1, 0), dataSFixed);
+
                if (fifoAxisMaster.tValid = '1') then
+                  v.int2FpInData  := resize(fifoAxisMaster.tData(DATA_WIDTH_G-1 downto 0), 24);
+                  v.int2FpInValid := '1';
+
                   if (uOr(fifoAxisMaster.tKeep) = '0') then
                      -- Skip straight to output
                      v.state := OUTPUT_S;
                   else
                      -- Allow tdest to address state ram               
-                     v.state := WAIT_STATE_RAM_0_S;
+                     v.state := WAIT_FP_CONV_S;
                   end if;
                end if;
             end if;
 
-         when WAIT_STATE_RAM_0_S =>
-            v.state := WAIT_STATE_RAM_1_S;
-
-         when WAIT_STATE_RAM_1_S =>
-            v.state := COEFFS_S;
+         when WAIT_FP_CONV_S =>
+            -- Wait for int 2 fp conversion to finish
+            -- Coefficients should also be ready from ram by this time
+            if (int2FpOutValid = '1') then
+               v.x0_active := int2FpOutData;
+               v.state     := COEFFS_S;
+            end if;
 
          when COEFFS_S =>
             -- Load coefficients from ram into registers
             -- Maybe unnecessary?
             -- Capture x0 from FIFO
 
-            v.x1_fixed := x1(r.filterIndex);
-            v.x2_fixed := x2(r.filterIndex);
-            v.y1_fixed := y1(r.filterIndex);
-            v.y2_fixed := y2(r.filterIndex);
+            v.x1_active := x1(r.filterIndex);
+            v.x2_active := x2(r.filterIndex);
+            v.y1_active := y1(r.filterIndex);
+            v.y2_active := y2(r.filterIndex);
 
-            v.b0_fixed := to_sfixed(r.b0(r.filterIndex), r.b0_fixed);
-            v.b1_fixed := to_sfixed(r.b1(r.filterIndex), r.b1_fixed);
-            v.b2_fixed := to_sfixed(r.b2(r.filterIndex), r.b2_fixed);
-            v.a1_fixed := to_sfixed(r.a1(r.filterIndex), r.a1_fixed);
-            v.a2_fixed := to_sfixed(r.a2(r.filterIndex), r.a2_fixed);
+            v.b0_active := r.b0(r.filterIndex);
+            v.b1_active := r.b1(r.filterIndex);
+            v.b2_active := r.b2(r.filterIndex);
+            v.a1_active := r.a1(r.filterIndex);
+            v.a2_active := r.a2(r.filterIndex);
 
             v.state := FILTER_B0_S;
 
          when FILTER_B0_S =>
-            -- Assign next MAC
-            v.coeff  := r.b0_fixed;
-            v.data   := r.x0_fixed;
-            v.result := (others => '0');
-
-            v.state := FILTER_B1_S;
+            v.fpMacInValid := '1';
+            v.fpMacOp      := ADD_C;
+            v.coeff        := r.b0_active;
+            v.data         := r.x0_active;
+            v.result       := (others => '0');
+            v.state        := FILTER_B1_S;
 
          when FILTER_B1_S =>
-            -- Compute MAC 
-            v.result := resize(r.result + (r.data * r.coeff), r.result);
-
-            -- Assign next MAC
-            v.coeff := r.b1_fixed;
-            v.data  := r.x1_fixed;
-
-            v.state := FILTER_B2_S;
+            if (fpMacOutValid = '1') then
+               v.fpMacInValid := '1';
+               v.fpMacOp      := ADD_C;
+               v.result       := fpMacOutData;
+               v.coeff        := r.b1_active;
+               v.data         := r.x1_active;
+               v.state        := FILTER_B2_S;
+            end if;
 
          when FILTER_B2_S =>
-            -- Compute MAC 
-            v.result := resize(r.result + (r.data * r.coeff), r.result);
-
-            -- Assign next MAC
-            v.coeff := r.b2_fixed;
-            v.data  := r.x2_fixed;
-
-            v.state := FILTER_A1_S;
+            if (fpMacOutValid = '1') then
+               v.fpMacInValid := '1';
+               v.fpMacOp      := ADD_C;
+               v.result       := fpMacOutData;
+               v.coeff        := r.b2_active;
+               v.data         := r.x2_active;
+               v.state        := FILTER_A1_S;
+            end if;
 
          when FILTER_A1_S =>
-            -- Compute MAC 
-            v.result := resize(r.result + (r.data * r.coeff), r.result);
+            if (fpMacOutValid = '1') then
+               v.fpMacInValid := '1';
+               v.fpMacOp      := SUB_C;
+               v.result       := fpMacOutData;
+               v.coeff        := r.a1_active;
+               v.data         := r.y1_active;
+               v.state        := FILTER_A2_S;
+            end if;
 
-            -- Assign next MAC
-            v.coeff := resize(-(r.a1_fixed), r.coeff);
-            v.data  := r.y1_fixed;
-
-            v.state := FILTER_A2_S;
 
          when FILTER_A2_S =>
-            -- Compute MAC 
-            v.result := resize(r.result + (r.data * r.coeff), r.result);
-
-            -- Assign next MAC
-            v.coeff := resize(-(r.a2_fixed), r.coeff);
-            v.data  := r.y2_fixed;
-
-            v.state := RESULT_S;
+            if (fpMacOutValid = '1') then
+               v.fpMacInValid := '1';
+               v.fpMacOp      := SUB_C;
+               v.result       := fpMacOutData;
+               v.coeff        := r.a2_active;
+               v.data         := r.y2_active;
+               v.state        := RESULT_S;
+            end if;
 
          when RESULT_S =>
-            -- Compute MAC 
-            v.result := resize(r.result + (r.data * r.coeff), r.result);
+            if (fpMacOutValid = '1') then
+               v.result := fpMacOutData;
+            end if;
 
             v.state := SHIFT_S;
 
 
          when SHIFT_S =>
             -- Save the results
-            v.x1_fixed             := r.x0_fixed;
-            v.x2_fixed             := r.x1_fixed;
-            v.y1_fixed             := resize(r.result, r.y1_fixed);
-            v.y2_fixed             := r.y1_fixed;
+            v.x1_active            := r.x0_active;
+            v.x2_active            := r.x1_active;
+            v.y1_active            := r.result;
+            v.y2_active            := r.y1_active;
             v.ramWe(r.filterIndex) := '1';
 
             if (r.filterIndex = (CASCADE_SIZE_G-1)) then
                v.state := OUTPUT_S;
             else
                v.filterIndex := r.filterIndex + 1;
-               v.x0_fixed    := v.y1_fixed;
+               v.x0_active   := v.y1_active;
                v.state       := COEFFS_S;
             end if;
 
          when OUTPUT_S =>
-            v.filterIndex                                := 0;
-            v.mAxisMaster.tValid                         := '1';
-            v.mAxisMaster.tData(DATA_WIDTH_G-1 downto 0) := to_slv(resize(r.y1_fixed, DATA_WIDTH_G-1, 0));
-            v.mAxisMaster.tId                            := fifoAxisMaster.tId;
-            v.mAxisMaster.tUser                          := fifoAxisMaster.tUser;
-            v.mAxisMaster.tKeep                          := fifoAxisMaster.tKeep;
-            v.mAxisMaster.tLast                          := fifoAxisMaster.tLast;
-            v.fifoAxisSlave.tReady                       := '1';
-            v.state                                      := WAIT_DATA_S;
+            v.filterIndex                     := 0;
+            v.mAxisMaster.tValid              := '1';
+            v.mAxisMaster.tData(31 downto 0)  := r.y1_active;
+            v.mAxisMaster.tData(63 downto 32) := resize(r.int2FpInData, 32);
+            v.mAxisMaster.tId                 := fifoAxisMaster.tId;
+            v.mAxisMaster.tUser               := fifoAxisMaster.tUser;
+            v.mAxisMaster.tKeep               := fifoAxisMaster.tKeep;
+            v.mAxisMaster.tLast               := fifoAxisMaster.tLast;
+            v.fifoAxisSlave.tReady            := '1';
+            v.state                           := WAIT_DATA_S;
 
          when CLEAR_FILTERS_S =>
             v.ramWe     := (others => '1');
-            v.ramWrAddr := resize(r.ramWrAddr + 1, r.ramWrAddr);
-            v.y2_fixed  := (others => '0');
-            v.y1_fixed  := (others => '0');
-            v.x2_fixed  := (others => '0');
-            v.x1_fixed  := (others => '0');
+            v.ramWrAddr := r.ramWrAddr + 1;
+            v.y2_active := (others => '0');
+            v.y1_active := (others => '0');
+            v.x2_active := (others => '0');
+            v.x1_active := (others => '0');
 
             if (r.ramWrAddr = (2**CHANNEL_ADDR_WIDTH_G)-1) then
                v.ramWrAddr    := (others => '0');
@@ -445,8 +519,8 @@ begin
          SYNTH_MODE_G        => "xpm",
          MEMORY_TYPE_G       => "bram",
          INT_WIDTH_SELECT_G  => "WIDE",
-         SLAVE_AXI_CONFIG_G  => AXIS_CONFIG_G,
-         MASTER_AXI_CONFIG_G => AXIS_CONFIG_G)
+         SLAVE_AXI_CONFIG_G  => DOWNSAMPLE_DATA_AXIS_CFG_C,
+         MASTER_AXI_CONFIG_G => DOWNSAMPLE_DATA_AXIS_CFG_C)
       port map (
          sAxisClk    => axisClk,        -- [in]
          sAxisRst    => axisRst,        -- [in]

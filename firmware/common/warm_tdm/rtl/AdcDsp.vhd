@@ -718,11 +718,11 @@ begin
                -- Output PID Stream
                v.pidStreamMaster.tValid := '1';
                if (r.outputMode = "00") then
-                  v.pidStreamMaster.tData(21 downto 0) := to_slv(resize(r.pidResult, 21, 0));
+                  v.pidStreamMaster.tData(23 downto 0) := to_slv(resize(r.pidResult, 23, 0));
                elsif (r.outputMode = "01") then
-                  v.pidStreamMaster.tData(21 downto 0) := to_slv(resize(r.accumError, 21, 0));
+                  v.pidStreamMaster.tData(23 downto 0) := to_slv(resize(r.accumError, 23, 0));
                elsif (r.outputMode = "10") then
-                  v.pidStreamMaster.tData(21 downto 0) := timingRxData.rowSeqCount(21 downto 0);
+                  v.pidStreamMaster.tData(23 downto 0) := timingRxData.rowSeqCount(23 downto 0);
                end if;
 
                v.pidStreamMaster.tId(ROW_ADDR_BITS_G-1 downto 0) := r.rowIndex;

@@ -23,7 +23,7 @@ class DataSample:
         return cls(
             row = arr[3],
             col = arr[4],
-            value = signed_int(arr[0:3]))
+            value = float32(arr[0:4]))
 
 @dataclass
 class DataReadout:
@@ -35,12 +35,12 @@ class DataReadout:
 
     @classmethod
     def from_numpy(cls, arr):
-        words = arr[:-5].reshape(-1, 5)
+        words = arr[:-8].reshape(-1, 8)
         return cls(
-            readoutCount = unsigned_int(words[0:2, 0:4]),
-            rowSeqCount = unsigned_int(words[2:4, 0:4]),
-            runTime = unsigned_int(words[4:6, 0:4]),
-            samples = [DataSample.from_numpy(w) for w in words[6:]])
+            readoutCount = unsigned_int(words[0])
+            rowSeqCount = unsigned_int(words[1])
+            runTime = unsigned_int(words[2])
+            samples = [DataSample.from_numpy(w) for w in words[3:]])
         
 
 
