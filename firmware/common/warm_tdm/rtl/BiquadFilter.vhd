@@ -103,7 +103,7 @@ architecture rtl of BiquadFilter is
       fpMacInValid   : sl;
       fpMacOp        : slv(7 downto 0);
 --      debugInput     : slv(DATA_WIDTH_G-1 downto 0);
---      debugOutput    : slv(DATA_WIDTH_G-1 downto 0);
+      debugOutput    : slv(31 downto 0);
       b0             : DataArray;
       b1             : DataArray;
       b2             : DataArray;
@@ -139,8 +139,8 @@ architecture rtl of BiquadFilter is
       fpMacInValid   => '0',
       fpMacOp        => (others => '0'),
 --      debugInput     => (others => '0'),
---      debugOutput    => (others => '0'),
-      b0             => (others => toSlv(1, 32)),
+      debugOutput    => (others => '0'),
+      b0             => (others => X"3F800000"),  -- float32 representation of 1.0
       b1             => (others => (others => '0')),
       b2             => (others => (others => '0')),
       a1             => (others => (others => '0')),
@@ -464,6 +464,7 @@ begin
             v.mAxisMaster.tValid              := '1';
             v.mAxisMaster.tData(31 downto 0)  := r.y1_active;
             v.mAxisMaster.tData(63 downto 32) := resize(r.int2FpInData, 32);
+            v.debugOutput                     := r.y1_active;
             v.mAxisMaster.tId                 := fifoAxisMaster.tId;
             v.mAxisMaster.tUser               := fifoAxisMaster.tUser;
             v.mAxisMaster.tKeep               := fifoAxisMaster.tKeep;
