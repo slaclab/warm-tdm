@@ -511,7 +511,7 @@ begin
    U_AxiStreamFifoV2_OUTPUT : entity surf.AxiStreamFifoV2
       generic map (
          TPD_G               => TPD_G,
-         INT_PIPE_STAGES_G   => 0,
+         INT_PIPE_STAGES_G   => 1,
          PIPE_STAGES_G       => 1,
          SLAVE_READY_EN_G    => false,
 --          VALID_THOLD_G       => 0,
