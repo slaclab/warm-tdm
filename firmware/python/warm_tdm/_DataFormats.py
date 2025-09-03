@@ -8,7 +8,7 @@ def signed_int(arr):
     return int.from_bytes(arr, 'little', signed=True)
 
 def unsigned_int(arr):
-    return int.from_bytes(arr, 'little', signed=False)    
+    return int.from_bytes(arr, 'little', signed=False)
 
 
 @dataclass
@@ -21,9 +21,9 @@ class DataSample:
     @classmethod
     def from_numpy(cls, arr):
         return cls(
-            row = arr[3],
-            col = arr[4],
-            value = float32(arr[0:4]))
+            row = arr[5],
+            col = arr[6],
+            value = arr[0:4].view(np.float32)[0])
 
 @dataclass
 class DataReadout:
