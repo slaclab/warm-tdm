@@ -17,19 +17,24 @@ class DataDebug(rogue.interfaces.stream.Slave):
 
     def _acceptFrame(self, frame):
         arr = frame.getNumpy()
-        print(f'Got frame with {len(arr)} bytes')
-        words = arr[:-5].reshape(-1, 5)
-        readoutCount = int.from_bytes( words[0:2, 0:4], byteorder='little', signed=False)
-        rowSeqCount = int.from_bytes(words[2:4, 0:4], byteorder='little', signed=False)
-        runTime = int.from_bytes(words[4:6, 0:4], byteorder='little', signed=False)
-        samples = words[6:]
 
-        print(f'{readoutCount=}')
-        print(f'{rowSeqCount=}')
-        print(f'{runTime=}')        
-        for s in samples:
-            value = int.from_bytes(s[0:3], byteorder='little', signed=True)
-            print(f'col {s[4]}, row {s[3]}, value 0x{value:x}')
+        dr = warm_tdm.DataReadout.from_numpy(arr)
+        
+        print(f'Got frame with {len(arr)} bytes')
+
+        print(dr)
+#         words = arr[:-5].reshape(-1, 5)
+#         readoutCount = int.from_bytes( words[0:2, 0:4], byteorder='little', signed=False)
+#         rowSeqCount = int.from_bytes(words[2:4, 0:4], byteorder='little', signed=False)
+#         runTime = int.from_bytes(words[4:6, 0:4], byteorder='little', signed=False)
+#         samples = words[6:]
+
+#         print(f'{readoutCount=}')
+#         print(f'{rowSeqCount=}')
+#         print(f'{runTime=}')        
+#         for s in samples:
+#             value = int.from_bytes(s[0:3], byteorder='little', signed=True)
+#             print(f'col {s[4]}, row {s[3]}, value 0x{value:x}')
         
 
 class HardwareGroup(pyrogue.Device):
@@ -151,7 +156,7 @@ class HardwareGroup(pyrogue.Device):
                 packetizer.application(9) >> dataFifo
 
                 dataFifo >> dataWriter.getChannel(9)
-                #dataFifo >> dataDbg
+                dataFifo >> dataDbg
 
 
         for rowIndex, boardIndex in enumerate(range(colBoards, colBoards+rowBoards)):
