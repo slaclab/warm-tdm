@@ -234,12 +234,13 @@ begin
          when DO_HEADER_4_S =>
             v.eventAxisMaster.tValid             := '1';
             v.eventAxisMaster.tData(63 downto 0) := fifoRunTime(63 downto 0);  --r.timingRxData.runTime(31 downto 0);
+            v.fifoRdEn                           := '1';            
             v.state                              := DO_DATA_S;
 
 --          when DO_HEADER_5_S =>
 --             v.eventAxisMaster.tValid             := '1';
 --             v.eventAxisMaster.tData(31 downto 0) := fifoRunTime(63 downto 32);  --r.timingRxData.runTime(63 downto 32);
---             v.fifoRdEn                           := '1';
+
 --             v.state                              := DO_DATA_S;
 
 
