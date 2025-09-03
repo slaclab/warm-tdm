@@ -2,6 +2,7 @@ import pyrogue as pr
 
 import surf
 import scipy
+import numpy as np
 #mport surf.dsp.fixed
 
 import warm_tdm
@@ -108,31 +109,36 @@ class BiquadFilterCoeffs(pr.Device):
         
         self.add(pr.RemoteVariable(
             name = f'B0',
-            base = pr.Fixed(32, 30),
+            base = pr.Float,
+            disp = '{:.6e}',
             bitSize = 32,
             offset = 0))
 
         self.add(pr.RemoteVariable(
             name = f'B1',
-            base = pr.Fixed(32, 30),
+            base = pr.Float,
+            disp = '{:.6e}',
             bitSize = 32,
             offset = 4))
 
         self.add(pr.RemoteVariable(
             name = f'B2',
-            base = pr.Fixed(32, 30),
+            base = pr.Float,
+            disp = '{:.6e}',            
             bitSize = 32,
             offset = 8))
 
         self.add(pr.RemoteVariable(
             name = f'A1',
-            base = pr.Fixed(32, 30),
+            base = pr.Float,
+            disp = '{:.6e}',            
             bitSize = 32,
             offset = 12))
 
         self.add(pr.RemoteVariable(
             name = f'A2',
-            base = pr.Fixed(32, 30),
+            base = pr.Float,
+            disp = '{:.6e}',            
             bitSize = 32,
             offset = 16))
 
@@ -170,12 +176,12 @@ class DownsampleFilters(pr.Device):
         def _setFilters(value, write):
             self.filterFreq = value
             sr = timingTx.RowSequenceRate.get()*1.0e3
-            sos = scipy.signal.butter(N=4, Wn=self.filterFreq / (sr / 2), output = 'sos')
+            sos = scipy.signal.butter(N=4, Wn=self.filterFreq / (sr / 2), output = 'sos').astype(np.float32)
             print('Coefficients for downsample filter')
             print(f'Sample Rate - {sr}')
             print(f'Filter Freq - {self.filterFreq}')
             print(sos)
-            for i, coeff in enumerate(reversed(sos)):
+            for i, coeff in enumerate(sos):
                 for col in range(8):
                     self.Filter[col].Coeffs[i].B0.set(coeff[0], write=False)
                     self.Filter[col].Coeffs[i].B1.set(coeff[1], write=False)
