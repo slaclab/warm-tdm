@@ -37,9 +37,9 @@ class DataReadout:
     def from_numpy(cls, arr):
         words = arr[:-8].reshape(-1, 8)
         return cls(
-            readoutCount = unsigned_int(words[0])
-            rowSeqCount = unsigned_int(words[1])
-            runTime = unsigned_int(words[2])
+            readoutCount = unsigned_int(words[0]),
+            rowSeqCount = unsigned_int(words[1]),
+            runTime = unsigned_int(words[2]),
             samples = [DataSample.from_numpy(w) for w in words[3:]])
         
 
