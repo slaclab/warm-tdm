@@ -330,9 +330,9 @@ begin
       v.int2FpInValid := '0';
       v.fpMacInValid  := '0';
       v.fpMacOp       := ADD_C;
-                                        ----------------------------------------------------------------------------------------------
-                                        -- State Machine
-                                        ----------------------------------------------------------------------------------------------
+      ----------------------------------------------------------------------------------------------
+      -- State Machine
+      ----------------------------------------------------------------------------------------------
       case r.state is
          when WAIT_DATA_S =>
             if (r.clearFilters = '1') then
@@ -349,7 +349,8 @@ begin
 
                   if (uOr(fifoAxisMaster.tKeep) = '0') then
                      -- Skip straight to output
-                     v.state := OUTPUT_S;
+                     v.int2FpInValid := '0';
+                     v.state         := OUTPUT_S;
                   else
                      -- Allow tdest to address state ram               
                      v.state := WAIT_FP_CONV_S;
@@ -414,9 +415,11 @@ begin
          when FILTER_A1_S =>
             if (fpMacOutValid = '1') then
                v.fpMacInValid := '1';
-               v.fpMacOp      := SUB_C;
+               v.fpMacOp      := ADD_C;
                v.result       := fpMacOutData;
                v.coeff        := r.a1_active;
+               -- Invert coeff to subtract
+               v.coeff(31)    := not v.coeff(31);
                v.data         := r.y1_active;
                v.state        := FILTER_A2_S;
             end if;
@@ -425,9 +428,11 @@ begin
          when FILTER_A2_S =>
             if (fpMacOutValid = '1') then
                v.fpMacInValid := '1';
-               v.fpMacOp      := SUB_C;
+               v.fpMacOp      := ADD_C;
                v.result       := fpMacOutData;
                v.coeff        := r.a2_active;
+               -- Invert coeff to subtract
+               v.coeff(31)    := not v.coeff(31);
                v.data         := r.y2_active;
                v.state        := RESULT_S;
             end if;
@@ -435,10 +440,8 @@ begin
          when RESULT_S =>
             if (fpMacOutValid = '1') then
                v.result := fpMacOutData;
+               v.state  := SHIFT_S;
             end if;
-
-            v.state := SHIFT_S;
-
 
          when SHIFT_S =>
             -- Save the results
