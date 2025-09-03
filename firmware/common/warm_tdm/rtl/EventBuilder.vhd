@@ -59,7 +59,7 @@ end entity EventBuilder;
 
 architecture rtl of EventBuilder is
 
-   constant EVENT_AXIS_CFG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 6, tDestBits => 0);
+   constant EVENT_AXIS_CFG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 8, tDestBits => 0);
 
    type StateType is (
       WAIT_RSS_S,
