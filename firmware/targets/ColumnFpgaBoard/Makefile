@@ -2,9 +2,6 @@
 # Define target output
 target: prom
 
-# Must use VHDL 2008 for IEEE floating support
-export SIM_CARGS_VHDL = -nc -l +v2k -xlrm -vhdl08
-
 # Define target part
 export PRJ_PART = XC7K160TFFG676-1
 
