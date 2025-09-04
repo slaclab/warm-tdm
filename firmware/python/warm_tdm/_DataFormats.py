@@ -21,8 +21,8 @@ class DataSample:
     @classmethod
     def from_numpy(cls, arr):
         return cls(
-            row = arr[5],
-            col = arr[6],
+            row = arr[4],
+            col = arr[5],
             value = arr[0:4].view(np.float32)[0])
 
 @dataclass
