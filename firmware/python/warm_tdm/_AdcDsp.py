@@ -105,6 +105,16 @@ class AdcDsp(pr.Device):
             linkedGet = self.PidEnableRaw.get))
 
         self.add(pr.RemoteVariable(
+            name = 'Sq1FbEnable',
+            offset = 0x00,
+            base = pr.Bool,
+            hidden = False,
+            groups = ['NoConfig'],
+            mode = 'RW',
+            bitSize = 1,
+            bitOffset = 1))
+        
+        self.add(pr.RemoteVariable(
             name = 'OutputMode',
             offset = 0x00,
             base = pr.UInt,

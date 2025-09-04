@@ -126,6 +126,7 @@ architecture rtl of AdcDsp is
 
    type RegType is record
       fllEnable          : sl;
+      sq1FbEnable        : sl;
       outputMode         : slv(1 downto 0);
       state              : StateType;
       rowIndex           : slv(ROW_ADDR_BITS_G-1 downto 0);
@@ -159,6 +160,7 @@ architecture rtl of AdcDsp is
 
    constant REG_INIT_C : RegType := (
       fllEnable          => '0',
+      sq1FbEnable        => '1',
       outputMode         => (others => '0'),
       state              => WAIT_ROW_STROBE_S,
       rowIndex           => (others => '0'),
@@ -511,6 +513,7 @@ begin
       axiSlaveWaitTxn(axilEp, timingAxilWriteMaster, timingAxilReadMaster, v.axilWriteSlave, v.axilReadSlave);
 
       axiSlaveRegister(axilEp, X"00", 0, v.fllEnable);
+      axiSlaveRegister(axilEp, X"00", 1, v.sq1FbEnable);
       axiSlaveRegister(axilEp, X"00", 8, v.outputMode);
       axiSlaveRegister(axilEp, X"00", 16, v.accumShift);
       axiSlaveRegister(axilEp, X"04", 0, v.p);
@@ -701,7 +704,7 @@ begin
 
                v.numFluxJumps    := to_slv(numFluxJumpsFixed);
                v.fluxJumpWrValid := '1';
-               v.sq1FbValid      := '1';
+               v.sq1FbValid      := r.sq1FbEnable;
                v.state           := DATA_STREAM_FLUX_JUMP_0_S;
 
             when DATA_STREAM_FLUX_JUMP_0_S =>
