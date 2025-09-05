@@ -99,7 +99,7 @@ architecture rtl of BiquadFilter is
       state          : StateType;
       filterIndex    : integer range 0 to CASCADE_SIZE_G-1;
       int2FpInValid  : sl;
-      int2FpInData   : slv(23 downto 0);
+      int2FpInData   : slv(31 downto 0);
       fpMacInValid   : sl;
       fpMacOp        : slv(7 downto 0);
 --      debugInput     : slv(DATA_WIDTH_G-1 downto 0);
@@ -189,8 +189,6 @@ architecture rtl of BiquadFilter is
          s_axis_b_tdata          : in  std_logic_vector(31 downto 0);
          s_axis_c_tvalid         : in  std_logic;
          s_axis_c_tdata          : in  std_logic_vector(31 downto 0);
-         s_axis_operation_tvalid : in  std_logic;
-         s_axis_operation_tdata  : in  std_logic_vector(7 downto 0);
          m_axis_result_tvalid    : out std_logic;
          m_axis_result_tdata     : out std_logic_vector(31 downto 0)
          );
@@ -200,14 +198,13 @@ architecture rtl of BiquadFilter is
       port (
          aclk                 : in  std_logic;
          s_axis_a_tvalid      : in  std_logic;
-         s_axis_a_tdata       : in  std_logic_vector(23 downto 0);
+         s_axis_a_tdata       : in  std_logic_vector(31 downto 0);
          m_axis_result_tvalid : out std_logic;
          m_axis_result_tdata  : out std_logic_vector(31 downto 0)
          );
    end component;
 
 begin
-
 
 
    -- Buffer incomming samples just in case

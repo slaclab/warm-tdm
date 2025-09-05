@@ -3,13 +3,13 @@
   "ip_inst": {
     "xci_name": "FpMac",
     "component_reference": "xilinx.com:ip:floating_point:7.1",
-    "ip_revision": "20",
-    "gen_directory": "../../../../ColumnFpgaBoard_project.gen/sources_1/ip/FpMac",
+    "ip_revision": "18",
+    "gen_directory": "../../../../ColumnFpgaBoard325Coordinator10G_project.gen/sources_1/ip/FpMac",
     "parameters": {
       "component_parameters": {
         "Component_Name": [ { "value": "FpMac", "resolve_type": "user", "usage": "all" } ],
         "Operation_Type": [ { "value": "FMA", "value_src": "user", "resolve_type": "user", "usage": "all" } ],
-        "Add_Sub_Value": [ { "value": "Both", "value_src": "user", "resolve_type": "user", "usage": "all" } ],
+        "Add_Sub_Value": [ { "value": "Add", "value_src": "user", "resolve_type": "user", "usage": "all" } ],
         "C_Compare_Operation": [ { "value": "Programmable", "resolve_type": "user", "usage": "all" } ],
         "A_Precision_Type": [ { "value": "Single", "value_src": "user", "resolve_type": "user", "usage": "all" } ],
         "C_A_Exponent_Width": [ { "value": "8", "value_src": "user", "resolve_type": "user", "format": "long", "usage": "all" } ],
@@ -53,7 +53,7 @@
       },
       "model_parameters": {
         "C_XDEVICEFAMILY": [ { "value": "kintex7", "resolve_type": "generated", "usage": "all" } ],
-        "C_PART": [ { "value": "xc7k160tffg676-1", "resolve_type": "generated", "usage": "all" } ],
+        "C_PART": [ { "value": "xc7k325tffg676-2", "resolve_type": "generated", "usage": "all" } ],
         "C_HAS_ADD": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_HAS_SUBTRACT": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_HAS_MULTIPLY": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
@@ -69,7 +69,7 @@
         "C_HAS_LOGARITHM": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_HAS_EXPONENTIAL": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_HAS_FMA": [ { "value": "1", "resolve_type": "generated", "format": "long", "usage": "all" } ],
-        "C_HAS_FMS": [ { "value": "1", "resolve_type": "generated", "format": "long", "usage": "all" } ],
+        "C_HAS_FMS": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_HAS_UNFUSED_MULTIPLY_ADD": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_HAS_UNFUSED_MULTIPLY_SUB": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_HAS_UNFUSED_MULTIPLY_ACCUMULATOR_A": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
@@ -112,7 +112,7 @@
         "C_HAS_C": [ { "value": "1", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_HAS_C_TUSER": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_HAS_C_TLAST": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
-        "C_HAS_OPERATION": [ { "value": "1", "resolve_type": "generated", "format": "long", "usage": "all" } ],
+        "C_HAS_OPERATION": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_HAS_OPERATION_TUSER": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_HAS_OPERATION_TLAST": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_HAS_RESULT_TUSER": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
@@ -134,24 +134,24 @@
         "ARCHITECTURE": [ { "value": "kintex7" } ],
         "BASE_BOARD_PART": [ { "value": "" } ],
         "BOARD_CONNECTIONS": [ { "value": "" } ],
-        "DEVICE": [ { "value": "xc7k160t" } ],
+        "DEVICE": [ { "value": "xc7k325t" } ],
         "NEXTGEN_VERSAL": [ { "value": "0" } ],
         "PACKAGE": [ { "value": "ffg676" } ],
-        "PREFHDL": [ { "value": "VERILOG" } ],
+        "PREFHDL": [ { "value": "VHDL" } ],
         "SILICON_REVISION": [ { "value": "" } ],
         "SIMULATOR_LANGUAGE": [ { "value": "MIXED" } ],
-        "SPEEDGRADE": [ { "value": "-1" } ],
+        "SPEEDGRADE": [ { "value": "-2" } ],
         "STATIC_POWER": [ { "value": "" } ],
         "TEMPERATURE_GRADE": [ { "value": "" } ]
       },
       "runtime_parameters": {
         "IPCONTEXT": [ { "value": "IP_Flow" } ],
-        "IPREVISION": [ { "value": "20" } ],
+        "IPREVISION": [ { "value": "18" } ],
         "MANAGED": [ { "value": "TRUE" } ],
-        "OUTPUTDIR": [ { "value": "../../../../ColumnFpgaBoard_project.gen/sources_1/ip/FpMac" } ],
+        "OUTPUTDIR": [ { "value": "../../../../ColumnFpgaBoard325Coordinator10G_project.gen/sources_1/ip/FpMac" } ],
         "SELECTEDSIMMODEL": [ { "value": "" } ],
         "SHAREDDIR": [ { "value": "." } ],
-        "SWVERSION": [ { "value": "2025.1" } ],
+        "SWVERSION": [ { "value": "2024.1" } ],
         "SYNTHESISFLOW": [ { "value": "OUT_OF_CONTEXT" } ]
       }
     },
@@ -164,8 +164,6 @@
         "s_axis_b_tdata": [ { "direction": "in", "size_left": "31", "size_right": "0", "driver_value": "0" } ],
         "s_axis_c_tvalid": [ { "direction": "in", "driver_value": "0x0" } ],
         "s_axis_c_tdata": [ { "direction": "in", "size_left": "31", "size_right": "0", "driver_value": "0" } ],
-        "s_axis_operation_tvalid": [ { "direction": "in", "driver_value": "0x0" } ],
-        "s_axis_operation_tdata": [ { "direction": "in", "size_left": "7", "size_right": "0", "driver_value": "0" } ],
         "m_axis_result_tvalid": [ { "direction": "out", "driver_value": "0x0" } ],
         "m_axis_result_tdata": [ { "direction": "out", "size_left": "31", "size_right": "0", "driver_value": "0" } ]
       },
@@ -300,30 +298,6 @@
           "port_maps": {
             "TDATA": [ { "physical_name": "m_axis_result_tdata" } ],
             "TVALID": [ { "physical_name": "m_axis_result_tvalid" } ]
-          }
-        },
-        "S_AXIS_OPERATION": {
-          "vlnv": "xilinx.com:interface:axis:1.0",
-          "abstraction_type": "xilinx.com:interface:axis_rtl:1.0",
-          "mode": "slave",
-          "parameters": {
-            "TDATA_NUM_BYTES": [ { "value": "1", "resolve_type": "generated", "format": "long", "is_ips_inferred": true, "is_static_object": false } ],
-            "TDEST_WIDTH": [ { "value": "0", "value_src": "constant", "resolve_type": "generated", "format": "long", "is_ips_inferred": true, "is_static_object": false } ],
-            "TID_WIDTH": [ { "value": "0", "value_src": "constant", "resolve_type": "generated", "format": "long", "is_ips_inferred": true, "is_static_object": false } ],
-            "TUSER_WIDTH": [ { "value": "0", "resolve_type": "generated", "format": "long", "is_ips_inferred": true, "is_static_object": false } ],
-            "HAS_TREADY": [ { "value": "0", "value_src": "auto", "resolve_type": "generated", "format": "long", "is_ips_inferred": true, "is_static_object": false } ],
-            "HAS_TSTRB": [ { "value": "0", "value_src": "constant", "resolve_type": "generated", "format": "long", "is_ips_inferred": true, "is_static_object": false } ],
-            "HAS_TKEEP": [ { "value": "0", "value_src": "constant", "resolve_type": "generated", "format": "long", "is_ips_inferred": true, "is_static_object": false } ],
-            "HAS_TLAST": [ { "value": "0", "resolve_type": "generated", "format": "long", "is_ips_inferred": true, "is_static_object": false } ],
-            "FREQ_HZ": [ { "value": "100000000", "resolve_type": "generated", "format": "long", "is_ips_inferred": true, "is_static_object": false } ],
-            "PHASE": [ { "value": "0.0", "resolve_type": "generated", "format": "float", "is_ips_inferred": true, "is_static_object": false } ],
-            "CLK_DOMAIN": [ { "value": "", "resolve_type": "generated", "is_ips_inferred": true, "is_static_object": false } ],
-            "LAYERED_METADATA": [ { "value": "undef", "resolve_type": "generated", "is_ips_inferred": true, "is_static_object": false } ],
-            "INSERT_VIP": [ { "value": "0", "resolve_type": "user", "format": "long", "usage": "simulation.rtl", "is_ips_inferred": true, "is_static_object": false } ]
-          },
-          "port_maps": {
-            "TDATA": [ { "physical_name": "s_axis_operation_tdata" } ],
-            "TVALID": [ { "physical_name": "s_axis_operation_tvalid" } ]
           }
         }
       }

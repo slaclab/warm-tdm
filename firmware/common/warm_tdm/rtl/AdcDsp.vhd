@@ -146,6 +146,7 @@ architecture rtl of AdcDsp is
       pidResult          : sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
       sq1Fb              : sfixed(13 downto 0);
       sq1FbValid         : sl;
+      sq1FbFull          : sfixed(31 downto 0);             -- SQ1FB + flux jumps
       numFluxJumps       : slv(7 downto 0);
       fluxQuantum        : slv(13 downto 0);
       fluxJumpWrValid    : sl;
@@ -181,6 +182,7 @@ architecture rtl of AdcDsp is
       pidResult          => (others => '0'),
       sq1Fb              => (others => '0'),
       sq1FbValid         => '0',
+      sq1FbFull          => (others => '0'),
       numFluxJumps       => (others => '0'),
       fluxQuantum        => (others => '0'),
       fluxJumpWrValid    => '0',
@@ -436,58 +438,6 @@ begin
          din            => pidResult,                           -- [in]
          dout           => pidRamOut);                          -- [in]
 
-   -- PID results streamed through and FIR filter
---    U_FirFilterMultiChannel_1 : entity surf.FirFilterMultiChannel
---       generic map (
---          TPD_G          => TPD_G,
---          NUM_TAPS_G     => 21,
---          NUM_CHANNELS_G => 256,
---          PARALLEL_G     => 1,
---          DATA_WIDTH_G   => 14,                                   --RESULT_BITS_C,
---          COEFF_WIDTH_G  => 8,
---          COEFFICIENTS_G => FILTER_COEFFICIENTS_C,
---          MEMORY_TYPE_G  => "block",
---          SYNTH_MODE_G   => "inferred")
---       port map (
---          axisClk         => timingRxClk125,                      -- [in]
---          axisRst         => timingRxRst125,                      -- [in]
---          sAxisMaster     => pidStreamMaster,                     -- [in]
---          sAxisSlave      => open,                                -- [out]
---          mAxisMaster     => filterStreamMaster,                  -- [out]
---          mAxisSlave      => AXI_STREAM_SLAVE_FORCE_C,            -- [in]
---          axilClk         => timingRxClk125,                      -- [in]
---          axilRst         => timingRxRst125,                      -- [in]
---          axilReadMaster  => locAxilReadMasters(FILTER_COEF_C),   -- [in]
---          axilReadSlave   => locAxilReadSlaves(FILTER_COEF_C),    -- [out]
---          axilWriteMaster => locAxilWriteMasters(FILTER_COEF_C),  -- [in]
---          axilWriteSlave  => locAxilWriteSlaves(FILTER_COEF_C));  -- [out]
-
---    -- FIR filter results streamed into an AXIL RAM
---    U_AxiDualPortRam_FILTER_RESULTS : entity surf.AxiDualPortRam
---       generic map (
---          TPD_G            => TPD_G,
---          SYNTH_MODE_G     => "inferred",
---          MEMORY_TYPE_G    => "block",
---          READ_LATENCY_G   => 3,
---          AXI_WR_EN_G      => false,
---          SYS_WR_EN_G      => true,
---          SYS_BYTE_WR_EN_G => false,
---          COMMON_CLK_G     => false,
---          ADDR_WIDTH_G     => ROW_ADDR_BITS_G,
---          DATA_WIDTH_G     => RESULT_BITS_C)
---       port map (
---          axiClk         => timingRxClk125,                                      -- [in]
---          axiRst         => timingRxRst125,                                      -- [in]
---          axiReadMaster  => locAxilReadMasters(FILTER_RESULTS_C),                -- [in]
---          axiReadSlave   => locAxilReadSlaves(FILTER_RESULTS_C),                 -- [out]
---          axiWriteMaster => locAxilWriteMasters(FILTER_RESULTS_C),               -- [in]
---          axiWriteSlave  => locAxilWriteSlaves(FILTER_RESULTS_C),                -- [out]
---          clk            => timingRxClk125,                                      -- [in]
---          rst            => timingRxRst125,                                      -- [in]
---          addr           => filterStreamMaster.tDest(7 downto 0),                -- [in]
---          we             => filterStreamMaster.tValid,                           -- [in]
---          din            => filterStreamMaster.tData(RESULT_BITS_C-1 downto 0),  -- [in]
---          dout           => open);                                               -- [in]
 
    comb : process (accumRamOut, adcAxisMaster, adcBaselineRamOut, fluxJumpRamOut, pidDebugCtrl, r,
                    sumRamOut, timingAxilReadMaster, timingAxilWriteMaster, timingRxData,
@@ -696,8 +646,9 @@ begin
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
                v.pidDebugMaster.tData(63 downto 0) := resize(to_slv(r.pidResult), 64);
 
-               v.sq1Fb := resize(r.sq1Fb + r.pidResult, v.sq1Fb);
-               v.state := FLUX_JUMP_S;
+               v.sq1Fb     := resize(r.sq1Fb + r.pidResult, v.sq1Fb);
+               v.sq1FbFull := resize(r.sq1FbFull + r.pidResult, v.sq1FbFull);
+               v.state     := FLUX_JUMP_S;
 
             when FLUX_JUMP_S =>
                if (r.sq1Fb > 7862) then
@@ -710,28 +661,28 @@ begin
 
                v.numFluxJumps    := to_slv(numFluxJumpsFixed);
                v.fluxJumpWrValid := '1';
-               v.sq1FbValid      := r.sq1FbEnable;
-               v.state           := DATA_STREAM_FLUX_JUMP_0_S;
+               v.sq1FbValid      := r.rowEnabled;
+               v.state           := DATA_STREAM_S;
 
-            when DATA_STREAM_FLUX_JUMP_0_S =>
-               v.pidResult     := resize(r.sq1Fb, r.pidResult);
-               v.pidMultiplier := resize(numFluxJumpsFixed, r.pidMultiplier);
-               v.pidCoef       := resize(fluxQuantumFixed, r.pidCoef);
-               v.state         := DATA_STREAM_FLUX_JUMP_1_S;
+--             when DATA_STREAM_FLUX_JUMP_0_S =>
+--                v.pidResult     := resize(r.sq1FbFull, r.pidResult);
+--                v.pidMultiplier := resize(numFluxJumpsFixed, r.pidMultiplier);
+--                v.pidCoef :=
+--                   v.state := DATA_STREAM_FLUX_JUMP_1_S;
 
-            when DATA_STREAM_FLUX_JUMP_1_S =>
-               v.pidResult := resize(r.pidResult + (r.pidCoef * r.pidMultiplier), v.pidResult);
-               v.state     := DATA_STREAM_S;
+--             when DATA_STREAM_FLUX_JUMP_1_S =>
+--                v.pidResult := resize(r.pidResult + (r.pidCoef * r.pidMultiplier), v.pidResult);
+--                v.state     := DATA_STREAM_S;
 
             when DATA_STREAM_S =>
                -- Output PID Stream
-               v.pidStreamMaster.tValid := '1';
+               v.pidStreamMaster.tValid := r.rowEnabled;
                if (r.outputMode = "00") then
-                  v.pidStreamMaster.tData(23 downto 0) := to_slv(resize(r.pidResult, 23, 0));
+                  v.pidStreamMaster.tData(31 downto 0) := to_slv(r.sq1FbFull);
                elsif (r.outputMode = "01") then
-                  v.pidStreamMaster.tData(23 downto 0) := to_slv(resize(r.accumError, 23, 0));
+                  v.pidStreamMaster.tData(31 downto 0) := to_slv(resize(r.accumError, 31, 0));
                elsif (r.outputMode = "10") then
-                  v.pidStreamMaster.tData(23 downto 0) := timingRxData.rowSeqCount(23 downto 0);
+                  v.pidStreamMaster.tData(31 downto 0) := timingRxData.rowSeqCount(31 downto 0);
                end if;
 
                v.pidStreamMaster.tId(ROW_ADDR_BITS_G-1 downto 0) := r.rowIndex;
