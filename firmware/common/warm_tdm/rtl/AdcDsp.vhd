@@ -126,7 +126,8 @@ architecture rtl of AdcDsp is
 
    type RegType is record
       fllEnable          : sl;
-      sq1FbEnable        : sl;
+      rowEnableMask      : slv(255 downto 0);
+      rowEnabled         : sl;
       outputMode         : slv(1 downto 0);
       state              : StateType;
       rowIndex           : slv(ROW_ADDR_BITS_G-1 downto 0);
@@ -160,7 +161,8 @@ architecture rtl of AdcDsp is
 
    constant REG_INIT_C : RegType := (
       fllEnable          => '0',
-      sq1FbEnable        => '1',
+      rowEnableMask      => (others => '1'),
+      rowEnabled         => '0',
       outputMode         => (others => '0'),
       state              => WAIT_ROW_STROBE_S,
       rowIndex           => (others => '0'),
@@ -513,7 +515,7 @@ begin
       axiSlaveWaitTxn(axilEp, timingAxilWriteMaster, timingAxilReadMaster, v.axilWriteSlave, v.axilReadSlave);
 
       axiSlaveRegister(axilEp, X"00", 0, v.fllEnable);
-      axiSlaveRegister(axilEp, X"00", 1, v.sq1FbEnable);
+
       axiSlaveRegister(axilEp, X"00", 8, v.outputMode);
       axiSlaveRegister(axilEp, X"00", 16, v.accumShift);
       axiSlaveRegister(axilEp, X"04", 0, v.p);
@@ -524,6 +526,8 @@ begin
       axiSlaveRegisterR(axilEp, X"44", 0, r.numFluxJumps);
 
       axiSlaveRegister(axilEp, X"50", 0, v.axilPidDebugEnable);
+
+      axiSlaveRegister(axilEp, X"60", 0, v.rowEnableMask);
 
       axiSlaveRegisterR(axilEp, X"10", 0, to_slv(r.accumError));
       axiSlaveRegisterR(axilEp, X"14", 0, to_slv(r.lastAccum));
@@ -584,6 +588,7 @@ begin
                if (adcAxisMaster.tUser(2) = '1') then
                   v.rowIndex   := adcAxisMaster.tId(ROW_ADDR_BITS_G-1 downto 0);
                   v.accumError := (others => '0');
+                  v.rowEnabled := r.rowEnableMask(to_integer(to_ufixed(r.rowIndex, 7, 0)));
 
                   -- Word 0 is Column and Row
                   ssiSetUserSof(AXIS_DEBUG_CFG_C, v.pidDebugMaster, '1');
@@ -682,6 +687,7 @@ begin
                -- Calculate PID Stage
                v.pidResult := resize(r.pidResult + (r.pidCoef * r.pidMultiplier), v.pidResult);
                v.sumAccum  := resize(r.sumAccum + r.accumError, v.sumAccum);
+               -- Save result and sumAccum in RAM
                v.pidValid  := '1';
                v.state     := SQ1FB_ADJUST_S;
 
