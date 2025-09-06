@@ -106,7 +106,7 @@ class AdcDsp(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'RowEnableMask',
-            offset = 0x00,
+            offset = 0x60,
             base = pr.UInt,
             hidden = False,
             mode = 'RW',
