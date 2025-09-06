@@ -303,7 +303,7 @@ begin
          TPD_G   => TPD_G,
          DELAY_G => 20)
       port map (
-         clk       => timingRxClk,           -- [in]
+         clk       => timingRxClk125,        -- [in]
          timingIn  => timingRxData,          -- [in]
          timingOut => timingRxDataDelayed);  -- [out]
 
