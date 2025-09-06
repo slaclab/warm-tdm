@@ -21,6 +21,9 @@ use ieee.std_logic_1164.all;
 library surf;
 use surf.StdRtlPkg.all;
 
+library warm_tdm;
+use warm_tdm.TimingPkg.all;
+
 entity TimingDelay is
 
    generic (
