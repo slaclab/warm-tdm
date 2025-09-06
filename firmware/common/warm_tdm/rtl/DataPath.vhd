@@ -161,9 +161,10 @@ architecture rtl of DataPath is
    signal eventAxisMaster : AxiStreamMasterType;
    signal eventAxisSlave  : AxiStreamSlaveType;
 
-
    signal dataAxisMaster : AxiStreamMasterType;
    signal dataAxisSlave  : AxiStreamSlaveType;
+
+   signal timingRxDataDelayed : LocalTimingType;
 
 begin
 
@@ -294,6 +295,18 @@ begin
          mAxiReadMasters     => pidFilterAxilReadMasters,                -- [out]
          mAxiReadSlaves      => pidFilterAxilReadSlaves);                -- [in]
 
+   -------------------------------------------------------------------------------------------------
+   -- Delay timing by 20 cycles to account for ADC Latency
+   -------------------------------------------------------------------------------------------------
+   U_TimingDelay_1 : entity warm_tdm.TimingDelay
+      generic map (
+         TPD_G   => TPD_G,
+         DELAY_G => 20)
+      port map (
+         clk       => timingRxClk,           -- [in]
+         timingIn  => timingRxData,          -- [in]
+         timingOut => timingRxDataDelayed);  -- [out]
+
 
    FIR_FILTER_GEN : for i in 7 downto 0 generate
       GEN_ADC_FILTER : if (GEN_ADC_FILTER_G) generate
@@ -311,14 +324,14 @@ begin
                rst                 => timingRxRst125,                  -- [in]
                ibValid             => adcStreams(i).tvalid,            -- [in]
                din                 => adcStreams(i).tData(15 downto 2),           -- [in]
-               sbIn(7 downto 0)    => timingRxData.rowIndex,           -- [in]
-               sbIn(8)             => timingRxData.firstSample,        -- [in]
-               sbIn(9)             => timingRxData.lastSample,         -- [in]
-               sbIn(10)            => timingRxData.rowStrobe,          -- [in]
-               sbIn(11)            => timingRxData.waveformCapture,    -- [in]
-               sbIn(12)            => timingRxData.sample,             -- [in]
-               sbIn(13)            => timingRxData.rowSeqStart,        -- [in]
-               sbIn(14)            => timingRxData.daqReadoutStart,    -- [in]
+               sbIn(7 downto 0)    => timingRxDataDelayed.rowIndex,    -- [in]
+               sbIn(8)             => timingRxDataDelayed.firstSample,            -- [in]
+               sbIn(9)             => timingRxDataDelayed.lastSample,  -- [in]
+               sbIn(10)            => timingRxDataDelayed.rowStrobe,   -- [in]
+               sbIn(11)            => timingRxDataDelayed.waveformCapture,        -- [in]
+               sbIn(12)            => timingRxDataDelayed.sample,      -- [in]
+               sbIn(13)            => timingRxDataDelayed.rowSeqStart,            -- [in]
+               sbIn(14)            => timingRxDataDelayed.daqReadoutStart,        -- [in]
                sbIn(28 downto 15)  => sq1FbDacs(i),                    -- [in]
                obValid             => filteredAdcStreams(i).tvalid,    -- [out]
                dout                => filteredAdcStreams(i).tData(15 downto 2),   -- [out]
@@ -347,14 +360,14 @@ begin
 
       bypassedAdcStreams(i).tValid              <= adcStreams(i).tValid;
       bypassedAdcStreams(i).tData(15 downto 0)  <= adcStreams(i).tData(15 downto 0);
-      bypassedAdcStreams(i).tid(7 downto 0)     <= timingRxData.rowIndex;
-      bypassedAdcStreams(i).tuser(0)            <= timingRxData.firstSample;
-      bypassedAdcStreams(i).tuser(1)            <= timingRxData.lastSample;
-      bypassedAdcStreams(i).tuser(2)            <= timingRxData.rowStrobe;
-      bypassedAdcStreams(i).tuser(3)            <= timingRxData.waveformCapture;
-      bypassedAdcStreams(i).tuser(4)            <= timingRxData.sample;
-      bypassedAdcStreams(i).tuser(5)            <= timingRxData.rowSeqStart;
-      bypassedAdcStreams(i).tuser(6)            <= timingRxData.daqReadoutStart;
+      bypassedAdcStreams(i).tid(7 downto 0)     <= timingRxDataDelayed.rowIndex;
+      bypassedAdcStreams(i).tuser(0)            <= timingRxDataDelayed.firstSample;
+      bypassedAdcStreams(i).tuser(1)            <= timingRxDataDelayed.lastSample;
+      bypassedAdcStreams(i).tuser(2)            <= timingRxDataDelayed.rowStrobe;
+      bypassedAdcStreams(i).tuser(3)            <= timingRxDataDelayed.waveformCapture;
+      bypassedAdcStreams(i).tuser(4)            <= timingRxDataDelayed.sample;
+      bypassedAdcStreams(i).tuser(5)            <= timingRxDataDelayed.rowSeqStart;
+      bypassedAdcStreams(i).tuser(6)            <= timingRxDataDelayed.daqReadoutStart;
       bypassedAdcStreams(i).tData(29 downto 16) <= sq1FbDacs(i);
 
       U_Synchronizer_1 : entity surf.Synchronizer
@@ -377,7 +390,7 @@ begin
       port map (
          timingRxClk125  => timingRxClk125,                        -- [in]
          timingRxRst125  => timingRxRst125,                        -- [in]
-         timingRxData    => timingRxData,                          -- [in]
+         timingRxData    => timingRxDataDelayed,                   -- [in]
          adcStreams      => selectedAdcStreams,                    -- [in]
          axilReadMaster  => locAxilReadMasters(WAVEFORM_AXIL_C),   -- [in]
          axilReadSlave   => locAxilReadSlaves(WAVEFORM_AXIL_C),    -- [out]
@@ -401,7 +414,7 @@ begin
          port map (
             timingRxClk125   => timingRxClk125,             -- [in]
             timingRxRst125   => timingRxRst125,             -- [in]
-            timingRxData     => timingRxData,               -- [in]
+            timingRxData     => timingRxDataDelayed,        -- [in]
             adcAxisMaster    => selectedAdcStreams(i),      -- [in]
             sAxilReadMaster  => adcDspAxilReadMasters(i),   -- [in]
             sAxilReadSlave   => adcDspAxilReadSlaves(i),    -- [out]
@@ -443,7 +456,7 @@ begin
       port map (
          timingRxClk125   => timingRxClk125,                             -- [in]
          timingRxRst125   => timingRxRst125,                             -- [in]
-         timingRxData     => timingRxData,                               -- [in]
+         timingRxData     => timingRxDataDelayed,                        -- [in]
          pidStreamMasters => pidFilterStreamMasters,                     -- [out]
          pidStreamSlaves  => pidFilterStreamSlaves,                      -- [in]
          axilReadMaster   => locAxilReadMasters(EVENT_BUILDER_AXIL_C),   -- [in]

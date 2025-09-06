@@ -29,6 +29,8 @@ library warm_tdm;
 
 package TimingPkg is
 
+   constant TIMING_NUM_BITS_C : integer := 259;
+
    constant K_28_5_C : slv(9 downto 0) := "0101111100";
 
    constant IDLE_C              : slv(7 downto 0) := "10111100";  -- K28.5, 0xBC
@@ -59,7 +61,7 @@ package TimingPkg is
       rowIndexNext    : slv(7 downto 0);   -- Next row index
       rowTime         : slv(31 downto 0);  -- timingClk counts since last row strobe
       rowSeqCount     : slv(63 downto 0);  -- Number of full loops through all rows
-      daqReadoutCount    : slv(63 downto 0);  -- Number of DAQ readouts
+      daqReadoutCount : slv(63 downto 0);  -- Number of DAQ readouts
       waveformCapture : sl;                -- Capture ADC waveforms on all channels
    end record LocalTimingType;
 
@@ -83,6 +85,72 @@ package TimingPkg is
       daqReadoutCount => (others => '0'),
       waveformCapture => '0');
 
+   function toSlv (
+      timing : LocalTimingType)
+      return slv;
+
+   function toLocalTimingType (
+      vec : slv(TIMING_NUM_BITS_C-1 downto 0))
+      return LocalTimingType;
+
 end package TimingPkg;
 
+package body TimingPkg is
 
+   function toSlv (
+      timing : LocalTimingType)
+      return slv is
+      variable vec : slv(TIMING_NUM_BITS_C-1 downto 0);
+      variable i   : integer;
+   begin
+      i := 0;
+      assignSlv(i, vec, timing.startRun);
+      assignSlv(i, vec, timing.endRun);
+      assignSlv(i, vec, timing.running);
+      assignSlv(i, vec, timing.runTime);
+      assignSlv(i, vec, timing.rowStrobe);
+      assignSlv(i, vec, timing.rowSeqStart);
+      assignSlv(i, vec, timing.daqReadoutStart);
+      assignSlv(i, vec, timing.sample);
+      assignSlv(i, vec, timing.firstSample);
+      assignSlv(i, vec, timing.lastSample);
+      assignSlv(i, vec, timing.loadDacs);
+      assignSlv(i, vec, timing.rowSeq);
+      assignSlv(i, vec, timing.rowIndex);
+      assignSlv(i, vec, timing.rowIndexNext);
+      assignSlv(i, vec, timing.rowTime);
+      assignSlv(i, vec, timing.rowSeqCount);
+      assignSlv(i, vec, timing.daqReadoutCount);
+      assignSlv(i, vec, timing.waveformCapture);
+      return vec;
+   end function toSlv;
+
+   function toLocalTimingType (
+      vec : slv(TIMING_NUM_BITS_C-1 downto 0))
+      return LocalTimingType is
+      variable timing : LocalTimingType;
+      variable i      : integer;
+   begin
+      i := 0;
+      assignRecord(i, vec, timing.startRun);
+      assignRecord(i, vec, timing.endRun);
+      assignRecord(i, vec, timing.running);
+      assignRecord(i, vec, timing.runTime);
+      assignRecord(i, vec, timing.rowStrobe);
+      assignRecord(i, vec, timing.rowSeqStart);
+      assignRecord(i, vec, timing.daqReadoutStart);
+      assignRecord(i, vec, timing.sample);
+      assignRecord(i, vec, timing.firstSample);
+      assignRecord(i, vec, timing.lastSample);
+      assignRecord(i, vec, timing.loadDacs);
+      assignRecord(i, vec, timing.rowSeq);
+      assignRecord(i, vec, timing.rowIndex);
+      assignRecord(i, vec, timing.rowIndexNext);
+      assignRecord(i, vec, timing.rowTime);
+      assignRecord(i, vec, timing.rowSeqCount);
+      assignRecord(i, vec, timing.daqReadoutCount);
+      assignRecord(i, vec, timing.waveformCapture);
+      return timing;
+   end function toLocalTimingType;
+
+end package body TimingPkg;
