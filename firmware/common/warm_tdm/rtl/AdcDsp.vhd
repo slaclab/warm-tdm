@@ -117,8 +117,8 @@ architecture rtl of AdcDsp is
       PID_D_S,
       SQ1FB_ADJUST_S,
       FLUX_JUMP_S,
---       DATA_STREAM_FLUX_JUMP_0_S,
---       DATA_STREAM_FLUX_JUMP_1_S,
+      DATA_STREAM_FLUX_JUMP_0_S,
+      DATA_STREAM_FLUX_JUMP_1_S,
       DATA_STREAM_S,
       FLUX_DEBUG_S,
       LOOP_DONE_S,
@@ -134,7 +134,7 @@ architecture rtl of AdcDsp is
       accumValid         : sl;
       accumSamples       : ufixed(31 downto 0);
       accumError         : sfixed(ACCUM_BITS_C-1 downto 0);
-      lastAccumError          : sfixed(ACCUM_BITS_C-1 downto 0);
+      lastAccumError     : sfixed(ACCUM_BITS_C-1 downto 0);
       sumAccum           : sfixed(SUM_BITS_C-1 downto 0);
       accumShift         : slv(3 downto 0);
       pidMultiplier      : sfixed(ACCUM_BITS_C-1 downto 0);
@@ -146,7 +146,7 @@ architecture rtl of AdcDsp is
       pidResult          : sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
       sq1Fb              : sfixed(13 downto 0);
       sq1FbValid         : sl;
-      sq1FbFull          : sfixed(31 downto 0);             -- SQ1FB + flux jumps
+      sq1FbFull          : sfixed(31 downto 0);          -- SQ1FB + flux jumps
       numFluxJumps       : slv(7 downto 0);
       fluxQuantum        : slv(13 downto 0);
       fluxJumpWrValid    : sl;
@@ -170,7 +170,7 @@ architecture rtl of AdcDsp is
       accumValid         => '0',
       accumSamples       => (others => '0'),
       accumError         => (others => '0'),
-      lastAccumError          => (others => '0'),
+      lastAccumError     => (others => '0'),
       sumAccum           => (others => '0'),
       accumShift         => toSlv(0, 4),
       pidMultiplier      => (others => '0'),
@@ -333,10 +333,10 @@ begin
       generic map (
          TPD_G            => TPD_G,
          SYNTH_MODE_G     => "inferred",
-         MEMORY_TYPE_G    => "distributed",
-         READ_LATENCY_G   => 1,
+         MEMORY_TYPE_G    => "block",
+         READ_LATENCY_G   => 3,
          AXI_WR_EN_G      => true,
-         SYS_WR_EN_G      => false,
+         SYS_WR_EN_G      => true,
          SYS_BYTE_WR_EN_G => false,
          COMMON_CLK_G     => false,
          ADDR_WIDTH_G     => ROW_ADDR_BITS_G,
@@ -580,15 +580,15 @@ begin
 
             when PREP_PID_S =>
                -- Write the accumError from last stage into ram
-               v.accumValid   := '1';
+               v.accumValid     := '1';
                -- Register values from RAM for PID calculation
-               v.lastAccumError    := to_sfixed(accumRamOut, r.lastAccumError);
-               v.sumAccum     := to_sfixed(sumRamOut, r.sumAccum);
-               v.numFluxJumps := fluxJumpRamOut;
+               v.lastAccumError := to_sfixed(accumRamOut, r.lastAccumError);
+               v.sumAccum       := to_sfixed(sumRamOut, r.sumAccum);
+               v.numFluxJumps   := fluxJumpRamOut;
                -- Register current sq1FB here
                -- Convert offset binary to 2-s complement
                -- Store in sfixed type register
-               v.sq1FB        := to_sfixed(convOffsetBin(adcAxisMaster.tData(29 downto 16)), r.sq1FB);
+               v.sq1FB          := to_sfixed(convOffsetBin(adcAxisMaster.tData(29 downto 16)), r.sq1FB);
 
                -- Word 2 is accum error
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
@@ -662,23 +662,23 @@ begin
                v.numFluxJumps    := to_slv(numFluxJumpsFixed);
                v.fluxJumpWrValid := '1';
                v.sq1FbValid      := r.rowEnabled;
-               v.state           := DATA_STREAM_S;
+               v.state           := DATA_STREAM_FLUX_JUMP_0_S;
 
---             when DATA_STREAM_FLUX_JUMP_0_S =>
---                v.pidResult     := resize(r.sq1FbFull, r.pidResult);
---                v.pidMultiplier := resize(numFluxJumpsFixed, r.pidMultiplier);
---                v.pidCoef :=
---                   v.state := DATA_STREAM_FLUX_JUMP_1_S;
+            when DATA_STREAM_FLUX_JUMP_0_S =>
+               v.pidResult     := to_sfixed(to_slv(resize(r.sq1Fb, r.pidResult'length-1, 0)), r.pidResult);
+               v.pidMultiplier := to_sfixed(to_slv(resize(numFluxJumpsFixed, r.pidMultiplier'length-1, 0)), r.pidMultiplier);
+               v.pidCoef       := to_sfixed(to_slv(resize(fluxQuantumFixed, r.pidCoef'length-1, 0)), r.pidCoef);
+               v.state         := DATA_STREAM_FLUX_JUMP_1_S;
 
---             when DATA_STREAM_FLUX_JUMP_1_S =>
---                v.pidResult := resize(r.pidResult + (r.pidCoef * r.pidMultiplier), v.pidResult);
---                v.state     := DATA_STREAM_S;
+            when DATA_STREAM_FLUX_JUMP_1_S =>
+               v.pidResult := resize(r.pidResult + (r.pidCoef * r.pidMultiplier), v.pidResult);
+               v.state     := DATA_STREAM_S;
 
             when DATA_STREAM_S =>
                -- Output PID Stream
                v.pidStreamMaster.tValid := r.rowEnabled;
                if (r.outputMode = "00") then
-                  v.pidStreamMaster.tData(31 downto 0) := to_slv(r.sq1FbFull);
+                  v.pidStreamMaster.tData(31 downto 0) := resize(to_slv(r.pidResult), 32);
                elsif (r.outputMode = "01") then
                   v.pidStreamMaster.tData(31 downto 0) := to_slv(resize(r.accumError, 31, 0));
                elsif (r.outputMode = "10") then
