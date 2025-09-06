@@ -33,7 +33,6 @@ entity BiquadFilter is
 
    generic (
       TPD_G                : time                 := 1 ns;
-      DATA_WIDTH_G         : positive             := 24;
       CASCADE_SIZE_G       : positive             := 2;
       CHANNEL_ADDR_WIDTH_G : integer range 1 to 8 := 8);
 
@@ -176,15 +175,15 @@ architecture rtl of BiquadFilter is
 
    component FpMac
       port (
-         aclk                    : in  std_logic;
-         s_axis_a_tvalid         : in  std_logic;
-         s_axis_a_tdata          : in  std_logic_vector(31 downto 0);
-         s_axis_b_tvalid         : in  std_logic;
-         s_axis_b_tdata          : in  std_logic_vector(31 downto 0);
-         s_axis_c_tvalid         : in  std_logic;
-         s_axis_c_tdata          : in  std_logic_vector(31 downto 0);
-         m_axis_result_tvalid    : out std_logic;
-         m_axis_result_tdata     : out std_logic_vector(31 downto 0)
+         aclk                 : in  std_logic;
+         s_axis_a_tvalid      : in  std_logic;
+         s_axis_a_tdata       : in  std_logic_vector(31 downto 0);
+         s_axis_b_tvalid      : in  std_logic;
+         s_axis_b_tdata       : in  std_logic_vector(31 downto 0);
+         s_axis_c_tvalid      : in  std_logic;
+         s_axis_c_tdata       : in  std_logic_vector(31 downto 0);
+         m_axis_result_tvalid : out std_logic;
+         m_axis_result_tdata  : out std_logic_vector(31 downto 0)
          );
    end component;
 
@@ -270,15 +269,15 @@ begin
 
    U_FpMac_1 : FpMac
       port map (
-         aclk                    => axisClk,         -- [in]
-         s_axis_a_tvalid         => r.fpMacInValid,  -- [in]
-         s_axis_a_tdata          => r.data,          -- [in]
-         s_axis_b_tvalid         => r.fpMacInValid,  -- [in]
-         s_axis_b_tdata          => r.coeff,         -- [in]
-         s_axis_c_tvalid         => r.fpMacInValid,  -- [in]
-         s_axis_c_tdata          => r.result,        -- [in]
-         m_axis_result_tvalid    => fpMacOutValid,   -- [out]
-         m_axis_result_tdata     => fpMacOutData);   -- [out]
+         aclk                 => axisClk,         -- [in]
+         s_axis_a_tvalid      => r.fpMacInValid,  -- [in]
+         s_axis_a_tdata       => r.data,          -- [in]
+         s_axis_b_tvalid      => r.fpMacInValid,  -- [in]
+         s_axis_b_tdata       => r.coeff,         -- [in]
+         s_axis_c_tvalid      => r.fpMacInValid,  -- [in]
+         s_axis_c_tdata       => r.result,        -- [in]
+         m_axis_result_tvalid => fpMacOutValid,   -- [out]
+         m_axis_result_tdata  => fpMacOutData);   -- [out]
 
 
    comb : process (axilReadMaster, axilWriteMaster, axisRst, fifoAxisMaster, fpMacOutData,
@@ -332,7 +331,7 @@ begin
                v.result      := (others => '0');
 
                if (fifoAxisMaster.tValid = '1') then
-                  v.int2FpInData  := resize(fifoAxisMaster.tData(DATA_WIDTH_G-1 downto 0), 24);
+                  v.int2FpInData  := fifoAxisMaster.tData(31 downto 0);
                   v.int2FpInValid := '1';
 
                   if (uOr(fifoAxisMaster.tKeep) = '0') then
