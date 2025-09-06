@@ -117,8 +117,8 @@ architecture rtl of AdcDsp is
       PID_D_S,
       SQ1FB_ADJUST_S,
       FLUX_JUMP_S,
-      DATA_STREAM_FLUX_JUMP_0_S,
-      DATA_STREAM_FLUX_JUMP_1_S,
+--       DATA_STREAM_FLUX_JUMP_0_S,
+--       DATA_STREAM_FLUX_JUMP_1_S,
       DATA_STREAM_S,
       FLUX_DEBUG_S,
       LOOP_DONE_S,
@@ -134,7 +134,7 @@ architecture rtl of AdcDsp is
       accumValid         : sl;
       accumSamples       : ufixed(31 downto 0);
       accumError         : sfixed(ACCUM_BITS_C-1 downto 0);
-      lastAccum          : sfixed(ACCUM_BITS_C-1 downto 0);
+      lastAccumError          : sfixed(ACCUM_BITS_C-1 downto 0);
       sumAccum           : sfixed(SUM_BITS_C-1 downto 0);
       accumShift         : slv(3 downto 0);
       pidMultiplier      : sfixed(ACCUM_BITS_C-1 downto 0);
@@ -170,7 +170,7 @@ architecture rtl of AdcDsp is
       accumValid         => '0',
       accumSamples       => (others => '0'),
       accumError         => (others => '0'),
-      lastAccum          => (others => '0'),
+      lastAccumError          => (others => '0'),
       sumAccum           => (others => '0'),
       accumShift         => toSlv(0, 4),
       pidMultiplier      => (others => '0'),
@@ -480,7 +480,7 @@ begin
       axiSlaveRegister(axilEp, X"60", 0, v.rowEnableMask);
 
       axiSlaveRegisterR(axilEp, X"10", 0, to_slv(r.accumError));
-      axiSlaveRegisterR(axilEp, X"14", 0, to_slv(r.lastAccum));
+      axiSlaveRegisterR(axilEp, X"14", 0, to_slv(r.lastAccumError));
       axiSlaveRegisterR(axilEp, X"18", 0, to_slv(r.sumAccum));
       axiSlaveRegisterR(axilEp, X"20", 0, to_slv(r.pidResult));
       axiSlaveRegisterR(axilEp, X"28", 0, to_slv(r.sq1Fb));
@@ -582,7 +582,7 @@ begin
                -- Write the accumError from last stage into ram
                v.accumValid   := '1';
                -- Register values from RAM for PID calculation
-               v.lastAccum    := to_sfixed(accumRamOut, r.lastAccum);
+               v.lastAccumError    := to_sfixed(accumRamOut, r.lastAccumError);
                v.sumAccum     := to_sfixed(sumRamOut, r.sumAccum);
                v.numFluxJumps := fluxJumpRamOut;
                -- Register current sq1FB here
@@ -625,7 +625,7 @@ begin
                v.pidResult     := resize(r.pidResult + (r.pidCoef * r.pidMultiplier), v.pidResult);  -- r.sumAccum
                -- Prep for D stage
                v.pidCoef       := dSfixed;
-               v.pidMultiplier := resize(r.lastAccum - r.accumError, v.pidMultiplier);  -- Prep for D stage
+               v.pidMultiplier := resize(r.lastAccumError - r.accumError, v.pidMultiplier);  -- Prep for D stage
                v.state         := PID_D_S;
 
             when PID_D_S =>

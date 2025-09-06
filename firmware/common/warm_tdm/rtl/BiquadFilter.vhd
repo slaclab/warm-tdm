@@ -54,10 +54,6 @@ end entity BiquadFilter;
 
 architecture rtl of BiquadFilter is
 
-   constant ADD_C : slv(7 downto 0) := X"00";
-   constant SUB_C : slv(7 downto 0) := X"01";
-
-
    constant DATA_MATH_WIDTH_C : integer := 32;
 --   constant DATA_FRACT_BITS_C : integer := DATA_MATH_WIDTH_C - DATA_WIDTH_G;
 --   subtype DataSFixedType is sfixed(DATA_WIDTH_G-1 downto -DATA_FRACT_BITS_C);
@@ -101,7 +97,6 @@ architecture rtl of BiquadFilter is
       int2FpInValid  : sl;
       int2FpInData   : slv(31 downto 0);
       fpMacInValid   : sl;
-      fpMacOp        : slv(7 downto 0);
 --      debugInput     : slv(DATA_WIDTH_G-1 downto 0);
       debugOutput    : slv(31 downto 0);
       b0             : DataArray;
@@ -137,7 +132,6 @@ architecture rtl of BiquadFilter is
       int2FpInValid  => '0',
       int2FpInData   => (others => '0'),
       fpMacInValid   => '0',
-      fpMacOp        => (others => '0'),
 --      debugInput     => (others => '0'),
       debugOutput    => (others => '0'),
       b0             => (others => X"3F800000"),  -- float32 representation of 1.0
@@ -283,8 +277,6 @@ begin
          s_axis_b_tdata          => r.coeff,         -- [in]
          s_axis_c_tvalid         => r.fpMacInValid,  -- [in]
          s_axis_c_tdata          => r.result,        -- [in]
-         s_axis_operation_tvalid => r.fpMacInValid,  -- [in]
-         s_axis_operation_tdata  => r.fpMacOp,       -- [in]
          m_axis_result_tvalid    => fpMacOutValid,   -- [out]
          m_axis_result_tdata     => fpMacOutData);   -- [out]
 
@@ -326,7 +318,6 @@ begin
 
       v.int2FpInValid := '0';
       v.fpMacInValid  := '0';
-      v.fpMacOp       := ADD_C;
       ----------------------------------------------------------------------------------------------
       -- State Machine
       ----------------------------------------------------------------------------------------------
@@ -383,7 +374,6 @@ begin
 
          when FILTER_B0_S =>
             v.fpMacInValid := '1';
-            v.fpMacOp      := ADD_C;
             v.coeff        := r.b0_active;
             v.data         := r.x0_active;
             v.result       := (others => '0');
@@ -392,7 +382,6 @@ begin
          when FILTER_B1_S =>
             if (fpMacOutValid = '1') then
                v.fpMacInValid := '1';
-               v.fpMacOp      := ADD_C;
                v.result       := fpMacOutData;
                v.coeff        := r.b1_active;
                v.data         := r.x1_active;
@@ -402,7 +391,6 @@ begin
          when FILTER_B2_S =>
             if (fpMacOutValid = '1') then
                v.fpMacInValid := '1';
-               v.fpMacOp      := ADD_C;
                v.result       := fpMacOutData;
                v.coeff        := r.b2_active;
                v.data         := r.x2_active;
@@ -412,7 +400,6 @@ begin
          when FILTER_A1_S =>
             if (fpMacOutValid = '1') then
                v.fpMacInValid := '1';
-               v.fpMacOp      := ADD_C;
                v.result       := fpMacOutData;
                v.coeff        := r.a1_active;
                -- Invert coeff to subtract
@@ -425,7 +412,6 @@ begin
          when FILTER_A2_S =>
             if (fpMacOutValid = '1') then
                v.fpMacInValid := '1';
-               v.fpMacOp      := ADD_C;
                v.result       := fpMacOutData;
                v.coeff        := r.a2_active;
                -- Invert coeff to subtract
