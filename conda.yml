@@ -27,7 +27,7 @@ dependencies:
   - sqlalchemy
   - pydm
   - matplotlib
-  - rogue=v6.3.0
+  - rogue
   - jupyterlab
   - simple-pid
   - sympy
