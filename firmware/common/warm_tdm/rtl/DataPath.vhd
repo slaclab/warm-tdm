@@ -301,12 +301,14 @@ begin
    U_TimingDelay_1 : entity warm_tdm.TimingDelay
       generic map (
          TPD_G   => TPD_G,
-         DELAY_G => 20)
+         DELAY_G => 27)
       port map (
-         clk       => timingRxClk125,        -- [in]
-         timingIn  => timingRxData,          -- [in]
-         timingOut => timingRxDataDelayed);  -- [out]
+         clk       => timingRxClk125,           -- [in]
+         timingIn  => timingRxData,             -- [in]
+         timingOut => timingRxDataAdcDelayed);  -- [out]
 
+
+   timingRxDataAdcDelayedSlv <= toSlv(timingRxDataAdcDelayed);
 
    FIR_FILTER_GEN : for i in 7 downto 0 generate
       GEN_ADC_FILTER : if (GEN_ADC_FILTER_G) generate
@@ -315,44 +317,41 @@ begin
                TPD_G            => TPD_G,
                COMMON_CLK_G     => true,
                NUM_TAPS_G       => FILTER_NUM_TAPS_C,
-               SIDEBAND_WIDTH_G => 15+14,
+               SIDEBAND_WIDTH_G => TIMING_NUM_BITS_C+14,
                DATA_WIDTH_G     => 14,
                COEFF_WIDTH_G    => FILTER_COEFF_WIDTH_C,
                COEFFICIENTS_G   => FILTER_COEFFICIENTS_C)
             port map (
-               clk                 => timingRxClk125,                  -- [in]
-               rst                 => timingRxRst125,                  -- [in]
-               ibValid             => adcStreams(i).tvalid,            -- [in]
-               din                 => adcStreams(i).tData(15 downto 2),           -- [in]
-               sbIn(7 downto 0)    => timingRxDataDelayed.rowIndex,    -- [in]
-               sbIn(8)             => timingRxDataDelayed.firstSample,            -- [in]
-               sbIn(9)             => timingRxDataDelayed.lastSample,  -- [in]
-               sbIn(10)            => timingRxDataDelayed.rowStrobe,   -- [in]
-               sbIn(11)            => timingRxDataDelayed.waveformCapture,        -- [in]
-               sbIn(12)            => timingRxDataDelayed.sample,      -- [in]
-               sbIn(13)            => timingRxDataDelayed.rowSeqStart,            -- [in]
-               sbIn(14)            => timingRxDataDelayed.daqReadoutStart,        -- [in]
-               sbIn(28 downto 15)  => sq1FbDacs(i),                    -- [in]
-               obValid             => filteredAdcStreams(i).tvalid,    -- [out]
-               dout                => filteredAdcStreams(i).tData(15 downto 2),   -- [out]
-               sbOut(7 downto 0)   => filteredAdcStreams(i).tid(7 downto 0),      -- [out]
-               sbOut(8)            => filteredAdcStreams(i).tUser(0),  -- [out]
-               sbOut(9)            => filteredAdcStreams(i).tUser(1),  -- [out]
-               sbOut(10)           => filteredAdcStreams(i).tUser(2),  -- [out]
-               sbOut(11)           => filteredAdcStreams(i).tUser(3),  -- [out]
-               sbOut(12)           => filteredAdcStreams(i).tUser(4),  -- [out]
-               sbOut(13)           => filteredAdcStreams(i).tUser(5),  -- [out]
-               sbOut(14)           => filteredAdcStreams(i).tUser(6),  -- [out]            
-               sbOut(28 downto 15) => filteredAdcStreams(i).tData(29 downto 16),  -- [out]
-               axilClk             => timingRxClk125,                  -- [in]
-               axilRst             => timingRxRst125,                  -- [in]
-               axilReadMaster      => adcFilterAxilReadMasters(i),     -- [in]
-               axilReadSlave       => adcFilterAxilReadSlaves(i),      -- [out]
-               axilWriteMaster     => adcFilterAxilWriteMasters(i),    -- [in]
-               axilWriteSlave      => adcFilterAxilWriteSlaves(i));    -- [out]
+               clk                                                  => timingRxClk125,  -- [in]
+               rst                                                  => timingRxRst125,  -- [in]
+               ibValid                                              => adcStreams(i).tvalid,  -- [in]
+               din                                                  => adcStreams(i).tData(15 downto 2),  -- [in]
+               sbIn(TIMING_NUM_BITS_C-1 downto 0)                   => timingRxDataAdcDelayedSlv,
+               sbIn(13+TIMING_NUM_BITS_C downto TIMING_NUM_BITS_C)  => sq1FbDacs(i),    -- [in]
+               obValid                                              => filteredAdcStreams(i).tvalid,  -- [out]
+               dout                                                 => filteredAdcStreams(i).tData(15 downto 2),  -- [out]
+               sbOut(TIMING_NUM_BITS_C-1 downto 0)                  => timingRxDataFilterDelayedSlvs(i),
+               sbOut(13+TIMING_NUM_BITS_C downto TIMING_NUM_BITS_C) => sq1FbDacsFilterDelayed(i),
+--                sbOut(7 downto 0)   => filteredAdcStreams(i).tid(7 downto 0),      -- [out]
+--                sbOut(8)            => filteredAdcStreams(i).tUser(0),  -- [out]
+--                sbOut(9)            => filteredAdcStreams(i).tUser(1),  -- [out]
+--                sbOut(10)           => filteredAdcStreams(i).tUser(2),  -- [out]
+--                sbOut(11)           => filteredAdcStreams(i).tUser(3),  -- [out]
+--                sbOut(12)           => filteredAdcStreams(i).tUser(4),  -- [out]
+--                sbOut(13)           => filteredAdcStreams(i).tUser(5),  -- [out]
+--                sbOut(14)           => filteredAdcStreams(i).tUser(6),  -- [out]            
+--                sbOut(28 downto 15) => filteredAdcStreams(i).tData(29 downto 16),  -- [out]
+               axilClk                                              => timingRxClk125,  -- [in]
+               axilRst                                              => timingRxRst125,  -- [in]
+               axilReadMaster                                       => adcFilterAxilReadMasters(i),  -- [in]
+               axilReadSlave                                        => adcFilterAxilReadSlaves(i),  -- [out]
+               axilWriteMaster                                      => adcFilterAxilWriteMasters(i),  -- [in]
+               axilWriteSlave                                       => adcFilterAxilWriteSlaves(i));  -- [out]
 
          filteredAdcStreams(i).tData(1 downto 0) <= "00";
+
       end generate GEN_ADC_FILTER;
+      timingRxDataFilterDelayed <= toLocalTimingType(timingRxDataFilterDelayedSlvs(0));
 
       NO_GEN_ADC_FILTER : if (GEN_ADC_FILTER_G = false) generate
          filteredAdcStreams(i) <= bypassedAdcStreams(i);
@@ -455,7 +454,7 @@ begin
       port map (
          timingRxClk125   => timingRxClk125,                             -- [in]
          timingRxRst125   => timingRxRst125,                             -- [in]
-         timingRxData     => timingRxDataDelayed,                        -- [in]
+         timingRxData     => timingRxData,                               -- [in]
          pidStreamMasters => pidFilterStreamMasters,                     -- [out]
          pidStreamSlaves  => pidFilterStreamSlaves,                      -- [in]
          axilReadMaster   => locAxilReadMasters(EVENT_BUILDER_AXIL_C),   -- [in]
