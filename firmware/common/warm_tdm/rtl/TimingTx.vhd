@@ -351,7 +351,7 @@ begin
          end if;
 
          -- Need to end run more cleanly than this
-         if (r.timingData.endRun = '1') then
+         if (r.timingData.endRun = '1' and r.timingData.rowSeq = 0) then
             v.timingData.running := '0';
             v.timingData.sample  := '0';
             v.timingData.endRun  := '0';

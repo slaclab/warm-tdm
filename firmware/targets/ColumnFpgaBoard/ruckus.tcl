@@ -31,4 +31,4 @@ loadIpCore -doUpgrade -path $::DIR_PATH/../ColumnFpgaBoard/ip/FpMac/FpMac.xci
 
 set_property top "ColumnFpgaBoardTb"     [get_filesets sim_1]
 
-set_property target_language Verilog [current_project]
+#set_property target_language Verilog [current_project]

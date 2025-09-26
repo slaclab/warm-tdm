@@ -137,7 +137,7 @@
         "DEVICE": [ { "value": "xc7k325t" } ],
         "NEXTGEN_VERSAL": [ { "value": "0" } ],
         "PACKAGE": [ { "value": "ffg676" } ],
-        "PREFHDL": [ { "value": "VHDL" } ],
+        "PREFHDL": [ { "value": "VERILOG" } ],
         "SILICON_REVISION": [ { "value": "" } ],
         "SIMULATOR_LANGUAGE": [ { "value": "MIXED" } ],
         "SPEEDGRADE": [ { "value": "-2" } ],
