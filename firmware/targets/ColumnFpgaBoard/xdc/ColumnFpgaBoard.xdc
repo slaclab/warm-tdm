@@ -347,21 +347,24 @@ set_property -dict { PACKAGE_PIN C18 IOSTANDARD LVCMOS33 } [get_ports { feThermi
 set_property -dict { PACKAGE_PIN A19 IOSTANDARD LVCMOS33 } [get_ports { feThermistorN[1] }];
 
 # ASIC signal
-set_property -dict {PACKAGE_PIN C13 IOSTANDARD LVCMOS33 PULLUP TRUE} [get_ports { resetB }];
+
 
 # FE VR Sync
 set_property -dict {PACKAGE_PIN D14 IOSTANDARD LVCMOS33 } [get_ports { feVrSyncA }];
 set_property -dict {PACKAGE_PIN A15 IOSTANDARD LVCMOS33 } [get_ports { feVrSyncB }];
 
 #FE I2C
-set_property -dict {PACKAGE_PIN A8  IOSTANDARD LVCMOS33 } [get_ports { feI2cScl[0] }];
-set_property -dict {PACKAGE_PIN B9  IOSTANDARD LVCMOS33 } [get_ports { feI2cSda[0] }];
-set_property -dict {PACKAGE_PIN A9  IOSTANDARD LVCMOS33 } [get_ports { feI2cScl[1] }];
-set_property -dict {PACKAGE_PIN B10  IOSTANDARD LVCMOS33 } [get_ports { feI2cSda[1] }];
-set_property -dict {PACKAGE_PIN A10  IOSTANDARD LVCMOS33 } [get_ports { feI2cScl[2] }];
-set_property -dict {PACKAGE_PIN C11  IOSTANDARD LVCMOS33 } [get_ports { feI2cSda[2] }];
-set_property -dict {PACKAGE_PIN B11  IOSTANDARD LVCMOS33 } [get_ports { feI2cScl[3] }];
-set_property -dict {PACKAGE_PIN A12  IOSTANDARD LVCMOS33 } [get_ports { feI2cSda[3] }];
+set_property -dict {PACKAGE_PIN A8  IOSTANDARD LVCMOS33 } [get_ports { tesDacSclk }];
+set_property -dict {PACKAGE_PIN B9  IOSTANDARD LVCMOS33 } [get_ports { tesDacDin }];
+set_property -dict {PACKAGE_PIN C13 IOSTANDARD LVCMOS33 } [get_ports { tesDacLdacL }];
+set_property -dict {PACKAGE_PIN A9  IOSTANDARD LVCMOS33 } [get_ports { tesDacCsL[0] }];
+set_property -dict {PACKAGE_PIN B10  IOSTANDARD LVCMOS33 } [get_ports { tesDacCsL[1] }];
+set_property -dict {PACKAGE_PIN A10  IOSTANDARD LVCMOS33 } [get_ports { tesDacCsL[2] }];
+set_property -dict {PACKAGE_PIN C11  IOSTANDARD LVCMOS33 } [get_ports { tesDacCsL[3] }];
+set_property -dict {PACKAGE_PIN B11  IOSTANDARD LVCMOS33 } [get_ports { tesDacCsL[4] }];
+set_property -dict {PACKAGE_PIN A12  IOSTANDARD LVCMOS33 } [get_ports { tesDacCsL[5] }];
+set_property -dict {PACKAGE_PIN C14  IOSTANDARD LVCMOS33 } [get_ports { tesDacCsL[6] }];
+set_property -dict {PACKAGE_PIN B14  IOSTANDARD LVCMOS33 } [get_ports { tesDacCsL[7] }];
 
 set_property BITSTREAM.CONFIG.CONFIGRATE 33  [current_design]
 set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 1 [current_design]
