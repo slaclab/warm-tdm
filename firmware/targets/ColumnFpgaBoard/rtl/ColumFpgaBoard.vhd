@@ -194,9 +194,14 @@ entity ColumnFpgaBoard is
       feThermistorP : in slv(1 downto 0);
       feThermistorN : in slv(1 downto 0);
 
-      -- ASIC I2C
-      feI2cScl : inout slv(3 downto 0);
-      feI2cSda : inout slv(3 downto 0);
+      -- TES DACS on FE
+      tesDacSclk  : out sl;
+      tesDacDin   : out sl;
+      tesDacLdacL : out sl := '0';
+      tesDacCsL   : out slv(7 downto 0);
+
+--       feI2cScl : inout slv(3 downto 0);
+--       feI2cSda : inout slv(3 downto 0);
 
       -- Asic Reset
       resetB : out sl := '1';
@@ -222,7 +227,7 @@ end entity ColumnFpgaBoard;
 
 architecture rtl of ColumnFpgaBoard is
 
-   constant NUM_AXIL_MASTERS_C  : integer := 9;
+   constant NUM_AXIL_MASTERS_C  : integer := 10;
    constant AXIL_ADC_CONFIG_C   : integer := 0;
    constant AXIL_DATA_PATH_C    : integer := 1;
    constant AXIL_SQ1_BIAS_DAC_C : integer := 2;
@@ -231,7 +236,8 @@ architecture rtl of ColumnFpgaBoard is
    constant AXIL_AUX_DAC_C      : integer := 5;
    constant AXIL_FE_SPI_C       : integer := 6;
    constant AXIL_FE_I2C_C       : integer := 7;
-   constant AXIL_TES_DELATCH_C  : integer := 8;
+   constant AXIL_FE_TES_SPI_C   : integer := 8;
+   constant AXIL_TES_DELATCH_C  : integer := 9;
 
    constant AXIL_XBAR_CFG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := (
       AXIL_ADC_CONFIG_C   => (
@@ -269,6 +275,10 @@ architecture rtl of ColumnFpgaBoard is
       AXIL_FE_I2C_C       => (
          baseAddr         => APP_BASE_ADDR_C + X"08000000",
          addrBits         => 27,
+         connectivity     => X"FFFF"),
+      AXIL_FE_TES_SPI_C   => (
+         baseAddr         => APP_BASE_ADDR_C + X"09000000",
+         addrBits         => 16,
          connectivity     => X"FFFF"));
 
    signal axilClk : sl;
@@ -457,84 +467,30 @@ begin
          coreSDout      => feDacMosi,                           -- [out]
          coreMCsb       => feDacSyncB);                         -- [out]
 
-
-   -------------------------------------------------------------------------------------------------
-   -- FE I2C
-   -------------------------------------------------------------------------------------------------
-   U_AxiLiteCrossbar_I2C : entity surf.AxiLiteCrossbar
+   U_AxiSpiMaster_FE_TES_DACS : entity surf.AxiSpiMaster
       generic map (
-         TPD_G              => TPD_G,
-         NUM_SLAVE_SLOTS_G  => 1,
-         NUM_MASTER_SLOTS_G => 4,
-         MASTERS_CONFIG_G   => genAxiLiteConfig(4, AXIL_XBAR_CFG_C(AXIL_FE_I2C_C).baseAddr, 24, 20))
+         TPD_G             => TPD_G,
+         ADDRESS_SIZE_G    => 0,
+         DATA_SIZE_G       => 16,
+         MODE_G            => "WO",
+         SHADOW_EN_G       => true,
+         SHADOW_MEM_TYPE_G => "distributed",
+         CPHA_G            => '0',
+         CPOL_G            => '0',
+         CLK_PERIOD_G      => 1.0/AXIL_CLK_FREQ_C,                 --6.4e-9,
+         SPI_SCLK_PERIOD_G => ite(SIMULATION_G, 100.0e-9, 1.0E-6),
+         SPI_NUM_CHIPS_G   => 8)
       port map (
-         axiClk              => axilClk,                             -- [in]
-         axiClkRst           => axilRst,                             -- [in]
-         sAxiWriteMasters(0) => locAxilWriteMasters(AXIL_FE_I2C_C),  -- [in]
-         sAxiWriteSlaves(0)  => locAxilWriteSlaves(AXIL_FE_I2C_C),   -- [out]
-         sAxiReadMasters(0)  => locAxilReadMasters(AXIL_FE_I2C_C),   -- [in]
-         sAxiReadSlaves(0)   => locAxilReadSlaves(AXIL_FE_I2C_C),    -- [out]
-         mAxiWriteMasters    => i2cAxilWriteMasters,                 -- [out]
-         mAxiWriteSlaves     => i2cAxilWriteSlaves,                  -- [in]
-         mAxiReadMasters     => i2cAxilReadMasters,                  -- [out]
-         mAxiReadSlaves      => i2cAxilReadSlaves);                  -- [in]
-
---    U_AwaXeI2c_1 : entity warm_tdm.AwaXeI2c
---       generic map (
---          TPD_G           => TPD_G,
---          SIMULATION_G    => SIMULATION_G,
---          CHIP_ADDR_G     => "000",
---          AXIL_CLK_FREQ_G => AXIL_CLK_FREQ_C)
---       port map (
---          axilClk         => axilClk,                 -- [in]
---          axilRst         => axilRst,                 -- [in]
---          axilReadMaster  => i2cAxilReadMasters(0),   -- [in]
---          axilReadSlave   => i2cAxilReadSlaves(0),    -- [out]
---          axilWriteMaster => i2cAxilWriteMasters(0),  -- [in]
---          axilWriteSlave  => i2cAxilWriteSlaves(0),   -- [out]
---          sda             => feI2cSda(0),             -- [inout]
---          scl             => feI2cScl(0));            -- [inout]
-
-   U_AwaXeAxiI2cBridge_1 : entity warm_tdm.AwaXeAxiI2cBridge
-      generic map (
-         TPD_G           => TPD_G,
-         SIMULATION_G    => SIMULATION_G,
-         I2C_SCL_FREQ_G  => ite(SIMULATION_G, 2.0e6, 100.0E+3),
-         I2C_MIN_PULSE_G => ite(SIMULATION_G, 50.0e-9, 100.0E-9),
-         AXIL_CLK_FREQ_G => AXIL_CLK_FREQ_C)
-      port map (
-         axilClk         => axilClk,                 -- [in]
-         axilRst         => axilRst,                 -- [in]
-         axilReadMaster  => i2cAxilReadMasters(0),   -- [in]
-         axilReadSlave   => i2cAxilReadSlaves(0),    -- [out]
-         axilWriteMaster => i2cAxilWriteMasters(0),  -- [in]
-         axilWriteSlave  => i2cAxilWriteSlaves(0),   -- [out]
-         sda             => feI2cSda(0),             -- [inout]
-         scl             => feI2cScl(0));            -- [inout]
-
-   GEN_FE_I2C : for i in 3 downto 1 generate
-      U_AxiI2cRegMaster_FE_I2C : entity surf.AxiI2cRegMaster
-         generic map (
-            TPD_G            => TPD_G,
-            DEVICE_MAP_G     => (
-               0             => MakeI2cAxiLiteDevType(  -- 24LC64FT
-                  i2cAddress => "1010000",
-                  dataSize   => 8,
-                  addrSize   => 16,
-                  endianness => '1')),
-            I2C_SCL_FREQ_G   => ite(SIMULATION_G, 2.0e6, 100.0E+3),
-            I2C_MIN_PULSE_G  => ite(SIMULATION_G, 50.0e-9, 100.0E-9),
-            AXI_CLK_FREQ_G   => AXIL_CLK_FREQ_C)
-         port map (
-            axiClk         => axilClk,                  -- [in]
-            axiRst         => axilRst,                  -- [in]
-            axiReadMaster  => i2cAxilReadMasters(i),    -- [in]
-            axiReadSlave   => i2cAxilReadSlaves(i),     -- [out]
-            axiWriteMaster => i2cAxilWriteMasters(i),   -- [in]
-            axiWriteSlave  => i2cAxilWriteSlaves(i),    -- [out]
-            scl            => feI2cScl(i),              -- [inout]
-            sda            => feI2cSda(i));             -- [inout]
-   end generate GEN_FE_I2C;
+         axiClk         => axilClk,                                -- [in]
+         axiRst         => axilRst,                                -- [in]
+         axiReadMaster  => locAxiReadMasters(AXIL_FE_TES_SPI_C),   -- [in]
+         axiReadSlave   => locAxiReadSlaves(AXIL_FE_TES_SPI_C),    -- [out]
+         axiWriteMaster => locAxiWriteMasters(AXIL_FE_TES_SPI_C),  -- [in]
+         axiWriteSlave  => locAxiWriteSlaves(AXIL_FE_TES_SPI_C),   -- [out]
+         coreSclk       => tesDacSclk,                             -- [out]
+         coreSDin       => '0',                                    -- [in]
+         coreSDout      => tesDacDin,                              -- [out]
+         coreMCsb       => tesDacCsL);                             -- [out]
 
    -------------------------------------------------------------------------------------------------
    -- TES Bias Delatch
