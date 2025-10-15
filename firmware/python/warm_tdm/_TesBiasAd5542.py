@@ -14,7 +14,7 @@ class TesBiasAd5542(pr.Device):
             self.add(pr.RemoteVariable(
                 name = f'Dac[{col}]',
                 mode = 'WO',
-                offset = col << 2,
+                offset = 0x1000 + (col << 2),
                 bitSize = 16,
                 base = pr.UInt))
 
@@ -33,7 +33,7 @@ class TesBiasAd5542(pr.Device):
         for i in range(8):
             self.add(pr.RemoteVariable(
                 name = f'Delatch[{i}]',
-                offset = 0,
+                offset = 0x100,
                 bitOffset = i,
                 bitSize = 1,
                 base = pr.Bool))
@@ -52,9 +52,11 @@ class TesBiasAd5542(pr.Device):
     def _setChannelFunc(self, channel):
         def _setChannel(value, write, tesAmp=self._frontEnd.Channel[channel].TesBiasAmp):
             # Calculate the DAC voltages to drive
-            vp, vn = tesAmp.outCurrentToDac(value, False)
+            vp, vn = tesAmp.outCurrentToDac(value, self.Delatch[channel].value())
+            # Really should build a different amp model for this instead of this quick and dirty fix
+            dacVoltage = vp-vn
             # Set the DAC voltages
-            self.DacVoltage[channel].set(vp)
+            self.DacVoltage[channel].set(dacVoltage)
             
         return _setChannel
 
@@ -63,7 +65,7 @@ class TesBiasAd5542(pr.Device):
             dacChannel = self.DacVoltage[channel]
             dacVp = dacChannel.value()
             dacVn = 0
-            delatch = False
+            delatch = self.Delatch[channel].value()
 
             iout = tesAmp.dacToOutCurrent(dacVp, dacVn, delatch)
             return iout

@@ -199,6 +199,14 @@ class FpgaBoardColumnFeb(FrontEndDevice):
             self.add(warm_tdm.FpgaBoardColumnFebChannel(
                 name = f'Channel[{i}]'))
 
+class FpgaBoardColumnFebLnTes(FrontEndDevice):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        
+        for i in range(8):
+            self.add(warm_tdm.FpgaBoardColumnFebChannel(
+                name = f'Channel[{i}]'))
+            
 
 class FpgaBoardColumnAwaXeFeb(FrontEndDevice):
     def __init__(self, **kwargs):

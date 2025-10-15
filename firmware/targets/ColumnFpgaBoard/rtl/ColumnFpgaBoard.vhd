@@ -277,7 +277,7 @@ architecture rtl of ColumnFpgaBoard is
          addrBits         => 27,
          connectivity     => X"FFFF"),
       AXIL_FE_TES_SPI_C   => (
-         baseAddr         => APP_BASE_ADDR_C + X"00300000",
+         baseAddr         => APP_BASE_ADDR_C + X"00901000",
          addrBits         => 12,
          connectivity     => X"FFFF"));
 

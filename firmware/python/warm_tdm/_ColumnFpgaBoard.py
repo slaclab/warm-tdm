@@ -49,23 +49,25 @@ class ColumnFpgaBoard(pr.Device):
             saOffsetDac = self.SaOffsetDac,
             frontEnd = self.AnalogFrontEnd))
 
-        self.add(warm_tdm.Ad5679R(
-            name = 'TesBiasDac',
-            hidden = False,
-            enabled = False,
-            offset = 0xC0800000))
+        if frontEndClass == warm_tdm.FpgaBoardColumnFeb:
+            self.add(warm_tdm.Ad5679R(
+                name = 'TesBiasDac',
+                hidden = False,
+                enabled = True,
+                offset = 0xC0800000))
 
-        self.add(warm_tdm.TesBias2(
-            name = 'TesBiasOld',
-            offset = 0xC0900100,
-            enabled = False,
-            dac = self.TesBiasDac,
-            frontEnd = self.AnalogFrontEnd))
+            self.add(warm_tdm.TesBias2(
+                name = 'TesBias',
+                offset = 0xC0900100,
+                enabled = True,
+                dac = self.TesBiasDac,
+                frontEnd = self.AnalogFrontEnd))
 
-        self.add(warm_tdm.TesBiasAd5542(
-            name = 'TesBias',
-            offset = 0xC0300000,
-            frontEnd = self.AnalogFrontEnd))
+        if frontEndClass == warm_tdm.FpgaBoardColumnFebLnTes:
+            self.add(warm_tdm.TesBiasAd5542(
+                name = 'TesBias',
+                offset = 0xC0900000,
+                frontEnd = self.AnalogFrontEnd))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SAFb',
