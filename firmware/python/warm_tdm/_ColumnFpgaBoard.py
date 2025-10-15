@@ -63,7 +63,7 @@ class ColumnFpgaBoard(pr.Device):
             frontEnd = self.AnalogFrontEnd))
 
         self.add(warm_tdm.TesBiasAd5542(
-            name = 'TesBias'
+            name = 'TesBias',
             offset = 0xC0300000,
             frontEnd = self.AnalogFrontEnd))
 
