@@ -8,7 +8,6 @@ import numpy as np
 import warm_tdm
 
 
-
 class ColumnFpgaBoard(pr.Device):
     def __init__(self,
                  frontEndClass,
@@ -53,13 +52,19 @@ class ColumnFpgaBoard(pr.Device):
         self.add(warm_tdm.Ad5679R(
             name = 'TesBiasDac',
             hidden = False,
+            enabled = False,
             offset = 0xC0800000))
 
         self.add(warm_tdm.TesBias2(
-            name = 'TesBias',
+            name = 'TesBiasOld',
             offset = 0xC0900100,
             enabled = False,
             dac = self.TesBiasDac,
+            frontEnd = self.AnalogFrontEnd))
+
+        self.add(warm_tdm.TesBiasAd5542(
+            name = 'TesBias'
+            offset = 0xC0300000,
             frontEnd = self.AnalogFrontEnd))
 
         self.add(warm_tdm.FastDacDriver(

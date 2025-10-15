@@ -47,3 +47,4 @@ from ._SaBiasOffsetAwaXe import *
 from ._TesBiasAwaXe import *
 from ._GroupLinkVariable import *
 from ._DataFormats import *
+from ._TesBiasAd5542 import *
