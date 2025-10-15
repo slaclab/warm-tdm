@@ -277,8 +277,8 @@ architecture rtl of ColumnFpgaBoard is
          addrBits         => 27,
          connectivity     => X"FFFF"),
       AXIL_FE_TES_SPI_C   => (
-         baseAddr         => APP_BASE_ADDR_C + X"09000000",
-         addrBits         => 16,
+         baseAddr         => APP_BASE_ADDR_C + X"00300000",
+         addrBits         => 12,
          connectivity     => X"FFFF"));
 
    signal axilClk : sl;
@@ -477,20 +477,20 @@ begin
          SHADOW_MEM_TYPE_G => "distributed",
          CPHA_G            => '0',
          CPOL_G            => '0',
-         CLK_PERIOD_G      => 1.0/AXIL_CLK_FREQ_C,                 --6.4e-9,
+         CLK_PERIOD_G      => 1.0/AXIL_CLK_FREQ_C,                  --6.4e-9,
          SPI_SCLK_PERIOD_G => ite(SIMULATION_G, 100.0e-9, 1.0E-6),
          SPI_NUM_CHIPS_G   => 8)
       port map (
-         axiClk         => axilClk,                                -- [in]
-         axiRst         => axilRst,                                -- [in]
-         axiReadMaster  => locAxiReadMasters(AXIL_FE_TES_SPI_C),   -- [in]
-         axiReadSlave   => locAxiReadSlaves(AXIL_FE_TES_SPI_C),    -- [out]
-         axiWriteMaster => locAxiWriteMasters(AXIL_FE_TES_SPI_C),  -- [in]
-         axiWriteSlave  => locAxiWriteSlaves(AXIL_FE_TES_SPI_C),   -- [out]
-         coreSclk       => tesDacSclk,                             -- [out]
-         coreSDin       => '0',                                    -- [in]
-         coreSDout      => tesDacDin,                              -- [out]
-         coreMCsb       => tesDacCsL);                             -- [out]
+         axiClk         => axilClk,                                 -- [in]
+         axiRst         => axilRst,                                 -- [in]
+         axiReadMaster  => locAxilReadMasters(AXIL_FE_TES_SPI_C),   -- [in]
+         axiReadSlave   => locAxilReadSlaves(AXIL_FE_TES_SPI_C),    -- [out]
+         axiWriteMaster => locAxilWriteMasters(AXIL_FE_TES_SPI_C),  -- [in]
+         axiWriteSlave  => locAxilWriteSlaves(AXIL_FE_TES_SPI_C),   -- [out]
+         coreSclk       => tesDacSclk,                              -- [out]
+         coreSDin       => '0',                                     -- [in]
+         coreSDout      => tesDacDin,                               -- [out]
+         coreMCsb       => tesDacCsL);                              -- [out]
 
    -------------------------------------------------------------------------------------------------
    -- TES Bias Delatch

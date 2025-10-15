@@ -26,9 +26,6 @@ loadSource      -lib warm_tdm -sim_only -dir "$::DIR_PATH/sim/" -fileType "VHDL 
 loadConstraints  -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore2.xdc
 loadConstraints -dir  "$::DIR_PATH/xdc/"
 
-loadIpCore -doUpgrade -path $::env(TOP_DIR)/common/warm_tdm/ip/Int2Fp/Int2Fp.xci
-loadIpCore -doUpgrade -path $::env(TOP_DIR)/common/warm_tdm/ip/FpMac/FpMac.xci
-
-set_property top "ColumnFpgaBoardTb"     [get_filesets sim_1]
+#set_property top "ColumnFpgaBoardTb"     [get_filesets sim_1]
 
 #set_property target_language Verilog [current_project]

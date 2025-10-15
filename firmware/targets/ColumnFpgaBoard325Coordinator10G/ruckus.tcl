@@ -27,9 +27,6 @@ loadSource      -lib warm_tdm -sim_only -dir "$::DIR_PATH/../ColumnFpgaBoard/sim
 loadConstraints  -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore2.xdc
 loadConstraints -dir  "$::DIR_PATH/../ColumnFpgaBoard/xdc/"
 
-loadIpCore -doUpgrade -path $::DIR_PATH/../ColumnFpgaBoard/ip/Int2Fp/Int2Fp.xci
-loadIpCore -doUpgrade -path $::DIR_PATH/../ColumnFpgaBoard/ip/FpMac/FpMac.xci
-
 set_property top {ColumnFpgaBoard} [get_filesets {sources_1}]
 #set sysGeneric [get_property generic -object [current_fileset]]
 #set testGeneric "${sysGeneric}, RING_ADDR_0_G=true, ETH_10G_G=true"
