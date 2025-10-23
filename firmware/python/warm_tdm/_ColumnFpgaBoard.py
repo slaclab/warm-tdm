@@ -16,6 +16,8 @@ class ColumnFpgaBoard(pr.Device):
                  **kwargs):
         super().__init__(**kwargs)
 
+        self.frontEndClass = frontEndClass
+
         self.add(frontEndClass(
             name='AnalogFrontEnd'))
  
@@ -212,7 +214,8 @@ class ColumnFpgaBoard(pr.Device):
             self.DataPath.Ad9681Readout.LostLockCountReset()
 
             self.SaBiasDac.ZeroVoltages()
-            self.TesBiasDac.ZeroVoltages()
+            if self.frontEndClass == warm_tdm.FpgaBoardColumnFeb:            
+                self.TesBiasDac.ZeroVoltages()
 
     def initialize(self):
         self.InitDacAdc()
