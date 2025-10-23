@@ -4,7 +4,7 @@ import pyrogue as pr
 class TesBiasAd5542(pr.Device):
     def __init__(self, frontEnd, **kwargs):
         super().__init__(**kwargs)
-        
+
         self._frontEnd = frontEnd
 
         self._vref = 2.5
@@ -21,13 +21,14 @@ class TesBiasAd5542(pr.Device):
         for col in range(8):
             self.add(pr.LinkVariable(
                 name = f'DacVoltage[{col}]',
-                mode = 'WO',
+                mode = 'RW',
                 dependencies = [self.Dac[col]],
                 units = 'V',
-                linkedGet = lambda read, x=col: ((self._vref * self.Dac[x].value()) / 65536)-self._vref,
-                linkedSet = lambda value, write, x=col: 65535 * ((value + self._vref) / self._vref)))
-                     
-            
+                disp = '{:1.3f}',
+                linkedGet = lambda read, x=col: ((2*self._vref * self.Dac[x].value()) / 65536)-self._vref,
+                linkedSet = lambda value, write, x=col: 65535 * ((value + self._vref) / (2*self._vref))))
+
+
 
         # Add Delatch registers
         for i in range(8):
@@ -41,14 +42,14 @@ class TesBiasAd5542(pr.Device):
         for i in range(8):
             self.add(pr.LinkVariable(
                 name = f'BiasCurrent[{i}]',
-                disp = '{:1.3f}',                
+                disp = '{:1.3f}',
                 units = '\u03bcA',
                 dependencies = [self.DacVoltage[i]],
                 linkedSet = self._setChannelFunc(i),
                 linkedGet = self._getChannelFunc(i)))
 
 
-    # TES Bias current 
+    # TES Bias current
     def _setChannelFunc(self, channel):
         def _setChannel(value, write, tesAmp=self._frontEnd.Channel[channel].TesBiasAmp):
             # Calculate the DAC voltages to drive
@@ -57,7 +58,7 @@ class TesBiasAd5542(pr.Device):
             dacVoltage = vp-vn
             # Set the DAC voltages
             self.DacVoltage[channel].set(dacVoltage)
-            
+
         return _setChannel
 
     def _getChannelFunc(self, channel):
