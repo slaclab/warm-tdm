@@ -363,8 +363,8 @@ set_property -dict {PACKAGE_PIN A10  IOSTANDARD LVCMOS33 } [get_ports { tesDacCs
 set_property -dict {PACKAGE_PIN C11  IOSTANDARD LVCMOS33 } [get_ports { tesDacCsL[3] }];
 set_property -dict {PACKAGE_PIN B11  IOSTANDARD LVCMOS33 } [get_ports { tesDacCsL[4] }];
 set_property -dict {PACKAGE_PIN A12  IOSTANDARD LVCMOS33 } [get_ports { tesDacCsL[5] }];
-set_property -dict {PACKAGE_PIN C14  IOSTANDARD LVCMOS33 } [get_ports { tesDacCsL[6] }];
-set_property -dict {PACKAGE_PIN B14  IOSTANDARD LVCMOS33 } [get_ports { tesDacCsL[7] }];
+set_property -dict {PACKAGE_PIN D13  IOSTANDARD LVCMOS33 } [get_ports { tesDacCsL[6] }];
+set_property -dict {PACKAGE_PIN C14  IOSTANDARD LVCMOS33 } [get_ports { tesDacCsL[7] }];
 
 set_property BITSTREAM.CONFIG.CONFIGRATE 33  [current_design]
 set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 1 [current_design]
