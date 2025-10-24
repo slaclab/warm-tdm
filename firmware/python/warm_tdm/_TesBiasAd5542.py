@@ -26,7 +26,7 @@ class TesBiasAd5542(pr.Device):
                 units = 'V',
                 disp = '{:1.3f}',
                 linkedGet = lambda read, x=col: ((2*self._vref * self.Dac[x].get(read=read)) / 65536)-self._vref,
-                linkedSet = lambda value, write, x=col: 65535 * ((value + self._vref) / (2*self._vref))))
+                linkedSet = lambda value, write, x=col: self.Dac[x].set(65535 * ((value + self._vref) / (2*self._vref)), write=write))
 
 
 
