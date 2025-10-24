@@ -324,7 +324,8 @@ architecture rtl of ColumnFpgaBoard is
 
    signal adc : Ad9681SerialType;
 
-   signal tesDelatchInt : slv(31 downto 0);
+   signal tesDelatchInt  : slv(31 downto 0);
+   signal tesDacLdacLInt : slv(31 downto 0);
 
 begin
 
@@ -499,7 +500,10 @@ begin
       generic map (
          TPD_G           => TPD_G,
          NUM_WRITE_REG_G => 1,
-         NUM_READ_REG_G  => 1)
+         NUM_READ_REG_G  => 1,
+         INI_WRITE_REG_G => (
+            0            => (others => '0'),
+            1            => (others => '1')))
       port map (
          axiClk           => axilClk,                                  -- [in]
          axiClkRst        => axilRst,                                  -- [in]
@@ -507,9 +511,11 @@ begin
          axiReadSlave     => locAxilReadSlaves(AXIL_TES_DELATCH_C),    -- [out]
          axiWriteMaster   => locAxilWriteMasters(AXIL_TES_DELATCH_C),  -- [in]
          axiWriteSlave    => locAxilWriteSlaves(AXIL_TES_DELATCH_C),   -- [out]
-         writeRegister(0) => tesDelatchInt);                           -- [out]
+         writeRegister(0) => tesDelatchInt,
+         writeRegister(1) => tesDacLdacLInt);                          -- [out]
 
-   tesDelatch <= tesDelatchInt(7 downto 0);
+   tesDelatch  <= tesDelatchInt(7 downto 0);
+   tesDacLdacL <= tesDacLdacLInt(0);
 
 
 

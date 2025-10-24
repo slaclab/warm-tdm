@@ -26,9 +26,17 @@ class TesBiasAd5542(pr.Device):
                 units = 'V',
                 disp = '{:1.3f}',
                 linkedGet = lambda read, x=col: ((2*self._vref * self.Dac[x].get(read=read)) / 65536)-self._vref,
-                linkedSet = lambda value, write, x=col: self.Dac[x].set(65535 * ((value + self._vref) / (2*self._vref)), write=write))
+                linkedSet = lambda value, write, x=col: self.Dac[x].set(65535 * ((value + self._vref) / (2*self._vref)), write=write)))
 
-
+        # LDAC Register
+        self.add(pr.RemoteVariable(
+            name = 'LDAC_L',
+            offset = 0x104,
+            bitOffset = 0,
+            bitSize = 1,
+            hidden = True,
+            groups = ['NoConfig', 'NoState', 'NoStream'],
+            base = pr.UInt))
 
         # Add Delatch registers
         for i in range(8):
@@ -71,3 +79,11 @@ class TesBiasAd5542(pr.Device):
             iout = tesAmp.dacToOutCurrent(dacVp, dacVn, delatch)
             return iout
         return _getChannel
+
+    def writeBlocks(self, **kwargs)
+        if variable is not None and variable.name == 'LDAC_L':
+            pr.startTransaction(variable._block, type=rim.Write, **kwargs)            
+        else:
+            super().writeBlocks(**kwargs)
+            self.LDAC_L.set(0)
+            self.LDAC_L.set(1)

@@ -214,8 +214,10 @@ class ColumnFpgaBoard(pr.Device):
             self.DataPath.Ad9681Readout.LostLockCountReset()
 
             self.SaBiasDac.ZeroVoltages()
-            if self.frontEndClass == warm_tdm.FpgaBoardColumnFeb:            
-                self.TesBiasDac.ZeroVoltages()
+            for i in range(8):
+                self.TesBias.BiasCurrent[i].set(0.0)
+
+                
 
     def initialize(self):
         self.InitDacAdc()
