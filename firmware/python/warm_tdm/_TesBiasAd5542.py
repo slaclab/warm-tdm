@@ -13,7 +13,7 @@ class TesBiasAd5542(pr.Device):
         for col in range(8):
             self.add(pr.RemoteVariable(
                 name = f'Dac[{col}]',
-                mode = 'WO',
+                mode = 'RW',
                 offset = 0x1000 + (col << 2),
                 bitSize = 16,
                 base = pr.UInt))
@@ -25,7 +25,7 @@ class TesBiasAd5542(pr.Device):
                 dependencies = [self.Dac[col]],
                 units = 'V',
                 disp = '{:1.3f}',
-                linkedGet = lambda read, x=col: ((2*self._vref * self.Dac[x].value()) / 65536)-self._vref,
+                linkedGet = lambda read, x=col: ((2*self._vref * self.Dac[x].get(read=read)) / 65536)-self._vref,
                 linkedSet = lambda value, write, x=col: 65535 * ((value + self._vref) / (2*self._vref))))
 
 
