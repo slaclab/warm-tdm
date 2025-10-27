@@ -499,11 +499,11 @@ begin
    U_AxiLiteRegs_1 : entity surf.AxiLiteRegs
       generic map (
          TPD_G           => TPD_G,
-         NUM_WRITE_REG_G => 1,
+         NUM_WRITE_REG_G => 2,
          NUM_READ_REG_G  => 1,
          INI_WRITE_REG_G => (
-            0            => (others => '0'),
-            1            => (others => '1')))
+            0            => X"00000000",
+            1            => X"FFFFFFFF"))
       port map (
          axiClk           => axilClk,                                  -- [in]
          axiClkRst        => axilRst,                                  -- [in]
