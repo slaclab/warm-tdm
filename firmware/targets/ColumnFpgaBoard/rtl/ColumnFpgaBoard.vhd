@@ -327,6 +327,8 @@ architecture rtl of ColumnFpgaBoard is
    signal tesDelatchInt  : slv(31 downto 0);
    signal tesDacLdacLInt : slv(31 downto 0);
 
+   constant INI_WRITE_REG_C : Slv32Array(1 downto 0) := (0 => X"00000000", 1 => X"FFFFFFFF");
+
 begin
 
    -------------------------------------------------------------------------------------------------
@@ -501,9 +503,7 @@ begin
          TPD_G           => TPD_G,
          NUM_WRITE_REG_G => 2,
          NUM_READ_REG_G  => 1,
-         INI_WRITE_REG_G => (
-            0            => X"00000000",
-            1            => X"FFFFFFFF"))
+         INI_WRITE_REG_G => INI_WRITE_REG_C)
       port map (
          axiClk           => axilClk,                                  -- [in]
          axiClkRst        => axilRst,                                  -- [in]
