@@ -327,6 +327,9 @@ architecture rtl of ColumnFpgaBoard is
    signal tesDelatchInt  : slv(31 downto 0);
    signal tesDacLdacLInt : slv(31 downto 0);
 
+   signal tesDacPwrUpLdacL : sl;
+   signal tesDacLdacLInt   : sl;
+
    constant INI_WRITE_REG_C : Slv32Array(1 downto 0) := (0 => X"00000000", 1 => X"FFFFFFFF");
 
 begin
@@ -514,10 +517,19 @@ begin
          writeRegister(0) => tesDelatchInt,
          writeRegister(1) => tesDacLdacLInt);                          -- [out]
 
-   tesDelatch  <= tesDelatchInt(7 downto 0);
-   tesDacLdacL <= tesDacLdacLInt(0);
+   tesDelatch     <= tesDelatchInt(7 downto 0);
+   tesDacLdacLInt <= tesDacLdacLInt(0);
 
+   U_PwrUpRst_1 : entity surf.PwrUpRst
+      generic map (
+         TPD_G          => TPD_G,
+         OUT_POLARITY_G => '0',
+         DURATION_G     => 10)
+      port map (
+         clk    => axilClk,             -- [in]
+         rstOut => tesDacPwrUpLdacL);   -- [out]
 
+   tesDacLdacL <= tesDacPwrUpLdacL when tesDacPwrUpLdacL = '0' else tesDacLdacLInt;
 
    -------------------------------------------------------------------------------------------------
    -- ADC Config
