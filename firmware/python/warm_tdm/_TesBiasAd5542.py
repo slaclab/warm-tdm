@@ -1,5 +1,7 @@
 import pyrogue as pr
 
+import rogue.interfaces.memory as rim
+
 
 class TesBiasAd5542(pr.Device):
     def __init__(self, frontEnd, **kwargs):
