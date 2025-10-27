@@ -80,7 +80,7 @@ class TesBiasAd5542(pr.Device):
             return iout
         return _getChannel
 
-    def writeBlocks(self, **kwargs)
+    def writeBlocks(self, **kwargs):
         if variable is not None and variable.name == 'LDAC_L':
             pr.startTransaction(variable._block, type=rim.Write, **kwargs)            
         else:
