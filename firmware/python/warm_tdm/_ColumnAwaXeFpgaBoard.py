@@ -30,7 +30,7 @@ class ColumnAwaXeFpgaBoard(pr.Device):
         self.add(warm_tdm.DataPath(
             offset = 0xC0300000,
             expand = True,
-            timingTx = self.WarmTdmCore.Timingtx.TimingTx,
+            timingTx = self.WarmTdmCore.Timing.TimingTx,
             rows=rows,
             frontEnd=self.AnalogFrontEnd))
 
