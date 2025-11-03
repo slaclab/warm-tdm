@@ -120,9 +120,9 @@ def saFbSweep(*, group, bias, saFbRange, process):
         adcs = group.SaOutAdc.get()
         if np.any(np.abs(adcs) > 0.8):
             print('High ADC value seen')
-            print('SaBias - {bias}')
-            print('SaFb - {saFbRange[:, idx]}')
-            print('ADCs - {adcs}')
+            print(f'SaBias - {bias}')
+            print(f'SaFb - {saFbRange[:, idx]}')
+            print(f'ADCs - {adcs}')
             print('Running SA Offset Process')
             saOffset(group=group)
 
