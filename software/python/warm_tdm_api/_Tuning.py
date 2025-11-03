@@ -125,6 +125,10 @@ def saFbSweep(*, group, bias, saFbRange, process):
             print(f'ADCs - {adcs}')
             print('Running SA Offset Process')
             saOffset(group=group)
+            print(f'New Offset and values')
+            print(f'SA Offset - {group.SaOffset.get()}')
+            print(f'ADC - {group.SaOutAdc.get()}')
+            print(f'SaOut = {group.SaOut.get()}')
 
     # Reset FB to zero after sweep
     group.SaFbForceCurrent.set(value=np.zeros(colCount, np.float64))
