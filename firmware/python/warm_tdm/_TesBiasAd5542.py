@@ -28,7 +28,7 @@ class TesBiasAd5542(pr.Device):
                 units = 'V',
                 disp = '{:1.3f}',
                 linkedGet = lambda read, x=col: ((self._vref * self.Dac[x].get(read=read)) / 65536),
-                linkedSet = lambda value, write, x=col: self.Dac[x].set(int(math.round((65535 * value) / self._vref)), write=write)))
+                linkedSet = lambda value, write, x=col: self.Dac[x].set(int(round((65535 * value) / self._vref)), write=write)))
 
         # LDAC Register
         self.add(pr.RemoteVariable(
