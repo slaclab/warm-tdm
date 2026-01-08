@@ -66,11 +66,11 @@ begin
    GEN_CHANNELS : for i in 31 downto 0 generate
 
       U_ColumnFebFastDacAmp_SA_FB : entity warm_tdm.RowFebFastDacAmp
-         generic map (
+--         generic map (
 --             IN_LOAD_R_G => IN_LOAD_R_G,
 --             FB_R_G      => FB_R_G,
 --             GAIN_R_G    => GAIN_R_G,
-            SHUNT_R_G => 1.00e3)
+--            SHUNT_R_G => 1.00e3)
          port map (
             dacP => rsDacP(i),          -- [in]
             dacN => rsDacN(i),          -- [in]

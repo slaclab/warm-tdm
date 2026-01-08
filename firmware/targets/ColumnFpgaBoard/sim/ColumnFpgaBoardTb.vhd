@@ -34,9 +34,11 @@ end entity ColumnFpgaBoardTb;
 architecture sim of ColumnFpgaBoardTb is
 
    -- component generics
-   constant TPD_G                : time    := 1 ns;
-   constant AWAXE_G              : boolean := false;
-   constant NUM_COLUMN_MODULES_C : integer := 1;
+   constant TPD_G                : time                  := 1 ns;
+   constant AWAXE_G              : boolean               := false;
+   constant NUM_COLUMN_MODULES_C : integer               := 1;
+   constant ADC_R_GAIN_G         : RealArray(7 downto 0) := (others => 1.00e3);
+   constant ADC_R_FB_G           : RealArray(7 downto 0) := (others => 3.66e3);
 
    -- component ports
    signal rj45TimingClkP  : slv(NUM_COLUMN_MODULES_C-1 downto 0);  -- [in]

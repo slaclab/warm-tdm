@@ -93,7 +93,7 @@ architecture sim of ColumnFpgaBoardModel is
    constant SIMULATION_G : boolean       := true;
    constant BUILD_INFO_G : BuildInfoType := BUILD_INFO_C;
 
-   constant ETH_10G_G  : boolean          := false;
+   constant ETH_10G_G  : boolean          := true;
    constant DHCP_G     : boolean          := true;
    constant IP_ADDR_G  : slv(31 downto 0) := x"0A01A8C0";
    constant MAC_ADDR_G : slv(47 downto 0) := x"0B_00_16_56_00_08";

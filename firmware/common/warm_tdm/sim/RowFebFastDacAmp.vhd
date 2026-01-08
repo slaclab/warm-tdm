@@ -29,8 +29,10 @@ entity RowFebFastDacAmp is
    generic (
       IN_LOAD_R_G  : real := 24.9;
       FB_R_G       : real := 402.0;
-      GAIN_R_G     : real := 100.0;
+      INPUT_R_G     : real := 100.0;
+      FILTER_R_G : real := 49.9 * 3;
       SHUNT_R_G    : real := 1.00e3);
+--      CABLE_R_G : real := 100.0);
    port (
       -- DAC input currents
       dacP : in real;
@@ -44,6 +46,8 @@ end entity RowFebFastDacAmp;
 
 architecture sim of RowFebFastDacAmp is
 
+   constant GAIN_C : real := 1.0 + (FB_R_G / INPUT_R_G);
+
    signal ampInP : real;
    signal ampInN : real;
 
@@ -52,18 +56,20 @@ architecture sim of RowFebFastDacAmp is
 
 begin
 
+
+
    ampInP <= dacP * IN_LOAD_R_G;
    ampInN <= dacN * IN_LOAD_R_G;
 
-   ampOutP <= ampInP * (FB_R_G + GAIN_R_G) / GAIN_R_G;
-   ampOutN <= ampInN * (FB_R_G + GAIN_R_G) / GAIN_R_G;
+   ampOutP <= ampInP * GAIN_C;
+   ampOutN <= ampInN * GAIN_C;
 
    outP <= (
       voltage => ampOutP,
-      impedance => 49.9*3 + SHUNT_R_G);
+      impedance => FILTER_R_G + SHUNT_R_G);
 
    outN <= (
       voltage => ampOutN,
-      impedance => 49.9*3 + SHUNT_R_G);
+      impedance => FILTER_R_G + SHUNT_R_G);
 
 end sim;

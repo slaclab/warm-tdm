@@ -63,10 +63,10 @@ begin
       sq1FbCurrent(i)   <= (sq1FbP(i).voltage - sq1FbN(i).voltage) / (sq1FbP(i).impedance + sq1FbN(i).impedance + SQ1_FB_LOADS_G(i));
 
       -- Generate the "signal"
-      saBiasInP(i) <= (saBiasOutP(i).voltage * (SA_BIAS_LOADS_G(i) + saBiasOutP(i).impedance) + saBiasOutN(i).voltage * saBiasOutN(i).impedance) /
-                      (SA_BIAS_LOADS_G(i) + saBiasOutP(i).impedance + saBiasOutN(i).impedance);
-      saBiasInN(i) <= (saBiasOutN(i).voltage * (SA_BIAS_LOADS_G(i) + saBiasOutN(i).impedance) + saBiasOutP(i).voltage * saBiasOutP(i).impedance) /
-                      (SA_BIAS_LOADS_G(i) + saBiasOutP(i).impedance + saBiasOutN(i).impedance);
+      saBiasInP(i) <= ((saBiasOutP(i).voltage * (SA_BIAS_LOADS_G(i) + saBiasOutP(i).impedance) + saBiasOutN(i).voltage * saBiasOutN(i).impedance) /
+                      (SA_BIAS_LOADS_G(i) + saBiasOutP(i).impedance + saBiasOutN(i).impedance)) + (saFbCurrent(i));
+      saBiasInN(i) <= ((saBiasOutN(i).voltage * (SA_BIAS_LOADS_G(i) + saBiasOutN(i).impedance) + saBiasOutP(i).voltage * saBiasOutP(i).impedance) /
+                      (SA_BIAS_LOADS_G(i) + saBiasOutP(i).impedance + saBiasOutN(i).impedance)) - (saFbCurrent(i));
    end generate GEN_CURRENTS;
 
 end architecture sim;
