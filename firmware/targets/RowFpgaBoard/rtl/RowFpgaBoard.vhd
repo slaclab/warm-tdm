@@ -49,8 +49,8 @@ entity RowFpgaBoard is
       SIM_ETH_DATA_PORT_NUM_G : integer               := 9000;
       BUILD_INFO_G            : BuildInfoType;
       RING_ADDR_0_G           : boolean               := false;
-      NUM_ROW_SELECTS_G       : integer range 1 to 32 := 32;
-      NUM_CHIP_SELECTS_G      : integer range 0 to 8  := 0;
+      NUM_ROW_SELECTS_G       : integer range 1 to 32 := 10;
+      NUM_CHIP_SELECTS_G      : integer range 0 to 8  := 6;
       ETH_10G_G               : boolean               := false;
       DHCP_G                  : boolean               := false;
       IP_ADDR_G               : slv(31 downto 0)      := x"0B03A8C0";  -- 192.168.3.11

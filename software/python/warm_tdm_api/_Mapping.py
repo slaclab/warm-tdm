@@ -37,23 +37,29 @@ class GroupConfig(object):
     def __init__(self, *,
                  groupId,
                  rowBoards,
+                 numRowSelects,
+                 numChipSelects,
                  columnBoards,
                  host):
 
         self.rowBoards = rowBoards
         self.columnBoards = columnBoards
         self.host = host
+        self.numRows = numRowSelects * numChipSelects * rowBoards
 
         # Init row and column map
+        
         self.columnMap = [PhysicalMap(board,chan) for board in range(columnBoards) for chan in range(8)]
+
+        # Map rowIndex to "logical row".
         self.rowMap = [PhysicalMap(board,chan) for board in range(rowBoards) for chan in range(32)]
 
         self.numColumns = len(self.columnMap)
-        self.numRows = len(self.rowMap)
+
         if self.numRows == 0:
             self.numRows = 1
 
-        self.rowOrder = [i for i in range(len(self.rowMap))],
+        #self.rowOrder = [i for i in range(len(self.rowMap))],
 
     def colSetIter(self, value, index):
         # Construct a generator to loop over

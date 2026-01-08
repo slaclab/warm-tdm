@@ -15,6 +15,7 @@ class RowFpgaBoard(pr.Device):
             name='AnalogFrontEnd'))
 
         self.add(warm_tdm.WarmTdmCore2(
+            name = 'WarmTdmCore',
             offset = 0x00000000,
             expand = True,
             disable_timing_tx = True,

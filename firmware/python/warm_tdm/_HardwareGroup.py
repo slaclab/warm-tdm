@@ -51,15 +51,18 @@ class HardwareGroup(pyrogue.Device):
             simulation=False,
             emulate=False,
             host='192.168.3.11',
-            colBoards=4,
+            colBoards=1,
             rowBoards=1,
-            rows=32,
+            num_row_selects=32,
+            num_chip_selects=0,
+#            rows=32,
             **kwargs):
 
         super().__init__(**kwargs)
 
         print(f'Starting HardwareGroup with {colBoards=}')
 
+        rows = 256 #num_row_selects * num_chip_selects        
 #        print(f'HardwareGroup with {rows} rows')
 
         # Open rUDP connections to the Manager board
@@ -119,6 +122,7 @@ class HardwareGroup(pyrogue.Device):
             self.addInterface(unbatcher, packetizer, fifoA, fifoB)
 
             # Instantiate the board Device tree and link it to the SRP
+
             self.add(colBoardClass(
                 name=f'ColumnBoard[{index}]',
                 frontEndClass=colFeClass,
@@ -182,6 +186,8 @@ class HardwareGroup(pyrogue.Device):
             self.add(rowBoardClass(
                 name=f'RowBoard[{rowIndex}]',
                 frontEndClass=rowFeClass,
+                num_row_selects=num_row_selects,
+                num_chip_selects=num_chip_selects,
                 memBase=srp,
                 expand=True,
                 enabled=True))

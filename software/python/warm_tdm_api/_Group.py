@@ -165,7 +165,7 @@ class FastDacVariable(GroupLinkVariable):
 
             # Full array access
             else:
-                rows = 32
+                rows = 256 #self._config.numRows
                 cols = len(self._config.columnMap)
 
                 ret = np.zeros((cols, rows), np.float64)
@@ -191,7 +191,20 @@ class Group(pr.Device):
                 linkedGet = lambda read, x=i: arrVar.get(read=read, index=x),
                 linkedSet = None if arrVar.mode == 'RO' else lambda value, write, x=i: arrVar.set(value, write=write, index=x)))
             
-    def __init__(self, colBoardClass, colFeClass, rowBoardClass, rowFeClass, groupConfig, groupId, rows,  dataWriter, simulation=False, emulate=False, **kwargs):
+    def __init__(self,
+                 colBoardClass,
+                 colFeClass,
+                 rowBoardClass,
+                 rowFeClass,
+                 groupConfig,
+                 groupId,
+                 num_row_selects,
+                 num_chip_selects,
+#                 rows,
+                 dataWriter,
+                 simulation=False,
+                 emulate=False,
+                 **kwargs):
         """
         Warm TDM Device
         Parameters
@@ -226,7 +239,9 @@ class Group(pr.Device):
             rowBoards=groupConfig.rowBoards,
             rowBoardClass=rowBoardClass,
             rowFeClass=rowFeClass,
-            rows=rows,
+            num_row_selects=num_row_selects,
+            num_chip_selects=num_chip_selects,
+#            rows=rows,
             groups=['Hardware'],
             expand=True))
 
@@ -265,16 +280,16 @@ class Group(pr.Device):
             mode='RO',
             groups='TopApi'))
 
-        self.add(pr.LocalVariable(
-            name='RowOrder',
-            description='Order row readout.'
-                        'Each position is a point in time containing the row index to readout.'
-                        'Values can be accessed as a full array or as single values using an index key.'
-                        'Max number of values is TBD.',
-            localGet=lambda: self.config.rowOrder,
-            mode='RO',
-            typeStr='int[]',
-            hidden=True))
+#         self.add(pr.LocalVariable(
+#             name='RowOrder',
+#             description='Order row readout.'
+#                         'Each position is a point in time containing the row index to readout.'
+#                         'Values can be accessed as a full array or as single values using an index key.'
+#                         'Max number of values is TBD.',
+#             localGet=lambda: self.config.rowOrder,
+#             mode='RO',
+#             typeStr='int[]',
+#             hidden=True))
 
         self.add(pr.LocalVariable(
             name='RowMap',

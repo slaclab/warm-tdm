@@ -52,10 +52,22 @@ class WarmTdmArgparse(argparse.ArgumentParser):
             help     = "Number of row boards in group")
 
         self.add_argument(
-            "--maxRows",
+            "--numRowSelects",
             type = int,
             default = 32,
-            help = "Maximum number of physical rows available")
+            help = 'Number of row selects on row board')
+
+        self.add_argument(
+            "--numChipSelects",
+            type = int,
+            default = 0,
+            help = 'Number of row selects on row board')
+        
+#         self.add_argument(
+#             "--maxRows",
+#             type = int,
+#             default = 32,
+#             help = "Maximum number of physical rows available")
 
         self.add_argument(
             "--columnBoards",
@@ -113,7 +125,9 @@ def arg_dict(args):
     ret['pollEn'] = args.pollEn
     ret['simulation'] = args.sim
     ret['emulate'] = args.emulate
-    ret['numRows'] = args.maxRows
+    ret['numRowSelects'] = args.numRowSelects
+    ret['numChipSelects'] = args.numChipSelects
+#    ret['numRows'] = args.maxRows
     ret['initRead'] = False #args.initRead and not args.sim
     ret['colBoardClass'] = colBoardDict[args.columnBoardType]
     ret['colFeClass'] = colFeDict[args.columnFrontEnd]
@@ -122,5 +136,7 @@ def arg_dict(args):
     ret['groupConfig'] = warm_tdm_api.GroupConfig(groupId = 0,
                                                   rowBoards = args.rowBoards,
                                                   columnBoards = args.columnBoards,
+                                                  numRowSelects = args.numRowSelects,
+                                                  numChipSelects = args.numChipSelects,
                                                   host=args.ip)
     return ret
