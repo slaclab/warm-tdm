@@ -79,10 +79,11 @@ architecture rtl of FastDacDriver is
       DATA_S,
       WRITE_S,
       WRITE_FALL_S,
-      WAIT_ROW_STROBE_S,
+      IDLE_S,
       OVER_SEL_S,
       OVER_WRITE_S,
       OVER_WRITE_FALL_S,
+      OVER_CLK_0_RISE_S,
       CLK_0_RISE_S,
       CLK_0_FALL_S,
       CLK_1_RISE_S);
@@ -105,7 +106,7 @@ architecture rtl of FastDacDriver is
    constant REG_INIT_C : RegType := (
       startup        => '1',
       rowIndex       => (others => '0'),
-      state          => WAIT_ROW_STROBE_S,
+      state          => IDLE_S,
       dacOutNext     => (others => (others => '0')),
       dacOut         => (others => (others => '0')),
       dacNum         => (others => '0'),
@@ -247,16 +248,16 @@ begin
 --      v.dacSel := (others => '0');
 
       case r.state is
-         when WAIT_ROW_STROBE_S =>
+         when IDLE_S =>
             v.dacNum := (others => '0');
             -- At startup, load rowIndex[0] ram values into dacs
             if (r.startup = '1') then
-               v.startup  := '0';
+--               v.startup  := '0';
                v.rowIndex := (others => '0');
                v.state    := DATA_S;
 
             -- Use lastSample instead of loadDacs for now since it doesn't exist yet               
-            elsif (timingRxData.rowStrobe = '1') then
+            elsif (timingRxData.lastSample = '1') then
                v.rowIndex := timingRxData.rowIndexNext;  -- This shouldn't be necessary
                v.state    := DATA_S;
             end if;
@@ -284,7 +285,12 @@ begin
             v.dacNum := r.dacNum + 1;
             v.state  := DATA_S;
             if (r.dacNum = 7) then
-               v.state := CLK_0_RISE_S;
+               v.startup := '0';
+               if (r.startup = '0') then
+                  v.state := CLK_0_RISE_S;
+               else
+                  v.state := OVER_CLK_0_RISE_S;
+               end if;
             end if;
 
          when OVER_SEL_S =>
@@ -298,12 +304,20 @@ begin
             v.state           := OVER_WRITE_FALL_S;
 
          when OVER_WRITE_FALL_S =>
-            v.state := CLK_0_RISE_S;
+            v.state := OVER_CLK_0_RISE_S;
 
-         when CLK_0_RISE_S =>
+         when OVER_CLK_0_RISE_S =>
+            -- Don't wait for row strobe when doing over write
             v.dacOut := r.dacOutNext;
             v.dacClk := (others => '1');
             v.state  := CLK_0_FALL_S;
+
+         when CLK_0_RISE_S =>
+            if (timingRxData.rowStrobe = '1') then
+               v.dacOut := r.dacOutNext;
+               v.dacClk := (others => '1');
+               v.state  := CLK_0_FALL_S;
+            end if;
 
          when CLK_0_FALL_S =>
             v.dacClk := (others => '0');
@@ -312,7 +326,7 @@ begin
          when CLK_1_RISE_S =>
             v.dacClk := (others => '1');
             v.dacSel := (others => '0');
-            v.state  := WAIT_ROW_STROBE_S;
+            v.state  := IDLE_S;
 
          when others => null;
       end case;
