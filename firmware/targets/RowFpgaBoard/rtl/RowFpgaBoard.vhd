@@ -494,6 +494,7 @@ begin
    U_RowDacDriver_1 : entity warm_tdm.RowDacDriver
       generic map (
          TPD_G              => TPD_G,
+         SIMULATION_G       => SIMULATION_G,
          NUM_ROW_SELECTS_G  => NUM_ROW_SELECTS_G,
          NUM_CHIP_SELECTS_G => NUM_CHIP_SELECTS_G,
          AXIL_BASE_ADDR_G   => AXIL_XBAR_CFG_C(AXIL_DACS_C).baseAddr)

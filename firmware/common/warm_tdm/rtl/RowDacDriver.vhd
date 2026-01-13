@@ -31,6 +31,7 @@ entity RowDacDriver is
 
    generic (
       TPD_G              : time                  := 1 ns;
+      SIMULATION_G       : boolean               := false;
       NUM_ROW_SELECTS_G  : integer range 1 to 32 := 32;
       NUM_CHIP_SELECTS_G : integer range 0 to 8  := 0;
       AXIL_BASE_ADDR_G   : slv(31 downto 0)      := (others => '0'));
@@ -110,6 +111,7 @@ architecture rtl of RowDacDriver is
 
 
    type StateType is (
+      STARTUP_S,
       INIT_A_S,
       INIT_B_S,
       INIT_C_S,
@@ -160,7 +162,7 @@ architecture rtl of RowDacDriver is
 
    constant REG_INIT_C : RegType := (
       startup         => '1',
-      state           => INIT_A_S,
+      state           => STARTUP_S,
       mode            => MANUAL_MODE_C,
       offIndex        => (others => '0'),
       onIndex         => (others => '0'),
@@ -185,6 +187,8 @@ architecture rtl of RowDacDriver is
 
    signal r   : RegType := REG_INIT_C;
    signal rin : RegType;
+
+   signal pwrUpWaitDone : sl;
 
    signal rsOnDout    : slv(15 downto 0) := (others => '0');
    signal rsOnWrValid : sl               := '0';
@@ -211,14 +215,14 @@ architecture rtl of RowDacDriver is
    -- into the row select signals
    constant REMAP_C : IntegerArray(0 to 31) := (
       --aux     sq1fb     sq1bias   safb
-      0  => 31,  1 => 15,  2 => 23,  3 => 7,  -- aux[7], sq1fb[7], sq1bias[7], safb[7]
-      4  => 30,  5 => 14,  6 => 22,  7 => 6,  -- aux[6], sq1fb[6], sq1bias[6], safb[6]
-      8  => 29,  9 => 13, 10 => 21, 11 => 5,  -- aux[5], sq1fb[5], sq1bias[5], safb[5]
+      0  => 31, 1 => 15, 2 => 23, 3 => 7,     -- aux[7], sq1fb[7], sq1bias[7], safb[7]
+      4  => 30, 5 => 14, 6 => 22, 7 => 6,     -- aux[6], sq1fb[6], sq1bias[6], safb[6]
+      8  => 29, 9 => 13, 10 => 21, 11 => 5,   -- aux[5], sq1fb[5], sq1bias[5], safb[5]
       12 => 28, 13 => 12, 14 => 20, 15 => 4,  -- aux[4], sq1fb[4], sq1bias[4], safb[4]
       16 => 27, 17 => 11, 18 => 19, 19 => 3,  -- aux[3], sq1fb[3], sq1bias[3], safb[3]
       20 => 26, 21 => 10, 22 => 18, 23 => 2,  -- aux[2], sq1fb[2], sq1bias[2], safb[2]
-      24 => 25, 25 => 9,  26 => 17, 27 => 1,  -- aux[1], sq1fb[1], sq1bias[1], safb[1]
-      28 => 24, 29 => 8,  30 => 16, 31 => 0); -- aux[0], sq1fb[0], sq1bias[0], safb[0]
+      24 => 25, 25 => 9, 26 => 17, 27 => 1,   -- aux[1], sq1fb[1], sq1bias[1], safb[1]
+      28 => 24, 29 => 8, 30 => 16, 31 => 0);  -- aux[0], sq1fb[0], sq1bias[0], safb[0]
 
    function getRsDac (
       chanSlv : slv)
@@ -426,12 +430,22 @@ begin
 
    end generate GEN_CS_ON_RAM;
 
+   U_PwrUpRst_1 : entity surf.PwrUpRst
+      generic map (
+         TPD_G         => TPD_G,
+         SIM_SPEEDUP_G => SIMULATION_G,
+         DURATION_G    => 125000000*5)
+      port map (
+         arst   => timingRxRst125,      -- [in]
+         clk    => timingRxClk125,      -- [in]
+         rstOut => pwrUpWaitDone);      -- [out]   
+
 
 
    comb : process (csOffDout, csOffWrAddr, csOffWrData, csOffWrValid, csOnDout, csOnWrAddr,
-                   csOnWrData, csOnWrValid, r, rsOffDout, rsOffWrAddr, rsOffWrData, rsOffWrValid,
-                   rsOnDout, rsOnWrAddr, rsOnWrData, rsOnWrValid, timingAxilReadMaster,
-                   timingAxilWriteMaster, timingRxData, timingRxRst125) is
+                   csOnWrData, csOnWrValid, pwrUpWaitDone, r, rsOffDout, rsOffWrAddr, rsOffWrData,
+                   rsOffWrValid, rsOnDout, rsOnWrAddr, rsOnWrData, rsOnWrValid,
+                   timingAxilReadMaster, timingAxilWriteMaster, timingRxData, timingRxRst125) is
       variable v         : RegType;
       variable axilEp    : AxiLiteEndpointType;
       variable rsDacInt  : integer;
@@ -480,6 +494,11 @@ begin
       v.dacClk := (others => '0');
 
       case r.state is
+
+         when STARTUP_S =>
+            if (pwrUpWaitDone = '1') then
+               v.state := INIT_A_S;
+            end if;
 
          when INIT_A_S =>
             -- Put mid-scale on bus (drives 0 after amplifier)

@@ -31,6 +31,7 @@ entity FastDacDriver is
 
    generic (
       TPD_G            : time             := 1 ns;
+      SIMULATION_G     : boolean          := false;
       AXIL_BASE_ADDR_G : slv(31 downto 0) := (others => '0'));
 
    port (
@@ -125,6 +126,8 @@ architecture rtl of FastDacDriver is
    signal overrideWrValid : sl;
    signal overrideWrAddr  : slv(2 downto 0);
    signal overrideWrData  : slv(15 downto 0);
+
+   signal pwrUpWaitDone : sl;
 
    signal timingAxilWriteMaster : AxiLiteWriteMasterType;
    signal timingAxilWriteSlave  : AxiLiteWriteSlaveType;
@@ -225,7 +228,17 @@ begin
          mAxiWriteMaster => timingAxilWriteMaster,              -- [out]
          mAxiWriteSlave  => timingAxilWriteSlave);              -- [in]
 
-   comb : process (overrideWrAddr, overrideWrData, overrideWrValid, r, ramDout,
+   U_PwrUpRst_1 : entity surf.PwrUpRst
+      generic map (
+         TPD_G         => TPD_G,
+         SIM_SPEEDUP_G => SIMULATION_G,
+         DURATION_G    => 125000000*5)
+      port map (
+         arst   => timingRxRst125,      -- [in]
+         clk    => timingRxClk125,      -- [in]
+         rstOut => pwrUpWaitDone);      -- [out]
+
+   comb : process (overrideWrAddr, overrideWrData, overrideWrValid, pwrUpWaitDone, r, ramDout,
                    timingAxilReadMaster, timingAxilWriteMaster, timingRxData, timingRxRst125) is
       variable v       : RegType;
       variable dacInt  : integer range 0 to 7;
@@ -251,7 +264,7 @@ begin
          when IDLE_S =>
             v.dacNum := (others => '0');
             -- At startup, load rowIndex[0] ram values into dacs
-            if (r.startup = '1') then
+            if (r.startup = '1' and pwrUpWaitDone = '1') then
 --               v.startup  := '0';
                v.rowIndex := (others => '0');
                v.state    := DATA_S;

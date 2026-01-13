@@ -516,7 +516,7 @@ begin
          writeRegister(0) => tesDelatchInt,
          writeRegister(1) => tesDacLdacLInt);                          -- [out]
 
-   tesDelatch     <= tesDelatchInt(7 downto 0);
+   tesDelatch <= tesDelatchInt(7 downto 0);
 
    U_PwrUpRst_1 : entity surf.PwrUpRst
       generic map (
@@ -617,6 +617,7 @@ begin
    U_FastDacDriver_SQ1_BIAS : entity warm_tdm.FastDacDriver
       generic map (
          TPD_G            => TPD_G,
+         SIMULATION_G     => SIMULATION_G,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_SQ1_BIAS_DAC_C).baseAddr)
       port map (
          timingRxClk125  => timingRxClk125,                            -- [in]
@@ -637,6 +638,7 @@ begin
    U_FastDacDriver_SQ1_FB : entity warm_tdm.FastDacDriver
       generic map (
          TPD_G            => TPD_G,
+         SIMULATION_G     => SIMULATION_G,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_SQ1_FB_DAC_C).baseAddr)
       port map (
          timingRxClk125  => timingRxClk125,                          -- [in]
@@ -658,6 +660,7 @@ begin
    U_FastDacDriver_SA_FB : entity warm_tdm.FastDacDriver
       generic map (
          TPD_G            => TPD_G,
+         SIMULATION_G     => SIMULATION_G,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_SA_FB_DAC_C).baseAddr)
       port map (
          timingRxClk125  => timingRxClk125,                         -- [in]
