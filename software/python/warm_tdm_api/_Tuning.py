@@ -475,6 +475,12 @@ def sq1BiasSweep(group, process):
             if group.ColTuneEnable.get()[col]:
                 datalist[col].addCurve(curves[col])
 
+        # check for stopped process
+        if process is not None and process._runEn == False:
+            print('Process stopped, sq1BiasSweep()')
+            break
+
+
     # Compute best bias point for each column
     for d in datalist:
         d.update()
