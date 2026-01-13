@@ -288,7 +288,7 @@ def saFbServo(*, group, process):
 
         for i, p in enumerate(pid):
             change = p(masked[i])
-            control[i] = np.clip(control[i] + change, -100. ,100.0 ) # Check this clip range
+            control[i] = control[i] + change
 
         group.SaFbForceCurrent.set(control)
 
