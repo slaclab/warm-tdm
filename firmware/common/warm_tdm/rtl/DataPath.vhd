@@ -301,7 +301,7 @@ begin
    U_TimingDelay_1 : entity warm_tdm.TimingDelay
       generic map (
          TPD_G   => TPD_G,
-         DELAY_G => 30)
+         DELAY_G => 60)
       port map (
          clk       => timingRxClk125,        -- [in]
          timingIn  => timingRxData,          -- [in]

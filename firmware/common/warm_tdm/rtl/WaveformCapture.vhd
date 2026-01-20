@@ -250,13 +250,13 @@ begin
                v.decimatedStreams(i).tData(15 downto 0) := adcStreams(i).tData(15 downto 0);
                -- Hack - Use unused bits to encode timing flags
                if (adcStreams(i).tUser(0) = '1') then
-                  v.decimatedStreams(i).tData(1 downto 0) := "01";
+                  v.decimatedStreams(i).tData(1 downto 0) := "01";  -- first sample
                elsif (adcStreams(i).tUser(1) = '1') then
-                  v.decimatedStreams(i).tData(1 downto 0) := "10";
+                  v.decimatedStreams(i).tData(1 downto 0) := "10";  -- last sample
                elsif (adcStreams(i).tUser(2) = '1') then
-                  v.decimatedStreams(i).tData(1 downto 0) := "11";
+                  v.decimatedStreams(i).tData(1 downto 0) := "11";  -- row strobe
                end if;
-               v.decimatedStreams(i).tUser(0) := adcStreams(i).tUser(4);
+               v.decimatedStreams(i).tUser(0) := adcStreams(i).tUser(4);  -- sampling
                v.decCnt                       := (others => '0');
             end if;
          end loop;
