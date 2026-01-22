@@ -87,13 +87,14 @@ architecture rtl of DataPath is
    constant FILTER_COEFFICIENTS_C : IntegerArray(0 to FILTER_NUM_TAPS_C-1) := ((FILTER_NUM_TAPS_C-1)/2 => (2**FILTER_COEFF_WIDTH_C)-1, others => 0);
 
    -- Main crossbar config
-   constant NUM_AXIL_MASTERS_C   : integer := 6;
+   constant NUM_AXIL_MASTERS_C   : integer := 7;
    constant ADC_READOUT_AXIL_C   : integer := 0;
    constant WAVEFORM_AXIL_C      : integer := 1;
    constant EVENT_BUILDER_AXIL_C : integer := 2;
    constant ADC_FILTER_AXIL_C    : integer := 3;
    constant ADC_DSP_AXIL_C       : integer := 4;
    constant PID_FILTER_AXIL_C    : integer := 5;
+   constant DELAY_AXIL_C         : integer := 6;
 
    constant XBAR_COFNIG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_MASTERS_C, AXIL_BASE_ADDR_G, 24, 20);
 
@@ -301,11 +302,16 @@ begin
    U_TimingDelay_1 : entity warm_tdm.TimingDelay
       generic map (
          TPD_G   => TPD_G,
-         DELAY_G => 60)
+         DELAY_G => 55)
       port map (
-         clk       => timingRxClk125,        -- [in]
-         timingIn  => timingRxData,          -- [in]
-         timingOut => timingRxDataDelayed);  -- [out]
+         clk             => timingRxClk125,                     -- [in]
+         rst             => timingRxRst125,                     -- [in]
+         timingIn        => timingRxData,                       -- [in]
+         timingOut       => timingRxDataDelayed,                -- [out]
+         axilWriteMaster => locAxilWriteMasters(DELAY_AXIL_C),  -- [in]
+         axilWriteSlave  => locAxilWriteSlaves(DELAY_AXIL_C),   -- [out]
+         axilReadMaster  => locAxilReadMasters(DELAY_AXIL_C),   -- [in]
+         axilReadSlave   => locAxilReadSlaves(DELAY_AXIL_C));   -- [out]     
 
 
    FIR_FILTER_GEN : for i in 7 downto 0 generate

@@ -42,6 +42,15 @@ class DataPath(pr.Device):
             name = 'Ad9681Readout',
             offset = 0x00000000))
 
+        self.add(pr.RemoteVariable(
+            name = 'AdcLatency',
+            offset = 6 << 20,
+            bitSize = 7,
+            bitOffset = 0,
+            base = pr.UInt,
+            units = 'Cycles',
+            disp = '{:d}'))
+
 class EventBuilder(pr.Device):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
