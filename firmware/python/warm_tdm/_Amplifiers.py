@@ -793,7 +793,7 @@ class FastDacAmplifierSE(pr.Device):
         return int(dac)
 
     def outCurrentToDac(self, current):
-        print(f'{self.path}.outCurrentToDac({current=})')
+        #print(f'{self.path}.outCurrentToDac({current=})')
         vout = current * 1e-6 * self.rout()
         return self.outVoltageToDac(vout)
 
