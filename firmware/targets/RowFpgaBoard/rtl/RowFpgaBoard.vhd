@@ -50,7 +50,7 @@ entity RowFpgaBoard is
       BUILD_INFO_G            : BuildInfoType;
       RING_ADDR_0_G           : boolean               := false;
       NUM_ROW_SELECTS_G       : integer range 1 to 32 := 10;
-      NUM_CHIP_SELECTS_G      : integer range 0 to 8  := 6;
+      NUM_CHIP_SELECTS_G      : integer range 0 to 12 := 6;
       ETH_10G_G               : boolean               := false;
       DHCP_G                  : boolean               := false;
       IP_ADDR_G               : slv(31 downto 0)      := x"0B03A8C0";  -- 192.168.3.11
@@ -371,148 +371,34 @@ begin
          mAxiReadMasters     => locAxilReadMasters,   -- [out]
          mAxiReadSlaves      => locAxilReadSlaves);   -- [in]
 
-   -------------------------------------------------------------------------------------------------
-   -- FE SPI Bias
-   -------------------------------------------------------------------------------------------------
---    U_FE_SPI : entity surf.AxiSpiMaster
---       generic map (
---          TPD_G             => TPD_G,
---          ADDRESS_SIZE_G    => 8,
---          DATA_SIZE_G       => 16,
---          MODE_G            => "WO",
---          SHADOW_EN_G       => true,
---          CPHA_G            => '1',
---          CPOL_G            => '0',
---          CLK_PERIOD_G      => 1.0/AXIL_CLK_FREQ_C,              --6.4e-9,
---          SPI_SCLK_PERIOD_G => ite(SIMULATION_G, 100.0e-9, 1.0E-6),
---          SPI_NUM_CHIPS_G   => 3)
---       port map (
---          axiClk         => axilClk,                             -- [in]
---          axiRst         => axilRst,                             -- [in]
---          axiReadMaster  => locAxilReadMasters(AXIL_FE_SPI_C),   -- [in]
---          axiReadSlave   => locAxilReadSlaves(AXIL_FE_SPI_C),    -- [out]
---          axiWriteMaster => locAxilWriteMasters(AXIL_FE_SPI_C),  -- [in]
---          axiWriteSlave  => locAxilWriteSlaves(AXIL_FE_SPI_C),   -- [out]
---          coreSclk       => feDacSclk,                           -- [out]
---          coreSDin       => feDacMiso,                           -- [in]
---          coreSDout      => feDacMosi,                           -- [out]
---          coreMCsb       => feDacSyncB);                         -- [out]
-
---    -------------------------------------------------------------------------------------------------
---    -- FE I2C
---    -------------------------------------------------------------------------------------------------
---    U_AxiLiteCrossbar_I2C : entity surf.AxiLiteCrossbar
---       generic map (
---          TPD_G              => TPD_G,
---          NUM_SLAVE_SLOTS_G  => 1,
---          NUM_MASTER_SLOTS_G => 4,
---          MASTERS_CONFIG_G   => genAxiLiteConfig(4, AXIL_XBAR_CFG_C(AXIL_FE_I2C_C).baseAddr, 24, 20))
---       port map (
---          axiClk              => axilClk,                             -- [in]
---          axiClkRst           => axilRst,                             -- [in]
---          sAxiWriteMasters(0) => locAxilWriteMasters(AXIL_FE_I2C_C),  -- [in]
---          sAxiWriteSlaves(0)  => locAxilWriteSlaves(AXIL_FE_I2C_C),   -- [out]
---          sAxiReadMasters(0)  => locAxilReadMasters(AXIL_FE_I2C_C),   -- [in]
---          sAxiReadSlaves(0)   => locAxilReadSlaves(AXIL_FE_I2C_C),    -- [out]
---          mAxiWriteMasters    => i2cAxilWriteMasters,                 -- [out]
---          mAxiWriteSlaves     => i2cAxilWriteSlaves,                  -- [in]
---          mAxiReadMasters     => i2cAxilReadMasters,                  -- [out]
---          mAxiReadSlaves      => i2cAxilReadSlaves);                  -- [in]
-
---    GEN_FE_I2C : for i in 3 downto 0 generate
---       U_AxiI2cRegMaster_FE_I2C : entity surf.AxiI2cRegMaster
---          generic map (
---             TPD_G            => TPD_G,
---             DEVICE_MAP_G     => (
---                0             => MakeI2cAxiLiteDevType(  -- 24LC64FT
---                   i2cAddress => "1010000",
---                   dataSize   => 8,
---                   addrSize   => 16,
---                   endianness => '1')),
---             I2C_SCL_FREQ_G   => ite(SIMULATION_G, 2.0e6, 100.0E+3),
---             I2C_MIN_PULSE_G  => ite(SIMULATION_G, 50.0e-9, 100.0E-9),
---             AXI_CLK_FREQ_G   => AXIL_CLK_FREQ_C)
---          port map (
---             axiClk         => axilClk,                  -- [in]
---             axiRst         => axilRst,                  -- [in]
---             axiReadMaster  => i2cAxilReadMasters(i),    -- [in]
---             axiReadSlave   => i2cAxilReadSlaves(i),     -- [out]
---             axiWriteMaster => i2cAxilWriteMasters(i),   -- [in]
---             axiWriteSlave  => i2cAxilWriteSlaves(i),    -- [out]
---             scl            => feI2cScl(i),              -- [inout]
---             sda            => feI2cSda(i));             -- [inout]
---    end generate GEN_FE_I2C;
-
-
-   -------------------------------------------------------------------------------------------------
-   -- ADC Config
-   -------------------------------------------------------------------------------------------------
---    U_Ad9249Config_1 : entity surf.Ad9681Config
---       generic map (
---          TPD_G             => TPD_G,
---          NUM_CHIPS_G       => 1,
---          SCLK_PERIOD_G     => ite(SIMULATION_G, 100.0e-9, 1.0E-6),
---          AXIL_CLK_PERIOD_G => 1.0/AXIL_CLK_FREQ_C)                   --6.4E-9)
---       port map (
---          axilClk         => axilClk,                                 -- [in]
---          axilRst         => axilRst,                                 -- [in]
---          axilReadMaster  => locAxilReadMasters(AXIL_ADC_CONFIG_C),   -- [in]
---          axilReadSlave   => locAxilReadSlaves(AXIL_ADC_CONFIG_C),    -- [out]
---          axilWriteMaster => locAxilWriteMasters(AXIL_ADC_CONFIG_C),  -- [in]
---          axilWriteSlave  => locAxilWriteSlaves(AXIL_ADC_CONFIG_C),   -- [out]
--- --         adcPdwn(0)      => adcPdwn,                                 -- [out]
---          adcSclk         => adcSclk,                                 -- [out]
---          adcSdio         => adcSdio,                                 -- [inout]
---          adcCsb(0)       => adcCsb);                                 -- [out]
-
-
-   -------------------------------------------------------------------------------------------------
-   -- ADC Data Path
-   -------------------------------------------------------------------------------------------------
---    adc.fClkP <= adcFClkP;
---    adc.fClkN <= adcFClkN;
---    adc.dClkP <= adcDClkP;
---    adc.dClkN <= adcDClkN;
---    adc.chP   <= adcChP;
---    adc.chN   <= adcChN;
-
-   -------------------------------------------------------------------------------------------------
-   -- Use timing rx clock as ADC sampling clock
-   -------------------------------------------------------------------------------------------------
---    U_ClkOutBufDiff_1 : entity surf.ClkOutBufDiff
---       generic map (
---          TPD_G => TPD_G)
---       port map (
---          clkIn   => timingRxClk125,     -- [in]
---          clkOutP => adcClkP,            -- [out]
---          clkOutN => adcClkN);           -- [out]
-
 
    -------------------------------------------------------------------------------------------------
    -- DACS
    -------------------------------------------------------------------------------------------------
-   U_RowDacDriver_1 : entity warm_tdm.RowDacDriver
-      generic map (
-         TPD_G              => TPD_G,
-         SIMULATION_G       => SIMULATION_G,
-         NUM_ROW_SELECTS_G  => NUM_ROW_SELECTS_G,
-         NUM_CHIP_SELECTS_G => NUM_CHIP_SELECTS_G,
-         AXIL_BASE_ADDR_G   => AXIL_XBAR_CFG_C(AXIL_DACS_C).baseAddr)
-      port map (
-         timingRxClk125  => timingRxClk125,                    -- [in]
-         timingRxRst125  => timingRxRst125,                    -- [in]
-         timingRxData    => timingRxData,                      -- [in]
-         dacDb           => dacDb,                             -- [out]
-         dacWrt          => dacWrt,                            -- [out]
-         dacClk          => dacClk,                            -- [out]
-         dacSel          => dacSel,                            -- [out]
-         dacReset        => dacReset,                          -- [out]
-         axilClk         => axilClk,                           -- [in]
-         axilRst         => axilRst,                           -- [in]
-         axilWriteMaster => locAxilWriteMasters(AXIL_DACS_C),  -- [in]
-         axilWriteSlave  => locAxilWriteSlaves(AXIL_DACS_C),   -- [out]
-         axilReadMaster  => locAxilReadMasters(AXIL_DACS_C),   -- [in]
-         axilReadSlave   => locAxilReadSlaves(AXIL_DACS_C));   -- [out]
+   GEN_DAC_DRIVERS : for i in NUM_WAFERS_G-1 downto 0 generate
+      U_RowDacDriver_1 : entity warm_tdm.RowDacDriver
+         generic map (
+            TPD_G              => TPD_G,
+            SIMULATION_G       => SIMULATION_G,
+            NUM_ROW_SELECTS_G  => NUM_ROW_SELECTS_G,
+            NUM_CHIP_SELECTS_G => NUM_CHIP_SELECTS_G,
+            AXIL_BASE_ADDR_G   => AXIL_XBAR_CFG_C(AXIL_DACS_C).baseAddr)
+         port map (
+            timingRxClk125  => timingRxClk125,         -- [in]
+            timingRxRst125  => timingRxRst125,         -- [in]
+            timingRxData    => timingRxData,           -- [in]
+            dacDb           => dacDb(i),                  -- [out]
+            dacWrt          => dacWrt(2*i+(16/NUM_WAFERS_G)-1 ),                 -- [out]
+            dacClk          => dacClk,                 -- [out]
+            dacSel          => dacSel,                 -- [out]
+            dacReset        => dacReset,               -- [out]
+            axilClk         => axilClk,                -- [in]
+            axilRst         => axilRst,                -- [in]
+            axilWriteMaster => dacAxilWriteMasters(i),  -- [in]
+            axilWriteSlave  => dacAxilWriteSlaves(i),   -- [out]
+            axilReadMaster  => dacAxilReadMasters(i),   -- [in]
+            axilReadSlave   => dacAxilReadSlaves(i));   -- [out]
+   end generate GEN_DAC_DRIVERS;
 
    -- Drive dacDb to all dac banks
    dacDb0 <= dacDb;

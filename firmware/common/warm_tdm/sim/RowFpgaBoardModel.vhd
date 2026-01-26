@@ -36,7 +36,7 @@ entity RowFpgaBoardModel is
       SIM_ETH_SRP_PORT_NUM_G  : integer               := 8000;
       SIM_ETH_DATA_PORT_NUM_G : integer               := 9000;
       NUM_ROW_SELECTS_G       : integer range 1 to 32 := 32;
-      NUM_CHIP_SELECTS_G      : integer range 0 to 8  := 0);
+      NUM_CHIP_SELECTS_G      : integer range 0 to 12  := 0);
    port (
       -- Front End Connector
       feThermistor : in    slv(1 downto 0) := "00";

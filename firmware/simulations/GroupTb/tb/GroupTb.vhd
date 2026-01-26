@@ -60,7 +60,7 @@ architecture sim of GroupTb is
 begin
 
    GEN_COL_BOARDS : for i in 0 to COLUMN_BOARDS_C-1 generate
-      U_ColumnModuleBoard : entity warm_tdm.ColumnFpgaBoardSim
+      U_ColumnFpgaBoardSim : entity warm_tdm.ColumnFpgaBoardSim
          generic map (
             TPD_G                   => TPD_G,
             RING_ADDR_0_G           => (i = 0),
@@ -91,7 +91,7 @@ begin
    end generate GEN_COL_BOARDS;
 
    GEN_ROW_BOARDS : for i in COLUMN_BOARDS_C to GROUP_SIZE_C-1 generate
-      U_RowModuleBoard : entity warm_tdm.RowFpgaBoardSim
+      U_RowFpgaBoardSim : entity warm_tdm.RowFpgaBoardSim
          generic map (
             TPD_G                   => TPD_G,
             RING_ADDR_0_G           => (i = 0),
