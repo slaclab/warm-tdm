@@ -6,7 +6,7 @@ import surf.protocols.ssi
 import warm_tdm
 
 class RowFpgaBoard(pr.Device):
-    def __init__(self, frontEndClass, num_row_selects=32, num_chip_selects=0, **kwargs):
+    def __init__(self, frontEndClass, num_wafers=1, num_row_selects=32, num_chip_selects=0, **kwargs):
         super().__init__(**kwargs)
 
         self.forceCheckEach = True
@@ -38,6 +38,18 @@ class RowFpgaBoard(pr.Device):
             num_row_selects = num_row_selects,
             num_chip_selects = num_chip_selects,
             expand = True))
+
+        if num_wafers == 2:
+            self.add(warm_tdm.RowDacDriver(
+                name = 'RowDacDriver2',
+                offset = 0xC200_0000,
+                frontEnd = self.AnalogFrontEnd,
+                num_row_selects = num_row_selects,
+                num_chip_selects = num_chip_selects,
+                expand = True))
+
+            
+            
 
 
 

@@ -209,10 +209,11 @@ architecture rtl of RowFpgaBoard is
 
    constant AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(8);  -- Maybe packetizer config?
 
-   constant NUM_AXIL_MASTERS_C : integer := 3;
+   constant NUM_AXIL_MASTERS_C : integer := 4;
    constant AXIL_PRBS_RX_C     : integer := 0;
    constant AXIL_PRBS_TX_C     : integer := 1;
    constant AXIL_DACS_C        : integer := 2;
+   constant AXIL_DACS_2_C      : integer := 3;
 
    constant AXIL_XBAR_CFG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := (
       AXIL_PRBS_RX_C  => (
@@ -226,6 +227,10 @@ architecture rtl of RowFpgaBoard is
       AXIL_DACS_C     => (
          baseAddr     => APP_BASE_ADDR_C + X"01000000",
          addrBits     => 16,
+         connectivity => X"FFFF"),
+      AXIL_DACS_2_C   => (
+         baseAddr     => APP_BASE_ADDR_C + X"02000000",
+         addrBits     => 16,
          connectivity => X"FFFF"));
 
 
@@ -238,9 +243,9 @@ architecture rtl of RowFpgaBoard is
    signal srpAxilReadSlave   : AxiLiteReadSlaveType;
 
    signal locAxilWriteMasters : AxiLiteWriteMasterArray(NUM_AXIL_MASTERS_C-1 downto 0);
-   signal locAxilWriteSlaves  : AxiLiteWriteSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0);
+   signal locAxilWriteSlaves  : AxiLiteWriteSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0) := (others => AXI_LITE_WRITE_SLAVE_EMPTY_DECERR_C);
    signal locAxilReadMasters  : AxiLiteReadMasterArray(NUM_AXIL_MASTERS_C-1 downto 0);
-   signal locAxilReadSlaves   : AxiLiteReadSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0);
+   signal locAxilReadSlaves   : AxiLiteReadSlaveArray(NUM_AXIL_MASTERS_C-1 downto 0)  := (others => AXI_LITE_READ_SLAVE_EMPTY_DECERR_C);
 
    signal i2cAxilWriteMasters : AxiLiteWriteMasterArray(3 downto 0);
    signal i2cAxilWriteSlaves  : AxiLiteWriteSlaveArray(3 downto 0);
@@ -259,6 +264,12 @@ architecture rtl of RowFpgaBoard is
    signal timingRxClk125 : sl;
    signal timingRxRst125 : sl;
    signal timingRxData   : LocalTimingType;
+
+   signal locDacDb    : slv14Array(1 downto 0) := (others => (others => '0'));
+   signal locDacWrt   : slv16Array(1 downto 0) := (others => (others => '0'));
+   signal locDacSel   : slv16array(1 downto 0) := (others => (others => '0'));
+   signal locDacClk   : slv16Array(1 downto 0) := (others => (others => '0'));
+   signal locDacReset : slv16Array(1 downto 0) := (others => (others => '0'));
 
    signal dacDb : slv(13 downto 0);
 
@@ -380,25 +391,35 @@ begin
          generic map (
             TPD_G              => TPD_G,
             SIMULATION_G       => SIMULATION_G,
+            BOARD_ID_G         => i,
+            RS_0_OFFSET_G      => i*16,
             NUM_ROW_SELECTS_G  => NUM_ROW_SELECTS_G,
             NUM_CHIP_SELECTS_G => NUM_CHIP_SELECTS_G,
-            AXIL_BASE_ADDR_G   => AXIL_XBAR_CFG_C(AXIL_DACS_C).baseAddr)
+            AXIL_BASE_ADDR_G   => AXIL_XBAR_CFG_C(AXIL_DACS_C + i).baseAddr)
          port map (
-            timingRxClk125  => timingRxClk125,         -- [in]
-            timingRxRst125  => timingRxRst125,         -- [in]
-            timingRxData    => timingRxData,           -- [in]
-            dacDb           => dacDb(i),                  -- [out]
-            dacWrt          => dacWrt(2*i+(16/NUM_WAFERS_G)-1 ),                 -- [out]
-            dacClk          => dacClk,                 -- [out]
-            dacSel          => dacSel,                 -- [out]
-            dacReset        => dacReset,               -- [out]
-            axilClk         => axilClk,                -- [in]
-            axilRst         => axilRst,                -- [in]
-            axilWriteMaster => dacAxilWriteMasters(i),  -- [in]
-            axilWriteSlave  => dacAxilWriteSlaves(i),   -- [out]
-            axilReadMaster  => dacAxilReadMasters(i),   -- [in]
-            axilReadSlave   => dacAxilReadSlaves(i));   -- [out]
+            timingRxClk125  => timingRxClk125,                        -- [in]
+            timingRxRst125  => timingRxRst125,                        -- [in]
+            timingRxData    => timingRxData,                          -- [in]
+            dacDb           => locDacDb(i),                           -- [out]
+            dacWrt          => locDacWrt(i),                          -- [out]
+            dacClk          => locDacClk(i),                          -- [out]
+            dacSel          => locDacSel(i),                          -- [out]
+            dacReset        => locDacReset(i),                        -- [out]
+            axilClk         => axilClk,                               -- [in]
+            axilRst         => axilRst,                               -- [in]
+            axilWriteMaster => locAxilWriteMasters(AXIL_DACS_C + i),  -- [in]
+            axilWriteSlave  => locAxilWriteSlaves(AXIL_DACS_C + i),   -- [out]
+            axilReadMaster  => locAxilReadMasters(AXIL_DACS_C + i),   -- [in]
+            axilReadSlave   => locAxilReadSlaves(AXIL_DACS_C + i));   -- [out]
    end generate GEN_DAC_DRIVERS;
+
+   -- Or everything together since it is never both driven at once
+   dacDb    <= locDacDb(0) or locDacDb(1);
+   dacWrt   <= locDacWrt(0) or locDacWrt(1);
+   dacSel   <= locDacSel(0) or locDacSel(1);
+   dacClk   <= locDacClk(0) or locDacClk(1);
+   dacReset <= locDacReset(0) or locDacReset(1);
+
 
    -- Drive dacDb to all dac banks
    dacDb0 <= dacDb;

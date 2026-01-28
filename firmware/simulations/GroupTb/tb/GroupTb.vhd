@@ -38,8 +38,9 @@ architecture sim of GroupTb is
 
    constant AWAXE_G : boolean := false;
 
-   constant NUM_ROW_SELECTS_G  : integer range 1 to 32 := 10;
-   constant NUM_CHIP_SELECTS_G : integer range 0 to 8  := 6;
+   constant NUM_WAFERS_G       : integer range 1 to 2  := 1;
+   constant NUM_ROW_SELECTS_G  : integer range 1 to 32 := 32;
+   constant NUM_CHIP_SELECTS_G : integer range 0 to 8  := 0;
 
    constant GROUP_SIZE_C : integer := COLUMN_BOARDS_C + ROW_BOARDS_C;
    constant TPD_G        : time    := 1 ns;

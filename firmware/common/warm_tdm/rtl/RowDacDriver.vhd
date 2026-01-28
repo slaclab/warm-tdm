@@ -32,6 +32,8 @@ entity RowDacDriver is
    generic (
       TPD_G              : time                  := 1 ns;
       SIMULATION_G       : boolean               := false;
+      BOARD_ID_G         : integer               := 0;
+      RS_0_OFFSET_G      : integer range 0 to 16 := 0;
       NUM_ROW_SELECTS_G  : integer range 1 to 32 := 32;
       NUM_CHIP_SELECTS_G : integer range 0 to 8  := 0;
       AXIL_BASE_ADDR_G   : slv(31 downto 0)      := (others => '0'));
@@ -166,7 +168,7 @@ architecture rtl of RowDacDriver is
       mode            => MANUAL_MODE_C,
       offIndex        => (others => '0'),
       onIndex         => (others => '0'),
-      cfgBoardId      => (others => '0'),
+      cfgBoardId      => toSlv(BOARD_ID_G, BOARD_SELECT_BITS_C),
       boardId         => (others => '0'),
       rowAddr         => (others => '0'),
       chipAddr        => (others => '0'),
@@ -228,14 +230,14 @@ architecture rtl of RowDacDriver is
       chanSlv : slv)
       return integer is
    begin
-      return REMAP_C(conv_integer(resize(chanSlv, 5)));
+      return REMAP_C(conv_integer(resize(chanSlv, 5))+RS_0_OFFSET_G);
    end function;
 
    function getCsDac (
       chanSlv : slv)
       return integer is
    begin
-      return REMAP_C(conv_integer(resize(chanSlv, 5))+NUM_ROW_SELECTS_G);
+      return REMAP_C(conv_integer(resize(chanSlv, 5))+RS_0_OFFSET_G+NUM_ROW_SELECTS_G);
    end function;
 
    -- Get the dacSel value to drive for a given physical dac channel
@@ -590,14 +592,21 @@ begin
 
          when ROW_OFF_DATA_S =>
             -- Drive data and sel lines
-            v.dacDb  := rsOffDout(13 downto 0);
-            v.dacSel := getDacSel(r.rsDac);
-            v.state  := ROW_OFF_WRITE_S;
+            if (BOARD_SELECT_BITS_C > 0 and r.boardId = r.cfgBoardId) then
+               v.dacDb  := rsOffDout(13 downto 0);
+               v.dacSel := getDacSel(r.rsDac);
+            else
+               v.dacDb  := (others => '0');
+               v.dacSel := (others => '0');
+            end if;
+            v.state := ROW_OFF_WRITE_S;
 
          when ROW_OFF_WRITE_S =>
             -- Drive wrt if board is selected
             if (BOARD_SELECT_BITS_C > 0 and r.boardId = r.cfgBoardId) then
                v.dacWrt := getDacWrt(r.rsDac);
+            else
+               v.dacWrt := (others => '0');
             end if;
             if (NUM_CHIP_SELECTS_G > 0) then
                v.state := CHIP_OFF_DATA_S;
@@ -610,14 +619,21 @@ begin
 
          when CHIP_OFF_DATA_S =>
             -- Drive data and sel lines
-            v.dacDb  := csOffDout(13 downto 0);
-            v.dacSel := getDacSel(r.csDac);
-            v.state  := CHIP_OFF_WRITE_S;
+            if (BOARD_SELECT_BITS_C > 0 and r.boardId = r.cfgBoardId) then
+               v.dacDb  := csOffDout(13 downto 0);
+               v.dacSel := getDacSel(r.csDac);
+            else
+               v.dacDb  := (others => '0');
+               v.dacSel := (others => '0');
+            end if;
+            v.state := CHIP_OFF_WRITE_S;
 
          when CHIP_OFF_WRITE_S =>
             -- Drive wrt if board is selected
             if (r.boardId = r.cfgBoardId) then
                v.dacWrt := getDacWrt(r.csDac);
+            else
+               v.dacWrt := (others => '0');
             end if;
             if (r.deactivateEn = '1') then
                v.state := CLK_0_RISE_S;
@@ -643,9 +659,14 @@ begin
 
          when ROW_ON_DATA_S =>
             -- Drive data and sel lines
-            v.dacDb  := rsOnDout(13 downto 0);
-            v.dacSel := getDacSel(r.rsDac);
-            v.state  := ROW_ON_WRITE_S;
+            if (BOARD_SELECT_BITS_C > 0 and r.boardId = r.cfgBoardId) then
+               v.dacDb  := rsOnDout(13 downto 0);
+               v.dacSel := getDacSel(r.rsDac);
+            else
+               v.dacDb  := (others => '0');
+               v.dacSel := (others => '0');
+            end if;
+            v.state := ROW_ON_WRITE_S;
 
          when ROW_ON_WRITE_S =>
             -- Drive wrt if board is selected
@@ -660,9 +681,14 @@ begin
 
          when CHIP_ON_DATA_S =>
             -- Drive data and sel lines
-            v.dacDb  := csOnDout(13 downto 0);
-            v.dacSel := getDacSel(r.csDac);
-            v.state  := CHIP_ON_WRITE_S;
+            if (BOARD_SELECT_BITS_C > 0 and r.boardId = r.cfgBoardId) then
+               v.dacDb  := csOnDout(13 downto 0);
+               v.dacSel := getDacSel(r.csDac);
+            else
+               v.dacDb  := (others => '0');
+               v.dacSel := (others => '0');
+            end if;
+            v.state := CHIP_ON_WRITE_S;
 
          when CHIP_ON_WRITE_S =>
             -- Drive wrt if board is selected
@@ -689,6 +715,9 @@ begin
             v.state  := CLK_0_RISE_S;
 
          when CLK_0_RISE_S =>
+            v.dacSel := (others => '0');
+            v.dacDb := (others => '0');
+            
             -- Wait for row strobe to clock new DAC values if in TIMING_MODE
             if (r.mode = TIMING_MODE_C and timingRxData.rowStrobe = '1') or
                (r.mode = MANUAL_MODE_C) then
