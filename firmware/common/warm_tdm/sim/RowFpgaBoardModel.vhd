@@ -35,8 +35,9 @@ entity RowFpgaBoardModel is
       SIM_PGP_PORT_NUM_G      : integer               := 7000;
       SIM_ETH_SRP_PORT_NUM_G  : integer               := 8000;
       SIM_ETH_DATA_PORT_NUM_G : integer               := 9000;
+      NUM_WAFERS_G            : integer range 1 to 2  := 1;
       NUM_ROW_SELECTS_G       : integer range 1 to 32 := 32;
-      NUM_CHIP_SELECTS_G      : integer range 0 to 12  := 0);
+      NUM_CHIP_SELECTS_G      : integer range 0 to 12 := 0);
    port (
       -- Front End Connector
       feThermistor : in    slv(1 downto 0) := "00";
@@ -179,6 +180,7 @@ begin
          SIM_ETH_DATA_PORT_NUM_G => SIM_ETH_DATA_PORT_NUM_G,
          BUILD_INFO_G            => BUILD_INFO_G,
          RING_ADDR_0_G           => RING_ADDR_0_G,
+         NUM_WAFERS_G            => NUM_WAFERS_G,
          NUM_ROW_SELECTS_G       => NUM_ROW_SELECTS_G,
          NUM_CHIP_SELECTS_G      => NUM_CHIP_SELECTS_G,
          ETH_10G_G               => ETH_10G_G,
@@ -259,7 +261,7 @@ begin
          feDacSclk        => feDacSclk,         -- [out]
          feDacSyncB       => feDacSyncB,        -- [out]
          feDacLdacB       => feDacLdacB,        -- [out]
-         feDacResetB      => feDacResetB);       -- [out]
+         feDacResetB      => feDacResetB);      -- [out]
 
 
    -------------------------------------------------------------------------------------------------

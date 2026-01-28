@@ -36,6 +36,19 @@ entity ColumnFpgaBoardSim is
       ADC_R_FB_G              : RealArray(7 downto 0) := (others => 3.66e3));
 
    port (
+      tesBiasP   : out RealArray(7 downto 0);
+      tesBiasN   : out RealArray(7 downto 0);
+      saBiasOutP : out CurrentArray(7 downto 0);
+      saBiasOutN : out CurrentArray(7 downto 0);
+      saBiasInP  : in  RealArray(7 downto 0);
+      saBiasInN  : in  RealArray(7 downto 0);
+      saFbP      : out CurrentArray(7 downto 0);
+      saFbN      : out CurrentArray(7 downto 0);
+      sq1BiasP   : out CurrentArray(7 downto 0);
+      sq1BiasN   : out CurrentArray(7 downto 0);
+      sq1FbP     : out CurrentArray(7 downto 0);
+      sq1FbN     : out CurrentArray(7 downto 0);
+
       -- component ports
       rj45TimingRxClkP  : in  sl;
       rj45TimingRxClkN  : in  sl;
@@ -73,21 +86,6 @@ architecture sim of ColumnFpgaBoardSim is
    signal auxDacN      : RealArray(7 downto 0);
    signal saOutP       : RealArray(7 downto 0);
    signal saOutN       : RealArray(7 downto 0);
-
-   type CurrentArray8Array is array (natural range <>) of CurrentArray(7 downto 0);
-
-   signal tesBiasP   : RealArray(7 downto 0);
-   signal tesBiasN   : RealArray(7 downto 0);
-   signal saBiasOutP : CurrentArray(7 downto 0);
-   signal saBiasOutN : CurrentArray(7 downto 0);
-   signal saBiasInP  : RealArray(7 downto 0);
-   signal saBiasInN  : RealArray(7 downto 0);
-   signal saFbP      : CurrentArray(7 downto 0);
-   signal saFbN      : CurrentArray(7 downto 0);
-   signal sq1BiasP   : CurrentArray(7 downto 0);
-   signal sq1BiasN   : CurrentArray(7 downto 0);
-   signal sq1FbP     : CurrentArray(7 downto 0);
-   signal sq1FbN     : CurrentArray(7 downto 0);
 
 begin
 
@@ -182,25 +180,6 @@ begin
          sq1FbP       => sq1FbP,        -- [out]
          sq1FbN       => sq1FbN);       -- [out]
 
-   U_ColumnLoadBoard_1 : entity warm_tdm.ColumnLoadBoard
---         generic map (
---             SA_BIAS_LOADS_G  => SA_BIAS_LOADS_G,
---             SA_FB_LOADS_G    => SA_FB_LOADS_G,
---             SQ1_BIAS_LOADS_G => SQ1_BIAS_LOADS_G,
---             SQ1_FB_LOADS_G   => SQ1_FB_LOADS_G)
-      port map (
-         tesBiasP   => tesBiasP,        -- [in]
-         tesBiasN   => tesBiasN,        -- [in]
-         saBiasOutP => saBiasOutP,      -- [in]
-         saBiasOutN => saBiasOutN,      -- [in]
-         saBiasInP  => saBiasInP,       -- [out]
-         saBiasInN  => saBiasInN,       -- [out]
-         saFbP      => saFbP,           -- [in]
-         saFbN      => saFbN,           -- [in]
-         sq1BiasP   => sq1BiasP,        -- [in]
-         sq1BiasN   => sq1BiasN,        -- [in]
-         sq1FbP     => sq1FbP,          -- [in]
-         sq1FbN     => sq1FbN);         -- [in]
 
 
 

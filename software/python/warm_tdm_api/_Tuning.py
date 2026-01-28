@@ -242,7 +242,7 @@ def saTune(*, group, process=None, doSet=True):
             for row in range(len(group.RowMap.get())):
                 group.SaFbCurrent.set(index=(col,row), value=saBiasResults[col].xOut)
             # biasOut represents the tuned SA Bias point
-            group.SaBias.set(index=col, value=saBiasResults[col].biasOut)
+            group.SaBiasCurrent.set(index=col, value=saBiasResults[col].biasOut)
 
         # Run saOffset to zero out the ADC value at the tuned SaBias,SaFb point
         saOffset(group=group)

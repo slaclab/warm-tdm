@@ -30,4 +30,37 @@ package SimPkg is
 
    type CurrentArray is array (natural range <>) of CurrentType;
 
+   function current (
+      c    : CurrentType;
+      load : real := 0.0)
+      return real;
+
+   function currentDiff (
+      p    : CurrentType;
+      n    : CurrentType;
+      load : real := 0.0)
+      return real;
+
+
 end package SimPkg;
+
+package body SimPkg is
+
+   function current (
+      c    : CurrentType;
+      load : real := 0.0)
+      return real is
+   begin
+      return (c.voltage / (c.impedance + load));
+   end function current;
+
+   function currentDiff (
+      p    : CurrentType;
+      n    : CurrentType;
+      load : real := 0.0)
+      return real is
+   begin
+      return (p.voltage - n.voltage) / (p.impedance + n.impedance + load);
+   end function currentDiff;
+
+end package body SimPkg;

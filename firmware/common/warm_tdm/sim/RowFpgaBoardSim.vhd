@@ -31,10 +31,14 @@ entity RowFpgaBoardSim is
       SIM_PGP_PORT_NUM_G      : integer               := 7000;
       SIM_ETH_SRP_PORT_NUM_G  : integer               := 8000;
       SIM_ETH_DATA_PORT_NUM_G : integer               := 9000;
+      NUM_WAFERS_G            : integer range 1 to 2  := 1;
       NUM_ROW_SELECTS_G       : integer range 1 to 32 := 32;
-      NUM_CHIP_SELECTS_G      : integer range 0 to 12  := 0);
+      NUM_CHIP_SELECTS_G      : integer range 0 to 12 := 0);
 
    port (
+      rsP : out CurrentArray(31 downto 0);
+      rsN : out CurrentArray(31 downto 0);
+
       -- component ports
       rj45TimingRxClkP  : in  sl;
       rj45TimingRxClkN  : in  sl;
@@ -64,8 +68,6 @@ architecture sim of RowFpgaBoardSim is
    signal rsDacP       : RealArray(31 downto 0);
    signal rsDacN       : RealArray(31 downto 0);
 
-   signal rsP : CurrentArray(31 downto 0);
-   signal rsN : CurrentArray(31 downto 0);
 
 
 begin
@@ -77,6 +79,7 @@ begin
          SIM_PGP_PORT_NUM_G      => SIM_PGP_PORT_NUM_G,
          SIM_ETH_SRP_PORT_NUM_G  => SIM_ETH_SRP_PORT_NUM_G,
          SIM_ETH_DATA_PORT_NUM_G => SIM_ETH_DATA_PORT_NUM_G,
+         NUM_WAFERS_G            => NUM_WAFERS_G,
          NUM_ROW_SELECTS_G       => NUM_ROW_SELECTS_G,
          NUM_CHIP_SELECTS_G      => NUM_CHIP_SELECTS_G)
       port map (
@@ -111,9 +114,9 @@ begin
          rj45PgpTxMgtP     => open,     -- [out]
          rj45PgpTxMgtN     => open);    -- [out]
 
-   U_RowReadoutFebModel_1 : entity warm_tdm.RowFebModel
+   U_RowFebModel_1 : entity warm_tdm.RowFebModel
       generic map (
-         TPD_G   => TPD_G)
+         TPD_G => TPD_G)
       port map (
          -- FEB Connector
          feThermistor => feThermistor,  -- [out]
@@ -131,18 +134,8 @@ begin
          rsDacP       => rsDacP,        -- [in]
          rsDacN       => rsDacN,        -- [in]
          -- CRYO connector
-         rsP          => rsP,        -- [out]
-         rsN          => rsN);       -- [out]
-
-   U_RowLoadBoard_1 : entity warm_tdm.RowLoadBoard
---         generic map (
---             SA_BIAS_LOADS_G  => SA_BIAS_LOADS_G,
---             SA_FB_LOADS_G    => SA_FB_LOADS_G,
---             SQ1_BIAS_LOADS_G => SQ1_BIAS_LOADS_G,
---             SQ1_FB_LOADS_G   => SQ1_FB_LOADS_G)
-      port map (
-         rsP => rsP,                 -- [in]
-         rsN => rsN);                -- [in]
+         rsP          => rsP,           -- [out]
+         rsN          => rsN);          -- [out]
 
 
 
