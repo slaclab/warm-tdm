@@ -264,7 +264,7 @@ begin
          when IDLE_S =>
             v.dacNum := (others => '0');
             -- At startup, load rowIndex[0] ram values into dacs
-            if (r.startup = '1' and pwrUpWaitDone = '1') then
+            if (r.startup = '1' and pwrUpWaitDone = '0') then
 --               v.startup  := '0';
                v.rowIndex := (others => '0');
                v.state    := DATA_S;

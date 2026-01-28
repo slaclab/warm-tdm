@@ -496,7 +496,7 @@ begin
       case r.state is
 
          when STARTUP_S =>
-            if (pwrUpWaitDone = '1') then
+            if (pwrUpWaitDone = '0') then
                v.state := INIT_A_S;
             end if;
 
