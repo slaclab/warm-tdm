@@ -108,13 +108,13 @@ begin
 
    end generate SQ1_GEN;
 
-   comb : process (sq1Reff, sq1Bias) is
+   comb : process (sq1Bias, sq1Reff) is
       variable sq1TotalReff : real;
       variable sq1TotalG    : real;
    begin
       sq1TotalReff := sum(sq1Reff);
       sq1TotalG    := 1.0 / sq1TotalReff;
 
-      iSq1Bias <= sq1Bias * sq1TotalG / (sq1TotalG + R_SHUNT_G);
+      iSq1Bias <= sq1Bias * sq1TotalG / (sq1TotalG + R_SHUNT_G) after 1 ns;
    end process comb;
 end sim;

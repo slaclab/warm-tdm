@@ -53,24 +53,25 @@ architecture sim of Sq1 is
 
 begin
 
-   comb : process (rSq1, rRs) is
+   comb : process (iBias, rRs, rSq1) is
       variable gSq1 : real;
       variable gRs  : real;
    begin
       gSq1 := 1.0 / rSq1;
       gRs  := 1.0 / rRs;
 
-      iSq1Bias <= iBias * gSq1 / (gSq1 + gRs);
-      iRsBias  <= iBias * gRs / (gSq1 + gRs);
+      iSq1Bias <= iBias * gSq1 / (gSq1 + gRs) after 1 ns;
+      iRsBias  <= iBias * gRs / (gSq1 + gRs)  after 1 ns;
 
-      rEff <= 1.0 / (gSq1 + gRs);
+      rEff <= 1.0 / (gSq1 + gRs) after 1 ns;
    end process comb;
 
    U_SQ1_1 : entity warm_tdm.Squid
       generic map (
-         RN_G     => SQ1_RN_G,
-         IC0_G    => SQ1_IC0_G,
-         PHINOT_G => SQ1_PHINOT_G)
+         R_SERIES_G => 1.0,
+         RN_G       => SQ1_RN_G,
+         IC0_G      => SQ1_IC0_G,
+         PHINOT_G   => SQ1_PHINOT_G)
       port map (
          iBias => iSq1Bias,             -- [in]
          iFb   => iFb,                  -- [in]
@@ -80,6 +81,7 @@ begin
 
    U_RS_2 : entity warm_tdm.Squid
       generic map (
+         R_SERIES_G => 0.1,
          RN_G     => RS_RN_G,
          IC0_G    => RS_IC0_G,
          PHINOT_G => RS_PHINOT_G)
