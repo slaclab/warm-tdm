@@ -109,7 +109,7 @@ class FEAmplifier3(SaAmplifier):
         self.add(pr.LocalVariable(
             name = 'R_CABLE',
             description = 'Cable resistance on SA Bias',
-            value = 100.0,
+            value = 120.0,
             units = u'\u03a9'))
 
         self.add(pr.LocalVariable(
@@ -342,7 +342,7 @@ class FEAmplifier4(SaAmplifier):
         self.add(pr.LocalVariable(
             name = 'R_CABLE',
             description = 'Cable resistance on SA Bias',
-            value = 200.0,
+            value = 120.0,
             units = u'\u03a9'))
 
         self.add(pr.LocalVariable(
@@ -712,7 +712,7 @@ class FastDacAmplifierSE(pr.Device):
 
         self.add(pr.LocalVariable(
             name = 'CableR',
-            value = 100.0,
+            value = 120.0,
             units = '\u03A9'))
 
         self.add(pr.LinkVariable(
@@ -880,7 +880,7 @@ class TesBiasAmpC00(pr.Device):
 
         self.add(pr.LocalVariable(
             name = 'CableR',
-            value = 174.0,
+            value = 120.0,
             units = '\u03A9'))
 
 
