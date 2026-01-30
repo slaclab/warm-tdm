@@ -235,10 +235,10 @@ begin
          -- SA FB Amp Model
          U_ColumnFebFastDacAmp_SA_FB : entity warm_tdm.ColumnFebFastDacAmp
             generic map (
---             IN_LOAD_R_G => IN_LOAD_R_G,
---             FB_R_G      => FB_R_G,
---             GAIN_R_G    => GAIN_R_G,
-               SHUNT_R_G => 3.48e3)
+               IN_LOAD_R_G => 24.9,
+               FB_R_G      => 402.0,
+               GAIN_R_G    => 100.0,
+               SHUNT_R_G   => 3480.0 + 149.7)
             port map (
                dacP => saFbDacP(i),     -- [in]
                dacN => saFbDacN(i),     -- [in]
@@ -248,10 +248,10 @@ begin
          -- SQ1 Bias Amp Model
          U_ColumnFebFastDacAmp_SQ1_BIAS : entity warm_tdm.ColumnFebFastDacAmp
             generic map (
---             IN_LOAD_R_G => IN_LOAD_R_G,
---             FB_R_G      => FB_R_G,
---             GAIN_R_G    => GAIN_R_G,
-               SHUNT_R_G => 4.99e3)
+               IN_LOAD_R_G => 24.9,
+               FB_R_G      => 402.0,
+               GAIN_R_G    => 100.0,
+               SHUNT_R_G   => 15400.0+ 149.7)
             port map (
                dacP => sq1BiasDacP(i),  -- [in]
                dacN => sq1BiasDacN(i),  -- [in]
@@ -261,10 +261,10 @@ begin
          -- SQ1 FB Amp Model
          U_ColumnFebFastDacAmp_SQ1_FB : entity warm_tdm.ColumnFebFastDacAmp
             generic map (
---             IN_LOAD_R_G => IN_LOAD_R_G,
---             FB_R_G      => FB_R_G,
---             GAIN_R_G    => GAIN_R_G,
-               SHUNT_R_G => 1.00e3)
+               IN_LOAD_R_G => 24.9,
+               FB_R_G      => 402.0,
+               GAIN_R_G    => 100.0,
+               SHUNT_R_G   => 7680.0 + 149.7)
             port map (
                dacP => sq1FbDacP(i),    -- [in]
                dacN => sq1FbDacN(i),    -- [in]
