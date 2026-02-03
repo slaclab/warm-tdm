@@ -174,7 +174,7 @@ architecture rtl of WarmTdmCore2 is
    constant AXIL_XBAR_CFG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := (
       AXIL_COMMON_C   => (
          baseAddr     => X"00000000",
-         addrBits     => 20,
+         addrBits     => 24,
          connectivity => X"FFFF"),
       AXIL_TIMING_C   => (
          baseAddr     => X"01000000",
