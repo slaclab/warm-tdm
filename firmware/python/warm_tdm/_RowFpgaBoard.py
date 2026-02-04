@@ -32,21 +32,12 @@ class RowFpgaBoard(pr.Device):
             hidden = True,
             offset = 0xC0201000))
 
-        self.add(warm_tdm.RowDacDriver(
+        self.add(warm_tdm.RowDacDriver2(
+            name = 'RowDacDriver',
             offset = 0xC100_0000,
             frontEnd = self.AnalogFrontEnd,
-            num_row_selects = num_row_selects,
-            num_chip_selects = num_chip_selects,
             expand = True))
 
-        if num_wafers == 2:
-            self.add(warm_tdm.RowDacDriver(
-                name = 'RowDacDriver2',
-                offset = 0xC200_0000,
-                frontEnd = self.AnalogFrontEnd,
-                num_row_selects = num_row_selects,
-                num_chip_selects = num_chip_selects,
-                expand = True))
 
             
             

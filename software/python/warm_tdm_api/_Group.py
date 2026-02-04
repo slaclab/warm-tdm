@@ -333,6 +333,66 @@ class Group(pr.Device):
 #             groups='TopApi',
 #             mode='RW'))
 
+        # Set row map as a list of dicts
+        self._rowMap = []
+        def _setRowMap(value):
+            self._rowMap = value
+            
+            # Turn off all rows by default
+            ram = [0x8080 for x in range(256)]
+
+            # Build RowMap RAM
+            # Set active Row Selects for each logical row in input
+            for i, row in enumerate(value):
+                valueRs = (row['rsBoard'] << 5) | row['rsAddr']
+                valueCs = 0x80
+                if 'csAddr' in row:
+                    valueCs = (row['csBoard'] << 5) | row['csAddr']
+
+                ram[i] = valueCs << 8 | valueRs
+                #print(f'{ram[i]:08x}=')
+
+            # All row boards receive same RowMap
+            for rowBoard in self.HardwareGroup.RowBoard.values():
+                rowBoard.RowDacDriver.RowMap.set(value=ram, write=True)
+
+        def _getRowMap():
+            return self._rowMap
+
+        self.add(pr.LocalVariable(
+            name = 'RowMapTest',
+            localSet = _setRowMap,
+            localGet = _getRowMap))
+
+        @self.command()
+        def RowMap1x32():
+            d = [{'rsBoard': 0, 'rsAddr': x} for x in range(32)]
+            print(d)
+            self.RowMapTest.set(d)
+
+        @self.command()
+        def RowMap6x10():
+            d = [{'rsBoard': 0, 'rsAddr': rs, 'csBoard':0, 'csAddr':cs }  for cs in range(10, 16) for rs in range(10)]
+            print(d)
+            self.RowMapTest.set(d)
+                
+
+        @self.command()
+        def RowMap8x10():
+            d = [{'rsBoard': 0, 'rsAddr': rs, 'csBoard':0, 'csAddr':cs } for cs in range(10, 18) for rs in range(10)]
+            print(d)
+            self.RowMapTest.set(d)
+                
+
+        @self.command()
+        def RowMap2x6x10():
+            d = [{'rsBoard': 0, 'rsAddr': rs + (split*16), 'csBoard':0, 'csAddr': cs + (split * 16)} for split in range(2) for cs in range(10, 16) for rs in range(10) ]
+            print(d)
+            self.RowMapTest.set(d)
+                
+        
+            
+                
         if groupConfig.columnBoards > 0:
             self.add(pr.LinkVariable(
                 name = 'RowIndexOrderList',
@@ -366,47 +426,47 @@ class Group(pr.Device):
         # Row board access variables
         ##################################
 
-        def numBits(integer):
-            if integer == 0:
-                return 0
-            return math.ceil(math.log2(integer))
+#         def numBits(integer):
+#             if integer == 0:
+#                 return 0
+#             return math.ceil(math.log2(integer))
         
-        def getField(value, highBit, lowBit):
-            mask = 2**(highBit-lowBit+1)-1
-            return (value >> lowBit) & mask
+#         def getField(value, highBit, lowBit):
+#             mask = 2**(highBit-lowBit+1)-1
+#             return (value >> lowBit) & mask
         
-        def rowIndexToPhysical(index):
-            # Pull these from config instead
-            num_row_selects = 32
-            num_chip_selects = 0
-            num_row_boards = 1
+#         def rowIndexToPhysical(index):
+#             # Pull these from config instead
+#             num_row_selects = 32
+#             num_chip_selects = 0
+#             num_row_boards = 1
 
-            rs_bits = numBits(num_row_selects)
-            cs_bits = numBits(num_chip_selects)
-            rb_bits = numBits(num_row_boards)
+#             rs_bits = numBits(num_row_selects)
+#             cs_bits = numBits(num_chip_selects)
+#             rb_bits = numBits(num_row_boards)
 
-            ret = {
-                'rs': getField(index, rs_bits-1, 0),
-                'cs': getField(index, cs_bits+rs_bits-1, rs_bits),
-                'rb': 0 # hack for now, only allow 1 row board
-                }
-            return ret
+#             ret = {
+#                 'rs': getField(index, rs_bits-1, 0),
+#                 'cs': getField(index, cs_bits+rs_bits-1, rs_bits),
+#                 'rb': 0 # hack for now, only allow 1 row board
+#                 }
+#             return ret
 
         # Activate a RowIndex for tuning SQ1
         # Deactivate any previously active row
-        @self.command()
-        def ActivateRowIndex(arg):
-            rowBoards = list(self.HardwareGroup.RowBoard.values())
+#         @self.command()
+#         def ActivateRowIndex(arg):
+#             rowBoards = list(self.HardwareGroup.RowBoard.values())
 
-            # Activate the new index                    
-            for board in rowBoards:                    
-                board.RowDacDriver.ActivateRowIndex.set(arg, write=True)
+#             # Activate the new index                    
+#             for board in rowBoards:                    
+#                 board.RowDacDriver.ActivateRowIndex.set(arg, write=True)
 
-        @self.command()
-        def DeactivateRowIndex(arg):
-            rowBoards = list(self.HardwareGroup.RowBoard.values())
-            for board in rowBoards:
-                board.RowDacDriver.DeactivateRowIndex.set(arg, write=True)
+#         @self.command()
+#         def DeactivateRowIndex(arg):
+#             rowBoards = list(self.HardwareGroup.RowBoard.values())
+#             for board in rowBoards:
+#                 board.RowDacDriver.DeactivateRowIndex.set(arg, write=True)
 
         # Enable Row Tune Override
         # Puts all hardware row selects into tuning mode

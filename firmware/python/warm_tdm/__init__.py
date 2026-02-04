@@ -16,6 +16,7 @@ from ._Timing import *
 from ._WarmTdmCommon import *
 from ._WarmTdmCore import *
 from ._RowDacDriver import *
+from ._RowDacDriver2 import *
 from ._RowModule import *
 from ._ColumnModule import *
 from ._WarmTdmRoot import *

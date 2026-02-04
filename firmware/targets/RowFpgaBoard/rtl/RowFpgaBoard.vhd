@@ -387,39 +387,26 @@ begin
    -------------------------------------------------------------------------------------------------
    -- DACS
    -------------------------------------------------------------------------------------------------
-   GEN_DAC_DRIVERS : for i in NUM_WAFERS_G-1 downto 0 generate
-      U_RowDacDriver_1 : entity warm_tdm.RowDacDriver
-         generic map (
-            TPD_G              => TPD_G,
-            SIMULATION_G       => SIMULATION_G,
-            BOARD_ID_G         => i,
-            RS_0_OFFSET_G      => i*16,
-            NUM_ROW_SELECTS_G  => NUM_ROW_SELECTS_G,
-            NUM_CHIP_SELECTS_G => NUM_CHIP_SELECTS_G,
-            AXIL_BASE_ADDR_G   => AXIL_XBAR_CFG_C(AXIL_DACS_C + i).baseAddr)
-         port map (
-            timingRxClk125  => timingRxClk125,                        -- [in]
-            timingRxRst125  => timingRxRst125,                        -- [in]
-            timingRxData    => timingRxData,                          -- [in]
-            dacDb           => locDacDb(i),                           -- [out]
-            dacWrt          => locDacWrt(i),                          -- [out]
-            dacClk          => locDacClk(i),                          -- [out]
-            dacSel          => locDacSel(i),                          -- [out]
-            dacReset        => locDacReset(i),                        -- [out]
-            axilClk         => axilClk,                               -- [in]
-            axilRst         => axilRst,                               -- [in]
-            axilWriteMaster => locAxilWriteMasters(AXIL_DACS_C + i),  -- [in]
-            axilWriteSlave  => locAxilWriteSlaves(AXIL_DACS_C + i),   -- [out]
-            axilReadMaster  => locAxilReadMasters(AXIL_DACS_C + i),   -- [in]
-            axilReadSlave   => locAxilReadSlaves(AXIL_DACS_C + i));   -- [out]
-   end generate GEN_DAC_DRIVERS;
-
-   -- Or everything together since it is never both driven at once
-   dacDb    <= locDacDb(0) or locDacDb(1);
-   dacWrt   <= locDacWrt(0) or locDacWrt(1);
-   dacSel   <= locDacSel(0) or locDacSel(1);
-   dacClk   <= locDacClk(0) or locDacClk(1);
-   dacReset <= locDacReset(0) or locDacReset(1);
+   U_RowDacDriver_1 : entity warm_tdm.RowDacDriver2
+      generic map (
+         TPD_G            => TPD_G,
+         SIMULATION_G     => SIMULATION_G,
+         AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_DACS_C).baseAddr)
+      port map (
+         timingRxClk125  => timingRxClk125,                    -- [in]
+         timingRxRst125  => timingRxRst125,                    -- [in]
+         timingRxData    => timingRxData,                      -- [in]
+         dacDb           => dacDb,                             -- [out]
+         dacWrt          => dacWrt,                            -- [out]
+         dacClk          => dacClk,                            -- [out]
+         dacSel          => dacSel,                            -- [out]
+         dacReset        => dacReset,                          -- [out]
+         axilClk         => axilClk,                           -- [in]
+         axilRst         => axilRst,                           -- [in]
+         axilWriteMaster => locAxilWriteMasters(AXIL_DACS_C),  -- [in]
+         axilWriteSlave  => locAxilWriteSlaves(AXIL_DACS_C),   -- [out]
+         axilReadMaster  => locAxilReadMasters(AXIL_DACS_C),   -- [in]
+         axilReadSlave   => locAxilReadSlaves(AXIL_DACS_C));   -- [out]
 
 
    -- Drive dacDb to all dac banks
