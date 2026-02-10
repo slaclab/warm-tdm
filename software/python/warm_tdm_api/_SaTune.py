@@ -25,6 +25,9 @@ class SinglePlot(pr.LinkVariable):
             legend_title='SA Bias Curves')
         
     def linkedGet(self, index=-1, read=False):
+        if self.parent.EnablePlots.value() == False:
+            return self._fig
+        
         tune = self.parent.SaTuneOutput.value()
         
         if tune == {}:
@@ -53,6 +56,9 @@ class MultiPlot(SinglePlot):
         self._fig.suptitle('SA OUT (mV) vs. SA FB (\u03bcA)')
 
     def linkedGet(self):
+        if self.parent.EnablePlots.value() == False:
+            return self._fig
+        
         tune = self.parent.SaTuneOutput.value()
  #       shunts = [self.parent.loading.Column[x].SA_FB_SHUNT_R.value() for x in range(8)]
 
@@ -159,6 +165,11 @@ class SaTuneProcess(pr.Process):
                                               "yOut: SaOut at fitted SaFb point. "))
 
         # Select Channel
+        self.add(pr.LocalVariable(
+            name = 'EnablePlots',
+            value = True,
+            mode = 'RW'))
+        
         self.add(pr.LocalVariable(name='PlotColumn',
                                   value=0,
                                   minimum=0,

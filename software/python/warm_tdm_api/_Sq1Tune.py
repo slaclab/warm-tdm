@@ -33,6 +33,9 @@ class SinglePlot(pr.LinkVariable):
             legend_title='SQ1 Bias Curves')
 
     def linkedGet(self, index=-1, read=False):
+        if self.parent.EnablePlots.value() == False:
+            return self._fig
+        
         tune = self.parent.Sq1TuneOutput.value()
 
         if tune == {} or tune == []:
@@ -66,6 +69,9 @@ class MultiPlot(SinglePlot):
         self._fig.suptitle(u'SA FB (\u03bcA) vs. SQ1 FB (\u03bcA)')
 
     def linkedGet(self, index=-1):
+        if self.parent.EnablePlots.value() == False:
+            return self._fig
+        
         tune = self.parent.Sq1TuneOutput.value()
 #        shunt = self.parent.parent.SQ1_FB_SHUNT_R.value()
 
@@ -155,6 +161,11 @@ class Sq1TuneProcess(pr.Process):
             description="Differential PID coefficient"))
 
         self.add(pr.LocalVariable(
+            name = 'ServoMaxDela',
+            value = 100.0,
+            units=u'\u03bcA',
+
+        self.add(pr.LocalVariable(
             name='ServoPrecision',
             value=0.01,
             mode='RW',
@@ -181,6 +192,11 @@ class Sq1TuneProcess(pr.Process):
             hidden=True,
             mode='RO',
             description="Results Data From SQ1 Tuning"))
+
+        self.add(pr.LocalVariable(
+            name = 'EnablePlots',
+            value = True,
+            mode = 'RW'))
 
         self.add(pr.LocalVariable(
             name='PlotColumn',
