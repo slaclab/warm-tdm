@@ -36,6 +36,21 @@ class RowDacDriver2(pr.Device):
             function = pr.Command.touchOne))
 
         self.add(pr.RemoteVariable(
+            name = 'ActivateRowIndex',
+            offset = 0x10,
+            bitSize = 8,
+            base = pr.UInt,
+            disp = '{:d}'))
+
+        self.add(pr.RemoteVariable(
+            name = 'DeActivateRowIndex',
+            offset = 0x14,
+            bitSize = 8,
+            base = pr.UInt,
+            disp = '{:d}'))
+        
+
+        self.add(pr.RemoteVariable(
             name = 'RowMap',
             offset = 0x1000,
             base = pr.UInt,

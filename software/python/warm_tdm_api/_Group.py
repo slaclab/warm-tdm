@@ -458,19 +458,19 @@ class Group(pr.Device):
 
         # Activate a RowIndex for tuning SQ1
         # Deactivate any previously active row
-#         @self.command()
-#         def ActivateRowIndex(arg):
-#             rowBoards = list(self.HardwareGroup.RowBoard.values())
+        @self.command()
+        def ActivateRowIndex(arg):
+            rowBoards = list(self.HardwareGroup.RowBoard.values())
 
-#             # Activate the new index                    
-#             for board in rowBoards:                    
-#                 board.RowDacDriver.ActivateRowIndex.set(arg, write=True)
+            # Activate the new index                    
+            for board in rowBoards:                    
+                board.RowDacDriver.ActivateRowIndex.set(arg, write=True)
 
-#         @self.command()
-#         def DeactivateRowIndex(arg):
-#             rowBoards = list(self.HardwareGroup.RowBoard.values())
-#             for board in rowBoards:
-#                 board.RowDacDriver.DeactivateRowIndex.set(arg, write=True)
+        @self.command()
+        def DeactivateRowIndex(arg):
+            rowBoards = list(self.HardwareGroup.RowBoard.values())
+            for board in rowBoards:
+                board.RowDacDriver.DeactivateRowIndex.set(arg, write=True)
 
         # Enable Row Tune Override
         # Puts all hardware row selects into tuning mode

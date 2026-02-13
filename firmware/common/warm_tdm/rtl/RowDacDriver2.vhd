@@ -98,43 +98,51 @@ architecture rtl of RowDacDriver2 is
       CLK_1_RISE_S);
 
    type RegType is record
-      startup        : sl;
-      state          : StateType;
-      mode           : sl;
-      rowOnOff       : sl;
-      rowAB          : sl;
-      offIndex       : slv(7 downto 0);
-      onIndex        : slv(7 downto 0);
-      mapRamAddr     : slv(7 downto 0);
-      cfgBoardId     : slv(1 downto 0);
-      rowAddr        : slv(7 downto 0);
-      dacReset       : slv(15 downto 0);
-      dacDb          : slv(13 downto 0);
-      dacClk         : slv(15 downto 0);
-      dacWrt         : slv(15 downto 0);
-      dacSel         : slv(15 downto 0);
-      axilWriteSlave : AxiLiteWriteSlaveType;
-      axilReadSlave  : AxiLiteReadSlaveType;
+      startup         : sl;
+      state           : StateType;
+      mode            : sl;
+      rowOnOff        : sl;
+      rowAB           : sl;
+      manualRowOn     : slv(7 downto 0);
+      setManualRowon  : sl;
+      manualRowOff    : slv(7 downto 0);
+      setManualRowOff : sl;
+      offIndex        : slv(7 downto 0);
+      onIndex         : slv(7 downto 0);
+      mapRamAddr      : slv(7 downto 0);
+      cfgBoardId      : slv(1 downto 0);
+      rowAddr         : slv(7 downto 0);
+      dacReset        : slv(15 downto 0);
+      dacDb           : slv(13 downto 0);
+      dacClk          : slv(15 downto 0);
+      dacWrt          : slv(15 downto 0);
+      dacSel          : slv(15 downto 0);
+      axilWriteSlave  : AxiLiteWriteSlaveType;
+      axilReadSlave   : AxiLiteReadSlaveType;
    end record RegType;
 
    constant REG_INIT_C : RegType := (
-      startup        => '1',
-      state          => STARTUP_S,
-      mode           => MANUAL_MODE_C,
-      rowOnOff       => '0',
-      rowAB          => '0',
-      offIndex       => (others => '0'),
-      onIndex        => (others => '0'),
-      mapRamAddr     => (others => '0'),
-      cfgBoardId     => "00",
-      rowAddr        => (others => '0'),
-      dacReset       => (others => '0'),
-      dacDb          => (others => '0'),
-      dacClk         => (others => '0'),
-      dacWrt         => (others => '0'),
-      dacSel         => (others => '0'),
-      axilWriteSlave => AXI_LITE_WRITE_SLAVE_EMPTY_DECERR_C,
-      axilReadSlave  => AXI_LITE_READ_SLAVE_EMPTY_DECERR_C);
+      startup         => '1',
+      state           => STARTUP_S,
+      mode            => MANUAL_MODE_C,
+      rowOnOff        => '0',
+      rowAB           => '0',
+      manualRowOn     => (others => '0'),
+      setManualRowOn  => '0',
+      manualRowOff    => (others => '0'),
+      setManualRowOff => '0',
+      offIndex        => (others => '0'),
+      onIndex         => (others => '0'),
+      mapRamAddr      => (others => '0'),
+      cfgBoardId      => "00",
+      rowAddr         => (others => '0'),
+      dacReset        => (others => '0'),
+      dacDb           => (others => '0'),
+      dacClk          => (others => '0'),
+      dacWrt          => (others => '0'),
+      dacSel          => (others => '0'),
+      axilWriteSlave  => AXI_LITE_WRITE_SLAVE_EMPTY_DECERR_C,
+      axilReadSlave   => AXI_LITE_READ_SLAVE_EMPTY_DECERR_C);
 
    signal r   : RegType := REG_INIT_C;
    signal rin : RegType;
@@ -351,6 +359,9 @@ begin
    begin
       v := r;
 
+      v.setManualRowOn  := '0';
+      v.setManualRowOff := '0';
+
       ----------------------------------------------------------------------------------------------
       -- Configuration Registers
       ----------------------------------------------------------------------------------------------
@@ -360,10 +371,12 @@ begin
       axiSlaveRegister(axilEp, X"04", 0, v.cfgBoardId);
       axiSlaveRegister(axilEp, X"08", 0, v.dacReset);
 
---       axiSlaveRegister(axilEp, X"10", 0, v.manualRow);
---       axiSlaveRegister(axilEp, X"14", 0, v.manualDacRs);
+      axiSlaveRegister(axilEp, X"10", 0, v.manualRowOn);
+      axiWrDetect(axilEp, X"10", v.setManualRowOn);
+      axiSlaveRegister(axilEp, X"14", 0, v.manualRowOff);
+      axiWrDetect(axilEp, X"14", v.setManualRowOff);
 --       axiSlaveRegister(axilEp, X"18", 0, v.manualDacCs);
---       axiWrDetect(axilEp, X"1C", v.setManualRow);
+
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
 
@@ -440,6 +453,20 @@ begin
                   v.dacDb   := rsOffWrData(13 downto 0);
                   v.state   := MANUAL_RS_DATA_S;
                end if;
+
+               if (r.setManualRowOn = '1') then
+                  v.onIndex  := r.manualRowOn;
+                  v.rowOnOff := '1';
+                  v.rowAB    := '0';
+                  v.state    := MAP_1_S;
+               end if;
+
+               if (r.setManualRowOff = '1') then
+                  v.offIndex := r.manualRowOff;
+                  v.rowOnOff := '0';
+                  v.rowAB    := '0';
+                  v.state    := MAP_1_S;
+               end if;
             end if;
 
          -------------------------------------------------------------------------------------------
@@ -495,6 +522,12 @@ begin
             else
                -- Do Next DAC write
                v.state := MAP_1_S;
+            end if;
+
+            -- Override for manual row activation/deactivation
+            -- Clock the DAC values after doing just on or off
+            if (r.mode = MANUAL_MODE_C and r.rowAB = '1') then
+               v.state := CLK_0_RISE_S;
             end if;
 
          when WAIT_ROW_STROBE_S =>
