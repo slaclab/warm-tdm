@@ -163,7 +163,7 @@ class Sq1TuneProcess(pr.Process):
         self.add(pr.LocalVariable(
             name = 'ServoMaxDela',
             value = 100.0,
-            units=u'\u03bcA',
+            units=u'\u03bcA',))
 
         self.add(pr.LocalVariable(
             name='ServoPrecision',
