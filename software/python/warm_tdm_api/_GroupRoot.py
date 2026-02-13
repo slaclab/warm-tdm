@@ -1,5 +1,6 @@
 import pyrogue
 import pyrogue.utilities.fileio
+import pyrogue.interfaces.stream
 import warm_tdm_api
 
 
