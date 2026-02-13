@@ -382,6 +382,13 @@ class Group(pr.Device):
             d = [{'rsBoard': 0, 'rsAddr': rs, 'csBoard':0, 'csAddr':cs } for cs in range(10, 18) for rs in range(10)]
             print(d)
             self.RowMapTest.set(d)
+
+        @self.command()
+        def RowMap7x10():
+            d = [{'rsBoard': 0, 'rsAddr': rs, 'csBoard':0, 'csAddr':cs } for cs in range(10, 17) for rs in range(10)]
+            print(d)
+            self.RowMapTest.set(d)
+
                 
 
         @self.command()
@@ -389,9 +396,6 @@ class Group(pr.Device):
             d = [{'rsBoard': 0, 'rsAddr': rs + (split*16), 'csBoard':0, 'csAddr': cs + (split * 16)} for split in range(2) for cs in range(10, 16) for rs in range(10) ]
             print(d)
             self.RowMapTest.set(d)
-                
-        
-            
                 
         if groupConfig.columnBoards > 0:
             self.add(pr.LinkVariable(
