@@ -43,7 +43,7 @@ class RowDacDriver2(pr.Device):
             disp = '{:d}'))
 
         self.add(pr.RemoteVariable(
-            name = 'DeActivateRowIndex',
+            name = 'DeactivateRowIndex',
             offset = 0x14,
             bitSize = 8,
             base = pr.UInt,
