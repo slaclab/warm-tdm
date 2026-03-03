@@ -116,7 +116,7 @@ class TimingTx(pr.Device):
             disp = '{:0.03f}',
             units = '\u03bcSec',
             linkedGet = lambda read: 1.0e3 / self.RowVisitRate.get(read=read),
-            linkedSet = lambda value, write: self.RowVisitRate.set(1.0e-3 / value)))
+            linkedSet = lambda value, write: self.RowVisitRate.set(1.0e-3 / value, write=write)))
 
         self.add(pr.RemoteVariable(
             name = 'NumRows',
