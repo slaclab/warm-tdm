@@ -147,7 +147,7 @@ architecture rtl of AdcDsp is
       sq1Fb              : sfixed(13 downto 0);
       sq1FbValid         : sl;
       sq1FbFull          : sfixed(31 downto 0);          -- SQ1FB + flux jumps
-      numFluxJumps       : slv(7 downto 0);
+      numFluxJumps       : slv(8 downto 0);
       fluxQuantum        : slv(13 downto 0);
       fluxJumpWrValid    : sl;
       clearRams          : sl;
@@ -202,7 +202,7 @@ architecture rtl of AdcDsp is
    signal accumRamOut       : slv(ACCUM_BITS_C-1 downto 0);
    signal sumRamOut         : slv(SUM_BITS_C-1 downto 0);
    signal pidRamOut         : slv(RESULT_BITS_C-1 downto 0);
-   signal fluxJumpRamOut    : slv(7 downto 0);
+   signal fluxJumpRamOut    : slv(8 downto 0);
 
    signal accumError : slv(ACCUM_BITS_C-1 downto 0);
    signal sumAccum   : slv(SUM_BITS_C-1 downto 0);
@@ -340,7 +340,7 @@ begin
          SYS_BYTE_WR_EN_G => false,
          COMMON_CLK_G     => false,
          ADDR_WIDTH_G     => ROW_ADDR_BITS_G,
-         DATA_WIDTH_G     => 8)
+         DATA_WIDTH_G     => 9)
       port map (
          axiClk         => timingRxClk125,                    -- [in]
          axiRst         => timingRxRst125,                    -- [in]
@@ -450,7 +450,7 @@ begin
       variable iSfixed           : sfixed(COEF_HIGH_C downto COEF_LOW_C);
       variable dSfixed           : sfixed(COEF_HIGH_C downto COEF_LOW_C);
       variable fluxQuantumFixed  : sfixed(13 downto 0);
-      variable numFluxJumpsFixed : sfixed(7 downto 0);
+      variable numFluxJumpsFixed : sfixed(8 downto 0);
       variable axilEp            : AxiLiteEndpointType;
 
    begin
