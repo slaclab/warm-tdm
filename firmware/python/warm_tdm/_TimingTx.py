@@ -188,6 +188,54 @@ class TimingTx(pr.Device):
             disp = '{:d}'))
 
         self.add(pr.RemoteVariable(
+            name = 'PwrSyncA',
+            offset = 0x80,
+            bitOffset = 0,
+            bitSize = 2,
+            enum = {
+                0: 'LOW',
+                2: 'OSC'}))
+
+        self.add(pr.RemoteVariable(
+            name = 'PwrSyncB',
+            offset = 0x80,
+            bitOffset = 2,
+            bitSize = 2,
+            enum = {
+                0: 'LOW',
+                1: 'HIGH',
+                2: 'OSC'}))
+
+        self.add(pr.RemoteVariable(
+            name = 'PwrSyncC',
+            offset = 0x80,
+            bitOffset = 4,
+            bitSize = 2,
+            enum = {
+                0: 'LOW',
+                1: 'HIGH',
+                2: 'OSC'}))
+
+        self.add(pr.RemoteVariable(
+            name = 'SyncPeriodDiv2',
+            offset = 0x84,
+            bitOffset = 0,
+            bitSize = 32,
+            disp = '{:d}'))
+
+        self.add(pr.LinkVariable(
+            name = 'SyncFrequency',
+            dependencies = [self.SyncPeriodDiv2, self.TxWordClkFreqRaw],
+            mode = 'RO',
+            disp = '{:0.3f}',
+            units = 'MHz',
+            linkedGet = lambda read: 1.0e-6 * self.TxWordClkFreqRaw.get(read=read) / max(2*self.SyncPeriodDiv2.get(read=read), 1.0)))
+
+        @self.command()
+        def ResetSyncCounter():
+            self.SyncPeriodDiv2.set(self.SyncPeriodDiv2.get(), write=True)
+
+        self.add(pr.RemoteVariable(
             name = 'Running',
             mode = 'RO',
             offset = 0x30,
@@ -242,6 +290,18 @@ class TimingTx(pr.Device):
             bitOffset = 0,
             bitSize = 64,
             disp = '{:d}'))
+
+        @self.command()
+        def AnaPowerOff():
+            self.PwrSyncB.set(1, write=False)
+            self.PwrSyncC.set(0, write=False)
+            self.writeBlocks()
+
+        @self.command()
+        def AnaPowerOn():
+            self.PwrSyncB.set(0, write=False)
+            self.PwrSyncC.set(1, write=False)
+            self.writeBlocks()
         
 
         self.add(pr.RemoteVariable(
