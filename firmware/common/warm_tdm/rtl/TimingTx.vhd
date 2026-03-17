@@ -53,6 +53,9 @@ entity TimingTx is
       timingTxClkN  : out sl;
       timingTxDataP : out sl;
       timingTxDataN : out sl;
+      pwrSyncA      : out sl := '0';
+      pwrSyncB      : out sl := '0';
+      pwrSyncC      : out sl := '1';
 
       axilClk         : in  sl;
       axilRst         : in  sl;
@@ -67,6 +70,14 @@ architecture rtl of TimingTx is
 
    constant SOFTWARE_C : sl := '0';
    constant HARDWARE_C : sl := '1';
+   constant PWR_SYNC_LOW_C  : slv(1 downto 0) := "00";
+   constant PWR_SYNC_HIGH_C : slv(1 downto 0) := "01";
+   constant PWR_SYNC_OSC_C  : slv(1 downto 0) := "10";
+
+   -- Control words and row-index bytes are sent on separate cycles.
+   type TxStateType is (
+      CONTROL_S,
+      ROW_INDEX_S);
 
    signal bitClk  : sl;
    signal bitRst  : sl;
@@ -84,6 +95,7 @@ architecture rtl of TimingTx is
 
       -- Config
       runMode                 : sl;
+      vrSyncEn                : sl;
       softwareRowStrobe       : sl;
       rowPeriod               : slv(31 downto 0);
       numRows                 : slv(15 downto 0);
@@ -93,6 +105,20 @@ architecture rtl of TimingTx is
       waveformCaptureTime     : slv(31 downto 0);
       daqReadoutPeriod        : slv(31 downto 0);
       daqReadoutPeriodCounter : slv(31 downto 0);
+      pwrSyncACfg             : slv(1 downto 0);
+      pwrSyncBCfg             : slv(1 downto 0);
+      pwrSyncCCfg             : slv(1 downto 0);
+      syncPeriodDiv2          : slv(31 downto 0);
+      syncClkCount            : slv(31 downto 0);
+      syncReset               : sl;
+      pwrSyncA                : sl;
+      pwrSyncB                : sl;
+      pwrSyncC                : sl;
+      -- Row-order RAM must look ahead to the row index byte that follows a control word.
+      rowOrderAddr            : slv(7 downto 0);
+      -- Hold state for VR sync gating at the next row-sequence boundary.
+      vrSyncWait              : sl;
+      txState                 : TxStateType;
       -- State
       timingData              : LocalTimingType;
       timingTx                : slv(7 downto 0);
@@ -108,6 +134,7 @@ architecture rtl of TimingTx is
       xbarMgtSel              => "01",
       xbarTimingSel           => "01",
       runMode                 => SOFTWARE_C,
+      vrSyncEn                => '0',
       softwareRowStrobe       => '0',
       rowPeriod               => toSlv(250, 32),                  -- 125 MHz / 256 = 488 kHz
       numRows                 => toSlv(256, 16),
@@ -117,6 +144,18 @@ architecture rtl of TimingTx is
       waveformCaptureTime     => toSlv(2, 32),
       daqReadoutPeriod        => toSlv(40, 32),  -- Readout once every 40 rowSequences
       daqReadoutPeriodCounter => (others => '0'),
+      pwrSyncACfg             => PWR_SYNC_LOW_C,
+      pwrSyncBCfg             => PWR_SYNC_LOW_C,
+      pwrSyncCCfg             => PWR_SYNC_HIGH_C,
+      syncPeriodDiv2          => toSlv(integer(AXIL_CLK_FREQ_G / (2.0*2000000.0))+1, 32),
+      syncClkCount            => (others => '0'),
+      syncReset               => '0',
+      pwrSyncA                => '0',
+      pwrSyncB                => '0',
+      pwrSyncC                => '1',
+      rowOrderAddr            => (others => '0'),
+      vrSyncWait              => '0',
+      txState                 => CONTROL_S,
       timingTx                => IDLE_C,
       timingTxK               => "1",
       timingData              => LOCAL_TIMING_INIT_C,
@@ -207,13 +246,19 @@ begin
          axiWriteSlave  => locAxilWriteSlaves(1),   -- [out]
          clk            => wordClk,                 -- [in]
          rst            => wordRst,                 -- [in]
-         addr           => r.timingData.rowSeq,     -- [in]
+         addr           => r.rowOrderAddr,          -- [in]
          dout           => rowOrderRamOut);         -- [out]   
 
    comb : process (r, refClkFreq, rowOrderRamOut, timingAxilReadMaster, timingAxilWriteMaster,
                    wordClkFreq, wordRst) is
       variable v      : RegType;
       variable axilEp : AxiLiteEndpointType;
+      variable rowAdvanceReq      : boolean;
+      variable rowAdvanceFire     : boolean;
+      variable rowSeqStartReq     : boolean;
+      variable daqReadoutStartReq : boolean;
+      variable nextRowSeq         : slv(7 downto 0);
+      variable syncPulse          : sl;
    begin
       v := r;
 
@@ -224,6 +269,7 @@ begin
 
       -- Strobed signals
       v.softwareRowStrobe := '0';
+      v.syncReset         := '0';
 
       -- Configuration
       axiSlaveRegister(axilEp, X"00", 0, v.timingData.startRun);
@@ -234,11 +280,17 @@ begin
       axiSlaveRegister(axilEp, X"14", 0, v.sampleEndTime);
       axiSlaveRegister(axilEp, X"18", 0, v.runMode);
       axiSlaveRegister(axilEp, X"1C", 0, v.softwareRowStrobe);
+      axiSlaveRegister(axilEp, X"1C", 1, v.vrSyncEn);
       axiSlaveRegister(axilEp, X"2C", 0, v.daqReadoutPeriod);
 
       axiSlaveRegister(axilEp, X"20", 0, v.timingData.waveformCapture);
       axiSlaveRegister(axilEp, X"24", 0, v.loadDacsTime);
       axiSlaveRegister(axilEp, X"28", 0, v.waveformCaptureTime);
+      axiSlaveRegister(axilEp, X"80", 0, v.pwrSyncACfg);
+      axiSlaveRegister(axilEp, X"80", 2, v.pwrSyncBCfg);
+      axiSlaveRegister(axilEp, X"80", 4, v.pwrSyncCCfg);
+      axiSlaveRegister(axilEp, X"84", 0, v.syncPeriodDiv2);
+      axiWrDetect(axilEp, X"84", v.syncReset);
 
       -- Status
       axiSlaveRegisterR(axilEp, X"30", 0, r.timingData.running);
@@ -271,7 +323,69 @@ begin
       v.timingData.lastSample  := '0';
       v.timingData.loadDacs    := '0';
 
-      v.timingData.rowStrobe := '0';
+      v.timingData.rowStrobe       := '0';
+      v.timingData.rowSeqStart     := '0';
+      v.timingData.daqReadoutStart := '0';
+
+      syncPulse := '0';
+
+      -- Generate the power-sync outputs in the same clock domain as the row-sequencer.
+      v.syncClkCount := r.syncClkCount + 1;
+      if (r.syncClkCount = r.syncPeriodDiv2 - 1 or r.syncReset = '1') then
+         v.syncClkCount := (others => '0');
+         syncPulse      := '1';
+      end if;
+
+      if (r.pwrSyncACfg = PWR_SYNC_HIGH_C) then
+         v.pwrSyncA := '0';  -- Do not allow pwrSyncA to drive high.
+      elsif (r.pwrSyncACfg = PWR_SYNC_LOW_C) then
+         v.pwrSyncA := '0';
+      elsif (r.pwrSyncACfg = PWR_SYNC_OSC_C and syncPulse = '1') then
+         v.pwrSyncA := not r.pwrSyncA;
+      end if;
+
+      if (r.pwrSyncBCfg = PWR_SYNC_HIGH_C) then
+         v.pwrSyncB := '1';
+      elsif (r.pwrSyncBCfg = PWR_SYNC_LOW_C) then
+         v.pwrSyncB := '0';
+      elsif (r.pwrSyncBCfg = PWR_SYNC_OSC_C and syncPulse = '1') then
+         v.pwrSyncB := not r.pwrSyncB;
+      end if;
+
+      if (r.pwrSyncCCfg = PWR_SYNC_HIGH_C) then
+         v.pwrSyncC := '1';
+      elsif (r.pwrSyncCCfg = PWR_SYNC_LOW_C) then
+         v.pwrSyncC := '0';
+      elsif (r.pwrSyncCCfg = PWR_SYNC_OSC_C and syncPulse = '1') then
+         v.pwrSyncC := not r.pwrSyncC;
+      end if;
+
+      -- Row advancement is driven either by the hardware row-period timer or a software strobe.
+      rowAdvanceReq := ((r.runMode = HARDWARE_C and r.timingData.rowTime = r.rowPeriod-1) or
+                        (r.runMode = SOFTWARE_C and r.softwareRowStrobe = '1'));
+
+      nextRowSeq := r.timingData.rowSeq + 1;
+      if (r.timingData.rowSeq = r.numRows-1) then
+         nextRowSeq := (others => '0');
+      end if;
+
+      -- A sequence-start boundary is the wrap from the final row back to row zero.
+      -- The x"FF" case is used immediately after START_RUN so the first emitted boundary is also a sequence start.
+      rowSeqStartReq := ((r.timingData.rowSeq = r.numRows-1) or (r.timingData.rowSeq = x"FF"));
+      daqReadoutStartReq := (rowSeqStartReq and (r.daqReadoutPeriodCounter = 0));
+      rowAdvanceFire := false;
+
+      -- In VR sync mode, sequence-start boundaries can only advance when vrSync is seen.
+      -- All related counters remain frozen while vrSyncWait is asserted.
+      if (r.vrSyncWait = '1') then
+         rowAdvanceFire := (syncPulse = '1');
+      elsif (rowAdvanceReq) then
+         if (rowSeqStartReq and r.vrSyncEn = '1') then
+            rowAdvanceFire := (syncPulse = '1');
+         else
+            rowAdvanceFire := true;
+         end if;
+      end if;
 
       if (r.timingData.waveformCapture = '1' and r.waveformCaptureTime = r.timingData.rowTime and r.timingData.rowSeq = 0) then
          v.timingTx                   := WAVEFORM_CAPTURE_C;
@@ -282,11 +396,17 @@ begin
       if (r.timingData.startRun = '1' and r.timingData.running = '0') then
          v.timingData.running                 := '1';
          v.timingData.runTime                 := (others => '0');
-         v.timingData.rowSeq                  := (others => '0');
+         -- Seed rowSeq so the first row boundary after START_RUN is treated as a sequence start.
+         v.timingData.rowSeq                  := (others => '1');
          v.timingData.rowTime                 := (others => '0');
          v.timingData.rowSeqCount             := (others => '0');
          v.timingData.daqReadoutCount         := (others => '0');
-         v.daqReadoutPeriodCounter := (others => '0');
+         v.timingData.rowIndex                := (others => '0');
+         v.timingData.rowIndexNext            := (others => '0');
+         v.daqReadoutPeriodCounter            := (others => '0');
+         v.rowOrderAddr                       := (others => '0');
+         v.vrSyncWait                         := '0';
+         v.txState                            := ROW_INDEX_S;
 
          v.timingTx := START_RUN_C;
       end if;
@@ -294,57 +414,71 @@ begin
 
       if (r.timingData.running = '1') then
          v.timingData.startRun := '0';
-         -- Count the things
-         v.timingData.runTime  := r.timingData.runTime + 1;
-         v.timingData.rowTime  := r.timingData.rowTime + 1;
 
-         if ((r.runMode = HARDWARE_C and r.timingData.rowTime = r.rowPeriod-1) or
-             (r.runMode = SOFTWARE_C and r.softwareRowStrobe = '1')) then
-
-            v.timingData.rowTime := (others => '0');
-            v.timingData.rowSeq  := r.timingData.rowSeq + 1;
-
-            if (r.timingData.rowSeq = r.numRows-1) then
-               v.timingData.rowSeq      := (others => '0');
-               v.timingData.rowSeqCount := r.timingData.rowSeqCount + 1;
-
-               -- Count sequences for readout period
-               v.daqReadoutPeriodCounter := r.daqReadoutPeriodCounter + 1;
-               if (r.daqReadoutPeriodCounter = r.daqReadoutPeriod -1) then
-                  v.daqReadoutPeriodCounter    := (others => '0');
-                  v.timingData.daqReadoutCount := r.timingData.daqReadoutCount + 1;
-               end if;
-            end if;
-
+         -- Normal free-running timebase. This is suppressed when waiting on vrSync or when a row
+         -- boundary is being consumed on the current cycle.
+         if (r.vrSyncWait = '0' and rowAdvanceReq = false) then
+            v.timingData.runTime := r.timingData.runTime + 1;
+            v.timingData.rowTime := r.timingData.rowTime + 1;
          end if;
 
-         -- Send codes
-         if (r.runMode = HARDWARE_C and r.timingData.rowTime = 0 and r.timingData.startRun = '0') or
-            (r.runMode = SOFTWARE_C and r.softwareRowStrobe = '1') then
+         -- Once a sequence-start boundary is due, hold here until vrSync arrives.
+         if (rowAdvanceReq and rowSeqStartReq and r.vrSyncEn = '1' and syncPulse = '0' and r.vrSyncWait = '0') then
+            v.vrSyncWait := '1';
+
+         elsif (rowAdvanceFire) then
+            -- Commit the row transition on the same cycle that the boundary control word is emitted.
+            v.timingData.runTime      := r.timingData.runTime + 1;
+            v.timingData.rowTime      := (others => '0');
+            v.timingData.rowSeq       := nextRowSeq;
+            v.timingData.rowIndex     := r.timingData.rowIndexNext;
+            v.timingData.rowStrobe    := '1';
+            v.rowOrderAddr            := nextRowSeq;
+            v.txState                 := ROW_INDEX_S;
+            v.vrSyncWait              := '0';
+
             v.timingTx := ROW_STROBE_C;
-            if (r.timingData.rowSeq = 1) then
-               v.timingTx := ROW_SEQ_START_C;
-               if (r.daqReadoutPeriodCounter = 0) then
-                  v.timingTx := DAQ_READOUT_START_C;
+            if (rowSeqStartReq) then
+               v.timingData.rowSeqStart := '1';
+               v.timingData.rowSeqCount := r.timingData.rowSeqCount + 1;
+               v.timingTx               := ROW_SEQ_START_C;
+
+               if (daqReadoutStartReq) then
+                  v.timingData.daqReadoutStart := '1';
+                  v.timingData.daqReadoutCount := r.timingData.daqReadoutCount + 1;
+                  v.timingTx                   := DAQ_READOUT_START_C;
+               end if;
+
+               v.daqReadoutPeriodCounter := r.daqReadoutPeriodCounter + 1;
+               if (r.daqReadoutPeriodCounter = r.daqReadoutPeriod - 1) then
+                  v.daqReadoutPeriodCounter := (others => '0');
                end if;
             end if;
-            v.timingData.rowStrobe := '1';
 
-         elsif (r.timingTxK = "1" and (r.timingTx = DAQ_READOUT_START_C or r.timingTx = ROW_SEQ_START_C or r.timingTx = ROW_STROBE_C or r.timingTx = START_RUN_C)) then
-            v.timingTxK := "0";
-            v.timingTx  := rowOrderRamOut;
+         elsif (r.vrSyncWait = '1') then
+            -- Advertise the hold so TimingRx can freeze its counters too.
+            v.timingTx := VR_SYNC_WAIT_C;
 
-         elsif (r.timingData.rowTime = r.sampleStartTime) then
+         -- The cycle after a boundary control word carries the row index byte from the row-order RAM.
+         elsif (r.txState = ROW_INDEX_S and r.timingTxK = "1" and
+                (r.timingTx = DAQ_READOUT_START_C or r.timingTx = ROW_SEQ_START_C or
+                 r.timingTx = ROW_STROBE_C or r.timingTx = START_RUN_C)) then
+            v.timingTxK               := "0";
+            v.timingTx                := rowOrderRamOut;
+            v.timingData.rowIndexNext := rowOrderRamOut;
+            v.txState                 := CONTROL_S;
+
+         elsif (r.vrSyncWait = '0' and r.timingData.rowTime = r.sampleStartTime) then
             v.timingData.sample      := '1';
             v.timingData.firstSample := '1';
             v.timingTx               := SAMPLE_START_C;
 
-         elsif (r.timingData.rowTime = r.sampleEndTime) then
+         elsif (r.vrSyncWait = '0' and r.timingData.rowTime = r.sampleEndTime) then
             v.timingData.sample     := '0';
             v.timingData.lastSample := '1';
             v.timingTx              := SAMPLE_END_C;
 
-         elsif (r.timingData.rowTime = r.loadDacsTime) then
+         elsif (r.vrSyncWait = '0' and r.timingData.rowTime = r.loadDacsTime) then
             v.timingData.loadDacs := '1';
             v.timingTx            := LOAD_DACS_C;
 
@@ -372,6 +506,9 @@ begin
       xbarDataSel   <= r.xbarDataSel;
       xbarMgtSel    <= r.xbarMgtSel;
       xbarTimingSel <= r.xbarTimingSel;
+      pwrSyncA      <= r.pwrSyncA;
+      pwrSyncB      <= r.pwrSyncB;
+      pwrSyncC      <= r.pwrSyncC;
 
 
    end process;

@@ -48,9 +48,6 @@ entity WarmTdmConfig is
       tempAlertL  : in  sl;
       ledEn       : out sl              := '1';
       anaPwrEn    : out sl              := '1';
-      pwrSyncA    : out sl              := '0';
-      pwrSyncB    : out sl              := '0';
-      pwrSyncC    : out sl              := '1';
       asicResetB  : out sl;
       ampPdB      : out slv(7 downto 0) := (others => '1');
       adcFilterEn : out slv(7 downto 0) := (others => '0')
@@ -61,26 +58,12 @@ end entity WarmTdmConfig;
 
 architecture rtl of WarmTdmConfig is
 
-   constant DIV_CLK_COUNT_C : integer         := integer(AXIL_CLK_FREQ_G / (2*2000000))+1;
-   constant PWR_SYNC_LOW_C  : slv(1 downto 0) := "00";
-   constant PWR_SYNC_HIGH_C : slv(1 downto 0) := "01";
-   constant PWR_SYNC_OSC_C  : SLV(1 downto 0) := "10";
-
    type RegType is record
       anaPwrEn       : sl;
       anaPwrEnAxi    : sl;
-      pwrSyncACfg    : slv(1 downto 0);
-      pwrSyncBCfg    : slv(1 downto 0);
-      pwrSyncCCfg    : slv(1 downto 0);
-      pwrSyncA       : sl;
-      pwrSyncB       : sl;
-      pwrSyncC       : sl;
       asicReset      : sl;
       adcFilterEn    : slv(7 downto 0);
       ledEn          : sl;
-      syncPeriodDiv2 : slv(31 downto 0);
-      clkCount       : slv(31 downto 0);
-      resetCounter   : sl;
       axilWriteSlave : AxiLiteWriteSlaveType;
       axilReadSlave  : AxiLiteReadSlaveType;
    end record;
@@ -88,18 +71,9 @@ architecture rtl of WarmTdmConfig is
    constant REG_INIT_C : RegType := (
       anaPwrEn       => '0',
       anaPwrEnAxi    => '1',
-      pwrSyncACfg    => PWR_SYNC_LOW_C,
-      pwrSyncBCfg    => PWR_SYNC_LOW_C,
-      pwrSyncCCfg    => PWR_SYNC_HIGH_C,
-      pwrSyncA       => '0',
-      pwrSyncB       => '0',
-      pwrSyncC       => '1',
       asicReset      => '1',
       adcFilterEn    => (others => '0'),
       ledEn          => '1',
-      syncPeriodDiv2 => toSlv(DIV_CLK_COUNT_C, 32),
-      clkCount       => (others => '0'),
-      resetCounter   => '0',
       axilWriteSlave => AXI_LITE_WRITE_SLAVE_INIT_C,
       axilReadSlave  => AXI_LITE_READ_SLAVE_INIT_C);
 
@@ -141,8 +115,6 @@ begin
    begin
       v := r;
 
-      v.resetCounter := '0';
-
       --------------------
       -- AXI Lite
       --------------------
@@ -150,11 +122,6 @@ begin
 
       axiSlaveRegister(axilEp, X"00", 0, v.anaPwrEnAxi);
       axiSlaveRegisterR(axilEp, X"00", 1, r.anaPwrEn);
-      axiSlaveRegister(axilEp, X"04", 0, v.pwrSyncACfg);
-      axiSlaveRegister(axilEp, X"04", 2, v.pwrSyncBCfg);
-      axiSlaveRegister(axilEp, X"04", 4, v.pwrSyncCCfg);
-      axiSlaveRegister(axilEp, X"10", 0, v.syncPeriodDiv2);
-      axiWrDetect(axilEp, X"10", v.resetCounter);
       axiSlaveRegister(axilEp, X"14", 0, v.ledEn);
       axiSlaveRegisterR(axilEp, X"18", 0, tempAlertL);
       axiSlaveRegister(axilEp, X"20", 0, v.asicReset);
@@ -171,44 +138,6 @@ begin
          v.anaPwrEn := '0';
       end if;
 
-
-      -- Run the clock divide counter
-      v.clkCount := r.clkCount + 1;
-      if (r.clkCount = r.syncPeriodDiv2 - 1 or v.resetCounter = '1') then
-         v.clkCount := (others => '0');
-      end if;
-
-
-      if (r.pwrSyncACfg = PWR_SYNC_HIGH_C) then
-         v.pwrSyncA := '0';             -- Don't allow pwrSyncA set high
-      elsif (r.pwrSyncACfg = PWR_SYNC_LOW_C) then
-         v.pwrSyncA := '0';
-      elsif (r.pwrSyncACfg = PWR_SYNC_OSC_C) then
-         if (r.clkCount = r.syncPeriodDiv2 - 1) then
-            v.pwrSyncA := not r.pwrSyncA;
-         end if;
-      end if;
-
-      if (r.pwrSyncBCfg = PWR_SYNC_HIGH_C) then
-         v.pwrSyncB := '1';
-      elsif (r.pwrSyncBCfg = PWR_SYNC_LOW_C) then
-         v.pwrSyncB := '0';
-      elsif (r.pwrSyncBCfg = PWR_SYNC_OSC_C) then
-         if (r.clkCount = r.syncPeriodDiv2 - 1) then
-            v.pwrSyncB := not r.pwrSyncB;
-         end if;
-      end if;
-
-      if (r.pwrSyncCCfg = PWR_SYNC_HIGH_C) then
-         v.pwrSyncC := '1';
-      elsif (r.pwrSyncCCfg = PWR_SYNC_LOW_C) then
-         v.pwrSyncC := '0';
-      elsif (r.pwrSyncCCfg = PWR_SYNC_OSC_C) then
-         if (r.clkCount = r.syncPeriodDiv2 - 1) then
-            v.pwrSyncC := not r.pwrSyncC;
-         end if;
-      end if;
-
       if (axilRst = '1') then
          v := REG_INIT_C;
       end if;
@@ -219,9 +148,6 @@ begin
       axilReadSlave  <= r.axilReadSlave;
 
       ledEn       <= r.ledEn;
-      pwrSyncA    <= r.pwrSyncA;
-      pwrSyncB    <= r.pwrSyncB;
-      pwrSyncC    <= r.pwrSyncC;
       anaPwrEn    <= r.anaPwrEn;
       adcFilterEn <= r.adcFilterEn;
 

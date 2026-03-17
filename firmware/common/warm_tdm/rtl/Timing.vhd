@@ -69,6 +69,9 @@ entity Timing is
       timingTxClkN  : out sl;
       timingTxDataP : out sl;
       timingTxDataN : out sl;
+      pwrSyncA      : out sl := '0';
+      pwrSyncB      : out sl := '0';
+      pwrSyncC      : out sl := '1';
 
       -- XBAR select
       xbarDataSel   : out slv(1 downto 0) := ite(RING_ADDR_0_G, "11", "00");
@@ -232,6 +235,9 @@ begin
          timingTxClkN    => timingTxClkN,            -- [out]
          timingTxDataP   => timingTxDataP,           -- [out]
          timingTxDataN   => timingTxDataN,           -- [out]
+         pwrSyncA        => pwrSyncA,                -- [out]
+         pwrSyncB        => pwrSyncB,                -- [out]
+         pwrSyncC        => pwrSyncC,                -- [out]
          axilClk         => axilClk,                 -- [in]
          axilRst         => axilRst,                 -- [in]
          axilWriteMaster => locAxilWriteMasters(1),  -- [in]

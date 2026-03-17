@@ -73,11 +73,6 @@ entity WarmTdmCommon2 is
       -- Analog Power
       anaPwrEn : out sl := '0';
 
-      -- VR Synchronization
-      pwrSyncA : out sl := '0';
-      pwrSyncB : out sl := '0';
-      pwrSyncC : out sl := '1';
-
       asicResetB : out sl;
 
       adcFilterEn : out slv(7 downto 0);
@@ -240,9 +235,6 @@ begin
          tempAlertL        => tempAlertL,                          -- [in]
          ledEn             => ledEn,                               -- [out]
          anaPwrEn          => anaPwrEn,                            -- [out]
-         pwrSyncA          => pwrSyncA,                            -- [out]
-         pwrSyncB          => pwrSyncB,                            -- [out]
-         pwrSyncC          => pwrSyncC,                            -- [out]
          asicResetB        => asicResetB,                          -- [out]
          ampPdB            => ampPdB,                              -- [out]
          adcFilterEn       => adcFilterEn);                        -- [out]

@@ -96,10 +96,12 @@ architecture rtl of TimingRx is
 
    type RegType is record
       timingRxData : LocalTimingType;
+      vrSyncWait   : sl;
    end record RegType;
 
    constant REG_INIT_C : RegType := (
-      timingRxData => LOCAL_TIMING_INIT_C);
+      timingRxData => LOCAL_TIMING_INIT_C,
+      vrSyncWait   => '0');
 
    signal r   : RegType := REG_INIT_C;
    signal rin : RegType;
@@ -525,7 +527,7 @@ begin
    begin
       v := r;
 
-      if (v.timingRxData.running = '1') then
+      if (v.timingRxData.running = '1' and r.vrSyncWait = '0') then
          v.timingRxData.runTime := r.timingRxData.runTime + 1;
          v.timingRxData.rowTime := r.timingRxData.rowTime + 1;
       end if;
@@ -553,10 +555,12 @@ begin
                v.timingRxData.running         := '1';
                v.timingRxData.sample          := '0';
                v.timingRxData.rowSeq          := (others => '1');
+               v.vrSyncWait                   := '0';
             when END_RUN_C =>
                v.timingRxData.endRun  := '1';
                v.timingRxData.running := '0';
                v.timingRxData.sample  := '0';
+               v.vrSyncWait           := '0';
             when DAQ_READOUT_START_C =>
                v.timingRxData.rowStrobe       := '1';
                v.timingRxData.daqReadoutStart := '1';
@@ -566,6 +570,7 @@ begin
                v.timingRxData.rowSeqCount     := r.timingRxData.rowSeqCount + 1;
                v.timingRxData.daqReadoutCount := r.timingRxData.daqReadoutCount + 1;
                v.timingRxData.rowTime         := (others => '0');
+               v.vrSyncWait                   := '0';
             when ROW_SEQ_START_C =>
                v.timingRxData.rowStrobe   := '1';
                v.timingRxData.rowSeqStart := '1';
@@ -573,11 +578,14 @@ begin
                v.timingRxData.rowIndex    := r.timingRxData.rowIndexNext;
                v.timingRxData.rowSeqCount := r.timingRxData.rowSeqCount + 1;
                v.timingRxData.rowTime     := (others => '0');
+               v.vrSyncWait               := '0';
             when ROW_STROBE_C =>
                v.timingRxData.rowStrobe := '1';
                v.timingRxData.rowSeq    := r.timingRxData.rowSeq + 1;
                v.timingRxData.rowIndex  := r.timingRxData.rowIndexNext;
                v.timingRxData.rowTime   := (others => '0');
+            when VR_SYNC_WAIT_C =>
+               v.vrSyncWait := '1';
             when SAMPLE_START_C =>
                v.timingRxData.sample      := '1';
                v.timingRxData.firstSample := '1';
