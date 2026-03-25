@@ -59,6 +59,13 @@ These values are defined in [`TimingPkg.vhd`](/Users/bareese/warm-tdm/firmware/c
 
 This primes the receiver with the row that will become active on the first real row-boundary event.
 
+During the interval between `START_RUN_C` and the first real row-boundary event, the transmitter does not emit:
+
+- `SAMPLE_START_C`
+- `SAMPLE_END_C`
+- `LOAD_DACS_C`
+- `WAVEFORM_CAPTURE_C`
+
 ### Normal boundary
 
 A normal row advance is transmitted as:

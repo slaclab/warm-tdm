@@ -408,7 +408,8 @@ begin
          end if;
       end if;
 
-      if (r.timingData.waveformCapture = '1' and r.waveformCaptureTime = r.timingData.rowTime and r.timingData.rowSeq = 0) then
+      if (r.startupBoundaryPending = '0' and r.timingData.waveformCapture = '1' and
+          r.waveformCaptureTime = r.timingData.rowTime and r.timingData.rowSeq = 0) then
          v.timingTx                   := WAVEFORM_CAPTURE_C;
          v.timingData.waveformCapture := '0';
       end if;
@@ -491,17 +492,20 @@ begin
             v.timingData.rowIndexNext := rowOrderRamOut;
             v.txState                 := CONTROL_S;
 
-         elsif (r.vrSyncWait = '0' and r.timingData.rowTime = r.sampleStartTime) then
+         elsif (r.startupBoundaryPending = '0' and r.vrSyncWait = '0' and
+                r.timingData.rowTime = r.sampleStartTime) then
             v.timingData.sample      := '1';
             v.timingData.firstSample := '1';
             v.timingTx               := SAMPLE_START_C;
 
-         elsif (r.vrSyncWait = '0' and r.timingData.rowTime = r.sampleEndTime) then
+         elsif (r.startupBoundaryPending = '0' and r.vrSyncWait = '0' and
+                r.timingData.rowTime = r.sampleEndTime) then
             v.timingData.sample     := '0';
             v.timingData.lastSample := '1';
             v.timingTx              := SAMPLE_END_C;
 
-         elsif (r.vrSyncWait = '0' and r.timingData.rowTime = r.loadDacsTime) then
+         elsif (r.startupBoundaryPending = '0' and r.vrSyncWait = '0' and
+                r.timingData.rowTime = r.loadDacsTime) then
             v.timingData.loadDacs := '1';
             v.timingTx            := LOAD_DACS_C;
 
