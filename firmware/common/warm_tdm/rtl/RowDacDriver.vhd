@@ -138,6 +138,7 @@ architecture rtl of RowDacDriver is
 
    type RegType is record
       startup         : sl;
+      activeRowValid  : sl;
       state           : StateType;
       mode            : sl;
       offIndex        : slv(7 downto 0);
@@ -164,6 +165,7 @@ architecture rtl of RowDacDriver is
 
    constant REG_INIT_C : RegType := (
       startup         => '1',
+      activeRowValid  => '0',
       state           => STARTUP_S,
       mode            => MANUAL_MODE_C,
       offIndex        => (others => '0'),
@@ -458,6 +460,12 @@ begin
    begin
       v := r;
 
+      if (timingRxData.startRun = '1') then
+         v.activeRowValid := '0';
+      elsif (timingRxData.rowStrobe = '1') then
+         v.activeRowValid := '1';
+      end if;
+
       ----------------------------------------------------------------------------------------------
       -- Configuration Registers
       ----------------------------------------------------------------------------------------------
@@ -535,8 +543,11 @@ begin
 
             -- In timing mode, wait for row strobe to set next RS DAC
             if (r.mode = TIMING_MODE_C) then
-               -- Start setting DACs after sampling of current row is done
-               if (timingRxData.lastSample = '1') then
+               if (timingRxData.stageNextRow = '1' and r.activeRowValid = '0') then
+                  v.onIndex         := timingRxData.rowIndexNext;
+                  v.state           := ON_PRE_S;
+
+               elsif (timingRxData.stageNextRow = '1') then
                   v.state    := OFF_PRE_S;
                   v.offIndex := timingRxData.rowIndex;
                   v.onIndex  := timingRxData.rowIndexNext;

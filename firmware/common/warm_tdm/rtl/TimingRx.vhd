@@ -545,7 +545,7 @@ begin
       v.timingRxData.daqReadoutStart := '0';
       v.timingRxData.firstSample     := '0';
       v.timingRxData.lastSample      := '0';
-      v.timingRxData.loadDacs        := '0';
+      v.timingRxData.stageNextRow    := '0';
       v.timingRxData.waveformCapture := '0';
 
 --      v.nextRowSeq := r.timingRxData.rowSeq + 1;
@@ -605,8 +605,8 @@ begin
             when SAMPLE_END_C =>
                v.timingRxData.sample     := '0';
                v.timingRxData.lastSample := '1';
-            when LOAD_DACS_C =>
-               v.timingRxData.loadDacs := '1';
+            when STAGE_NEXT_ROW_C =>
+               v.timingRxData.stageNextRow := '1';
             when WAVEFORM_CAPTURE_C =>
                v.timingRxData.waveformCapture := '1';
             when others => null;

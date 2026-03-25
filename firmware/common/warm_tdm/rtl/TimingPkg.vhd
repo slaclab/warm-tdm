@@ -42,7 +42,7 @@ package TimingPkg is
    constant SAMPLE_START_C      : slv(7 downto 0) := "10011100";  -- K28.4
    constant SAMPLE_END_C        : slv(7 downto 0) := "11011100";  -- K28.6
    constant VR_SYNC_WAIT_C      : slv(7 downto 0) := "11111100";  -- K28.7
-   constant LOAD_DACS_C         : slv(7 downto 0) := "11110111";  -- K23.7
+   constant STAGE_NEXT_ROW_C    : slv(7 downto 0) := "11110111";  -- K23.7
    constant WAVEFORM_CAPTURE_C  : slv(7 downto 0) := "11111110";  -- K30.7
 
    type LocalTimingType is record
@@ -56,7 +56,7 @@ package TimingPkg is
       sample          : sl;
       firstSample     : sl;
       lastSample      : sl;
-      loadDacs        : sl;
+      stageNextRow    : sl;
       rowSeq          : slv(7 downto 0);   -- Sequence index of the active row in the row-order list
       rowIndex        : slv(7 downto 0);   -- Active row index currently in effect
       rowIndexNext    : slv(7 downto 0);   -- Pending row index preloaded for the next row strobe
@@ -77,7 +77,7 @@ package TimingPkg is
       sample          => '0',
       firstSample     => '0',
       lastSample      => '0',
-      loadDacs        => '0',
+      stageNextRow    => '0',
       rowSeq          => (others => '0'),
       rowIndex        => (others => '0'),
       rowIndexNext    => (others => '0'),
@@ -115,7 +115,7 @@ package body TimingPkg is
       assignSlv(i, vec, timing.sample);
       assignSlv(i, vec, timing.firstSample);
       assignSlv(i, vec, timing.lastSample);
-      assignSlv(i, vec, timing.loadDacs);
+      assignSlv(i, vec, timing.stageNextRow);
       assignSlv(i, vec, timing.rowSeq);
       assignSlv(i, vec, timing.rowIndex);
       assignSlv(i, vec, timing.rowIndexNext);
@@ -143,7 +143,7 @@ package body TimingPkg is
       assignRecord(i, vec, timing.sample);
       assignRecord(i, vec, timing.firstSample);
       assignRecord(i, vec, timing.lastSample);
-      assignRecord(i, vec, timing.loadDacs);
+      assignRecord(i, vec, timing.stageNextRow);
       assignRecord(i, vec, timing.rowSeq);
       assignRecord(i, vec, timing.rowIndex);
       assignRecord(i, vec, timing.rowIndexNext);

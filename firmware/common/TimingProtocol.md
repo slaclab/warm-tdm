@@ -11,7 +11,7 @@ The protocol carries:
 - initial pending-row priming at `START_RUN`
 - the pending row index byte after each boundary marker
 - sample-window markers
-- DAC-load markers
+- next-row staging markers
 - waveform-capture markers
 - an explicit wait marker used when `vrSync` is enabled
 
@@ -45,7 +45,7 @@ These values are defined in [`TimingPkg.vhd`](/Users/bareese/warm-tdm/firmware/c
 | `SAMPLE_START_C` | Start sample window |
 | `SAMPLE_END_C` | End sample window |
 | `VR_SYNC_WAIT_C` | Transmitter is holding at a pending sequence-start boundary, waiting for `vrSync` |
-| `LOAD_DACS_C` | DAC load point |
+| `STAGE_NEXT_ROW_C` | Stage the pending row into downstream DAC input registers |
 | `WAVEFORM_CAPTURE_C` | Waveform capture trigger |
 
 ## Row-Boundary Sequence
@@ -63,8 +63,9 @@ During the interval between `START_RUN_C` and the first real row-boundary event,
 
 - `SAMPLE_START_C`
 - `SAMPLE_END_C`
-- `LOAD_DACS_C`
 - `WAVEFORM_CAPTURE_C`
+
+During that same interval, `STAGE_NEXT_ROW_C` is allowed. This lets downstream DAC drivers prepare the first active row before the first asserted `rowStrobe`.
 
 ### Normal boundary
 
@@ -114,6 +115,8 @@ When the row sequence wrap also aligns with a DAQ readout interval, the boundary
 
 After any row-boundary control word, the next received data byte is captured into `rowIndexNext`.
 
+`STAGE_NEXT_ROW_C` is interpreted as an explicit request for downstream logic to stage the row transition described by the current `rowIndex` and `rowIndexNext`. By default `TimingTx` emits it 32 timing clocks ahead of the upcoming row-boundary event.
+
 ## Local Timing State
 
 `LocalTimingType` is the common timing-status record shared by `TimingTx`, `TimingRx`, and downstream logic. It contains the current run state plus one-cycle event strobes derived from the timing stream.
@@ -130,7 +133,7 @@ After any row-boundary control word, the next received data byte is captured int
 | `sample` | `sl` | Level that is high while the sampling window is active, between `SAMPLE_START_C` and `SAMPLE_END_C`. |
 | `firstSample` | `sl` | One-cycle strobe marking the first sample cycle of the active sample window. |
 | `lastSample` | `sl` | One-cycle strobe marking the final sample cycle of the active sample window. |
-| `loadDacs` | `sl` | One-cycle strobe asserted at the programmed DAC-load point, corresponding to `LOAD_DACS_C`. |
+| `stageNextRow` | `sl` | One-cycle strobe asserted when downstream logic should stage the upcoming row transition, corresponding to `STAGE_NEXT_ROW_C`. |
 | `rowSeq` | `slv(7 downto 0)` | Sequence index within the programmed row-order list for the currently active row. |
 | `rowIndex` | `slv(7 downto 0)` | Active row index currently in effect. This is the row index consumed by downstream logic. |
 | `rowIndexNext` | `slv(7 downto 0)` | Pending row index already preloaded for the next row strobe. |
@@ -142,7 +145,7 @@ After any row-boundary control word, the next received data byte is captured int
 Practical interpretation:
 
 - Fields such as `running` and `sample` are state levels.
-- Fields such as `startRun`, `rowStrobe`, `rowSeqStart`, `daqReadoutStart`, `firstSample`, `lastSample`, `loadDacs`, and `waveformCapture` are event strobes that are normally high for one `TimingClk` cycle.
+- Fields such as `startRun`, `rowStrobe`, `rowSeqStart`, `daqReadoutStart`, `firstSample`, `lastSample`, `stageNextRow`, and `waveformCapture` are event strobes that are normally high for one `TimingClk` cycle.
 
 ## Active/Pending Row Contract
 
@@ -150,11 +153,12 @@ The intended interpretation is:
 
 - `rowIndex` is the active row
 - `rowIndexNext` is the pending row that will be committed on the next `rowStrobe`
+- `stageNextRow` tells downstream logic to prepare that pending row ahead of the boundary
 - `rowStrobe` promotes the pending row to the active row
 - the byte after a row-boundary control word loads the next pending row
 - the byte after `START_RUN_C` primes the initial pending row for the first `rowStrobe`
 
-Between `START_RUN_C` and the first row-boundary event, `rowIndexNext` is valid and `rowIndex` still reflects the pre-run/idle value. The first asserted `rowStrobe` is also the first `rowSeqStart` (and `daqReadoutStart` when the DAQ period counter is zero), and that is the point where row 0 becomes active.
+Between `START_RUN_C` and the first row-boundary event, `rowIndexNext` is valid and `rowIndex` still reflects the pre-run/idle value. `stageNextRow` may be asserted in that interval so the first pending row can be prepared early. The first asserted `rowStrobe` is also the first `rowSeqStart` (and `daqReadoutStart` when the DAQ period counter is zero), and that is the point where the row index stored at row-order address 0 becomes active.
 
 ## `vrSync` Behavior
 

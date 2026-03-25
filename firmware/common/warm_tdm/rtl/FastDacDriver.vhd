@@ -269,9 +269,8 @@ begin
                v.rowIndex := (others => '0');
                v.state    := DATA_S;
 
-            -- Use lastSample instead of loadDacs for now since it doesn't exist yet               
-            elsif (timingRxData.lastSample = '1') then
-               v.rowIndex := timingRxData.rowIndexNext;  -- This shouldn't be necessary
+            elsif (timingRxData.stageNextRow = '1') then
+               v.rowIndex := timingRxData.rowIndexNext;
                v.state    := DATA_S;
             end if;
 

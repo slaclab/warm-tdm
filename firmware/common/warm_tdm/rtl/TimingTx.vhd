@@ -102,7 +102,7 @@ architecture rtl of TimingTx is
       numRows                 : slv(15 downto 0);
       sampleStartTime         : slv(31 downto 0);
       sampleEndTime           : slv(31 downto 0);
-      loadDacsTime            : slv(31 downto 0);
+      stageNextRowLead        : slv(31 downto 0);
       waveformCaptureTime     : slv(31 downto 0);
       daqReadoutPeriod        : slv(31 downto 0);
       daqReadoutPeriodCounter : slv(31 downto 0);
@@ -143,7 +143,7 @@ architecture rtl of TimingTx is
       numRows                 => toSlv(256, 16),
       sampleStartTime         => toSlv(32, 32),
       sampleEndTime           => toSlv(160, 32),                  -- Could be corner case here?
-      loadDacsTime            => toSlv(200, 32),
+      stageNextRowLead        => toSlv(32, 32),
       waveformCaptureTime     => toSlv(2, 32),
       daqReadoutPeriod        => toSlv(40, 32),  -- Readout once every 40 rowSequences
       daqReadoutPeriodCounter => (others => '0'),
@@ -261,6 +261,7 @@ begin
       variable rowAdvanceFire     : boolean;
       variable rowSeqStartReq     : boolean;
       variable daqReadoutStartReq : boolean;
+      variable stageNextRowTime   : slv(31 downto 0);
       variable initialNextRowSeq  : slv(7 downto 0);
       variable nextRowSeq         : slv(7 downto 0);
       variable prefetchRowSeq     : slv(7 downto 0);
@@ -290,7 +291,7 @@ begin
       axiSlaveRegister(axilEp, X"2C", 0, v.daqReadoutPeriod);
 
       axiSlaveRegister(axilEp, X"20", 0, v.timingData.waveformCapture);
-      axiSlaveRegister(axilEp, X"24", 0, v.loadDacsTime);
+      axiSlaveRegister(axilEp, X"24", 0, v.stageNextRowLead);
       axiSlaveRegister(axilEp, X"28", 0, v.waveformCaptureTime);
       axiSlaveRegister(axilEp, X"80", 0, v.pwrSyncACfg);
       axiSlaveRegister(axilEp, X"80", 2, v.pwrSyncBCfg);
@@ -327,7 +328,7 @@ begin
 
       v.timingData.firstSample := '0';
       v.timingData.lastSample  := '0';
-      v.timingData.loadDacs    := '0';
+      v.timingData.stageNextRow := '0';
 
       v.timingData.rowStrobe       := '0';
       v.timingData.rowSeqStart     := '0';
@@ -371,6 +372,14 @@ begin
       rowAdvanceReq := (r.txState = CONTROL_S and
                         ((r.runMode = HARDWARE_C and r.timingData.rowTime >= r.rowPeriod-1) or
                          (r.runMode = SOFTWARE_C and r.softwareRowStrobe = '1')));
+
+      -- Emit stageNextRow a programmable number of timing clocks ahead of the next row boundary.
+      -- If the row period is shorter than the requested lead, emit it on the earliest cycle after
+      -- the pending-row byte has been sent.
+      stageNextRowTime := toSlv(1, 32);
+      if (r.rowPeriod > r.stageNextRowLead + 1) then
+         stageNextRowTime := r.rowPeriod - r.stageNextRowLead - 1;
+      end if;
 
       initialNextRowSeq := toSlv(1, 8);
       if (r.numRows = 1) then
@@ -492,6 +501,10 @@ begin
             v.timingData.rowIndexNext := rowOrderRamOut;
             v.txState                 := CONTROL_S;
 
+         elsif (r.vrSyncWait = '0' and r.timingData.rowTime = stageNextRowTime) then
+            v.timingData.stageNextRow := '1';
+            v.timingTx                := STAGE_NEXT_ROW_C;
+
          elsif (r.startupBoundaryPending = '0' and r.vrSyncWait = '0' and
                 r.timingData.rowTime = r.sampleStartTime) then
             v.timingData.sample      := '1';
@@ -503,11 +516,6 @@ begin
             v.timingData.sample     := '0';
             v.timingData.lastSample := '1';
             v.timingTx              := SAMPLE_END_C;
-
-         elsif (r.startupBoundaryPending = '0' and r.vrSyncWait = '0' and
-                r.timingData.rowTime = r.loadDacsTime) then
-            v.timingData.loadDacs := '1';
-            v.timingTx            := LOAD_DACS_C;
 
          end if;
 
