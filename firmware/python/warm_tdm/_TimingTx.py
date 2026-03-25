@@ -76,7 +76,7 @@ class TimingTx(pr.Device):
             offset = 0x04,
             bitOffset = 0,
             bitSize = 1,
-            function = pr.Command.toggle))
+            function = pr.Command.touchOne))
 
         self.add(pr.RemoteCommand(
             name = 'WaveformCapture',
@@ -186,6 +186,16 @@ class TimingTx(pr.Device):
             bitOffset = 0,
             bitSize = 32,
             disp = '{:d}'))
+
+        self.add(pr.RemoteVariable(
+            name = "VrSyncEn",
+            mode = 'RW',
+            offset = 0x1C,
+            bitOffset = 1,
+            bitSize = 1,
+            base = pr.Bool,
+            hidden = False))
+        
 
         self.add(pr.RemoteVariable(
             name = 'PwrSyncA',
