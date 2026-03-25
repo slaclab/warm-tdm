@@ -96,7 +96,6 @@ architecture rtl of TimingRx is
 
    type RxStateType is (
       CONTROL_S,
-      START_ACTIVE_ROW_S,
       ROW_INDEX_S);
 
    type RegType is record
@@ -556,8 +555,6 @@ begin
          case timingRxData is
             when START_RUN_C =>
                v.timingRxData.startRun        := '1';
-               v.timingRxData.rowSeqStart     := '1';
-               v.timingRxData.daqReadoutStart := '1';
                v.timingRxData.runTime         := (others => '0');
                v.timingRxData.rowTime         := (others => '0');
                v.timingRxData.rowSeqCount     := (others => '0');
@@ -565,10 +562,9 @@ begin
                v.timingRxData.running         := '1';
                v.timingRxData.sample          := '0';
                v.timingRxData.rowSeq          := (others => '0');
-               v.timingRxData.rowIndex        := (others => '0');
                v.timingRxData.rowIndexNext    := (others => '0');
                v.vrSyncWait                   := '0';
-               v.rxState                      := START_ACTIVE_ROW_S;
+               v.rxState                      := ROW_INDEX_S;
             when END_RUN_C =>
                v.timingRxData.endRun  := '1';
                v.timingRxData.running := '0';
@@ -619,9 +615,6 @@ begin
 
       if (timingRxValid = '1' and timingRxDataK = '0' and locked = '1') then
          case r.rxState is
-            when START_ACTIVE_ROW_S =>
-               v.timingRxData.rowIndex := timingRxData;
-               v.rxState               := ROW_INDEX_S;
             when ROW_INDEX_S =>
                v.timingRxData.rowIndexNext := timingRxData;
                v.rxState                   := CONTROL_S;

@@ -75,10 +75,9 @@ architecture rtl of TimingTx is
    constant PWR_SYNC_OSC_C  : slv(1 downto 0) := "10";
 
    -- Control words and row-index bytes are sent on separate cycles.
-   -- START_RUN is followed by an initial active-row byte and then the first pending-row byte.
+   -- START_RUN is followed by one prime byte for the first pending row.
    type TxStateType is (
       CONTROL_S,
-      START_ACTIVE_ROW_S,
       ROW_INDEX_S);
 
    signal bitClk  : sl;
@@ -116,8 +115,10 @@ architecture rtl of TimingTx is
       pwrSyncA                : sl;
       pwrSyncB                : sl;
       pwrSyncC                : sl;
-      -- Row-order RAM drives the startup prime bytes and the pending row byte after each boundary.
+      -- Row-order RAM drives the startup prime byte and the pending row byte after each boundary.
       rowOrderAddr            : slv(7 downto 0);
+      -- Hold the first boundary after START_RUN so it becomes the initial row-sequence start.
+      startupBoundaryPending  : sl;
       -- Hold state for VR sync gating at the next row-sequence boundary.
       vrSyncWait              : sl;
       txState                 : TxStateType;
@@ -156,6 +157,7 @@ architecture rtl of TimingTx is
       pwrSyncB                => '0',
       pwrSyncC                => '1',
       rowOrderAddr            => (others => '0'),
+      startupBoundaryPending  => '0',
       vrSyncWait              => '0',
       txState                 => CONTROL_S,
       timingTx                => IDLE_C,
@@ -376,17 +378,21 @@ begin
       end if;
 
       nextRowSeq := r.timingData.rowSeq + 1;
-      if (r.timingData.rowSeq = r.numRows-1) then
+      if (r.startupBoundaryPending = '1') then
+         nextRowSeq := (others => '0');
+      elsif (r.timingData.rowSeq = r.numRows-1) then
          nextRowSeq := (others => '0');
       end if;
 
       prefetchRowSeq := nextRowSeq + 1;
-      if (nextRowSeq = r.numRows-1) then
+      if (r.startupBoundaryPending = '1') then
+         prefetchRowSeq := initialNextRowSeq;
+      elsif (nextRowSeq = r.numRows-1) then
          prefetchRowSeq := (others => '0');
       end if;
 
       -- A sequence-start boundary is the wrap from the final row back to row zero.
-      rowSeqStartReq := (r.timingData.rowSeq = r.numRows-1);
+      rowSeqStartReq := ((r.startupBoundaryPending = '1') or (r.timingData.rowSeq = r.numRows-1));
       daqReadoutStartReq := (rowSeqStartReq and (r.daqReadoutPeriodCounter = 0));
       rowAdvanceFire := false;
 
@@ -411,23 +417,19 @@ begin
       if (r.timingData.startRun = '1' and r.timingData.running = '0') then
          v.timingData.running                 := '1';
          v.timingData.runTime                 := (others => '0');
-         -- START_RUN enters the initial row immediately and then primes the first pending row.
+         -- START_RUN primes the first pending row; the first real row entry happens on rowStrobe.
          v.timingData.rowSeq                  := (others => '0');
          v.timingData.rowTime                 := (others => '0');
-         v.timingData.rowSeqStart             := '1';
-         v.timingData.daqReadoutStart         := '1';
          v.timingData.rowSeqCount             := (others => '0');
          v.timingData.daqReadoutCount         := (others => '0');
          v.timingData.rowIndex                := (others => '0');
          v.timingData.rowIndexNext            := (others => '0');
-         v.daqReadoutPeriodCounter            := toSlv(1, 32);
-         if (r.daqReadoutPeriod = 1) then
-            v.daqReadoutPeriodCounter := (others => '0');
-         end if;
-         -- The bytes after START_RUN first load the initial active row, then the first pending row.
+         v.daqReadoutPeriodCounter            := (others => '0');
+         -- The byte after START_RUN primes the first pending row to be committed on rowStrobe.
          v.rowOrderAddr                       := (others => '0');
+         v.startupBoundaryPending             := '1';
          v.vrSyncWait                         := '0';
-         v.txState                            := START_ACTIVE_ROW_S;
+         v.txState                            := ROW_INDEX_S;
 
          v.timingTx := START_RUN_C;
       end if;
@@ -456,6 +458,7 @@ begin
             v.timingData.rowStrobe    := '1';
             -- Prefetch the row index that will be consumed on the following boundary.
             v.rowOrderAddr            := prefetchRowSeq;
+            v.startupBoundaryPending  := '0';
             v.txState                 := ROW_INDEX_S;
             v.vrSyncWait              := '0';
 
@@ -481,13 +484,6 @@ begin
             -- Advertise the hold so TimingRx can freeze its counters too.
             v.timingTx := VR_SYNC_WAIT_C;
 
-         elsif (r.txState = START_ACTIVE_ROW_S) then
-            v.timingTxK               := "0";
-            v.timingTx                := rowOrderRamOut;
-            v.timingData.rowIndex     := rowOrderRamOut;
-            v.rowOrderAddr            := initialNextRowSeq;
-            v.txState                 := ROW_INDEX_S;
-
          -- The byte after START_RUN or a row-boundary control word carries the pending row index.
          elsif (r.txState = ROW_INDEX_S) then
             v.timingTxK               := "0";
@@ -512,7 +508,7 @@ begin
          end if;
 
          if (r.timingData.endRun = '1' and r.timingData.rowSeq = 0 and
-             r.timingData.rowTime = 0 and r.timingData.startRun = '0') then
+             r.startupBoundaryPending = '0') then
             v.timingData.running := '0';
             v.timingData.sample  := '0';
             v.timingData.endRun  := '0';

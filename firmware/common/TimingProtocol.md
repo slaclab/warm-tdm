@@ -8,7 +8,7 @@ The protocol carries:
 
 - run control
 - row-boundary markers
-- explicit row-index priming at `START_RUN`
+- initial pending-row priming at `START_RUN`
 - the pending row index byte after each boundary marker
 - sample-window markers
 - DAC-load markers
@@ -24,12 +24,11 @@ The transmitter emits either:
 - a control character (`K` character in the 8b/10b stream), or
 - a normal data byte
 
-Most timing events are sent as control characters. For normal row boundaries, the control character is followed on the next cycle by a data byte containing the pending row index for the upcoming row strobe.
+Most timing events are sent as control characters. For row boundaries, the control character is followed on the next cycle by a data byte containing the pending row index for the upcoming row strobe.
 
-`START_RUN_C` is a special case. It is followed by two data bytes:
+`START_RUN_C` is a special case. It is followed by one data byte:
 
-1. the initial active row index
-2. the initial pending row index for the first row strobe
+1. the initial pending row index for the first row strobe
 
 ## Control Characters
 
@@ -56,13 +55,9 @@ These values are defined in [`TimingPkg.vhd`](/Users/bareese/warm-tdm/firmware/c
 `START_RUN_C` is transmitted as:
 
 1. `START_RUN_C`
-2. initial active row index
-3. initial pending row index
+2. initial pending row index
 
-This explicitly primes the receiver with both:
-
-- the row that is active during the first row period of the run
-- the row that will be asserted on the first row strobe
+This primes the receiver with the row that will become active on the first real row-boundary event.
 
 ### Normal boundary
 
@@ -76,14 +71,14 @@ A normal row advance is transmitted as:
 When the row sequence wraps from the final row back to row 0, the boundary is transmitted as:
 
 1. `ROW_SEQ_START_C`
-2. pending row index byte for the row after row 0
+2. pending row index byte for the row after the newly entered row
 
 ### DAQ-readout boundary
 
 When the row sequence wrap also aligns with a DAQ readout interval, the boundary is transmitted as:
 
 1. `DAQ_READOUT_START_C`
-2. pending row index byte for the row after row 0
+2. pending row index byte for the row after the newly entered row
 
 ## Receiver Interpretation
 
@@ -91,13 +86,10 @@ When the row sequence wrap also aligns with a DAQ readout interval, the boundary
 
 - `START_RUN_C`
   - enters running state
-  - asserts `rowSeqStart`
-  - asserts `daqReadoutStart`
   - clears counters
   - sets `rowSeq = 0`
-  - expects two following data bytes:
-    - first byte loads `rowIndex`
-    - second byte loads `rowIndexNext`
+  - expects one following data byte:
+    - that byte loads `rowIndexNext` for the first row-boundary event
 - `ROW_STROBE_C`
   - increments `rowSeq`
   - updates `rowIndex` from the previously received `rowIndexNext`
@@ -126,8 +118,8 @@ After any row-boundary control word, the next received data byte is captured int
 | `running` | `sl` | Level that remains high while the timing engine is in an active run. |
 | `runTime` | `slv(63 downto 0)` | Number of `TimingClk` cycles elapsed since the current run started. In `vrSync` wait mode this counter is intentionally held on both Tx and Rx. |
 | `rowStrobe` | `sl` | One-cycle strobe asserted when the pending row is committed on a row-boundary event. |
-| `rowSeqStart` | `sl` | One-cycle strobe asserted when a new row sequence starts. This is asserted on `START_RUN_C`, `ROW_SEQ_START_C`, and `DAQ_READOUT_START_C`. |
-| `daqReadoutStart` | `sl` | One-cycle strobe asserted when a new DAQ readout interval starts. This is asserted on `START_RUN_C` and `DAQ_READOUT_START_C`. |
+| `rowSeqStart` | `sl` | One-cycle strobe asserted when a row boundary starts a new pass through the full row list. This is asserted with `ROW_SEQ_START_C` and `DAQ_READOUT_START_C`. |
+| `daqReadoutStart` | `sl` | One-cycle strobe asserted when a sequence-start boundary also starts a DAQ readout interval. This is asserted with `DAQ_READOUT_START_C`. |
 | `sample` | `sl` | Level that is high while the sampling window is active, between `SAMPLE_START_C` and `SAMPLE_END_C`. |
 | `firstSample` | `sl` | One-cycle strobe marking the first sample cycle of the active sample window. |
 | `lastSample` | `sl` | One-cycle strobe marking the final sample cycle of the active sample window. |
@@ -136,8 +128,8 @@ After any row-boundary control word, the next received data byte is captured int
 | `rowIndex` | `slv(7 downto 0)` | Active row index currently in effect. This is the row index consumed by downstream logic. |
 | `rowIndexNext` | `slv(7 downto 0)` | Pending row index already preloaded for the next row strobe. |
 | `rowTime` | `slv(31 downto 0)` | Number of `TimingClk` cycles elapsed since the most recent row-boundary event. In `vrSync` wait mode this counter is intentionally held on both Tx and Rx. |
-| `rowSeqCount` | `slv(63 downto 0)` | Count of completed full passes through the row-order list. This increments on wrap boundaries that emit `ROW_SEQ_START_C` or `DAQ_READOUT_START_C`, but remains zero for the initial `START_RUN_C` prime sequence. |
-| `daqReadoutCount` | `slv(63 downto 0)` | Count of completed DAQ readout intervals started after the initial prime sequence. This increments on `DAQ_READOUT_START_C`, while the initial `START_RUN_C` prime interval leaves the count at zero. |
+| `rowSeqCount` | `slv(63 downto 0)` | Count of completed full passes through the row-order list. This increments on each asserted `rowSeqStart`. |
+| `daqReadoutCount` | `slv(63 downto 0)` | Count of DAQ readout intervals started so far. This increments on each asserted `daqReadoutStart`. |
 | `waveformCapture` | `sl` | One-cycle strobe asserted when a waveform capture trigger is issued, corresponding to `WAVEFORM_CAPTURE_C`. |
 
 Practical interpretation:
@@ -153,9 +145,9 @@ The intended interpretation is:
 - `rowIndexNext` is the pending row that will be committed on the next `rowStrobe`
 - `rowStrobe` promotes the pending row to the active row
 - the byte after a row-boundary control word loads the next pending row
-- `START_RUN_C` explicitly primes both the initial active row and the initial pending row
+- the byte after `START_RUN_C` primes the initial pending row for the first `rowStrobe`
 
-`rowSeqStart` and `daqReadoutStart` are sequence-level qualifiers. `START_RUN_C` asserts both strobes for the initial sequence, but the counters remain zero until the first wrap boundary completes.
+Between `START_RUN_C` and the first row-boundary event, `rowIndexNext` is valid and `rowIndex` still reflects the pre-run/idle value. The first asserted `rowStrobe` is also the first `rowSeqStart` (and `daqReadoutStart` when the DAQ period counter is zero), and that is the point where row 0 becomes active.
 
 ## `vrSync` Behavior
 
@@ -251,11 +243,11 @@ They no longer live in `WarmTdmConfig`.
 
 If you are debugging the timing link, the most important rule is:
 
-- `START_RUN_C` is followed by two row-index bytes: initial active row, then initial pending row
+- `START_RUN_C` is followed by one row-index byte that primes the first pending row
 - every later row-boundary control character is followed by one pending-row byte
 
 If you are debugging `vrSync`, the next rule is:
 
 - a sequence-start boundary may pause on repeated `VR_SYNC_WAIT_C` characters until the local sync pulse arrives
 
-Once the sync pulse arrives, the next transmitted control character will be `ROW_SEQ_START_C` or `DAQ_READOUT_START_C`, followed by the pending row index byte for the row after row 0.
+Once the sync pulse arrives, the next transmitted control character will be `ROW_SEQ_START_C` or `DAQ_READOUT_START_C`, followed by the pending row index byte for the row after the newly entered row.
