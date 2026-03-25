@@ -75,8 +75,10 @@ architecture rtl of TimingTx is
    constant PWR_SYNC_OSC_C  : slv(1 downto 0) := "10";
 
    -- Control words and row-index bytes are sent on separate cycles.
+   -- START_RUN is followed by an initial active-row byte and then the first pending-row byte.
    type TxStateType is (
       CONTROL_S,
+      START_ACTIVE_ROW_S,
       ROW_INDEX_S);
 
    signal bitClk  : sl;
@@ -114,8 +116,7 @@ architecture rtl of TimingTx is
       pwrSyncA                : sl;
       pwrSyncB                : sl;
       pwrSyncC                : sl;
-      -- Row-order RAM drives the row index byte that follows START_RUN and row-boundary control words.
-      -- START_RUN preloads row 0; later boundaries prefetch the row after the one being entered.
+      -- Row-order RAM drives the startup prime bytes and the pending row byte after each boundary.
       rowOrderAddr            : slv(7 downto 0);
       -- Hold state for VR sync gating at the next row-sequence boundary.
       vrSyncWait              : sl;
@@ -258,6 +259,7 @@ begin
       variable rowAdvanceFire     : boolean;
       variable rowSeqStartReq     : boolean;
       variable daqReadoutStartReq : boolean;
+      variable initialNextRowSeq  : slv(7 downto 0);
       variable nextRowSeq         : slv(7 downto 0);
       variable prefetchRowSeq     : slv(7 downto 0);
       variable syncPulse          : sl;
@@ -363,8 +365,15 @@ begin
       end if;
 
       -- Row advancement is driven either by the hardware row-period timer or a software strobe.
-      rowAdvanceReq := ((r.runMode = HARDWARE_C and r.timingData.rowTime = r.rowPeriod-1) or
-                        (r.runMode = SOFTWARE_C and r.softwareRowStrobe = '1'));
+      -- Boundary events are suppressed while START_RUN is still priming the initial active/pending rows.
+      rowAdvanceReq := (r.txState = CONTROL_S and
+                        ((r.runMode = HARDWARE_C and r.timingData.rowTime >= r.rowPeriod-1) or
+                         (r.runMode = SOFTWARE_C and r.softwareRowStrobe = '1')));
+
+      initialNextRowSeq := toSlv(1, 8);
+      if (r.numRows = 1) then
+         initialNextRowSeq := (others => '0');
+      end if;
 
       nextRowSeq := r.timingData.rowSeq + 1;
       if (r.timingData.rowSeq = r.numRows-1) then
@@ -377,8 +386,7 @@ begin
       end if;
 
       -- A sequence-start boundary is the wrap from the final row back to row zero.
-      -- The x"FF" case is used immediately after START_RUN so the first emitted boundary is also a sequence start.
-      rowSeqStartReq := ((r.timingData.rowSeq = r.numRows-1) or (r.timingData.rowSeq = x"FF"));
+      rowSeqStartReq := (r.timingData.rowSeq = r.numRows-1);
       daqReadoutStartReq := (rowSeqStartReq and (r.daqReadoutPeriodCounter = 0));
       rowAdvanceFire := false;
 
@@ -403,18 +411,23 @@ begin
       if (r.timingData.startRun = '1' and r.timingData.running = '0') then
          v.timingData.running                 := '1';
          v.timingData.runTime                 := (others => '0');
-         -- Seed rowSeq so the first row boundary after START_RUN is treated as a sequence start.
-         v.timingData.rowSeq                  := (others => '1');
+         -- START_RUN enters the initial row immediately and then primes the first pending row.
+         v.timingData.rowSeq                  := (others => '0');
          v.timingData.rowTime                 := (others => '0');
+         v.timingData.rowSeqStart             := '1';
+         v.timingData.daqReadoutStart         := '1';
          v.timingData.rowSeqCount             := (others => '0');
          v.timingData.daqReadoutCount         := (others => '0');
          v.timingData.rowIndex                := (others => '0');
          v.timingData.rowIndexNext            := (others => '0');
-         v.daqReadoutPeriodCounter            := (others => '0');
-         -- The byte after START_RUN must preload the first row to be entered.
+         v.daqReadoutPeriodCounter            := toSlv(1, 32);
+         if (r.daqReadoutPeriod = 1) then
+            v.daqReadoutPeriodCounter := (others => '0');
+         end if;
+         -- The bytes after START_RUN first load the initial active row, then the first pending row.
          v.rowOrderAddr                       := (others => '0');
          v.vrSyncWait                         := '0';
-         v.txState                            := ROW_INDEX_S;
+         v.txState                            := START_ACTIVE_ROW_S;
 
          v.timingTx := START_RUN_C;
       end if;
@@ -468,10 +481,15 @@ begin
             -- Advertise the hold so TimingRx can freeze its counters too.
             v.timingTx := VR_SYNC_WAIT_C;
 
-         -- The cycle after a boundary control word carries the row index byte from the row-order RAM.
-         elsif (r.txState = ROW_INDEX_S and r.timingTxK = "1" and
-                (r.timingTx = DAQ_READOUT_START_C or r.timingTx = ROW_SEQ_START_C or
-                 r.timingTx = ROW_STROBE_C or r.timingTx = START_RUN_C)) then
+         elsif (r.txState = START_ACTIVE_ROW_S) then
+            v.timingTxK               := "0";
+            v.timingTx                := rowOrderRamOut;
+            v.timingData.rowIndex     := rowOrderRamOut;
+            v.rowOrderAddr            := initialNextRowSeq;
+            v.txState                 := ROW_INDEX_S;
+
+         -- The byte after START_RUN or a row-boundary control word carries the pending row index.
+         elsif (r.txState = ROW_INDEX_S) then
             v.timingTxK               := "0";
             v.timingTx                := rowOrderRamOut;
             v.timingData.rowIndexNext := rowOrderRamOut;
@@ -493,8 +511,8 @@ begin
 
          end if;
 
-         -- Need to end run more cleanly than this
-         if (r.timingData.endRun = '1' and r.timingData.rowSeq = 0) then
+         if (r.timingData.endRun = '1' and r.timingData.rowSeq = 0 and
+             r.timingData.rowTime = 0 and r.timingData.startRun = '0') then
             v.timingData.running := '0';
             v.timingData.sample  := '0';
             v.timingData.endRun  := '0';

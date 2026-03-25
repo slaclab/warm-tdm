@@ -50,16 +50,16 @@ package TimingPkg is
       endRun          : sl;                -- Strobed at end of run
       running         : sl;                -- Set high during run
       runTime         : slv(63 downto 0);  -- TimingClk counts since start of run
-      rowStrobe       : sl;                -- Moving to new row
+      rowStrobe       : sl;                -- Commit the pending row on a row-boundary event
       rowSeqStart     : sl;
       daqReadoutStart : sl;
       sample          : sl;
       firstSample     : sl;
       lastSample      : sl;
       loadDacs        : sl;
-      rowSeq          : slv(7 downto 0);   -- Sequence in row readout list
-      rowIndex        : slv(7 downto 0);   -- Current row index
-      rowIndexNext    : slv(7 downto 0);   -- Next row index
+      rowSeq          : slv(7 downto 0);   -- Sequence index of the active row in the row-order list
+      rowIndex        : slv(7 downto 0);   -- Active row index currently in effect
+      rowIndexNext    : slv(7 downto 0);   -- Pending row index preloaded for the next row strobe
       rowTime         : slv(31 downto 0);  -- timingClk counts since last row strobe
       rowSeqCount     : slv(63 downto 0);  -- Number of full loops through all rows
       daqReadoutCount : slv(63 downto 0);  -- Number of DAQ readouts

@@ -94,14 +94,21 @@ architecture rtl of TimingRx is
 
    signal rxClkFreq : slv(31 downto 0);
 
+   type RxStateType is (
+      CONTROL_S,
+      START_ACTIVE_ROW_S,
+      ROW_INDEX_S);
+
    type RegType is record
       timingRxData : LocalTimingType;
       vrSyncWait   : sl;
+      rxState      : RxStateType;
    end record RegType;
 
    constant REG_INIT_C : RegType := (
       timingRxData => LOCAL_TIMING_INIT_C,
-      vrSyncWait   => '0');
+      vrSyncWait   => '0',
+      rxState      => CONTROL_S);
 
    signal r   : RegType := REG_INIT_C;
    signal rin : RegType;
@@ -549,18 +556,25 @@ begin
          case timingRxData is
             when START_RUN_C =>
                v.timingRxData.startRun        := '1';
+               v.timingRxData.rowSeqStart     := '1';
+               v.timingRxData.daqReadoutStart := '1';
                v.timingRxData.runTime         := (others => '0');
+               v.timingRxData.rowTime         := (others => '0');
                v.timingRxData.rowSeqCount     := (others => '0');
                v.timingRxData.daqReadoutCount := (others => '0');
                v.timingRxData.running         := '1';
                v.timingRxData.sample          := '0';
-               v.timingRxData.rowSeq          := (others => '1');
+               v.timingRxData.rowSeq          := (others => '0');
+               v.timingRxData.rowIndex        := (others => '0');
+               v.timingRxData.rowIndexNext    := (others => '0');
                v.vrSyncWait                   := '0';
+               v.rxState                      := START_ACTIVE_ROW_S;
             when END_RUN_C =>
                v.timingRxData.endRun  := '1';
                v.timingRxData.running := '0';
                v.timingRxData.sample  := '0';
                v.vrSyncWait           := '0';
+               v.rxState              := CONTROL_S;
             when DAQ_READOUT_START_C =>
                v.timingRxData.rowStrobe       := '1';
                v.timingRxData.daqReadoutStart := '1';
@@ -571,6 +585,7 @@ begin
                v.timingRxData.daqReadoutCount := r.timingRxData.daqReadoutCount + 1;
                v.timingRxData.rowTime         := (others => '0');
                v.vrSyncWait                   := '0';
+               v.rxState                      := ROW_INDEX_S;
             when ROW_SEQ_START_C =>
                v.timingRxData.rowStrobe   := '1';
                v.timingRxData.rowSeqStart := '1';
@@ -579,11 +594,13 @@ begin
                v.timingRxData.rowSeqCount := r.timingRxData.rowSeqCount + 1;
                v.timingRxData.rowTime     := (others => '0');
                v.vrSyncWait               := '0';
+               v.rxState                  := ROW_INDEX_S;
             when ROW_STROBE_C =>
                v.timingRxData.rowStrobe := '1';
                v.timingRxData.rowSeq    := r.timingRxData.rowSeq + 1;
                v.timingRxData.rowIndex  := r.timingRxData.rowIndexNext;
                v.timingRxData.rowTime   := (others => '0');
+               v.rxState                := ROW_INDEX_S;
             when VR_SYNC_WAIT_C =>
                v.vrSyncWait := '1';
             when SAMPLE_START_C =>
@@ -600,9 +617,16 @@ begin
          end case;
       end if;
 
-      -- First word after row strobe or start run is rowIndex for next strobe
-      if (r.timingRxData.startRun = '1' or r.timingRxData.rowStrobe = '1') then
-         v.timingRxData.rowIndexNext := timingRxData;
+      if (timingRxValid = '1' and timingRxDataK = '0' and locked = '1') then
+         case r.rxState is
+            when START_ACTIVE_ROW_S =>
+               v.timingRxData.rowIndex := timingRxData;
+               v.rxState               := ROW_INDEX_S;
+            when ROW_INDEX_S =>
+               v.timingRxData.rowIndexNext := timingRxData;
+               v.rxState                   := CONTROL_S;
+            when others => null;
+         end case;
       end if;
 
       if (wordRst = '1') then
