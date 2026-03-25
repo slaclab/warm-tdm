@@ -114,7 +114,8 @@ architecture rtl of TimingTx is
       pwrSyncA                : sl;
       pwrSyncB                : sl;
       pwrSyncC                : sl;
-      -- Row-order RAM must look ahead to the row index byte that follows a control word.
+      -- Row-order RAM drives the row index byte that follows START_RUN and row-boundary control words.
+      -- START_RUN preloads row 0; later boundaries prefetch the row after the one being entered.
       rowOrderAddr            : slv(7 downto 0);
       -- Hold state for VR sync gating at the next row-sequence boundary.
       vrSyncWait              : sl;
@@ -258,6 +259,7 @@ begin
       variable rowSeqStartReq     : boolean;
       variable daqReadoutStartReq : boolean;
       variable nextRowSeq         : slv(7 downto 0);
+      variable prefetchRowSeq     : slv(7 downto 0);
       variable syncPulse          : sl;
    begin
       v := r;
@@ -369,6 +371,11 @@ begin
          nextRowSeq := (others => '0');
       end if;
 
+      prefetchRowSeq := nextRowSeq + 1;
+      if (nextRowSeq = r.numRows-1) then
+         prefetchRowSeq := (others => '0');
+      end if;
+
       -- A sequence-start boundary is the wrap from the final row back to row zero.
       -- The x"FF" case is used immediately after START_RUN so the first emitted boundary is also a sequence start.
       rowSeqStartReq := ((r.timingData.rowSeq = r.numRows-1) or (r.timingData.rowSeq = x"FF"));
@@ -404,6 +411,7 @@ begin
          v.timingData.rowIndex                := (others => '0');
          v.timingData.rowIndexNext            := (others => '0');
          v.daqReadoutPeriodCounter            := (others => '0');
+         -- The byte after START_RUN must preload the first row to be entered.
          v.rowOrderAddr                       := (others => '0');
          v.vrSyncWait                         := '0';
          v.txState                            := ROW_INDEX_S;
@@ -433,7 +441,8 @@ begin
             v.timingData.rowSeq       := nextRowSeq;
             v.timingData.rowIndex     := r.timingData.rowIndexNext;
             v.timingData.rowStrobe    := '1';
-            v.rowOrderAddr            := nextRowSeq;
+            -- Prefetch the row index that will be consumed on the following boundary.
+            v.rowOrderAddr            := prefetchRowSeq;
             v.txState                 := ROW_INDEX_S;
             v.vrSyncWait              := '0';
 
