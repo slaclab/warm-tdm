@@ -569,6 +569,7 @@ begin
                v.timingRxData.endRun  := '1';
                v.timingRxData.running := '0';
                v.timingRxData.sample  := '0';
+               v.timingRxData.rowTime := (others => '0');
                v.vrSyncWait           := '0';
                v.rxState              := CONTROL_S;
             when DAQ_READOUT_START_C =>

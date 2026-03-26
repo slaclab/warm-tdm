@@ -103,6 +103,7 @@ architecture rtl of TimingTx is
       sampleStartTime         : slv(31 downto 0);
       sampleEndTime           : slv(31 downto 0);
       stageNextRowLead        : slv(31 downto 0);
+      endRunPending          : sl;
       waveformCaptureTime     : slv(31 downto 0);
       daqReadoutPeriod        : slv(31 downto 0);
       daqReadoutPeriodCounter : slv(31 downto 0);
@@ -144,6 +145,7 @@ architecture rtl of TimingTx is
       sampleStartTime         => toSlv(32, 32),
       sampleEndTime           => toSlv(160, 32),                  -- Could be corner case here?
       stageNextRowLead        => toSlv(32, 32),
+      endRunPending          => '0',
       waveformCaptureTime     => toSlv(2, 32),
       daqReadoutPeriod        => toSlv(40, 32),  -- Readout once every 40 rowSequences
       daqReadoutPeriodCounter => (others => '0'),
@@ -280,7 +282,7 @@ begin
 
       -- Configuration
       axiSlaveRegister(axilEp, X"00", 0, v.timingData.startRun);
-      axiSlaveRegister(axilEp, X"04", 0, v.timingData.endRun);
+      axiSlaveRegister(axilEp, X"04", 0, v.endRunPending);
       axiSlaveRegister(axilEp, X"08", 0, v.rowPeriod);
       axiSlaveRegister(axilEp, X"0C", 0, v.numRows);
       axiSlaveRegister(axilEp, X"10", 0, v.sampleStartTime);
@@ -328,6 +330,7 @@ begin
 
       v.timingData.firstSample := '0';
       v.timingData.lastSample  := '0';
+      v.timingData.endRun      := '0';
       v.timingData.stageNextRow := '0';
 
       v.timingData.rowStrobe       := '0';
@@ -435,6 +438,7 @@ begin
          v.timingData.rowIndex                := (others => '0');
          v.timingData.rowIndexNext            := (others => '0');
          v.daqReadoutPeriodCounter            := (others => '0');
+         v.endRunPending                      := '0';
          -- The byte after START_RUN primes the first pending row to be committed on rowStrobe.
          v.rowOrderAddr                       := (others => '0');
          v.startupBoundaryPending             := '1';
@@ -460,33 +464,48 @@ begin
             v.vrSyncWait := '1';
 
          elsif (rowAdvanceFire) then
-            -- Commit the row transition on the same cycle that the boundary control word is emitted.
-            v.timingData.runTime      := r.timingData.runTime + 1;
-            v.timingData.rowTime      := (others => '0');
-            v.timingData.rowSeq       := nextRowSeq;
-            v.timingData.rowIndex     := r.timingData.rowIndexNext;
-            v.timingData.rowStrobe    := '1';
-            -- Prefetch the row index that will be consumed on the following boundary.
-            v.rowOrderAddr            := prefetchRowSeq;
-            v.startupBoundaryPending  := '0';
-            v.txState                 := ROW_INDEX_S;
-            v.vrSyncWait              := '0';
+            if (r.endRunPending = '1') then
+               -- Software end-run requests are honored only on a clean row boundary.
+               v.timingData.runTime      := r.timingData.runTime + 1;
+               v.timingData.rowTime      := (others => '0');
+               v.timingData.running      := '0';
+               v.timingData.sample       := '0';
+               v.timingData.endRun       := '1';
+               v.endRunPending           := '0';
+               v.startupBoundaryPending  := '0';
+               v.vrSyncWait              := '0';
+               v.txState                 := CONTROL_S;
+               v.timingTx                := END_RUN_C;
 
-            v.timingTx := ROW_STROBE_C;
-            if (rowSeqStartReq) then
-               v.timingData.rowSeqStart := '1';
-               v.timingData.rowSeqCount := r.timingData.rowSeqCount + 1;
-               v.timingTx               := ROW_SEQ_START_C;
+            else
+               -- Commit the row transition on the same cycle that the boundary control word is emitted.
+               v.timingData.runTime      := r.timingData.runTime + 1;
+               v.timingData.rowTime      := (others => '0');
+               v.timingData.rowSeq       := nextRowSeq;
+               v.timingData.rowIndex     := r.timingData.rowIndexNext;
+               v.timingData.rowStrobe    := '1';
+               -- Prefetch the row index that will be consumed on the following boundary.
+               v.rowOrderAddr            := prefetchRowSeq;
+               v.startupBoundaryPending  := '0';
+               v.txState                 := ROW_INDEX_S;
+               v.vrSyncWait              := '0';
 
-               if (daqReadoutStartReq) then
-                  v.timingData.daqReadoutStart := '1';
-                  v.timingData.daqReadoutCount := r.timingData.daqReadoutCount + 1;
-                  v.timingTx                   := DAQ_READOUT_START_C;
-               end if;
+               v.timingTx := ROW_STROBE_C;
+               if (rowSeqStartReq) then
+                  v.timingData.rowSeqStart := '1';
+                  v.timingData.rowSeqCount := r.timingData.rowSeqCount + 1;
+                  v.timingTx               := ROW_SEQ_START_C;
 
-               v.daqReadoutPeriodCounter := r.daqReadoutPeriodCounter + 1;
-               if (r.daqReadoutPeriodCounter = r.daqReadoutPeriod - 1) then
-                  v.daqReadoutPeriodCounter := (others => '0');
+                  if (daqReadoutStartReq) then
+                     v.timingData.daqReadoutStart := '1';
+                     v.timingData.daqReadoutCount := r.timingData.daqReadoutCount + 1;
+                     v.timingTx                   := DAQ_READOUT_START_C;
+                  end if;
+
+                  v.daqReadoutPeriodCounter := r.daqReadoutPeriodCounter + 1;
+                  if (r.daqReadoutPeriodCounter = r.daqReadoutPeriod - 1) then
+                     v.daqReadoutPeriodCounter := (others => '0');
+                  end if;
                end if;
             end if;
 
@@ -519,13 +538,6 @@ begin
 
          end if;
 
-         if (r.timingData.endRun = '1' and r.timingData.rowSeq = 0 and
-             r.startupBoundaryPending = '0') then
-            v.timingData.running := '0';
-            v.timingData.sample  := '0';
-            v.timingData.endRun  := '0';
-            v.timingTx           := END_RUN_C;
-         end if;
       end if;
 
 

@@ -38,7 +38,7 @@ These values are defined in [`TimingPkg.vhd`](/Users/bareese/warm-tdm/firmware/c
 | --- | --- |
 | `IDLE_C` | Idle fill character |
 | `START_RUN_C` | Start of run |
-| `END_RUN_C` | End of run |
+| `END_RUN_C` | Cleanly end the run on a row-boundary timeslot |
 | `ROW_SEQ_START_C` | Start of a new full row sequence |
 | `DAQ_READOUT_START_C` | Start of a row sequence that also begins a DAQ readout period |
 | `ROW_STROBE_C` | Advance to the next row within a sequence |
@@ -98,6 +98,11 @@ When the row sequence wrap also aligns with a DAQ readout interval, the boundary
   - sets `rowSeq = 0`
   - expects one following data byte:
     - that byte loads `rowIndexNext` for the first row-boundary event
+- `END_RUN_C`
+  - exits running state
+  - clears the sample level
+  - clears `rowTime`
+  - does not assert `rowStrobe` or commit a new row
 - `ROW_STROBE_C`
   - increments `rowSeq`
   - updates `rowIndex` from the previously received `rowIndexNext`
