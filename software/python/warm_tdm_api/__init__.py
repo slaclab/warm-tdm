@@ -12,8 +12,8 @@ from ._Tuning import *
 from ._ConfigSelect import *
 from ._SaStripChart import *
 from ._ArgParser import *
-from ._TdmDataReceiver import *
-from ._TdmGroupEmulate import *
+#from ._TdmDataReceiver import *
+#from ._TdmGroupEmulate import *
 from ._RunEmulate import *
 
 import os.path
