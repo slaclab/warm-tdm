@@ -7,9 +7,12 @@ import pyrogue.pydm
 import pyrogue.interfaces
 import rogue
 
-pyrogue.addLibraryPath(f'../python/')
-pyrogue.addLibraryPath(f'../../firmware/python/')
-pyrogue.addLibraryPath(f'../../firmware/submodules/surf/python')
+import os
+# If WARM_TDM_PATH is not set, will default to ../
+warm_tdm_path=os.environ.get("WARM_TDM_PATH", "../")
+pyrogue.addLibraryPath(os.path.join(warm_tdm_path,'software/python/'))
+pyrogue.addLibraryPath(os.path.join(warm_tdm_path,'firmware/python/'))
+pyrogue.addLibraryPath(os.path.join(warm_tdm_path,'firmware/submodules/surf/python'))
 
 import warm_tdm_api
 
