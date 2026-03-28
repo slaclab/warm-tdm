@@ -209,8 +209,8 @@ class TimingTx(pr.Device):
             disp = '{:d}'))
 
         self.add(pr.RemoteVariable(
-            name = "VrSyncEn",
-            description = 'When set, sequence-start boundaries wait for the local vrSync pulse before advancing.',
+            name = "PwrSyncEn",
+            description = 'When set, sequence-start boundaries wait for the local PwrSync pulse before advancing.',
             mode = 'RW',
             offset = 0x1C,
             bitOffset = 1,

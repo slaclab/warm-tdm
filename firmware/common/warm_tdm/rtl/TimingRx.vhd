@@ -100,13 +100,13 @@ architecture rtl of TimingRx is
 
    type RegType is record
       timingRxData : LocalTimingType;
-      vrSyncWait   : sl;
+      pwrSyncWait  : sl;
       rxState      : RxStateType;
    end record RegType;
 
    constant REG_INIT_C : RegType := (
       timingRxData => LOCAL_TIMING_INIT_C,
-      vrSyncWait   => '0',
+      pwrSyncWait  => '0',
       rxState      => CONTROL_S);
 
    signal r   : RegType := REG_INIT_C;
@@ -533,7 +533,7 @@ begin
    begin
       v := r;
 
-      if (v.timingRxData.running = '1' and r.vrSyncWait = '0') then
+      if (v.timingRxData.running = '1' and r.pwrSyncWait = '0') then
          v.timingRxData.runTime := r.timingRxData.runTime + 1;
          v.timingRxData.rowTime := r.timingRxData.rowTime + 1;
       end if;
@@ -563,14 +563,14 @@ begin
                v.timingRxData.sample          := '0';
                v.timingRxData.rowSeq          := (others => '0');
                v.timingRxData.rowIndexNext    := (others => '0');
-               v.vrSyncWait                   := '0';
+               v.pwrSyncWait                  := '0';
                v.rxState                      := ROW_INDEX_S;
             when END_RUN_C =>
                v.timingRxData.endRun  := '1';
                v.timingRxData.running := '0';
                v.timingRxData.sample  := '0';
                v.timingRxData.rowTime := (others => '0');
-               v.vrSyncWait           := '0';
+               v.pwrSyncWait          := '0';
                v.rxState              := CONTROL_S;
             when DAQ_READOUT_START_C =>
                v.timingRxData.rowStrobe       := '1';
@@ -581,7 +581,7 @@ begin
                v.timingRxData.rowSeqCount     := r.timingRxData.rowSeqCount + 1;
                v.timingRxData.daqReadoutCount := r.timingRxData.daqReadoutCount + 1;
                v.timingRxData.rowTime         := (others => '0');
-               v.vrSyncWait                   := '0';
+               v.pwrSyncWait                  := '0';
                v.rxState                      := ROW_INDEX_S;
             when ROW_SEQ_START_C =>
                v.timingRxData.rowStrobe   := '1';
@@ -590,7 +590,7 @@ begin
                v.timingRxData.rowIndex    := r.timingRxData.rowIndexNext;
                v.timingRxData.rowSeqCount := r.timingRxData.rowSeqCount + 1;
                v.timingRxData.rowTime     := (others => '0');
-               v.vrSyncWait               := '0';
+               v.pwrSyncWait              := '0';
                v.rxState                  := ROW_INDEX_S;
             when ROW_STROBE_C =>
                v.timingRxData.rowStrobe := '1';
@@ -598,8 +598,8 @@ begin
                v.timingRxData.rowIndex  := r.timingRxData.rowIndexNext;
                v.timingRxData.rowTime   := (others => '0');
                v.rxState                := ROW_INDEX_S;
-            when VR_SYNC_WAIT_C =>
-               v.vrSyncWait := '1';
+            when PWR_SYNC_WAIT_C =>
+               v.pwrSyncWait := '1';
             when SAMPLE_START_C =>
                v.timingRxData.sample      := '1';
                v.timingRxData.firstSample := '1';

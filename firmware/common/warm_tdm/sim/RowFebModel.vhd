@@ -35,8 +35,8 @@ entity RowFebModel is
       feI2cScl     : inout slv(3 downto 0);
       feI2cSda     : inout slv(3 downto 0);
       resetB       : in    sl;
-      feVrSyncA    : in    sl;
-      feVrSyncB    : in    sl;
+      fePwrSyncA   : in    sl;
+      fePwrSyncB   : in    sl;
       feDacMosi    : in    sl;
       feDacMiso    : out   sl;
       feDacSclk    : in    sl;

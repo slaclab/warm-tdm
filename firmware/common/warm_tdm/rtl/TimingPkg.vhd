@@ -41,7 +41,7 @@ package TimingPkg is
    constant ROW_STROBE_C        : slv(7 downto 0) := "01111100";  -- K28.3
    constant SAMPLE_START_C      : slv(7 downto 0) := "10011100";  -- K28.4
    constant SAMPLE_END_C        : slv(7 downto 0) := "11011100";  -- K28.6
-   constant VR_SYNC_WAIT_C      : slv(7 downto 0) := "11111100";  -- K28.7
+   constant PWR_SYNC_WAIT_C     : slv(7 downto 0) := "11111100";  -- K28.7
    constant STAGE_NEXT_ROW_C    : slv(7 downto 0) := "11110111";  -- K23.7
    constant WAVEFORM_CAPTURE_C  : slv(7 downto 0) := "11111110";  -- K30.7
 
