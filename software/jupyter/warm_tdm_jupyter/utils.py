@@ -1,82 +1,266 @@
-import os
-import time
-import datetime
+from .client import Client
 
-class Session:
-    """Represents a session for organizing and managing data.
-
-    Attributes:
-        session (object): The Jupyter session object.
-        session_id (str): The session ID.
-        datedir (str): The directory for the current date.
-        date (str): The current date in the format 'YYYYMMDD'.
-        ctime0 (str): The creation time of the current session.
-        sessiondir (str): The directory for the current session.
+def print_hardware():
     """
-    jupyter_session = None
-    jupyter_session_id = None
-    datedir = None
-    date = None
-    ctime0 = None
-    sessiondir = None
+    Print the hardware and firmware versions for the column and row boards.
 
-def new_session(path):
-    """Create a new session and set up the necessary directories.
+    This function retrieves the hardware version information (build stamp, device DNA, Git hash, and image name)
+    for the column and row boards from the `Client.cbs` and `Client.rbs` dictionaries, respectively, and prints
+    the information in a formatted way.
+    """
+    boards = {}
+    if Client.cbs:
+        boards.update({f"Column {i}": board for i, board in Client.cbs.items()})
+    if Client.rbs:
+        boards.update({f"Row {i}": board for i, board in Client.rbs.items()})
 
-    This function checks the provided path for writing output to for
-    write access, and sets up the necessary directories to organize the data
-    from the current session.
+    if boards:
+        print("+" * 80)
+        print("Hardware Information")
+        print("+" * 80)
 
-    If the provided path is not accessible, it defaults to the 'data' directory
-    in the parent directory of the current working directory. If that directory
-    is also not accessible, it defaults to the '/tmp/' directory.
+        for board_name, board in sorted(boards.items()):
+            try:
+                board_type, board_index = board_name.split(" ")
+                print(f"{board_type} Board {board_index}:")
+
+                print(f"  BuildStamp       : {board.WarmTdmCore.WarmTdmCommon2.AxiVersion.BuildStamp.get()}")
+                print(f"  DeviceDna        : {hex(board.WarmTdmCore.WarmTdmCommon2.AxiVersion.DeviceDna.get())}")
+                print(f"  Git hash         : {hex(board.WarmTdmCore.WarmTdmCommon2.AxiVersion.GitHash.get())}")
+                print(f"  Image Name       : {board.WarmTdmCore.WarmTdmCommon2.AxiVersion.ImageName.get()}")
+                print("---")
+            except (AttributeError, TypeError) as e:
+                print(f"Error retrieving information for {board_name}: {e}")
+        print("+" * 80)
+    else:
+        print("No column or row boards found.")
+
+def disable_leds():
+    """Disable the LEDs on all column and row boards.
+
+    This function iterates through the column boards (Client.cbs) and row boards (Client.rbs)
+    dictionaries, and sets the LED enable (LedEn) attribute of the WarmTdmConfig object for
+    each board to False, disabling the LEDs.  When disabled, the LEDs are still lit, but no 
+    longer blink to indicate status.
+
+    If there are no column boards or row boards available, the function will print a
+    corresponding message.
+    """
+    boards = {}
+    if Client.cbs:
+        boards.update({f"Column {i}": board for i, board in Client.cbs.items()})
+    if Client.rbs:
+        boards.update({f"Row {i}": board for i, board in Client.rbs.items()})
+
+    if boards:
+        for board_name, board in sorted(boards.items()):
+            try:
+                board_type, board_index = board_name.split(" ")
+                board.WarmTdmCore.WarmTdmCommon2.WarmTdmConfig.LedEn.set(False)
+                print(f"Disabled LEDs for {board_type} Board {board_index}.")
+            except (AttributeError, TypeError) as e:
+                print(f"Error disabling LEDs for {board_name}: {e}")
+    else:
+        print("No column or row boards found.")
+
+def set_cryo_resistance(Rcryo_Ohm):
+    """
+    Set the cryostat roundtrip resistance for all column and row boards.
+
+    This function iterates through the column boards (Client.cbs) and row boards (Client.rbs)
+    dictionaries, and sets the cryostat roundtrip resistance (CableR) for various components
+    on each board.
+
+    For column boards, the resistance is set for the following components:
+    - SAFbAmp.CableR
+    - SQ1BiasAmp.CableR
+    - SQ1FbAmp.CableR
+    - TesBiasAmp.CableR
+    - SAAmp.R_CABLE
+
+    For row boards, the resistance is set for the Amp[rs].CableR, where rs is in the range of 0 to 31.
+
+    If there are no column boards or row boards available, the function will print a
+    corresponding message.
+    """
+    boards = {}
+    if Client.cbs:
+        boards.update({f"Column {i}": board for i, board in Client.cbs.items()})
+    if Client.rbs:
+        boards.update({f"Row {i}": board for i, board in Client.rbs.items()})
+
+    if boards:
+        for board_name, board in sorted(boards.items()):
+            try:
+                board_type, board_index = board_name.split(" ")
+                if board_type == "Column":
+                    for ch in range(8):
+                        getattr(board.AnalogFrontEnd, f'Channel[{ch}]').SAFbAmp.CableR.set(Rcryo_Ohm)
+                        getattr(board.AnalogFrontEnd, f'Channel[{ch}]').SQ1BiasAmp.CableR.set(Rcryo_Ohm)
+                        getattr(board.AnalogFrontEnd, f'Channel[{ch}]').SQ1FbAmp.CableR.set(Rcryo_Ohm)
+                        getattr(board.AnalogFrontEnd, f'Channel[{ch}]').TesBiasAmp.CableR.set(Rcryo_Ohm)
+                        getattr(board.AnalogFrontEnd, f'Channel[{ch}]').SAAmp.R_CABLE.set(Rcryo_Ohm)
+                    print(f"Set cryostat resistance to {Rcryo_Ohm} Ohm for Column Board {board_index}.")
+                elif board_type == "Row":
+                    for rs in range(32):
+                        getattr(board.AnalogFrontEnd, f'Amp[{rs}]').CableR.set(Rcryo_Ohm)
+                    print(f"Set cryostat resistance to {Rcryo_Ohm} Ohm for Row Board {board_index}.")
+            except (AttributeError, TypeError) as e:
+                print(f"Error setting cryostat resistance for {board_name}: {e}")
+    else:
+        print("No column or row boards found.")
+
+def set_ps_synch(sync_mode):
+    """
+    Set the power supply synchronization mode for all column and row boards.
+
+    This function iterates through the column boards (Client.cbs) and row boards (Client.rbs)
+    dictionaries, and sets the power supply synchronization registers (PwrSyncA, PwrSyncB,
+    PwrSyncC, and PwrSyncEn) based on the provided `sync_mode`.
 
     Parameters:
-        path (str): The path to be used for storing session data.
+    sync_mode (int): 0 to unsynchronize the power supplies, 1 to synchronize the power supplies.
 
-    Raises:
-        OSError: If there is an error creating the date or session directories.
+    If there are no column boards or row boards available, the function will print a
+    corresponding message.
     """
-    # Get Jupyter session ID
-    import jupyter_client.session
-    Session.jupyter_session = jupyter_client.session.Session()
-    Session.jupyter_session_id = Session.jupyter_session.session
+    boards = {}
+    if Client.cbs:
+        boards.update({f"Column {i}": board for i, board in Client.cbs.items()})
+    if Client.rbs:
+        boards.update({f"Row {i}": board for i, board in Client.rbs.items()})
 
-    # Check if path exists and is writable
-    if os.path.isdir(path) and os.access(path, os.W_OK):
-        pass
+    if boards:
+        for board_name, board in sorted(boards.items()):
+            try:
+                board_type, board_index = board_name.split(" ")
+                if sync_mode == 0:
+                    board.WarmTdmCore.Timing.TimingTx.PwrSyncA.set(0)
+                    board.WarmTdmCore.Timing.TimingTx.PwrSyncB.set(0)
+                    board.WarmTdmCore.Timing.TimingTx.PwrSyncC.set(0)
+                    board.WarmTdmCore.Timing.TimingTx.PwrSyncEn.set(0)
+                    print(f"Unsynchronized power supplies for {board_type} Board {board_index}.")
+                elif sync_mode == 1:
+                    board.WarmTdmCore.Timing.TimingTx.PwrSyncA.set(2)
+                    board.WarmTdmCore.Timing.TimingTx.PwrSyncB.set(2)
+                    board.WarmTdmCore.Timing.TimingTx.PwrSyncC.set(2)
+                    board.WarmTdmCore.Timing.TimingTx.PwrSyncEn.set(1)
+                    print(f"Synchronized power supplies for {board_type} Board {board_index}.")
+                else:
+                    print(f"Invalid sync_mode value: {sync_mode}")
+            except (AttributeError, TypeError) as e:
+                print(f"Error setting power supply synchronization for {board_name}: {e}")
     else:
-        print(f"Warning: path '{path}' requested for writing data does not exist or is not writable.")
+        print("No column or row boards found.")
 
-        # Default path to local warm_tdm/software/data directory
-        cwd = os.getcwd()
-        path = os.path.join(os.path.dirname(cwd), 'data')
+def check_ps_synch():
+    """
+    Check the power supply synchronization state for all column and row boards.
 
-        # Check if path exists and is writable
-        if os.path.isdir(path) and os.access(path, os.W_OK):
-            pass
-        else:
-            print(f"Warning: fallback '{path}' requested for writing data also does not exist or is not writable.")
-            print(f"Warning: Defaulting to writing data to {os.path.expanduser('~')}.")
-            path = os.path.expanduser("~")
+    This function iterates through the column boards (Client.cbs) and row boards (Client.rbs)
+    dictionaries, and checks the power supply synchronization registers (PwrSyncA, PwrSyncB,
+    PwrSyncC, and PwrSyncEn) to determine the overall synchronization state.
+    """
+    boards = {}
+    if Client.cbs:
+        boards.update({f"Column {i}": board for i, board in Client.cbs.items()})
+    if Client.rbs:
+        boards.update({f"Row {i}": board for i, board in Client.rbs.items()})
 
-    # Set up session-specific variables
-    Session.date = datetime.datetime.now().strftime('%Y%m%d')
-    Session.datedir = os.path.join(path, Session.date)
-    Session.ctime0 = str(int(time.time()))
-
-    # Create data directory, if it doesn't already exist
-    if not os.path.isdir(Session.datedir):
+    sync_state = set()
+    for board_name, board in sorted(boards.items()):
         try:
-            os.makedirs(Session.datedir)
-        except OSError as e:
-            print(f"Error creating date directory '{Session.datedir}': {e}")
+            board_type, board_index = board_name.split(" ")
+            if (
+                board.WarmTdmCore.Timing.TimingTx.PwrSyncA.get() == 2
+                and board.WarmTdmCore.Timing.TimingTx.PwrSyncB.get() == 2
+                and board.WarmTdmCore.Timing.TimingTx.PwrSyncC.get() == 2
+                and board.WarmTdmCore.Timing.TimingTx.PwrSyncEn.get() == 1
+            ):
+                sync_state.add("Synchronized")
+            else:
+                sync_state.add("Unsynchronized")
+        except (AttributeError, TypeError) as e:
+            print(f"Error checking power supply synchronization for {board_name}: {e}")
 
-    # Create session directory based on creation time
-    Session.sessiondir = os.path.join(Session.datedir, f'{Session.ctime0}')
-    try:
-        os.makedirs(Session.sessiondir, exist_ok=False)
-    except OSError as e:
-        print(f"Error creating session directory '{Session.sessiondir}': {e}")
+    if len(sync_state) == 1:
+        print(f"Power supplies are {sync_state.pop()}.")
+    else:
+        print("Power supplies are in a mixed state (some synchronized, some unsynchronized).")
 
-    print(f"New session directory created: {Session.sessiondir}")
+#def take_raw(col, outputdir=None, synch=False, fadc=125e6, decimation=0):
+#    # Which column board?
+#    cb=Client.cbs[int(col/8)]
+#    
+#    # What's the last wf file saved to disk?
+#    if outputdir is None:
+#        outputdir=Client.sessiondir
+#    
+#    # Save captures
+#    Client.hwg.WaveformCaptureReceiver.SaveData.set(True)
+#
+#    # Take all samples on one column 
+#    cb.DataPath.WaveformCapture.AllChannels.set(False)
+#    cb.DataPath.WaveformCapture.SelectedChannel.set(col)
+#    cb.DataPath.WaveformCapture.Decimation.set(decimation)
+#    
+#    # also just plot that channel
+#    hwg.WaveformCaptureReceiver.PlotColumn.set(col)
+#    hwg.WaveformCaptureReceiver.PlotWaveform.set(True)
+#
+#    if synch:
+#        # Trigger a synchronized capture
+#        #cb.WarmTdmCore.Timing.TimingTx.WaveformCaptureTime.set(2) # don't set to 0 or 1 or won't capture
+#        cb.WarmTdmCore.Timing.TimingTx.WaveformCapture()
+#    else:
+#        cb.DataPath.WaveformCapture.CaptureWaveform()
+#
+#    while get_latest_file(path='/home/cryo/warm-tdm/warm-tdm/software/data/*.npy')==lwf:
+#        time.sleep(1)
+#    
+#    # Done saving captures
+#    hwg.WaveformCaptureReceiver.SaveData.set(False)
+#    
+#    return get_latest_file(path=outputdir/*.npy')
+        
+
+#def multi_fast(col, synch=False, decimation=0):
+#    """
+#    Capture fast waveforms for multiple columns in a column board.
+#
+#    This function captures fast waveforms for the specified number of columns on the column
+#    board (cb). It creates a new directory named "raw_CTIME", where CTIME is the integer
+#    current time, and saves the waveform files to that directory.
+#
+#    Parameters:
+#    col (int): The column to take fast waveforms on.
+#    synch (bool, optional): Whether to trigger synchronized captures. Default is False.
+#    decimation (int, optional): The decimation factor. Default is 0.
+#    """
+#    fadc=125e6
+#    ctime = int(time.time())
+#    save_dir = os.path.join(Client.sessiondir, f'raw_{ctime}')
+#    os.makedirs(save_dir, exist_ok=True)
+#
+#    wfs=[]
+#    for ii in range(nwfs):
+#        wfs.append(take_fast(col=col,synch=synch))
+#        time.sleep(0.1) # make sure file is written
+#    
+#    for col in range(num_cols):
+#        #file_path = take_fast(cb, col, synch, fadc, decimation)
+#        new_file_path = os.path.join(save_dir, os.path.basename(file_path))
+#        os.rename(file_path, new_file_path)
+#        print(f"Saved waveform for column {col} to {new_file_path}")
+#
+#def multi_fast(cb, hwg,nwfs, col, synch=False):
+#    wfs=[]
+#    for ii in range(nwfs):
+#        wfs.append(take_fast(cb, hwg,col=col,synch=synch))
+#        time.sleep(1) # make sure file is written
+#    # Write to text file on disk for later lookup
+#    idxfn=f'{int(time.time())}_raw.txt'
+#    with open(os.path.join('/home/cryo/warm-tdm/warm-tdm/software/data/',idxfn), 'w') as f:
+#        for wf in wfs:
+#            f.write(f"{wf}\n")
+#    return os.path.join('/home/cryo/warm-tdm/warm-tdm/software/data/',idxfn)

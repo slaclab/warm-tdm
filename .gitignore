@@ -9,3 +9,4 @@ __pycache__/
 
 # Directories with YYYYMMDD format
 [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]
+*_raw.txt
