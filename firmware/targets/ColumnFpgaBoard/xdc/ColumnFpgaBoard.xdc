@@ -350,8 +350,8 @@ set_property -dict { PACKAGE_PIN A19 IOSTANDARD LVCMOS33 } [get_ports { feThermi
 
 
 # FE VR Sync
-set_property -dict {PACKAGE_PIN D14 IOSTANDARD LVCMOS33 } [get_ports { feVrSyncA }];
-set_property -dict {PACKAGE_PIN A15 IOSTANDARD LVCMOS33 } [get_ports { feVrSyncB }];
+set_property -dict {PACKAGE_PIN D14 IOSTANDARD LVCMOS33 } [get_ports { fePwrSyncA }];
+set_property -dict {PACKAGE_PIN A15 IOSTANDARD LVCMOS33 } [get_ports { fePwrSyncB }];
 
 #FE I2C
 set_property -dict {PACKAGE_PIN A8  IOSTANDARD LVCMOS33 } [get_ports { tesDacSclk }];
@@ -370,4 +370,3 @@ set_property BITSTREAM.CONFIG.CONFIGRATE 33  [current_design]
 set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 1 [current_design]
 set_property CFGBVS VCCO [current_design]
 set_property CONFIG_VOLTAGE 3.3 [current_design]
-

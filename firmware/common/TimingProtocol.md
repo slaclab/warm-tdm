@@ -13,7 +13,7 @@ The protocol carries:
 - sample-window markers
 - next-row staging markers
 - waveform-capture markers
-- an explicit wait marker used when `vrSync` is enabled
+- an explicit wait marker used when `pwrSync` gating is enabled
 
 `TimingTx` is the source of truth for row sequencing. `TimingRx` reconstructs timing state from the received control characters.
 
@@ -44,7 +44,7 @@ These values are defined in [`TimingPkg.vhd`](/Users/bareese/warm-tdm/firmware/c
 | `ROW_STROBE_C` | Advance to the next row within a sequence |
 | `SAMPLE_START_C` | Start sample window |
 | `SAMPLE_END_C` | End sample window |
-| `VR_SYNC_WAIT_C` | Transmitter is holding at a pending sequence-start boundary, waiting for `vrSync` |
+| `PWR_SYNC_WAIT_C` | Transmitter is holding at a pending sequence-start boundary, waiting for `pwrSync` |
 | `STAGE_NEXT_ROW_C` | Stage the pending row into downstream DAC input registers |
 | `WAVEFORM_CAPTURE_C` | Waveform capture trigger |
 
@@ -131,7 +131,7 @@ After any row-boundary control word, the next received data byte is captured int
 | `startRun` | `sl` | One-cycle strobe asserted when a run starts. This corresponds to transmission or reception of `START_RUN_C`. |
 | `endRun` | `sl` | One-cycle strobe asserted when a run ends. This corresponds to transmission or reception of `END_RUN_C`. |
 | `running` | `sl` | Level that remains high while the timing engine is in an active run. |
-| `runTime` | `slv(63 downto 0)` | Number of `TimingClk` cycles elapsed since the current run started. In `vrSync` wait mode this counter is intentionally held on both Tx and Rx. |
+| `runTime` | `slv(63 downto 0)` | Number of `TimingClk` cycles elapsed since the current run started. In `pwrSync` wait mode this counter is intentionally held on both Tx and Rx. |
 | `rowStrobe` | `sl` | One-cycle strobe asserted when the pending row is committed on a row-boundary event. |
 | `rowSeqStart` | `sl` | One-cycle strobe asserted when a row boundary starts a new pass through the full row list. This is asserted with `ROW_SEQ_START_C` and `DAQ_READOUT_START_C`. |
 | `daqReadoutStart` | `sl` | One-cycle strobe asserted when a sequence-start boundary also starts a DAQ readout interval. This is asserted with `DAQ_READOUT_START_C`. |
@@ -142,7 +142,7 @@ After any row-boundary control word, the next received data byte is captured int
 | `rowSeq` | `slv(7 downto 0)` | Sequence index within the programmed row-order list for the currently active row. |
 | `rowIndex` | `slv(7 downto 0)` | Active row index currently in effect. This is the row index consumed by downstream logic. |
 | `rowIndexNext` | `slv(7 downto 0)` | Pending row index already preloaded for the next row strobe. |
-| `rowTime` | `slv(31 downto 0)` | Number of `TimingClk` cycles elapsed since the most recent row-boundary event. In `vrSync` wait mode this counter is intentionally held on both Tx and Rx. |
+| `rowTime` | `slv(31 downto 0)` | Number of `TimingClk` cycles elapsed since the most recent row-boundary event. In `pwrSync` wait mode this counter is intentionally held on both Tx and Rx. |
 | `rowSeqCount` | `slv(63 downto 0)` | Count of completed full passes through the row-order list. This increments on each asserted `rowSeqStart`. |
 | `daqReadoutCount` | `slv(63 downto 0)` | Count of DAQ readout intervals started so far. This increments on each asserted `daqReadoutStart`. |
 | `waveformCapture` | `sl` | One-cycle strobe asserted when a waveform capture trigger is issued, corresponding to `WAVEFORM_CAPTURE_C`. |
@@ -165,11 +165,11 @@ The intended interpretation is:
 
 Between `START_RUN_C` and the first row-boundary event, `rowIndexNext` is valid and `rowIndex` still reflects the pre-run/idle value. `stageNextRow` may be asserted in that interval so the first pending row can be prepared early. The first asserted `rowStrobe` is also the first `rowSeqStart` (and `daqReadoutStart` when the DAQ period counter is zero), and that is the point where the row index stored at row-order address 0 becomes active.
 
-## `vrSync` Behavior
+## `pwrSync` Behavior
 
 ### Purpose
 
-When `vrSyncEn` is set in `TimingTx`, sequence-start boundaries are gated by the local `vrSync` pulse.
+When `PwrSyncEn` is set in `TimingTx`, sequence-start boundaries are gated by the local `pwrSync` pulse.
 
 This affects only boundaries that would emit:
 
@@ -178,7 +178,7 @@ This affects only boundaries that would emit:
 
 ### Hold behavior
 
-When a sequence-start boundary is due and `vrSync` has not yet arrived:
+When a sequence-start boundary is due and `pwrSync` has not yet arrived:
 
 - `TimingTx` does not advance the row sequence
 - `runTime` is held
@@ -188,23 +188,23 @@ When a sequence-start boundary is due and `vrSync` has not yet arrived:
 - `daqReadoutPeriodCounter` is held
 - `daqReadoutCount` is held
 
-While waiting, `TimingTx` transmits `VR_SYNC_WAIT_C`.
+While waiting, `TimingTx` transmits `PWR_SYNC_WAIT_C`.
 
 ### Release behavior
 
-When `vrSync` arrives:
+When `pwrSync` arrives:
 
 - the pending sequence-start boundary is emitted immediately
 - the row transition is committed on that same cycle
 - the row index byte follows on the next cycle as usual
 
-## Why `VR_SYNC_WAIT_C` Exists
+## Why `PWR_SYNC_WAIT_C` Exists
 
 `TimingRx` normally reconstructs `runTime` and `rowTime` by free-running between boundary characters.
 
-Without an explicit wait marker, the receiver would continue counting during a `vrSync` hold and drift away from the transmitter.
+Without an explicit wait marker, the receiver would continue counting during a `pwrSync` hold and drift away from the transmitter.
 
-`VR_SYNC_WAIT_C` fixes that by allowing `TimingRx` to:
+`PWR_SYNC_WAIT_C` fixes that by allowing `TimingRx` to:
 
 - latch a wait state
 - stop incrementing `runTime` and `rowTime`
@@ -234,10 +234,10 @@ Special case:
 
 - `pwrSyncA` is never allowed to drive high; `HIGH` is treated as low
 
-The internal `vrSync` pulse is generated from the same divider rollover used for the oscillating power-sync outputs. This guarantees deterministic alignment between:
+The internal `pwrSync` pulse is generated from the same divider rollover used for the oscillating power-sync outputs. This guarantees deterministic alignment between:
 
 - the outgoing `pwrSync` waveforms
-- the `vrSync` pulse
+- the `pwrSync` pulse
 - the row-sequence hold/release logic
 
 ## Software Register Map
@@ -262,8 +262,8 @@ If you are debugging the timing link, the most important rule is:
 - `START_RUN_C` is followed by one row-index byte that primes the first pending row
 - every later row-boundary control character is followed by one pending-row byte
 
-If you are debugging `vrSync`, the next rule is:
+If you are debugging `pwrSync`, the next rule is:
 
-- a sequence-start boundary may pause on repeated `VR_SYNC_WAIT_C` characters until the local sync pulse arrives
+- a sequence-start boundary may pause on repeated `PWR_SYNC_WAIT_C` characters until the local sync pulse arrives
 
 Once the sync pulse arrives, the next transmitted control character will be `ROW_SEQ_START_C` or `DAQ_READOUT_START_C`, followed by the pending row index byte for the row after the newly entered row.

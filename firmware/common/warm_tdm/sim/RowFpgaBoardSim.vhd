@@ -57,8 +57,8 @@ architecture sim of RowFpgaBoardSim is
    signal feI2cScl     : slv(3 downto 0);
    signal feI2cSda     : slv(3 downto 0);
    signal resetB       : sl;
-   signal feVrSyncA    : sl;
-   signal feVrSyncB    : sl;
+   signal fePwrSyncA   : sl;
+   signal fePwrSyncB   : sl;
    signal feDacMosi    : sl;
    signal feDacMiso    : sl;
    signal feDacSclk    : sl;
@@ -87,8 +87,8 @@ begin
          feI2cScl          => feI2cScl,
          feI2cSda          => feI2cSda,
          resetB            => resetB,
-         feVrSyncA         => feVrSyncA,
-         feVrSyncB         => feVrSyncB,
+         fePwrSyncA        => fePwrSyncA,
+         fePwrSyncB        => fePwrSyncB,
          feDacMosi         => feDacMosi,
          feDacMiso         => feDacMiso,
          feDacSclk         => feDacSclk,
@@ -123,8 +123,8 @@ begin
          feI2cScl     => feI2cScl,      -- [inout]
          feI2cSda     => feI2cSda,      -- [inout]
          resetB       => resetB,        -- [in]
-         feVrSyncA    => feVrSyncA,     -- [in]
-         feVrSyncB    => feVrSyncB,     -- [in]
+         fePwrSyncA   => fePwrSyncA,    -- [in]
+         fePwrSyncB   => fePwrSyncB,    -- [in]
          feDacMosi    => feDacMosi,     -- [in]
          feDacMiso    => feDacMiso,     -- [out]
          feDacSclk    => feDacSclk,     -- [in]

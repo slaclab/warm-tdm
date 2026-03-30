@@ -202,8 +202,8 @@ entity ColumnFpgaBoardAwaXe is
       resetB : out sl := '1';
 
       -- VR Synchronization
-      feVrSyncA : out sl;
-      feVrSyncB : out sl;
+      fePwrSyncA : out sl;
+      fePwrSyncB : out sl;
 
       -- DAC SPI
       feDacMosi   : out sl;

@@ -185,9 +185,9 @@ entity RowFpgaBoard is
       -- Asic Reset
       resetB : out sl;
 
-      -- VR Synchronization
-      feVrSyncA : out sl;
-      feVrSyncB : out sl;
+      -- Power Synchronization
+      fePwrSyncA : out sl;
+      fePwrSyncB : out sl;
 
       -- DAC SPI
       feDacMosi   : out sl;

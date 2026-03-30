@@ -44,8 +44,8 @@ entity RowFpgaBoardModel is
       feI2cScl     : inout slv(3 downto 0);
       feI2cSda     : inout slv(3 downto 0);
       resetB       : out   sl;
-      feVrSyncA    : out   sl;
-      feVrSyncB    : out   sl;
+      fePwrSyncA   : out   sl;
+      fePwrSyncB   : out   sl;
       feDacMosi    : out   sl;
       feDacMiso    : in    sl;
       feDacSclk    : out   sl;
@@ -254,8 +254,8 @@ begin
          feI2cScl         => feI2cScl,          -- [inout]
          feI2cSda         => feI2cSda,          -- [inout]
          resetB           => resetB,            -- [out]
-         feVrSyncA        => feVrSyncA,         -- [out]
-         feVrSyncB        => feVrSyncB,         -- [out]
+         fePwrSyncA       => fePwrSyncA,        -- [out]
+         fePwrSyncB       => fePwrSyncB,        -- [out]
          feDacMosi        => feDacMosi,         -- [out]
          feDacMiso        => feDacMiso,         -- [in]
          feDacSclk        => feDacSclk,         -- [out]
