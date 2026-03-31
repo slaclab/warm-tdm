@@ -110,7 +110,7 @@ class AdcDsp(pr.Device):
             base = pr.UInt,
             hidden = False,
             mode = 'RW',
-            bitSize = 32,
+            bitSize = 256,
             bitOffset = 0))
         
         self.add(pr.RemoteVariable(

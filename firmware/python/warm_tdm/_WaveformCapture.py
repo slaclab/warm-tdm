@@ -16,6 +16,7 @@ import matplotlib.animation as animation
 import matplotlib.patches as patches
 import matplotlib.path as path
 import datetime
+from pathlib import Path
 
 def channel_iter(ch):
     if ch >= 8:
@@ -349,6 +350,10 @@ class WaveformCaptureReceiver(pr.DataReceiver):
             name = 'SaveData',
             value = False))
 
+        self.add(pr.LocalVariable(
+            name = 'LastSavedFileName',
+            value = ''))
+
         @self.command()
         def CaptureAndWait():
             self.Updated.set(False)
@@ -422,8 +427,9 @@ class WaveformCaptureReceiver(pr.DataReceiver):
 
             if self.SaveData.value():
                 timestr = time.strftime("%Y%m%d-%H%M%S")
-                filename = f'../data/Waveform_{timestr}.npy'
+                filename = Path(f'../data/Waveform_{timestr}.npy').resolve()
                 np.save(filename, self.RawData.value())
+                self.LastSavedFileName.set(str(filename))
 
 
 def plot_waveform_channel(ch, ax, values, src, multi_channel):
@@ -468,30 +474,24 @@ def plot_waveform_channel(ch, ax, values, src, multi_channel):
     ax.vlines(rowStrobes,  ymin=ymin, ymax=ymax, color='b')
 
 def plot_histogram_channel(ch, ax, values, src, multi_channel):
-    #print(f'plot_histogram_channel(ch={ch})')
-    #print(values)
     ax.clear()
-
     plot_values = values[0]
-    if src == 'ADC Counts':
-        mean = np.int32(plot_values.mean())
-        low = np.int32(plot_values.min())
-        high = np.int32(plot_values.max())
-        bins = np.arange(low-10, high+10, 1)
-        rms = plot_values.std()
-        units = src
-        ax.hist(plot_values, bins, histtype='bar')#, density=True)
-    else:
-        #print('stepfilled')
-        values_uv = plot_values * 1.0e6
-        units = f'{src} -  \u03bcV'
-        bins = 50
-        ax.hist(values_uv, bins=bins, histtype='stepfilled')
 
-    ax.xaxis.set_ticks_position('bottom')
-    ax.yaxis.set_ticks_position('left')
+    if src == 'ADC Counts':
+        low = int(plot_values.min())
+        high = int(plot_values.max())
+        edges = np.arange(low - 10, high + 10, 1)
+        counts, edges = np.histogram(plot_values, bins=edges)
+        units = src
+        ax.stairs(counts, edges)
+    else:
+        values_uv = np.asarray(plot_values, dtype=np.float32) * 1.0e6
+        counts, edges = np.histogram(values_uv, bins=50)
+        units = f'{src} - ?V'
+        ax.stairs(counts, edges, fill=True)
+
     if multi_channel:
-        ax.yaxis.set_ticklabels([])
+        ax.tick_params(axis='y', labelleft=False)
         if ch == 7:
             ax.set_xlabel(units)
         elif ch == 0:
@@ -503,42 +503,28 @@ def plot_histogram_channel(ch, ax, values, src, multi_channel):
 
 
 def plot_psd_channel(ch, ax, values, src, multi_channel):
-    #print(f'plot_psd_channel(ch={ch})')
-    plot_values = values[0]
+    plot_values = np.asarray(values[0], dtype=np.float32)
+    freq = 125.0e6
+    mean_subtracted = plot_values - plot_values.mean()
+    freqs, pxx_den = scipy.signal.periodogram(mean_subtracted, freq, scaling='density')
+    pxx = 1e9 * np.sqrt(pxx_den)
 
-    # Calculate the PSD
-    freq=125.e6 # 125MHz
-    mean_subtracted_TOD = plot_values - np.mean(plot_values)
-    freqs,Pxx_den=scipy.signal.periodogram(mean_subtracted_TOD,freq,scaling='density')
-    preamp_chain_gain=1 #200.
-    pxx = 1e9*np.sqrt(Pxx_den)/preamp_chain_gain
-
-
-    # Plot the PSD
     ax.clear()
-    ax.set_ylim(1e-3,1000)
-    ax.loglog(freqs, pxx, label='PSD')
-    #ax.loglog(freqs,wiener(pxx,mysize=100),label='Wiener filtered PSD')
-    ax.loglog(freqs,[1 for _ in freqs],label='1 nV/rt.Hz',color='r', linestyle='dashed')
-    #ax.legend()
+    ax.set_ylim(1e-3, 1000)
+    ax.loglog(freqs, pxx)
+    ax.axhline(1.0, color='r', linestyle='dashed')
 
-    #ax.text(0.05, 0.8, f'Ch {ch}', transform=ax.transAxes)
-
-    ax.xaxis.set_ticks_position('bottom')
-    ax.yaxis.set_ticks_position('left')
     if multi_channel:
         if ch == 7:
             ax.set_xlabel('Frequency (Hz)')
         elif ch == 0:
             ax.set_title(f'PSD (nV/rt.Hz) - {src}')
         else:
-            ax.xaxis.set_ticklabels([])
+            ax.tick_params(axis='x', labelbottom=False)
     else:
         ax.set_ylabel('nV/rt.Hz')
         ax.set_xlabel('Frequency (Hz)')
         ax.set_title(f'Channel {ch} PSD (nV/rt.Hz) - {src}')
-
-
 
 
 class MultiPlot(pr.LinkVariable):
@@ -565,7 +551,7 @@ class MultiPlot(pr.LinkVariable):
             parent.PlotWaveform: (plot_waveform_channel, parent.WaveformSrc)}
 
 
-        self.fig = None
+#        self.fig = None
 
         def _conv(adc):
             return adc/2**13
@@ -574,38 +560,30 @@ class MultiPlot(pr.LinkVariable):
 
 
     def linkedGet(self, read, index=-1):
-        #print(f'MultiPlot.linkedGet({read=}, {index=})')
-        #if read is False and self.fig is not None:
-        #    print('Return previous fig')
-        #    return self.fig
+        fig = plt.Figure(tight_layout=True, figsize=(20,20))
 
-        if self.fig is not None:
-            #print('Closing old plot')
-            plt.close(self.fig)
-
-        #print('Regenerate figure')
-        self.fig = plt.Figure(tight_layout=True, figsize=(20,20))
-
-        enabled_plot_functions = {k:v  for k,v in self.plot_functions.items() if k.get(read=read) is True}
-        #print(f'{enabled_plot_functions=}')
+        enabled_plot_functions = {
+            k: v for k, v in self.plot_functions.items()
+            if k.get(read=read) is True
+        }
         num_plots = len(enabled_plot_functions)
-        #print(f'{num_plots}')
         data = self.parent.RawData.get(read=read)
 
         if self.parent.PlotColumn.getDisp(read=read) == 'All':
-            index = 1
+            plot_index = 1
             for ch in range(8):
                 for func in enabled_plot_functions.values():
-                    ax = self.fig.add_subplot(8, num_plots, index)
+                    ax = fig.add_subplot(8, num_plots, plot_index)
                     src = func[1].getDisp(read=read)
                     func[0](ch, ax, data[ch][src], src, multi_channel=True)
-                    index += 1
+                    plot_index += 1
         else:
             ch = self.parent.PlotColumn.get(read=read)
-            #self.fig.suptitle(f'Channel {ch}')
-            for index, func in enumerate(enabled_plot_functions.values()):
-                ax = self.fig.add_subplot(num_plots, 1, index+1)
+            for plot_index, func in enumerate(enabled_plot_functions.values(), start=1):
+                ax = fig.add_subplot(num_plots, 1, plot_index)
                 src = func[1].getDisp(read=read)
                 func[0](ch, ax, data[ch][src], src, multi_channel=False)
 
-        return self.fig
+        return fig
+
+
