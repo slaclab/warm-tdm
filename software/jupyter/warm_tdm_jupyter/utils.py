@@ -187,3 +187,7 @@ def check_ps_synch():
         print(f"Power supplies are {sync_state.pop()}.")
     else:
         print("Power supplies are in a mixed state (some synchronized, some unsynchronized).")
+
+#def save_cfg():
+#
+#def save_state():
