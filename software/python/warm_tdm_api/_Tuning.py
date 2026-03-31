@@ -28,7 +28,8 @@ def saOffset(*, group, process=None):
 
     # Final output should be near SaBias, so start near there
     # Start at half the current bias
-    control =  group.SaBiasVoltage.get()/2.0  #np.zeros(len(group.ColumnMap.value()))
+    # control = np.zeros(len(group.ColumnMap.value()))
+    control = group.SaBiasVoltage.get() * 0.9
 
     group.SaOffset.set(value=control)
 
@@ -43,22 +44,29 @@ def saOffset(*, group, process=None):
     mult = np.array([1 if en else 0 for en in group.ColTuneEnable.value()],np.float64)
     count = 0
 
+    #print('Starting PID')
     while count < maxLoops:
         count += 1
+        #print(f'Loop {count}')
 
         current = group.SaOutAdc.get()
         masked = current * mult
 
         # All channels have converged
-        if (max(masked) < precision) and (min(masked) > (-1.0*precision)):
+        done = [precision > masked[i] > (-1.0)*precision for i in range(len(masked))]
+        if all(done):
             break
+#         if (max(masked) < precision) and (min(masked) > (-1.0*precision)):
+#             break
 
         for i, p in enumerate(pid):
-            change = p(masked[i])
-            control[i] = np.clip(control[i] + change, 0.0, 2.499)
-            #print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')
+            if done[i] == False:
+                change = p(masked[i])
+                control[i] = np.clip(control[i] + change, 0, 4.999)
+                group.SaOffset.set(control[i], index=i)
+                #print(f'i= {i}, saOut={masked[i]}, saOffset={control[i]}, change={change}')
 
-        group.SaOffset.set(control)
+#         group.SaOffset.set(control)
 
         if process is not None and process._runEn is False:
             return control
@@ -108,8 +116,19 @@ def saFbSweep(*, group, bias, saFbRange, process):
         if process is not None:
             process._incrementSteps(1)
             #Progress.set(pctLow + pctRange*((idx+1)/numSteps))
-            
 
+        adcs = group.SaOutAdc.get()
+        if np.any(np.abs(adcs) > 0.8):
+            print('High ADC value seen')
+            print(f'SaBias - {bias}')
+            print(f'SaFb - {saFbRange[:, idx]}')
+            print(f'ADCs - {adcs}')
+            print('Running SA Offset Process')
+            saOffset(group=group)
+            print(f'New Offset and values')
+            print(f'SA Offset - {group.SaOffset.get()}')
+            print(f'ADC - {group.SaOutAdc.get()}')
+            print(f'SaOut = {group.SaOut.get()}')
 
     # Reset FB to zero after sweep
     group.SaFbForceCurrent.set(value=np.zeros(colCount, np.float64))
@@ -156,6 +175,8 @@ def saBiasSweep(*, group, process):
     # Sweep the SaFb range with saFbSweep()
     for idx in range(numBiasSteps):
         group.SaFbForceCurrent.set(np.zeros(colCount, np.float64))
+        group.Sq1BiasForceCurrent.set(np.zeros(colCount, np.float64))
+        group.Sq1FbForceCurrent.set(np.zeros(colCount, np.float64))        
         # Update process message 
         if process is not None:
             process.Message.set(f'SaBias step {idx+1} out of {numBiasSteps}')
@@ -164,6 +185,9 @@ def saBiasSweep(*, group, process):
         # Only set bias for enabled columns
         #print(f'Setting SaBias values = {saBiasRange[:, idx]}')
         group.SaBiasCurrent.set(saBiasRange[:, idx])
+        group.SaOffset.set(value=np.zeros(colCount, np.float64))        
+        adcs = group.SaOutAdc.get()
+        print(f'Starting SA Bias step - ADC Values before offset = {adcs}')
         #print('Starting saOffset()')
         saOffset(group=group)
         #print('Done saOffset()')        
@@ -218,7 +242,7 @@ def saTune(*, group, process=None, doSet=True):
             for row in range(len(group.RowMap.get())):
                 group.SaFbCurrent.set(index=(col,row), value=saBiasResults[col].xOut)
             # biasOut represents the tuned SA Bias point
-            group.SaBias.set(index=col, value=saBiasResults[col].biasOut)
+            group.SaBiasCurrent.set(index=col, value=saBiasResults[col].biasOut)
 
         # Run saOffset to zero out the ADC value at the tuned SaBias,SaFb point
         saOffset(group=group)
@@ -264,14 +288,15 @@ def saFbServo(*, group, process):
 
         for i, p in enumerate(pid):
             change = p(masked[i])
-            control[i] = np.clip(control[i] + change, -100. ,100.0 ) # Check this clip range
+            control[i] = control[i] + change
 
         group.SaFbForceCurrent.set(control)
 
     else:
-        raise Exception(f"saFb PID loop failed to converge after {maxLoops} loops")
+        print(f"saFb PID loop failed to converge after {maxLoops} loops")
+        return control
 
-    print(f'saFb PID loop Converged after {count} loops')
+    #print(f'saFb PID loop Converged after {count} loops')
 
     return control
 
@@ -449,6 +474,12 @@ def sq1BiasSweep(group, process):
         for col in range(colCount):
             if group.ColTuneEnable.get()[col]:
                 datalist[col].addCurve(curves[col])
+
+        # check for stopped process
+        if process is not None and process._runEn == False:
+            print('Process stopped, sq1BiasSweep()')
+            break
+
 
     # Compute best bias point for each column
     for d in datalist:

@@ -1,10 +1,11 @@
 import pyrogue
 import pyrogue.utilities.fileio
+import pyrogue.interfaces.stream
 import warm_tdm_api
 
 
 class GroupRoot(pyrogue.Root):
-    def __init__(self, groupConfig, frontEndClass, numRows, simulation=False, emulate=False, plots=False, **kwargs):
+    def __init__(self, colBoardClass, colFeClass, rowBoardClass, rowFeClass, numRowSelects, numChipSelects, groupConfig, simulation=False, emulate=False, **kwargs):
         """
         Root class container for Warm-TDM Groups.
         Parameters
@@ -36,8 +37,14 @@ class GroupRoot(pyrogue.Root):
         self.CountReset.addToGroup('DocApi')
         self.Initialize.addToGroup('DocApi')
 
+        configStream = pyrogue.interfaces.stream.Variable(root=self)        
+
         # Add the data writer
-        self.add(pyrogue.utilities.fileio.StreamWriter(name='DataWriter',groups=['DocApi', 'NoConfig']))
+        self.add(pyrogue.utilities.fileio.StreamWriter(
+            name='DataWriter',
+            configStream = {255: configStream},
+            groups=['DocApi', 'NoConfig']))
+        
         #self >> self.DataWriter.getChannel(100)
         self.DataWriter.ReadDevice.addToGroup('NoDoc')
         self.DataWriter.WriteDevice.addToGroup('NoDoc')
@@ -46,13 +53,16 @@ class GroupRoot(pyrogue.Root):
         self.DataWriter.CurrentSize.addToGroup('NoDoc')
 
         self.add(warm_tdm_api.Group(
+            colBoardClass=colBoardClass,
+            colFeClass=colFeClass,
+            rowBoardClass=rowBoardClass,
+            rowFeClass=rowFeClass,
             groupConfig=groupConfig,
             groupId=0,
-            rows=numRows,
-            frontEndClass=frontEndClass,
+            num_row_selects=numRowSelects,
+            num_chip_selects=numChipSelects,
             expand=True,
             dataWriter=self.DataWriter,
             simulation=simulation,
-            emulate=emulate,
-            plots=plots))
+            emulate=emulate))
 

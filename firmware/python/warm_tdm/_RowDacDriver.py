@@ -6,6 +6,7 @@ import warm_tdm
 class RowDacDriver(pr.Device):
     def __init__(
             self,
+            frontEnd,
             num_row_selects=32,
             num_chip_selects=0,
             **kwargs):
@@ -22,21 +23,9 @@ class RowDacDriver(pr.Device):
 
         rowBoardIdBits = 8-(self.row_addr_bits + self.chip_addr_bits)
 
+        self._frontEnd = frontEnd
 
-        # Channels 0 and 1 use differential amplifier configuration
-        for i in range(2):
-            self.add(warm_tdm.FastDacAmplifierDiff(
-                name = f'Amp[{i}]',
-                guiGroup = 'Amp_',
-                hidden = False))
-
-        for i in range(2, 32):
-            self.add(warm_tdm.FastDacAmplifierSE(
-                name = f'Amp[{i}]',
-                guiGroup = 'Amp_',
-                hidden = False))
-
-        self.amps = [self.Amp[i] for i in range(32)]
+        self.amps = [self._frontEnd.Amp[i] for i in range(32)]
 
         self.add(pr.RemoteVariable(
             name = 'Mode',

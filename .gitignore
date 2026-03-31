@@ -3,3 +3,5 @@
 *.npy
 *.dat
 *.*~
+build*
+__pycache__/

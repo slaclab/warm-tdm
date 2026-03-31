@@ -56,6 +56,19 @@ class PidRowDebugger(pr.Device):
             mode = 'RO',
             value = 0))
 
+        self.add(pr.LocalVariable(
+            name = 'NumSamples',
+            mode = 'RO',
+            disp = '{:d}',
+            value = 0))
+
+        self.add(pr.LocalVariable(
+            name = 'ReadoutCount',
+            mode = 'RO',
+            disp = '{:d}',
+            value = 0))
+        
+
     def updateFromParser(self):
         with self.root.updateGroup():
             for varName in self.parsedVars:
@@ -78,7 +91,7 @@ class PidDebugger(pr.DataReceiver):
             mode = 'RO',
             offset = 0 * 8,
             base = pr.UInt,
-            bitSize = 3))
+            bitSize = 4))
 
         self.add(pr.RemoteVariable(
             name = 'RowIndex',
@@ -166,6 +179,30 @@ class PidDebugger(pr.DataReceiver):
             bitSize = 8,
             bitOffset = 0))
 
+        self.add(pr.RemoteVariable(
+            name = 'DropCount',
+            mode = 'RO',
+            disp = '{:d}',
+            base = pr.UInt,
+            offset = 8*8,
+            bitOffset = 32))
+
+        self.add(pr.RemoteVariable(
+            name = 'NumSamples',
+            mode = 'RO',
+            disp = '{:d}',
+            base = pr.UInt,
+            offset = 9 * 8))
+
+        self.add(pr.RemoteVariable(
+            name = 'ReadoutCount',
+            mode = 'RO',
+            disp = '{:d}',
+            base = pr.UInt,
+            bitOffset = 32,
+            offset = 9 * 8))
+        
+
         self.add(pr.ArrayDevice(
             name = 'RowPids',
             groups = ['NoConfig'],
@@ -184,7 +221,8 @@ class PidDebugger(pr.DataReceiver):
         frame.read(raw, 0)
 
         #print(f'Got PID Debug frame for col {self.col}, row {raw[1]}, size {fl}')
-        if fl != 72:
+        if fl != 80:
+            print(f'Got PID debug frame with wrong size {fl}')
             return
 
         # Overwrite the MemEmulate data with new frame
@@ -195,4 +233,5 @@ class PidDebugger(pr.DataReceiver):
         self.checkBlocks()
 
         row = self.RowIndex.get(read=False)
+        #print(f'{self.name} Got Frame with row index {row}')
         self.RowPids.PID[row].updateFromParser()

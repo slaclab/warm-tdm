@@ -37,7 +37,26 @@ package WarmTdmPkg is
 
    constant DATA_AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 8, tDestBits => 4, tUserBits => 2);
 
-   constant SQ1FB_DATA_AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 2, tDestBits => 8);
+   --constant SQ1FB_DATA_AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 2, tDestBits => 8);
+
+   -- Data from AdcDsp to filter and downsampler
+   constant PID_DATA_AXIS_CFG_C : AxiStreamConfigType := (
+      TSTRB_EN_C => true,
+      TDATA_BYTES_C => 3,
+      TDEST_BITS_C => 8,
+      TID_BITS_C => 8,
+      TKEEP_MODE_C => TKEEP_NORMAL_C,
+      TUSER_BITS_C => 8,
+      TUSER_MODE_C => TUSER_NORMAL_C);
+
+   constant DOWNSAMPLE_DATA_AXIS_CFG_C : AxiStreamConfigType := (
+      TSTRB_EN_C => true,
+      TDATA_BYTES_C => 8,
+      TDEST_BITS_C => 8,
+      TID_BITS_C => 8,
+      TKEEP_MODE_C => TKEEP_NORMAL_C,
+      TUSER_BITS_C => 8,
+      TUSER_MODE_C => TUSER_NORMAL_C);
 
 end package;
 

@@ -190,7 +190,7 @@ architecture rtl of WarmTdmCore is
    signal gtRefClk0  : sl;
    signal gtRefClk1  : sl;
 
-   signal rssiStatus  : slv7Array(1 downto 0);
+   signal rssiStatus  : slv9Array(1 downto 0);
    signal ethPhyReady : sl;
 
    signal locTimingRxClk125 : sl;
@@ -330,6 +330,9 @@ begin
          timingTxClkN    => timingTxClkN,   -- [out]
          timingTxDataP   => timingTxDataP,  -- [out]
          timingTxDataN   => timingTxDataN,  -- [out]
+         pwrSyncA        => open,           -- [out]
+         pwrSyncB        => open,           -- [out]
+         pwrSyncC        => open,           -- [out]
          xbarClkSel      => xbarClkSel,     -- [out]
          xbarDataSel     => xbarDataSel,    -- [out]
          xbarMgtSel      => xbarMgtSel,     -- [out]

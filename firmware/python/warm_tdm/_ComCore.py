@@ -3,6 +3,7 @@ import pyrogue as pr
 import surf.protocols.pgp
 import surf.protocols.ssi
 import surf.protocols.rssi
+import surf.protocols.batcher
 import surf.ethernet.gige
 import surf.ethernet.udp
 
@@ -69,6 +70,9 @@ class EthCore(pr.Device):
             gtxe2_read_only = True,
             groups = ['NoConfig'],            
             offset = 0x00000))
+
+        self.add(surf.protocols.batcher.AxiStreamBatcherAxil(
+            offset = 0x13000))
 
 
 class ComCore(pr.Device):

@@ -70,6 +70,7 @@ class ColumnModule(pr.Device):
             offset = 0xC0700000))
 
         self.add(warm_tdm.SaBiasOffset(
+            name = 'SaBiasOffset',
             dac = self.SaBiasDac,
             frontEnd = self.AnalogFrontEnd,
             waveformTrigger = self.DataPath.WaveformCapture.WaveformTrigger))

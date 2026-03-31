@@ -1,19 +1,20 @@
-from warm_tdm_api._CurveClass import *
-from warm_tdm_api._FasTune import *
-from warm_tdm_api._Group import *
-from warm_tdm_api._GroupRoot import *
-from warm_tdm_api._Mapping import *
-from warm_tdm_api._SaOffset import *
-from warm_tdm_api._SaTune import *
-from warm_tdm_api._Sq1Diag import *
-from warm_tdm_api._Sq1Tune import *
-from warm_tdm_api._TesRamp import *
-from warm_tdm_api._Tuning import *
-from warm_tdm_api._ConfigSelect import *
-from warm_tdm_api._SaStripChart import *
-from warm_tdm_api._TdmDataReceiver import *
-from warm_tdm_api._TdmGroupEmulate import *
-from warm_tdm_api._RunEmulate import *
+from ._CurveClass import *
+from ._FasTune import *
+from ._Group import *
+from ._GroupRoot import *
+from ._Mapping import *
+from ._SaOffset import *
+from ._SaTune import *
+from ._Sq1Diag import *
+from ._Sq1Tune import *
+from ._TesRamp import *
+from ._Tuning import *
+from ._ConfigSelect import *
+from ._SaStripChart import *
+from ._ArgParser import *
+#from ._TdmDataReceiver import *
+#from ._TdmGroupEmulate import *
+from ._RunEmulate import *
 
 import os.path
 pydmUi = os.path.dirname(__file__) + '/warm_tdm_gui.ui'

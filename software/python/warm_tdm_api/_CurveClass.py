@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.optimize
 import sys
+import math
 
 def _sinfunc(t, A, w, p, c):
         return A*np.sin((2*np.pi/w)*t+p)+c
@@ -32,8 +33,8 @@ def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title)
                 linewidth = 2.0
             peak = curveDataDict['peaks'][biasIndex]
             phinot = curveDataDict['phinots'][biasIndex]
-            label = f'{value:1.3f} - P-P: {peak:1.3f} - $\phi_o$: {phinot:.2f}'
-            color = next(ax._get_lines.prop_cycler)['color']
+            label = f'{value:1.3f} - P-P: {peak:1.3f} - $\\phi_o$: {phinot:.2f}'
+            color = ax._get_lines.get_next_color()
             # Plot the curve
             ax.plot(xValues, curveDataDict['curves'][biasIndex], label=label, linewidth=linewidth, color=color)
             # Mark the max point
@@ -46,7 +47,8 @@ def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title)
         ax.axhline(y=curveDataDict['yOut'], linestyle='--')
         ax.axvline(x=curveDataDict['xOut'], linestyle='--')
 
-        ax.legend(title=legend_title)
+        n = len(curveDataDict['biasValues'])
+        ax.legend(title=legend_title, ncol=math.ceil(n/10))
     
 
 class CurveData():

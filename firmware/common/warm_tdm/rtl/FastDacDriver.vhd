@@ -31,6 +31,7 @@ entity FastDacDriver is
 
    generic (
       TPD_G            : time             := 1 ns;
+      SIMULATION_G     : boolean          := false;
       AXIL_BASE_ADDR_G : slv(31 downto 0) := (others => '0'));
 
    port (
@@ -79,10 +80,11 @@ architecture rtl of FastDacDriver is
       DATA_S,
       WRITE_S,
       WRITE_FALL_S,
-      WAIT_ROW_STROBE_S,
+      IDLE_S,
       OVER_SEL_S,
       OVER_WRITE_S,
       OVER_WRITE_FALL_S,
+      OVER_CLK_0_RISE_S,
       CLK_0_RISE_S,
       CLK_0_FALL_S,
       CLK_1_RISE_S);
@@ -105,7 +107,7 @@ architecture rtl of FastDacDriver is
    constant REG_INIT_C : RegType := (
       startup        => '1',
       rowIndex       => (others => '0'),
-      state          => WAIT_ROW_STROBE_S,
+      state          => IDLE_S,
       dacOutNext     => (others => (others => '0')),
       dacOut         => (others => (others => '0')),
       dacNum         => (others => '0'),
@@ -124,6 +126,8 @@ architecture rtl of FastDacDriver is
    signal overrideWrValid : sl;
    signal overrideWrAddr  : slv(2 downto 0);
    signal overrideWrData  : slv(15 downto 0);
+
+   signal pwrUpWaitDone : sl;
 
    signal timingAxilWriteMaster : AxiLiteWriteMasterType;
    signal timingAxilWriteSlave  : AxiLiteWriteSlaveType;
@@ -224,7 +228,17 @@ begin
          mAxiWriteMaster => timingAxilWriteMaster,              -- [out]
          mAxiWriteSlave  => timingAxilWriteSlave);              -- [in]
 
-   comb : process (overrideWrAddr, overrideWrData, overrideWrValid, r, ramDout,
+   U_PwrUpRst_1 : entity surf.PwrUpRst
+      generic map (
+         TPD_G         => TPD_G,
+         SIM_SPEEDUP_G => SIMULATION_G,
+         DURATION_G    => 125000000*5)
+      port map (
+         arst   => timingRxRst125,      -- [in]
+         clk    => timingRxClk125,      -- [in]
+         rstOut => pwrUpWaitDone);      -- [out]
+
+   comb : process (overrideWrAddr, overrideWrData, overrideWrValid, pwrUpWaitDone, r, ramDout,
                    timingAxilReadMaster, timingAxilWriteMaster, timingRxData, timingRxRst125) is
       variable v       : RegType;
       variable dacInt  : integer range 0 to 7;
@@ -247,17 +261,16 @@ begin
 --      v.dacSel := (others => '0');
 
       case r.state is
-         when WAIT_ROW_STROBE_S =>
+         when IDLE_S =>
             v.dacNum := (others => '0');
             -- At startup, load rowIndex[0] ram values into dacs
-            if (r.startup = '1') then
-               v.startup  := '0';
+            if (r.startup = '1' and pwrUpWaitDone = '0') then
+--               v.startup  := '0';
                v.rowIndex := (others => '0');
                v.state    := DATA_S;
 
-            -- Use lastSample instead of loadDacs for now since it doesn't exist yet               
-            elsif (timingRxData.rowStrobe = '1') then
-               v.rowIndex := timingRxData.rowIndexNext;  -- This shouldn't be necessary
+            elsif (timingRxData.stageNextRow = '1') then
+               v.rowIndex := timingRxData.rowIndexNext;
                v.state    := DATA_S;
             end if;
 
@@ -284,7 +297,12 @@ begin
             v.dacNum := r.dacNum + 1;
             v.state  := DATA_S;
             if (r.dacNum = 7) then
-               v.state := CLK_0_RISE_S;
+               v.startup := '0';
+               if (r.startup = '0') then
+                  v.state := CLK_0_RISE_S;
+               else
+                  v.state := OVER_CLK_0_RISE_S;
+               end if;
             end if;
 
          when OVER_SEL_S =>
@@ -298,12 +316,20 @@ begin
             v.state           := OVER_WRITE_FALL_S;
 
          when OVER_WRITE_FALL_S =>
-            v.state := CLK_0_RISE_S;
+            v.state := OVER_CLK_0_RISE_S;
 
-         when CLK_0_RISE_S =>
+         when OVER_CLK_0_RISE_S =>
+            -- Don't wait for row strobe when doing over write
             v.dacOut := r.dacOutNext;
             v.dacClk := (others => '1');
             v.state  := CLK_0_FALL_S;
+
+         when CLK_0_RISE_S =>
+            if (timingRxData.rowStrobe = '1') then
+               v.dacOut := r.dacOutNext;
+               v.dacClk := (others => '1');
+               v.state  := CLK_0_FALL_S;
+            end if;
 
          when CLK_0_FALL_S =>
             v.dacClk := (others => '0');
@@ -312,7 +338,7 @@ begin
          when CLK_1_RISE_S =>
             v.dacClk := (others => '1');
             v.dacSel := (others => '0');
-            v.state  := WAIT_ROW_STROBE_S;
+            v.state  := IDLE_S;
 
          when others => null;
       end case;
