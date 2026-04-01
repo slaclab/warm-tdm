@@ -1,7 +1,17 @@
 from .client import Client
+from .streamreader import StreamReader
 
 import os
 import time
+
+class Data:
+    """
+    """
+    srs = []
+
+#def load_stream()
+#    """
+#    """   
 
 # Need to add outputdir=None feature
 def take_raw(col, synch=False, fadc=125e6, decimation=0, check_delay_sec=0.1):

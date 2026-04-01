@@ -35,9 +35,9 @@ class DataReadout:
 
     @classmethod
     def from_numpy(cls, arr):
-        print(arr)
+        #print(arr)
         words = arr[:-8].reshape(-1, 8)
-        print(words)
+        #print(words)
         return cls(
             readoutCount = unsigned_int(words[0]),
             rowSeqCount = unsigned_int(words[1]),

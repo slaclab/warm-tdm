@@ -1,5 +1,3 @@
-from .client import Client
-
 ##
 ## Stream data reader
 ##
@@ -37,11 +35,10 @@ class StreamReader():
         self.data = nesteddict()
         with pyrogue.utilities.fileio.FileReader(files=[filename]) as fd:
             for header, data in fd.records():
-                # metadata
-                if header.channel == 255:
-                    print(data)
-                    self.data=data
-                    break
+                ## metadata
+                #if header.channel == 255:
+                #    print(data)
+                #    self.data=data
                 # readout
                 if header.channel == 9:
                     dr = warm_tdm.DataReadout.from_numpy(data)
