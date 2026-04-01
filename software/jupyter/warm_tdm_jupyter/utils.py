@@ -190,6 +190,10 @@ def check_ps_synch():
     else:
         print("Power supplies are in a mixed state (some synchronized, some unsynchronized).")
 
+# This lambda function extracts the column and row values from a string in the format 'c#r#' or 'r#c#',
+# where '#' represents an integer. It returns a tuple containing the (column, row) values.
+get_row_col = lambda value: (int(value[1:value.index('r')]), int(value[value.index('r')+1:]))
+
 def make_dead_masks(channels,ncol=8,nrow=256):
     """                                                                                                                                            
     Generates a dictionary of dead masks, where the keys are the column IDs                                                                        
@@ -214,8 +218,7 @@ def make_dead_masks(channels,ncol=8,nrow=256):
     for col in range(ncol):
         dead_masks[col] = (1 << nrow) - 1
 
-    # Update the masks for the specified columns                                                                                                   
-    get_row_col = lambda value: (int(value[1:value.index('r')]), int(value[value.index('r')+1:]))
+    # Update the masks for the specified columns      
     for channel in channels:
         col,row=get_row_col(channel)
         # Clear the bit corresponding to the specified row                                                                                         

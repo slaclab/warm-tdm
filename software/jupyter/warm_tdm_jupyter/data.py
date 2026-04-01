@@ -4,14 +4,90 @@ from .streamreader import StreamReader
 import os
 import time
 
-class Data:
+class StreamData:
     """
-    """
-    srs = []
+    A class that manages the loading and caching of stream data from files.
 
-#def load_stream()
-#    """
-#    """   
+    This class represents a single stream data file and its associated data. When an
+    instance of this class is created, it attempts to load the data from the specified
+    file path. If the file is not found, it raises a `FileNotFoundError`. The loaded
+    data is stored in the `data` attribute of the instance.
+
+    The class maintains a list of all created instances, allowing for easy retrieval
+    of instances by their index or file name.
+
+    Attributes:
+        _instances (list): A list of all created `StreamData` instances.
+        index (int): The index of the instance in the `_instances` list.
+        file_path (str): The full path to the stream data file.
+        file_name (str): The name of the stream data file.
+        data (numpy.ndarray): The loaded stream data, or `None` if the file was not found.
+
+    Methods:
+        load_data(): Loads the stream data from the file specified by `file_path`.
+        get_by_index(index): Retrieves a `StreamData` instance by its index.
+        get_by_file_name(file_name): Retrieves a `StreamData` instance by its file name.
+    """
+    _instances = []
+
+    def __init__(self, file_path):
+        self.index = len(StreamData._instances)
+        self.file_path = file_path
+        self.file_name = os.path.basename(self.file_path)
+
+        # Try to load the data from the file
+        if os.path.exists(self.file_path):
+            self.load_data()
+        elif self.file_path:
+            raise FileNotFoundError(f"File '{self.file_path}' does not exist.")
+        else:
+            self.data = None
+
+        # Add the instance to the _instances list
+        StreamData._instances.append(self)
+
+    def load_data(self):
+        """
+        Loads the stream data from the file specified by `file_path`.
+        """
+        sr = StreamReader()
+        sr.readStream(self.file_path)
+        self.data = sr.data
+
+    def __repr__(self):
+        return f"<StreamData(index={self.index}, file_path='{self.file_name}', file_name='{self.file_name}')>"
+
+    @classmethod
+    def get_by_index(cls, index):
+        """
+        Retrieve a `StreamData` instance by its index.
+
+        Args:
+            index (int): The index of the `StreamData` instance to retrieve.
+
+        Returns:
+            StreamData: The `StreamData` instance with the specified index.
+        """
+        return cls._instances[index]
+
+    @classmethod
+    def get_by_file_name(cls, file_name):
+        """
+        Retrieve a `StreamData` instance by its file name.
+
+        Args:
+            file_name (str): The file name of the `StreamData` instance to retrieve.
+
+        Returns:
+            StreamData: The `StreamData` instance with the specified file name.
+
+        Raises:
+            ValueError: If no `StreamData` instance is found with the specified file name.
+        """
+        for obj in cls._instances:
+            if obj.file_name == file_name:
+                return obj
+        raise ValueError(f"No StreamData instance found with file name '{file_name}'")
 
 # Need to add outputdir=None feature
 def take_raw(col, synch=False, fadc=125e6, decimation=0, check_delay_sec=0.1):
