@@ -1,0 +1,101 @@
+GitBase: ..
+
+TopRoguePackage: warm_tdm
+
+RoguePackages:
+  - firmware/python
+  - software/python
+
+RogueScripts:
+  - software/scripts/DataFileReader.py
+  - software/scripts/PidDebugFileReader.py
+  - software/scripts/warmTdmClientCmd.py
+  - software/scripts/warmTdmClientGui.py
+  - software/scripts/warmTdmEmulate.py
+  - software/scripts/warmTdmGui.py
+  - software/scripts/warmTdmServer.py
+
+CondaDependencies:
+  - rogue
+  - numpy
+  - pyyaml
+  - pyzmq
+  - parse
+  - click
+  - pyqt
+  - pyserial
+  - pydm
+  - matplotlib
+  - simple-pid
+  - sympy
+
+RogueConfig:
+
+Targets:
+  ColumnFpgaBoard:
+    ImageDir: targets/ColumnFpgaBoard/images
+    Extensions:
+      - mcs
+
+  ColumnFpgaBoard0:
+    ImageDir: targets/ColumnFpgaBoard0/images
+    Extensions:
+      - mcs
+
+  ColumnFpgaBoard325Coordinator:
+    ImageDir: targets/ColumnFpgaBoard325Coordinator/images
+    Extensions:
+      - mcs
+
+  ColumnFpgaBoard325Coordinator10G:
+    ImageDir: targets/ColumnFpgaBoard325Coordinator10G/images
+    Extensions:
+      - mcs
+
+  ColumnFpgaBoardAwaXe:
+    ImageDir: targets/ColumnFpgaBoardAwaXe/images
+    Extensions:
+      - mcs
+
+  ColumnModule:
+    ImageDir: targets/ColumnModule/images
+    Extensions:
+      - mcs
+
+  ColumnModule0:
+    ImageDir: targets/ColumnModule0/images
+    Extensions:
+      - mcs
+
+  RowFpgaBoard:
+    ImageDir: targets/RowFpgaBoard/images
+    Extensions:
+      - mcs
+
+  RowFpgaBoard0:
+    ImageDir: targets/RowFpgaBoard0/images
+    Extensions:
+      - mcs
+
+  RowFpgaBoard325:
+    ImageDir: targets/RowFpgaBoard325/images
+    Extensions:
+      - mcs
+
+
+Releases:
+  warmTdm:
+    Primary: true
+    Targets:
+      - ColumnFpgaBoard
+      - ColumnFpgaBoard0
+      - ColumnFpgaBoard325Coordinator
+      - ColumnFpgaBoard325Coordinator10G
+      - ColumnFpgaBoardAwaXe
+      - ColumnModule
+      - ColumnModule0
+      - RowFpgaBoard
+      - RowFpgaBoard0
+      - RowFpgaBoard325
+    Types:
+      - Rogue
