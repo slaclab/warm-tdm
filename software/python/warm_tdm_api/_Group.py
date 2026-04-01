@@ -119,7 +119,7 @@ class GroupArrayLinkVariable(GroupLinkVariable):
             # Should only need this case thanks to colSetIter()
             for idx, board, chan, val in self._config.colSetIter(value, index):
                 if self.tuneEnVar is not None and self.tuneEnVar.get(index=idx):                    
-                    self.dependencies[board].set(value=val, index=idx, write=False)
+                    self.dependencies[board].set(value=val, index=chan, write=False)
 
             # Write once all vars are assigned
             pr.writeAndVerifyBlocks(self.depBlocks)
