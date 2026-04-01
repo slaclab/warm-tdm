@@ -167,7 +167,9 @@ class SaOffsetSweepProcess(pr.Process):
             mask = np.array([1.0 if en else 0 for en in group.ColTuneEnable.value()])
 
             totalSteps = len(fbPoints) * biasRange.size
-            self.TotalSteps.set(totalSteps)
+            self.setTotalSteps(totalSteps)
+            self.setStep(0)
+            self.setProgress(0.0)
 
             for i, bias in enumerate(biasRange):
                 saBias = mask * bias
@@ -185,7 +187,9 @@ class SaOffsetSweepProcess(pr.Process):
                     curves[i, j] = group.SaOut.get() #group.SaOffset.get()
                     #curves[i, j] = group.SaOffset.get()                    
 
-                    self._incrementSteps(1) #Progress.set((i*biasSteps + j) / totalSteps)
+                    self.incrementSteps(1) #Progress.set((i*biasSteps + j) / totalSteps)
+                    #print('Incremented Progress')
+                    #print(self.Progress.get())
                     if self._runEn is False:
                         self.Message.set('Stopped by user')
                         return
