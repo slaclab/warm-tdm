@@ -755,28 +755,30 @@ class Group(pr.Device):
 
             @self.command()
             def ZeroSaBias():
-                self.SaBiasCurrent.set(0)
-                self.SaOffset.set(0)
+                zero_cols = np.zeros(len(self.config.columnMap), np.float64)
+                self.SaBiasCurrent.set(zero_cols)
+                self.SaOffset.set(zero_cols)
 
             @self.command()
             def ZeroSaFb():
-                self.SaFbForceCurrent.set(0)
+                self.SaFbForceCurrent.set(np.zeros(len(self.config.columnMap), np.float64))
 
             @self.command()
             def ZeroSq1Bias():
-                self.Sq1BiasForceCurrent.set(0)
+                self.Sq1BiasForceCurrent.set(np.zeros(len(self.config.columnMap), np.float64))
 
             @self.command()
             def ZeroSq1Fb():
-                self.Sq1FbForceCurrent.set(0)
+                self.Sq1FbForceCurrent.set(np.zeros(len(self.config.columnMap), np.float64))
 
             @self.command()
             def ZeroDacs():
-                self.Sq1FbForceCurrent.set(0)
-                self.Sq1BiasForceCurrent.set(0)
-                self.SaFbForceCurrent.set(0)
-                self.SaBiasCurrent.set(0)
-                self.SaOffset.set(0)
+                zero_cols = np.zeros(len(self.config.columnMap), np.float64)
+                self.Sq1FbForceCurrent.set(zero_cols)
+                self.Sq1BiasForceCurrent.set(zero_cols)
+                self.SaFbForceCurrent.set(zero_cols)
+                self.SaBiasCurrent.set(zero_cols)
+                self.SaOffset.set(zero_cols)
 
             self.columnSelectedVars = [
                 self.ColTuneEnable,
