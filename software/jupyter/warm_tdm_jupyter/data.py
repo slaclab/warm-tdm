@@ -55,7 +55,7 @@ class StreamData:
         self.data = sr.data
 
     def __repr__(self):
-        return f"<StreamData(index={self.index}, file_path='{self.file_name}', file_name='{self.file_name}')>"
+        return f"<StreamData(index={self.index}, file_path='{self.file_path}', file_name='{self.file_name}')>"
 
     @classmethod
     def get_by_index(cls, index):

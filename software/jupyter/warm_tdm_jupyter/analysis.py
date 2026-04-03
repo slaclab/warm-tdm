@@ -112,6 +112,7 @@ def analyze_pair(cr1, cr2, stream_data_id=-1, yoffset=2, nperseg=10, fs=396.332,
                   r' pA/$\sqrt{Hz}$,' + f' n = {n:.2f}' +
                   r', f$_{knee}$ = ' + f'{f_knee:.2f} Hz')
 
+    ax2.set_ylabel(r'TES Current Eq. ASD (pA$/\sqrt{Hz}$))',fontsize=16)
     ax2.set_xlabel('Frequency (Hz)', fontsize=14)
     ax2.set_xlim(np.min(results[cr1]['freq']), fs / 2)
 
