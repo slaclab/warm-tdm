@@ -78,7 +78,8 @@ architecture rtl of TimingTx is
    -- START_RUN is followed by one prime byte for the first pending row.
    type TxStateType is (
       CONTROL_S,
-      ROW_INDEX_S);
+      ROW_INDEX_S,
+      END_RUN_S);
 
    signal bitClk  : sl;
    signal bitRst  : sl;
@@ -464,48 +465,40 @@ begin
             v.pwrSyncWait := '1';
 
          elsif (rowAdvanceFire) then
+            -- Commit the row transition on the same cycle that the boundary control word is emitted.
+            v.timingData.runTime      := r.timingData.runTime + 1;
+            v.timingData.rowTime      := (others => '0');
+            v.timingData.rowSeq       := nextRowSeq;
+            v.timingData.rowIndex     := r.timingData.rowIndexNext;
+            v.timingData.rowStrobe    := '1';
+            v.startupBoundaryPending  := '0';
+            v.pwrSyncWait             := '0';
+
             if (r.endRunPending = '1') then
-               -- Software end-run requests are honored only on a clean row boundary.
-               v.timingData.runTime      := r.timingData.runTime + 1;
-               v.timingData.rowTime      := (others => '0');
-               v.timingData.running      := '0';
-               v.timingData.sample       := '0';
-               v.timingData.endRun       := '1';
-               v.endRunPending           := '0';
-               v.startupBoundaryPending  := '0';
-               v.pwrSyncWait             := '0';
-               v.txState                 := CONTROL_S;
-               v.timingTx                := END_RUN_C;
-
+               -- Finish the current row transition cleanly, then emit END_RUN on the next cycle
+               -- instead of sending another pending-row byte.
+               v.txState := END_RUN_S;
             else
-               -- Commit the row transition on the same cycle that the boundary control word is emitted.
-               v.timingData.runTime      := r.timingData.runTime + 1;
-               v.timingData.rowTime      := (others => '0');
-               v.timingData.rowSeq       := nextRowSeq;
-               v.timingData.rowIndex     := r.timingData.rowIndexNext;
-               v.timingData.rowStrobe    := '1';
                -- Prefetch the row index that will be consumed on the following boundary.
-               v.rowOrderAddr            := prefetchRowSeq;
-               v.startupBoundaryPending  := '0';
-               v.txState                 := ROW_INDEX_S;
-               v.pwrSyncWait             := '0';
+               v.rowOrderAddr := prefetchRowSeq;
+               v.txState      := ROW_INDEX_S;
+            end if;
 
-               v.timingTx := ROW_STROBE_C;
-               if (rowSeqStartReq) then
-                  v.timingData.rowSeqStart := '1';
-                  v.timingData.rowSeqCount := r.timingData.rowSeqCount + 1;
-                  v.timingTx               := ROW_SEQ_START_C;
+            v.timingTx := ROW_STROBE_C;
+            if (rowSeqStartReq) then
+               v.timingData.rowSeqStart := '1';
+               v.timingData.rowSeqCount := r.timingData.rowSeqCount + 1;
+               v.timingTx               := ROW_SEQ_START_C;
 
-                  if (daqReadoutStartReq) then
-                     v.timingData.daqReadoutStart := '1';
-                     v.timingData.daqReadoutCount := r.timingData.daqReadoutCount + 1;
-                     v.timingTx                   := DAQ_READOUT_START_C;
-                  end if;
+               if (daqReadoutStartReq) then
+                  v.timingData.daqReadoutStart := '1';
+                  v.timingData.daqReadoutCount := r.timingData.daqReadoutCount + 1;
+                  v.timingTx                   := DAQ_READOUT_START_C;
+               end if;
 
-                  v.daqReadoutPeriodCounter := r.daqReadoutPeriodCounter + 1;
-                  if (r.daqReadoutPeriodCounter = r.daqReadoutPeriod - 1) then
-                     v.daqReadoutPeriodCounter := (others => '0');
-                  end if;
+               v.daqReadoutPeriodCounter := r.daqReadoutPeriodCounter + 1;
+               if (r.daqReadoutPeriodCounter = r.daqReadoutPeriod - 1) then
+                  v.daqReadoutPeriodCounter := (others => '0');
                end if;
             end if;
 
@@ -513,15 +506,24 @@ begin
             -- Advertise the hold so TimingRx can freeze its counters too.
             v.timingTx := PWR_SYNC_WAIT_C;
 
-         -- The byte after START_RUN or a row-boundary control word carries the pending row index.
+         -- START_RUN is followed by one prime byte, and row-boundary control words normally carry
+         -- the pending row index on the next cycle unless END_RUN has been armed.
          elsif (r.txState = ROW_INDEX_S) then
             v.timingTxK               := "0";
             v.timingTx                := rowOrderRamOut;
             v.timingData.rowIndexNext := rowOrderRamOut;
             v.txState                 := CONTROL_S;
 
-         elsif (r.pwrSyncWait = '0' and r.endRunPending = '0' and
-                r.timingData.rowTime = stageNextRowTime) then
+         elsif (r.txState = END_RUN_S) then
+            v.timingData.rowTime := (others => '0');
+            v.timingData.running := '0';
+            v.timingData.sample  := '0';
+            v.timingData.endRun  := '1';
+            v.endRunPending      := '0';
+            v.txState            := CONTROL_S;
+            v.timingTx           := END_RUN_C;
+
+         elsif (r.pwrSyncWait = '0' and r.timingData.rowTime = stageNextRowTime) then
             v.timingData.stageNextRow := '1';
             v.timingTx                := STAGE_NEXT_ROW_C;
 
