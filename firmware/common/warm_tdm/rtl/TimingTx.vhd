@@ -520,7 +520,8 @@ begin
             v.timingData.rowIndexNext := rowOrderRamOut;
             v.txState                 := CONTROL_S;
 
-         elsif (r.pwrSyncWait = '0' and r.timingData.rowTime = stageNextRowTime) then
+         elsif (r.pwrSyncWait = '0' and r.endRunPending = '0' and
+                r.timingData.rowTime = stageNextRowTime) then
             v.timingData.stageNextRow := '1';
             v.timingTx                := STAGE_NEXT_ROW_C;
 
