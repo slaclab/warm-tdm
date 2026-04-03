@@ -1,6 +1,9 @@
 from .client import Client
 
+import os
+import time
 import re
+import yaml
 import numpy as np
 
 def print_hardware():
@@ -299,6 +302,9 @@ def all_off():
     Turn all signals off and stop multiplexing.  Clean slate.
     """
 
+    #### IN PROGRESS ; NEED TO FIX A FIRMWARE BUG WHICH PREVENTS ZERO'ING
+    #### BIASES AFTER DROPPING OUT OF MULTIPLEXING
+
     # Zero non-multiplexed outputs.
 
     # Column board signals
@@ -330,7 +336,54 @@ def all_off():
     #for i, rdd in Client.rdds.items():
     #    rdd.FasOn.Current.set(np.zeros_like(rdd.FasOn.Current.get()))
     #    rdd.FasOff.Current.set(np.zeros_like(rdd.FasOn.Current.get()))
-        
-#def save_cfg():
-#
-#def save_state():
+
+def save_config():
+    """
+    Save the current configuration of the system to a YAML file.
+
+    This function retrieves the root node of the system, reads all the variables,
+    and then saves the current configuration to a YAML file. The file is named
+    'config_<timestamp>.yml' and is saved in the current session directory.
+
+    Note:
+        This function is targeted towards saving a configuration for later recall.
+        You can also use a save_state file for configuration, as the system will
+        ignore the read-only (RO) variables.
+
+    Returns:
+        str: The full path to the saved file.
+    """
+    r = Client.client.root
+
+    # Save the configuration
+    ctime = int(time.time())
+    filename = os.path.join(Client.sessiondir, f'config_{ctime}.yml')
+    r.SaveConfig(filename)
+    print(f'Saved config to {filename}')
+    return filename
+
+def load_config(filename):
+    """
+    Load the configuration from a YAML file.
+
+    This function retrieves the root node of the Rogue system and loads the
+    configuration from the specified YAML file.
+
+    Args:
+        filename (str): The full path to the YAML file containing the configuration.
+
+    Raises:
+        FileNotFoundError: If the specified file does not exist.
+
+    Returns:
+        None
+    """
+    root = Client.client.root
+
+    # Check if the file exists before attempting to load the configuration
+    if not os.path.exists(filename):
+        raise FileNotFoundError(f"Configuration file '{filename}' not found.")
+
+    root.LoadConfig(filename)
+    print(f"Loaded configuration from {filename}")
+
