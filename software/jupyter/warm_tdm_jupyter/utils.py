@@ -362,6 +362,31 @@ def save_config():
     print(f'Saved config to {filename}')
     return filename
 
+def save_state():
+    """
+    Save the current state of the system to a YAML file.
+
+    This function retrieves the root node of the Rogue system and saves the current
+    state of all variables to a YAML file. The file is named 'state_<timestamp>.yml'
+    and is saved in the current session directory.
+
+    Note:
+        This function saves the complete state of the Rogue system, including all
+        read-only (RO) variables. This operation can be slower than saving the
+        configuration using the `save_config()` function.
+
+    Returns:
+        str: The full path to the saved state file.
+    """
+    root = Client.client.root
+
+    # Save the state
+    ctime = int(time.time())
+    state_filename = os.path.join(Client.sessiondir, f'state_{ctime}.yml')
+    root.SaveState(state_filename)
+    print(f'Saved state to {state_filename}')
+    return state_filename
+
 def load_config(filename):
     """
     Load the configuration from a YAML file.
