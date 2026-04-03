@@ -1,6 +1,7 @@
 from .client import Client
 
 import re
+import numpy as np
 
 def print_hardware():
     """
@@ -194,98 +195,97 @@ def check_ps_synch():
 # where '#' represents an integer. It returns a tuple containing the (column, row) values.
 get_row_col = lambda value: (int(value[1:value.index('r')]), int(value[value.index('r')+1:]))
 
-def make_dead_masks(channels,ncol=8,nrow=256):
-    """                                                                                                                                            
-    Generates a dictionary of dead masks, where the keys are the column IDs                                                                        
-    and the values are the corresponding dead mask for that column.                                                                                
-                                                                                                                                                   
-    The dead list row order is not the readout row order; e.g. row                                                                                 
-    zero is always chip select 0, row select 0, even if that physical                                                                              
-    channel is not in the readout row order.                                                                                                       
-                                                                                                                                                   
-    Args:                                                                                                                                          
-        channels (list): A list of channels to disable, where each                                                                                 
-            is a string in either 'r<row>c<column>' or                                                                                             
-            'c<column>r<row>' format.                                                                                                              
-                                                                                                                                                   
-    Returns:                                                                                                                                       
-        dict: A dictionary of dead masks, where the keys are the column IDs                                                                        
-            and the values are the corresponding channel masks.                                                                                    
+def make_dead_masks(channels, ncol=8, nrow=256):
+    """
+    Generates a dictionary of dead masks, where the keys are the column IDs
+    and the values are the corresponding dead mask for that column.
+    The dead list row order is not the readout row order; e.g. row
+    zero is always chip select 0, row select 0, even if that physical
+    channel is not in the readout row order.
+
+    Args:
+        channels (list): A list of channels to disable, where each
+                         is a string in either 'r<row>c<column>' or
+                         'c<column>r<row>' format.
+
+    Returns:
+        dict: A dictionary of dead masks, where the keys are the column IDs
+              and the values are the corresponding channel masks.
     """
     dead_masks = {}
 
-    # Make masks for all column IDs (0-7)                                                                                                          
+    # Make masks for all column IDs (0-7)
     for col in range(ncol):
         dead_masks[col] = (1 << nrow) - 1
 
-    # Update the masks for the specified columns      
+    # Update the masks for the specified columns
     for channel in channels:
-        col,row=get_row_col(channel)
-        # Clear the bit corresponding to the specified row                                                                                         
+        col, row = get_row_col(channel)
+        # Clear the bit corresponding to the specified row
         dead_masks[col] &= ~(1 << row)
     return dead_masks
 
 def write_dead_masks(dead_masks, mask_filename="dead_masks.cfg"):
-    """                                                                                                                                            
-    Writes the dead channel masks to a configuration file.                                                                                         
-                                                                                                                                                   
-    This function takes a dictionary of dead channel masks, where the                                                                              
-    keys are the column IDs and the values are the corresponding dead                                                                              
-    channel masks. It then writes these masks to a configuration file                                                                              
-    in a human-readable format, with each column's mask split into                                                                                 
-    groups of 10 bits (for easier readability).  The bits are written                                                                              
-    to file for each column starting with the LSB in the mask from left                                                                            
-    to right, in ascending column order.                                                                                                           
-                                                                                                                                                   
-    Args:                                                                                                                                          
-        dead_masks (dict): A dictionary of dead channel masks, where                                                                               
-            the keys are the column IDs and the values are the                                                                                     
-            corresponding channel masks.                                                                                                           
-        mask_filename (str, optional): The name of the configuration                                                                               
-            file to write the dead masks to. Defaults to                                                                                           
-            "dead_masks.cfg".                                                                                                                      
-                                                                                                                                                   
-    Returns:                                                                                                                                       
-        None                                                                                                                                       
     """
-    # Write the column masks to a file                                                                                                             
+    Writes the dead channel masks to a configuration file.
+
+    This function takes a dictionary of dead channel masks, where the
+    keys are the column IDs and the values are the corresponding dead
+    channel masks. It then writes these masks to a configuration file
+    in a human-readable format, with each column's mask split into
+    groups of 10 bits (for easier readability). The bits are written
+    to file for each column starting with the LSB in the mask from left
+    to right, in ascending column order.
+
+    Args:
+        dead_masks (dict): A dictionary of dead channel masks, where
+            the keys are the column IDs and the values are the
+            corresponding channel masks.
+        mask_filename (str, optional): The name of the configuration
+            file to write the dead masks to. Defaults to
+            "dead_masks.cfg".
+
+    Returns:
+        None
+    """
+    # Write the column masks to a file
     with open(mask_filename, "w") as f:
         for col, mask in dead_masks.items():
-            # Convert the mask to a binary string, with the least significant bit (LSB) first                                                      
+            # Convert the mask to a binary string, with the least significant bit (LSB) first
             binary_mask = f"{mask:0{len(bin(mask)[2:])}b}"[::-1]
 
-            # Split the binary mask into groups of 10 bits for easier readability                                                                  
+            # Split the binary mask into groups of 10 bits for easier readability
             mask_groups = [binary_mask[i:i+10] for i in range(0, len(binary_mask), 10)]
 
-            # Write the formatted mask to the configuration file                                                                                   
+            # Write the formatted mask to the configuration file
             f.write(f"{'   '.join(mask_groups)}\n")
 
-    # Tell user where the dead mask got written to                                                                                                 
+    # Tell user where the dead mask got written to
     print(f"Current dead mask written to {mask_filename}")
 
 def read_dead_masks(mask_filename="dead_masks.cfg"):
-    """                                                                                                                                            
-    Reads the dead channel masks from a configuration file.                                                                                        
-                                                                                                                                                   
-    This function reads the dead channel masks from a configuration file, where each                                                               
-    line represents the mask for a single column. The mask is expected to be in a                                                                  
-    human-readable format, with each column's mask split into groups of 10 bits.                                                                   
-                                                                                                                                                   
-    Args:                                                                                                                                          
-        mask_filename (str, optional): The name of the configuration file to read the                                                              
-            dead masks from. Defaults to "dead_masks.cfg".                                                                                         
-                                                                                                                                                   
-    Returns:                                                                                                                                       
-        dict: A dictionary of dead channel masks, where the keys are the column IDs                                                                
-            and the values are the corresponding channel masks.                                                                                    
+    """
+    Reads the dead channel masks from a configuration file.
+
+    This function reads the dead channel masks from a configuration file, where each
+    line represents the mask for a single column. The mask is expected to be in a
+    human-readable format, with each column's mask split into groups of 10 bits.
+
+    Args:
+        mask_filename (str, optional): The name of the configuration file to read the
+            dead masks from. Defaults to "dead_masks.cfg".
+
+    Returns:
+        dict: A dictionary of dead channel masks, where the keys are the column IDs
+            and the values are the corresponding channel masks.
     """
     dead_masks = {}
 
     try:
         with open(mask_filename, "r") as f:
-            for col,line in enumerate(f):
-                # Get this column's mask, with LSB last.                                                                                           
-                binary_mask = re.sub(r"\s+","",line)[::-1]
+            for col, line in enumerate(f):
+                # Get this column's mask, with LSB last.
+                binary_mask = re.sub(r"\s+", "", line)[::-1]
                 dead_masks[col] = int(binary_mask, 2)
 
     except FileNotFoundError:
@@ -293,6 +293,43 @@ def read_dead_masks(mask_filename="dead_masks.cfg"):
         return {}
 
     return dead_masks
+
+def all_off():
+    """
+    Turn all signals off and stop multiplexing.  Clean slate.
+    """
+
+    # Zero non-multiplexed outputs.
+
+    # Column board signals
+    try:
+        for r in ['Sq1FbForceCurrent',
+                  'Sq1BiasForceCurrent',
+                  'SaFbForceCurrent',
+                  'SaBiasCurrent',
+                  'SaOffset',
+                  'TesBias']:
+            getattr(Client.client.root.Group,r).set(
+                np.zeros_like(getattr(Client.client.root.Group,r).get()))
+    except (AttributeError, TypeError) as e:
+        print(f"Error zeroing {r} : {e}")
+
+    # If running, end the run.  This should drop us out of 
+    # multiplexing, to zeros for every multiplexed output.
+    # Assumes ColumnBoard[0] is in charge.
+    cb0=Client.cbs[0]
+    # If running, end the run.
+    if cb0.WarmTdmCore.Timing.TimingTx.Running.get():
+        cb0.WarmTdmCore.Timing.TimingTx.EndRun()
+    # Switch to manual timing mode    
+    cb0.WarmTdmCore.Timing.TimingTx.Mode.set(0)
+
+    # Zero multiplexed outputs
+
+    # Zero row DACs
+    #for i, rdd in Client.rdds.items():
+    #    rdd.FasOn.Current.set(np.zeros_like(rdd.FasOn.Current.get()))
+    #    rdd.FasOff.Current.set(np.zeros_like(rdd.FasOn.Current.get()))
         
 #def save_cfg():
 #
