@@ -329,6 +329,10 @@ begin
                v.dacOut := r.dacOutNext;
                v.dacClk := (others => '1');
                v.state  := CLK_0_FALL_S;
+            elsif (timingRxData.running = '0') then
+               v.dacDb  := (others => '0');
+               v.dacSel := (others => '0');
+               v.state  := IDLE_S;
             end if;
 
          when CLK_0_FALL_S =>

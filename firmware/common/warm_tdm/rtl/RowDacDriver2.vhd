@@ -546,6 +546,10 @@ begin
          when WAIT_ROW_STROBE_S =>
             if (timingRxData.rowStrobe = '1') then
                v.state := CLK_0_RISE_S;
+            elsif (timingRxData.running = '0') then
+               v.dacDb  := (others => '0');
+               v.dacSel := (others => '0');
+               v.state  := IDLE_S;
             end if;
 
          when MANUAL_RS_DATA_S =>
