@@ -119,7 +119,7 @@ class TimingTx(pr.Device):
             disp = '{:0.03f}',
             units = 'kHz (kRows/sec)',
             linkedGet = lambda read: 1.0e-3 / (max(float(self.RowPeriodCycles.get(read=read)), 1.0e-12) * 8.0e-9),
-            linkedSet = lambda value, write: self.RowPeriodCycles.set(1.0 / ((value * 1.0e3) * 8.0e-9), write=write)))
+            linkedSet = lambda value, write: self.RowPeriodCycles.set(max(1, int(round(1.0 / ((float(value) * 1.0e3) * 8.0e-9)))), write=write)))
 
         self.add(pr.LinkVariable(
             name = 'RowVisitPeriod',

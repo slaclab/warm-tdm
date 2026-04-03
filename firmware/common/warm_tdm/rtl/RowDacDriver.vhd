@@ -736,6 +736,10 @@ begin
                v.activateEn   := '0';
                v.deactivateEn := '0';
                v.state        := CLK_0_FALL_S;
+            elsif (r.mode = TIMING_MODE_C and timingRxData.running = '0') then
+               v.activateEn   := '0';
+               v.deactivateEn := '0';
+               v.state        := IDLE_S;
             end if;
 
          when CLK_0_FALL_S =>
