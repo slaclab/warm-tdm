@@ -77,5 +77,3 @@ class GroupConfig(object):
 
         return ((idx, self.columnMap[idx].board, self.columnMap[idx].channel) for idx in ra)
 
-
-

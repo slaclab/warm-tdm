@@ -15,6 +15,12 @@ import warm_tdm
 
 from warm_tdm_api import PhysicalMap as pm
 
+#pyrogue.setUnifiedLogging(True)
+
+#pyrogue.setLogLevel('SrpV3', 'DEBUG')
+#pyrogue.setLogLevel(pyrogue.logName(rogue.protocols.srp.SrpV3), 'DEBUG')
+
+
 #rogue.Logging.setFilter('pyrogue.memory.block', rogue.Logging.Debug)
 #rogue.Logging.setFilter('pyrogue.stream.TcpCore', rogue.Logging.Debug)
 #rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
