@@ -345,7 +345,7 @@ begin
       generic map (
          TPD_G         => TPD_G,
          SIM_SPEEDUP_G => SIMULATION_G,
-         DURATION_G    => 125000000*5)
+         DURATION_G    => 62500000)
       port map (
          arst   => timingRxRst125,      -- [in]
          clk    => timingRxClk125,      -- [in]
