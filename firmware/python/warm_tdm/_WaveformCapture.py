@@ -354,6 +354,14 @@ class WaveformCaptureReceiver(pr.DataReceiver):
             name = 'LastSavedFileName',
             value = ''))
 
+        self.add(pr.LocalVariable(
+            name = 'MillisecondTimestamp',
+            value = False))
+
+        self.add(pr.LocalVariable(
+            name = 'SavedFilePath',
+            value = '../data/'))        
+
         @self.command()
         def CaptureAndWait():
             self.Updated.set(False)
@@ -426,9 +434,14 @@ class WaveformCaptureReceiver(pr.DataReceiver):
             self.RawData.set(d)
 
             if self.SaveData.value():
-                timestr = time.strftime("%Y%m%d-%H%M%S")
-                filename = Path(f'../data/Waveform_{timestr}.npy').resolve()
+                current_time = time.time()
+                timestr = time.strftime("%Y%m%d-%H%M%S", time.localtime(current_time))
+                # Useful if taking many waveforms
+                if self.MillisecondTimestamp:
+                    timestr+=f"-{int((current_time - int(current_time)) * 1000):03d}"                
+                filename = Path(os.path.join(self.SavedFilePath,f'Waveform_{timestr}.npy')).resolve()
                 np.save(filename, self.RawData.value())
+                np.flush() # ensure file is done being written to disk before LastSavedFileName is updated.
                 self.LastSavedFileName.set(str(filename))
 
 
