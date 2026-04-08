@@ -6,7 +6,229 @@ import math
 import numpy as np
 import matplotlib.pylab as plt
 from matplotlib.text import Text
+import matplotlib.colors as mcolors
+from itertools import cycle
 from scipy import signal, optimize
+
+import re
+
+def add_channel_legend(ax):
+    """
+    Add a legend to an axes where each distinct column (c#) gets its own legend column.
+    Entries are grouped by column number, with each group in its own legend column.
+    No column headers are shown. The legend is sized to be no more than 1/2 the width
+    and 1/3 the height of the figure.
+
+    Args:
+        ax (matplotlib.axes.Axes): The axes containing the labeled artists.
+
+    Returns:
+        matplotlib.legend.Legend: The created legend.
+    """
+    handles, labels = ax.get_legend_handles_labels()
+
+    # Group by column, sorted by ascending column then ascending row
+    col_groups = {}
+    for handle, label in zip(handles, labels):
+        col = label[:label.index('r')]  # e.g. 'c0'
+        if col not in col_groups:
+            col_groups[col] = []
+        col_groups[col].append((handle, label))
+
+    # Sort columns and rows numerically
+    col_groups = {k: sorted(v, key=lambda x: int(x[1][x[1].index('r')+1:])) 
+                  for k, v in sorted(col_groups.items(), key=lambda x: int(x[0][1:]))}
+
+    # Reorder handles/labels so each column's entries are contiguous
+    groups = list(col_groups.values())
+    ncols = len(groups)
+    nrows = max(len(g) for g in groups)
+
+    # Pad shorter groups with empty entries
+    empty_handle = ax.plot([], [], alpha=0)[0]
+    padded = [g + [(empty_handle, '')] * (nrows - len(g)) for g in groups]
+
+    # Flatten column-by-column so matplotlib's top-to-bottom fill
+    # produces c0r0,c0r1... c1r0,c1r1... visual ordering
+    ordered = [entry for col in padded for entry in col]
+    ordered_handles, ordered_labels = zip(*ordered)
+
+    legend = ax.legend(ordered_handles, ordered_labels, ncol=ncols)
+
+    # Iteratively reduce font size until legend fits within size constraints
+    fig = ax.get_figure()
+    fig.canvas.draw()  # needed to compute legend size
+
+    fig_w, fig_h = fig.get_size_inches() * fig.dpi  # figure size in pixels
+    max_w, max_h = fig_w / 2, fig_h / 3
+
+    font_size = legend.get_texts()[0].get_fontsize()
+    while font_size > 1:
+        bbox = legend.get_window_extent()
+        if bbox.width <= max_w and bbox.height <= max_h:
+            break
+        font_size -= 0.5
+        for text in legend.get_texts():
+            text.set_fontsize(font_size)
+        fig.canvas.draw()
+
+    return legend
+
+def make_color_cycle(n, cmap='turbo'):
+    """
+    Create an infinite color cycle with colors evenly distributed across a colormap.
+
+    Colors are sampled uniformly across the full range of the colormap based on
+    the total number of colors requested, ensuring maximum visual distinction
+    between colors regardless of n.
+
+    Args:
+        n (int): Total number of distinct colors needed.
+        cmap (str): Matplotlib colormap name. Default is 'jet'.
+
+    Returns:
+        itertools.cycle: An infinite iterator of RGBA color tuples.
+    """
+    cm = plt.get_cmap(cmap)
+    colors = [cm(i / max(n - 1, 1)) for i in range(n)]
+    return cycle(colors)
+
+def expand_channels(pattern_str, data):
+    """
+    Expand a comma-delimited string of channel patterns into a list of channel strings.
+    
+    Patterns support:
+      - Explicit:  c0r0
+      - Wildcard:  c*r0, c0r*, c*r*
+      - Range:     c0-3r0, c0r2-5, c0-3r2-5
+      - Mixed:     c*r0-3, c0-3r*
+      - Removal:   -c0r0, -c*r0, -c0-3r0  (any valid pattern preceded by -)
+    
+    Channels with missing or empty data are warned for explicit requests, silently 
+    skipped for wildcards and ranges.
+
+    Removals are processed after all additions. Removing a channel that was never
+    added is silently ignored.
+    
+    Args:
+        pattern_str (str): Comma-delimited channel patterns e.g. 'c*r0,-c2r0,c0-3r*'
+        data (dict): Nested data dictionary where data.keys() are column indices
+                     and data[col].keys() are row indices.
+    
+    Returns:
+        list: Deduplicated, sorted list of channel strings e.g. ['c0r0', 'c0r1', ...]
+    """
+    pattern = re.compile(r'^(-?)c(\*|\d+-\d+|\d+)r(\*|\d+-\d+|\d+)$')
+    results = set()
+    removals = set()
+
+    def expand_spec(spec, available):
+        """Expand a single col or row spec into a list of indices.
+        
+        Args:
+            spec (str): One of '*', 'N-M', or 'N'
+            available (list): Available indices from data
+        
+        Returns:
+            tuple: (indices, is_explicit) where is_explicit indicates single explicit value
+        """
+        if spec == '*':
+            return list(available), False
+        elif '-' in spec:
+            a, b = sorted(int(x) for x in spec.split('-'))
+            return list(range(a, b + 1)), False
+        else:
+            return [int(spec)], True
+
+    available_cols = [c for c in data.keys() if any(data[c][r] for r in data[c].keys())]
+
+    for pat in [p.strip() for p in pattern_str.split(',')]:
+        m = pattern.match(pat)
+        if not m:
+            print(f"Warning: '{pat}' is not a valid channel pattern, skipping.")
+            continue
+
+        remove, col_spec, row_spec = m.group(1), m.group(2), m.group(3)
+        cols, col_explicit = expand_spec(col_spec, available_cols)
+
+        for col in cols:
+            if col not in data or not any(data[col][r] for r in data[col].keys()):
+                if col_explicit and not remove:
+                    print(f"Warning: column {col} has no data, skipping.")
+                continue
+
+            available_rows = [r for r in data[col].keys() if data[col][r]]
+            rows, row_explicit = expand_spec(row_spec, available_rows)
+            is_explicit = col_explicit and row_explicit
+
+            for row in rows:
+                if row not in data[col] or not data[col][row]:
+                    if is_explicit and not remove:
+                        print(f"Warning: c{col}r{row} has no data, skipping.")
+                    continue
+                if remove:
+                    removals.add(f'c{col}r{row}')
+                else:
+                    results.add(f'c{col}r{row}')
+
+    results -= removals
+
+    return sorted(results, key=lambda s: (int(s[1:s.index('r')]), int(s[s.index('r')+1:])))
+
+def plot_stream_data(crstring, stream_data_id=-1, yoffset=2, nperseg=10, 
+                     fs=396.332, sq1fb_to_pA=1224.23093499038):
+    """
+    Plot the time and frequency domain characteristics of stream data channels.
+    """
+    # If no index given, load most recent dataset
+    sd = StreamData._instances[stream_data_id]
+    data = sd.data
+
+    # Dictionary to return with results
+    results = {}
+
+    # Time domain plot
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 8))
+    plt.suptitle(sd.file_name, fontsize=18)
+    crs=expand_channels(crstring,data)
+    color_cycle = make_color_cycle(len(crs))
+    ylens=[] # check that same number of samples in every channel
+    for idx, cr in enumerate(crs):
+        (col, row) = get_row_col(cr)
+        results[cr] = {}
+        results[cr]['y'] = np.array(data[col][row]) * sq1fb_to_pA
+        results[cr]['t'] = (1. / fs) * (np.array(range(len(results[cr]['y']))))
+        #print(f"{cr} : len(y) = {len(results[cr]['y'])}")
+        ylens.append(len(results[cr]['y']))
+        results[cr]['y_ms'] = results[cr]['y'] - np.mean(results[cr]['y'])
+        ax1.plot(results[cr]['t'], (results[cr]['y_ms'] / 1.e3 - idx * yoffset), alpha=1.0, color=next(color_cycle), label=f'{cr}')
+    if len(np.unique(ylens))!=1:
+        print(f"Warning: some channels had different numbers of samples.")
+    else:
+        print(f"{np.unique(ylens)[0]} samples on all plotted channels.")
+
+    ax1.set_xlabel('Time (sec)', fontsize=14)
+    ylabel_ax1 = r'TES Current Eq. (pA) [SQ1FB$\rightarrow$pA=' + f'{sq1fb_to_pA:.1f}]'
+    ax1.set_ylabel(ylabel_ax1, fontsize=14)
+    ax1.set_xlim(np.min(results[cr]['t']),np.max(results[cr]['t']))
+
+    # Frequency domain analysis
+    color_cycle = make_color_cycle(len(crs))
+    for idx, cr in enumerate(crs):
+        results[cr]['freq'], results[cr]['psd'] = signal.welch(results[cr]['y_ms'], nperseg=len(results[cr]['y_ms']) / nperseg, fs=fs)
+        results[cr]['asd'] = np.sqrt(results[cr]['psd'])
+        ax2.loglog(results[cr]['freq'], results[cr]['asd'], alpha=0.8, label=f'{cr}', color=next(color_cycle))
+    
+    ax2.set_ylabel(r'TES Current Eq. ASD (pA$/\sqrt{Hz}$)',fontsize=16)
+    ax2.set_xlabel('Frequency (Hz)', fontsize=14)
+    tspan=np.max(results[cr]['t'])-np.min(results[cr]['t'])
+    ax2.set_xlim(2 / tspan, fs / 2)
+
+    add_channel_legend(ax2)
+
+    plt.tight_layout()
+
+    return results
 
 def analyze_pair(cr1, cr2, stream_data_id=-1, yoffset=2, nperseg=10, fs=396.332, sq1fb_to_pA=1224.23093499038,
                  do_fit=False, fit_freq_min=0.02, fit_freq_max=50, show_unfiltered=True, filter_f3db_hz=1,
@@ -112,7 +334,7 @@ def analyze_pair(cr1, cr2, stream_data_id=-1, yoffset=2, nperseg=10, fs=396.332,
                   r' pA/$\sqrt{Hz}$,' + f' n = {n:.2f}' +
                   r', f$_{knee}$ = ' + f'{f_knee:.2f} Hz')
 
-    ax2.set_ylabel(r'TES Current Eq. ASD (pA$/\sqrt{Hz}$))',fontsize=16)
+    ax2.set_ylabel(r'TES Current Eq. ASD (pA$/\sqrt{Hz}$)',fontsize=16)
     ax2.set_xlabel('Frequency (Hz)', fontsize=14)
     ax2.set_xlim(np.min(results[cr1]['freq']), fs / 2)
 
