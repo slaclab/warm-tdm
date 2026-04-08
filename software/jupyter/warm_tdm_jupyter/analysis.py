@@ -93,7 +93,11 @@ def make_color_cycle(n, cmap='turbo'):
     colors = [cm(i / max(n - 1, 1)) for i in range(n)]
     return cycle(colors)
 
-def expand_channels(pattern_str, data):
+import re
+
+import re
+
+def expand_channels(pattern_str, data, exclude=None):
     """
     Expand a comma-delimited string of channel patterns into a list of channel strings.
     
@@ -102,25 +106,23 @@ def expand_channels(pattern_str, data):
       - Wildcard:  c*r0, c0r*, c*r*
       - Range:     c0-3r0, c0r2-5, c0-3r2-5
       - Mixed:     c*r0-3, c0-3r*
-      - Removal:   -c0r0, -c*r0, -c0-3r0  (any valid pattern preceded by -)
     
     Channels with missing or empty data are warned for explicit requests, silently 
     skipped for wildcards and ranges.
 
-    Removals are processed after all additions. Removing a channel that was never
-    added is silently ignored.
-    
     Args:
-        pattern_str (str): Comma-delimited channel patterns e.g. 'c*r0,-c2r0,c0-3r*'
+        pattern_str (str): Comma-delimited channel patterns e.g. 'c*r0,c0-3r*'
         data (dict): Nested data dictionary where data.keys() are column indices
                      and data[col].keys() are row indices.
+        exclude (str, optional): Comma-delimited channel patterns to exclude,
+                     using the same syntax as pattern_str. Excluded channels are
+                     removed after all inclusions are resolved. Default is None.
     
     Returns:
         list: Deduplicated, sorted list of channel strings e.g. ['c0r0', 'c0r1', ...]
     """
-    pattern = re.compile(r'^(-?)c(\*|\d+-\d+|\d+)r(\*|\d+-\d+|\d+)$')
+    pattern = re.compile(r'^c(\*|\d+-\d+|\d+)r(\*|\d+-\d+|\d+)$')
     results = set()
-    removals = set()
 
     def expand_spec(spec, available):
         """Expand a single col or row spec into a list of indices.
@@ -148,12 +150,12 @@ def expand_channels(pattern_str, data):
             print(f"Warning: '{pat}' is not a valid channel pattern, skipping.")
             continue
 
-        remove, col_spec, row_spec = m.group(1), m.group(2), m.group(3)
+        col_spec, row_spec = m.group(1), m.group(2)
         cols, col_explicit = expand_spec(col_spec, available_cols)
 
         for col in cols:
             if col not in data or not any(data[col][r] for r in data[col].keys()):
-                if col_explicit and not remove:
+                if col_explicit:
                     print(f"Warning: column {col} has no data, skipping.")
                 continue
 
@@ -163,19 +165,17 @@ def expand_channels(pattern_str, data):
 
             for row in rows:
                 if row not in data[col] or not data[col][row]:
-                    if is_explicit and not remove:
+                    if is_explicit:
                         print(f"Warning: c{col}r{row} has no data, skipping.")
                     continue
-                if remove:
-                    removals.add(f'c{col}r{row}')
-                else:
-                    results.add(f'c{col}r{row}')
+                results.add(f'c{col}r{row}')
 
-    results -= removals
+    if exclude is not None:
+        results -= set(expand_channels(exclude, data))
 
     return sorted(results, key=lambda s: (int(s[1:s.index('r')]), int(s[s.index('r')+1:])))
 
-def plot_stream_data(crstring, stream_data_id=-1, yoffset=2, nperseg=10, 
+def plot_stream_data(crstring, exclude=None, stream_data_id=-1, yoffset=2, nperseg=10, 
                      fs=396.332, sq1fb_to_pA=1224.23093499038):
     """
     Plot the time and frequency domain characteristics of stream data channels.
@@ -190,7 +190,7 @@ def plot_stream_data(crstring, stream_data_id=-1, yoffset=2, nperseg=10,
     # Time domain plot
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 8))
     plt.suptitle(sd.file_name, fontsize=18)
-    crs=expand_channels(crstring,data)
+    crs=expand_channels(crstring,data,exclude)
     color_cycle = make_color_cycle(len(crs))
     ylens=[] # check that same number of samples in every channel
     for idx, cr in enumerate(crs):
