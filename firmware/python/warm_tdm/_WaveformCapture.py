@@ -439,9 +439,12 @@ class WaveformCaptureReceiver(pr.DataReceiver):
                 # Useful if taking many waveforms
                 if self.MillisecondTimestamp:
                     timestr+=f"-{int((current_time - int(current_time)) * 1000):03d}"                
-                filename = Path(os.path.join(self.SavedFilePath,f'Waveform_{timestr}.npy')).resolve()
-                np.save(filename, self.RawData.value())
-                np.flush() # ensure file is done being written to disk before LastSavedFileName is updated.
+                filename = Path(os.path.join(self.SavedFilePath.value(),f'Waveform_{timestr}.npy')).resolve()
+                # ensure file is done being written to disk before LastSavedFileName is updated.
+                with open(filename, 'wb') as f:
+                    np.save(f, self.RawData.value())
+                    f.flush()
+                    os.fsync(f.fileno())
                 self.LastSavedFileName.set(str(filename))
 
 

@@ -90,7 +90,7 @@ class StreamData:
         raise ValueError(f"No StreamData instance found with file name '{file_name}'")
 
 # Need to add outputdir=None feature
-def take_raw(col, synch=False, fadc=125e6, decimation=0, check_delay_sec=0.1):
+def take_raw(col, outputdir=None, synch=False, fadc=125e6, decimation=0, check_delay_sec=0.1):
     """
     Capture raw waveform data from a single column of the detector.
 
@@ -112,11 +112,14 @@ def take_raw(col, synch=False, fadc=125e6, decimation=0, check_delay_sec=0.1):
     cb = Client.cbs[int(col / 8)]
 
     # Add this featuer
-    ## Set the output directory if not provided
-    #if outputdir is None:
-    #    outputdir = Client.sessiondir
+    # Set the output directory if not provided
+    if outputdir is None:
+        outputdir = Client.sessiondir
 
-    # Enable waveform capture
+    # Where to save waveforms on disk
+    Client.hwg.WaveformCaptureReceiver.SavedFilePath.set(outputdir)
+    
+    # Enable saving waveform
     Client.hwg.WaveformCaptureReceiver.SaveData.set(True)
 
     # Configure the waveform capture settings
@@ -139,7 +142,6 @@ def take_raw(col, synch=False, fadc=125e6, decimation=0, check_delay_sec=0.1):
             #print(f'last_raw = {last_raw}')
             #print(f'os.path.getsize(last_raw) = {os.path.getsize(last_raw)}')
             if last_raw != last_raw0 and os.path.getsize(last_raw) > 0:
-                time.sleep(1) # wait 1sec or will never converge because waveforms are timestamped only to the second
                 break
         time.sleep(check_delay_sec)
         last_raw = Client.hwg.WaveformCaptureReceiver.LastSavedFileName.get()
@@ -172,9 +174,15 @@ def multi_raw(col, nraw, synch=False, decimation=0):
     save_dir = os.path.join(Client.sessiondir, f'raw_{ctime}')
     os.makedirs(save_dir, exist_ok=True)
 
+    # Enable msec timestamping for hi cadence waveform acquisition
+    Client.hwg.WaveformCaptureReceiver.MillisecondTimestamp.set(True)
+    
     wfs = []
     for ii in range(nraw):
-        wfs.append(take_raw(col=col, synch=synch))
+        wfs.append(take_raw(col=col, outputdir=save_dir, synch=synch))
+
+    # Done with high cadence waveform acquisition
+    Client.hwg.WaveformCaptureReceiver.MillisecondTimestamp.set(False)
 
     idxfn = f'raw_{ctime}.txt'
     idxfp = os.path.join(save_dir, idxfn)
