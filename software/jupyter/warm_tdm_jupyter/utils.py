@@ -412,3 +412,75 @@ def load_config(filename):
     root.LoadConfig(filename)
     print(f"Loaded configuration from {filename}")
 
+def setup_mux(num_pts=2048, sample_end_offset=100, sample_num=250, strobe=False, enable_pid=True, enable_pid_debug=False):
+    """
+    Configure the hardware for multiplexed readout and lock the PID loops.
+
+    Sets up timing parameters on the column board, configures the row DAC driver
+    for timing mode, and enables PID loops for all enabled columns.
+
+    Args:
+        num_pts (int, optional): Number of points per row period cycle. 
+            125000 corresponds to 1 kHz. Default is 2048.
+        sample_end_offset (int, optional): Buffer (in points) between the last 
+            averaged sample and the end of the row period. Default is 100.
+        sample_num (int, optional): Number of points to average per sample window.
+            Default is 250.
+        strobe (bool, optional): If False, sets hardware timing mode (free streaming 
+            MUX). If True, sets software mode for manual stepping. Default is False.
+        enable_pid (bool, optional): If True, enables SQ1 pid servo for enabled
+            readout columns.  Default is True.
+        enable_pid_debug (bool, optional): If True, enables streaming a bunch of SQ1
+            pid servo debug information.  It will save a lot of extra information so
+            doing this at high rates is discouraged and may break things.  
+            Default is False.
+
+    Returns:
+        None
+    """
+    # Check that column boards exist
+    if not Client.cbs:
+        print("Error: No column boards detected. Cannot setup multiplexing.")
+        return
+
+    # Check that row boards exist
+    if not Client.rbs:
+        print("Error: No row boards detected. Cannot setup multiplexing.")
+        return
+
+    # Warn if multiple column boards detected
+    if len(Client.cbs) > 1:
+        print(f"Warning: Multiple column boards detected {list(Client.cbs.keys())}. "
+              f"Assuming ColumnBoard[0] is the controller board.")
+
+    # Warn if multiple row boards detected
+    if len(Client.rbs) > 1:
+        print(f"Warning: Multiple row boards detected {list(Client.rbs.keys())}. "
+              f"Applying commands to all row boards.")
+
+    cb = Client.cbs[0]
+
+    # Set timing mode: 1 = hardware MUX mode, 0 = manual software mode
+    cb.WarmTdmCore.Timing.TimingTx.Mode.set(0 if strobe else 1)
+
+    # Configure row period and sample window timing
+    num_pts = int(num_pts)
+    cb.WarmTdmCore.Timing.TimingTx.RowPeriodCycles.set(num_pts)
+    cb.WarmTdmCore.Timing.TimingTx.SampleStartTime.set(num_pts - sample_end_offset - sample_num)
+    cb.WarmTdmCore.Timing.TimingTx.SampleEndTime.set(num_pts - sample_end_offset)
+
+    # Set all row boards to timing mode for row switching during MUX
+    for rb_idx, rdd in Client.rdds.items():
+        rdd.Mode.set(0)
+        if len(Client.rdds) > 1:
+            print(f"Set RowBoard[{rb_idx}] to timing mode.")
+
+    ## WILL NEED TO EXPAND WHEN START WORKING WITH MORE THAN ONE COLUMN BOARD
+    # Enable PID loops for all enabled columns
+    col_list = Client.client.root.Group.ColTuneEnable.get()
+    for col, enabled in enumerate(col_list):
+        if enabled:
+            print(f"Enabling PID for column {col}")
+            cb.DataPath.AdcDsp[col].ClearPids()
+            cb.DataPath.AdcDsp[col].PidEnable.set(enable_pid)
+            cb.DataPath.AdcDsp[col].PidDebugEnable.set(enable_pid_debug)

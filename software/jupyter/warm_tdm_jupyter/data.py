@@ -192,3 +192,45 @@ def multi_raw(col, nraw, synch=False, decimation=0):
 
     print(f"{nraw} waveforms indexed to {idxfp} for column {col}.")
     return idxfp
+
+def take_data(acq_time_sec,start_delay_sec=1.):
+    was_running=True
+    # If not running, start running.
+    cb0=Client.cbs[0]
+    # If running, end the run.
+    if not cb0.WarmTdmCore.Timing.TimingTx.Running.get():
+        was_running=False
+        cb0.WarmTdmCore.Timing.TimingTx.StartRun()
+        time.sleep(start_delay_sec)
+
+    r=Client.client.root
+    r.DataWriter.AutoName()
+    r.DataWriter.DataFile.set(
+        os.path.join(os.path.abspath(Client.sessiondir),r.DataWriter.DataFile.get()))
+
+    data_filename=r.DataWriter.DataFile.get()
+    print(f'Open file {data_filename}')
+    r.DataWriter.Open()
+    print(f'Acquire data for {acq_time_sec} sec ...')
+    time.sleep(acq_time_sec)
+    print(f'Close file {data_filename}')
+    r.DataWriter.Close()
+
+    if not was_running:
+        # Maybe the user had a reason for not running.  Return system
+        # to them in that state.
+        cb0.WarmTdmCore.Timing.TimingTx.EndRun()
+
+    return data_filename
+        
+#def check_timing(cols=None):
+#    """
+#    """
+#    # If specific columns to check not specified, do all enabled columns
+#    if cols is None:
+#        col_list=Client.client.root.Group.ColTuneEnable.get()
+#        cols = [col for col,enabled in enumerate(col_list) if enabled]
+#
+#    for col in cols:
+#        rawfn=take_raw(col, synch=True, decimation=0)
+#        print(rawfn)

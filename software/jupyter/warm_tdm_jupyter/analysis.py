@@ -2,6 +2,7 @@ from .client import Client
 from .data import StreamData
 from .utils import get_row_col
 
+import os
 import math
 import numpy as np
 import matplotlib.pylab as plt
@@ -473,3 +474,32 @@ def plot_sq1curves(sq1tuneOutput, cols, rows):
             plt.grid(True)
             plt.tight_layout()
             plt.show()
+
+#def plot_timing(waveform_filename,stack_on=None,align_on=None):
+#    if not os.path.exists(filename):
+#        print(f"Error: waveform file '{filename}' not found.")
+#        return
+#    
+#    waveform = np.load(waveform_filename,allow_pickle=True)
+#
+#    # Assumes ColumnBoard[0] is connected and in control
+#    cb = Client.cbs[0]
+#    RowPeriodCycles=cb.WarmTdmCore.Timing.TimingTx.RowPeriodCycles.value()
+#    WaveformCaptureTime=cb.WarmTdmCore.Timing.TimingTx.WaveformCaptureTime.value()
+#    NumRows = len(r.Group.RowIndexOrderList.get())
+#    
+#    # Overplot
+#    plt.figure()
+#    vin_uV=waveform.item()[col]['V@AmpIn'][0]*1.e6
+#    ts_us=(np.arange(len(vin_uV))+WaveformCaptureTime)*(1./fadc)*1e6
+#    row_period_us = (1./fadc)*1e6*RowPeriodCycles
+#
+#    for array_visit in range(int((np.max(ts_us)-np.min(ts_us))/(row_period_us*NumRows))):
+#        idxs=np.where((ts_us-(array_visit*row_period_us*NumRows)>=0)&((ts_us-(array_visit*row_period_us*NumRows))<row_period_us*NumRows))[0]
+#        plt.plot(ts_us[idxs]-(array_visit*row_period_us*NumRows),vin_uV[idxs])
+#
+#    plt.xlim(0,row_period_us*NumRows)
+#    plt.title(f'col{col}')
+#    plt.xlabel('Time ($\mu$sec)')
+#    plt.ylabel('V@AmpIn ($\mu$V)')
+    

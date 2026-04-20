@@ -33,25 +33,18 @@ class StreamReader():
     def readStream(self, filename):
         # clear the dictionary
         self.data = nesteddict()
-        with pyrogue.utilities.fileio.FileReader(files=[filename],configChan=255) as fd:
+        #with pyrogue.utilities.fileio.FileReader(files=[filename],configChan=255) as fd:
+        with pyrogue.utilities.fileio.FileReader(files=[filename]) as fd:
             for header, data in fd.records():
-                # metadata
-                if header.channel == 9:
-                    print(f"Record {fd.currCount}/{fd.totCount}")
-                    print(f"  Channel = {header.channel}")
-                    print(f"  Size    = {header.size}")
-                    print(f"  Flags   = {header.flags:#x}")
-                    print(f"  Error   = {header.error:#x}")
-
-                    # data is a numpy array view of payload bytes
-                    print(f"  First byte = {data[0]:#x}")
-
-                    print(fd.configDict.get('root.Group.HardwareGroup.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.DaqReadoutRate'))
-                # readout
+                ## metadata
                 #if header.channel == 9:
-                #    dr = warm_tdm.DataReadout.from_numpy(data)
-                #    for s in dr.samples:
-                #        if not self.data[s.col][s.row]:
-                #            self.data[s.col][s.row] = []
-                #    
-                #        self.data[s.col][s.row].append(s.value)
+                #    if fd.configDict!={}:
+                #        print(fd.configDict)
+                # readout
+                if header.channel == 9:
+                    dr = warm_tdm.DataReadout.from_numpy(data)
+                    for s in dr.samples:
+                        if not self.data[s.col][s.row]:
+                            self.data[s.col][s.row] = []
+                    
+                        self.data[s.col][s.row].append(s.value)
