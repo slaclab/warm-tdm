@@ -183,9 +183,23 @@ class DownsampleFilters(pr.Device):
                 self.Filter[col].ClearState()
 
         def _setFilters(value, write):
-            self.filterFreq = value
-            sr = timingTx.RowSequenceRate.get()*1.0e3
-            sos = scipy.signal.butter(N=4, Wn=self.filterFreq / (sr / 2), output = 'sos').astype(np.float32)
+            requested = float(value)
+            sr = float(timingTx.RowSequenceRate.get()) * 1.0e3
+
+            if not np.isfinite(sr) or sr <= 0.0:
+                print(f'Skipping downsample filter update because sample rate is invalid: {sr}')
+                return
+
+            nyquist = sr / 2.0
+            min_freq = max(np.finfo(np.float32).eps, nyquist * 1.0e-6)
+            max_freq = max(min_freq, nyquist * 0.99)
+            applied = min(max(requested, min_freq), max_freq)
+            self.filterFreq = applied
+
+            if applied != requested:
+                print(f'Clamped downsample filter cutoff from {requested} to {applied} Hz for sample rate {sr} Hz')
+
+            sos = scipy.signal.butter(N=4, Wn=applied / nyquist, output='sos').astype(np.float32)
             print('Coefficients for downsample filter')
             print(f'Sample Rate - {sr}')
             print(f'Filter Freq - {self.filterFreq}')

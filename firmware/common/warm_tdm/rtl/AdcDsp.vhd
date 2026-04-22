@@ -538,7 +538,9 @@ begin
                if (adcAxisMaster.tUser(2) = '1') then
                   v.rowIndex   := adcAxisMaster.tId(ROW_ADDR_BITS_G-1 downto 0);
                   v.accumError := (others => '0');
-                  v.rowEnabled := r.rowEnableMask(to_integer(to_ufixed(r.rowIndex, 7, 0)));
+                  -- Apply the enable mask to the row that just arrived with this strobe.
+                  -- Using r.rowIndex here shifts the mask to the next row in the sequence.
+                  v.rowEnabled := r.rowEnableMask(to_integer(to_ufixed(v.rowIndex, 7, 0)));
 
                   -- Word 0 is Column and Row
                   ssiSetUserSof(AXIS_DEBUG_CFG_C, v.pidDebugMaster, '1');

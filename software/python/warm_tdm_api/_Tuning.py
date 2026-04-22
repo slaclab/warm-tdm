@@ -135,7 +135,7 @@ def saFbSweep(*, group, bias, saFbRange, process):
 
     return curves
 
-def saBiasSweep(*, group, process):
+def saBiasSweep(*, group, process, doBiasRamp=True):
     """Returns a list of CurveData objects.
     Creates a list of CurveData objects, corresponding to each column.
     Iterates through SaBias values determined by Rogue variables.
@@ -147,16 +147,21 @@ def saBiasSweep(*, group, process):
     # Create CurveData obects for storing output data
     colCount = len(group.ColumnMap.get())
     colTuneEnable = group.ColTuneEnable.value()    
-    numBiasSteps = group.SaTuneProcess.SaBiasNumSteps.get()
+    numBiasSteps = group.SaTuneProcess.SaBiasNumSteps.get() if doBiasRamp else 1
     numFbSteps = group.SaTuneProcess.SaFbNumSteps.get()
     saBiasRange = np.zeros((colCount, numBiasSteps), np.float64)
     saFbRange = np.zeros((colCount, numFbSteps), np.float64)
+    loadedBiases = None if doBiasRamp else np.asarray(group.SaBiasCurrent.get(), dtype=np.float64)
 
     datalist = []    
     for col in range(colCount):
-        low = group.SaTuneProcess.SaBiasLowOffset.get()
-        high = group.SaTuneProcess.SaBiasHighOffset.get()
-        saBiasRange[col] = np.linspace(low,high,numBiasSteps,endpoint=True)
+        if doBiasRamp:
+            low = group.SaTuneProcess.SaBiasLowOffset.get()
+            high = group.SaTuneProcess.SaBiasHighOffset.get()
+            saBiasRange[col] = np.linspace(low,high,numBiasSteps,endpoint=True)
+        else:
+            # Retune at the bias values already loaded into the readout configuration.
+            saBiasRange[col, 0] = loadedBiases[col]
 
         low = group.SaTuneProcess.SaFbLowOffset.get()
         high = group.SaTuneProcess.SaFbHighOffset.get()
@@ -165,7 +170,8 @@ def saBiasSweep(*, group, process):
         datalist.append(warm_tdm_api.CurveData(xValues=saFbRange[col]))
     
             
-    process.TotalSteps.set(numBiasSteps * numFbSteps)
+    if process is not None:
+        process.TotalSteps.set(numBiasSteps * numFbSteps)
 
     #print(f'Bias sweep - {saBiasRange}')
     #print(f'Fb sweep = {saFbRange}')
@@ -214,7 +220,7 @@ def saBiasSweep(*, group, process):
 
     return datalist
 
-def saTune(*, group, process=None, doSet=True):
+def saTune(*, group, process=None, doSet=True, doBiasRamp=True):
     """
     Initializes group, runs saFluxBias and collects and sets SaFb, SaOffset, and SaBias
     Returns a list of CurveData objects
@@ -234,7 +240,7 @@ def saTune(*, group, process=None, doSet=True):
 
     #group.RowTuneIndex.set(0)
     #group.RowTuneMode.set(True)
-    saBiasResults = saBiasSweep(group=group,process=process)
+    saBiasResults = saBiasSweep(group=group, process=process, doBiasRamp=doBiasRamp)
 
     if doSet:
         for col in range(len(group.ColumnMap.get())):
@@ -431,7 +437,7 @@ def sq1FbSweep(*, group, bias, fbRange, process):
     return curves
 
 
-def sq1BiasSweep(group, process):
+def sq1BiasSweep(group, process, rowIndex, doBiasRamp=True):
     """Returns list of CurveData objects, corresponding to each column.
     Iterates through Sq1Bias values determined by
     lowoffset,highoffset,step,and gets curves by calling sq1FbSweep
@@ -440,16 +446,21 @@ def sq1BiasSweep(group, process):
     # Extract iteration steps from Rogue variables
     # Create CurveData obects for storing output data
     colCount = len(group.ColumnMap.get())
-    numBiasSteps = process.Sq1BiasNumSteps.get()
+    numBiasSteps = process.Sq1BiasNumSteps.get() if doBiasRamp else 1
     numFbSteps = process.Sq1FbNumSteps.get()
     biasRange = np.zeros((colCount, numBiasSteps), np.float64)
     fbRange = np.zeros((colCount, numFbSteps), np.float64)
+    loadedBiases = None if doBiasRamp else np.asarray(group.Sq1BiasCurrent.get(), dtype=np.float64)[:, rowIndex]
 
     datalist = []    
     for col in range(colCount):
-        low = process.Sq1BiasLowOffset.get()
-        high = process.Sq1BiasHighOffset.get()
-        biasRange[col] = np.linspace(low, high, numBiasSteps, endpoint=True)
+        if doBiasRamp:
+            low = process.Sq1BiasLowOffset.get()
+            high = process.Sq1BiasHighOffset.get()
+            biasRange[col] = np.linspace(low, high, numBiasSteps, endpoint=True)
+        else:
+            # Retune at the SQ1 bias already loaded for this row.
+            biasRange[col, 0] = loadedBiases[col]
 
         low = process.Sq1FbLowOffset.get()
         high = process.Sq1FbHighOffset.get()
@@ -487,7 +498,7 @@ def sq1BiasSweep(group, process):
 
     return datalist
 
-def sq1Tune(group, process):
+def sq1Tune(group, process, doBiasRamp=True):
     """
     Runs Sq1BiasSweep for each row, collecting CurveData objects.
     During this loop, sets the resulting Sq1Bias and Sq1Fb values
@@ -507,7 +518,8 @@ def sq1Tune(group, process):
     numEnabledRows = len(rowTuneList)
     numColumns = group.NumColumns.get()
 
-    totalSteps = numEnabledRows * process.Sq1BiasNumSteps.get() * process.Sq1FbNumSteps.get()
+    numBiasSteps = process.Sq1BiasNumSteps.get() if doBiasRamp else 1
+    totalSteps = numEnabledRows * numBiasSteps * process.Sq1FbNumSteps.get()
     process.TotalSteps.set(totalSteps)
 
     #group.RowForceEn.set(True)
@@ -518,8 +530,8 @@ def sq1Tune(group, process):
         group.ActivateRowIndex(rowIndex)
 
         # Run the sq1 bias sweep
-        print(f'saBiasSweep({rowIndex=})')        
-        results = sq1BiasSweep(group, process)
+        print(f'sq1BiasSweep({rowIndex=})')        
+        results = sq1BiasSweep(group, process, rowIndex=rowIndex, doBiasRamp=doBiasRamp)
         for i, r in enumerate(results):
             print(f'Results col {i}')
             print(f'bias - {r.biasOut}, xOut - {r.xOut}, yOut - {r.yOut}')

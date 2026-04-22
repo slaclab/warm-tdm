@@ -17,19 +17,27 @@ class RowFasSweepPlot(pr.LinkVariable):
         ax.clear()
         ax.set_ylabel('SA FB Servo')
         ax.set_xlabel(u'FAS Flux (\u03bcA)')
+        ax.grid(True)
+
+        if curves is None or len(curves['biasValues']) == 0:
+            ax.set_title(f'Row {row} FAS Sweep')
+            ax.text(.5, .5, 'Not Tuned', ha='center', va='center', fontsize=28)
+            return
 
         numColumns = len(curves['biasValues'])
+        low_points = np.asarray(curves['lowPoints'])
+        low_fluxes = low_points[:, 0]
 
         # Plot the curve for each column
         for col in range(numColumns):
-            minX = curves['lowIndexes'][col]
-            minY = curves['lowPoints'][col]
-            label = f'{col}: {minimum}'
-            ax.plot(curves['xValues'], curves['curves'][col], '-', minX, minY, '*', label=label)
+            min_x, min_y = low_points[col]
+            label = f'{col}: {min_x:0.3f}'
+            ax.plot(curves['xValues'], curves['curves'][col], '-', label=label)
+            ax.plot(min_x, min_y, '*')
 
-        # Plot a vertial line at the median FasFluxOn of all the curves
-        median = np.median(curves['lowIndexes'])
-        label = f'Median: {median}'
+        # Plot a vertical line at the median FAS flux minimum across all columns.
+        median = np.median(low_fluxes)
+        label = f'Median: {median:0.3f}'
         ax.axvline(median, label=label)
 
         ax.set_title(f'Row {row} FAS Sweep')
@@ -37,13 +45,21 @@ class RowFasSweepPlot(pr.LinkVariable):
 
     def linkedGet(self, index=-1, read=False):
         tune = self.parent.FasTuneOutput.value()
+        self._ax.clear()
 
         if tune == []:
+            self._ax.set_title('FAS Flux Row')
+            self._ax.text(.5, .5, 'Not Tuned', ha='center', va='center', fontsize=28)
             return self._fig
 
         row = index
         if row == -1:
             row = self.parent.PlotRow.value()
+
+        if row >= len(tune):
+            self._ax.set_title(f'Row {row} FAS Sweep')
+            self._ax.text(.5, .5, 'Not Tuned', ha='center', va='center', fontsize=28)
+            return self._fig
 
         self._plot_ax(self._ax, row, tune[row])
 
@@ -61,11 +77,27 @@ class FasTunePlot(pr.LinkVariable):
 
     def linkedGet(self, index=-1, read=False):
         tune = self.parent.FasTuneOutput.value()
-        
+
+        self._ax.clear()
+        self._ax.set_title('FAS Flux Tune')
+        self._ax.set_xlabel('Row')
+        self._ax.set_ylabel(u'Median FAS Flux Minimum (\u03bcA)')
+        self._ax.grid(True)
+
         if tune == []:
+            self._ax.text(.5, .5, 'Not Tuned', ha='center', va='center', fontsize=28)
             return self._fig
 
-        ax.plot([np.median(row['lowIndexes']) for row in tune])
+        medians = []
+        for row_curves in tune:
+            low_points = np.asarray(row_curves['lowPoints'])
+            if len(low_points) == 0:
+                medians.append(np.nan)
+            else:
+                medians.append(np.median(low_points[:, 0]))
+
+        rows = np.arange(len(medians))
+        self._ax.plot(rows, medians, marker='o')
 
         return self._fig
 
