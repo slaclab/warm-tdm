@@ -115,17 +115,19 @@ class TimingTx(pr.Device):
             name = 'RowVisitRate',
             description = 'Effective row-boundary rate derived from RowPeriodCycles.',
             mode = 'RW',
+            groups = ['NoConfig'],
             dependencies = [self.RowPeriodCycles],
             disp = '{:0.03f}',
             units = 'kHz (kRows/sec)',
             linkedGet = lambda read: 1.0e-3 / (max(float(self.RowPeriodCycles.get(read=read)), 1.0e-12) * 8.0e-9),
-            linkedSet = lambda value, write: self.RowPeriodCycles.set(1.0 / ((value * 1.0e3) * 8.0e-9), write=write)))
+            linkedSet = lambda value, write: self.RowPeriodCycles.set(max(1, int(round(1.0 / ((float(value) * 1.0e3) * 8.0e-9)))), write=write)))
 
         self.add(pr.LinkVariable(
             name = 'RowVisitPeriod',
             description = 'Effective time between adjacent row-boundary events derived from RowPeriodCycles.',
             mode = 'RW',
             dependencies = [self.RowVisitRate],
+            groups = ['NoConfig'],
             disp = '{:0.03f}',
             units = '\u03bcSec',
             linkedGet = lambda read: 1.0e3 / self.RowVisitRate.get(read=read),
