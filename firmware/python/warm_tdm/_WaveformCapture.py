@@ -434,15 +434,6 @@ class WaveformCaptureReceiver(pr.DataReceiver):
             self.RawData.set(d)
 
             if self.SaveData.value():
-<<<<<<< HEAD
-                current_time = time.time()
-                timestr = time.strftime("%Y%m%d-%H%M%S", time.localtime(current_time))
-                # Useful if taking many waveforms
-                if self.MillisecondTimestamp:
-                    timestr+=f"-{int((current_time - int(current_time)) * 1000):03d}"                
-                filename = Path(os.path.join(self.SavedFilePath.value(),f'Waveform_{timestr}.npy')).resolve()
-                # ensure file is done being written to disk before LastSavedFileName is updated.
-=======
                 current_time = datetime.datetime.now()
                 timestr = current_time.strftime("%Y%m%d-%H%M%S")
                 if self.MillisecondTimestamp.value():
@@ -457,8 +448,8 @@ class WaveformCaptureReceiver(pr.DataReceiver):
                     np.save(f, self.RawData.value())
                     f.flush()
                     os.fsync(f.fileno())
-                self.LastSavedFileName.set(str(filename))
 
+                self.LastSavedFileName.set(str(filename))
 
 def plot_waveform_channel(ch, ax, values, src, multi_channel):
     ax.clear()
