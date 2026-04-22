@@ -142,6 +142,13 @@ class SaTuneProcess(pr.Process):
                                   mode='RW',
                                   description='Number of steps between the SaBiasLowOffset and SaBiasHighOffset, inclusively.'))
 
+        self.add(pr.LocalVariable(
+            name='DoBiasRamp',
+            value=True,
+            mode='RW',
+            description='When true, sweep SA bias across the configured range. '
+                        'When false, only take curves at the currently loaded SA bias values.'))
+
         # Set values after finish
         self.add(pr.LocalVariable(name='SetAfterFinish',
                                   value=False,
@@ -242,7 +249,11 @@ class SaTuneProcess(pr.Process):
 
     def _saTuneWrap(self):
         with self.root.updateGroup(0.25):
-            ret = warm_tdm_api.saTune(group=self.parent,process=self,doSet=self.SetAfterFinish.value())
+            ret = warm_tdm_api.saTune(
+                group=self.parent,
+                process=self,
+                doSet=self.SetAfterFinish.value(),
+                doBiasRamp=self.DoBiasRamp.value())
             self.SaTuneOutput.set(value=[r.asDict() for r in ret])
 
     def _saveData(self,arg):
@@ -253,4 +264,3 @@ class SaTuneProcess(pr.Process):
             filename = f'SATune_{timestr}.npy'
 
         np.save(filename, self.SaTuneOutput.value())
-

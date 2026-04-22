@@ -143,6 +143,13 @@ class Sq1TuneProcess(pr.Process):
             description="Number of steps for SQ1 Bias Tuning"))
 
         self.add(pr.LocalVariable(
+            name='DoBiasRamp',
+            value=True,
+            mode='RW',
+            description='When true, sweep SQ1 bias across the configured range. '
+                        'When false, only take curves at the currently loaded SQ1 bias values.'))
+
+        self.add(pr.LocalVariable(
             name='ServoKp',
             value=-0.8,
             mode='RW',
@@ -280,7 +287,10 @@ class Sq1TuneProcess(pr.Process):
 
     def _sq1TuneWrap(self):
         with self.root.updateGroup(0.25):
-            ret = warm_tdm_api.sq1Tune(group=self.parent, process=self)
+            ret = warm_tdm_api.sq1Tune(
+                group=self.parent,
+                process=self,
+                doBiasRamp=self.DoBiasRamp.value())
         self.Sq1TuneOutput.set(value = [[col.asDict() for col in row] for row in ret])
         print('SQ1Tune Output')
         print(self.Sq1TuneOutput.value())
