@@ -3,8 +3,7 @@
 
 library ieee;
 use ieee.std_logic_1164.all;
-
---use ieee.numeric_std.all;
+use ieee.numeric_std.all;
 
 library unisim;
 use unisim.vcomponents.all;
@@ -26,6 +25,7 @@ entity AdcDsp is
 
    generic (
       TPD_G            : time                 := 1 ns;
+      SIMULATION_G     : boolean              := false;
       INVERT_SQ1FB_G   : boolean              := true;
       COLUMN_NUM_G     : integer range 0 to 7 := 0;
       ROW_ADDR_BITS_G  : integer range 3 to 8 := 8;
@@ -108,6 +108,8 @@ architecture rtl of AdcDsp is
       dataBytes => 8,
       tKeepMode => TKEEP_COMP_C,
       tDestBits => 4);
+
+   constant STREAM_FIFO_SYNTH_MODE_C : string := ite(SIMULATION_G, "inferred", "xpm");
 
 
    type StateType is (
@@ -603,7 +605,7 @@ begin
          if (r.pidStateRamAddr = CLEAR_LAST_ADDR_C) then
             v.clearPidStateBusy := '0';
          else
-            v.pidStateRamAddr := r.pidStateRamAddr + 1;
+            v.pidStateRamAddr := slv(unsigned(r.pidStateRamAddr) + 1);
          end if;
       elsif (r.fllEnable = '0' and timingRxData.rowSeqStart = '1') then
          -- Special case when row not running. Output empty tlast only
@@ -869,7 +871,7 @@ begin
          FIFO_PAUSE_THRESH_G => 15,
          GEN_SYNC_FIFO_G     => false,
          FIFO_ADDR_WIDTH_G   => 9,
-         SYNTH_MODE_G        => "xpm",
+         SYNTH_MODE_G        => STREAM_FIFO_SYNTH_MODE_C,
          MEMORY_TYPE_G       => "bram",
          INT_WIDTH_SELECT_G  => "WIDE",
          SLAVE_AXI_CONFIG_G  => AXIS_DEBUG_CFG_C,
@@ -896,7 +898,7 @@ begin
          FIFO_PAUSE_THRESH_G => 15,
          GEN_SYNC_FIFO_G     => true,
          FIFO_ADDR_WIDTH_G   => 5,
-         SYNTH_MODE_G        => "xpm",
+         SYNTH_MODE_G        => STREAM_FIFO_SYNTH_MODE_C,
          MEMORY_TYPE_G       => "distributed",
          INT_WIDTH_SELECT_G  => "WIDE",
          SLAVE_AXI_CONFIG_G  => PID_DATA_AXIS_CFG_C,
@@ -926,7 +928,7 @@ begin
          TPD_G           => TPD_G,
          GEN_SYNC_FIFO_G => false,
          FWFT_EN_G       => true,
-         SYNTH_MODE_G    => "xpm",
+         SYNTH_MODE_G    => STREAM_FIFO_SYNTH_MODE_C,
          MEMORY_TYPE_G   => "distributed",
          PIPE_STAGES_G   => 0,
          DATA_WIDTH_G    => 22,
