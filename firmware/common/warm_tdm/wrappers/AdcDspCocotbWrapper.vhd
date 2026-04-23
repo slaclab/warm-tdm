@@ -179,6 +179,7 @@ begin
    U_DUT : entity warm_tdm.AdcDsp
       generic map (
          TPD_G            => TPD_G,
+         SIMULATION_G     => true,
          INVERT_SQ1FB_G   => INVERT_SQ1FB_G,
          COLUMN_NUM_G     => COLUMN_NUM_G,
          ROW_ADDR_BITS_G  => ROW_ADDR_BITS_G,

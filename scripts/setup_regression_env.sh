@@ -4,9 +4,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENV_DIR="${ROOT_DIR}/.venv"
-RUCKUS_REQS="${ROOT_DIR}/firmware/submodules/ruckus/scripts/pip_requirements.txt"
-IMPORT_TARGET="${WARM_TDM_IMPORT_TARGET:-RowFpgaBoard0}"
-IMPORT_DIR="${ROOT_DIR}/firmware/targets/${IMPORT_TARGET}"
+RUCKUS_DIR="${ROOT_DIR}/ruckus"
+HOME_RUCKUS_DIR="${HOME}/ruckus"
 
 echo "[warm-tdm-regress] root: ${ROOT_DIR}"
 
@@ -50,13 +49,29 @@ python -m pip install -r "${ROOT_DIR}/pip_requirements.txt"
 echo "[warm-tdm-regress] installing regression python requirements"
 python -m pip install -r "${ROOT_DIR}/pip_requirements_regression.txt"
 
-if [ -f "${RUCKUS_REQS}" ]; then
-  echo "[warm-tdm-regress] installing ruckus python requirements"
-  python -m pip install -r "${RUCKUS_REQS}"
+if [ ! -e "${RUCKUS_DIR}" ] && [ -d "${HOME_RUCKUS_DIR}" ]; then
+  echo "[warm-tdm-regress] linking existing ruckus checkout from ${HOME_RUCKUS_DIR}"
+  ln -s "${HOME_RUCKUS_DIR}" "${RUCKUS_DIR}"
 fi
 
-if [ ! -d "${IMPORT_DIR}" ]; then
-  echo "[warm-tdm-regress] warning: import target directory not found: ${IMPORT_DIR}" >&2
+if [ -L "${RUCKUS_DIR}" ] && [ ! -d "${RUCKUS_DIR}" ]; then
+  echo "[warm-tdm-regress] removing broken ruckus symlink at ${RUCKUS_DIR}"
+  rm "${RUCKUS_DIR}"
+fi
+
+if [ ! -d "${RUCKUS_DIR}" ]; then
+  if ! command -v git >/dev/null 2>&1; then
+    echo "[warm-tdm-regress] error: git is required to clone ruckus" >&2
+    exit 1
+  fi
+
+  echo "[warm-tdm-regress] cloning ruckus into ${RUCKUS_DIR}"
+  git clone https://github.com/slaclab/ruckus.git "${RUCKUS_DIR}"
+fi
+
+if [ -f "${RUCKUS_DIR}/scripts/pip_requirements.txt" ]; then
+  echo "[warm-tdm-regress] installing ruckus python requirements"
+  python -m pip install -r "${RUCKUS_DIR}/scripts/pip_requirements.txt"
 fi
 
 cat <<EOF
@@ -66,7 +81,7 @@ Activate the environment with:
   source "${VENV_DIR}/bin/activate"
 
 Then import HDL sources with:
-  make -C "${IMPORT_DIR}" import
+  make rtl_import
 
 Then run the first regression with:
   ./.venv/bin/python -m pytest -n 0 -q tests/warm_tdm/adc_dsp/test_AdcDsp.py

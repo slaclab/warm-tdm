@@ -44,9 +44,9 @@
 
 ## Environment And Runtime Policy
 - Bootstrap the regression environment with `scripts/setup_regression_env.sh`.
-- The bootstrap script creates `./.venv`, installs repo and regression Python requirements, and points users at the HDL import step.
-- Imported HDL sources are expected under `firmware/targets/<target>/build/SRC_VHDL/`.
-- The default import target for phase-1 benches is `RowFpgaBoard0`, with an override via environment variable when needed.
+- The bootstrap script creates `./.venv`, installs repo and regression Python requirements, and creates or links a repo-local `ruckus/` checkout for the GHDL flow.
+- Imported HDL sources are expected under `build/SRC_VHDL/`.
+- Phase-1 benches use the repo-root GHDL import surface rather than a firmware target build tree.
 
 ## Acceptance Criteria For Phase 1
 - `docs/_meta/` contains plan, handoff, inventory, and progress files.

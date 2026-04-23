@@ -1,15 +1,15 @@
 # Test methodology:
 # - Sweep: Exercise the first `AdcDsp` cocotb wrapper across the initial PID
 #   control cases that motivated the regression work: I-disabled operation,
-#   state clearing on I writes and start-run pulses, and positive-rail
-#   anti-windup.
+#   state clearing on I writes, start-run pulses, and software clear requests,
+#   plus positive-rail anti-windup.
 # - Stimulus: Program the live AXI-Lite register bank, seed row-0 baseline RAM,
 #   then drive one-row ADC sample sequences while a flattened `LocalTimingType`
 #   input supplies the run-control pulses.
 # - Checks: `sumAccum` must stay at zero when `I_Coef = 0`, become nonzero when
-#   I is enabled and the row error is nonzero, clear after `I_Coef` changes and
-#   `startRun`, and remain held at zero when the current SQ1 feedback value is
-#   already above the positive rail.
+#   I is enabled and the row error is nonzero, clear after `I_Coef` changes,
+#   `startRun`, and `clearPidState`, and remain held at zero when the current
+#   SQ1 feedback value is already above the positive rail.
 # - Timing: The bench intentionally drives `LocalTimingType` directly instead of
 #   using the full timing serial path so PID failures stay attributable to
 #   `AdcDsp` rather than to a larger timing integration shell.
@@ -27,6 +27,54 @@ from tests.common.regression_utils import run_warm_tdm_vhdl_test
 
 
 WRAPPER_PATH = "firmware/common/warm_tdm/wrappers/AdcDspCocotbWrapper.vhd"
+UNISIM_STUB_PATH = "tests/common/vhdl/unisim_vcomponents.vhd"
+
+IMPORT_LIBRARY_ALLOWLIST = {"surf", "warm_tdm"}
+IMPORT_FILE_ALLOWLISTS = {
+    "surf": {
+        "ArbiterPkg.vhd",
+        "AxiLiteCrossbar.vhd",
+        "AxiLiteMaster.vhd",
+        "AxiLitePkg.vhd",
+        "AxiPkg.vhd",
+        "AxiDualPortRam.vhd",
+        "AxiStreamFifoV2.vhd",
+        "AxiStreamGearbox.vhd",
+        "AxiStreamPipeline.vhd",
+        "AxiStreamPkg.vhd",
+        "AxiStreamResize.vhd",
+        "DualPortRam.vhd",
+        "Fifo.vhd",
+        "FifoAlteraMfDummy.vhd",
+        "FifoAsync.vhd",
+        "FifoCascade.vhd",
+        "FifoOutputPipeline.vhd",
+        "FifoRdFsm.vhd",
+        "FifoSync.vhd",
+        "FifoWrFsm.vhd",
+        "FifoXpmDummy.vhd",
+        "LutRam.vhd",
+        "RstSync.vhd",
+        "SimpleDualPortRam.vhd",
+        "SlaveAxiLiteIpIntegrator.vhd",
+        "SsiPkg.vhd",
+        "StdRtlPkg.vhd",
+        "Synchronizer.vhd",
+        "SynchronizerFifo.vhd",
+        "SynchronizerVector.vhd",
+        "TextUtilPkg.vhd",
+        "TrueDualPortRam.vhd",
+        "TrueDualPortRamXpmAlteraMfDummy.vhd",
+        "TrueDualPortRamXpmDummy.vhd",
+    },
+    "warm_tdm": {
+        "AdcDsp.vhd",
+        "FixedPkg.vhd",
+        "TimingPkg.vhd",
+        "WarmTdmPkg.vhd",
+    }
+}
+IMPORT_FILE_EXCLUDES = ("*Tb*.vhd",)
 
 REG_CONTROL = 0x0000
 REG_P_COEF = 0x0004
@@ -39,6 +87,9 @@ REG_CLEAR_PID_STATE = 0x0030
 ADC_BASELINE_RAM = 0x1000
 
 FLL_ENABLE_MASK = 0x00000001
+# `sfixed(0 downto -23)` cannot represent +1.0; the top bit is the sign bit.
+# Use the largest positive coefficient instead.
+UNIT_COEF = (1 << 23) - 1
 
 TIMING_FIELD_LAYOUT = {
     "startRun": (0, 1),
@@ -249,10 +300,32 @@ async def start_run_clears_integrator_state(dut):
 
 
 @cocotb.test()
-async def anti_windup_holds_integrator_at_positive_rail(dut):
+async def clear_pid_state_register_clears_integrator_state(dut):
     bench = await setup_bench(dut)
 
     await axil_write_u32(bench.axil, REG_I_COEF, 1)
+    await axil_write_u32(bench.axil, REG_CONTROL, FLL_ENABLE_MASK)
+    await bench.wait_for_pid_clear()
+
+    await bench.drive_row(row=0, error=9, sq1fb_value=0)
+    sum_accum_before = await axil_read_u32(bench.axil, REG_SUM_ACCUM)
+    assert sum_accum_before != 0
+
+    await axil_write_u32(bench.axil, REG_CLEAR_PID_STATE, 1)
+    await bench.wait_for_pid_clear()
+
+    sum_accum_after = await axil_read_u32(bench.axil, REG_SUM_ACCUM)
+    accum_error_after = await axil_read_u32(bench.axil, REG_ACCUM_ERROR)
+
+    assert sum_accum_after == 0
+    assert accum_error_after == 0
+
+
+@cocotb.test()
+async def anti_windup_holds_integrator_at_positive_rail(dut):
+    bench = await setup_bench(dut)
+
+    await axil_write_u32(bench.axil, REG_I_COEF, UNIT_COEF)
     await axil_write_u32(bench.axil, REG_CONTROL, FLL_ENABLE_MASK)
     await bench.wait_for_pid_clear()
 
@@ -260,10 +333,15 @@ async def anti_windup_holds_integrator_at_positive_rail(dut):
     sum_accum_nominal = await axil_read_u32(bench.axil, REG_SUM_ACCUM)
     assert sum_accum_nominal != 0
 
-    await axil_write_u32(bench.axil, REG_CLEAR_PID_STATE, 1)
+    await bench.pulse_start_run()
     await bench.wait_for_pid_clear()
+    sum_accum_cleared = await axil_read_u32(bench.axil, REG_SUM_ACCUM)
+    assert sum_accum_cleared == 0
+    await axil_write_u32(bench.axil, REG_P_COEF, UNIT_COEF)
 
-    await bench.drive_row(row=0, error=11, sq1fb_value=8000)
+    # Drive the commanded SQ1 feedback near the positive rail and apply a
+    # proportional term so the current command exceeds the anti-windup limit.
+    await bench.drive_row(row=0, error=11, sq1fb_value=8188)
     sum_accum_saturated = await axil_read_u32(bench.axil, REG_SUM_ACCUM)
 
     assert sum_accum_saturated == 0
@@ -276,5 +354,12 @@ def test_AdcDsp(parameters):
         toplevel="warm_tdm.adcdspcocotbwrapper",
         parameters=parameters,
         extra_env=parameters,
-        extra_vhdl_sources={"warm_tdm": [WRAPPER_PATH]},
+        extra_vhdl_sources={
+            "unisim": [UNISIM_STUB_PATH],
+            "warm_tdm": [WRAPPER_PATH],
+        },
+        sim_build_key="adcdsp_direct_pid_v10",
+        import_library_allowlist=IMPORT_LIBRARY_ALLOWLIST,
+        import_file_allowlists=IMPORT_FILE_ALLOWLISTS,
+        import_file_excludes=IMPORT_FILE_EXCLUDES,
     )

@@ -8,3 +8,4 @@ __pycache__/
 .venv/
 tests/sim_build/
 firmware/targets/*/build/
+.vscode/

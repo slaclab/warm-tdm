@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from fnmatch import fnmatch
 from functools import lru_cache
 import os
 from pathlib import Path
@@ -11,8 +12,8 @@ from cocotb_test.simulator import run
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TESTS_ROOT = REPO_ROOT / "tests"
-DEFAULT_IMPORT_TARGET = os.environ.get("WARM_TDM_IMPORT_TARGET", "RowFpgaBoard0")
-DEFAULT_IMPORT_ROOT = REPO_ROOT / "firmware" / "targets" / DEFAULT_IMPORT_TARGET / "build" / "SRC_VHDL"
+DEFAULT_IMPORT_ROOT = REPO_ROOT / "build" / "SRC_VHDL"
+UNISIM_VCOMPONENTS_STUB = TESTS_ROOT / "common" / "vhdl" / "unisim_vcomponents.vhd"
 
 BASE_GHDL_COMPILE_ARGS = [
     "--std=08",
@@ -82,7 +83,20 @@ def env_int(name: str, *, default: int) -> int:
     return default if raw is None else int(raw.strip().strip("'").strip('"'))
 
 
-def build_vhdl_sources(import_root: str | Path | None = None) -> dict[str, list[str]]:
+def _ordered_library_names(library_names: set[str]) -> list[str]:
+    preferred_order = ("unisim", "surf", "warm_tdm")
+    ordered = [name for name in preferred_order if name in library_names]
+    ordered.extend(sorted(name for name in library_names if name not in preferred_order))
+    return ordered
+
+
+def build_vhdl_sources(
+    import_root: str | Path | None = None,
+    *,
+    library_allowlist: set[str] | None = None,
+    file_allowlists: dict[str, set[str]] | None = None,
+    file_excludes: tuple[str, ...] = (),
+) -> dict[str, list[str]]:
     if import_root is None:
         import_path = DEFAULT_IMPORT_ROOT
     else:
@@ -91,17 +105,30 @@ def build_vhdl_sources(import_root: str | Path | None = None) -> dict[str, list[
     if not import_path.exists():
         raise FileNotFoundError(
             "Missing imported HDL sources at "
-            f"{import_path}. Run `make -C firmware/targets/{DEFAULT_IMPORT_TARGET} import` "
-            "or set WARM_TDM_IMPORT_TARGET / WARM_TDM_IMPORT_ROOT."
+            f"{import_path}. Run `make rtl_import` or set WARM_TDM_IMPORT_ROOT."
         )
 
     libraries: dict[str, list[str]] = {}
     for library_dir in sorted(import_path.iterdir()):
         if not library_dir.is_dir():
             continue
-        libraries[library_dir.name] = [
-            str(path) for path in sorted(library_dir.iterdir()) if path.is_file()
-        ]
+        library_name = library_dir.name
+        if library_allowlist is not None and library_name not in library_allowlist:
+            continue
+
+        allowed_files = None if file_allowlists is None else file_allowlists.get(library_name)
+        library_sources = []
+        for path in sorted(library_dir.iterdir()):
+            if not path.is_file():
+                continue
+            if allowed_files is not None and path.name not in allowed_files:
+                continue
+            if any(fnmatch(path.name, pattern) for pattern in file_excludes):
+                continue
+            library_sources.append(str(path))
+
+        if library_sources:
+            libraries[library_name] = library_sources
 
     if not libraries:
         raise FileNotFoundError(f"No imported VHDL libraries found under {import_path}")
@@ -116,10 +143,14 @@ def merge_vhdl_sources(
     if not extra_sources:
         return base_sources
 
-    merged = {library: list(paths) for library, paths in base_sources.items()}
-    for library, paths in extra_sources.items():
-        merged.setdefault(library, [])
-        merged[library].extend(str(Path(path)) for path in paths)
+    merged: dict[str, list[str]] = {}
+    all_library_names = set(base_sources) | set(extra_sources)
+    for library in _ordered_library_names(all_library_names):
+        merged[library] = []
+        if library in extra_sources:
+            merged[library].extend(str(Path(path)) for path in extra_sources[library])
+        if library in base_sources:
+            merged[library].extend(base_sources[library])
     return merged
 
 
@@ -139,6 +170,15 @@ def _sim_build_path(test_file: Path, parameters: dict[str, object] | None) -> st
     return str(build_dir.with_name(f"{test_file.stem}.{suffix}"))
 
 
+def _sim_build_from_key(test_file: Path, sim_build_key: str) -> str:
+    sim_build_path = Path(sim_build_key)
+    if sim_build_path.is_absolute():
+        return str(sim_build_path)
+
+    rel_parent = test_file.resolve().relative_to(TESTS_ROOT).parent
+    return str(TESTS_ROOT / "sim_build" / rel_parent / sim_build_path)
+
+
 def run_warm_tdm_vhdl_test(
     *,
     test_file: str | Path,
@@ -148,6 +188,9 @@ def run_warm_tdm_vhdl_test(
     extra_vhdl_sources: dict[str, list[str]] | None = None,
     sim_build_key: str | None = None,
     import_root: str | Path | None = None,
+    import_library_allowlist: set[str] | None = None,
+    import_file_allowlists: dict[str, set[str]] | None = None,
+    import_file_excludes: tuple[str, ...] = (),
 ) -> None:
     test_file = Path(test_file)
     simulator_env = None
@@ -160,7 +203,10 @@ def run_warm_tdm_vhdl_test(
         simulator_env = {key: str(value) for key, value in parameters.items()}
 
     imported_sources = build_vhdl_sources(
-        os.environ.get("WARM_TDM_IMPORT_ROOT", import_root)
+        os.environ.get("WARM_TDM_IMPORT_ROOT", import_root),
+        library_allowlist=import_library_allowlist,
+        file_allowlists=import_file_allowlists,
+        file_excludes=import_file_excludes,
     )
 
     run(
@@ -169,7 +215,7 @@ def run_warm_tdm_vhdl_test(
         toplevel_lang="vhdl",
         vhdl_sources=merge_vhdl_sources(imported_sources, extra_vhdl_sources),
         parameters=parameters,
-        sim_build=sim_build_key
+        sim_build=_sim_build_from_key(test_file, sim_build_key)
         if sim_build_key is not None
         else _sim_build_path(test_file, sim_build_parameters),
         extra_env=simulator_env,
