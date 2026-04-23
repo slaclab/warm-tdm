@@ -1,0 +1,7 @@
+cocotb
+cocotb-test
+cocotbext-axi
+pytest
+pytest-cov
+pytest-xdist
+vsg

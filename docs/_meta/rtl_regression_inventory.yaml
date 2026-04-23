@@ -1,0 +1,113 @@
+version: 1
+last_updated: 2026-04-22
+
+field_guide:
+  entity: "Synthesizable RTL entity name"
+  path: "Path to the synthesizable RTL source file"
+  subsystem: "Warm-TDM grouping used for rollout tracking"
+  tier: "One of functional_python, wrapper_required, integration_sim, deferred_ip_backed"
+  status: "Current implementation state for this module"
+  priority: "Pilot / near-term / later rollout tag"
+  wrapper_path: "Optional cocotb-facing VHDL wrapper"
+  python_test: "Planned or implemented Python regression entrypoint"
+  reference_assets: "Optional supporting simulation files or legacy assets"
+  notes: "Short implementation notes"
+  deferred_reason: "Required when tier is deferred_ip_backed"
+
+inventory_rules:
+  - "Each synthesizable warm-tdm RTL entity should eventually appear once in this inventory."
+  - "Executable regression logic lives in Python."
+  - "Checked-in VHDL remains limited to wrappers, shims, and required simulation support."
+  - "Existing board and ASIC models are support assets, not the default execution path."
+
+modules:
+  - entity: AdcDsp
+    path: firmware/common/warm_tdm/rtl/AdcDsp.vhd
+    subsystem: warm_tdm/adc_dsp
+    tier: wrapper_required
+    status: scaffolded_initial
+    priority: pilot
+    wrapper_path: firmware/common/warm_tdm/wrappers/AdcDspCocotbWrapper.vhd
+    python_test: tests/warm_tdm/adc_dsp/test_AdcDsp.py
+    reference_assets:
+      - firmware/common/warm_tdm/rtl/TimingPkg.vhd
+    notes: "Initial cocotb bench uses direct LocalTimingType injection for deterministic PID validation. A timing-integrated smoke bench is planned as a follow-on."
+    deferred_reason: ""
+
+  - entity: TimingTx
+    path: firmware/common/warm_tdm/rtl/TimingTx.vhd
+    subsystem: warm_tdm/timing
+    tier: integration_sim
+    status: planned
+    priority: near_term
+    wrapper_path: ""
+    python_test: ""
+    reference_assets:
+      - firmware/common/warm_tdm/rtl/Timing.vhd
+    notes: "Target for the first timing realism follow-on after the direct-drive AdcDsp bench stabilizes."
+    deferred_reason: ""
+
+  - entity: TimingRx
+    path: firmware/common/warm_tdm/rtl/TimingRx.vhd
+    subsystem: warm_tdm/timing
+    tier: integration_sim
+    status: planned
+    priority: near_term
+    wrapper_path: ""
+    python_test: ""
+    reference_assets:
+      - firmware/common/warm_tdm/rtl/TimingDeserializer.vhd
+      - firmware/common/warm_tdm/rtl/TimingSerializer.vhd
+    notes: "Likely part of the timing-integrated AdcDsp smoke path, not the first PID bench."
+    deferred_reason: ""
+
+  - entity: WaveformCapture
+    path: firmware/common/warm_tdm/rtl/WaveformCapture.vhd
+    subsystem: warm_tdm/capture
+    tier: wrapper_required
+    status: planned
+    priority: near_term
+    wrapper_path: ""
+    python_test: ""
+    reference_assets: []
+    notes: "Candidate second-wave module after AdcDsp because the control/data boundary is relatively self-contained."
+    deferred_reason: ""
+
+  - entity: DataPath
+    path: firmware/common/warm_tdm/rtl/DataPath.vhd
+    subsystem: warm_tdm/datapath
+    tier: integration_sim
+    status: planned
+    priority: later
+    wrapper_path: ""
+    python_test: ""
+    reference_assets:
+      - firmware/common/warm_tdm/sim/ColumnFpgaBoardModel.vhd
+      - firmware/common/warm_tdm/sim/RowFpgaBoardModel.vhd
+    notes: "Better suited to a subsystem integration tier than the first phase-1 pilot."
+    deferred_reason: ""
+
+  - entity: EventBuilder
+    path: firmware/common/warm_tdm/rtl/EventBuilder.vhd
+    subsystem: warm_tdm/datapath
+    tier: integration_sim
+    status: planned
+    priority: later
+    wrapper_path: ""
+    python_test: ""
+    reference_assets: []
+    notes: "Follow-on after the AdcDsp and timing/control benches establish common helpers."
+    deferred_reason: ""
+
+  - entity: FirFilterWrapper
+    path: firmware/common/warm_tdm/rtl/FirFilterWrapper.vhd
+    subsystem: warm_tdm/filter
+    tier: deferred_ip_backed
+    status: deferred
+    priority: later
+    wrapper_path: ""
+    python_test: ""
+    reference_assets:
+      - firmware/common/warm_tdm/ip/FirFilter/FirFilter.xci
+    notes: "Deferred because the current open-source flow would depend on vendor IP."
+    deferred_reason: "Depends on vendor-generated filter IP."
