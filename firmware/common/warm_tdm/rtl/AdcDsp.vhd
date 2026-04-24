@@ -97,6 +97,10 @@ architecture rtl of AdcDsp is
    constant RESULT_HIGH_C : integer := sfixed_high(COEF_HIGH_C, COEF_LOW_C, '*', ACCUM_BITS_C-1, 0);  --26;
    constant RESULT_LOW_C  : integer := sfixed_low(COEF_HIGH_C, COEF_LOW_C, '*', ACCUM_BITS_C-1, 0);  --8;
    constant RESULT_BITS_C : integer := RESULT_HIGH_C - RESULT_LOW_C + 1;
+   constant ZERO_COEF_C   : slv(COEF_BITS_C-1 downto 0) := (others => '0');
+   constant SQ1FB_MAX_C   : integer := 2**13-1;
+   constant SQ1FB_MIN_C   : integer := -(2**13);
+   constant CLEAR_LAST_ADDR_C : slv(ROW_ADDR_BITS_G-1 downto 0) := toSlv((2**ROW_ADDR_BITS_G)-1, ROW_ADDR_BITS_G);
 
    constant FILTER_COEFFICIENTS_C : IntegerArray(0 to 10) := (5 => 2**7-1, others => 0);
 
@@ -131,7 +135,6 @@ architecture rtl of AdcDsp is
       outputMode         : slv(1 downto 0);
       state              : StateType;
       rowIndex           : slv(ROW_ADDR_BITS_G-1 downto 0);
-      accumValid         : sl;
       accumSamples       : ufixed(31 downto 0);
       accumError         : sfixed(ACCUM_BITS_C-1 downto 0);
       lastAccumError     : sfixed(ACCUM_BITS_C-1 downto 0);
@@ -142,15 +145,23 @@ architecture rtl of AdcDsp is
       p                  : slv(COEF_BITS_C-1 downto 0);  -- sfixed(COEF_HIGH_C downto COEF_LOW_C);
       i                  : slv(COEF_BITS_C-1 downto 0);  -- sfixed(COEF_HIGH_C downto COEF_LOW_C);
       d                  : slv(COEF_BITS_C-1 downto 0);  -- sfixed(COEF_HIGH_C downto COEF_LOW_C);
-      pidValid           : sl;
       pidResult          : sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
       sq1Fb              : sfixed(13 downto 0);
       sq1FbValid         : sl;
       sq1FbFull          : sfixed(31 downto 0);          -- SQ1FB + flux jumps
       numFluxJumps       : slv(8 downto 0);
       fluxQuantum        : slv(13 downto 0);
-      fluxJumpWrValid    : sl;
-      clearRams          : sl;
+      clearPidState      : sl;
+      clearPidStateBusy  : sl;
+      pidStateRamAddr    : slv(ROW_ADDR_BITS_G-1 downto 0);
+      accumErrorRamWrEn  : sl;
+      accumErrorRamWrData : slv(ACCUM_BITS_C-1 downto 0);
+      sumAccumRamWrEn    : sl;
+      sumAccumRamWrData  : slv(SUM_BITS_C-1 downto 0);
+      pidResultRamWrEn   : sl;
+      pidResultRamWrData : slv(RESULT_BITS_C-1 downto 0);
+      fluxJumpRamWrEn    : sl;
+      fluxJumpRamWrData  : slv(8 downto 0);
       dropCount          : ufixed(31 downto 0);
       axilPidDebugEnable : sl;
       pidDebugEnable     : sl;
@@ -167,7 +178,6 @@ architecture rtl of AdcDsp is
       outputMode         => (others => '0'),
       state              => WAIT_ROW_STROBE_S,
       rowIndex           => (others => '0'),
-      accumValid         => '0',
       accumSamples       => (others => '0'),
       accumError         => (others => '0'),
       lastAccumError     => (others => '0'),
@@ -178,15 +188,23 @@ architecture rtl of AdcDsp is
       p                  => (others => '0'),
       i                  => (others => '0'),
       d                  => (others => '0'),
-      pidValid           => '0',
       pidResult          => (others => '0'),
       sq1Fb              => (others => '0'),
       sq1FbValid         => '0',
       sq1FbFull          => (others => '0'),
       numFluxJumps       => (others => '0'),
       fluxQuantum        => (others => '0'),
-      fluxJumpWrValid    => '0',
-      clearRams          => '0',
+      clearPidState      => '0',
+      clearPidStateBusy  => '0',
+      pidStateRamAddr    => (others => '0'),
+      accumErrorRamWrEn  => '0',
+      accumErrorRamWrData => (others => '0'),
+      sumAccumRamWrEn    => '0',
+      sumAccumRamWrData  => (others => '0'),
+      pidResultRamWrEn   => '0',
+      pidResultRamWrData => (others => '0'),
+      fluxJumpRamWrEn    => '0',
+      fluxJumpRamWrData  => (others => '0'),
       dropCount          => (others => '0'),
       axilPidDebugEnable => '0',
       pidDebugEnable     => '0',
@@ -203,10 +221,6 @@ architecture rtl of AdcDsp is
    signal sumRamOut         : slv(SUM_BITS_C-1 downto 0);
    signal pidRamOut         : slv(RESULT_BITS_C-1 downto 0);
    signal fluxJumpRamOut    : slv(8 downto 0);
-
-   signal accumError : slv(ACCUM_BITS_C-1 downto 0);
-   signal sumAccum   : slv(SUM_BITS_C-1 downto 0);
-   signal pidResult  : slv(RESULT_BITS_C-1 downto 0);
 
 --   signal pidStreamMaster    : AxiStreamMasterType := AXI_STREAM_MASTER_INIT_C;
    signal filterStreamMaster : AxiStreamMasterType := AXI_STREAM_MASTER_INIT_C;
@@ -350,13 +364,11 @@ begin
          axiWriteSlave  => locAxilWriteSlaves(FLUX_JUMP_C),   -- [out]
          clk            => timingRxClk125,                    -- [in]
          rst            => timingRxRst125,                    -- [in]
-         addr           => r.rowIndex,                        -- [in]
+         addr           => r.pidStateRamAddr,                -- [in]
          dout           => fluxJumpRamOut,                    -- [out]
-         we             => r.fluxJumpWrValid,                 -- [in]
-         din            => r.numFluxJumps);                   -- [in]
+         we             => r.fluxJumpRamWrEn,                -- [in]
+         din            => r.fluxJumpRamWrData);             -- [in]
 
-
-   accumError <= slv(r.accumError);
    U_AxiDualPortRam_ACCUM_ERROR : entity surf.AxiDualPortRam
       generic map (
          TPD_G            => TPD_G,
@@ -378,13 +390,12 @@ begin
          axiWriteSlave  => locAxilWriteSlaves(ACCUM_ERROR_C),   -- [out]
          clk            => timingRxClk125,                      -- [in]
          rst            => timingRxRst125,                      -- [in]
-         addr           => r.rowIndex,                          -- [in]
-         we             => r.accumValid,                        -- [in]
-         din            => accumError,                          -- [in]
+         addr           => r.pidStateRamAddr,                  -- [in]
+         we             => r.accumErrorRamWrEn,                -- [in]
+         din            => r.accumErrorRamWrData,              -- [in]
          dout           => accumRamOut);                        -- [in]
 
 
-   sumAccum <= slv(r.sumAccum);
    U_AxiDualPortRam_SUM_ACCUM : entity surf.AxiDualPortRam
       generic map (
          TPD_G            => TPD_G,
@@ -406,12 +417,11 @@ begin
          axiWriteSlave  => locAxilWriteSlaves(SUM_ACCUM_C),   -- [out]
          clk            => timingRxClk125,                    -- [in]
          rst            => timingRxRst125,                    -- [in]
-         addr           => r.rowIndex,                        -- [in]
-         we             => r.pidValid,                        -- [in]
-         din            => sumAccum,                          -- [in]
+         addr           => r.pidStateRamAddr,                -- [in]
+         we             => r.sumAccumRamWrEn,                -- [in]
+         din            => r.sumAccumRamWrData,              -- [in]
          dout           => sumRamOut);                        -- [in]
 
-   pidResult <= to_slv(r.pidResult);
    U_AxiDualPortRam_PID_RESULTS : entity surf.AxiDualPortRam
       generic map (
          TPD_G            => TPD_G,
@@ -433,9 +443,9 @@ begin
          axiWriteSlave  => locAxilWriteSlaves(PID_RESULTS_C),   -- [out]
          clk            => timingRxClk125,                      -- [in]
          rst            => timingRxRst125,                      -- [in]
-         addr           => r.rowIndex,                          -- [in]
-         we             => r.pidValid,                          -- [in]
-         din            => pidResult,                           -- [in]
+         addr           => r.pidStateRamAddr,                  -- [in]
+         we             => r.pidResultRamWrEn,                 -- [in]
+         din            => r.pidResultRamWrData,               -- [in]
          dout           => pidRamOut);                          -- [in]
 
 
@@ -443,7 +453,6 @@ begin
                    sumRamOut, timingAxilReadMaster, timingAxilWriteMaster, timingRxData,
                    timingRxRst125) is
       variable v                 : RegType;
-      variable sq1FbSlv          : slv(13 downto 0);
       variable adcValueSfixed    : sfixed(13 downto 0);
       variable adcBaselineSfixed : sfixed(13 downto 0);
       variable pSfixed           : sfixed(COEF_HIGH_C downto COEF_LOW_C);
@@ -451,13 +460,20 @@ begin
       variable dSfixed           : sfixed(COEF_HIGH_C downto COEF_LOW_C);
       variable fluxQuantumFixed  : sfixed(13 downto 0);
       variable numFluxJumpsFixed : sfixed(8 downto 0);
+      variable pidResultNext     : sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
+      variable iContribution     : sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
+      variable sq1FbCommand      : sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
+      variable sq1FbHighLimit    : sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
+      variable sq1FbLowLimit     : sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
+      variable requestClear      : boolean;
+      variable allowIntegrate    : boolean;
       variable axilEp            : AxiLiteEndpointType;
 
    begin
       v := r;
 
-      -- Rams clear on clock reset or axil command
-      v.clearRams := timingRxRst125;
+      -- Treat clearPidState like a touch-one command from software.
+      v.clearPidState := '0';
 
       ----------------------------------------------------------------------------------------------
       -- AXI Lite Registers
@@ -486,17 +502,23 @@ begin
       axiSlaveRegisterR(axilEp, X"28", 0, to_slv(r.sq1Fb));
 
 
-      axiSlaveRegister(axilEp, X"30", 0, v.clearRams);
+      axiSlaveRegister(axilEp, X"30", 0, v.clearPidState);
 
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
 
       ----------------------------------------------------------------------------------------------
 
-      v.accumValid      := '0';
-      v.pidValid        := '0';
       v.sq1FbValid      := '0';
-      v.fluxJumpWrValid := '0';
+      v.pidStateRamAddr := r.rowIndex;
+      v.accumErrorRamWrEn   := '0';
+      v.accumErrorRamWrData := to_slv(r.accumError);
+      v.sumAccumRamWrEn     := '0';
+      v.sumAccumRamWrData   := to_slv(r.sumAccum);
+      v.pidResultRamWrEn    := '0';
+      v.pidResultRamWrData  := to_slv(r.pidResult);
+      v.fluxJumpRamWrEn     := '0';
+      v.fluxJumpRamWrData   := r.numFluxJumps;
 
       v.pidStreamMaster := axiStreamMasterInit(PID_DATA_AXIS_CFG_C);
 
@@ -510,21 +532,87 @@ begin
       dSfixed           := to_sfixed(r.d, dSfixed);
       fluxQuantumFixed  := to_sfixed(r.fluxQuantum, fluxQuantumFixed);
       numFluxJumpsFixed := to_sfixed(r.numFluxJumps, numFluxJumpsFixed);
+      sq1FbHighLimit    := to_sfixed(SQ1FB_MAX_C, sq1FbHighLimit);
+      sq1FbLowLimit     := to_sfixed(SQ1FB_MIN_C, sq1FbLowLimit);
+      requestClear      := false;
 
       if (timingRxData.startRun = '1') then
          v.dropCount := (others => '0');
+         requestClear := true;
       end if;
 
-      if (r.fllEnable = '0' and timingRxData.rowSeqStart = '1') then
+      if (v.clearPidState = '1') then
+         requestClear := true;
+      end if;
+
+      if (r.fllEnable = '0' and v.fllEnable = '1') then
+         requestClear := true;
+      end if;
+
+      if (v.i /= r.i) then
+         requestClear := true;
+      end if;
+
+      if (requestClear) then
+         v.clearPidStateBusy := '1';
+         v.state             := WAIT_ROW_STROBE_S;
+         v.rowEnabled        := '0';
+         v.accumSamples      := (others => '0');
+         v.accumError        := (others => '0');
+         v.lastAccumError    := (others => '0');
+         v.sumAccum          := (others => '0');
+         v.pidMultiplier     := (others => '0');
+         v.pidCoef           := (others => '0');
+         v.pidResult         := (others => '0');
+         v.sq1FbValid        := '0';
+         v.sq1FbFull         := (others => '0');
+         v.numFluxJumps      := (others => '0');
+         v.pidDebugEnable    := '0';
+         v.pidStateRamAddr   := (others => '0');
+         v.accumErrorRamWrEn   := '1';
+         v.accumErrorRamWrData := (others => '0');
+         v.sumAccumRamWrEn     := '1';
+         v.sumAccumRamWrData   := (others => '0');
+         v.pidResultRamWrEn    := '1';
+         v.pidResultRamWrData  := (others => '0');
+         v.fluxJumpRamWrEn     := '1';
+         v.fluxJumpRamWrData   := (others => '0');
+      elsif (r.clearPidStateBusy = '1') then
+         v.state             := WAIT_ROW_STROBE_S;
+         v.rowEnabled        := '0';
+         v.accumSamples      := (others => '0');
+         v.accumError        := (others => '0');
+         v.lastAccumError    := (others => '0');
+         v.sumAccum          := (others => '0');
+         v.pidMultiplier     := (others => '0');
+         v.pidCoef           := (others => '0');
+         v.pidResult         := (others => '0');
+         v.sq1FbValid        := '0';
+         v.sq1FbFull         := (others => '0');
+         v.numFluxJumps      := (others => '0');
+         v.pidDebugEnable    := '0';
+         v.accumErrorRamWrEn   := '1';
+         v.accumErrorRamWrData := (others => '0');
+         v.sumAccumRamWrEn     := '1';
+         v.sumAccumRamWrData   := (others => '0');
+         v.pidResultRamWrEn    := '1';
+         v.pidResultRamWrData  := (others => '0');
+         v.fluxJumpRamWrEn     := '1';
+         v.fluxJumpRamWrData   := (others => '0');
+
+         if (r.pidStateRamAddr = CLEAR_LAST_ADDR_C) then
+            v.clearPidStateBusy := '0';
+         else
+            v.pidStateRamAddr := r.pidStateRamAddr + 1;
+         end if;
+      elsif (r.fllEnable = '0' and timingRxData.rowSeqStart = '1') then
          -- Special case when row not running. Output empty tlast only
          -- to signal to event builder that seq is done.
          v.pidStreamMaster.tValid := '1';
          v.pidStreamMaster.tKeep  := (others => '0');
          v.pidStreamMaster.tLast  := '1';
 
-      end if;
-
-      if (r.fllEnable = '1') then
+      elsif (r.fllEnable = '1') then
          case r.state is
             when WAIT_ROW_STROBE_S =>
                -- Watch pidDebugPuase while we wait
@@ -582,7 +670,8 @@ begin
 
             when PREP_PID_S =>
                -- Write the accumError from last stage into ram
-               v.accumValid     := '1';
+               v.accumErrorRamWrEn   := '1';
+               v.accumErrorRamWrData := to_slv(r.accumError);
                -- Register values from RAM for PID calculation
                v.lastAccumError := to_sfixed(accumRamOut, r.lastAccumError);
                v.sumAccum       := to_sfixed(sumRamOut, r.sumAccum);
@@ -637,11 +726,35 @@ begin
 
 
                -- Calculate PID Stage
-               v.pidResult := resize(r.pidResult + (r.pidCoef * r.pidMultiplier), v.pidResult);
-               v.sumAccum  := resize(r.sumAccum + r.accumError, v.sumAccum);
+               pidResultNext := resize(r.pidResult + (r.pidCoef * r.pidMultiplier), pidResultNext);
+               v.pidResult   := pidResultNext;
+
+               if (r.i = ZERO_COEF_C) then
+                  v.sumAccum := (others => '0');
+               else
+                  iContribution := resize(iSfixed * r.accumError, iContribution);
+                  sq1FbCommand  := resize(resize(r.sq1Fb, sq1FbCommand) + resize(pidResultNext, sq1FbCommand), sq1FbCommand);
+                  allowIntegrate := true;
+
+                  if ((sq1FbCommand > sq1FbHighLimit) and (iContribution > 0)) then
+                     allowIntegrate := false;
+                  elsif ((sq1FbCommand < sq1FbLowLimit) and (iContribution < 0)) then
+                     allowIntegrate := false;
+                  end if;
+
+                  if (allowIntegrate) then
+                     v.sumAccum := resize(r.sumAccum + r.accumError, v.sumAccum);
+                  else
+                     v.sumAccum := r.sumAccum;
+                  end if;
+               end if;
+
                -- Save result and sumAccum in RAM
-               v.pidValid  := '1';
-               v.state     := SQ1FB_ADJUST_S;
+               v.sumAccumRamWrEn    := '1';
+               v.sumAccumRamWrData  := to_slv(v.sumAccum);
+               v.pidResultRamWrEn   := '1';
+               v.pidResultRamWrData := to_slv(v.pidResult);
+               v.state              := SQ1FB_ADJUST_S;
 
             when SQ1FB_ADJUST_S =>
                -- Word 6 is PID result
@@ -661,10 +774,11 @@ begin
                   numFluxJumpsFixed := resize(numFluxJumpsFixed - 1, numFluxJumpsFixed);
                end if;
 
-               v.numFluxJumps    := to_slv(numFluxJumpsFixed);
-               v.fluxJumpWrValid := '1';
-               v.sq1FbValid      := r.rowEnabled;
-               v.state           := DATA_STREAM_FLUX_JUMP_0_S;
+               v.numFluxJumps      := to_slv(numFluxJumpsFixed);
+               v.fluxJumpRamWrEn   := '1';
+               v.fluxJumpRamWrData := to_slv(numFluxJumpsFixed);
+               v.sq1FbValid        := r.rowEnabled;
+               v.state             := DATA_STREAM_FLUX_JUMP_0_S;
 
             when DATA_STREAM_FLUX_JUMP_0_S =>
                v.pidResult     := to_sfixed(to_slv(resize(r.sq1Fb, r.pidResult'length-1, 0)), r.pidResult);
@@ -716,6 +830,10 @@ begin
                v.state := WAIT_ROW_STROBE_S;
 
          end case;
+      end if;
+
+      if (v.clearPidStateBusy = '0') then
+         v.pidStateRamAddr := v.rowIndex;
       end if;
 
       if (timingRxRst125 = '1') then

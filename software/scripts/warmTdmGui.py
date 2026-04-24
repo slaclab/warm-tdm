@@ -67,6 +67,6 @@ with warm_tdm_api.GroupRoot(**arg_dict) as root:
         title='Warm TDM',
         sizeX=2000,
         sizeY=1600,
-        ui=warm_tdm_api.pydmUi)
+        display=warm_tdm_api.WarmTdmDisplay)
 
 
