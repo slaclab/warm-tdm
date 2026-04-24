@@ -15,6 +15,7 @@ from ._ArgParser import *
 #from ._TdmDataReceiver import *
 #from ._TdmGroupEmulate import *
 from ._RunEmulate import *
+from warm_tdm_api.widgets import WarmTdmDisplay
 
 import os.path
 pydmUi = os.path.dirname(__file__) + '/warm_tdm_gui.ui'
