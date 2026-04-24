@@ -320,7 +320,7 @@ def fasSweep(*, group, row, process):
     fasFluxRange = np.linspace(low, high, numSteps, endpoint=True)
 
     # Create the CurveData structure
-    data = warm_tdm_api.CurveData(xvalues=fasFluxRange)
+    data = warm_tdm_api.CurveData(xValues=fasFluxRange)
     #data = np.zeros((colCount, fasFluxRange.size, 2), dtype=float)
 
     # Add a Curve for each column
@@ -382,7 +382,7 @@ def fasTune(*,group,process=None):
             #process.Process.set(row/numRows)
 
         # Generate and save the curves
-        curve = fasSweep(group=group, process=process)
+        curve = fasSweep(group=group, row=row, process=process)
         curves.append(curve)
 
         # Minumum index of the curve is FasFluxOn

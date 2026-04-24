@@ -271,7 +271,7 @@ class Sq1TuneProcess(pr.Process):
             tune = self.Sq1TuneOutput.value()
             if row >= len(tune):
                 return 0.0
-            if col > len(tune[row]):
+            if col >= len(tune[row]):
                 return 0.0
             else:
                 return tune[row][col][field]
