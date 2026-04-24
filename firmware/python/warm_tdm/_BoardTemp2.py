@@ -25,19 +25,6 @@ class BoardTemp2(pr.Device):
             variable = sa56004x.LocalTemperature))
 
         def getLocalThermistor(read, var):
-            print(f'getThermistor(read={read}, var={var.path})')
-            voltage = var.dependencies[0].get(read=read)
-            if voltage == 0.0:
-                #math.log call will die if voltage -> resistance = 0
-                return -273.15
-            current = (1.0 - voltage) / 10000
-            resistance = voltage / current
-            tempKelvin = 3750 / math.log( resistance / 0.03448533 )
-            tempCelcius = tempKelvin - 273.15
-            return tempCelcius
-
-        def getLocalThermistor(read, var):
-            print(f'getLocalThermistor(read={read}, var={var.path})')
             voltage = var.dependencies[0].get(read=read)
             if voltage == 0.0:
                 #math.log call will die if voltage -> resistance = 0
@@ -49,7 +36,6 @@ class BoardTemp2(pr.Device):
             return tempCelcius
 
         def getFeThermistor(read, var):
-            print(f'getFeThermistor(read={read}, var={var.path})')
             voltage = var.dependencies[0].get(read=read)
             if voltage == 0.0:
                 #math.log call will die if voltage -> resistance = 0
