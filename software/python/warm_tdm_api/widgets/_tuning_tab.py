@@ -51,5 +51,5 @@ class TuningTab(PyDMFrame):
                     value.showStepExponent = False
                     value.writeOnPress = True
                 else:
-                    value = PyRogueLineEdit(init_channel=value_ch)
+                    value = PyRogueLineEdit(parent=None, init_channel=value_ch)
                 fl.addRow(label, value)

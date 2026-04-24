@@ -67,7 +67,7 @@ class ControlTab(PyDMFrame):
         hb.addLayout(fl_right)
 
         for var in ('NumColumnBoards', 'NumColumns', 'NumRowBoards', 'NumRows'):
-            le = PyRogueLineEdit(init_channel=group_path + f'.{var}/disp')
+            le = PyRogueLineEdit(parent=None, init_channel=group_path + f'.{var}/disp')
             le.setReadOnly(True)
             fl_right.addRow(
                 PyDMLabel(init_channel=group_path + f'.{var}/name'),
@@ -145,12 +145,12 @@ class ControlTab(PyDMFrame):
         for var in edit_vars:
             fl_right.addRow(
                 PyDMLabel(init_channel=cs_path + f'.{var}/name'),
-                PyRogueLineEdit(init_channel=cs_path + f'.{var}/disp'))
+                PyRogueLineEdit(parent=None, init_channel=cs_path + f'.{var}/disp'))
 
         fl_right.addItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         fl_right.addRow(
             PyDMLabel(init_channel=cs_path + '.SaOut/name'),
-            PyRogueLineEdit(init_channel=cs_path + '.SaOut/disp'))
+            PyRogueLineEdit(parent=None, init_channel=cs_path + '.SaOut/disp'))
 
         return gb
