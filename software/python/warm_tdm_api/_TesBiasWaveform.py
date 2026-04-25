@@ -109,23 +109,46 @@ def tesBiasWaveform(*, group, process=None):
     wfs = []
 
     # Assumes all generators support same modes
+    num_generators = 8  # SHOULD REMOVE HARDCODE
+    if len(orig_tes_bias) != num_generators:
+        raise ValueError(
+            f"TES bias vector length ({len(orig_tes_bias)}) does not match "
+            f"the number of waveform generators ({num_generators}).")
+
     enum0 = process.tesBiasWaveformGenerator[0].Mode.enum
+    valid_modes = {'None', 'Sine', 'Square'}
     modes = []
-    for ii in range(8):  # SHOULD REMOVE HARDCODE
-        mode = enum0.get(process.tesBiasWaveformGenerator[ii].Mode.get())
+    for ii in range(num_generators):  # SHOULD REMOVE HARDCODE
+        mode_value = process.tesBiasWaveformGenerator[ii].Mode.get()
+        mode = enum0.get(mode_value)
+        if mode is None or mode not in valid_modes:
+            raise ValueError(
+                f"Unsupported TES bias waveform mode for generator {ii}: "
+                f"raw value={mode_value!r}, resolved mode={mode!r}. "
+                f"Expected one of {sorted(valid_modes)}.")
+
         modes.append(mode)
         if mode == 'None':
             const = orig_tes_bias[ii]
             wfs.append(partial(wfconst, const=const))
-        else:
+        elif mode == 'Sine':
             f_hz = process.tesBiasWaveformGenerator[ii].Frequency.get()
             low_ua = process.tesBiasWaveformGenerator[ii].TESBiasLow.get()
             high_ua = process.tesBiasWaveformGenerator[ii].TESBiasHigh.get()
-            if mode == 'Sine':
-                wfs.append(partial(wfsin, f=f_hz, low=low_ua, high=high_ua))
-            if mode == 'Square':
-                wfs.append(partial(wfstep, f=f_hz, low=low_ua, high=high_ua))
+            wfs.append(partial(wfsin, f=f_hz, low=low_ua, high=high_ua))
+        elif mode == 'Square':
+            f_hz = process.tesBiasWaveformGenerator[ii].Frequency.get()
+            low_ua = process.tesBiasWaveformGenerator[ii].TESBiasLow.get()
+            high_ua = process.tesBiasWaveformGenerator[ii].TESBiasHigh.get()
+            wfs.append(partial(wfstep, f=f_hz, low=low_ua, high=high_ua))
+        else:
+            raise ValueError(
+                f"Unhandled TES bias waveform mode for generator {ii}: {mode!r}")
 
+    if len(wfs) != len(orig_tes_bias):
+        raise ValueError(
+            f"Generated {len(wfs)} waveform functions for "
+            f"{len(orig_tes_bias)} TES bias entries.")
     # If none of the generators are configured, print error and stop
     if all(mode == 'None' for mode in modes):
         print(f"All generators configured for 'None', nothing to do. Stopping TesBiasWaveformProcess.")
