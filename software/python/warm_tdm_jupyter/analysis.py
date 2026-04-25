@@ -216,7 +216,8 @@ def plot_stream_data(crstring, exclude=None, stream_data_id=-1, yoffset=2, npers
     # Frequency domain analysis
     color_cycle = make_color_cycle(len(crs))
     for idx, cr in enumerate(crs):
-        results[cr]['freq'], results[cr]['psd'] = signal.welch(results[cr]['y_ms'], nperseg=len(results[cr]['y_ms']) / nperseg, fs=fs)
+        welch_nperseg = max(1, int(len(results[cr]['y_ms']) / nperseg))
+        results[cr]['freq'], results[cr]['psd'] = signal.welch(results[cr]['y_ms'], nperseg=welch_nperseg, fs=fs)
         results[cr]['asd'] = np.sqrt(results[cr]['psd'])
         ax2.loglog(results[cr]['freq'], results[cr]['asd'], alpha=0.8, label=f'{cr}', color=next(color_cycle))
     
