@@ -253,7 +253,7 @@ def make_dead_masks(channels, ncol=8, nrow=256):
         dead_masks[col] &= ~(1 << row)
     return dead_masks
 
-def write_dead_masks(dead_masks, mask_filename="dead_masks.cfg"):
+def write_dead_masks(dead_masks, mask_filename="dead_masks.cfg", nrow=256):
     """
     Writes the dead channel masks to a configuration file.
 
@@ -272,26 +272,23 @@ def write_dead_masks(dead_masks, mask_filename="dead_masks.cfg"):
         mask_filename (str, optional): The name of the configuration
             file to write the dead masks to. Defaults to
             "dead_masks.cfg".
+        nrow (int, optional): The fixed number of rows (bits) per mask.
+            Defaults to 256.
 
     Returns:
         None
     """
-    # Write the column masks to a file
     with open(mask_filename, "w") as f:
         for col, mask in dead_masks.items():
-            # Convert the mask to a binary string, with the least significant bit (LSB) first
-            binary_mask = f"{mask:0{len(bin(mask)[2:])}b}"[::-1]
-
-            # Split the binary mask into groups of 10 bits for easier readability
-            mask_groups = [binary_mask[i:i+10] for i in range(0, len(binary_mask), 10)]
-
-            # Write the formatted mask to the configuration file
+            # Pad to fixed bit length, LSB first
+            binary_mask = f"{mask:0{nrow}b}"[::-1]
+            # Split into groups of 10 bits for readability
+            mask_groups = [binary_mask[i:i+10] for i in range(0, nrow, 10)]
             f.write(f"{'   '.join(mask_groups)}\n")
 
-    # Tell user where the dead mask got written to
     print(f"Current dead mask written to {mask_filename}")
 
-def read_dead_masks(mask_filename="dead_masks.cfg"):
+def read_dead_masks(mask_filename="dead_masks.cfg", nrow=256):
     """
     Reads the dead channel masks from a configuration file.
 
@@ -302,24 +299,28 @@ def read_dead_masks(mask_filename="dead_masks.cfg"):
     Args:
         mask_filename (str, optional): The name of the configuration file to read the
             dead masks from. Defaults to "dead_masks.cfg".
+        nrow (int, optional): The fixed number of rows (bits) per mask. Must match
+            the value used when writing the file. Defaults to 256.
 
     Returns:
         dict: A dictionary of dead channel masks, where the keys are the column IDs
             and the values are the corresponding channel masks.
     """
     dead_masks = {}
-
     try:
         with open(mask_filename, "r") as f:
             for col, line in enumerate(f):
-                # Get this column's mask, with LSB last.
-                binary_mask = re.sub(r"\s+", "", line)[::-1]
-                dead_masks[col] = int(binary_mask, 2)
-
+                # Strip whitespace and validate length
+                binary_mask = re.sub(r"\s+", "", line)
+                if len(binary_mask) != nrow:
+                    raise ValueError(
+                        f"Row {col} in '{mask_filename}' has {len(binary_mask)} bits, expected {nrow}."
+                    )
+                # LSB first on disk, so reverse to get LSB last before converting
+                dead_masks[col] = int(binary_mask[::-1], 2)
     except FileNotFoundError:
         print(f"Error: {mask_filename} not found.")
         return {}
-
     return dead_masks
 
 def all_off():
