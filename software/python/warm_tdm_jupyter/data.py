@@ -109,7 +109,7 @@ def take_raw(col, outputdir=None, synch=False, fadc=125e6, decimation=0, check_d
     #print(f'last_raw0 = {last_raw0}')
 
     # Determine the column board to use
-    cb = Client.cbs[int(col / 8)]
+    cb = Client.cbs[col // 8]
 
     # Add this featuer
     # Set the output directory if not provided
@@ -124,9 +124,9 @@ def take_raw(col, outputdir=None, synch=False, fadc=125e6, decimation=0, check_d
 
     # Configure the waveform capture settings
     cb.DataPath.WaveformCapture.AllChannels.set(False)
-    cb.DataPath.WaveformCapture.SelectedChannel.set(col)
+    cb.DataPath.WaveformCapture.SelectedChannel.set( ( col % 8 ) )
     cb.DataPath.WaveformCapture.Decimation.set(decimation)
-    Client.hwg.WaveformCaptureReceiver.PlotColumn.set(col)
+    Client.hwg.WaveformCaptureReceiver.PlotColumn.set( ( col % 8 ) )
     Client.hwg.WaveformCaptureReceiver.PlotWaveform.set(True)
 
     # Trigger the waveform capture
