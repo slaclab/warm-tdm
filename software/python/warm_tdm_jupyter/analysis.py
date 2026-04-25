@@ -191,7 +191,11 @@ def plot_stream_data(crstring, exclude=None, stream_data_id=-1, yoffset=2, npers
     # Time domain plot
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 8))
     plt.suptitle(sd.file_name, fontsize=18)
+
     crs=expand_channels(crstring,data,exclude)
+    if not crs:
+        raise ValueError(f"No channels found matching '{crstring}' (exclude={exclude})")
+    
     color_cycle = make_color_cycle(len(crs))
     ylens=[] # check that same number of samples in every channel
     for idx, cr in enumerate(crs):
