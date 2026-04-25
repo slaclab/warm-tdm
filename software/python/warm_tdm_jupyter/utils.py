@@ -173,6 +173,10 @@ def check_ps_synch():
     if Client.rbs:
         boards.update({f"Row {i}": board for i, board in Client.rbs.items()})
 
+    if not boards:
+        print("No column or row boards found.")
+        return
+
     sync_state = set()
     for board_name, board in sorted(boards.items()):
         try:
