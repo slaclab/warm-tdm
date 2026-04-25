@@ -194,10 +194,34 @@ def check_ps_synch():
     else:
         print("Power supplies are in a mixed state (some synchronized, some unsynchronized).")
 
-# This lambda function extracts the column and row values from a string in the format 'c#r#' or 'r#c#',
-# where '#' represents an integer. It returns a tuple containing the (column, row) values.
-get_row_col = lambda value: (int(value[1:value.index('r')]), int(value[value.index('r')+1:]))
+def get_row_col(value):
+    """
+    Extract the column and row values from a channel string.
 
+    Accepted formats are 'c<column>r<row>' and 'r<row>c<column>'.
+
+    Args:
+        value (str): Channel identifier string.
+
+    Returns:
+        tuple: A `(column, row)` tuple of integers.
+
+    Raises:
+        ValueError: If `value` is not in one of the supported formats.
+    """
+    match = re.fullmatch(r"(?:c(?P<col>\d+)r(?P<row>\d+)|r(?P<row_alt>\d+)c(?P<col_alt>\d+))", value)
+    if not match:
+        raise ValueError(
+            f"Invalid channel format: {value!r}. Expected 'c<column>r<row>' or 'r<row>c<column>'."
+        )
+
+    col = match.group("col")
+    row = match.group("row")
+    if col is None or row is None:
+        col = match.group("col_alt")
+        row = match.group("row_alt")
+
+    return (int(col), int(row))
 def make_dead_masks(channels, ncol=8, nrow=256):
     """
     Generates a dictionary of dead masks, where the keys are the column IDs
