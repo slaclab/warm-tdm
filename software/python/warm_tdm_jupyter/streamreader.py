@@ -9,10 +9,15 @@ import rogue.utilities
 import rogue.utilities.fileio
 
 import os
-swpath=''.join(os.path.abspath('./').partition('software')[:-1])
-pyrogue.addLibraryPath(os.path.join(swpath,'python')+'/')
-pyrogue.addLibraryPath(os.path.join(swpath.replace('software','firmware'),'python')+'/')
-pyrogue.addLibraryPath(os.path.join(swpath.replace('software','firmware'),'submodules/surf/python')+'/')
+_env_swpath = os.environ.get('WARM_TDM_PATH')
+if _env_swpath:
+    swpath = os.path.abspath(_env_swpath)
+else:
+    swpath = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+_firmware_path = os.path.join(os.path.dirname(swpath), 'firmware')
+pyrogue.addLibraryPath(os.path.join(swpath, 'python') + '/')
+pyrogue.addLibraryPath(os.path.join(_firmware_path, 'python') + '/')
+pyrogue.addLibraryPath(os.path.join(_firmware_path, 'submodules', 'surf', 'python') + '/')
 
 import warm_tdm_api
 import warm_tdm
