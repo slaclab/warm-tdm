@@ -175,15 +175,17 @@ def multi_raw(col, nraw, synch=False, decimation=0):
     os.makedirs(save_dir, exist_ok=True)
 
     # Enable msec timestamping for hi cadence waveform acquisition
-    Client.hwg.WaveformCaptureReceiver.MillisecondTimestamp.set(True)
-    
+    millisecond_timestamp = Client.hwg.WaveformCaptureReceiver.MillisecondTimestamp
+    previous_millisecond_timestamp = millisecond_timestamp.get()
+    millisecond_timestamp.set(True)
+
     wfs = []
-    for ii in range(nraw):
-        wfs.append(take_raw(col=col, outputdir=save_dir, synch=synch))
-
-    # Done with high cadence waveform acquisition
-    Client.hwg.WaveformCaptureReceiver.MillisecondTimestamp.set(False)
-
+    try:
+        for ii in range(nraw):
+            wfs.append(take_raw(col=col, outputdir=save_dir, synch=synch))
+    finally:
+        # Restore the previous timestamping mode even if capture fails/interrupted
+        millisecond_timestamp.set(previous_millisecond_timestamp)
     idxfn = f'raw_{ctime}.txt'
     idxfp = os.path.join(save_dir, idxfn)
     with open(idxfp, 'w') as f:
