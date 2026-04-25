@@ -176,7 +176,7 @@ class tesBiasWaveformGenerator(pr.Device):
         super().__init__(**kwargs)
         self.add(pr.LocalVariable(
             name='Mode',
-            value='None',
+            value=0,
             mode='RW',
             enum={
                 0: 'None',
