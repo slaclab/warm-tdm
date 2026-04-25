@@ -309,13 +309,15 @@ def analyze_pair(cr1, cr2, stream_data_id=-1, yoffset=2, nperseg=10, fs=396.332,
 
     # Frequency domain analysis
     for idx, cr in enumerate([cr1, cr2]):
-        results[cr]['freq'], results[cr]['psd'] = signal.welch(results[cr]['y_ms'], nperseg=len(results[cr]['y_ms']) / nperseg, fs=fs)
+        welch_nperseg = max(1, int(len(results[cr]['y_ms']) / nperseg))
+        results[cr]['freq'], results[cr]['psd'] = signal.welch(results[cr]['y_ms'], nperseg=welch_nperseg, fs=fs)
         results[cr]['asd'] = np.sqrt(results[cr]['psd'])
         ax2.loglog(results[cr]['freq'], results[cr]['asd'], alpha=0.8, label=f'{cr}', color=color_cycle[idx])
 
     # Plot the difference between the two channels in the frequency domain
     y_ms_diff = results[cr2]['y_ms'] - results[cr1]['y_ms']
-    freq_diff, pxx_diff = signal.welch(y_ms_diff, nperseg=len(y_ms_diff) / nperseg, fs=fs)
+    welch_nperseg_diff = max(1, int(len(y_ms_diff) / nperseg))
+    freq_diff, pxx_diff = signal.welch(y_ms_diff, nperseg=welch_nperseg_diff, fs=fs)
     asd_diff = np.sqrt(pxx_diff) / np.sqrt(2)
     ax2.loglog(freq_diff, asd_diff, alpha=0.5, label=f'({cr2}-{cr1})' + r'$/{\sqrt{2}}$', color=color_cycle[idx + 1])
 
