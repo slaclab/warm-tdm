@@ -222,6 +222,7 @@ def get_row_col(value):
         row = match.group("row_alt")
 
     return (int(col), int(row))
+
 def make_dead_masks(channels, ncol=8, nrow=256):
     """
     Generates a dictionary of dead masks, where the keys are the column IDs
