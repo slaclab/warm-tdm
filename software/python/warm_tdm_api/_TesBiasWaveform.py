@@ -82,14 +82,48 @@ class TesBiasWaveformProcess(pr.Process):
                                   mode='RW',
                                   description='Software update rate.'))
 
-        for i in range(8):  # SHOULD REMOVE HARDCODE
+        self._waveformGeneratorCount = 0
+        self._ensureWaveformGenerators(getattr(self, 'parent', None))
+
+    def _getWaveformGeneratorCount(self, group):
+        """
+        Determine the number of TES bias waveform generators required for the
+        attached group configuration.
+        """
+        if group is not None:
+            tes_bias = getattr(group, 'TesBias', None)
+            if tes_bias is not None:
+                try:
+                    return len(tes_bias.get())
+                except TypeError:
+                    pass
+
+            column_map = getattr(group, 'ColumnMap', None)
+            if column_map is not None:
+                try:
+                    return len(column_map.get())
+                except TypeError:
+                    pass
+
+        return 8
+
+    def _ensureWaveformGenerators(self, group):
+        """
+        Ensure that there is one waveform generator per TES bias entry.
+        """
+        required_count = self._getWaveformGeneratorCount(group)
+
+        for i in range(self._waveformGeneratorCount, required_count):
             self.add(warm_tdm_api.tesBiasWaveformGenerator(
                 name=f'tesBiasWaveformGenerator[{i}]'))
+
+        self._waveformGeneratorCount = required_count
 
     def _tesBiasWaveformWrap(self):
         """
         Wrap the TES bias waveform generation process.
         """
+        self._ensureWaveformGenerators(self.parent)
         tesBiasWaveform(group=self.parent, process=self)
 
 def tesBiasWaveform(*, group, process=None):
