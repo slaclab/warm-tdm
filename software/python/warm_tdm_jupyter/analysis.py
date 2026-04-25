@@ -4,14 +4,12 @@ from .utils import get_row_col
 
 import os
 import math
+import re
 import numpy as np
 import matplotlib.pylab as plt
-from matplotlib.text import Text
 import matplotlib.colors as mcolors
 from itertools import cycle
 from scipy import signal, optimize
-
-import re
 
 def add_channel_legend(ax):
     """
@@ -93,10 +91,6 @@ def make_color_cycle(n, cmap='turbo'):
     cm = plt.get_cmap(cmap)
     colors = [cm(i / max(n - 1, 1)) for i in range(n)]
     return cycle(colors)
-
-import re
-
-import re
 
 def expand_channels(pattern_str, data, exclude=None):
     """

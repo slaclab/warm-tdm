@@ -3,8 +3,22 @@ from .client import Client
 import os
 import time
 import re
-import yaml
 import numpy as np
+
+def _get_boards():
+    """
+    Return a dict of all connected column and row boards, keyed by 'Column N' / 'Row N'.
+
+    Returns:
+        dict: Combined mapping of board name to board object, sorted by name.
+              Empty dict if no boards are connected.
+    """
+    boards = {}
+    if Client.cbs:
+        boards.update({f"Column {i}": board for i, board in Client.cbs.items()})
+    if Client.rbs:
+        boards.update({f"Row {i}": board for i, board in Client.rbs.items()})
+    return boards
 
 def print_hardware():
     """
@@ -14,11 +28,7 @@ def print_hardware():
     for the column and row boards from the `Client.cbs` and `Client.rbs` dictionaries, respectively, and prints
     the information in a formatted way.
     """
-    boards = {}
-    if Client.cbs:
-        boards.update({f"Column {i}": board for i, board in Client.cbs.items()})
-    if Client.rbs:
-        boards.update({f"Row {i}": board for i, board in Client.rbs.items()})
+    boards = _get_boards()
 
     if boards:
         print("+" * 80)
@@ -52,11 +62,7 @@ def disable_leds():
     If there are no column boards or row boards available, the function will print a
     corresponding message.
     """
-    boards = {}
-    if Client.cbs:
-        boards.update({f"Column {i}": board for i, board in Client.cbs.items()})
-    if Client.rbs:
-        boards.update({f"Row {i}": board for i, board in Client.rbs.items()})
+    boards = _get_boards()
 
     if boards:
         for board_name, board in sorted(boards.items()):
@@ -89,11 +95,7 @@ def set_cryo_resistance(Rcryo_Ohm):
     If there are no column boards or row boards available, the function will print a
     corresponding message.
     """
-    boards = {}
-    if Client.cbs:
-        boards.update({f"Column {i}": board for i, board in Client.cbs.items()})
-    if Client.rbs:
-        boards.update({f"Row {i}": board for i, board in Client.rbs.items()})
+    boards = _get_boards()
 
     if boards:
         for board_name, board in sorted(boards.items()):
@@ -130,11 +132,7 @@ def set_ps_synch(sync_mode):
     If there are no column boards or row boards available, the function will print a
     corresponding message.
     """
-    boards = {}
-    if Client.cbs:
-        boards.update({f"Column {i}": board for i, board in Client.cbs.items()})
-    if Client.rbs:
-        boards.update({f"Row {i}": board for i, board in Client.rbs.items()})
+    boards = _get_boards()
 
     if boards:
         for board_name, board in sorted(boards.items()):
@@ -167,11 +165,7 @@ def check_ps_synch():
     dictionaries, and checks the power supply synchronization registers (PwrSyncA, PwrSyncB,
     PwrSyncC, and PwrSyncEn) to determine the overall synchronization state.
     """
-    boards = {}
-    if Client.cbs:
-        boards.update({f"Column {i}": board for i, board in Client.cbs.items()})
-    if Client.rbs:
-        boards.update({f"Row {i}": board for i, board in Client.rbs.items()})
+    boards = _get_boards()
 
     if not boards:
         print("No column or row boards found.")
