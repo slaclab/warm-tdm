@@ -114,7 +114,7 @@ class Client:
         # Create session directory based on creation time
         cls.sessiondir = os.path.join(cls.datedir, f'{cls.ctime0}')
         try:
-            os.makedirs(cls.sessiondir, exist_ok=False)
+            os.makedirs(cls.sessiondir, exist_ok=True)
         except OSError as e:
             print(f"Error creating session directory '{cls.sessiondir}': {e}")
 
