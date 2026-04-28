@@ -451,7 +451,6 @@ class WaveformCaptureReceiver(pr.DataReceiver):
 
                 self.LastSavedFileName.set(str(filename))
 
-
 def plot_waveform_channel(ch, ax, values, src, multi_channel):
     ax.clear()
     markers = values[1]

@@ -8,6 +8,7 @@ from ._SaTune import *
 from ._Sq1Diag import *
 from ._Sq1Tune import *
 from ._TesRamp import *
+from ._TesBiasWaveform import *
 from ._Tuning import *
 from ._ConfigSelect import *
 from ._SaStripChart import *
