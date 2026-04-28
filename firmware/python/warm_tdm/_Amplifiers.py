@@ -217,7 +217,7 @@ class FEAmplifier3(SaAmplifier):
         # Make it more readable
         RF2 = self.RF2
         RG2 = self.RG2
-        ROFF = self.ROFF
+        ROFF = self.R_OFFSET
 
         # Gain of stage 1 Intrumentation Amplifier
         gain1 = self.GAIN_1
@@ -241,7 +241,6 @@ class FEAmplifier3(SaAmplifier):
 
 
     def ampVin(self, vadc, voffsetP, voffsetN=0.0):
-        #print(f'ampVin({vadc=}, {voffsetP=})')
         RF2 = self.RF2.value()
         RG2 = self.RG2.value()
         ROFF = self.R_OFFSET.value()
@@ -262,81 +261,87 @@ class FEAmplifier3(SaAmplifier):
         return vin
 
 class FEAmplifier4(SaAmplifier):
+    _model_ready = False
 
-    # Declare schematic nets and resistors
-    sa_bias_dac_p = sympy.symbols('sa_bias_dac_p')
-    sa_bias_dac_n = sympy.symbols('sa_bias_dac_n')
-    sa_bias_dac_cm = sympy.symbols('sa_bias_dac_cm')
-    sa_bias_dac_diff = sympy.symbols('sa_bias_dac_diff')
-    sa_bias_shunt_r = sympy.symbols('sa_bias_shunt_r')
-    sa_bias_cable_r = sympy.symbols('sa_bias_cable_r')
-    sa_bias_squid_r = sympy.symbols('sa_bias_squid_r')
+    @classmethod
+    def _init_circuit_model(cls):
+        if cls._model_ready:
+            return
 
-    sa_bias_out_p = sympy.symbols('sa_bias_out_p')
-    sa_bias_out_n = sympy.symbols('sa_bias_out_n')
-    sa_bias_out_diff = sympy.symbols('sa_bias_out_diff')
-    sa_bias_current = sympy.symbols('sa_bias_current')
-    sa_signal_out0_p = sympy.symbols('sa_signal_out0_p')
-    sa_signal_out0_n = sympy.symbols('sa_signal_out0_n')
-    sa_signal_out1_p = sympy.symbols('sa_signal_out1_p')
-    sa_signal_out1_n = sympy.symbols('sa_signal_out1_n')
-    sa_offset_p = sympy.symbols('sa_offset_p')
-    sa_offset_n = sympy.symbols('sa_offset_n')
-    sa_signal_out2_p = sympy.symbols('sa_signal_out2_p')
-    sa_signal_out2_n = sympy.symbols('sa_signal_out2_n')
-    sa_signal_out3_p = sympy.symbols('sa_signal_out3_p')
-    sa_signal_out3_n = sympy.symbols('sa_signal_out3_n')
+        # --- Symbols: bias network ---
+        cls.sa_bias_out_p = sympy.symbols('sa_bias_out_p')
+        cls.sa_bias_out_n = sympy.symbols('sa_bias_out_n')
 
+        # --- Symbols: signal path nodes ---
+        cls.sa_signal_out0_p = sympy.symbols('sa_signal_out0_p')
+        cls.sa_signal_out0_n = sympy.symbols('sa_signal_out0_n')
+        cls.sa_signal_out2_p = sympy.symbols('sa_signal_out2_p')
+        cls.sa_signal_out2_n = sympy.symbols('sa_signal_out2_n')
+        cls.sa_signal_out3_p = sympy.symbols('sa_signal_out3_p')
+        cls.sa_signal_out3_n = sympy.symbols('sa_signal_out3_n')
+        cls.sa_offset_p = sympy.symbols('sa_offset_p')
+        cls.sa_offset_n = sympy.symbols('sa_offset_n')
 
-    # Stage 1 Resistors
-    rf1 = sympy.symbols('rf1')
-    rg1 = sympy.symbols('rg1')
+        # --- Symbols: resistors ---
+        cls.rf1 = sympy.symbols('rf1')
+        cls.rg1 = sympy.symbols('rg1')
+        cls.rf2 = sympy.symbols('rf2')
+        cls.rgnd2 = sympy.symbols('rgnd2')
+        cls.roff2 = sympy.symbols('roff2')
+        cls.rf3 = sympy.symbols('rf3')
+        cls.rg3 = sympy.symbols('rg3')
+        cls.v = sympy.symbols('v')
 
-    # Stage 2 Resistors
-    rf2 = sympy.symbols('rf2') # Feedback
-    rgnd2 = sympy.symbols('rgnd2')
-    rin2 = sympy.symbols('rin2')
-    roff2 = sympy.symbols('roff2')
+        # --- Equations: Stage 1 instrumentation amp ---
+        eq1 = sympy.Eq((cls.sa_signal_out0_p - cls.sa_bias_out_p) / cls.rf1,
+                        (cls.sa_bias_out_p - cls.sa_bias_out_n) / cls.rg1)
+        eq2 = sympy.Eq((cls.sa_signal_out0_n - cls.sa_bias_out_n) / cls.rf1,
+                        (cls.sa_bias_out_n - cls.sa_bias_out_p) / cls.rg1)
 
-    # Stage 3 Resistors
-    rf3 = sympy.symbols('rf3')
-    rg3 = sympy.symbols('rg3')
-    v = sympy.symbols('v')
+        # --- Equations: Stage 2 offset summing amp ---
+        eq3 = sympy.Eq((cls.sa_signal_out2_p - cls.sa_signal_out0_p) / cls.rf2,
+                        cls.sa_signal_out0_p / cls.rgnd2 + (cls.sa_signal_out0_p - cls.sa_offset_p) / cls.roff2)
+        eq4 = sympy.Eq((cls.sa_signal_out2_n - cls.sa_signal_out0_n) / cls.rf2,
+                        cls.sa_signal_out0_n / cls.rgnd2 + (cls.sa_signal_out0_n - cls.sa_offset_n) / cls.roff2)
 
-    # Stage 1 instrumentation amp equations
-    eq1 = sympy.Eq((sa_signal_out0_p-sa_bias_out_p)/rf1, (sa_bias_out_p-sa_bias_out_n)/rg1)
-    eq2 = sympy.Eq((sa_signal_out0_n-sa_bias_out_n)/rf1, (sa_bias_out_n-sa_bias_out_p)/rg1)
+        # --- Equations: Stage 3 differential output amp ---
+        eq5 = sympy.Eq((cls.sa_signal_out2_p - cls.v) / cls.rg3,
+                        (cls.v - cls.sa_signal_out3_n) / cls.rf3)
+        eq6 = sympy.Eq((cls.sa_signal_out2_n - cls.v) / cls.rg3,
+                        (cls.v - cls.sa_signal_out3_p) / cls.rf3)
 
-    # Stage 2 differential amp equations
-    eq3 = sympy.Eq((sa_signal_out2_p-sa_signal_out0_p)/rf2, sa_signal_out0_p/rgnd2 + (sa_signal_out0_p-sa_offset_p)/roff2)
-    eq4 = sympy.Eq((sa_signal_out2_n-sa_signal_out0_n)/rf2, sa_signal_out0_n/rgnd2 + (sa_signal_out0_n-sa_offset_n)/roff2)
+        eqs = [eq1, eq2, eq3, eq4, eq5, eq6]
 
-    # Stage 3 differential amp equations
-    eq5 = sympy.Eq((sa_signal_out2_p-v)/rg3, (v-sa_signal_out3_n)/rf3)
-    eq6 = sympy.Eq((sa_signal_out2_n-v)/rg3, (v-sa_signal_out3_p)/rf3)
+        # --- Solve: inverse (output → input) ---
+        inv_vars = [cls.sa_bias_out_p, cls.sa_bias_out_n,
+                    cls.sa_signal_out0_p, cls.sa_signal_out0_n,
+                    cls.sa_signal_out2_p, cls.sa_signal_out2_n]
+        solutions = sympy.solve(eqs, inv_vars)
+        cls.sa_bias_expr = sympy.simplify(solutions[cls.sa_bias_out_p] - solutions[cls.sa_bias_out_n])
 
+        # --- Solve: forward (input → output) ---
+        fwd_vars = [cls.sa_bias_out_p, cls.sa_bias_out_n,
+                    cls.sa_signal_out0_p, cls.sa_signal_out0_n,
+                    cls.sa_signal_out2_p, cls.sa_signal_out2_n,
+                    cls.sa_signal_out3_p, cls.sa_signal_out3_n]
+        solutions2 = sympy.solve(eqs, list(reversed(fwd_vars)))
 
-    solve_vars =  [sa_bias_out_p, sa_bias_out_n, sa_signal_out0_p, sa_signal_out0_n,
-                   sa_signal_out2_p, sa_signal_out2_n, sa_signal_out3_p, sa_signal_out3_n]
+        # --- Gain expressions ---
+        out3 = sympy.simplify(solutions2[cls.sa_signal_out3_p] - solutions2[cls.sa_signal_out3_n])
+        out2 = sympy.simplify(solutions2[cls.sa_signal_out2_p] - solutions2[cls.sa_signal_out2_n])
+        out1 = sympy.simplify(solutions2[cls.sa_signal_out0_p] - solutions2[cls.sa_signal_out0_n])
 
-    solutions = sympy.solve([eq1, eq2, eq3, eq4, eq5, eq6], [sa_bias_out_p, sa_bias_out_n, sa_signal_out0_p, sa_signal_out0_n, sa_signal_out2_p, sa_signal_out2_n])
+        unity_input = {cls.sa_bias_out_p: .5, cls.sa_bias_out_n: -.5, cls.sa_offset_p: 0, cls.sa_offset_n: 0}
+        cls.gain3_expr = (out3 / out2).subs(unity_input)
+        cls.gain2_expr = (out2 / out1).subs(unity_input)
+        cls.gain1_expr = out1.subs(unity_input)
+        cls.offset_gain_expr = out3.subs({cls.sa_bias_out_p: 0, cls.sa_bias_out_n: 0,
+                                          cls.sa_offset_p: .5, cls.sa_offset_n: -.5})
 
-    # Expression for sa_bias_out (differential) given sa_signal_out3 and voffset
-    sa_bias_expr = sympy.simplify(solutions[sa_bias_out_p]-solutions[sa_bias_out_n])
-
-    solutions2 = sympy.solve([eq1, eq2, eq3, eq4, eq5, eq6], list(reversed(solve_vars)))
-
-    # Expressions to compute gain of each stage
-    sa_signal_out3_expr = sympy.simplify(solutions2[sa_signal_out3_p]-solutions2[sa_signal_out3_n])
-    sa_signal_out2_expr = sympy.simplify(solutions2[sa_signal_out2_p]-solutions2[sa_signal_out2_n])
-    sa_signal_out1_expr = sympy.simplify(solutions2[sa_signal_out0_p]-solutions2[sa_signal_out0_n])
-
-    gain3_expr = (sa_signal_out3_expr/sa_signal_out2_expr).subs({sa_bias_out_p:.5, sa_bias_out_n:-.5, sa_offset_p:0, sa_offset_n:0})
-    gain2_expr = (sa_signal_out2_expr/sa_signal_out1_expr).subs({sa_bias_out_p:.5, sa_bias_out_n:-.5, sa_offset_p:0, sa_offset_n:0})
-    gain1_expr = (sa_signal_out1_expr).subs({sa_bias_out_p:.5, sa_bias_out_n:-.5, sa_offset_p:0, sa_offset_n:0})
-    offset_gain_expr = sa_signal_out3_expr.subs({sa_bias_out_p:0, sa_bias_out_n:0, sa_offset_p:.5, sa_offset_n:-.5})
+        cls._model_ready = True
 
     def __init__(self, **kwargs):
+        self._init_circuit_model()
         super().__init__(**kwargs)
 
         self.add(pr.LocalVariable(
@@ -471,8 +476,7 @@ class FEAmplifier4(SaAmplifier):
 
 
     def saBiasCurrent(self, saBiasDacVoltageP, saBiasDacVoltageN=0.0):
-        #vdiff = saBiasDacVoltageP + saBiasDacVoltageN # Invert negative side
-        vdiff = saBiasDacVoltageP * 2 # Invert P to double the voltage
+        vdiff = saBiasDacVoltageP * 2
         return vdiff / (self.R_CABLE.value() + (2*self.BIAS_SHUNT_R.value()))
 
     def saBiasDacVoltage(self, saBiasCurrent):
@@ -485,7 +489,7 @@ class FEAmplifier4(SaAmplifier):
 
         # Clip to the dac range
         vp = np.clip(vp, 0, 2.5)
-        vn = 0.0#vn = np.clip(vn, 0, 2.5)
+        vn = 0.0
 
         return (vp, vn)
 
@@ -495,69 +499,84 @@ class FEAmplifier4(SaAmplifier):
         return ret
 
 class AwaXeLna(SaAmplifier):
+    _model_ready = False
 
-    # Declare schematic nets and resistors
-    sa_bias_current = sympy.symbols('sa_bias_current')
-    sa_signal_p = sympy.symbols('sa_signal_p')
-    sa_signal_n = sympy.symbols('sa_signal_n')
+    @classmethod
+    def _init_circuit_model(cls):
+        if cls._model_ready:
+            return
 
-    # LNA stage symbols
-    lna_out_p = sympy.symbols('lna_out_p')
-    lna_out_n = sympy.symbols('lna_out_n')
-    lna_gain = sympy.symbols('awaxe_lna_gain')
+        # --- Symbols: signal path ---
+        cls.sa_signal_p = sympy.symbols('sa_signal_p')
+        cls.sa_signal_n = sympy.symbols('sa_signal_n')
 
-    # Offset amp symbols
-    sa_offset_p = sympy.symbols('sa_offset_p')
-    sa_offset_n = sympy.symbols('sa_offset_n')
-    offset_out_p = sympy.symbols('offset_out_p')
-    offset_out_n = sympy.symbols('offset_out_n')
-    rf2 = sympy.symbols('rf2') # Feedback
-    rgnd2 = sympy.symbols('rgnd2')
-    rin2 = sympy.symbols('rin2')
-    roff2 = sympy.symbols('roff2')
+        # --- Symbols: LNA stage ---
+        cls.lna_out_p = sympy.symbols('lna_out_p')
+        cls.lna_out_n = sympy.symbols('lna_out_n')
+        cls.lna_gain = sympy.symbols('awaxe_lna_gain')
 
-    # ADC Amp Symbols
-    adc_p = sympy.symbols('adc_p')
-    adc_n = sympy.symbols('adc_n')
-    rf3 = sympy.symbols('rf3')
-    rg3 = sympy.symbols('rg3')
-    v = sympy.symbols('v')
+        # --- Symbols: offset amp ---
+        cls.sa_offset_p = sympy.symbols('sa_offset_p')
+        cls.sa_offset_n = sympy.symbols('sa_offset_n')
+        cls.offset_out_p = sympy.symbols('offset_out_p')
+        cls.offset_out_n = sympy.symbols('offset_out_n')
+        cls.rf2 = sympy.symbols('rf2')
+        cls.roff2 = sympy.symbols('roff2')
 
-    # Stage 1 LNA equations
-    eq1 = sympy.Eq(lna_out_p, sa_signal_p * lna_gain)
-    eq2 = sympy.Eq(lna_out_n, sa_signal_n * lna_gain)
+        # --- Symbols: ADC amp ---
+        cls.adc_p = sympy.symbols('adc_p')
+        cls.adc_n = sympy.symbols('adc_n')
+        cls.rf3 = sympy.symbols('rf3')
+        cls.rg3 = sympy.symbols('rg3')
+        cls.v = sympy.symbols('v')
 
-    # Stage 2 Offset Amp
-    eq3 = sympy.Eq((offset_out_p-lna_out_p)/rf2, (lna_out_p-sa_offset_p)/roff2)
-    eq4 = sympy.Eq((offset_out_n-lna_out_n)/rf2, (lna_out_n-sa_offset_n)/roff2)
+        # --- Equations: Stage 1 LNA ---
+        eq1 = sympy.Eq(cls.lna_out_p, cls.sa_signal_p * cls.lna_gain)
+        eq2 = sympy.Eq(cls.lna_out_n, cls.sa_signal_n * cls.lna_gain)
 
-    # Stage 3 differential amp equations
-    eq5 = sympy.Eq((offset_out_p-v)/rg3, (v-adc_n)/rf3)
-    eq6 = sympy.Eq((offset_out_n-v)/rg3, (v-adc_p)/rf3)
+        # --- Equations: Stage 2 offset amp ---
+        eq3 = sympy.Eq((cls.offset_out_p - cls.lna_out_p) / cls.rf2,
+                        (cls.lna_out_p - cls.sa_offset_p) / cls.roff2)
+        eq4 = sympy.Eq((cls.offset_out_n - cls.lna_out_n) / cls.rf2,
+                        (cls.lna_out_n - cls.sa_offset_n) / cls.roff2)
 
-    solve_vars = [sa_signal_p, sa_signal_n, lna_out_p, lna_out_n, offset_out_p, offset_out_n, adc_p, adc_n]
+        # --- Equations: Stage 3 ADC differential amp ---
+        eq5 = sympy.Eq((cls.offset_out_p - cls.v) / cls.rg3,
+                        (cls.v - cls.adc_n) / cls.rf3)
+        eq6 = sympy.Eq((cls.offset_out_n - cls.v) / cls.rg3,
+                        (cls.v - cls.adc_p) / cls.rf3)
 
-    solutions = sympy.solve([eq1, eq2, eq3, eq4, eq5, eq6], solve_vars)
+        eqs = [eq1, eq2, eq3, eq4, eq5, eq6]
+        solve_vars = [cls.sa_signal_p, cls.sa_signal_n,
+                      cls.lna_out_p, cls.lna_out_n,
+                      cls.offset_out_p, cls.offset_out_n,
+                      cls.adc_p, cls.adc_n]
 
-    # Expression for sa_signal (differential) given adc voltage and offset voltage
-    sa_bias_expr = sympy.simplify(solutions[sa_signal_p]-solutions[sa_signal_n])
+        # --- Solve: inverse (ADC → signal input) ---
+        solutions = sympy.solve(eqs, solve_vars)
+        cls.sa_bias_expr = sympy.simplify(solutions[cls.sa_signal_p] - solutions[cls.sa_signal_n])
 
-    solutions2 = sympy.solve([eq1, eq2, eq3, eq4, eq5, eq6],list(reversed(solve_vars)))
+        # --- Solve: forward (signal input → ADC) ---
+        solutions2 = sympy.solve(eqs, list(reversed(solve_vars)))
 
-    # Expressions to compute gain of each stage
-    adc_expr = sympy.simplify(solutions2[adc_p]-solutions2[adc_n])
-    offset_stage_expr = sympy.simplify(solutions2[offset_out_p]-solutions2[offset_out_n])
-    lna_expr = sympy.simplify(solutions2[lna_out_p]-solutions2[lna_out_n])
+        adc_expr = sympy.simplify(solutions2[cls.adc_p] - solutions2[cls.adc_n])
+        offset_stage_expr = sympy.simplify(solutions2[cls.offset_out_p] - solutions2[cls.offset_out_n])
+        lna_expr = sympy.simplify(solutions2[cls.lna_out_p] - solutions2[cls.lna_out_n])
 
-    gain3_expr = (adc_expr/offset_stage_expr).subs({sa_signal_p:.5, sa_signal_n:-.5, sa_offset_p:0, sa_offset_n:0})
-    gain2_expr = (offset_stage_expr/lna_expr).subs({sa_signal_p:.5, sa_signal_n:-.5, sa_offset_p:0, sa_offset_n:0})
-#    gain1_expr = (sa_signal_out1_expr).subs({sa_bias_out_p:.5, sa_bias_out_n:-.5, sa_offset_p:0, sa_offset_n:0})
-    offset_gain_expr = adc_expr.subs({sa_signal_p:0, sa_signal_n:0, sa_offset_p:.5, sa_offset_n:-.5})
+        # --- Gain expressions ---
+        unity_input = {cls.sa_signal_p: .5, cls.sa_signal_n: -.5, cls.sa_offset_p: 0, cls.sa_offset_n: 0}
+        cls.gain3_expr = (adc_expr / offset_stage_expr).subs(unity_input)
+        cls.gain2_expr = (offset_stage_expr / lna_expr).subs(unity_input)
+        cls.offset_gain_expr = adc_expr.subs({cls.sa_signal_p: 0, cls.sa_signal_n: 0,
+                                              cls.sa_offset_p: .5, cls.sa_offset_n: -.5})
+
+        cls._model_ready = True
 
     def __init__(self, **kwargs):
-        """ AwaXe LNA amplifier chain consists of AwaXe LNA
+        """AwaXe LNA amplifier chain consists of AwaXe LNA
         followed by a unity gain stage to allow offset subtraction
         followed by the ADC amplifier"""
+        self._init_circuit_model()
         super().__init__(**kwargs)
 
         self.add(pr.LocalVariable(
@@ -753,11 +772,9 @@ class FastDacAmplifierSE(pr.Device):
         return self.FilterR.value() + self.ShuntR.value() + self.CableR.value()
 
     def dacToOutVoltage(self, dac):
-        #print(f'{self.path}.dacToOutVoltage({dac=})')
         iOutFs = self.IOUTFS.value()
         iOutA = (dac/16384) * iOutFs
         iOutB = ((16383-dac)/16384) * iOutFs
-        dacCurrent = (iOutA, iOutB)
 
         gain = self.gain()
         load = self.LoadR.value()
@@ -765,18 +782,15 @@ class FastDacAmplifierSE(pr.Device):
         vin = [iOutA * load, iOutB * load]
 
         vout = (vin[0] - vin[1]) * gain
-        #print(f'{gain=}, {load=}, {iOutFs=}, {vin=}, {dacCurrent=}')
         return vout
 
     def dacToOutCurrent(self, dac):
         """ Calculate output current in uA """
-        #print(f'{self.path}.dacToOutCurrent({dac=:#04x})')
         vout = self.dacToOutVoltage(dac)
         iout = vout / self.rout()
         return iout * 1e6
 
     def outVoltageToDac(self, voltage):
-        #print(f'{self.path}.outVoltageToDac({voltage=})')
         gain = self.gain()
         load = self.LoadR.value()
         ioutfs = self.IOUTFS.value()
@@ -784,16 +798,13 @@ class FastDacAmplifierSE(pr.Device):
         iin = vin / load
         iina = (iin + ioutfs) / 2 # Offset binary
         dac =  int((iina / ioutfs) * 16384)
-        # Clip the dac to allowable range
         if dac > 16383:
             dac = 16383
         if dac < 0:
             dac = 0
-        #print(f'{gain=}, {load=}, {ioutfs=}, {vin=}, {iin=}, {iina=}, {dac=:#04x}')
         return int(dac)
 
     def outCurrentToDac(self, current):
-        #print(f'{self.path}.outCurrentToDac({current=})')
         vout = current * 1e-6 * self.rout()
         return self.outVoltageToDac(vout)
 
@@ -885,11 +896,8 @@ class TesBiasAmpC00(pr.Device):
 
 
     def outCurrentToDac(self, current, delatch):
-        #print(f'{self.path}.outCurrentToDac({current=}, {delatch=})')
-
         iout = current * 1.0e-6
         iout = iout if self.Invert.value() == False else iout * -1.0
-        #print(f'{iout=}')
 
         if delatch is False:
             gainR = self.GainR.value()
@@ -903,11 +911,7 @@ class TesBiasAmpC00(pr.Device):
             # Delatch has only second filter
             filterR = self.Filter2R.value()
 
-
-        #print(f'{gainR=}')
-
         v1 = 2 * iout * gainR
-        #print(f'{v1=}')
 
         # Start with both dacs at midpoint
         dacVp = 1.25 + (0.5 * v1)
@@ -917,24 +921,17 @@ class TesBiasAmpC00(pr.Device):
         dacVp = np.clip(dacVp, 0, 2.5)
         dacVn = np.clip(dacVn, 0, 2.5)
 
-        #print(f'{dacVp=}, {dacVn=}')
-
         return (dacVp, dacVn)
 
 
     def dacToOutCurrent(self, dacVp, dacVn, delatch):
-        #print(f'{self.path}.dacToOutCurrent({dacVp=}, {dacVn=}, {delatch=})')
-
         # First stage amp has gain 1
         v1 = dacVp - dacVn
-        #print(f'{v1=}')
 
         # input to second stage is half v1
         v2 = 0.5 * v1
-        #print(f'{v2=}')
 
         gainR = self.GainR.value()
-        #print(f'{gainR=}')
 
         if delatch is False:
             gainR = self.GainR.value()
@@ -952,18 +949,12 @@ class TesBiasAmpC00(pr.Device):
         totalR = filterR + self.CableR.value()
         vout = -0.5 * v1 * (totalR / gainR - 1)
 
-        #print(f'{totalR=}')
-        #print(f'{vout=}')
-
-        # Clicp vout to amplifier rails
+        # Clip vout to amplifier rails
         vout = np.clip(vout, -5.0, 5.0)
-
-        #print(f'Clipped {vout=}')
 
         # Calculate output current
         iout = (v2 - vout) / totalR
         iout = iout * 1.0e6
         iout = iout if self.Invert.value() == False else iout * -1.0
 
-        #print(f'{iout=}')
         return iout
