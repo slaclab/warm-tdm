@@ -336,21 +336,29 @@ set_property -dict { PACKAGE_PIN AE16 IOSTANDARD ANALOG } [get_ports { feThermis
 set_property -dict { PACKAGE_PIN AF16 IOSTANDARD ANALOG } [get_ports { feThermistorN[1] }]
 
 ##############################################################################
-## Clock Groups
+## Clock Groups - Asynchronous domain crossings
 ##############################################################################
+
+## ADC clocks are asynchronous to timing and each other
 set_clock_groups -asynchronous \
     -group [get_clocks -include_generated_clocks adcDClk0] \
-    -group [get_clocks -include_generated_clocks adcDClk1]
+    -group [get_clocks -include_generated_clocks adcDClk1] \
+    -group [get_clocks -include_generated_clocks timingRxClk]
 
+## PGP GT recovered clocks are asynchronous to fabric clocks
 set_clock_groups -asynchronous \
-    -group [get_clocks axilClk] \
-    -group [get_clocks timingRxWordClk] \
-    -group [get_clocks -include_generated_clocks adcDClk0]
+    -group [get_clocks -include_generated_clocks gtRefClk0] \
+    -group [get_clocks -of_objects [get_pins -quiet -hier -filter {NAME =~ *pgp*txoutclk* || NAME =~ *pgp*rxoutclk* || NAME =~ *TXOUTCLK* || NAME =~ *RXOUTCLK*}]]
 
+## Timing TX word clock is asynchronous to axilClk
 set_clock_groups -asynchronous \
-    -group [get_clocks axilClk] \
-    -group [get_clocks timingRxWordClk] \
-    -group [get_clocks -include_generated_clocks adcDClk1]
+    -group [get_clocks -quiet wordClk] \
+    -group [get_clocks axilClk]
+
+## Timing TX word clock is from a different PLL than timingRxClk125
+set_clock_groups -asynchronous \
+    -group [get_clocks -quiet wordClk] \
+    -group [get_clocks -include_generated_clocks timingRxClk]
 
 ##############################################################################
 ## Bitstream Configuration
