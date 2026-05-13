@@ -177,11 +177,21 @@ begin
    -------------------------
    -- 125 Mhz Timing RX clock
    -------------------------
-   TIMING_RX_CLK_BUFF : IBUFGDS
-      port map (
-         i  => timingRxClkP,
-         ib => timingRxClkN,
-         o  => timingRxClk);
+   GEN_RXCLK_7S : if (FPGA_FAMILY_G = "7SERIES") generate
+      TIMING_RX_CLK_BUFF : IBUFGDS
+         port map (
+            i  => timingRxClkP,
+            ib => timingRxClkN,
+            o  => timingRxClk);
+   end generate;
+
+   GEN_RXCLK_USP : if (FPGA_FAMILY_G = "ULTRASCALE_PLUS") generate
+      TIMING_RX_CLK_BUFF : IBUFDS
+         port map (
+            i  => timingRxClkP,
+            ib => timingRxClkN,
+            o  => timingRxClk);
+   end generate;
 
 --    U_PwrUpRst_1 : entity surf.PwrUpRst
 --       generic map (
