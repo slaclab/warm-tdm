@@ -42,7 +42,8 @@ entity Timing is
       AXIL_BASE_ADDR_G  : slv(31 downto 0)      := (others => '0');
       IODELAY_GROUP_G   : string                := "DEFAULT_GROUP";
       IDELAYCTRL_FREQ_G : real                  := 200.0;
-      DEFAULT_DELAY_G   : integer range 0 to 31 := 0);
+      DEFAULT_DELAY_G   : integer range 0 to 31 := 0;
+      FPGA_FAMILY_G     : string                := "7SERIES");
 
    port (
       -- Reference clock
@@ -99,8 +100,6 @@ architecture rtl of Timing is
 --    signal timingClk125 : sl;
 --    signal timingRst125 : sl;
 
-   attribute IODELAY_GROUP                 : string;
-   attribute IODELAY_GROUP of IDELAYCTRL_0 : label is IODELAY_GROUP_G;
 
    constant NUM_AXIL_MASTERS_C : integer := 2;
    constant AXIL_RX_C          : integer := 0;
@@ -134,37 +133,65 @@ begin
          clk    => timingFabRefClk,
          rstOut => timingRefRst);
 
-   U_MMCM_IDELAY : entity surf.ClockManager7
-      generic map(
-         TPD_G              => TPD_G,
-         TYPE_G             => "MMCM",
-         INPUT_BUFG_G       => false,
-         FB_BUFG_G          => true,    -- Without this, will never lock in simulation
-         RST_IN_POLARITY_G  => '1',
-         NUM_CLOCKS_G       => 1,
-         -- MMCM attributes
-         BANDWIDTH_G        => "OPTIMIZED",
-         CLKIN_PERIOD_G     => 8.0,     -- 125 MHz
-         DIVCLK_DIVIDE_G    => 1,       -- 125 MHz
-         CLKFBOUT_MULT_F_G  => 8.0,     -- 1.0GHz =  125 MHz x 8
-         CLKOUT0_DIVIDE_F_G => 5.0)     --  = 200 MHz = 1.0GHz/5
-      port map(
-         clkIn     => timingFabRefClk,
-         rstIn     => '0',
-         clkOut(0) => idelayClk,
---         clkOut(1) => idelayClk,
---         rstOut(0) => timingRst125,
-         rstOut(0) => idelayRst,
-         locked    => open);
+   GEN_7SERIES_MMCM : if (FPGA_FAMILY_G = "7SERIES") generate
+      U_MMCM_IDELAY : entity surf.ClockManager7
+         generic map(
+            TPD_G              => TPD_G,
+            TYPE_G             => "MMCM",
+            INPUT_BUFG_G       => false,
+            FB_BUFG_G          => true,    -- Without this, will never lock in simulation
+            RST_IN_POLARITY_G  => '1',
+            NUM_CLOCKS_G       => 1,
+            -- MMCM attributes
+            BANDWIDTH_G        => "OPTIMIZED",
+            CLKIN_PERIOD_G     => 8.0,     -- 125 MHz
+            DIVCLK_DIVIDE_G    => 1,       -- 125 MHz
+            CLKFBOUT_MULT_F_G  => 8.0,     -- 1.0GHz =  125 MHz x 8
+            CLKOUT0_DIVIDE_F_G => 5.0)     --  = 200 MHz = 1.0GHz/5
+         port map(
+            clkIn     => timingFabRefClk,
+            rstIn     => '0',
+            clkOut(0) => idelayClk,
+            rstOut(0) => idelayRst,
+            locked    => open);
+   end generate GEN_7SERIES_MMCM;
+
+   GEN_USP_MMCM : if (FPGA_FAMILY_G = "ULTRASCALE_PLUS") generate
+      U_MMCM_IDELAY : entity surf.ClockManagerUltraScale
+         generic map(
+            TPD_G              => TPD_G,
+            TYPE_G             => "MMCM",
+            INPUT_BUFG_G       => false,
+            FB_BUFG_G          => true,
+            RST_IN_POLARITY_G  => '1',
+            NUM_CLOCKS_G       => 1,
+            -- MMCM attributes
+            BANDWIDTH_G        => "OPTIMIZED",
+            CLKIN_PERIOD_G     => 8.0,     -- 125 MHz
+            DIVCLK_DIVIDE_G    => 1,       -- 125 MHz
+            CLKFBOUT_MULT_F_G  => 8.0,     -- 1.0GHz =  125 MHz x 8
+            CLKOUT0_DIVIDE_F_G => 5.0)     --  = 200 MHz = 1.0GHz/5
+         port map(
+            clkIn     => timingFabRefClk,
+            rstIn     => '0',
+            clkOut(0) => idelayClk,
+            rstOut(0) => idelayRst,
+            locked    => open);
+   end generate GEN_USP_MMCM;
 
    -------------
-   -- IDELAYCTRL
+   -- IDELAYCTRL (only needed for 7SERIES; US+ uses COUNT mode)
    -------------
-   IDELAYCTRL_0 : IDELAYCTRL
-      port map (
-         RDY    => open,
-         REFCLK => idelayClk,
-         RST    => idelayRst);
+   GEN_7SERIES_IDELAY : if (FPGA_FAMILY_G = "7SERIES") generate
+      attribute IODELAY_GROUP                 : string;
+      attribute IODELAY_GROUP of IDELAYCTRL_0 : label is IODELAY_GROUP_G;
+   begin
+      IDELAYCTRL_0 : IDELAYCTRL
+         port map (
+            RDY    => open,
+            REFCLK => idelayClk,
+            RST    => idelayRst);
+   end generate GEN_7SERIES_IDELAY;
 
    --------------------------
    -- AXI Lite crossbar
@@ -199,6 +226,7 @@ begin
          IODELAY_GROUP_G   => IODELAY_GROUP_G,
          IDELAYCTRL_FREQ_G => IDELAYCTRL_FREQ_G,
          DEFAULT_DELAY_G   => DEFAULT_DELAY_G,
+         FPGA_FAMILY_G     => FPGA_FAMILY_G,
          AXIL_BASE_ADDR_G  => AXIL_XBAR_CFG_C(AXIL_RX_C).baseAddr)
       port map (
          timingRxClkP      => timingRxClkP,            -- [in]
@@ -223,6 +251,7 @@ begin
          SIMULATION_G     => SIMULATION_G,
          RING_ADDR_0_G    => RING_ADDR_0_G,
          AXIL_CLK_FREQ_G  => AXIL_CLK_FREQ_G,
+         FPGA_FAMILY_G    => FPGA_FAMILY_G,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_TX_C).baseAddr)
       port map (
          timingRefClk    => timingFabRefClk,         -- [in]

@@ -40,6 +40,7 @@ entity PgpEthCore is
    generic (
       TPD_G                   : time             := 1 ns;
       SIMULATION_G            : boolean          := false;
+      FPGA_FAMILY_G           : string           := "7SERIES";
       SIMULATE_PGP_G          : boolean          := true;
       SIM_PGP_PORT_NUM_G      : integer          := 7000;
       SIM_ETH_SRP_PORT_NUM_G  : integer          := 8000;
@@ -157,6 +158,7 @@ begin
          generic map (
             TPD_G            => TPD_G,
             SIMULATION_G     => SIMULATION_G,
+            FPGA_FAMILY_G    => FPGA_FAMILY_G,
             SIM_PORT_NUM_G   => SIM_PGP_PORT_NUM_G,
             REF_CLK_FREQ_G   => REF_CLK_FREQ_G,
             RING_ADDR_0_G    => RING_ADDR_0_G,
@@ -197,6 +199,7 @@ begin
    U_EthCore_1 : entity warm_tdm.EthCore
       generic map (
          TPD_G               => TPD_G,
+         FPGA_FAMILY_G       => FPGA_FAMILY_G,
          RING_ADDR_0_G       => RING_ADDR_0_G,
          ETH_10G_G           => ETH_10G_G,
          SIMULATION_G        => SIMULATION_G,

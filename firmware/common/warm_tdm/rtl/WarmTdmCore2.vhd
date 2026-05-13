@@ -44,6 +44,7 @@ entity WarmTdmCore2 is
       BUILD_INFO_G            : BuildInfoType;
       RING_ADDR_0_G           : boolean          := false;
       ETH_10G_G               : boolean          := false;
+      FPGA_FAMILY_G           : string           := "7SERIES";
       DHCP_G                  : boolean          := false;
       IP_ADDR_G               : slv(31 downto 0) := x"0B03A8C0";  -- 192.168.3.11
       MAC_ADDR_G              : slv(47 downto 0) := x"0B_00_16_56_00_08");
@@ -291,9 +292,10 @@ begin
    -------------------------------------------------------------------------------------------------
    U_ClockDist_1 : entity warm_tdm.ClockDist
       generic map (
-         TPD_G        => TPD_G,
-         CLK_0_DIV2_G => true,
-         CLK_1_DIV2_G => false)
+         TPD_G         => TPD_G,
+         FPGA_FAMILY_G => FPGA_FAMILY_G,
+         CLK_0_DIV2_G  => true,
+         CLK_1_DIV2_G  => false)
       port map (
          gtRefClk0P => gtRefClk0P,      -- [in]
          gtRefClk0N => gtRefClk0N,      -- [in]
@@ -333,6 +335,7 @@ begin
       generic map (
          TPD_G             => TPD_G,
          SIMULATION_G      => SIMULATION_G,
+         FPGA_FAMILY_G     => FPGA_FAMILY_G,
          RING_ADDR_0_G     => RING_ADDR_0_G,
          AXIL_CLK_FREQ_G   => AXIL_CLK_FREQ_C,
          AXIL_BASE_ADDR_G  => AXIL_XBAR_CFG_C(AXIL_TIMING_C).baseAddr,
@@ -379,6 +382,7 @@ begin
          SIM_PGP_PORT_NUM_G      => SIM_PGP_PORT_NUM_G,
          SIM_ETH_SRP_PORT_NUM_G  => SIM_ETH_SRP_PORT_NUM_G,
          SIM_ETH_DATA_PORT_NUM_G => SIM_ETH_DATA_PORT_NUM_G,
+         FPGA_FAMILY_G           => FPGA_FAMILY_G,
          REF_CLK_FREQ_G          => 250.0E6,
          RING_ADDR_0_G           => RING_ADDR_0_G,
          AXIL_BASE_ADDR_G        => AXIL_XBAR_CFG_C(AXIL_COM_C).baseAddr,

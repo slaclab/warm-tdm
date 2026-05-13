@@ -41,6 +41,7 @@ entity TimingRx is
       IODELAY_GROUP_G   : string                := "DEFAULT_GROUP";
       IDELAYCTRL_FREQ_G : real                  := 200.0;
       DEFAULT_DELAY_G   : integer range 0 to 31 := 0;
+      FPGA_FAMILY_G     : string                := "7SERIES";
       AXIL_BASE_ADDR_G  : slv(31 downto 0)      := (others => '0'));
 
    port (
@@ -208,72 +209,122 @@ begin
 
    -------------------------------------------------------------------------------------------------
    -- Create serial clock for deserializer
-   -------------------------------------------------------------------------------------------------
-   U_ClockManager7_1 : entity surf.ClockManager7
-      generic map (
-         TPD_G            => TPD_G,
-         SIMULATION_G     => false,
-         TYPE_G           => "PLL",
-         INPUT_BUFG_G     => false,
-         FB_BUFG_G        => true,
-         OUTPUT_BUFG_G    => true,
-         NUM_CLOCKS_G     => 2,
-         BANDWIDTH_G      => "OPTIMIZED",
-         CLKIN_PERIOD_G   => 8.0,
-         DIVCLK_DIVIDE_G  => 1,
-         CLKFBOUT_MULT_G  => 10,
-         CLKOUT0_DIVIDE_G => 2,
-         CLKOUT1_DIVIDE_G => 10)
-      port map (
-         clkIn     => timingRxClk,         -- [in]
-         rstIn     => timingRxRst,         -- [in]
-         clkOut(0) => bitClk,              -- [out]
-         clkOut(1) => wordClk,             -- [out]         
-         rstOut(0) => bitRst,              -- [out]
-         rstOut(1) => wordRst,             -- [out]
-         locked    => timingRxClkLocked);  -- [out]
-
---    U_TimingMmcm_1 : entity warm_tdm.TimingMmcm
---       generic map (
---          TPD_G              => TPD_G,
---          USE_HPC_G          => false,
---          CLKIN1_PERIOD_G    => 8.0,
---          DIVCLK_DIVIDE_G    => 1,
---          CLKFBOUT_MULT_F_G  => 5.0,
---          CLKOUT0_DIVIDE_F_G => 1.0,
---          CLKOUT1_DIVIDE_G   => 5)
---       port map (
---          timingRxClk => timingRxClk,    -- [in]
---          timingRxRst => timingRxRst,    -- [in]
---          bitClk      => bitClk,         -- [out]
---          wordClk     => wordClk,        -- [out]
---          wordRst     => wordRst);       -- [out]
-
-   -------------------------------------------------------------------------------------------------
    -- Deserialize the incomming data
    -------------------------------------------------------------------------------------------------
-   bitClkInv <= not bitClk;
+   GEN_7SERIES : if (FPGA_FAMILY_G = "7SERIES") generate
+      U_ClockManager7_1 : entity surf.ClockManager7
+         generic map (
+            TPD_G            => TPD_G,
+            SIMULATION_G     => false,
+            TYPE_G           => "PLL",
+            INPUT_BUFG_G     => false,
+            FB_BUFG_G        => true,
+            OUTPUT_BUFG_G    => true,
+            NUM_CLOCKS_G     => 2,
+            BANDWIDTH_G      => "OPTIMIZED",
+            CLKIN_PERIOD_G   => 8.0,
+            DIVCLK_DIVIDE_G  => 1,
+            CLKFBOUT_MULT_G  => 10,
+            CLKOUT0_DIVIDE_G => 2,
+            CLKOUT1_DIVIDE_G => 10)
+         port map (
+            clkIn     => timingRxClk,         -- [in]
+            rstIn     => timingRxRst,         -- [in]
+            clkOut(0) => bitClk,              -- [out]
+            clkOut(1) => wordClk,             -- [out]
+            rstOut(0) => bitRst,              -- [out]
+            rstOut(1) => wordRst,             -- [out]
+            locked    => timingRxClkLocked);  -- [out]
 
-   U_TimingDeserializer_1 : entity warm_tdm.TimingDeserializer
-      generic map (
-         TPD_G             => TPD_G,
-         IODELAY_GROUP_G   => IODELAY_GROUP_G,
-         DEFAULT_DELAY_G   => DEFAULT_DELAY_G,
-         IDELAYCTRL_FREQ_G => IDELAYCTRL_FREQ_G)
-      port map (
-         rst           => wordRst,             -- [in]
-         bitClk        => bitClk,              -- [in]
-         bitClkInv     => bitClkInv,           -- [in]
-         timingRxDataP => timingRxDataP,       -- [in]
-         timingRxDataN => timingRxDataN,       -- [in]
-         wordClk       => wordClk,             -- [in]
-         wordRst       => wordRst,             -- [in]
-         dataOut       => timingRxCodeWord,    -- [out]
-         slip          => slip,                -- [in]
-         sysClk        => wordClk,             -- [in]
-         curDelay      => open,                -- [out]
-         setDelay      => dlyCfg(8 downto 4),  -- [in]
-         setValid      => dlyLoad);            -- [in]
+      bitClkInv <= not bitClk;
+
+      U_TimingDeserializer_1 : entity warm_tdm.TimingDeserializer
+         generic map (
+            TPD_G             => TPD_G,
+            IODELAY_GROUP_G   => IODELAY_GROUP_G,
+            DEFAULT_DELAY_G   => DEFAULT_DELAY_G,
+            IDELAYCTRL_FREQ_G => IDELAYCTRL_FREQ_G)
+         port map (
+            rst           => wordRst,             -- [in]
+            bitClk        => bitClk,              -- [in]
+            bitClkInv     => bitClkInv,           -- [in]
+            timingRxDataP => timingRxDataP,       -- [in]
+            timingRxDataN => timingRxDataN,       -- [in]
+            wordClk       => wordClk,             -- [in]
+            wordRst       => wordRst,             -- [in]
+            dataOut       => timingRxCodeWord,    -- [out]
+            slip          => slip,                -- [in]
+            sysClk        => wordClk,             -- [in]
+            curDelay      => open,                -- [out]
+            setDelay      => dlyCfg(8 downto 4),  -- [in]
+            setValid      => dlyLoad);            -- [in]
+   end generate GEN_7SERIES;
+
+   GEN_ULTRASCALE_PLUS : if (FPGA_FAMILY_G = "ULTRASCALE_PLUS") generate
+      signal clkx4     : sl;
+      signal clkx1     : sl;
+      signal rstx1     : sl;
+      signal pllLocked : sl;
+      signal pllRst    : sl;
+   begin
+      U_ClockManagerUsp_1 : entity surf.ClockManagerUltraScale
+         generic map (
+            TPD_G              => TPD_G,
+            SIMULATION_G       => false,
+            TYPE_G             => "PLL",
+            INPUT_BUFG_G       => false,
+            FB_BUFG_G          => true,
+            OUTPUT_BUFG_G      => true,
+            NUM_CLOCKS_G       => 1,
+            BANDWIDTH_G        => "OPTIMIZED",
+            CLKIN_PERIOD_G     => 8.0,
+            DIVCLK_DIVIDE_G    => 1,
+            CLKFBOUT_MULT_F_G  => 10.0,
+            CLKOUT0_DIVIDE_F_G => 2.0)
+         port map (
+            clkIn     => timingRxClk,      -- [in]
+            rstIn     => timingRxRst,      -- [in]
+            clkOut(0) => clkx4,            -- [out] 625 MHz
+            rstOut(0) => open,             -- [out]
+            locked    => pllLocked);       -- [out]
+
+      timingRxClkLocked <= pllLocked;
+
+      U_BUFGCE_DIV_1 : BUFGCE_DIV
+         generic map (
+            BUFGCE_DIVIDE => 4)
+         port map (
+            I   => clkx4,
+            CE  => '1',
+            CLR => '0',
+            O   => clkx1);               -- 156.25 MHz
+
+      pllRst <= not pllLocked;
+
+      U_RstSync_clkx1 : entity surf.RstSync
+         generic map (
+            TPD_G => TPD_G)
+         port map (
+            clk      => clkx1,            -- [in]
+            asyncRst => pllRst,           -- [in]
+            syncRst  => rstx1);           -- [out]
+
+      U_TimingDeserializerUsp_1 : entity warm_tdm.TimingDeserializerUsp
+         port map (
+            clkx4         => clkx4,            -- [in]
+            clkx1         => clkx1,            -- [in]
+            rstx1         => rstx1,            -- [in]
+            timingRxDataP => timingRxDataP,    -- [in]
+            timingRxDataN => timingRxDataN,    -- [in]
+            wordClk       => wordClk,          -- [out]
+            wordRst       => wordRst,          -- [out]
+            dataOut       => timingRxCodeWord,  -- [out]
+            dataValid     => open,             -- [out]
+            slip          => slip,             -- [in]
+            dlyLoad       => dlyLoad,          -- [in]
+            dlyCfg        => dlyCfg,           -- [in]
+            locked        => open);            -- [out]
+   end generate GEN_ULTRASCALE_PLUS;
 
    -------------------------------------------------------------------------------------------------
    -- 8B10B decode
@@ -300,7 +351,7 @@ begin
          TPD_G           => TPD_G,
          SIMULATION_G    => SIMULATION_G,
          CODE_TYPE_G     => "LINE_CODE",
-         DLY_STEP_SIZE_G => 16)
+         DLY_STEP_SIZE_G => ite(FPGA_FAMILY_G = "7SERIES", 16, 1))
       port map (
          clk             => wordClk,          -- [in]
          rst             => wordRst,          -- [in]

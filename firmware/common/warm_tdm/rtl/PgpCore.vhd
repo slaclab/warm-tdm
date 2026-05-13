@@ -30,6 +30,9 @@ use surf.AxiLitePkg.all;
 use surf.Gtx7CfgPkg.all;
 use surf.Pgp2bPkg.all;
 
+library unisim;
+use unisim.vcomponents.all;
+
 library warm_tdm;
 
 entity PgpCore is
@@ -37,6 +40,7 @@ entity PgpCore is
    generic (
       TPD_G            : time             := 1 ns;
       SIMULATION_G     : boolean          := false;
+      FPGA_FAMILY_G    : string           := "7SERIES";
       SIM_PORT_NUM_G   : integer          := 7000;
       REF_CLK_FREQ_G   : real             := 250.0E+6;
       RING_ADDR_0_G    : boolean          := false;
@@ -164,109 +168,190 @@ begin
 
    locPgpTxIn(0).flowCntlDis <= '0' when RING_ADDR_0_G else '1';
 
-   ClockManager7_Inst : entity surf.ClockManager7
-      generic map(
-         TPD_G              => TPD_G,
-         TYPE_G             => "MMCM",
-         INPUT_BUFG_G       => false,
-         FB_BUFG_G          => true,
-         RST_IN_POLARITY_G  => '1',
-         NUM_CLOCKS_G       => 2,
-         -- MMCM attributes
-         BANDWIDTH_G        => "OPTIMIZED",
-         CLKIN_PERIOD_G     => 8.0,
-         DIVCLK_DIVIDE_G    => 1,
-         CLKFBOUT_MULT_F_G  => 8.0,
-         CLKOUT0_DIVIDE_F_G => 8.0,
-         CLKOUT1_DIVIDE_G   => 16)
-      port map(
-         clkIn     => fabRefClk,
-         rstIn     => refRst,
-         clkOut(0) => iAxiClk,
-         clkOut(1) => pgpClk,
-         rstOut(0) => iAxiRst,
-         rstOut(1) => pgpRst);
+   GEN_CLK_7SERIES : if (FPGA_FAMILY_G = "7SERIES") generate
+      ClockManager7_Inst : entity surf.ClockManager7
+         generic map(
+            TPD_G              => TPD_G,
+            TYPE_G             => "MMCM",
+            INPUT_BUFG_G       => false,
+            FB_BUFG_G          => true,
+            RST_IN_POLARITY_G  => '1',
+            NUM_CLOCKS_G       => 2,
+            -- MMCM attributes
+            BANDWIDTH_G        => "OPTIMIZED",
+            CLKIN_PERIOD_G     => 8.0,
+            DIVCLK_DIVIDE_G    => 1,
+            CLKFBOUT_MULT_F_G  => 8.0,
+            CLKOUT0_DIVIDE_F_G => 8.0,
+            CLKOUT1_DIVIDE_G   => 16)
+         port map(
+            clkIn     => fabRefClk,
+            rstIn     => refRst,
+            clkOut(0) => iAxiClk,
+            clkOut(1) => pgpClk,
+            rstOut(0) => iAxiRst,
+            rstOut(1) => pgpRst);
+   end generate GEN_CLK_7SERIES;
+
+   GEN_CLK_ULTRASCALE_PLUS : if (FPGA_FAMILY_G = "ULTRASCALE_PLUS") generate
+      ClockManagerUs_Inst : entity surf.ClockManagerUltraScale
+         generic map(
+            TPD_G              => TPD_G,
+            TYPE_G             => "MMCM",
+            INPUT_BUFG_G       => false,
+            FB_BUFG_G          => true,
+            RST_IN_POLARITY_G  => '1',
+            NUM_CLOCKS_G       => 2,
+            -- MMCM attributes
+            BANDWIDTH_G        => "OPTIMIZED",
+            CLKIN_PERIOD_G     => 8.0,
+            DIVCLK_DIVIDE_G    => 1,
+            CLKFBOUT_MULT_F_G  => 8.0,
+            CLKOUT0_DIVIDE_F_G => 8.0,
+            CLKOUT1_DIVIDE_G   => 16)
+         port map(
+            clkIn     => fabRefClk,
+            rstIn     => refRst,
+            clkOut(0) => iAxiClk,
+            clkOut(1) => pgpClk,
+            rstOut(0) => iAxiRst,
+            rstOut(1) => pgpRst);
+   end generate GEN_CLK_ULTRASCALE_PLUS;
 
    axiClk <= iAxiClk;
    axiRst <= iAxiRst;
 
    REAL_PGP_GEN : if (SIM_PORT_NUM_G = 0) generate
-      Pgp2bGtx7VarLat_Inst_0 : entity surf.Pgp2bGtx7VarLat
-         generic map (
-            TPD_G                 => TPD_G,
-            SIM_GTRESET_SPEEDUP_G => "TRUE",
-            SIM_VERSION_G         => "4.0",
-            -- CPLL Configurations
-            TX_PLL_G              => "CPLL",
-            RX_PLL_G              => "CPLL",
-            CPLL_FBDIV_G          => GTX_CFG_C.CPLL_FBDIV_G,
-            CPLL_FBDIV_45_G       => GTX_CFG_C.CPLL_FBDIV_45_G,
-            CPLL_REFCLK_DIV_G     => GTX_CFG_C.CPLL_REFCLK_DIV_G,
-            RXOUT_DIV_G           => GTX_CFG_C.OUT_DIV_G,
-            TXOUT_DIV_G           => GTX_CFG_C.OUT_DIV_G,
-            RX_CLK25_DIV_G        => GTX_CFG_C.CLK25_DIV_G,
-            TX_CLK25_DIV_G        => GTX_CFG_C.CLK25_DIV_G,
-            -- MGT Configurations
-            RX_OS_CFG_G           => "0000010000000",        --RX_OS_CFG_G,
-            RXCDR_CFG_G           => X"03000023FF10100020",  -- X"0000107FE106001041010",  --x"03000023ff10100020",  -- RXCDR_CFG_G,
 
-            RXDFEXYDEN_G      => '1',   --RXDFEXYDEN_G,
-            PMA_RSV_G         => x"00018480",
-            RX_DFE_KL_CFG2_G  => X"301148AC",
-            -- VC Configuration
-            VC_INTERLEAVE_G   => 1,
-            PAYLOAD_CNT_TOP_G => 7,
-            NUM_VC_EN_G       => 2)
-         port map (
-            -- GT Clocking
-            stableClk        => fabRefClk,
-            gtCPllRefClk     => gtRefClk,
-            gtCPllLock       => open,
-            gtQPllRefClk     => '0',
-            gtQPllClk        => '0',
-            gtQPllLock       => '1',
-            gtQPllRefClkLost => '0',
-            gtQPllReset      => open,
-            -- GT Serial IO
-            gtTxP            => pgpTxP(0),
-            gtTxN            => pgpTxN(0),
-            gtRxP            => pgpRxP(0),
-            gtRxN            => pgpRxN(0),
-            -- Tx Clocking
-            pgpTxReset       => pgpRst,
-            pgpTxRecClk      => open,
-            pgpTxClk         => pgpClk,
-            pgpTxMmcmReset   => open,
-            pgpTxMmcmLocked  => '1',
-            -- Rx clocking
-            pgpRxReset       => pgpRst,
-            pgpRxRecClk      => open,
-            pgpRxClk         => pgpClk,
-            pgpRxMmcmReset   => open,
-            pgpRxMmcmLocked  => '1',
-            -- Non VC TX Signals
-            pgpTxIn          => pgpTxIn(0),
-            pgpTxOut         => pgpTxOut(0),
-            -- Non VC RX Signals
-            pgpRxIn          => pgpRxIn(0),
-            pgpRxOut         => pgpRxOut(0),
-            -- Frame TX Interface
-            pgpTxMasters     => pgpTxMasters,
-            pgpTxSlaves      => pgpTxSlaves,
-            -- Frame RX Interface
-            pgpRxMasters     => pgpRxMasters,
-            pgpRxCtrl        => pgpRxCtrl,
-            -- Debug Interface
+      GEN_7SERIES : if (FPGA_FAMILY_G = "7SERIES") generate
+         Pgp2bGtx7VarLat_Inst_0 : entity surf.Pgp2bGtx7VarLat
+            generic map (
+               TPD_G                 => TPD_G,
+               SIM_GTRESET_SPEEDUP_G => "TRUE",
+               SIM_VERSION_G         => "4.0",
+               -- CPLL Configurations
+               TX_PLL_G              => "CPLL",
+               RX_PLL_G              => "CPLL",
+               CPLL_FBDIV_G          => GTX_CFG_C.CPLL_FBDIV_G,
+               CPLL_FBDIV_45_G       => GTX_CFG_C.CPLL_FBDIV_45_G,
+               CPLL_REFCLK_DIV_G     => GTX_CFG_C.CPLL_REFCLK_DIV_G,
+               RXOUT_DIV_G           => GTX_CFG_C.OUT_DIV_G,
+               TXOUT_DIV_G           => GTX_CFG_C.OUT_DIV_G,
+               RX_CLK25_DIV_G        => GTX_CFG_C.CLK25_DIV_G,
+               TX_CLK25_DIV_G        => GTX_CFG_C.CLK25_DIV_G,
+               -- MGT Configurations
+               RX_OS_CFG_G           => "0000010000000",        --RX_OS_CFG_G,
+               RXCDR_CFG_G           => X"03000023FF10100020",  -- X"0000107FE106001041010",  --x"03000023ff10100020",  -- RXCDR_CFG_G,
+
+               RXDFEXYDEN_G      => '1',   --RXDFEXYDEN_G,
+               PMA_RSV_G         => x"00018480",
+               RX_DFE_KL_CFG2_G  => X"301148AC",
+               -- VC Configuration
+               VC_INTERLEAVE_G   => 1,
+               PAYLOAD_CNT_TOP_G => 7,
+               NUM_VC_EN_G       => 2)
+            port map (
+               -- GT Clocking
+               stableClk        => fabRefClk,
+               gtCPllRefClk     => gtRefClk,
+               gtCPllLock       => open,
+               gtQPllRefClk     => '0',
+               gtQPllClk        => '0',
+               gtQPllLock       => '1',
+               gtQPllRefClkLost => '0',
+               gtQPllReset      => open,
+               -- GT Serial IO
+               gtTxP            => pgpTxP(0),
+               gtTxN            => pgpTxN(0),
+               gtRxP            => pgpRxP(0),
+               gtRxN            => pgpRxN(0),
+               -- Tx Clocking
+               pgpTxReset       => pgpRst,
+               pgpTxRecClk      => open,
+               pgpTxClk         => pgpClk,
+               pgpTxMmcmReset   => open,
+               pgpTxMmcmLocked  => '1',
+               -- Rx clocking
+               pgpRxReset       => pgpRst,
+               pgpRxRecClk      => open,
+               pgpRxClk         => pgpClk,
+               pgpRxMmcmReset   => open,
+               pgpRxMmcmLocked  => '1',
+               -- Non VC TX Signals
+               pgpTxIn          => pgpTxIn(0),
+               pgpTxOut         => pgpTxOut(0),
+               -- Non VC RX Signals
+               pgpRxIn          => pgpRxIn(0),
+               pgpRxOut         => pgpRxOut(0),
+               -- Frame TX Interface
+               pgpTxMasters     => pgpTxMasters,
+               pgpTxSlaves      => pgpTxSlaves,
+               -- Frame RX Interface
+               pgpRxMasters     => pgpRxMasters,
+               pgpRxCtrl        => pgpRxCtrl,
+               -- Debug Interface
 --             txPreCursor      => txPreCursor,
 --             txPostCursor     => txPostCursor,
 --             txDiffCtrl       => txDiffCtrl,
-            -- AXI-Lite Interface
-            axilClk          => iAxiClk,
-            axilRst          => iAxiRst,
-            axilReadMaster   => locAxilReadMasters(AXIL_GTX_0_C),
-            axilReadSlave    => locAxilReadSlaves(AXIL_GTX_0_C),
-            axilWriteMaster  => locAxilWriteMasters(AXIL_GTX_0_C),
-            axilWriteSlave   => locAxilWriteSlaves(AXIL_GTX_0_C));
+               -- AXI-Lite Interface
+               axilClk          => iAxiClk,
+               axilRst          => iAxiRst,
+               axilReadMaster   => locAxilReadMasters(AXIL_GTX_0_C),
+               axilReadSlave    => locAxilReadSlaves(AXIL_GTX_0_C),
+               axilWriteMaster  => locAxilWriteMasters(AXIL_GTX_0_C),
+               axilWriteSlave   => locAxilWriteSlaves(AXIL_GTX_0_C));
+      end generate GEN_7SERIES;
+
+      GEN_ULTRASCALE_PLUS : if (FPGA_FAMILY_G = "ULTRASCALE_PLUS") generate
+         Pgp2bGtyUltra_Inst_0 : entity surf.Pgp2bGtyUltra
+            generic map (
+               TPD_G             => TPD_G,
+               -- VC Configuration
+               VC_INTERLEAVE_G   => 1,
+               PAYLOAD_CNT_TOP_G => 7,
+               NUM_VC_EN_G       => 2)
+            port map (
+               -- GT Clocking
+               stableClk        => fabRefClk,
+               stableRst        => refRst,
+               gtRefClk         => gtRefClk,
+               -- GT Serial IO
+               pgpGtTxP         => pgpTxP(0),
+               pgpGtTxN         => pgpTxN(0),
+               pgpGtRxP         => pgpRxP(0),
+               pgpGtRxN         => pgpRxN(0),
+               -- Tx Clocking
+               pgpTxReset       => pgpRst,
+               pgpTxRecClk      => open,
+               pgpTxClk         => pgpClk,
+               pgpTxMmcmReset   => open,
+               pgpTxMmcmLocked  => '1',
+               -- Rx clocking
+               pgpRxReset       => pgpRst,
+               pgpRxRecClk      => open,
+               pgpRxClk         => pgpClk,
+               pgpRxMmcmReset   => open,
+               pgpRxMmcmLocked  => '1',
+               -- Non VC TX Signals
+               pgpTxIn          => pgpTxIn(0),
+               pgpTxOut         => pgpTxOut(0),
+               -- Non VC RX Signals
+               pgpRxIn          => pgpRxIn(0),
+               pgpRxOut         => pgpRxOut(0),
+               -- Frame TX Interface
+               pgpTxMasters     => pgpTxMasters,
+               pgpTxSlaves      => pgpTxSlaves,
+               -- Frame RX Interface
+               pgpRxMasters     => pgpRxMasters,
+               pgpRxCtrl        => pgpRxCtrl,
+               -- AXI-Lite Interface
+               axilClk          => iAxiClk,
+               axilRst          => iAxiRst,
+               axilReadMaster   => locAxilReadMasters(AXIL_GTX_0_C),
+               axilReadSlave    => locAxilReadSlaves(AXIL_GTX_0_C),
+               axilWriteMaster  => locAxilWriteMasters(AXIL_GTX_0_C),
+               axilWriteSlave   => locAxilWriteSlaves(AXIL_GTX_0_C));
+      end generate GEN_ULTRASCALE_PLUS;
 
       PGP_RX_CTRL : process (locPgpRxCtrl, pgpRxOut) is
          variable tmp : AxiStreamCtrlArray(3 downto 0);

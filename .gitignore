@@ -2,8 +2,27 @@
 # Exclude data files
 *.npy
 *.dat
+*.zip
+*.mcs
+*.bit
+*.bin
+*.ipynb
+*.yml
+.ipynb_checkpoints/
+images/
+ip/
+*.html
 *.*~
 build*
 __pycache__/
 .vscode/
 .claude/
+\#*\#
+firmware/python/warm_tdm/_Sq1BiasDriverAwaXe.py
+.gitignore
+software/python/warm_tdm_api/_GroupConfigs.py
+software/python/warm_tdm_api/wam_tdm_gui_sav.ui
+software/scripts/AdcCapture.py
+software/scripts/packetizer_test.py
+software/scripts/warmTdmClientMuxTest.py
+firmware/python/warm_tdm/_AwaXeSq1BiasDriver.py
