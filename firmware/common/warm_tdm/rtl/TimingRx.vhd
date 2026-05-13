@@ -269,18 +269,16 @@ begin
    begin
       U_ClockManagerUsp_1 : entity surf.ClockManagerUltraScale
          generic map (
-            TPD_G              => TPD_G,
-            SIMULATION_G       => false,
-            TYPE_G             => "PLL",
-            INPUT_BUFG_G       => false,
-            FB_BUFG_G          => true,
-            OUTPUT_BUFG_G      => true,
-            NUM_CLOCKS_G       => 1,
-            BANDWIDTH_G        => "OPTIMIZED",
-            CLKIN_PERIOD_G     => 8.0,
-            DIVCLK_DIVIDE_G    => 1,
-            CLKFBOUT_MULT_F_G  => 10.0,
-            CLKOUT0_DIVIDE_F_G => 2.0)
+            TPD_G             => TPD_G,
+            TYPE_G            => "PLL",
+            INPUT_BUFG_G      => false,
+            FB_BUFG_G         => true,
+            NUM_CLOCKS_G      => 1,
+            BANDWIDTH_G       => "OPTIMIZED",
+            CLKIN_PERIOD_G    => 8.0,
+            DIVCLK_DIVIDE_G   => 1,
+            CLKFBOUT_MULT_G   => 10,
+            CLKOUT0_DIVIDE_G  => 2)
          port map (
             clkIn     => timingRxClk,      -- [in]
             rstIn     => timingRxRst,      -- [in]
