@@ -227,6 +227,67 @@ architecture rtl of EthCore is
    signal qplloutrefclk : sl;
    signal qpllReset     : sl;
 
+   component EthPhy7s is
+      generic (
+         TPD_G     : time    := 1 ns;
+         ETH_10G_G : boolean := false);
+      port (
+         extRst          : in  sl;
+         fabRefClk125    : in  sl;
+         gtRefClk156     : in  sl;
+         fabRefClk156    : in  sl;
+         gtTxP           : out sl;
+         gtTxN           : out sl;
+         gtRxP           : in  sl;
+         gtRxN           : in  sl;
+         ethClk          : out sl;
+         ethRst          : out sl;
+         ethClkDiv2      : out sl;
+         ethRstDiv2      : out sl;
+         phyReady        : out sl;
+         localMac        : in  slv(47 downto 0);
+         rxMaster        : out AxiStreamMasterType;
+         rxSlave         : in  AxiStreamSlaveType;
+         txMaster        : in  AxiStreamMasterType;
+         txSlave         : out AxiStreamSlaveType;
+         axilClk         : in  sl;
+         axilRst         : in  sl;
+         axilReadMaster  : in  AxiLiteReadMasterType;
+         axilReadSlave   : out AxiLiteReadSlaveType;
+         axilWriteMaster : in  AxiLiteWriteMasterType;
+         axilWriteSlave  : out AxiLiteWriteSlaveType);
+   end component;
+
+   component EthPhyUsp is
+      generic (
+         TPD_G     : time    := 1 ns;
+         ETH_10G_G : boolean := false);
+      port (
+         extRst          : in  sl;
+         fabRefClk125    : in  sl;
+         gtRefClk156     : in  sl;
+         fabRefClk156    : in  sl;
+         gtTxP           : out sl;
+         gtTxN           : out sl;
+         gtRxP           : in  sl;
+         gtRxN           : in  sl;
+         ethClk          : out sl;
+         ethRst          : out sl;
+         ethClkDiv2      : out sl;
+         ethRstDiv2      : out sl;
+         phyReady        : out sl;
+         localMac        : in  slv(47 downto 0);
+         rxMaster        : out AxiStreamMasterType;
+         rxSlave         : in  AxiStreamSlaveType;
+         txMaster        : in  AxiStreamMasterType;
+         txSlave         : out AxiStreamSlaveType;
+         axilClk         : in  sl;
+         axilRst         : in  sl;
+         axilReadMaster  : in  AxiLiteReadMasterType;
+         axilReadSlave   : out AxiLiteReadSlaveType;
+         axilWriteMaster : in  AxiLiteWriteMasterType;
+         axilWriteSlave  : out AxiLiteWriteSlaveType);
+   end component;
 
 begin
 
@@ -285,320 +346,70 @@ begin
 
    REAL_ETH_GEN : if (not SIMULATION_G) generate
 
-      GIG_ETH_GEN : if (not ETH_10G_G) generate
-
-         PwrUpRst_Inst : entity surf.PwrUpRst
+      GEN_7SERIES : if (FPGA_FAMILY_G = "7SERIES") generate
+         U_Phy : EthPhy7s
             generic map (
-               TPD_G => TPD_G)
+               TPD_G     => TPD_G,
+               ETH_10G_G => ETH_10G_G)
             port map (
-               arst   => extRst,
-               clk    => fabRefClk125,
-               rstOut => refRst);
+               extRst          => extRst,
+               fabRefClk125    => fabRefClk125,
+               gtRefClk156     => gtRefClk156,
+               fabRefClk156    => fabRefClk156,
+               gtTxP           => gtTxP,
+               gtTxN           => gtTxN,
+               gtRxP           => gtRxP,
+               gtRxN           => gtRxN,
+               ethClk          => ethClk,
+               ethRst          => ethRst,
+               ethClkDiv2      => ethClkDiv2,
+               ethRstDiv2      => ethRstDiv2,
+               phyReady        => phyReady,
+               localMac        => localMac,
+               rxMaster        => rxMaster,
+               rxSlave         => rxSlave,
+               txMaster        => txMaster,
+               txSlave         => txSlave,
+               axilClk         => ethClk,
+               axilRst         => ethRst,
+               axilReadMaster  => locAxilReadMasters(AXIL_ETH_C),
+               axilReadSlave   => locAxilReadSlaves(AXIL_ETH_C),
+               axilWriteMaster => locAxilWriteMasters(AXIL_ETH_C),
+               axilWriteSlave  => locAxilWriteSlaves(AXIL_ETH_C));
+      end generate;
 
-         GEN_7SERIES : if (FPGA_FAMILY_G = "7SERIES") generate
-            ----------------
-            -- Clock Manager
-            ----------------
-            U_MMCM : entity surf.ClockManager7
-               generic map(
-                  TPD_G              => TPD_G,
-                  TYPE_G             => "MMCM",
-                  INPUT_BUFG_G       => false,
-                  FB_BUFG_G          => true,  -- Without this, will never lock in simulation
-                  RST_IN_POLARITY_G  => '1',
-                  NUM_CLOCKS_G       => 2,
-                  -- MMCM attributes
-                  BANDWIDTH_G        => "OPTIMIZED",
-                  CLKIN_PERIOD_G     => 8.0,
-                  DIVCLK_DIVIDE_G    => 1,
-                  CLKFBOUT_MULT_F_G  => 8.0,
-                  CLKOUT0_DIVIDE_F_G => 8.0,
-                  CLKOUT1_DIVIDE_G   => 16)
-               port map(
-                  clkIn     => fabRefClk125,
-                  rstIn     => refRst,
-                  clkOut(0) => ethClk,
-                  clkOut(1) => ethClkDiv2,
-                  rstOut(0) => ethRst,
-                  rstOut(1) => ethRstDiv2,
-                  locked    => open);
-
-            -------------------------
-            -- GigE Core for KINTEX-7
-            -------------------------
-            U_ETH_PHY_MAC : entity surf.GigEthGtx7
-               generic map (
-                  TPD_G                   => TPD_G,
-                  EN_AXI_REG_G            => true,
-                  AXIL_BASE_ADDR_G        => AXIL_XBAR_CONFIG_C(AXIL_ETH_C).baseAddr,
-                  AXIL_CLK_IS_SYSCLK125_G => true,
-                  AXIS_CONFIG_G           => EMAC_AXIS_CONFIG_C)
-               port map (
-                  -- Local Configurations
-                  localMac           => localMac,
-                  -- Streaming DMA Interface
-                  dmaClk             => ethClk,
-                  dmaRst             => ethRst,
-                  dmaIbMaster        => rxMaster,
-                  dmaIbSlave         => rxSlave,
-                  dmaObMaster        => txMaster,
-                  dmaObSlave         => txSlave,
-                  -- AXI Lite debug interface
-                  axiLiteClk         => ethClk,
-                  axiLiteRst         => ethRst,
-                  axiLiteReadMaster  => locAxilReadMasters(AXIL_ETH_C),
-                  axiLiteReadSlave   => locAxilReadSlaves(AXIL_ETH_C),
-                  axiLiteWriteMaster => locAxilWriteMasters(AXIL_ETH_C),
-                  axiLiteWriteSlave  => locAxilWriteSlaves(AXIL_ETH_C),
-                  -- PHY + MAC signals
-                  sysClk62           => ethClkDiv2,
-                  sysClk125          => ethClk,
-                  sysRst125          => ethRst,
-                  extRst             => refRst,  -- Check this
-                  phyReady           => phyReady,
-                  -- MGT Ports
-                  gtTxP              => gtTxP,
-                  gtTxN              => gtTxN,
-                  gtRxP              => gtRxP,
-                  gtRxN              => gtRxN);
-         end generate GEN_7SERIES;
-
-         GEN_ULTRASCALE_PLUS : if (FPGA_FAMILY_G = "ULTRASCALE_PLUS") generate
-            ----------------
-            -- Clock Manager
-            ----------------
-            U_MMCM : entity surf.ClockManagerUltraScale
-               generic map(
-                  TPD_G              => TPD_G,
-                  TYPE_G             => "MMCM",
-                  INPUT_BUFG_G       => false,
-                  FB_BUFG_G          => true,
-                  RST_IN_POLARITY_G  => '1',
-                  NUM_CLOCKS_G       => 2,
-                  -- MMCM attributes
-                  BANDWIDTH_G        => "OPTIMIZED",
-                  CLKIN_PERIOD_G     => 8.0,
-                  DIVCLK_DIVIDE_G    => 1,
-                  CLKFBOUT_MULT_F_G  => 8.0,
-                  CLKOUT0_DIVIDE_F_G => 8.0,
-                  CLKOUT1_DIVIDE_G   => 16)
-               port map(
-                  clkIn     => fabRefClk125,
-                  rstIn     => refRst,
-                  clkOut(0) => ethClk,
-                  clkOut(1) => ethClkDiv2,
-                  rstOut(0) => ethRst,
-                  rstOut(1) => ethRstDiv2,
-                  locked    => open);
-
-            ---------------------------------
-            -- GigE Core for UltraScale Plus
-            ---------------------------------
-            U_ETH_PHY_MAC : entity surf.GigEthGtyUltraScale
-               generic map (
-                  TPD_G           => TPD_G,
-                  EN_AXI_REG_G    => true,
-                  AXIS_CONFIG_G   => EMAC_AXIS_CONFIG_C)
-               port map (
-                  -- Local Configurations
-                  localMac           => localMac,
-                  -- Streaming DMA Interface
-                  dmaClk             => ethClk,
-                  dmaRst             => ethRst,
-                  dmaIbMaster        => rxMaster,
-                  dmaIbSlave         => rxSlave,
-                  dmaObMaster        => txMaster,
-                  dmaObSlave         => txSlave,
-                  -- AXI Lite debug interface
-                  axiLiteClk         => ethClk,
-                  axiLiteRst         => ethRst,
-                  axiLiteReadMaster  => locAxilReadMasters(AXIL_ETH_C),
-                  axiLiteReadSlave   => locAxilReadSlaves(AXIL_ETH_C),
-                  axiLiteWriteMaster => locAxilWriteMasters(AXIL_ETH_C),
-                  axiLiteWriteSlave  => locAxilWriteSlaves(AXIL_ETH_C),
-                  -- PHY + MAC signals
-                  sysClk62           => ethClkDiv2,
-                  sysClk125          => ethClk,
-                  sysRst125          => ethRst,
-                  extRst             => refRst,
-                  phyReady           => phyReady,
-                  -- MGT Ports
-                  gtTxP              => gtTxP,
-                  gtTxN              => gtTxN,
-                  gtRxP              => gtRxP,
-                  gtRxN              => gtRxN);
-         end generate GEN_ULTRASCALE_PLUS;
-
-      end generate GIG_ETH_GEN;
-
-      TEN_GIG_ETH_GEN : if (ETH_10G_G) generate
-
-         PwrUpRst_Inst : entity surf.PwrUpRst
+      GEN_ULTRASCALE_PLUS : if (FPGA_FAMILY_G = "ULTRASCALE_PLUS") generate
+         U_Phy : EthPhyUsp
             generic map (
-               TPD_G => TPD_G)
+               TPD_G     => TPD_G,
+               ETH_10G_G => ETH_10G_G)
             port map (
-               arst   => extRst,
-               clk    => fabRefClk156,
-               rstOut => pwrUpRst);
+               extRst          => extRst,
+               fabRefClk125    => fabRefClk125,
+               gtRefClk156     => gtRefClk156,
+               fabRefClk156    => fabRefClk156,
+               gtTxP           => gtTxP,
+               gtTxN           => gtTxN,
+               gtRxP           => gtRxP,
+               gtRxN           => gtRxN,
+               ethClk          => ethClk,
+               ethRst          => ethRst,
+               ethClkDiv2      => ethClkDiv2,
+               ethRstDiv2      => ethRstDiv2,
+               phyReady        => phyReady,
+               localMac        => localMac,
+               rxMaster        => rxMaster,
+               rxSlave         => rxSlave,
+               txMaster        => txMaster,
+               txSlave         => txSlave,
+               axilClk         => ethClk,
+               axilRst         => ethRst,
+               axilReadMaster  => locAxilReadMasters(AXIL_ETH_C),
+               axilReadSlave   => locAxilReadSlaves(AXIL_ETH_C),
+               axilWriteMaster => locAxilWriteMasters(AXIL_ETH_C),
+               axilWriteSlave  => locAxilWriteSlaves(AXIL_ETH_C));
+      end generate;
 
-         GEN_7SERIES : if (FPGA_FAMILY_G = "7SERIES") generate
-            U_MMCM : entity surf.ClockManager7
-               generic map(
-                  TPD_G              => TPD_G,
-                  TYPE_G             => "MMCM",
-                  INPUT_BUFG_G       => false,
-                  FB_BUFG_G          => true,   -- Without this, will never lock in simulation
-                  RST_IN_POLARITY_G  => '1',
-                  NUM_CLOCKS_G       => 1,
-                  -- MMCM attributes
-                  BANDWIDTH_G        => "HIGH",
-                  CLKIN_PERIOD_G     => 6.4,    -- 156.25 MHz
-                  DIVCLK_DIVIDE_G    => 1,
-                  CLKFBOUT_MULT_F_G  => 7.625,
-                  CLKOUT0_DIVIDE_F_G => 7.625)  -- 156.25 MHz
-               port map(
-                  clkIn     => fabRefClk156,
-                  rstIn     => pwrUpRst,
-                  clkOut(0) => ethClk,
-                  rstOut(0) => ethRst,
-                  locked    => open);
-
-            qpllResetLoc <= pwrUpRst or qpllReset;
-
-            Gtx7QuadPll_Inst : entity surf.Gtx7QuadPll
-               generic map (
-                  TPD_G               => TPD_G,
-                  SIM_RESET_SPEEDUP_G => "TRUE",        --Does not affect hardware
-                  SIM_VERSION_G       => "4.0",
-                  QPLL_CFG_G          => x"0680181",
-                  QPLL_REFCLK_SEL_G   => "001",
-                  QPLL_FBDIV_G        => "0101000000",  -- 64B/66B Encoding
-                  QPLL_FBDIV_RATIO_G  => '0',           -- 64B/66B Encoding
-                  QPLL_REFCLK_DIV_G   => 1)
-               port map (
-                  qPllRefClk     => gtRefClk156,        -- 156.25 MHz
-                  qPllOutClk     => qPllOutClk,
-                  qPllOutRefClk  => qPllOutRefClk,
-                  qPllLock       => qPllLock,
-                  qPllLockDetClk => '0',                -- IP Core ties this to GND (see note below)
-                  qPllRefClkLost => open,
-                  qPllPowerDown  => '0',
-                  qPllReset      => qpllResetLoc);
-
-            U_TenGigEthGtx7_1 : entity surf.TenGigEthGtx7
-               generic map (
-                  TPD_G         => TPD_G,
-                  PAUSE_EN_G    => true,
-                  EN_AXI_REG_G  => true,
-                  AXIS_CONFIG_G => EMAC_AXIS_CONFIG_C)
-               port map (
-                  localMac           => localMac,                         -- [in]
-                  dmaClk             => ethClk,                           -- [in]
-                  dmaRst             => ethRst,                           -- [in]
-                  dmaIbMaster        => rxMaster,                         -- [out]
-                  dmaIbSlave         => rxSlave,                          -- [in]
-                  dmaObMaster        => txMaster,                         -- [in]
-                  dmaObSlave         => txSlave,                          -- [out]
-                  axiLiteClk         => ethClk,                           -- [in]
-                  axiLiteRst         => ethRst,                           -- [in]
-                  axiLiteReadMaster  => locAxilReadMasters(AXIL_ETH_C),   -- [in]
-                  axiLiteReadSlave   => locAxilReadSlaves(AXIL_ETH_C),    -- [out]
-                  axiLiteWriteMaster => locAxilWriteMasters(AXIL_ETH_C),  -- [in]
-                  axiLiteWriteSlave  => locAxilWriteSlaves(AXIL_ETH_C),   -- [out]
-                  extRst             => extRst,                           -- [in]
-                  phyClk             => ethClk,                           -- [in]
-                  phyRst             => ethRst,                           -- [in]
-                  phyReady           => phyReady,                         -- [out]
-                  qplllock           => qpllLock,                         -- [in]
-                  qplloutclk         => qpllOutClk,                       -- [in]
-                  qplloutrefclk      => qpllOutRefClk,                    -- [in]
-                  qpllRst            => qpllReset,                        -- [out]
-                  gtTxP              => gtTxP,                            -- [out]
-                  gtTxN              => gtTxN,                            -- [out]
-                  gtRxP              => gtRxP,                            -- [in]
-                  gtRxN              => gtRxN);                           -- [in]
-         end generate GEN_7SERIES;
-
-         GEN_ULTRASCALE_PLUS : if (FPGA_FAMILY_G = "ULTRASCALE_PLUS") generate
-            signal usQpllOutClk    : slv(1 downto 0);
-            signal usQpllOutRefClk : slv(1 downto 0);
-            signal usQpllLock      : slv(1 downto 0);
-            signal usQpllReset     : slv(1 downto 0);
-         begin
-            U_MMCM : entity surf.ClockManagerUltraScale
-               generic map(
-                  TPD_G              => TPD_G,
-                  TYPE_G             => "MMCM",
-                  INPUT_BUFG_G       => false,
-                  FB_BUFG_G          => true,
-                  RST_IN_POLARITY_G  => '1',
-                  NUM_CLOCKS_G       => 1,
-                  -- MMCM attributes
-                  BANDWIDTH_G        => "HIGH",
-                  CLKIN_PERIOD_G     => 6.4,    -- 156.25 MHz
-                  DIVCLK_DIVIDE_G    => 1,
-                  CLKFBOUT_MULT_F_G  => 7.625,
-                  CLKOUT0_DIVIDE_F_G => 7.625)  -- 156.25 MHz
-               port map(
-                  clkIn     => fabRefClk156,
-                  rstIn     => pwrUpRst,
-                  clkOut(0) => ethClk,
-                  rstOut(0) => ethRst,
-                  locked    => open);
-
-            U_GtyUltraScaleQuadPll : entity surf.GtyUltraScaleQuadPll
-               generic map (
-                  TPD_G             => TPD_G,
-                  QPLL_REFCLK_SEL_G => (others => "001"),
-                  QPLL_FBDIV_G      => (others => 66),
-                  QPLL_REFCLK_DIV_G => (others => 1))
-               port map (
-                  qPllRefClk(0) => gtRefClk156,
-                  qPllRefClk(1) => '0',
-                  qPllOutClk    => usQpllOutClk,
-                  qPllOutRefClk => usQpllOutRefClk,
-                  qPllLock      => usQpllLock,
-                  qPllReset     => usQpllReset);
-
-            U_TenGigEthGtyUltraScale_1 : entity surf.TenGigEthGtyUltraScale
-               generic map (
-                  TPD_G         => TPD_G,
-                  PAUSE_EN_G    => true,
-                  EN_AXI_REG_G  => true,
-                  AXIS_CONFIG_G => EMAC_AXIS_CONFIG_C)
-               port map (
-                  localMac           => localMac,                         -- [in]
-                  dmaClk             => ethClk,                           -- [in]
-                  dmaRst             => ethRst,                           -- [in]
-                  dmaIbMaster        => rxMaster,                         -- [out]
-                  dmaIbSlave         => rxSlave,                          -- [in]
-                  dmaObMaster        => txMaster,                         -- [in]
-                  dmaObSlave         => txSlave,                          -- [out]
-                  axiLiteClk         => ethClk,                           -- [in]
-                  axiLiteRst         => ethRst,                           -- [in]
-                  axiLiteReadMaster  => locAxilReadMasters(AXIL_ETH_C),   -- [in]
-                  axiLiteReadSlave   => locAxilReadSlaves(AXIL_ETH_C),    -- [out]
-                  axiLiteWriteMaster => locAxilWriteMasters(AXIL_ETH_C),  -- [in]
-                  axiLiteWriteSlave  => locAxilWriteSlaves(AXIL_ETH_C),   -- [out]
-                  extRst             => extRst,                           -- [in]
-                  coreClk            => ethClk,                           -- [in]
-                  coreRst            => ethRst,                           -- [in]
-                  phyClk             => open,                             -- [out]
-                  phyRst             => open,                             -- [out]
-                  phyReady           => phyReady,                         -- [out]
-                  qplllock           => usQpllLock,                       -- [in]
-                  qplloutclk         => usQpllOutClk,                     -- [in]
-                  qplloutrefclk      => usQpllOutRefClk,                  -- [in]
-                  qpllRst            => usQpllReset,                      -- [out]
-                  gtTxP              => gtTxP,                            -- [out]
-                  gtTxN              => gtTxN,                            -- [out]
-                  gtRxP              => gtRxP,                            -- [in]
-                  gtRxN              => gtRxN);                           -- [in]
-         end generate GEN_ULTRASCALE_PLUS;
-
-      end generate TEN_GIG_ETH_GEN;
-
-      ----------------------
       -- IPv4/ARP/UDP Engine
       ----------------------
       U_UDP : entity surf.UdpEngineWrapper
