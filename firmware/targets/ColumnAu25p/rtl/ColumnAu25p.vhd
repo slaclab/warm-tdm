@@ -1,3 +1,18 @@
+-------------------------------------------------------------------------------
+-- Title      : Column FPGA Board for AU25P
+-------------------------------------------------------------------------------
+-- Company    : SLAC National Accelerator Laboratory
+-- Platform   : Xilinx Artix UltraScale+
+-- Standard   : VHDL'93/02
+-------------------------------------------------------------------------------
+-- This file is part of Warm TDM. It is subject to
+-- the license terms in the LICENSE.txt file found in the top-level directory
+-- of this distribution and at:
+--    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+-- No part of Warm TDM, including this file, may be
+-- copied, modified, propagated, or distributed except according to the terms
+-- contained in the LICENSE.txt file.
+-------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.std_logic_arith.all;
@@ -407,7 +422,9 @@ begin
    adc.chN   <= adcChN;
 
    U_ClkOutBufDiff_1 : entity surf.ClkOutBufDiff
-      generic map (TPD_G => TPD_G)
+      generic map (
+         TPD_G        => TPD_G,
+         XIL_DEVICE_G => "ULTRASCALE_PLUS")
       port map (
          clkIn   => timingRxClk125,
          clkOutP => adcClkP,

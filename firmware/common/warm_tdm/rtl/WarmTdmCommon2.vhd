@@ -203,7 +203,7 @@ begin
          TPD_G           => TPD_G,
          BUILD_INFO_G    => BUILD_INFO_G,
          CLK_PERIOD_G    => (1.0/AXIL_CLK_FREQ_G),               --6.4E-9,
-         XIL_DEVICE_G    => "7SERIES",
+         XIL_DEVICE_G    => FPGA_FAMILY_G,
          EN_DEVICE_DNA_G => true,
          EN_DS2411_G     => false,
          EN_ICAP_G       => true,

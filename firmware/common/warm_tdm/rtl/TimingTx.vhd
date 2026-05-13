@@ -577,7 +577,8 @@ begin
    -------------------------------------
    U_ClkOutBufDiff_1 : entity surf.ClkOutBufDiff
       generic map (
-         TPD_G => TPD_G)
+         TPD_G        => TPD_G,
+         XIL_DEVICE_G => FPGA_FAMILY_G)
       port map (
          clkIn   => wordClk,            --timingClk125,       -- [in]
          clkOutP => timingTxClkP,       -- [out]
