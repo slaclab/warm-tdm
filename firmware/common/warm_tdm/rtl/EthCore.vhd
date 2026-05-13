@@ -6,11 +6,11 @@
 -- Description: Encapsulates ethernet stack, RSSI, SRP and IO buffers into a
 -- single module.
 -------------------------------------------------------------------------------
--- This file is part of 'KPIX'
+-- This file is part of 'Warm TDM'
 -- It is subject to the license terms in the LICENSE.txt file found in the 
 -- top-level directory of this distribution and at: 
 --    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html. 
--- No part of 'KPIX', including this file, 
+-- No part of 'Warm TDM', including this file, 
 -- may be copied, modified, propagated, or distributed except according to 
 -- the terms contained in the LICENSE.txt file.
 -------------------------------------------------------------------------------

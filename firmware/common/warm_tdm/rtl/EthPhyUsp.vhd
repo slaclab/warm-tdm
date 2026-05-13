@@ -8,11 +8,11 @@
 -- ethClk/ethRst/phyReady. Supports 1 GbE (GigEthGtyUltraScale) and 10 GbE
 -- (TenGigEthGtyUltraScale) via the ETH_10G_G generic.
 -------------------------------------------------------------------------------
--- This file is part of 'KPIX'
+-- This file is part of 'Warm TDM'
 -- It is subject to the license terms in the LICENSE.txt file found in the
 -- top-level directory of this distribution and at:
 --    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
--- No part of 'KPIX', including this file,
+-- No part of 'Warm TDM', including this file,
 -- may be copied, modified, propagated, or distributed except according to
 -- the terms contained in the LICENSE.txt file.
 -------------------------------------------------------------------------------
@@ -197,10 +197,10 @@ begin
             NUM_CLOCKS_G       => 1,
             -- MMCM attributes
             BANDWIDTH_G        => "HIGH",
-            CLKIN_PERIOD_G     => 6.4,
+            CLKIN_PERIOD_G     => 12.8,    -- 78.125 MHz (156.25/2 from ODIV2)
             DIVCLK_DIVIDE_G    => 1,
-            CLKFBOUT_MULT_F_G  => 7.625,
-            CLKOUT0_DIVIDE_F_G => 7.625)
+            CLKFBOUT_MULT_F_G  => 16.0,   -- VCO = 78.125 * 16 = 1250 MHz
+            CLKOUT0_DIVIDE_F_G => 8.0)    -- 1250 / 8 = 156.25 MHz
          port map(
             clkIn     => fabRefClk156,
             rstIn     => pwrUpRst,
