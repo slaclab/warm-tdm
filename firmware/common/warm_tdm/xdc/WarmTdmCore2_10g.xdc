@@ -11,7 +11,8 @@ set_clock_groups -asynchronous \
     -group [get_clocks -quiet -of_objects [get_pins -quiet -hier -filter {NAME =~ *U_EthCore_1/*TEN_GIG*/*RXOUTCLK*}]] \
     -group [get_clocks -quiet -of_objects [get_pins -quiet -hier -filter {NAME =~ *U_EthCore_1/*TEN_GIG*/*TXOUTCLK*}]]
 
-## 10G PCS clocks
+## 10G PCS clocks async to all 10G clocks
 set_clock_groups -asynchronous \
     -group [get_clocks ethClk156] \
-    -group [get_clocks -quiet -of_objects [get_pins -quiet -hier -filter {NAME =~ *U_EthCore_1/*TEN_GIG*/*txoutclkpcs*}]]
+    -group [get_clocks -quiet -of_objects [get_pins -quiet -hier -filter {NAME =~ *U_EthCore_1/*TEN_GIG*/*txoutclkpcs*}]] \
+    -group [get_clocks -quiet -of_objects [get_pins -quiet -hier -filter {NAME =~ *U_EthCore_1/*TEN_GIG*/*TXOUTCLK*}]]

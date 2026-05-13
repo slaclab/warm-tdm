@@ -14,7 +14,9 @@ create_clock -name gtRefClk0 -period 4.000 [get_ports {gtRefClk0P}]
 create_clock -name gtRefClk1 -period 6.400 [get_ports {gtRefClk1P}]
 
 ## Generated clocks - use wildcards to survive hierarchy changes
-create_generated_clock -name fabRefClk0 [get_pins -hier -filter {NAME =~ */U_ClockDist_1/*IBUFDS*_0/ODIV2}]
+## ODIV2 divides refclk by 2; must be explicit for Vivado DRC
+create_generated_clock -name fabRefClk0 -divide_by 2 -source [get_ports gtRefClk0P] [get_pins -hier -filter {NAME =~ */U_ClockDist_1/*IBUFDS*_0/ODIV2}]
+create_generated_clock -name fabRefClk1 -divide_by 2 -source [get_ports gtRefClk1P] [get_pins -hier -filter {NAME =~ */U_ClockDist_1/*IBUFDS*_1/ODIV2}]
 
 create_generated_clock -name axilClk [get_pins -hier -filter {NAME =~ *U_PgpCore_1/*U_Phy/*/CLKOUT0}]
 create_generated_clock -name pgpClk  [get_pins -hier -filter {NAME =~ *U_PgpCore_1/*U_Phy/*/CLKOUT1}]

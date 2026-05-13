@@ -16,14 +16,13 @@ set_property PACKAGE_PIN T6 [get_ports {gtRefClk0N}]
 set_property PACKAGE_PIN P7 [get_ports {gtRefClk1P}]
 set_property PACKAGE_PIN P6 [get_ports {gtRefClk1N}]
 
-set_property PACKAGE_PIN W5 [get_ports {pgpTxP[0]}]
-set_property PACKAGE_PIN W4 [get_ports {pgpTxN[0]}]
-set_property PACKAGE_PIN AB2 [get_ports {pgpRxP[0]}]
-set_property PACKAGE_PIN AB1 [get_ports {pgpRxN[0]}]
-set_property PACKAGE_PIN U5 [get_ports {pgpTxP[1]}]
-set_property PACKAGE_PIN U4 [get_ports {pgpTxN[1]}]
-set_property PACKAGE_PIN Y2 [get_ports {pgpRxP[1]}]
-set_property PACKAGE_PIN Y1 [get_ports {pgpRxN[1]}]
+## PGP on channel 1 of quad 225 (matches PgpGtyCore IP built for X0Y5)
+set_property PACKAGE_PIN U5 [get_ports {pgpTxP[0]}]
+set_property PACKAGE_PIN U4 [get_ports {pgpTxN[0]}]
+set_property PACKAGE_PIN Y2 [get_ports {pgpRxP[0]}]
+set_property PACKAGE_PIN Y1 [get_ports {pgpRxN[0]}]
+## PGP lane 1 unused (no GT instantiated) - no pin constraints needed
+## SFP 10G on channel 2
 set_property PACKAGE_PIN AA5 [get_ports {sfp0TxP}]
 set_property PACKAGE_PIN AA4 [get_ports {sfp0TxN}]
 set_property PACKAGE_PIN V2 [get_ports {sfp0RxP}]
@@ -49,8 +48,8 @@ set_property -dict { PACKAGE_PIN AD18 IOSTANDARD LVDS } [get_ports { adcClkP }]
 set_property -dict { PACKAGE_PIN AD19 IOSTANDARD LVDS } [get_ports { adcClkN }]
 set_property -dict { PACKAGE_PIN AD22 IOSTANDARD LVDS DIFF_TERM TRUE } [get_ports { adcFClkP[0] }]
 set_property -dict { PACKAGE_PIN AD23 IOSTANDARD LVDS DIFF_TERM TRUE } [get_ports { adcFClkN[0] }]
-set_property -dict { PACKAGE_PIN AE19 IOSTANDARD LVDS DIFF_TERM TRUE } [get_ports { adcDClkP[0] }]
-set_property -dict { PACKAGE_PIN AF20 IOSTANDARD LVDS DIFF_TERM TRUE } [get_ports { adcDClkN[0] }]
+set_property -dict { PACKAGE_PIN AB22 IOSTANDARD LVDS DIFF_TERM TRUE } [get_ports { adcDClkP[0] }]
+set_property -dict { PACKAGE_PIN AC22 IOSTANDARD LVDS DIFF_TERM TRUE } [get_ports { adcDClkN[0] }]
 set_property -dict { PACKAGE_PIN AE20 IOSTANDARD LVDS DIFF_TERM TRUE } [get_ports { adcChP[0][0] }]
 set_property -dict { PACKAGE_PIN AE21 IOSTANDARD LVDS DIFF_TERM TRUE } [get_ports { adcChN[0][0] }]
 set_property -dict { PACKAGE_PIN AE23 IOSTANDARD LVDS DIFF_TERM TRUE } [get_ports { adcChP[0][1] }]
@@ -359,6 +358,15 @@ set_clock_groups -asynchronous \
 set_clock_groups -asynchronous \
     -group [get_clocks -quiet wordClk] \
     -group [get_clocks -include_generated_clocks timingRxClk]
+
+##############################################################################
+## GT Channel Placement (override IP core LOC constraints)
+##############################################################################
+## PGP GT on channel X0Y5 (quad 225, channel 1 - matches IP DCP)
+set_property LOC GTYE4_CHANNEL_X0Y5 [get_cells -hier -filter {NAME =~ *U_PgpCore_1/*GTYE4_CHANNEL_PRIM_INST}]
+## 10G Ethernet GT on channel X0Y6 (quad 225, channel 2)
+set_property LOC GTYE4_CHANNEL_X0Y6 [get_cells -hier -filter {NAME =~ *U_EthCore_1/*GTYE4_CHANNEL_PRIM_INST}]
+
 
 ##############################################################################
 ## Bitstream Configuration
