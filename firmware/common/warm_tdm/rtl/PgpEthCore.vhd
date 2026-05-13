@@ -27,7 +27,6 @@ use surf.AxiStreamPkg.all;
 use surf.SsiPkg.all;
 use surf.AxiStreamPacketizer2Pkg.all;
 use surf.AxiLitePkg.all;
-use surf.Gtx7CfgPkg.all;
 use surf.Pgp2bPkg.all;
 
 library unisim;

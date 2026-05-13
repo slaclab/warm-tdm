@@ -27,7 +27,6 @@ use surf.AxiStreamPkg.all;
 use surf.AxiLitePkg.all;
 use surf.Pgp2bPkg.all;
 use surf.SsiPkg.all;
-use surf.Gtx7CfgPkg.all;
 
 library unisim;
 use unisim.vcomponents.all;
@@ -66,7 +65,12 @@ end entity PgpPhy7s;
 
 architecture rtl of PgpPhy7s is
 
-   constant GTX_CFG_C : Gtx7CPllCfgType := getGtx7CPllCfg(REF_CLK_FREQ_G, 1.25E9);
+   -- CPLL config for 250 MHz ref / 1.25 Gbps
+   constant GTX_CPLL_FBDIV_C      : integer := 5;
+   constant GTX_CPLL_FBDIV_45_C   : integer := 5;
+   constant GTX_CPLL_REFCLK_DIV_C : integer := 1;
+   constant GTX_OUT_DIV_C         : integer := 2;
+   constant GTX_CLK25_DIV_C       : integer := 10;
 
    signal iAxiClk : sl;
    signal iAxiRst : sl;
@@ -109,13 +113,13 @@ begin
          SIM_VERSION_G         => "4.0",
          TX_PLL_G              => "CPLL",
          RX_PLL_G              => "CPLL",
-         CPLL_FBDIV_G          => GTX_CFG_C.CPLL_FBDIV_G,
-         CPLL_FBDIV_45_G       => GTX_CFG_C.CPLL_FBDIV_45_G,
-         CPLL_REFCLK_DIV_G     => GTX_CFG_C.CPLL_REFCLK_DIV_G,
-         RXOUT_DIV_G           => GTX_CFG_C.OUT_DIV_G,
-         TXOUT_DIV_G           => GTX_CFG_C.OUT_DIV_G,
-         RX_CLK25_DIV_G        => GTX_CFG_C.CLK25_DIV_G,
-         TX_CLK25_DIV_G        => GTX_CFG_C.CLK25_DIV_G,
+         CPLL_FBDIV_G          => GTX_CPLL_FBDIV_C,
+         CPLL_FBDIV_45_G       => GTX_CPLL_FBDIV_45_C,
+         CPLL_REFCLK_DIV_G     => GTX_CPLL_REFCLK_DIV_C,
+         RXOUT_DIV_G           => GTX_OUT_DIV_C,
+         TXOUT_DIV_G           => GTX_OUT_DIV_C,
+         RX_CLK25_DIV_G        => GTX_CLK25_DIV_C,
+         TX_CLK25_DIV_G        => GTX_CLK25_DIV_C,
          RX_OS_CFG_G           => "0000010000000",
          RXCDR_CFG_G           => X"03000023FF10100020",
          RXDFEXYDEN_G          => '1',

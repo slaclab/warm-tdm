@@ -435,7 +435,8 @@ begin
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_COMMON_C).baseAddr,
 --          LOC_XADC_AUX_CHANS_G => LOC_XADC_AUX_CHANS_G,
 --          FE_XADC_AUX_CHANS_G  => FE_XADC_AUX_CHANS_G,
-         AXIL_CLK_FREQ_G  => AXIL_CLK_FREQ_C)
+         AXIL_CLK_FREQ_G  => AXIL_CLK_FREQ_C,
+         FPGA_FAMILY_G    => FPGA_FAMILY_G)
       port map (
          axilClk           => locAxilClk,                          -- [in]
          axilRst           => locAxilRst,                          -- [in]

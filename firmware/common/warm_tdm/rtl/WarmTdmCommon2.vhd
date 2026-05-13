@@ -39,7 +39,8 @@ entity WarmTdmCommon2 is
       AXIL_BASE_ADDR_G     : slv(31 downto 0)         := (others => '0');
       LOC_XADC_AUX_CHANS_G : IntegerArray(5 downto 0) := (9, 10, 1, 11, 0, 3);
       FE_XADC_AUX_CHANS_G  : IntegerArray(1 downto 0) := (2, 8);
-      AXIL_CLK_FREQ_G      : real                     := 125.0E6);
+      AXIL_CLK_FREQ_G      : real                     := 125.0E6;
+      FPGA_FAMILY_G        : string                   := "7SERIES");
 
    port (
       axilClk         : in  sl;
@@ -253,67 +254,74 @@ begin
 --    end generate FE_AUX_LOOP;
 
 
-   U_XadcSimpleCore_1 : entity surf.XadcSimpleCore
-      generic map (
-         TPD_G                    => TPD_G,
-         COMMON_CLK_G             => true,
-         SEQUENCER_MODE_G         => "CONTINUOUS",
-         SAMPLING_MODE_G          => "CONTINUOUS",
-         MUX_EN_G                 => false,
-         ADCCLK_RATIO_G           => 5,
-         SAMPLE_AVG_G             => "00",
-         COEF_AVG_EN_G            => true,
-         OVERTEMP_AUTO_SHDN_G     => true,
-         OVERTEMP_ALM_EN_G        => true,
-         OVERTEMP_LIMIT_G         => 80.0,
-         OVERTEMP_RESET_G         => 30.0,
-         TEMP_ALM_EN_G            => false,
-         TEMP_UPPER_G             => 70.0,
-         TEMP_LOWER_G             => 0.0,
-         VCCINT_ALM_EN_G          => false,
-         VCCAUX_ALM_EN_G          => false,
-         VCCBRAM_ALM_EN_G         => false,
-         ADC_OFFSET_CORR_EN_G     => false,
-         ADC_GAIN_CORR_EN_G       => true,
-         SUPPLY_OFFSET_CORR_EN_G  => false,
-         SUPPLY_GAIN_CORR_EN_G    => true,
-         SEQ_XADC_CAL_SEL_EN_G    => false,
-         SEQ_TEMPERATURE_SEL_EN_G => true,
-         SEQ_VCCINT_SEL_EN_G      => true,
-         SEQ_VCCAUX_SEL_EN_G      => true,
-         SEQ_VCCBRAM_SEL_EN_G     => true,
-         SEQ_VAUX_SEL_EN_G        => SEQ_VAUX_SEL_EN_C)
-      port map (
-         axilClk             => axilClk,                           -- [in]
-         axilRst             => axilRst,                           -- [in]
-         axilReadMaster      => locAxilReadMasters(AXIL_XADC_C),   -- [in]
-         axilReadSlave       => locAxilReadSlaves(AXIL_XADC_C),    -- [out]
-         axilWriteMaster     => locAxilWriteMasters(AXIL_XADC_C),  -- [in]
-         axilWriteSlave      => locAxilWriteSlaves(AXIL_XADC_C),   -- [out]
-         xadcClk             => axilClk,                           -- [in]
-         xadcRst             => axilClk,                           -- [in]
-         vAuxP(0)            => localThermistorP(4),               -- [in]
-         vAuxP(1)            => localThermistorP(2),
-         vAuxP(2)            => feThermistorP(0),
-         vAuxP(3)            => localThermistorP(5),
-         vAuxP(7 downto 4)   => "0000",
-         vAuxP(8)            => feThermistorP(1),
-         vAuxP(9)            => localThermistorP(0),
-         vAuxP(10)           => localThermistorP(1),
-         vAuxP(11)           => localThermistorP(3),
-         vAuxP(15 downto 12) => "0000",
-         vAuxN(0)            => localThermistorN(4),               -- [in]
-         vAuxN(1)            => localThermistorN(2),
-         vAuxN(2)            => feThermistorN(0),
-         vAuxN(3)            => localThermistorN(5),
-         vAuxN(7 downto 4)   => "0000",
-         vAuxN(8)            => feThermistorN(1),
-         vAuxN(9)            => localThermistorN(0),
-         vAuxN(10)           => localThermistorN(1),
-         vAuxN(11)           => localThermistorN(3),
-         vAuxN(15 downto 12) => "0000",
-         alm                 => open,                              -- [out]
-         ot                  => open);                             -- [out]
+   GEN_XADC_7SERIES : if (FPGA_FAMILY_G = "7SERIES") generate
+      U_XadcSimpleCore_1 : entity surf.XadcSimpleCore
+         generic map (
+            TPD_G                    => TPD_G,
+            COMMON_CLK_G             => true,
+            SEQUENCER_MODE_G         => "CONTINUOUS",
+            SAMPLING_MODE_G          => "CONTINUOUS",
+            MUX_EN_G                 => false,
+            ADCCLK_RATIO_G           => 5,
+            SAMPLE_AVG_G             => "00",
+            COEF_AVG_EN_G            => true,
+            OVERTEMP_AUTO_SHDN_G     => true,
+            OVERTEMP_ALM_EN_G        => true,
+            OVERTEMP_LIMIT_G         => 80.0,
+            OVERTEMP_RESET_G         => 30.0,
+            TEMP_ALM_EN_G            => false,
+            TEMP_UPPER_G             => 70.0,
+            TEMP_LOWER_G             => 0.0,
+            VCCINT_ALM_EN_G          => false,
+            VCCAUX_ALM_EN_G          => false,
+            VCCBRAM_ALM_EN_G         => false,
+            ADC_OFFSET_CORR_EN_G     => false,
+            ADC_GAIN_CORR_EN_G       => true,
+            SUPPLY_OFFSET_CORR_EN_G  => false,
+            SUPPLY_GAIN_CORR_EN_G    => true,
+            SEQ_XADC_CAL_SEL_EN_G    => false,
+            SEQ_TEMPERATURE_SEL_EN_G => true,
+            SEQ_VCCINT_SEL_EN_G      => true,
+            SEQ_VCCAUX_SEL_EN_G      => true,
+            SEQ_VCCBRAM_SEL_EN_G     => true,
+            SEQ_VAUX_SEL_EN_G        => SEQ_VAUX_SEL_EN_C)
+         port map (
+            axilClk             => axilClk,
+            axilRst             => axilRst,
+            axilReadMaster      => locAxilReadMasters(AXIL_XADC_C),
+            axilReadSlave       => locAxilReadSlaves(AXIL_XADC_C),
+            axilWriteMaster     => locAxilWriteMasters(AXIL_XADC_C),
+            axilWriteSlave      => locAxilWriteSlaves(AXIL_XADC_C),
+            xadcClk             => axilClk,
+            xadcRst             => axilClk,
+            vAuxP(0)            => localThermistorP(4),
+            vAuxP(1)            => localThermistorP(2),
+            vAuxP(2)            => feThermistorP(0),
+            vAuxP(3)            => localThermistorP(5),
+            vAuxP(7 downto 4)   => "0000",
+            vAuxP(8)            => feThermistorP(1),
+            vAuxP(9)            => localThermistorP(0),
+            vAuxP(10)           => localThermistorP(1),
+            vAuxP(11)           => localThermistorP(3),
+            vAuxP(15 downto 12) => "0000",
+            vAuxN(0)            => localThermistorN(4),
+            vAuxN(1)            => localThermistorN(2),
+            vAuxN(2)            => feThermistorN(0),
+            vAuxN(3)            => localThermistorN(5),
+            vAuxN(7 downto 4)   => "0000",
+            vAuxN(8)            => feThermistorN(1),
+            vAuxN(9)            => localThermistorN(0),
+            vAuxN(10)           => localThermistorN(1),
+            vAuxN(11)           => localThermistorN(3),
+            vAuxN(15 downto 12) => "0000",
+            alm                 => open,
+            ot                  => open);
+   end generate;
+
+   GEN_XADC_USP : if (FPGA_FAMILY_G = "ULTRASCALE_PLUS") generate
+      locAxilReadSlaves(AXIL_XADC_C)  <= AXI_LITE_READ_SLAVE_EMPTY_DECERR_C;
+      locAxilWriteSlaves(AXIL_XADC_C) <= AXI_LITE_WRITE_SLAVE_EMPTY_DECERR_C;
+   end generate;
 
    ----------------------
    -- AXI-Lite: Boot Prom

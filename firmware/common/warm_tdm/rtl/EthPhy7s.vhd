@@ -27,7 +27,6 @@ use surf.StdRtlPkg.all;
 use surf.AxiLitePkg.all;
 use surf.AxiStreamPkg.all;
 use surf.EthMacPkg.all;
-use surf.Gtx7CfgPkg.all;
 
 library unisim;
 use unisim.vcomponents.all;
