@@ -24,10 +24,13 @@ create_generated_clock -name pgpClk  [get_pins -hier -filter {NAME =~ *U_PgpCore
 create_generated_clock -name idelayClk [get_pins -hier -filter {NAME =~ */U_Timing_1/*MMCM*/*/CLKOUT0}]
 
 create_generated_clock -name timingTxBitClk  [get_pins -hier -filter {NAME =~ */U_Timing_1/U_TimingTx_1/*/CLKOUT0}]
-create_generated_clock -name timingTxWordClk [get_pins -hier -filter {NAME =~ */U_Timing_1/U_TimingTx_1/*/CLKOUT1}]
-
 create_generated_clock -name timingRxBitClk  [get_pins -hier -filter {NAME =~ */U_Timing_1/U_TimingRx_1/*/CLKOUT0}]
-create_generated_clock -name timingRxWordClk [get_pins -hier -filter {NAME =~ */U_Timing_1/U_TimingRx_1/*/CLKOUT1}]
+
+## timingTxWordClk: CLKOUT1 on 7-series PLL, or BUFGCE_DIV output on US+
+create_generated_clock -name timingTxWordClk [get_pins -hier -filter {NAME =~ */U_Timing_1/U_TimingTx_1/*CLKOUT1 || NAME =~ */U_Timing_1/U_TimingTx_1/*BUFGCE_DIV*/O}]
+
+## timingRxWordClk: CLKOUT1 on 7-series PLL, or BUFGCE_DIV output on US+
+create_generated_clock -name timingRxWordClk [get_pins -hier -filter {NAME =~ */U_Timing_1/U_TimingRx_1/*CLKOUT1 || NAME =~ */U_Timing_1/U_TimingRx_1/*BUFGCE_DIV*/O}]
 
 ## Clock groups - asynchronous domains
 set_clock_groups -asynchronous \
