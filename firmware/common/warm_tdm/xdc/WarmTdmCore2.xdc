@@ -39,13 +39,7 @@ set_clock_groups -asynchronous \
     -group [get_clocks axilClk] \
     -group [get_clocks pgpClk]
 
-## PGP GT recovered clocks are asynchronous to fabric
-set_clock_groups -asynchronous \
-    -group [get_clocks axilClk] \
-    -group [get_clocks pgpClk] \
-    -group [get_clocks -quiet -of_objects [get_pins -quiet -hier -filter {NAME =~ *U_PgpCore_1/*txoutclk*}]] \
-    -group [get_clocks -quiet -of_objects [get_pins -quiet -hier -filter {NAME =~ *U_PgpCore_1/*rxoutclk*}]] \
-    -group [get_clocks -quiet -of_objects [get_pins -quiet -hier -filter {NAME =~ *U_PgpCore_1/*txoutclkpcs*}]]
+## PGP GT recovered clocks - declared and constrained per-target XDC
 
 set_clock_groups -asynchronous \
     -group [get_clocks axilClk] \

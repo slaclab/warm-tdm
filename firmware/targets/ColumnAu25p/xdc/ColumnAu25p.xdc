@@ -359,12 +359,14 @@ set_clock_groups -asynchronous \
     -group [get_clocks -include_generated_clocks adcDClk1] \
     -group [get_clocks -include_generated_clocks timingRxClk]
 
-## PGP GT recovered clocks async
+## PGP GT recovered clocks
+create_clock -name pgpTxOutClk    -period 6.400 [get_pins -hier -filter {NAME =~ *U_PgpCore_1/*TXOUTCLK}]
+create_clock -name pgpTxPcsClk    -period 6.400 [get_pins -hier -filter {NAME =~ *U_PgpCore_1/*txoutclkpcs*}]
+
 set_clock_groups -asynchronous \
-    -group [get_clocks axilClk] \
-    -group [get_clocks -quiet -of_objects [get_pins -quiet -hier -filter {NAME =~ *U_PgpCore_1/*txoutclk*}]] \
-    -group [get_clocks -quiet -of_objects [get_pins -quiet -hier -filter {NAME =~ *U_PgpCore_1/*rxoutclk*}]] \
-    -group [get_clocks -quiet -of_objects [get_pins -quiet -hier -filter {NAME =~ *U_PgpCore_1/*txoutclkpcs*}]]
+    -group [get_clocks -include_generated_clocks fabRefClk0] \
+    -group [get_clocks pgpTxOutClk] \
+    -group [get_clocks pgpTxPcsClk]
 
 ## Timing TX word clock async to axil and timing RX
 set_clock_groups -asynchronous \
