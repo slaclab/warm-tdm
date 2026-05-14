@@ -378,10 +378,9 @@ set_clock_groups -asynchronous \
 ## timingTxWordClk async groups already in WarmTdmCore2_usp.xdc
 
 ##############################################################################
-## DRC waivers: MMCM/PLL VCO DRCs resolve after timing propagation
+## PLL placement: Timing TX PLL in X0Y3 near OSERDESE3 to minimize CLK/CLKDIV skew
 ##############################################################################
-#set_property SEVERITY {Warning} [get_drc_checks AVAL-46]
-#set_property SEVERITY {Warning} [get_drc_checks AVAL-350]
+set_property LOC PLL_X0Y6 [get_cells -hier -filter {NAME =~ *U_TimingTx*PhyUsp*U_ClockManagerUsp_1*U_Pll}]
 
 ##############################################################################
 ## Bitstream Configuration
