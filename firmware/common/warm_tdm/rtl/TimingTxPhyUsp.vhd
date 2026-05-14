@@ -41,18 +41,18 @@ end entity TimingTxPhyUsp;
 
 architecture rtl of TimingTxPhyUsp is
 
-   signal clkx4     : sl;
-   signal clkx1     : sl;
-   signal pllLocked : sl;
-   signal pllRst    : sl;
+   signal clkx4      : sl;
+   signal clkx1      : sl;
+   signal pllLocked  : sl;
+   signal pllRst     : sl;
    signal wordRstInt : sl;
+   signal rstx1      : sl;
 
 begin
 
    -------------------------------------------------------------------------------------------------
-   -- PLL: 125 MHz -> 500 MHz (bit clock) + 125 MHz (word clock)
-   -- VCO = 125 × 8 = 1000 MHz
-   -- Both outputs from same PLL ensures matched skew at OSERDESE3
+   -- PLL: 125 MHz -> 625 MHz (OSERDES CLK) + 156.25 MHz (OSERDES CLKDIV + gearbox)
+   -- VCO = 125 x 10 = 1250 MHz
    -------------------------------------------------------------------------------------------------
    U_ClockManagerUsp_1 : entity surf.ClockManagerUltraScale
       generic map (
@@ -64,50 +64,60 @@ begin
          BANDWIDTH_G      => "HIGH",
          CLKIN_PERIOD_G   => 8.0,
          DIVCLK_DIVIDE_G  => 1,
-         CLKFBOUT_MULT_G  => 8,
+         CLKFBOUT_MULT_G  => 10,
          CLKOUT0_DIVIDE_G => 2,
          CLKOUT1_DIVIDE_G => 8)
       port map (
-         clkIn     => timingRefClk,      -- [in]
-         rstIn     => timingRefRst,      -- [in]
-         clkOut(0) => clkx4,             -- [out] 500 MHz (4x ref)
-         clkOut(1) => clkx1,             -- [out] 125 MHz (1x ref)
-         rstOut(0) => open,              -- [out]
-         rstOut(1) => open,              -- [out]
-         locked    => pllLocked);        -- [out]
+         clkIn     => timingRefClk,
+         rstIn     => timingRefRst,
+         clkOut(0) => clkx4,
+         clkOut(1) => clkx1,
+         rstOut(0) => open,
+         rstOut(1) => open,
+         locked    => pllLocked);
 
    -------------------------------------------------------------------------------------------------
-   -- Reset synchronizer for clkx1 domain
+   -- wordClk = timingRefClk passthrough (125 MHz to TimingTx logic)
    -------------------------------------------------------------------------------------------------
    pllRst <= not pllLocked;
+
+   wordClk <= timingRefClk;
+   bitClk  <= clkx4;
+   bitRst  <= pllRst;
+
+   U_RstSync_wordClk : entity surf.RstSync
+      generic map (
+         TPD_G => TPD_G)
+      port map (
+         clk      => timingRefClk,
+         asyncRst => pllRst,
+         syncRst  => wordRstInt);
+
+   wordRst <= wordRstInt;
 
    U_RstSync_clkx1 : entity surf.RstSync
       generic map (
          TPD_G => TPD_G)
       port map (
-         clk      => clkx1,              -- [in]
-         asyncRst => pllRst,             -- [in]
-         syncRst  => wordRstInt);        -- [out]
-
-   bitClk  <= clkx4;
-   bitRst  <= pllRst;
-   wordClk <= clkx1;
-   wordRst <= wordRstInt;
+         clk      => clkx1,
+         asyncRst => pllRst,
+         syncRst  => rstx1);
 
    -------------------------------------------------------------------------------------------------
    -- Serializer
+   -- CDC FIFO crosses from timingRefClk (125 MHz) to clkx1 (156.25 MHz)
    -------------------------------------------------------------------------------------------------
    U_TimingSerializerUsp_1 : entity warm_tdm.TimingSerializerUsp
       generic map (
          TPD_G => TPD_G)
       port map (
-         wordClk       => clkx1,            -- [in]
-         wordRst       => wordRstInt,       -- [in]
-         dataIn        => dataIn,           -- [in]
-         clkx4         => clkx4,            -- [in] 625 MHz
-         clkx1         => clkx1,            -- [in] 156.25 MHz
-         rstx1         => wordRstInt,       -- [in]
-         timingTxDataP => timingTxDataP,    -- [out]
-         timingTxDataN => timingTxDataN);   -- [out]
+         wordClk       => timingRefClk,
+         wordRst       => wordRstInt,
+         dataIn        => dataIn,
+         clkx4         => clkx4,
+         clkx1         => clkx1,
+         rstx1         => rstx1,
+         timingTxDataP => timingTxDataP,
+         timingTxDataN => timingTxDataN);
 
 end architecture rtl;

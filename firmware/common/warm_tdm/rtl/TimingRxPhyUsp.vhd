@@ -5,14 +5,12 @@
 -- Platform   : Xilinx UltraScale+
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
--- Description: Extracts the UltraScale+-specific clock and deserializer logic
--- from TimingRx. Contains IBUFDS (NOT IBUFGDS to avoid BUFGCE inference),
--- ClockManagerUltraScale PLL (125 MHz -> 625 MHz), BUFGCE_DIV/4 (156.25 MHz),
--- RstSync, and TimingDeserializerUsp.
+-- Description: UltraScale+ timing RX clock recovery and deserialization.
+-- IBUFDS -> MMCM (625 MHz + 156.25 MHz + 125 MHz) -> ISERDESE3 + Gearbox
+-- -> CDC FIFO -> 125 MHz output domain.
 --
--- NOTE: The PLL input is the ONLY consumer of timingRxClk. The raw
--- timingRxClk signal must NOT be used as a clock anywhere else to avoid
--- BUFGCE inference.
+-- The 156.25 MHz clock is internal only (ISERDES CLKDIV + gearbox).
+-- The 125 MHz wordClk output matches the transmitted clock rate.
 -------------------------------------------------------------------------------
 -- This file is part of Warm TDM. It is subject to
 -- the license terms in the LICENSE.txt file found in the top-level directory
@@ -49,23 +47,27 @@ entity TimingRxPhyUsp is
       slip          : in  sl;
       dlyLoad       : in  sl;
       dlyCfg        : in  slv(8 downto 0);
-      locked        : out sl);  -- PLL locked
+      locked        : out sl);
 end entity TimingRxPhyUsp;
 
 architecture rtl of TimingRxPhyUsp is
 
-   signal timingRxClk : sl;
-   signal clkx4       : sl;
-   signal clkx1       : sl;
-   signal rstx1       : sl;
-   signal pllLocked   : sl;
-   signal pllRst      : sl;
+   signal timingRxClk  : sl;
+   signal clkx4        : sl;
+   signal clkx1        : sl;
+   signal wordClkLoc   : sl;
+   signal rstx1        : sl;
+   signal wordRstLoc   : sl;
+   signal mmcmLocked   : sl;
+   signal mmcmRst      : sl;
+
+   signal desData      : slv(9 downto 0);
+   signal desDataValid : sl;
 
 begin
 
    -------------------------
    -- 125 MHz Timing RX clock input buffer
-   -- IBUFDS (NOT IBUFGDS) to avoid BUFGCE inference on US+
    -------------------------
    TIMING_RX_CLK_BUFF : IBUFDS
       port map (
@@ -74,8 +76,8 @@ begin
          o  => timingRxClk);
 
    -------------------------
-   -- PLL: 125 MHz -> 625 MHz (clkx4)
-   -- timingRxClk is ONLY used here as PLL input
+   -- MMCM: 125 MHz -> 625 MHz + 156.25 MHz + 125 MHz
+   -- VCO = 125 x 10 = 1250 MHz
    -------------------------
    U_ClockManagerUsp_1 : entity surf.ClockManagerUltraScale
       generic map (
@@ -83,48 +85,53 @@ begin
          TYPE_G             => "MMCM",
          INPUT_BUFG_G       => true,
          FB_BUFG_G          => true,
-         NUM_CLOCKS_G       => 1,
+         NUM_CLOCKS_G       => 3,
          BANDWIDTH_G        => "OPTIMIZED",
          CLKIN_PERIOD_G     => 8.0,
          DIVCLK_DIVIDE_G    => 1,
          CLKFBOUT_MULT_F_G  => 10.0,
-         CLKOUT0_DIVIDE_F_G => 2.0)
+         CLKOUT0_DIVIDE_F_G => 2.0,
+         CLKOUT1_DIVIDE_G   => 8,
+         CLKOUT2_DIVIDE_G   => 10)
       port map (
          clkIn     => timingRxClk,
          rstIn     => '0',
-         clkOut(0) => clkx4,       -- 625 MHz
+         clkOut(0) => clkx4,
+         clkOut(1) => clkx1,
+         clkOut(2) => wordClkLoc,
          rstOut(0) => open,
-         locked    => pllLocked);
+         rstOut(1) => open,
+         rstOut(2) => open,
+         locked    => mmcmLocked);
 
-   locked <= pllLocked;
-
-   -------------------------
-   -- BUFGCE_DIV/4: 625 MHz -> 156.25 MHz (clkx1)
-   -------------------------
-   U_BUFGCE_DIV_1 : BUFGCE_DIV
-      generic map (
-         BUFGCE_DIVIDE => 4)
-      port map (
-         I   => clkx4,
-         CE  => '1',
-         CLR => '0',
-         O   => clkx1);            -- 156.25 MHz
+   locked <= mmcmLocked;
 
    -------------------------
-   -- Reset synchronizer for clkx1 domain
+   -- Reset synchronizers
    -------------------------
-   pllRst <= not pllLocked;
+   mmcmRst <= not mmcmLocked;
 
    U_RstSync_clkx1 : entity surf.RstSync
       generic map (
          TPD_G => TPD_G)
       port map (
          clk      => clkx1,
-         asyncRst => pllRst,
+         asyncRst => mmcmRst,
          syncRst  => rstx1);
 
+   U_RstSync_wordClk : entity surf.RstSync
+      generic map (
+         TPD_G => TPD_G)
+      port map (
+         clk      => wordClkLoc,
+         asyncRst => mmcmRst,
+         syncRst  => wordRstLoc);
+
+   wordClk <= wordClkLoc;
+   wordRst <= wordRstLoc;
+
    -------------------------
-   -- Deserializer
+   -- Deserializer (outputs on clkx1 = 156.25 MHz domain)
    -------------------------
    U_TimingDeserializerUsp_1 : entity warm_tdm.TimingDeserializerUsp
       port map (
@@ -133,13 +140,37 @@ begin
          rstx1         => rstx1,
          timingRxDataP => timingRxDataP,
          timingRxDataN => timingRxDataN,
-         wordClk       => wordClk,
-         wordRst       => wordRst,
-         dataOut       => dataOut,
-         dataValid     => dataValid,
+         wordClk       => open,
+         wordRst       => open,
+         dataOut       => desData,
+         dataValid     => desDataValid,
          slip          => slip,
          dlyLoad       => dlyLoad,
          dlyCfg        => dlyCfg,
          locked        => open);
+
+   -------------------------
+   -- CDC FIFO: clkx1 (156.25 MHz) -> wordClkLoc (125 MHz)
+   -- Write: gearbox output at 156.25 MHz, valid 4/5 cycles = 125 Mword/s
+   -- Read: 125 MHz, drains at exactly the fill rate
+   -------------------------
+   U_CdcFifo : entity surf.FifoAsync
+      generic map (
+         TPD_G         => TPD_G,
+         MEMORY_TYPE_G => "distributed",
+         FWFT_EN_G     => true,
+         DATA_WIDTH_G  => 10,
+         ADDR_WIDTH_G  => 4)
+      port map (
+         rst    => rstx1,
+         wr_clk => clkx1,
+         wr_en  => desDataValid,
+         din    => desData,
+         full   => open,
+         rd_clk => wordClkLoc,
+         rd_en  => '1',
+         dout   => dataOut,
+         valid  => dataValid,
+         empty  => open);
 
 end architecture rtl;

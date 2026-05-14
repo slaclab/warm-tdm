@@ -378,11 +378,6 @@ set_clock_groups -asynchronous \
 ## timingTxWordClk async groups already in WarmTdmCore2_usp.xdc
 
 ##############################################################################
-## PLL placement: Timing TX PLL in X0Y3 near OSERDESE3 to minimize CLK/CLKDIV skew
-##############################################################################
-set_property LOC PLL_X0Y6 [get_cells -hier -filter {NAME =~ *U_TimingTx*PhyUsp*U_ClockManagerUsp_1*U_Pll}]
-
-##############################################################################
 ## Bitstream Configuration
 ##############################################################################
 set_property BITSTREAM.CONFIG.CONFIGRATE 31.9 [current_design]
