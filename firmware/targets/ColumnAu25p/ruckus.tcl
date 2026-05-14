@@ -7,6 +7,7 @@ loadRuckusTcl $::env(TOP_DIR)/common/warm_tdm
 loadSource -lib warm_tdm -dir "$::DIR_PATH/rtl" -fileType "VHDL 2008"
 loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore2.xdc
 loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore2_10g.xdc
+loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore2_usp.xdc
 loadConstraints -dir "$::DIR_PATH/xdc"
 
 set_property top {ColumnAu25p} [get_filesets {sources_1}]

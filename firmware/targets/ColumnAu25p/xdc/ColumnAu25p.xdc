@@ -112,8 +112,9 @@ set_property -dict { PACKAGE_PIN AH24 IOSTANDARD LVDS DIFF_TERM TRUE } [get_port
 ##############################################################################
 create_clock -name timingRxClk -period 8.000 [get_ports {timingRxClkP}]
 
-set_property -dict { PACKAGE_PIN D18 IOSTANDARD LVDS DIFF_TERM TRUE } [get_ports { timingRxClkP }]
-set_property -dict { PACKAGE_PIN D19 IOSTANDARD LVDS DIFF_TERM TRUE } [get_ports { timingRxClkN }]
+## timingRxClk on bank 67 (uses MMCM which has flexible input routing via BUFGCE)
+set_property -dict { PACKAGE_PIN D21 IOSTANDARD LVDS DIFF_TERM TRUE } [get_ports { timingRxClkP }]
+set_property -dict { PACKAGE_PIN C21 IOSTANDARD LVDS DIFF_TERM TRUE } [get_ports { timingRxClkN }]
 set_property -dict { PACKAGE_PIN E18 IOSTANDARD LVDS DIFF_TERM TRUE } [get_ports { timingRxDataP }]
 set_property -dict { PACKAGE_PIN E19 IOSTANDARD LVDS DIFF_TERM TRUE } [get_ports { timingRxDataN }]
 set_property -dict { PACKAGE_PIN E20 IOSTANDARD LVDS } [get_ports { timingTxClkP }]
@@ -144,8 +145,8 @@ set_property -dict { PACKAGE_PIN C22 IOSTANDARD LVCMOS18 } [get_ports { auxWrt[2
 set_property -dict { PACKAGE_PIN B22 IOSTANDARD LVCMOS18 } [get_ports { auxWrt[3] }]
 set_property -dict { PACKAGE_PIN C24 IOSTANDARD LVCMOS18 } [get_ports { auxClk[0] }]
 set_property -dict { PACKAGE_PIN C25 IOSTANDARD LVCMOS18 } [get_ports { auxClk[1] }]
-set_property -dict { PACKAGE_PIN D21 IOSTANDARD LVCMOS18 } [get_ports { auxClk[2] }]
-set_property -dict { PACKAGE_PIN C21 IOSTANDARD LVCMOS18 } [get_ports { auxClk[3] }]
+set_property -dict { PACKAGE_PIN H20 IOSTANDARD LVCMOS18 } [get_ports { auxClk[2] }]
+set_property -dict { PACKAGE_PIN H21 IOSTANDARD LVCMOS18 } [get_ports { auxClk[3] }]
 set_property -dict { PACKAGE_PIN D22 IOSTANDARD LVCMOS18 } [get_ports { auxSel[0] }]
 set_property -dict { PACKAGE_PIN D23 IOSTANDARD LVCMOS18 } [get_ports { auxSel[1] }]
 set_property -dict { PACKAGE_PIN E24 IOSTANDARD LVCMOS18 } [get_ports { auxSel[2] }]

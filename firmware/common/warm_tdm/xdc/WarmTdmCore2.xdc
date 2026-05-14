@@ -13,24 +13,14 @@ create_clock -name timingRxClk -period 8.000 [get_ports {timingRxClkP}]
 create_clock -name gtRefClk0 -period 4.000 [get_ports {gtRefClk0P}]
 create_clock -name gtRefClk1 -period 6.400 [get_ports {gtRefClk1P}]
 
-## Generated clocks - use wildcards to survive hierarchy changes
-## ODIV2 divides refclk by 2; must be explicit for Vivado DRC
-create_generated_clock -name fabRefClk0 -divide_by 2 -source [get_ports gtRefClk0P] [get_pins -hier -filter {NAME =~ */U_ClockDist_1/*IBUFDS*_0/ODIV2}]
-create_generated_clock -name fabRefClk1 -divide_by 2 -source [get_ports gtRefClk1P] [get_pins -hier -filter {NAME =~ */U_ClockDist_1/*IBUFDS*_1/ODIV2}]
+## fabRefClk generated clocks declared in family-specific XDC files
 
 create_generated_clock -name axilClk [get_pins -hier -filter {NAME =~ *U_PgpCore_1/*U_Phy/*/CLKOUT0}]
 create_generated_clock -name pgpClk  [get_pins -hier -filter {NAME =~ *U_PgpCore_1/*U_Phy/*/CLKOUT1}]
 
-create_generated_clock -name idelayClk [get_pins -hier -filter {NAME =~ */U_Timing_1/*MMCM*/*/CLKOUT0}]
+create_generated_clock -name idelayClk [get_pins -hier -filter {NAME =~ */U_Timing_1/*U_MMCM_IDELAY/*/CLKOUT0}]
 
-create_generated_clock -name timingTxBitClk  [get_pins -hier -filter {NAME =~ */U_Timing_1/U_TimingTx_1/*/CLKOUT0}]
-create_generated_clock -name timingRxBitClk  [get_pins -hier -filter {NAME =~ */U_Timing_1/U_TimingRx_1/*/CLKOUT0}]
-
-## timingTxWordClk: CLKOUT1 on 7-series PLL, or BUFGCE_DIV output on US+
-create_generated_clock -name timingTxWordClk [get_pins -hier -filter {NAME =~ */U_Timing_1/U_TimingTx_1/*CLKOUT1 || NAME =~ */U_Timing_1/U_TimingTx_1/*BUFGCE_DIV*/O}]
-
-## timingRxWordClk: CLKOUT1 on 7-series PLL, or BUFGCE_DIV output on US+
-create_generated_clock -name timingRxWordClk [get_pins -hier -filter {NAME =~ */U_Timing_1/U_TimingRx_1/*CLKOUT1 || NAME =~ */U_Timing_1/U_TimingRx_1/*BUFGCE_DIV*/O}]
+## timingBitClk and timingWordClk declared in family-specific XDC files
 
 ## Clock groups - asynchronous domains
 set_clock_groups -asynchronous \
@@ -48,7 +38,4 @@ set_clock_groups -asynchronous \
     -group [get_clocks axilClk] \
     -group [get_clocks -include_generated_clocks timingRxClk]
 
-set_clock_groups -asynchronous \
-    -group [get_clocks axilClk] \
-    -group [get_clocks timingTxWordClk] \
-    -group [get_clocks timingRxWordClk]
+## timingWordClk async groups declared in family-specific XDC files
