@@ -110,9 +110,7 @@ set_property -dict { PACKAGE_PIN AH24 IOSTANDARD LVDS DIFF_TERM TRUE } [get_port
 ## HP Bank 67 (VCCO=1.8V) - Timing LVDS + ADC clk out + misc
 ## timingRxClkP on D18 (L7/T1L QBC) - drives PLL for ISERDES
 ##############################################################################
-create_clock -name timingRxClk -period 8.000 [get_ports {timingRxClkP}]
-
-## timingRxClk on bank 67 (uses MMCM which has flexible input routing via BUFGCE)
+## timingRxClk on bank 67 (clock declared in WarmTdmCore2.xdc)
 set_property -dict { PACKAGE_PIN D21 IOSTANDARD LVDS DIFF_TERM TRUE } [get_ports { timingRxClkP }]
 set_property -dict { PACKAGE_PIN C21 IOSTANDARD LVDS DIFF_TERM TRUE } [get_ports { timingRxClkN }]
 set_property -dict { PACKAGE_PIN E18 IOSTANDARD LVDS DIFF_TERM TRUE } [get_ports { timingRxDataP }]
@@ -365,18 +363,11 @@ create_clock -name pgpTxOutClk    -period 6.400 [get_pins -hier -filter {NAME =~
 create_clock -name pgpTxPcsClk    -period 6.400 [get_pins -hier -filter {NAME =~ *U_PgpCore_1/*txoutclkpcs*}]
 
 set_clock_groups -asynchronous \
-    -group [get_clocks -include_generated_clocks fabRefClk0] \
+    -group [get_clocks -include_generated_clocks gtRefClk0] \
     -group [get_clocks pgpTxOutClk] \
     -group [get_clocks pgpTxPcsClk]
 
-## Timing TX word clock async to axil and timing RX
-set_clock_groups -asynchronous \
-    -group [get_clocks -quiet wordClk] \
-    -group [get_clocks axilClk]
-
-set_clock_groups -asynchronous \
-    -group [get_clocks -quiet wordClk] \
-    -group [get_clocks -include_generated_clocks timingRxClk]
+## timingTxWordClk async groups already in WarmTdmCore2_usp.xdc
 
 ##############################################################################
 ## Bitstream Configuration

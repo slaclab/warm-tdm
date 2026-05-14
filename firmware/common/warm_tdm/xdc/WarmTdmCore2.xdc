@@ -30,7 +30,8 @@ set_clock_groups -asynchronous \
 
 set_clock_groups -asynchronous \
     -group [get_clocks axilClk] \
-    -group [get_clocks pgpClk]
+    -group [get_clocks pgpClk] \
+    -group [get_clocks gtRefClk0]
 
 ## PGP GT recovered clocks - declared and constrained per-target XDC
 
