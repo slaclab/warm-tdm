@@ -235,71 +235,71 @@ begin
          IP_ADDR_G               => IP_ADDR_G,
          MAC_ADDR_G              => MAC_ADDR_G)
       port map (
-         gtRefClk0P       => gtRefClk0P,
-         gtRefClk0N       => gtRefClk0N,
-         gtRefClk1P       => gtRefClk1P,
-         gtRefClk1N       => gtRefClk1N,
-         pgpTxP           => pgpTxP,
-         pgpTxN           => pgpTxN,
-         pgpRxP           => pgpRxP,
-         pgpRxN           => pgpRxN,
-         xbarDataSel      => xbarDataSel,
-         xbarClkSel       => xbarClkSel,
-         xbarMgtSel       => xbarMgtSel,
-         xbarTimingSel    => xbarTimingSel,
-         timingRxClkP     => timingRxClkP,
-         timingRxClkN     => timingRxClkN,
-         timingRxDataP    => timingRxDataP,
-         timingRxDataN    => timingRxDataN,
-         timingTxClkP     => timingTxClkP,
-         timingTxClkN     => timingTxClkN,
-         timingTxDataP    => timingTxDataP,
-         timingTxDataN    => timingTxDataN,
-         sfp0TxP          => sfp0TxP,
-         sfp0TxN          => sfp0TxN,
-         sfp0RxP          => sfp0RxP,
-         sfp0RxN          => sfp0RxN,
-         bootCsL          => bootCsL,
-         bootMosi         => bootMosi,
-         bootMiso         => bootMiso,
-         locScl           => locScl,
-         locSda           => locSda,
-         tempAlertL       => tempAlertL,
-         pwrScl           => pwrScl,
-         pwrSda           => pwrSda,
-         sfpScl           => sfpScl,
-         sfpSda           => sfpSda,
-         anaPwrEn         => anaPwrEn,
-         pwrSyncA         => pwrSyncA,
-         pwrSyncB         => pwrSyncB,
-         pwrSyncC         => pwrSyncC,
-         localThermistorP => localThermistorP,
-         localThermistorN => localThermistorN,
-         feThermistorP    => feThermistorP,
-         feThermistorN    => feThermistorN,
-         asicResetB       => resetB,
-         ampPdB           => ampPdB,
-         adcFilterEn      => adcFilterEn,
-         leds             => leds,
-         conRxGreenLed    => conRxGreenLed,
-         conRxYellowLed   => conRxYellowLed,
-         conTxGreenLed    => conTxGreenLed,
-         conTxYellowLed   => conTxYellowLed,
-         axilClk          => axilClk,
-         axilRst          => axilRst,
-         axilWriteMaster  => srpAxilWriteMaster,
-         axilWriteSlave   => srpAxilWriteSlave,
-         axilReadMaster   => srpAxilReadMaster,
-         axilReadSlave    => srpAxilReadSlave,
-         axisClk          => axisClk,
-         axisRst          => axisRst,
-         dataTxAxisMaster => dataTxAxisMaster,
-         dataTxAxisSlave  => dataTxAxisSlave,
-         dataRxAxisMaster => dataRxAxisMaster,
-         dataRxAxisSlave  => dataRxAxisSlave,
-         timingRxClk125   => timingRxClk125,
-         timingRxRst125   => timingRxRst125,
-         timingRxData     => timingRxData);
+         gtRefClk0P       => gtRefClk0P,        -- [in]
+         gtRefClk0N       => gtRefClk0N,        -- [in]
+         gtRefClk1P       => gtRefClk1P,        -- [in]
+         gtRefClk1N       => gtRefClk1N,        -- [in]
+         pgpTxP           => pgpTxP,            -- [out]
+         pgpTxN           => pgpTxN,            -- [out]
+         pgpRxP           => pgpRxP,            -- [in]
+         pgpRxN           => pgpRxN,            -- [in]
+         xbarDataSel      => xbarDataSel,       -- [out]
+         xbarClkSel       => xbarClkSel,        -- [out]
+         xbarMgtSel       => xbarMgtSel,        -- [out]
+         xbarTimingSel    => xbarTimingSel,      -- [out]
+         timingRxClkP     => timingRxClkP,      -- [in]
+         timingRxClkN     => timingRxClkN,      -- [in]
+         timingRxDataP    => timingRxDataP,      -- [in]
+         timingRxDataN    => timingRxDataN,      -- [in]
+         timingTxClkP     => timingTxClkP,      -- [out]
+         timingTxClkN     => timingTxClkN,      -- [out]
+         timingTxDataP    => timingTxDataP,      -- [out]
+         timingTxDataN    => timingTxDataN,      -- [out]
+         sfp0TxP          => sfp0TxP,           -- [out]
+         sfp0TxN          => sfp0TxN,           -- [out]
+         sfp0RxP          => sfp0RxP,           -- [in]
+         sfp0RxN          => sfp0RxN,           -- [in]
+         bootCsL          => bootCsL,           -- [out]
+         bootMosi         => bootMosi,          -- [out]
+         bootMiso         => bootMiso,          -- [in]
+         locScl           => locScl,            -- [inout]
+         locSda           => locSda,            -- [inout]
+         tempAlertL       => tempAlertL,        -- [in]
+         pwrScl           => pwrScl,            -- [inout]
+         pwrSda           => pwrSda,            -- [inout]
+         sfpScl           => sfpScl,            -- [inout]
+         sfpSda           => sfpSda,            -- [inout]
+         anaPwrEn         => anaPwrEn,          -- [out]
+         pwrSyncA         => pwrSyncA,          -- [out]
+         pwrSyncB         => pwrSyncB,          -- [out]
+         pwrSyncC         => pwrSyncC,          -- [out]
+         localThermistorP => localThermistorP,  -- [in]
+         localThermistorN => localThermistorN,  -- [in]
+         feThermistorP    => feThermistorP,     -- [in]
+         feThermistorN    => feThermistorN,     -- [in]
+         asicResetB       => resetB,            -- [out]
+         ampPdB           => ampPdB,            -- [out]
+         adcFilterEn      => adcFilterEn,       -- [out]
+         leds             => leds,              -- [out]
+         conRxGreenLed    => conRxGreenLed,     -- [out]
+         conRxYellowLed   => conRxYellowLed,    -- [out]
+         conTxGreenLed    => conTxGreenLed,     -- [out]
+         conTxYellowLed   => conTxYellowLed,    -- [out]
+         axilClk          => axilClk,           -- [out]
+         axilRst          => axilRst,           -- [out]
+         axilWriteMaster  => srpAxilWriteMaster, -- [out]
+         axilWriteSlave   => srpAxilWriteSlave,  -- [in]
+         axilReadMaster   => srpAxilReadMaster,  -- [out]
+         axilReadSlave    => srpAxilReadSlave,   -- [in]
+         axisClk          => axisClk,           -- [out]
+         axisRst          => axisRst,           -- [out]
+         dataTxAxisMaster => dataTxAxisMaster,  -- [in]
+         dataTxAxisSlave  => dataTxAxisSlave,   -- [out]
+         dataRxAxisMaster => dataRxAxisMaster,  -- [out]
+         dataRxAxisSlave  => dataRxAxisSlave,   -- [in]
+         timingRxClk125   => timingRxClk125,    -- [out]
+         timingRxRst125   => timingRxRst125,    -- [out]
+         timingRxData     => timingRxData);     -- [out]
 
    U_AxiLiteCrossbar_Main : entity surf.AxiLiteCrossbar
       generic map (
@@ -309,20 +309,20 @@ begin
          MASTERS_CONFIG_G   => AXIL_XBAR_CFG_C,
          DEBUG_G            => false)
       port map (
-         axiClk              => axilClk,
-         axiClkRst           => axilRst,
-         sAxiWriteMasters(0) => srpAxilWriteMaster,
-         sAxiWriteMasters(1) => sq1FbAxilWriteMaster,
-         sAxiWriteSlaves(0)  => srpAxilWriteSlave,
-         sAxiWriteSlaves(1)  => sq1FbAxilWriteSlave,
-         sAxiReadMasters(0)  => srpAxilReadMaster,
-         sAxiReadMasters(1)  => sq1FbAxilReadMaster,
-         sAxiReadSlaves(0)   => srpAxilReadSlave,
-         sAxiReadSlaves(1)   => sq1FbAxilReadSlave,
-         mAxiWriteMasters    => locAxilWriteMasters,
-         mAxiWriteSlaves     => locAxilWriteSlaves,
-         mAxiReadMasters     => locAxilReadMasters,
-         mAxiReadSlaves      => locAxilReadSlaves);
+         axiClk              => axilClk,               -- [in]
+         axiClkRst           => axilRst,               -- [in]
+         sAxiWriteMasters(0) => srpAxilWriteMaster,    -- [in]
+         sAxiWriteMasters(1) => sq1FbAxilWriteMaster,  -- [in]
+         sAxiWriteSlaves(0)  => srpAxilWriteSlave,     -- [out]
+         sAxiWriteSlaves(1)  => sq1FbAxilWriteSlave,   -- [out]
+         sAxiReadMasters(0)  => srpAxilReadMaster,     -- [in]
+         sAxiReadMasters(1)  => sq1FbAxilReadMaster,   -- [in]
+         sAxiReadSlaves(0)   => srpAxilReadSlave,      -- [out]
+         sAxiReadSlaves(1)   => sq1FbAxilReadSlave,    -- [out]
+         mAxiWriteMasters    => locAxilWriteMasters,   -- [out]
+         mAxiWriteSlaves     => locAxilWriteSlaves,    -- [in]
+         mAxiReadMasters     => locAxilReadMasters,    -- [out]
+         mAxiReadSlaves      => locAxilReadSlaves);    -- [in]
 
    U_FE_SPI : entity surf.AxiSpiMaster
       generic map (
@@ -337,16 +337,16 @@ begin
          SPI_SCLK_PERIOD_G => ite(SIMULATION_G, 100.0e-9, 1.0E-6),
          SPI_NUM_CHIPS_G   => 3)
       port map (
-         axiClk         => axilClk,
-         axiRst         => axilRst,
-         axiReadMaster  => locAxilReadMasters(AXIL_FE_SPI_C),
-         axiReadSlave   => locAxilReadSlaves(AXIL_FE_SPI_C),
-         axiWriteMaster => locAxilWriteMasters(AXIL_FE_SPI_C),
-         axiWriteSlave  => locAxilWriteSlaves(AXIL_FE_SPI_C),
-         coreSclk       => feDacSclk,
-         coreSDin       => feDacMiso,
-         coreSDout      => feDacMosi,
-         coreMCsb       => feDacSyncB);
+         axiClk         => axilClk,                          -- [in]
+         axiRst         => axilRst,                          -- [in]
+         axiReadMaster  => locAxilReadMasters(AXIL_FE_SPI_C),   -- [in]
+         axiReadSlave   => locAxilReadSlaves(AXIL_FE_SPI_C),    -- [out]
+         axiWriteMaster => locAxilWriteMasters(AXIL_FE_SPI_C),  -- [in]
+         axiWriteSlave  => locAxilWriteSlaves(AXIL_FE_SPI_C),   -- [out]
+         coreSclk       => feDacSclk,                        -- [out]
+         coreSDin       => feDacMiso,                        -- [in]
+         coreSDout      => feDacMosi,                        -- [out]
+         coreMCsb       => feDacSyncB);                      -- [out]
 
    U_AxiSpiMaster_FE_TES_DACS : entity surf.AxiSpiMaster
       generic map (
@@ -362,16 +362,16 @@ begin
          SPI_SCLK_PERIOD_G => ite(SIMULATION_G, 100.0e-9, 1.0E-6),
          SPI_NUM_CHIPS_G   => 8)
       port map (
-         axiClk         => axilClk,
-         axiRst         => axilRst,
-         axiReadMaster  => locAxilReadMasters(AXIL_FE_TES_SPI_C),
-         axiReadSlave   => locAxilReadSlaves(AXIL_FE_TES_SPI_C),
-         axiWriteMaster => locAxilWriteMasters(AXIL_FE_TES_SPI_C),
-         axiWriteSlave  => locAxilWriteSlaves(AXIL_FE_TES_SPI_C),
-         coreSclk       => tesDacSclk,
-         coreSDin       => '0',
-         coreSDout      => tesDacDin,
-         coreMCsb       => tesDacCsL);
+         axiClk         => axilClk,                              -- [in]
+         axiRst         => axilRst,                              -- [in]
+         axiReadMaster  => locAxilReadMasters(AXIL_FE_TES_SPI_C),   -- [in]
+         axiReadSlave   => locAxilReadSlaves(AXIL_FE_TES_SPI_C),    -- [out]
+         axiWriteMaster => locAxilWriteMasters(AXIL_FE_TES_SPI_C),  -- [in]
+         axiWriteSlave  => locAxilWriteSlaves(AXIL_FE_TES_SPI_C),   -- [out]
+         coreSclk       => tesDacSclk,                           -- [out]
+         coreSDin       => '0',                                  -- [in]
+         coreSDout      => tesDacDin,                            -- [out]
+         coreMCsb       => tesDacCsL);                           -- [out]
 
    U_AxiLiteRegs_1 : entity surf.AxiLiteRegs
       generic map (
@@ -380,20 +380,25 @@ begin
          NUM_READ_REG_G  => 1,
          INI_WRITE_REG_G => INI_WRITE_REG_C)
       port map (
-         axiClk           => axilClk,
-         axiClkRst        => axilRst,
-         axiReadMaster    => locAxilReadMasters(AXIL_TES_DELATCH_C),
-         axiReadSlave     => locAxilReadSlaves(AXIL_TES_DELATCH_C),
-         axiWriteMaster   => locAxilWriteMasters(AXIL_TES_DELATCH_C),
-         axiWriteSlave    => locAxilWriteSlaves(AXIL_TES_DELATCH_C),
-         writeRegister(0) => tesDelatchInt,
-         writeRegister(1) => tesDacLdacLInt);
+         axiClk           => axilClk,                                -- [in]
+         axiClkRst        => axilRst,                                -- [in]
+         axiReadMaster    => locAxilReadMasters(AXIL_TES_DELATCH_C),    -- [in]
+         axiReadSlave     => locAxilReadSlaves(AXIL_TES_DELATCH_C),     -- [out]
+         axiWriteMaster   => locAxilWriteMasters(AXIL_TES_DELATCH_C),   -- [in]
+         axiWriteSlave    => locAxilWriteSlaves(AXIL_TES_DELATCH_C),    -- [out]
+         writeRegister(0) => tesDelatchInt,                          -- [out]
+         writeRegister(1) => tesDacLdacLInt);                        -- [out]
 
    tesDelatch <= tesDelatchInt(7 downto 0);
 
    U_PwrUpRst_1 : entity surf.PwrUpRst
-      generic map (TPD_G => TPD_G, OUT_POLARITY_G => '0', DURATION_G => 10)
-      port map (clk => axilClk, rstOut => tesDacPwrUpLdacL);
+      generic map (
+         TPD_G          => TPD_G,
+         OUT_POLARITY_G => '0',
+         DURATION_G     => 10)
+      port map (
+         clk    => axilClk,            -- [in]
+         rstOut => tesDacPwrUpLdacL);  -- [out]
 
    tesDacLdacL <= tesDacPwrUpLdacL when tesDacPwrUpLdacL = '0' else tesDacLdacLInt(0);
 
@@ -404,15 +409,15 @@ begin
          SCLK_PERIOD_G     => ite(SIMULATION_G, 100.0e-9, 1.0E-6),
          AXIL_CLK_PERIOD_G => 1.0/AXIL_CLK_FREQ_C)
       port map (
-         axilClk         => axilClk,
-         axilRst         => axilRst,
-         axilReadMaster  => locAxilReadMasters(AXIL_ADC_CONFIG_C),
-         axilReadSlave   => locAxilReadSlaves(AXIL_ADC_CONFIG_C),
-         axilWriteMaster => locAxilWriteMasters(AXIL_ADC_CONFIG_C),
-         axilWriteSlave  => locAxilWriteSlaves(AXIL_ADC_CONFIG_C),
-         adcSclk         => adcSclk,
-         adcSdio         => adcSdio,
-         adcCsb(0)       => adcCsb);
+         axilClk         => axilClk,                               -- [in]
+         axilRst         => axilRst,                               -- [in]
+         axilReadMaster  => locAxilReadMasters(AXIL_ADC_CONFIG_C),    -- [in]
+         axilReadSlave   => locAxilReadSlaves(AXIL_ADC_CONFIG_C),     -- [out]
+         axilWriteMaster => locAxilWriteMasters(AXIL_ADC_CONFIG_C),   -- [in]
+         axilWriteSlave  => locAxilWriteSlaves(AXIL_ADC_CONFIG_C),    -- [out]
+         adcSclk         => adcSclk,                               -- [out]
+         adcSdio         => adcSdio,                               -- [inout]
+         adcCsb(0)       => adcCsb);                               -- [out]
 
    adc.fClkP <= adcFClkP;
    adc.fClkN <= adcFClkN;
@@ -426,9 +431,9 @@ begin
          TPD_G        => TPD_G,
          XIL_DEVICE_G => "ULTRASCALE_PLUS")
       port map (
-         clkIn   => timingRxClk125,
-         clkOutP => adcClkP,
-         clkOutN => adcClkN);
+         clkIn   => timingRxClk125,   -- [in]
+         clkOutP => adcClkP,          -- [out]
+         clkOutN => adcClkN);         -- [out]
 
    U_DataPath_1 : entity warm_tdm.DataPath
       generic map (
@@ -442,82 +447,111 @@ begin
          SQ1FB_RAM_ADDR_G => AXIL_XBAR_CFG_C(AXIL_SQ1_FB_DAC_C).baseAddr,
          IODELAY_GROUP_G  => "IODELAY0")
       port map (
-         adc              => adc,
-         timingRxClk125   => timingRxClk125,
-         timingRxRst125   => timingRxRst125,
-         timingRxData     => timingRxData,
-         sq1FbDacs        => sq1FbDacs,
-         axisClk          => axisClk,
-         axisRst          => axisRst,
-         axisMaster       => dataTxAxisMaster,
-         axisSlave        => dataTxAxisSlave,
-         axilClk          => axilClk,
-         axilRst          => axilRst,
-         adcFilterEn      => adcFilterEn,
-         sAxilReadMaster  => locAxilReadMasters(AXIL_DATA_PATH_C),
-         sAxilReadSlave   => locAxilReadSlaves(AXIL_DATA_PATH_C),
-         sAxilWriteMaster => locAxilWriteMasters(AXIL_DATA_PATH_C),
-         sAxilWriteSlave  => locAxilWriteSlaves(AXIL_DATA_PATH_C),
-         mAxilReadMaster  => sq1FbAxilReadMaster,
-         mAxilReadSlave   => sq1FbAxilReadSlave,
-         mAxilWriteMaster => sq1FbAxilWriteMaster,
-         mAxilWriteSlave  => sq1FbAxilWriteSlave);
+         adc              => adc,                                       -- [in]
+         timingRxClk125   => timingRxClk125,                            -- [in]
+         timingRxRst125   => timingRxRst125,                            -- [in]
+         timingRxData     => timingRxData,                              -- [in]
+         sq1FbDacs        => sq1FbDacs,                                 -- [in]
+         axisClk          => axisClk,                                   -- [in]
+         axisRst          => axisRst,                                   -- [in]
+         axisMaster       => dataTxAxisMaster,                          -- [out]
+         axisSlave        => dataTxAxisSlave,                           -- [in]
+         axilClk          => axilClk,                                   -- [in]
+         axilRst          => axilRst,                                   -- [in]
+         adcFilterEn      => adcFilterEn,                               -- [in]
+         sAxilReadMaster  => locAxilReadMasters(AXIL_DATA_PATH_C),      -- [in]
+         sAxilReadSlave   => locAxilReadSlaves(AXIL_DATA_PATH_C),       -- [out]
+         sAxilWriteMaster => locAxilWriteMasters(AXIL_DATA_PATH_C),     -- [in]
+         sAxilWriteSlave  => locAxilWriteSlaves(AXIL_DATA_PATH_C),      -- [out]
+         mAxilReadMaster  => sq1FbAxilReadMaster,                       -- [out]
+         mAxilReadSlave   => sq1FbAxilReadSlave,                        -- [in]
+         mAxilWriteMaster => sq1FbAxilWriteMaster,                      -- [out]
+         mAxilWriteSlave  => sq1FbAxilWriteSlave);                      -- [in]
 
    U_FastDacDriver_SQ1_BIAS : entity warm_tdm.FastDacDriver
-      generic map (TPD_G => TPD_G, SIMULATION_G => SIMULATION_G,
-                   AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_SQ1_BIAS_DAC_C).baseAddr)
+      generic map (
+         TPD_G            => TPD_G,
+         SIMULATION_G     => SIMULATION_G,
+         AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_SQ1_BIAS_DAC_C).baseAddr)
       port map (
-         timingRxClk125  => timingRxClk125, timingRxRst125 => timingRxRst125,
-         timingRxData    => timingRxData,
-         dacDb => sq1BiasDb, dacWrt => sq1BiasWrt, dacClk => sq1BiasClk,
-         dacSel => sq1BiasSel, dacReset => sq1BiasReset,
-         axilClk => axilClk, axilRst => axilRst,
-         axilWriteMaster => locAxilWriteMasters(AXIL_SQ1_BIAS_DAC_C),
-         axilWriteSlave  => locAxilWriteSlaves(AXIL_SQ1_BIAS_DAC_C),
-         axilReadMaster  => locAxilReadMasters(AXIL_SQ1_BIAS_DAC_C),
-         axilReadSlave   => locAxilReadSlaves(AXIL_SQ1_BIAS_DAC_C));
+         timingRxClk125  => timingRxClk125,                          -- [in]
+         timingRxRst125  => timingRxRst125,                          -- [in]
+         timingRxData    => timingRxData,                             -- [in]
+         dacDb           => sq1BiasDb,                                -- [out]
+         dacWrt          => sq1BiasWrt,                               -- [out]
+         dacClk          => sq1BiasClk,                               -- [out]
+         dacSel          => sq1BiasSel,                               -- [out]
+         dacReset        => sq1BiasReset,                             -- [out]
+         axilClk         => axilClk,                                  -- [in]
+         axilRst         => axilRst,                                  -- [in]
+         axilWriteMaster => locAxilWriteMasters(AXIL_SQ1_BIAS_DAC_C), -- [in]
+         axilWriteSlave  => locAxilWriteSlaves(AXIL_SQ1_BIAS_DAC_C),  -- [out]
+         axilReadMaster  => locAxilReadMasters(AXIL_SQ1_BIAS_DAC_C),  -- [in]
+         axilReadSlave   => locAxilReadSlaves(AXIL_SQ1_BIAS_DAC_C));  -- [out]
 
    U_FastDacDriver_SQ1_FB : entity warm_tdm.FastDacDriver
-      generic map (TPD_G => TPD_G, SIMULATION_G => SIMULATION_G,
-                   AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_SQ1_FB_DAC_C).baseAddr)
+      generic map (
+         TPD_G            => TPD_G,
+         SIMULATION_G     => SIMULATION_G,
+         AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_SQ1_FB_DAC_C).baseAddr)
       port map (
-         timingRxClk125  => timingRxClk125, timingRxRst125 => timingRxRst125,
-         timingRxData    => timingRxData, dacOut => sq1FbDacs,
-         dacDb => sq1FbDb, dacWrt => sq1FbWrt, dacClk => sq1FbClk,
-         dacSel => sq1FbSel, dacReset => sq1FbReset,
-         axilClk => axilClk, axilRst => axilRst,
-         axilWriteMaster => locAxilWriteMasters(AXIL_SQ1_FB_DAC_C),
-         axilWriteSlave  => locAxilWriteSlaves(AXIL_SQ1_FB_DAC_C),
-         axilReadMaster  => locAxilReadMasters(AXIL_SQ1_FB_DAC_C),
-         axilReadSlave   => locAxilReadSlaves(AXIL_SQ1_FB_DAC_C));
+         timingRxClk125  => timingRxClk125,                         -- [in]
+         timingRxRst125  => timingRxRst125,                         -- [in]
+         timingRxData    => timingRxData,                            -- [in]
+         dacOut          => sq1FbDacs,                               -- [out]
+         dacDb           => sq1FbDb,                                 -- [out]
+         dacWrt          => sq1FbWrt,                                -- [out]
+         dacClk          => sq1FbClk,                                -- [out]
+         dacSel          => sq1FbSel,                                -- [out]
+         dacReset        => sq1FbReset,                              -- [out]
+         axilClk         => axilClk,                                 -- [in]
+         axilRst         => axilRst,                                 -- [in]
+         axilWriteMaster => locAxilWriteMasters(AXIL_SQ1_FB_DAC_C),  -- [in]
+         axilWriteSlave  => locAxilWriteSlaves(AXIL_SQ1_FB_DAC_C),   -- [out]
+         axilReadMaster  => locAxilReadMasters(AXIL_SQ1_FB_DAC_C),   -- [in]
+         axilReadSlave   => locAxilReadSlaves(AXIL_SQ1_FB_DAC_C));   -- [out]
 
    U_FastDacDriver_SA_FB : entity warm_tdm.FastDacDriver
-      generic map (TPD_G => TPD_G, SIMULATION_G => SIMULATION_G,
-                   AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_SA_FB_DAC_C).baseAddr)
+      generic map (
+         TPD_G            => TPD_G,
+         SIMULATION_G     => SIMULATION_G,
+         AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_SA_FB_DAC_C).baseAddr)
       port map (
-         timingRxClk125  => timingRxClk125, timingRxRst125 => timingRxRst125,
-         timingRxData    => timingRxData,
-         dacDb => saFbDb, dacWrt => saFbWrt, dacClk => saFbClk,
-         dacSel => saFbSel, dacReset => saFbReset,
-         axilClk => axilClk, axilRst => axilRst,
-         axilWriteMaster => locAxilWriteMasters(AXIL_SA_FB_DAC_C),
-         axilWriteSlave  => locAxilWriteSlaves(AXIL_SA_FB_DAC_C),
-         axilReadMaster  => locAxilReadMasters(AXIL_SA_FB_DAC_C),
-         axilReadSlave   => locAxilReadSlaves(AXIL_SA_FB_DAC_C));
+         timingRxClk125  => timingRxClk125,                         -- [in]
+         timingRxRst125  => timingRxRst125,                         -- [in]
+         timingRxData    => timingRxData,                            -- [in]
+         dacDb           => saFbDb,                                  -- [out]
+         dacWrt          => saFbWrt,                                 -- [out]
+         dacClk          => saFbClk,                                 -- [out]
+         dacSel          => saFbSel,                                 -- [out]
+         dacReset        => saFbReset,                               -- [out]
+         axilClk         => axilClk,                                 -- [in]
+         axilRst         => axilRst,                                 -- [in]
+         axilWriteMaster => locAxilWriteMasters(AXIL_SA_FB_DAC_C),   -- [in]
+         axilWriteSlave  => locAxilWriteSlaves(AXIL_SA_FB_DAC_C),    -- [out]
+         axilReadMaster  => locAxilReadMasters(AXIL_SA_FB_DAC_C),    -- [in]
+         axilReadSlave   => locAxilReadSlaves(AXIL_SA_FB_DAC_C));    -- [out]
 
    U_FastDacDriver_AUX : entity warm_tdm.FastDacDriver
-      generic map (TPD_G => TPD_G, SIMULATION_G => SIMULATION_G,
-                   AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_AUX_DAC_C).baseAddr)
+      generic map (
+         TPD_G            => TPD_G,
+         SIMULATION_G     => SIMULATION_G,
+         AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_AUX_DAC_C).baseAddr)
       port map (
-         timingRxClk125  => timingRxClk125, timingRxRst125 => timingRxRst125,
-         timingRxData    => timingRxData,
-         dacDb => auxDb, dacWrt => auxWrt, dacClk => auxClk,
-         dacSel => auxSel, dacReset => auxReset,
-         axilClk => axilClk, axilRst => axilRst,
-         axilWriteMaster => locAxilWriteMasters(AXIL_AUX_DAC_C),
-         axilWriteSlave  => locAxilWriteSlaves(AXIL_AUX_DAC_C),
-         axilReadMaster  => locAxilReadMasters(AXIL_AUX_DAC_C),
-         axilReadSlave   => locAxilReadSlaves(AXIL_AUX_DAC_C));
+         timingRxClk125  => timingRxClk125,                        -- [in]
+         timingRxRst125  => timingRxRst125,                        -- [in]
+         timingRxData    => timingRxData,                           -- [in]
+         dacDb           => auxDb,                                  -- [out]
+         dacWrt          => auxWrt,                                 -- [out]
+         dacClk          => auxClk,                                 -- [out]
+         dacSel          => auxSel,                                 -- [out]
+         dacReset        => auxReset,                               -- [out]
+         axilClk         => axilClk,                                -- [in]
+         axilRst         => axilRst,                                -- [in]
+         axilWriteMaster => locAxilWriteMasters(AXIL_AUX_DAC_C),    -- [in]
+         axilWriteSlave  => locAxilWriteSlaves(AXIL_AUX_DAC_C),     -- [out]
+         axilReadMaster  => locAxilReadMasters(AXIL_AUX_DAC_C),     -- [in]
+         axilReadSlave   => locAxilReadSlaves(AXIL_AUX_DAC_C));     -- [out]
 
    -- Unused I2C slave port
    locAxilReadSlaves(AXIL_FE_I2C_C)  <= AXI_LITE_READ_SLAVE_EMPTY_DECERR_C;

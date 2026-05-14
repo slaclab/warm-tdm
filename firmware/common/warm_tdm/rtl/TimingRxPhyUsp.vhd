@@ -71,9 +71,9 @@ begin
    -------------------------
    TIMING_RX_CLK_BUFF : IBUFDS
       port map (
-         i  => timingRxClkP,
-         ib => timingRxClkN,
-         o  => timingRxClk);
+         i  => timingRxClkP,   -- [in]
+         ib => timingRxClkN,   -- [in]
+         o  => timingRxClk);   -- [out]
 
    -------------------------
    -- MMCM: 125 MHz -> 625 MHz + 156.25 MHz + 125 MHz
@@ -94,15 +94,15 @@ begin
          CLKOUT1_DIVIDE_G   => 8,
          CLKOUT2_DIVIDE_G   => 10)
       port map (
-         clkIn     => timingRxClk,
-         rstIn     => '0',
-         clkOut(0) => clkx4,
-         clkOut(1) => clkx1,
-         clkOut(2) => wordClkLoc,
-         rstOut(0) => open,
-         rstOut(1) => open,
-         rstOut(2) => open,
-         locked    => mmcmLocked);
+         clkIn     => timingRxClk,   -- [in]
+         rstIn     => '0',           -- [in]
+         clkOut(0) => clkx4,         -- [out]
+         clkOut(1) => clkx1,         -- [out]
+         clkOut(2) => wordClkLoc,    -- [out]
+         rstOut(0) => open,          -- [out]
+         rstOut(1) => open,          -- [out]
+         rstOut(2) => open,          -- [out]
+         locked    => mmcmLocked);   -- [out]
 
    locked <= mmcmLocked;
 
@@ -115,17 +115,17 @@ begin
       generic map (
          TPD_G => TPD_G)
       port map (
-         clk      => clkx1,
-         asyncRst => mmcmRst,
-         syncRst  => rstx1);
+         clk      => clkx1,     -- [in]
+         asyncRst => mmcmRst,   -- [in]
+         syncRst  => rstx1);    -- [out]
 
    U_RstSync_wordClk : entity surf.RstSync
       generic map (
          TPD_G => TPD_G)
       port map (
-         clk      => wordClkLoc,
-         asyncRst => mmcmRst,
-         syncRst  => wordRstLoc);
+         clk      => wordClkLoc,   -- [in]
+         asyncRst => mmcmRst,      -- [in]
+         syncRst  => wordRstLoc);  -- [out]
 
    wordClk <= wordClkLoc;
    wordRst <= wordRstLoc;
@@ -135,19 +135,19 @@ begin
    -------------------------
    U_TimingDeserializerUsp_1 : entity warm_tdm.TimingDeserializerUsp
       port map (
-         clkx4         => clkx4,
-         clkx1         => clkx1,
-         rstx1         => rstx1,
-         timingRxDataP => timingRxDataP,
-         timingRxDataN => timingRxDataN,
-         wordClk       => open,
-         wordRst       => open,
-         dataOut       => desData,
-         dataValid     => desDataValid,
-         slip          => slip,
-         dlyLoad       => dlyLoad,
-         dlyCfg        => dlyCfg,
-         locked        => open);
+         clkx4         => clkx4,          -- [in]
+         clkx1         => clkx1,          -- [in]
+         rstx1         => rstx1,          -- [in]
+         timingRxDataP => timingRxDataP,   -- [in]
+         timingRxDataN => timingRxDataN,   -- [in]
+         wordClk       => open,           -- [out]
+         wordRst       => open,           -- [out]
+         dataOut       => desData,        -- [out]
+         dataValid     => desDataValid,   -- [out]
+         slip          => slip,           -- [in]
+         dlyLoad       => dlyLoad,        -- [in]
+         dlyCfg        => dlyCfg,         -- [in]
+         locked        => open);          -- [out]
 
    -------------------------
    -- CDC FIFO: clkx1 (156.25 MHz) -> wordClkLoc (125 MHz)
@@ -162,15 +162,15 @@ begin
          DATA_WIDTH_G  => 10,
          ADDR_WIDTH_G  => 4)
       port map (
-         rst    => rstx1,
-         wr_clk => clkx1,
-         wr_en  => desDataValid,
-         din    => desData,
-         full   => open,
-         rd_clk => wordClkLoc,
-         rd_en  => '1',
-         dout   => dataOut,
-         valid  => dataValid,
-         empty  => open);
+         rst    => rstx1,         -- [in]
+         wr_clk => clkx1,         -- [in]
+         wr_en  => desDataValid,   -- [in]
+         din    => desData,        -- [in]
+         full   => open,           -- [out]
+         rd_clk => wordClkLoc,     -- [in]
+         rd_en  => '1',            -- [in]
+         dout   => dataOut,        -- [out]
+         valid  => dataValid,      -- [out]
+         empty  => open);          -- [out]
 
 end architecture rtl;

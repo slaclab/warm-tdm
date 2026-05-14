@@ -158,3 +158,133 @@ These are used in `AdcDsp` for PID arithmetic. The FIR filter IP (`FirFilter`) e
 | `DHCP_G` | boolean | false | Use DHCP for IP assignment |
 | `IP_ADDR_G` | slv(31:0) | 192.168.3.11 | Static IP address (little-endian) |
 | `ROW_ADDR_BITS_G` | integer | 5 | Number of row address bits |
+
+## VHDL Coding Style
+
+### Indentation
+
+- 3 spaces per level, no tabs.
+
+### File Header
+
+Every file starts with the standard SLAC header using 79-character dashed ruler lines:
+
+```vhdl
+-------------------------------------------------------------------------------
+-- Title      : Short Descriptive Title
+-------------------------------------------------------------------------------
+-- Company    : SLAC National Accelerator Laboratory
+-- Platform   : Xilinx UltraScale+
+-- Standard   : VHDL'93/02
+-------------------------------------------------------------------------------
+-- Description: Brief description of the module.
+-------------------------------------------------------------------------------
+-- This file is part of Warm TDM. It is subject to ...
+-------------------------------------------------------------------------------
+```
+
+### Library Declarations
+
+Order: `ieee`, then `unisim`, then `surf`, then project libraries (`warm_tdm`).
+
+### Naming Conventions
+
+| Category | Style | Example |
+|----------|-------|---------|
+| Generics | `UPPER_CASE_G` | `TPD_G`, `SIMULATION_G`, `NUM_CLOCKS_G` |
+| Constants | `UPPER_CASE_C` | `NUM_AXIL_MASTERS_C`, `AXIL_COMMON_C` |
+| Signals | `camelCase` | `timingRxClk`, `wordClkLoc`, `mmcmLocked` |
+| Ports | `camelCase` | `timingRxClkP`, `axilWriteMaster` |
+| Instance labels | `U_Name_N` | `U_ClockManagerUsp_1`, `U_RstSync_clkx1` |
+
+### Entity Port Declarations
+
+Align the direction keywords (`in`, `out`, `inout`) and type columns:
+
+```vhdl
+   port (
+      timingRxClkP  : in  sl;
+      timingRxClkN  : in  sl;
+      timingRxDataP : in  sl;
+      timingRxDataN : in  sl;
+      wordClk       : out sl;
+      wordRst       : out sl;
+      dataOut       : out slv(9 downto 0);
+      dataValid     : out sl;
+      slip          : in  sl;
+      locked        : out sl);
+```
+
+### Generic Maps
+
+One generic per line. Align `=>` within each instantiation:
+
+```vhdl
+   U_ClockManagerUsp_1 : entity surf.ClockManagerUltraScale
+      generic map (
+         TPD_G              => TPD_G,
+         TYPE_G             => "MMCM",
+         INPUT_BUFG_G       => true,
+         FB_BUFG_G          => true,
+         NUM_CLOCKS_G       => 3,
+         CLKIN_PERIOD_G     => 8.0,
+         CLKFBOUT_MULT_F_G  => 10.0,
+         CLKOUT0_DIVIDE_F_G => 2.0)
+```
+
+### Port Maps
+
+One port per line. Align `=>` within each instantiation. **Every port gets a direction comment** (`-- [in]`, `-- [out]`, or `-- [inout]`) aligned to a common column:
+
+```vhdl
+      port map (
+         axiClk              => locAxilClk,           -- [in]
+         axiClkRst           => locAxilRst,           -- [in]
+         sAxiWriteMasters(0) => srpAxilWriteMaster,   -- [in]
+         sAxiWriteSlaves(0)  => srpAxilWriteSlave,    -- [out]
+         sAxiReadMasters(0)  => srpAxilReadMaster,    -- [in]
+         sAxiReadSlaves(0)   => srpAxilReadSlave,     -- [out]
+         mAxiWriteMasters    => locAxilWriteMasters,  -- [out]
+         mAxiWriteSlaves     => locAxilWriteSlaves,   -- [in]
+         mAxiReadMasters     => locAxilReadMasters,   -- [out]
+         mAxiReadSlaves      => locAxilReadSlaves);   -- [in]
+```
+
+The direction comments reflect the port direction of the *instantiated entity*, not the signal being connected. They make it easy to trace data flow without opening the component's source.
+
+### Signal Declarations
+
+Group logically. Align types where practical:
+
+```vhdl
+   signal timingRxClk  : sl;
+   signal clkx4        : sl;
+   signal clkx1        : sl;
+   signal wordClkLoc   : sl;
+   signal mmcmLocked   : sl;
+
+   signal desData      : slv(9 downto 0);
+   signal desDataValid : sl;
+```
+
+### Section Comments
+
+Use short dashed-line separators between major blocks:
+
+```vhdl
+   -------------------------
+   -- Descriptive heading
+   -------------------------
+```
+
+Or full-width for larger sections:
+
+```vhdl
+   -------------------------------------------------------------------------------------------------
+   -- Section title
+   -------------------------------------------------------------------------------------------------
+```
+
+### Architecture Closing
+
+Use `end architecture rtl;` or `end rtl;`.

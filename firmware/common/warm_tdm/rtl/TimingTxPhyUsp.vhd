@@ -68,13 +68,13 @@ begin
          CLKOUT0_DIVIDE_G => 2,
          CLKOUT1_DIVIDE_G => 8)
       port map (
-         clkIn     => timingRefClk,
-         rstIn     => timingRefRst,
-         clkOut(0) => clkx4,
-         clkOut(1) => clkx1,
-         rstOut(0) => open,
-         rstOut(1) => open,
-         locked    => pllLocked);
+         clkIn     => timingRefClk,   -- [in]
+         rstIn     => timingRefRst,   -- [in]
+         clkOut(0) => clkx4,          -- [out]
+         clkOut(1) => clkx1,          -- [out]
+         rstOut(0) => open,           -- [out]
+         rstOut(1) => open,           -- [out]
+         locked    => pllLocked);     -- [out]
 
    -------------------------------------------------------------------------------------------------
    -- wordClk = timingRefClk passthrough (125 MHz to TimingTx logic)
@@ -89,9 +89,9 @@ begin
       generic map (
          TPD_G => TPD_G)
       port map (
-         clk      => timingRefClk,
-         asyncRst => pllRst,
-         syncRst  => wordRstInt);
+         clk      => timingRefClk,   -- [in]
+         asyncRst => pllRst,         -- [in]
+         syncRst  => wordRstInt);    -- [out]
 
    wordRst <= wordRstInt;
 
@@ -99,9 +99,9 @@ begin
       generic map (
          TPD_G => TPD_G)
       port map (
-         clk      => clkx1,
-         asyncRst => pllRst,
-         syncRst  => rstx1);
+         clk      => clkx1,    -- [in]
+         asyncRst => pllRst,   -- [in]
+         syncRst  => rstx1);   -- [out]
 
    -------------------------------------------------------------------------------------------------
    -- Serializer
@@ -111,13 +111,13 @@ begin
       generic map (
          TPD_G => TPD_G)
       port map (
-         wordClk       => timingRefClk,
-         wordRst       => wordRstInt,
-         dataIn        => dataIn,
-         clkx4         => clkx4,
-         clkx1         => clkx1,
-         rstx1         => rstx1,
-         timingTxDataP => timingTxDataP,
-         timingTxDataN => timingTxDataN);
+         wordClk       => timingRefClk,    -- [in]
+         wordRst       => wordRstInt,      -- [in]
+         dataIn        => dataIn,          -- [in]
+         clkx4         => clkx4,           -- [in]
+         clkx1         => clkx1,           -- [in]
+         rstx1         => rstx1,           -- [in]
+         timingTxDataP => timingTxDataP,   -- [out]
+         timingTxDataN => timingTxDataN);  -- [out]
 
 end architecture rtl;
