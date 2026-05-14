@@ -6,10 +6,10 @@
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
 -- Description: UltraScale+ timing RX clock recovery and deserialization.
--- IBUFDS -> MMCM (625 MHz + 156.25 MHz + 125 MHz) -> ISERDESE3 + Gearbox
--- -> CDC FIFO -> 125 MHz output domain.
+-- IBUFDS -> MMCM (625 MHz + 156.25 MHz + 125 MHz) -> ISERDESE3 -> AsyncGearbox
+-- (8->10 with CDC from 156.25 to 125 MHz) -> 125 MHz output domain.
 --
--- The 156.25 MHz clock is internal only (ISERDES CLKDIV + gearbox).
+-- The 156.25 MHz clock is internal only (ISERDES CLKDIV + gearbox fast side).
 -- The 125 MHz wordClk output matches the transmitted clock rate.
 -------------------------------------------------------------------------------
 -- This file is part of Warm TDM. It is subject to
@@ -61,8 +61,7 @@ architecture rtl of TimingRxPhyUsp is
    signal mmcmLocked   : sl;
    signal mmcmRst      : sl;
 
-   signal desData      : slv(9 downto 0);
-   signal desDataValid : sl;
+   signal iserdesData  : slv(7 downto 0);
 
 begin
 
@@ -71,9 +70,9 @@ begin
    -------------------------
    TIMING_RX_CLK_BUFF : IBUFDS
       port map (
-         i  => timingRxClkP,   -- [in]
-         ib => timingRxClkN,   -- [in]
-         o  => timingRxClk);   -- [out]
+         i  => timingRxClkP,
+         ib => timingRxClkN,
+         o  => timingRxClk);
 
    -------------------------
    -- MMCM: 125 MHz -> 625 MHz + 156.25 MHz + 125 MHz
@@ -94,15 +93,15 @@ begin
          CLKOUT1_DIVIDE_G   => 8,
          CLKOUT2_DIVIDE_G   => 10)
       port map (
-         clkIn     => timingRxClk,   -- [in]
-         rstIn     => '0',           -- [in]
-         clkOut(0) => clkx4,         -- [out]
-         clkOut(1) => clkx1,         -- [out]
-         clkOut(2) => wordClkLoc,    -- [out]
-         rstOut(0) => open,          -- [out]
-         rstOut(1) => open,          -- [out]
-         rstOut(2) => open,          -- [out]
-         locked    => mmcmLocked);   -- [out]
+         clkIn     => timingRxClk,
+         rstIn     => '0',
+         clkOut(0) => clkx4,
+         clkOut(1) => clkx1,
+         clkOut(2) => wordClkLoc,
+         rstOut(0) => open,
+         rstOut(1) => open,
+         rstOut(2) => open,
+         locked    => mmcmLocked);
 
    locked <= mmcmLocked;
 
@@ -115,62 +114,62 @@ begin
       generic map (
          TPD_G => TPD_G)
       port map (
-         clk      => clkx1,     -- [in]
-         asyncRst => mmcmRst,   -- [in]
-         syncRst  => rstx1);    -- [out]
+         clk      => clkx1,
+         asyncRst => mmcmRst,
+         syncRst  => rstx1);
 
    U_RstSync_wordClk : entity surf.RstSync
       generic map (
          TPD_G => TPD_G)
       port map (
-         clk      => wordClkLoc,   -- [in]
-         asyncRst => mmcmRst,      -- [in]
-         syncRst  => wordRstLoc);  -- [out]
+         clk      => wordClkLoc,
+         asyncRst => mmcmRst,
+         syncRst  => wordRstLoc);
 
    wordClk <= wordClkLoc;
    wordRst <= wordRstLoc;
 
    -------------------------
-   -- Deserializer (outputs on clkx1 = 156.25 MHz domain)
+   -- Deserializer: ISERDESE3 only (8-bit DDR output on clkx1)
    -------------------------
    U_TimingDeserializerUsp_1 : entity warm_tdm.TimingDeserializerUsp
+      generic map (
+         TPD_G => TPD_G)
       port map (
-         clkx4         => clkx4,          -- [in]
-         clkx1         => clkx1,          -- [in]
-         rstx1         => rstx1,          -- [in]
-         timingRxDataP => timingRxDataP,   -- [in]
-         timingRxDataN => timingRxDataN,   -- [in]
-         wordClk       => open,           -- [out]
-         wordRst       => open,           -- [out]
-         dataOut       => desData,        -- [out]
-         dataValid     => desDataValid,   -- [out]
-         slip          => slip,           -- [in]
-         dlyLoad       => dlyLoad,        -- [in]
-         dlyCfg        => dlyCfg,         -- [in]
-         locked        => open);          -- [out]
+         clkx4         => clkx4,
+         clkx1         => clkx1,
+         rstx1         => rstx1,
+         timingRxDataP => timingRxDataP,
+         timingRxDataN => timingRxDataN,
+         dataOut       => iserdesData,
+         dlyLoad       => dlyLoad,
+         dlyCfg        => dlyCfg);
 
    -------------------------
-   -- CDC FIFO: clkx1 (156.25 MHz) -> wordClkLoc (125 MHz)
-   -- Write: gearbox output at 156.25 MHz, valid 4/5 cycles = 125 Mword/s
-   -- Read: 125 MHz, drains at exactly the fill rate
+   -- AsyncGearbox: 8-bit @ 156.25 MHz -> 10-bit @ 125 MHz
+   -- Gearbox runs on fast clock (156.25 MHz slave side).
+   -- FIFO on master (output) side crosses to 125 MHz.
+   -- Slip input synchronized internally.
    -------------------------
-   U_CdcFifo : entity surf.FifoAsync
+   U_AsyncGearbox : entity surf.AsyncGearbox
       generic map (
-         TPD_G         => TPD_G,
-         MEMORY_TYPE_G => "distributed",
-         FWFT_EN_G     => true,
-         DATA_WIDTH_G  => 10,
-         ADDR_WIDTH_G  => 4)
+         TPD_G              => TPD_G,
+         SLAVE_WIDTH_G      => 8,
+         MASTER_WIDTH_G     => 10,
+         EN_EXT_CTRL_G      => true,
+         FIFO_MEMORY_TYPE_G => "distributed",
+         FIFO_ADDR_WIDTH_G  => 4)
       port map (
-         rst    => rstx1,         -- [in]
-         wr_clk => clkx1,         -- [in]
-         wr_en  => desDataValid,   -- [in]
-         din    => desData,        -- [in]
-         full   => open,           -- [out]
-         rd_clk => wordClkLoc,     -- [in]
-         rd_en  => '1',            -- [in]
-         dout   => dataOut,        -- [out]
-         valid  => dataValid,      -- [out]
-         empty  => open);          -- [out]
+         slaveClk    => clkx1,
+         slaveRst    => rstx1,
+         slaveData   => iserdesData,
+         slaveValid  => '1',
+         slaveReady  => open,
+         slip        => slip,
+         masterClk   => wordClkLoc,
+         masterRst   => wordRstLoc,
+         masterData  => dataOut,
+         masterValid => dataValid,
+         masterReady => '1');
 
 end architecture rtl;
