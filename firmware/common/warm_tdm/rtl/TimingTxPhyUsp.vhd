@@ -41,8 +41,8 @@ end entity TimingTxPhyUsp;
 
 architecture rtl of TimingTxPhyUsp is
 
-   signal clkx4    : sl;
-   signal clkx1    : sl;
+   signal clkx4     : sl;
+   signal clkx1     : sl;
    signal pllLocked : sl;
    signal pllRst    : sl;
    signal wordRstInt : sl;
@@ -50,7 +50,9 @@ architecture rtl of TimingTxPhyUsp is
 begin
 
    -------------------------------------------------------------------------------------------------
-   -- PLL: 125 MHz -> 625 MHz clkx4
+   -- PLL: 125 MHz -> 500 MHz (bit clock) + 125 MHz (word clock)
+   -- VCO = 125 × 8 = 1000 MHz
+   -- Both outputs from same PLL ensures matched skew at OSERDESE3
    -------------------------------------------------------------------------------------------------
    U_ClockManagerUsp_1 : entity surf.ClockManagerUltraScale
       generic map (
@@ -58,30 +60,21 @@ begin
          TYPE_G           => "PLL",
          INPUT_BUFG_G     => false,
          FB_BUFG_G        => true,
-         NUM_CLOCKS_G     => 1,
+         NUM_CLOCKS_G     => 2,
          BANDWIDTH_G      => "HIGH",
          CLKIN_PERIOD_G   => 8.0,
          DIVCLK_DIVIDE_G  => 1,
-         CLKFBOUT_MULT_G  => 10,
-         CLKOUT0_DIVIDE_G => 2)
+         CLKFBOUT_MULT_G  => 8,
+         CLKOUT0_DIVIDE_G => 2,
+         CLKOUT1_DIVIDE_G => 8)
       port map (
          clkIn     => timingRefClk,      -- [in]
          rstIn     => timingRefRst,      -- [in]
-         clkOut(0) => clkx4,             -- [out] 625 MHz
+         clkOut(0) => clkx4,             -- [out] 500 MHz (4x ref)
+         clkOut(1) => clkx1,             -- [out] 125 MHz (1x ref)
          rstOut(0) => open,              -- [out]
+         rstOut(1) => open,              -- [out]
          locked    => pllLocked);        -- [out]
-
-   -------------------------------------------------------------------------------------------------
-   -- BUFGCE_DIV: 625 MHz / 4 -> 156.25 MHz clkx1
-   -------------------------------------------------------------------------------------------------
-   U_BUFGCE_DIV_1 : BUFGCE_DIV
-      generic map (
-         BUFGCE_DIVIDE => 4)
-      port map (
-         I   => clkx4,
-         CE  => '1',
-         CLR => '0',
-         O   => clkx1);                  -- 156.25 MHz
 
    -------------------------------------------------------------------------------------------------
    -- Reset synchronizer for clkx1 domain
