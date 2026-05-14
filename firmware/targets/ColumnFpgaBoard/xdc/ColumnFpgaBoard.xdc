@@ -7,30 +7,15 @@
 ## may be copied, modified, propagated, or distributed except according to 
 ## the terms contained in the LICENSE.txt file.
 ##############################################################################
-create_clock -name gtRefClk0 -period 4.000 [get_ports {gtRefClk0P}]
-create_clock -name gtRefClk1 -period 6.400 [get_ports {gtRefClk1P}]
-
-
 create_clock -name adcDClk0 -period 2.00 [get_ports {adcDClkP[0]}]
 create_clock -name adcDClk1 -period 2.00 [get_ports {adcDClkP[1]}]
 set_input_jitter adcDClk0 .35
 set_input_jitter adcDClk1 .35
 
-
-set_clock_groups -asynchronous \
-    -group [get_clocks axilClk] \
-    -group [get_clocks timingRxWordClk] \        
-    -group [get_clocks -include_generated_clocks adcDClk0] 
-
-set_clock_groups -asynchronous \
-    -group [get_clocks axilClk] \
-    -group [get_clocks timingRxWordClk] \    
-    -group [get_clocks -include_generated_clocks adcDClk1]
-
-# This isn't right
 set_clock_groups -asynchronous \
     -group [get_clocks -include_generated_clocks adcDClk0] \
-    -group [get_clocks -include_generated_clocks adcDClk1]
+    -group [get_clocks -include_generated_clocks adcDClk1] \
+    -group [get_clocks -include_generated_clocks timingRxClk]
 
 
 # MGT Mapping

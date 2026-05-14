@@ -1,5 +1,11 @@
+## Primary clocks (from ports)
+create_clock -name timingRxClk -period 8.000 [get_ports {timingRxClkP}]
+create_clock -name gtRefClk0   -period 4.000 [get_ports {gtRefClk0P}]
+create_clock -name gtRefClk1   -period 6.400 [get_ports {gtRefClk1P}]
+
 ## fabRefClk from ClockDist (7-series: IBUFDS_GTE2 ODIV2 → BUFG)
-create_generated_clock -name fabRefClk0 [get_pins -hier -filter {NAME =~ *U_ClockDist_1*IBUFDS*ODIV2}]
+create_generated_clock -name fabRefClk0 -source [get_ports {gtRefClk0P}] -divide_by 2 \
+    [get_pins -hier -filter {NAME =~ *U_ClockDist_1*IBUFDS_GTE2_0/ODIV2}]
 
 ## 7-Series specific clock constraints (DNA, ICAP)
 create_generated_clock -name dnaDivClk [get_pins -hier -filter {NAME =~ */DeviceDna*/*BUFR*/O}]
