@@ -1,5 +1,11 @@
 # Warm TDM — Agent Orientation
 
+For substantial feature work, keep planning, progress, and handoff Markdown
+under `docs/plans/<task-name>/`. See [`docs/plans/README.md`](docs/plans/README.md)
+for the file layout and lifecycle.
+
+Do not stage files or make git commits unless explicitly asked.
+
 ## Project Summary
 
 Warm TDM is a time-division multiplexing detector readout system for TES (Transition-Edge Sensor) bolometric detector arrays using SQUID multiplexing, developed at SLAC National Accelerator Laboratory.
