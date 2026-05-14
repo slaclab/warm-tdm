@@ -11,6 +11,6 @@ create_generated_clock -name fabRefClk1 -source [get_ports {gtRefClk1P}] -divide
 
 ## UltraScale+ timing clocks
 create_generated_clock -name timingTxBitClk  [get_pins -hier -filter {NAME =~ *U_TimingTx*PhyUsp*U_Pll/CLKOUT0}]
-create_generated_clock -name timingTxWordClk [get_pins -hier -filter {NAME =~ *U_TimingTx*PhyUsp*U_Pll/CLKOUT1}]
+create_generated_clock -name timingTxWordClk [get_pins -hier -filter {NAME =~ *U_TimingTx*PhyUsp*U_PLL/CLKOUT1}]
 create_generated_clock -name timingRxBitClk  [get_pins -hier -filter {NAME =~ *U_TimingRx*PhyUsp*U_Mmcm/CLKOUT0}]
 create_generated_clock -name timingRxWordClk [get_pins -hier -filter {NAME =~ *U_TimingRx*PhyUsp*U_BUFGCE_DIV*/O}]
