@@ -1,5 +1,8 @@
-## fabRefClk: Vivado auto-derives from IBUFDS_GTE4 ODIV2 → BUFG_GT.
-## Use -include_generated_clocks gtRefClk0/1 to reference these in groups.
+## fabRefClk: IBUFDS_GTE4 ODIV2 (÷2) → BUFG_GT
+create_generated_clock -name fabRefClk0 -source [get_ports {gtRefClk0P}] -divide_by 2 \
+    [get_pins -hier -filter {NAME =~ *U_ClockDist_1*U_BUFG_GT_0/O}]
+create_generated_clock -name fabRefClk1 -source [get_ports {gtRefClk1P}] -divide_by 2 \
+    [get_pins -hier -filter {NAME =~ *U_ClockDist_1*U_BUFG_GT_1/O}]
 
 ## UltraScale+ timing clocks
 create_generated_clock -name timingTxBitClk  [get_pins -hier -filter {NAME =~ *U_TimingTx*PhyUsp*U_Pll/CLKOUT0}]
