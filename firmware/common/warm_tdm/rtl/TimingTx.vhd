@@ -1,11 +1,8 @@
 -------------------------------------------------------------------------------
--- Title      : Timing Rx
+-- Title      : Timing Tx
 -------------------------------------------------------------------------------
 -- Company    : SLAC National Accelerator Laboratory
--- Platform   : 
 -- Standard   : VHDL'93/02
--------------------------------------------------------------------------------
--- Description: 
 -------------------------------------------------------------------------------
 -- This file is part of Warm TDM. It is subject to
 -- the license terms in the LICENSE.txt file found in the top-level directory
@@ -19,9 +16,6 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.std_logic_arith.all;
 use ieee.std_logic_unsigned.all;
-
-library unisim;
-use unisim.vcomponents.all;
 
 library surf;
 use surf.StdRtlPkg.all;
@@ -86,7 +80,6 @@ architecture rtl of TimingTx is
    signal bitRst  : sl;
    signal wordClk : sl;
    signal wordRst : sl;
-   signal clkx4   : sl;
 
    signal timingTxCodeWord : slv(9 downto 0);
 
@@ -585,75 +578,41 @@ begin
          clkOutN => timingTxClkN);      -- [out]
 
    -------------------------------------------------------------------------------------------------
-   -- Create serial clock for serializer
+   -- PHY: PLL + Serializer (FPGA-family specific)
    -------------------------------------------------------------------------------------------------
-   GEN_7SERIES_PLL : if (FPGA_FAMILY_G = "7SERIES") generate
-      U_ClockManager7_1 : entity surf.ClockManager7
-         generic map (
-            TPD_G            => TPD_G,
-            SIMULATION_G     => false,
-            TYPE_G           => "PLL",
-            INPUT_BUFG_G     => false,
-            FB_BUFG_G        => true,
-            OUTPUT_BUFG_G    => true,
-            NUM_CLOCKS_G     => 2,
-            BANDWIDTH_G      => "HIGH",
-            CLKIN_PERIOD_G   => 8.0,
-            DIVCLK_DIVIDE_G  => 1,
-            CLKFBOUT_MULT_G  => 10,
-            CLKOUT0_DIVIDE_G => 2,
-            CLKOUT1_DIVIDE_G => 10)
-         port map (
-            clkIn     => timingRefClk,     -- [in]
-            rstIn     => timingRefRst,     -- [in]
-            clkOut(0) => bitClk,           -- [out]
-            clkOut(1) => wordClk,          -- [out]
-            rstOut(0) => bitRst,           -- [out]
-            rstOut(1) => wordRst);         -- [out]
-   end generate GEN_7SERIES_PLL;
-
-   GEN_USP_PLL : if (FPGA_FAMILY_G = "ULTRASCALE_PLUS") generate
-      signal pllLocked : sl;
-      signal pllRst    : sl;
-   begin
-      U_ClockManagerUsp_1 : entity surf.ClockManagerUltraScale
-         generic map (
-            TPD_G            => TPD_G,
-            TYPE_G           => "PLL",
-            INPUT_BUFG_G     => false,
-            FB_BUFG_G        => true,
-            NUM_CLOCKS_G     => 1,
-            BANDWIDTH_G      => "HIGH",
-            CLKIN_PERIOD_G   => 8.0,
-            DIVCLK_DIVIDE_G  => 1,
-            CLKFBOUT_MULT_G  => 10,
-            CLKOUT0_DIVIDE_G => 2)
-         port map (
-            clkIn     => timingRefClk,     -- [in]
-            rstIn     => timingRefRst,     -- [in]
-            clkOut(0) => clkx4,            -- [out] 625 MHz
-            rstOut(0) => open,             -- [out]
-            locked    => pllLocked);       -- [out]
-
-      U_BUFGCE_DIV_1 : BUFGCE_DIV
-         generic map (
-            BUFGCE_DIVIDE => 4)
-         port map (
-            I   => clkx4,
-            CE  => '1',
-            CLR => '0',
-            O   => wordClk);              -- 156.25 MHz = clkx1
-
-      pllRst <= not pllLocked;
-
-      U_RstSync_clkx1 : entity surf.RstSync
+   GEN_7SERIES : if (FPGA_FAMILY_G = "7SERIES") generate
+      U_TimingTxPhy7s_1 : entity warm_tdm.TimingTxPhy7s
          generic map (
             TPD_G => TPD_G)
          port map (
-            clk      => wordClk,           -- [in]
-            asyncRst => pllRst,            -- [in]
-            syncRst  => wordRst);          -- [out]
-   end generate GEN_USP_PLL;
+            timingRefClk  => timingRefClk,      -- [in]
+            timingRefRst  => timingRefRst,      -- [in]
+            bitClk        => bitClk,            -- [out]
+            bitRst        => bitRst,            -- [out]
+            wordClk       => wordClk,           -- [out]
+            wordRst       => wordRst,           -- [out]
+            dataIn        => timingTxCodeWord,  -- [in]
+            enable        => '1',               -- [in]
+            timingTxDataP => timingTxDataP,     -- [out]
+            timingTxDataN => timingTxDataN);    -- [out]
+   end generate GEN_7SERIES;
+
+   GEN_ULTRASCALE_PLUS : if (FPGA_FAMILY_G = "ULTRASCALE_PLUS") generate
+      U_TimingTxPhyUsp_1 : entity warm_tdm.TimingTxPhyUsp
+         generic map (
+            TPD_G => TPD_G)
+         port map (
+            timingRefClk  => timingRefClk,      -- [in]
+            timingRefRst  => timingRefRst,      -- [in]
+            bitClk        => bitClk,            -- [out]
+            bitRst        => bitRst,            -- [out]
+            wordClk       => wordClk,           -- [out]
+            wordRst       => wordRst,           -- [out]
+            dataIn        => timingTxCodeWord,  -- [in]
+            enable        => '1',               -- [in]
+            timingTxDataP => timingTxDataP,     -- [out]
+            timingTxDataN => timingTxDataN);    -- [out]
+   end generate GEN_ULTRASCALE_PLUS;
 
    U_SyncClockFreq_REF : entity surf.SyncClockFreq
       generic map (
@@ -696,24 +655,6 @@ begin
          refClk      => axilClk);       -- [in]
 
 
-   -- 
---    U_TimingMmcm_1 : entity warm_tdm.TimingMmcm
---       generic map (
---          TPD_G     => TPD_G,
---          USE_HPC_G => false,
---          CLKIN1_PERIOD_G    => 8.0,
---          DIVCLK_DIVIDE_G    => 1,
---          CLKFBOUT_MULT_F_G  => 5.0,
---          CLKOUT0_DIVIDE_F_G => 1.0,
---          CLKOUT1_DIVIDE_G   => 5)
---       port map (
---          timingRxClk => timingClk125,   -- [in]
---          timingRxRst => timingRst125,   -- [in]
---          bitClk      => bitClk,         -- [out]
---          bitRst      => bitRst,         -- [out]
---          wordClk     => wordClk,        -- [out]
---          wordRst     => wordRst);       -- [out]
-
    -------------------------------------------------------------------------------------------------
    -- 8B10B encode
    -------------------------------------------------------------------------------------------------
@@ -728,38 +669,6 @@ begin
          dataIn  => r.timingTx,         -- [in]
          dataKIn => r.timingTxK,        -- [in]
          dataOut => timingTxCodeWord);  -- [out]
-
-
-   -------------------------------------------------------------------------------------------------
-   -- Serialize the data stream
-   -------------------------------------------------------------------------------------------------
-   GEN_7SERIES_SER : if (FPGA_FAMILY_G = "7SERIES") generate
-      U_TimingSerializer_1 : entity warm_tdm.TimingSerializer
-         generic map (
-            TPD_G => TPD_G)
-         port map (
-            rst           => wordRst,            -- [in]
-            enable        => '1',                -- [in]
-            bitClk        => bitClk,             -- [in]
-            timingTxDataP => timingTxDataP,      -- [out]
-            timingTxDataN => timingTxDataN,      -- [out]
-            wordClk       => wordClk,            -- [in]
-            wordRst       => wordRst,            -- [in]
-            dataIn        => timingTxCodeWord);  -- [in]
-   end generate GEN_7SERIES_SER;
-
-   GEN_USP_SER : if (FPGA_FAMILY_G = "ULTRASCALE_PLUS") generate
-      U_TimingSerializerUsp_1 : entity warm_tdm.TimingSerializerUsp
-         port map (
-            wordClk       => wordClk,            -- [in]
-            wordRst       => wordRst,            -- [in]
-            dataIn        => timingTxCodeWord,   -- [in]
-            clkx4         => clkx4,              -- [in] 625 MHz
-            clkx1         => wordClk,            -- [in] 156.25 MHz
-            rstx1         => wordRst,            -- [in]
-            timingTxDataP => timingTxDataP,      -- [out]
-            timingTxDataN => timingTxDataN);     -- [out]
-   end generate GEN_USP_SER;
 
 
 end architecture rtl;

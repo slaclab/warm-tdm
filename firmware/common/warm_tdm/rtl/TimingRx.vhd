@@ -2,7 +2,7 @@
 -- Title      : Row Module Timing
 -------------------------------------------------------------------------------
 -- Company    : SLAC National Accelerator Laboratory
--- Platform   : 
+-- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
 -- Description: Timing receiver logic for row module
@@ -68,13 +68,53 @@ end entity TimingRx;
 
 architecture rtl of TimingRx is
 
-   signal timingRxClk : sl;
-   signal timingRxRst : sl;
-   signal bitClk      : sl;
-   signal bitClkInv   : sl;
-   signal bitRst      : sl;
-   signal wordClk     : sl;
-   signal wordRst     : sl;
+   -------------------------------------------------------------------------------------------------
+   -- Component declarations (use component instantiation so IODELAY_GROUP won't break US+ compile)
+   -------------------------------------------------------------------------------------------------
+   component TimingRxPhy7s is
+      generic (
+         TPD_G             : time;
+         IODELAY_GROUP_G   : string;
+         DEFAULT_DELAY_G   : integer;
+         IDELAYCTRL_FREQ_G : real);
+      port (
+         timingRxClkP  : in  sl;
+         timingRxClkN  : in  sl;
+         timingRxDataP : in  sl;
+         timingRxDataN : in  sl;
+         wordClk       : out sl;
+         wordRst       : out sl;
+         dataOut       : out slv(9 downto 0);
+         slip          : in  sl;
+         setDelay      : in  slv(4 downto 0);
+         setValid      : in  sl;
+         curDelay      : out slv(4 downto 0);
+         locked        : out sl);
+   end component TimingRxPhy7s;
+
+   component TimingRxPhyUsp is
+      generic (
+         TPD_G : time);
+      port (
+         timingRxClkP  : in  sl;
+         timingRxClkN  : in  sl;
+         timingRxDataP : in  sl;
+         timingRxDataN : in  sl;
+         wordClk       : out sl;
+         wordRst       : out sl;
+         dataOut       : out slv(9 downto 0);
+         dataValid     : out sl;
+         slip          : in  sl;
+         dlyLoad       : in  sl;
+         dlyCfg        : in  slv(8 downto 0);
+         locked        : out sl);
+   end component TimingRxPhyUsp;
+
+   -------------------------------------------------------------------------------------------------
+   -- Signals
+   -------------------------------------------------------------------------------------------------
+   signal wordClk : sl;
+   signal wordRst : sl;
 
    signal slip : sl;
 
@@ -173,165 +213,65 @@ architecture rtl of TimingRx is
 
 begin
 
-
-   -------------------------
-   -- 125 Mhz Timing RX clock
-   -------------------------
-   GEN_RXCLK_7S : if (FPGA_FAMILY_G = "7SERIES") generate
-      TIMING_RX_CLK_BUFF : IBUFGDS
-         port map (
-            i  => timingRxClkP,
-            ib => timingRxClkN,
-            o  => timingRxClk);
-   end generate;
-
-   GEN_RXCLK_USP : if (FPGA_FAMILY_G = "ULTRASCALE_PLUS") generate
-      TIMING_RX_CLK_BUFF : IBUFDS
-         port map (
-            i  => timingRxClkP,
-            ib => timingRxClkN,
-            o  => timingRxClk);
-   end generate;
-
---    U_PwrUpRst_1 : entity surf.PwrUpRst
---       generic map (
---          TPD_G => TPD_G)
--- --         SIM_SPEEDUP_G  => SIMULATION_G,
--- --         DURATION_G     => DURATION_G)
---       port map (
---          arst   => '0',                 -- [in]
---          clk    => timingRxClk,         -- [in]
---          rstOut => timingRxRst);        -- [out]
-
+   -------------------------------------------------------------------------------------------------
+   -- Reset and clock output assignments
+   -- Use PLL output (wordClk), NOT raw timingRxClk, to avoid BUFGCE inference on US+
+   -------------------------------------------------------------------------------------------------
    U_RstSync_1 : entity surf.RstSync
       generic map (
          TPD_G           => TPD_G,
          RELEASE_DELAY_G => 10,
          OUT_REG_RST_G   => false)
       port map (
-         clk      => timingRxClk,       -- [in]
-         asyncRst => axilR.resetPll,    -- [in]
-         syncRst  => timingRxRst);      -- [out]
+         clk      => wordClk,
+         asyncRst => axilR.resetPll,
+         syncRst  => open);
 
-   timingRxClkOut <= wordClk;           --timingRxClk;
-   timingRxRstOut <= wordRst;           --timingRxRst;
-
+   timingRxClkOut <= wordClk;
+   timingRxRstOut <= wordRst;
 
    -------------------------------------------------------------------------------------------------
-   -- Create serial clock for deserializer
-   -- Deserialize the incomming data
+   -- PHY instantiation (family-specific clock + deserializer)
    -------------------------------------------------------------------------------------------------
    GEN_7SERIES : if (FPGA_FAMILY_G = "7SERIES") generate
-      U_ClockManager7_1 : entity surf.ClockManager7
-         generic map (
-            TPD_G            => TPD_G,
-            SIMULATION_G     => false,
-            TYPE_G           => "PLL",
-            INPUT_BUFG_G     => false,
-            FB_BUFG_G        => true,
-            OUTPUT_BUFG_G    => true,
-            NUM_CLOCKS_G     => 2,
-            BANDWIDTH_G      => "OPTIMIZED",
-            CLKIN_PERIOD_G   => 8.0,
-            DIVCLK_DIVIDE_G  => 1,
-            CLKFBOUT_MULT_G  => 10,
-            CLKOUT0_DIVIDE_G => 2,
-            CLKOUT1_DIVIDE_G => 10)
-         port map (
-            clkIn     => timingRxClk,         -- [in]
-            rstIn     => timingRxRst,         -- [in]
-            clkOut(0) => bitClk,              -- [out]
-            clkOut(1) => wordClk,             -- [out]
-            rstOut(0) => bitRst,              -- [out]
-            rstOut(1) => wordRst,             -- [out]
-            locked    => timingRxClkLocked);  -- [out]
-
-      bitClkInv <= not bitClk;
-
-      U_TimingDeserializer_1 : entity warm_tdm.TimingDeserializer
+      U_TimingRxPhy7s_1 : TimingRxPhy7s
          generic map (
             TPD_G             => TPD_G,
             IODELAY_GROUP_G   => IODELAY_GROUP_G,
             DEFAULT_DELAY_G   => DEFAULT_DELAY_G,
             IDELAYCTRL_FREQ_G => IDELAYCTRL_FREQ_G)
          port map (
-            rst           => wordRst,             -- [in]
-            bitClk        => bitClk,              -- [in]
-            bitClkInv     => bitClkInv,           -- [in]
-            timingRxDataP => timingRxDataP,       -- [in]
-            timingRxDataN => timingRxDataN,       -- [in]
-            wordClk       => wordClk,             -- [in]
-            wordRst       => wordRst,             -- [in]
-            dataOut       => timingRxCodeWord,    -- [out]
-            slip          => slip,                -- [in]
-            sysClk        => wordClk,             -- [in]
-            curDelay      => open,                -- [out]
-            setDelay      => dlyCfg(8 downto 4),  -- [in]
-            setValid      => dlyLoad);            -- [in]
+            timingRxClkP  => timingRxClkP,
+            timingRxClkN  => timingRxClkN,
+            timingRxDataP => timingRxDataP,
+            timingRxDataN => timingRxDataN,
+            wordClk       => wordClk,
+            wordRst       => wordRst,
+            dataOut       => timingRxCodeWord,
+            slip          => slip,
+            setDelay      => dlyCfg(8 downto 4),
+            setValid      => dlyLoad,
+            curDelay      => open,
+            locked        => timingRxClkLocked);
    end generate GEN_7SERIES;
 
    GEN_ULTRASCALE_PLUS : if (FPGA_FAMILY_G = "ULTRASCALE_PLUS") generate
-      signal clkx4     : sl;
-      signal clkx1     : sl;
-      signal rstx1     : sl;
-      signal pllLocked : sl;
-      signal pllRst    : sl;
-   begin
-      U_ClockManagerUsp_1 : entity surf.ClockManagerUltraScale
-         generic map (
-            TPD_G             => TPD_G,
-            TYPE_G            => "PLL",
-            INPUT_BUFG_G      => false,
-            FB_BUFG_G         => true,
-            NUM_CLOCKS_G      => 1,
-            BANDWIDTH_G       => "OPTIMIZED",
-            CLKIN_PERIOD_G    => 8.0,
-            DIVCLK_DIVIDE_G   => 1,
-            CLKFBOUT_MULT_G   => 10,
-            CLKOUT0_DIVIDE_G  => 2)
-         port map (
-            clkIn     => timingRxClk,      -- [in]
-            rstIn     => timingRxRst,      -- [in]
-            clkOut(0) => clkx4,            -- [out] 625 MHz
-            rstOut(0) => open,             -- [out]
-            locked    => pllLocked);       -- [out]
-
-      timingRxClkLocked <= pllLocked;
-
-      U_BUFGCE_DIV_1 : BUFGCE_DIV
-         generic map (
-            BUFGCE_DIVIDE => 4)
-         port map (
-            I   => clkx4,
-            CE  => '1',
-            CLR => '0',
-            O   => clkx1);               -- 156.25 MHz
-
-      pllRst <= not pllLocked;
-
-      U_RstSync_clkx1 : entity surf.RstSync
+      U_TimingRxPhyUsp_1 : TimingRxPhyUsp
          generic map (
             TPD_G => TPD_G)
          port map (
-            clk      => clkx1,            -- [in]
-            asyncRst => pllRst,           -- [in]
-            syncRst  => rstx1);           -- [out]
-
-      U_TimingDeserializerUsp_1 : entity warm_tdm.TimingDeserializerUsp
-         port map (
-            clkx4         => clkx4,            -- [in]
-            clkx1         => clkx1,            -- [in]
-            rstx1         => rstx1,            -- [in]
-            timingRxDataP => timingRxDataP,    -- [in]
-            timingRxDataN => timingRxDataN,    -- [in]
-            wordClk       => wordClk,          -- [out]
-            wordRst       => wordRst,          -- [out]
-            dataOut       => timingRxCodeWord,  -- [out]
-            dataValid     => open,             -- [out]
-            slip          => slip,             -- [in]
-            dlyLoad       => dlyLoad,          -- [in]
-            dlyCfg        => dlyCfg,           -- [in]
-            locked        => open);            -- [out]
+            timingRxClkP  => timingRxClkP,
+            timingRxClkN  => timingRxClkN,
+            timingRxDataP => timingRxDataP,
+            timingRxDataN => timingRxDataN,
+            wordClk       => wordClk,
+            wordRst       => wordRst,
+            dataOut       => timingRxCodeWord,
+            dataValid     => open,
+            slip          => slip,
+            dlyLoad       => dlyLoad,
+            dlyCfg        => dlyCfg,
+            locked        => timingRxClkLocked);
    end generate GEN_ULTRASCALE_PLUS;
 
    -------------------------------------------------------------------------------------------------
@@ -443,54 +383,6 @@ begin
    -------------------------------------------------------------------------------------------------
    -- Word clock to AXIL clock
    -------------------------------------------------------------------------------------------------
---    SynchronizerOneShotCnt_1 : entity surf.SynchronizerOneShotCnt
---       generic map (
---          TPD_G          => TPD_G,
---          IN_POLARITY_G  => '0',
---          OUT_POLARITY_G => '0',
---          CNT_RST_EDGE_G => true,
---          CNT_WIDTH_G    => 16)
---       port map (
---          dataIn     => locked,
---          rollOverEn => '0',
---          cntRst     => axilR.counterReset,
---          dataOut    => open,
---          cntOut     => lockedFallCount,
---          wrClk      => wordClk,
---          wrRst      => '0',
---          rdClk      => axilClk,
---          rdRst      => axilRst);
-
---    SynchronizerOneShotCnt_2 : entity surf.SynchronizerOneShotCnt
---       generic map (
---          TPD_G          => TPD_G,
---          IN_POLARITY_G  => '1',
---          OUT_POLARITY_G => '1',
---          CNT_RST_EDGE_G => false,
---          CNT_WIDTH_G    => 16)
---       port map (
---          dataIn     => errorDet,
---          rollOverEn => '0',
---          cntRst     => axilR.counterReset,
---          dataOut    => open,
---          cntOut     => errorDetCount,
---          wrClk      => wordClk,
---          wrRst      => '0',
---          rdClk      => axilClk,
---          rdRst      => axilRst);
-
-
---    Synchronizer_3 : entity surf.Synchronizer
---       generic map (
---          TPD_G    => TPD_G,
---          STAGES_G => 2)
---       port map (
---          clk     => axilClk,
---          rst     => axilRst,
---          dataIn  => locked,
---          dataOut => lockedSync);
-
-
    U_DataFifoDebug : entity surf.SynchronizerFifo
       generic map (
          TPD_G         => TPD_G,
@@ -510,11 +402,11 @@ begin
 
    ----------------------------------------------------
    -- Monitor clock frequency
+   -- Use PLL output (wordClk) to avoid BUFGCE on raw pin
    ----------------------------------------------------
    U_SyncClockFreq_1 : entity surf.SyncClockFreq
       generic map (
          TPD_G             => TPD_G,
---         USE_DSP_G         => USE_DSP_G,
          REF_CLK_FREQ_G    => AXIL_CLK_FREQ_G,
          REFRESH_RATE_G    => 100.0,
          CLK_LOWER_LIMIT_G => 124.0E6,
@@ -527,7 +419,7 @@ begin
          locked      => open,           -- [out]
          tooFast     => open,           -- [out]
          tooSlow     => open,           -- [out]
-         clkIn       => timingRxClk,    -- [in]
+         clkIn       => wordClk,        -- [in]
          locClk      => axilClk,        -- [in]
          refClk      => axilClk);       -- [in]
 
@@ -578,14 +470,8 @@ begin
          mAxiReadSlaves      => locAxilReadSlaves);   -- [in]
 
 
-
-
-
-
-
    -------------------------------------------------------------------------------------------------
-   -- Transition to timingRxClk here from wordClk
-   -- Is this ok?
+   -- Timing protocol state machine
    -------------------------------------------------------------------------------------------------
    comb : process (locked, r, timingRxData, timingRxDataK, timingRxValid, wordRst) is
       variable v : RegType;
@@ -606,8 +492,6 @@ begin
       v.timingRxData.lastSample      := '0';
       v.timingRxData.stageNextRow    := '0';
       v.timingRxData.waveformCapture := '0';
-
---      v.nextRowSeq := r.timingRxData.rowSeq + 1;
 
       if (timingRxValid = '1' and timingRxDataK = '1' and locked = '1') then
 
@@ -711,8 +595,6 @@ begin
 
       v.set := '0';
 
-      --v.curDelay := curDelay;
-
       -- Store last two samples read from ADC
       if (debugDataValid = '1') then
          v.readoutDebug0 := debugDataOut;
@@ -733,7 +615,7 @@ begin
       axiSlaveRegister(axilEp, X"04", 0, v.realignGearbox);
       axiSlaveRegister(axilEp, X"04", 1, v.resetPll);
 
-      axiSlaveRegisterR(axilEp, X"08", 0, statusVector(0));  -- locked      
+      axiSlaveRegisterR(axilEp, X"08", 0, statusVector(0));  -- locked
 
       -- Debug output to see how many times the shift has needed a relock
       axiSlaveRegisterR(axilEp, X"10", 0, muxSlVectorArray(counterVector, 0));  -- lock count

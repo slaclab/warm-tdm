@@ -24,7 +24,7 @@ use unisim.vcomponents.all;
 library surf;
 use surf.StdRtlPkg.all;
 
-entity TimingDeserializer is
+entity TimingDeserializer7s is
 
    generic (
       TPD_G             : time                  := 1 ns;
@@ -49,9 +49,9 @@ entity TimingDeserializer is
       setDelay : in  slv(4 downto 0);
       setValid : in  sl);
 
-end entity TimingDeserializer;
+end entity TimingDeserializer7s;
 
-architecture rtl of TimingDeserializer is
+architecture rtl of TimingDeserializer7s is
 
    signal timingRxData    : sl;
    signal timingRxDataDly : sl;

@@ -24,7 +24,7 @@ use unisim.vcomponents.all;
 library surf;
 use surf.StdRtlPkg.all;
 
-entity TimingSerializer is
+entity TimingSerializer7s is
 
    generic (
       TPD_G : time := 1 ns);
@@ -38,9 +38,9 @@ entity TimingSerializer is
       wordClk : in sl;
       wordRst : in sl;
       dataIn  : in slv(9 downto 0));
-end entity TimingSerializer;
+end entity TimingSerializer7s;
 
-architecture rtl of TimingSerializer is
+architecture rtl of TimingSerializer7s is
 
    signal timingTxData : sl;
 
