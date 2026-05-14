@@ -1,5 +1,5 @@
 ## 10G Ethernet clock constraints
-create_generated_clock -name ethClk156 [get_pins -hier -filter {NAME =~ *U_EthCore_1/*U_Phy/TEN_GIG*U_MMCM/*/CLKOUT0}]
+create_generated_clock -name ethClk156 [get_pins -hier -filter {NAME =~ *U_EthCore_1*TEN_GIG*U_MMCM*U_Mmcm/CLKOUT0}]
 
 ## 10G GT recovered clocks
 create_clock -name ethRxOutClk   -period 3.103 [get_pins -hier -filter {NAME =~ *U_EthCore_1/*TEN_GIG*/*RXOUTCLK}]

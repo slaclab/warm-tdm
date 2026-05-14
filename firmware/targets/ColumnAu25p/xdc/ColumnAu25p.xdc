@@ -370,9 +370,15 @@ set_clock_groups -asynchronous \
 ## timingTxWordClk async groups already in WarmTdmCore2_usp.xdc
 
 ##############################################################################
+## DRC waivers: MMCM/PLL VCO DRCs resolve after timing propagation
+##############################################################################
+#set_property SEVERITY {Warning} [get_drc_checks AVAL-46]
+#set_property SEVERITY {Warning} [get_drc_checks AVAL-350]
+
+##############################################################################
 ## Bitstream Configuration
 ##############################################################################
-set_property BITSTREAM.CONFIG.CONFIGRATE 33 [current_design]
+set_property BITSTREAM.CONFIG.CONFIGRATE 31.9 [current_design]
 set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]
 set_property CONFIG_VOLTAGE 1.8 [current_design]
 set_property BITSTREAM.GENERAL.COMPRESS TRUE [current_design]

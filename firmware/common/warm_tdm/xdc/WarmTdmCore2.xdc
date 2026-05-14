@@ -15,10 +15,10 @@ create_clock -name gtRefClk1 -period 6.400 [get_ports {gtRefClk1P}]
 
 ## fabRefClk generated clocks declared in family-specific XDC files
 
-create_generated_clock -name axilClk [get_pins -hier -filter {NAME =~ *U_PgpCore_1/*U_Phy/*/CLKOUT0}]
-create_generated_clock -name pgpClk  [get_pins -hier -filter {NAME =~ *U_PgpCore_1/*U_Phy/*/CLKOUT1}]
+create_generated_clock -name axilClk   [get_pins -hier -filter {NAME =~ *U_PgpCore_1*U_Phy*U_Mmcm/CLKOUT0}]
+create_generated_clock -name pgpClk    [get_pins -hier -filter {NAME =~ *U_PgpCore_1*U_Phy*U_Mmcm/CLKOUT1}]
 
-create_generated_clock -name idelayClk [get_pins -hier -filter {NAME =~ */U_Timing_1/*U_MMCM_IDELAY/*/CLKOUT0}]
+create_generated_clock -name idelayClk [get_pins -hier -filter {NAME =~ *U_MMCM_IDELAY*U_Mmcm/CLKOUT0}]
 
 ## timingBitClk and timingWordClk declared in family-specific XDC files
 
