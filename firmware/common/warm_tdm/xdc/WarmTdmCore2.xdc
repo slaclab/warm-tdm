@@ -8,19 +8,10 @@
 ## the terms contained in the LICENSE.txt file.
 ##############################################################################
 
-## Primary clocks (from ports)
-create_clock -name timingRxClk -period 8.000 [get_ports {timingRxClkP}]
-create_clock -name gtRefClk0 -period 4.000 [get_ports {gtRefClk0P}]
-create_clock -name gtRefClk1 -period 6.400 [get_ports {gtRefClk1P}]
-
-## fabRefClk generated clocks declared in family-specific XDC files
-
+## MMCM-derived clocks (master: fabRefClk0 defined in family-specific XDC)
 create_generated_clock -name axilClk   [get_pins -hier -filter {NAME =~ *U_PgpCore_1*U_Phy*U_Mmcm/CLKOUT0}]
 create_generated_clock -name pgpClk    [get_pins -hier -filter {NAME =~ *U_PgpCore_1*U_Phy*U_Mmcm/CLKOUT1}]
-
 create_generated_clock -name idelayClk [get_pins -hier -filter {NAME =~ *U_MMCM_IDELAY*U_Mmcm/CLKOUT0}]
-
-## timingBitClk and timingWordClk declared in family-specific XDC files
 
 ## Clock groups - asynchronous domains
 set_clock_groups -asynchronous \
@@ -33,10 +24,11 @@ set_clock_groups -asynchronous \
     -group [get_clocks pgpClk] \
     -group [get_clocks gtRefClk0]
 
-## PGP GT recovered clocks - declared and constrained per-target XDC
-
 set_clock_groups -asynchronous \
     -group [get_clocks axilClk] \
     -group [get_clocks -include_generated_clocks timingRxClk]
 
-## timingWordClk async groups declared in family-specific XDC files
+set_clock_groups -asynchronous \
+    -group [get_clocks axilClk] \
+    -group [get_clocks timingTxWordClk] \
+    -group [get_clocks timingRxWordClk]

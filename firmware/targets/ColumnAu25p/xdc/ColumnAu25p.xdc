@@ -19,9 +19,6 @@
 ##############################################################################
 ## GT Quad 225 - Reference Clocks and Transceivers
 ##############################################################################
-create_clock -name gtRefClk0 -period 4.000 [get_ports {gtRefClk0P}]
-create_clock -name gtRefClk1 -period 6.400 [get_ports {gtRefClk1P}]
-
 set_property PACKAGE_PIN T7 [get_ports {gtRefClk0P}]
 set_property PACKAGE_PIN T6 [get_ports {gtRefClk0N}]
 set_property PACKAGE_PIN P7 [get_ports {gtRefClk1P}]
@@ -52,6 +49,17 @@ create_clock -name adcDClk0 -period 2.00 [get_ports {adcDClkP[0]}]
 create_clock -name adcDClk1 -period 2.00 [get_ports {adcDClkP[1]}]
 set_input_jitter adcDClk0 .35
 set_input_jitter adcDClk1 .35
+
+## ADC bit clock dividers (BUFGCE_DIV ÷4)
+create_generated_clock -name adcBitClkDiv4_a \
+    -source [get_ports {adcDClkP[0]}] \
+    -divide_by 4 \
+    [get_pins {U_DataPath_1/U_Ad9681Readout_1/GEN_PARTS[0].U_AdcBitClkDiv4/O}]
+
+create_generated_clock -name adcBitClkDiv4_b \
+    -source [get_ports {adcDClkP[1]}] \
+    -divide_by 4 \
+    [get_pins {U_DataPath_1/U_Ad9681Readout_1/GEN_PARTS[1].U_AdcBitClkDiv4/O}]
 
 ## ADC clocks (on GC-capable pins)
 set_property -dict { PACKAGE_PIN AE23 IOSTANDARD LVDS DIFF_TERM TRUE } [get_ports { adcDClkP[0] }]
