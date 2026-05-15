@@ -12,3 +12,11 @@ export TOP_DIR = $(abspath $(PWD)/../..)
 export PRJ_VERSION = 0x00000001
 
 include $(TOP_DIR)/submodules/ruckus/system_vivado.mk
+
+###############################################################
+#### Power Strategy Exploration ###############################
+###############################################################
+.PHONY : power_explore
+power_explore : $(SOURCE_DEPEND)
+	$(call ACTION_HEADER,"Power Strategy Exploration")
+	@cd $(OUT_DIR); vivado -mode batch -source $(PROJ_DIR)/vivado/power_explore.tcl

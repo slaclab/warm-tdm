@@ -8,9 +8,6 @@
 ## the terms contained in the LICENSE.txt file.
 ##############################################################################
 
-# Synthesis settings
-set_property STEPS.SYNTH_DESIGN.ARGS.FLATTEN_HIERARCHY none [get_runs synth_1]
-
 ########################################################
 ## Power Strategy Exploration Runs
 ########################################################
@@ -43,7 +40,7 @@ set_property STEPS.POWER_OPT_DESIGN.IS_ENABLED true [get_runs impl_power_area]
 set_property STEPS.POST_PLACE_POWER_OPT_DESIGN.IS_ENABLED true [get_runs impl_power_area]
 set_property STEPS.PHYS_OPT_DESIGN.IS_ENABLED true [get_runs impl_power_area]
 
-# -- Impl: baseline perf strategy + power opt steps enabled (from default synth) --
+# -- Impl: Performance strategy + power opt steps enabled (from default synth) --
 if { [llength [get_runs -quiet impl_perf_power_opt]] == 0 } {
     create_run impl_perf_power_opt -parent_run synth_1 -flow $impl_flow -strategy Performance_ExplorePostRoutePhysOpt
 }
