@@ -170,6 +170,10 @@ loadConstraints -dir "$::DIR_PATH/xdc"
 set_property generic "RING_ADDR_0_G=true ETH_10G_G=true" [current_fileset]
 ```
 
+### Vivado Installation
+
+Vivado is installed at `/sdf/group/faders/tools/xilinx`. Source the appropriate `settings64.sh` before running builds.
+
 ### Build Commands
 ```bash
 # Single target
@@ -183,6 +187,43 @@ cd firmware/targets && make ColumnAu25p
 
 # Open Vivado GUI for a target
 cd firmware/targets/ColumnFpgaBoard && make gui
+```
+
+### Build Output Locations
+
+Ruckus places all build artifacts under `firmware/build/<TargetName>/`:
+
+```
+firmware/build/<TargetName>/
+├── <TargetName>_project.xpr              # Vivado project file
+├── <TargetName>_project.runs/
+│   ├── synth_1/                          # Synthesis results
+│   │   ├── <TopEntity>.dcp              # Post-synthesis checkpoint
+│   │   └── <TopEntity>_utilization_synth.rpt
+│   └── impl_1/                           # Implementation results
+│       ├── <TopEntity>.dcp              # Post-route checkpoint
+│       ├── <TopEntity>_timing_summary_routed.rpt  # ← Timing closure report
+│       ├── <TopEntity>_power_routed.rpt
+│       ├── <TopEntity>_utilization_placed.rpt
+│       └── route_design.pb
+├── vivado.log                            # Full build log (timing failures logged here)
+└── vivado.jou                            # Vivado journal
+```
+
+**Key files for timing analysis:**
+- `impl_1/*_timing_summary_routed.rpt` — WNS/TNS per clock domain, failing paths
+- `vivado.log` — grep for `VIOLATED` or `WNS` to quickly find failures
+- For multi-run exploration builds, additional runs appear as `impl_<strategy>/`
+
+**Final images** land in the target directory itself:
+```
+firmware/targets/<TargetName>/images/     # .bit, .mcs, .ltx files
+```
+
+**Build logs** from batch runs also appear in the target directory:
+```
+firmware/targets/<TargetName>/vivado.log         # Most recent run
+firmware/targets/<TargetName>/vivado_*.backup.log  # Prior runs (numbered by PID)
 ```
 
 ## Running the Software
@@ -218,6 +259,31 @@ python warmTdmEmulate.py
 | Tuning algorithms | `software/python/warm_tdm_api/_SaTune.py`, `_Sq1Tune.py`, `_FasTune.py` |
 | Simulation | `firmware/simulations/StackTb/` (full system), `firmware/common/warm_tdm/sim/` (device models) |
 | Constraints / timing closure | `common/warm_tdm/xdc/WarmTdmCore2.xdc` (shared), target-specific `xdc/` dirs |
+
+## Agent Skills (SFS)
+
+This project has SLAC FPGA Skills available. Use these for domain-specific assistance:
+
+| Skill | Purpose |
+|-------|---------|
+| `/sfs-stack-reference` | Explain SLAC FPGA stack conventions (surf, ruckus, axi-lite, pgp) |
+| `/sfs-review-fw` | Review VHDL/SystemVerilog RTL against surf/rogue conventions |
+| `/sfs-review-sw` | Review PyRogue device drivers for register definitions and style |
+| `/sfs-check-registers` | Cross-reference VHDL register offsets with PyRogue RemoteVariable offsets |
+| `/sfs-check-build` | Validate ruckus.tcl configurations, Makefile targets, and submodule versions |
+| `/sfs-check-release` | Validate releases.yaml, version consistency, and Python package config |
+| `/sfs-review-all` | Run all checks (FW + SW + registers + build + release) in one pass |
+| `/sfs-add-target` | Add a new ruckus firmware target to the repo |
+| `/sfs-board-reference` | Map a board or deployment to a SLAC FPGA archetype |
+| `/sfs-apply-slac-license` | Apply SLAC license headers across source files |
+
+Use `/sfs-help` to see the full list with descriptions.
+
+**When to use these skills:**
+- Before modifying RTL or PyRogue files, run `/sfs-review-fw` or `/sfs-review-sw` to validate conventions
+- After editing register maps, run `/sfs-check-registers` to verify FW↔SW alignment
+- When adding new targets, use `/sfs-add-target` rather than manual copying
+- For general "how does X work in the SLAC stack" questions, use `/sfs-stack-reference`
 
 ## Submodules
 
