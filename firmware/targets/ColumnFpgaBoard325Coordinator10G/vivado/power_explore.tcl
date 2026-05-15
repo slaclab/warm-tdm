@@ -32,6 +32,50 @@ set synth_runs [list synth_1 synth_power]
 set impl_runs [list impl_1 impl_power_default impl_power_area impl_perf_power_opt impl_synth_power]
 
 ########################################################
+## Ensure IP OOC synthesis is complete
+########################################################
+puts "================================================================"
+puts "Power Exploration: Ensuring IP synthesis is up to date"
+puts "================================================================"
+
+set ip_synth_runs [list]
+foreach ip [get_ips] {
+    set ip_run [get_runs -quiet ${ip}_synth_1]
+    if { $ip_run ne "" } {
+        lappend ip_synth_runs $ip_run
+    }
+}
+
+if { [llength $ip_synth_runs] > 0 } {
+    set ip_to_launch [list]
+    foreach run $ip_synth_runs {
+        set status [get_property STATUS [get_runs $run]]
+        if { $status ne "synth_design Complete!" } {
+            puts "  Queuing IP synth: $run"
+            reset_run $run
+            lappend ip_to_launch $run
+        } else {
+            puts "  Already complete: $run"
+        }
+    }
+    if { [llength $ip_to_launch] > 0 } {
+        puts "  Launching [llength $ip_to_launch] IP synth runs..."
+        launch_runs $ip_to_launch -jobs $NUM_JOBS
+        foreach run $ip_to_launch {
+            wait_on_run $run
+            set status [get_property STATUS [get_runs $run]]
+            if { $status ne "synth_design Complete!" } {
+                puts "ERROR: IP synth $run failed with status: $status"
+                close_project
+                exit -1
+            }
+        }
+    }
+}
+
+puts "IP synthesis up to date."
+
+########################################################
 ## Launch synthesis runs
 ########################################################
 puts "================================================================"
@@ -77,13 +121,14 @@ puts "================================================================"
 
 set impl_to_launch [list]
 foreach run $impl_runs {
+    set progress [get_property PROGRESS [get_runs $run]]
     set status [get_property STATUS [get_runs $run]]
-    if { $status ne "write_bitstream Complete!" && $status ne "route_design Complete!" } {
+    if { $progress eq "100%" || [string match "*route_design Complete*" $status] } {
+        puts "  Already complete: $run (status: $status)"
+    } else {
         puts "  Queuing: $run"
         reset_run $run
         lappend impl_to_launch $run
-    } else {
-        puts "  Already complete: $run"
     }
 }
 
@@ -94,10 +139,13 @@ if { [llength $impl_to_launch] > 0 } {
 
 foreach run $impl_runs {
     puts "  Waiting on: $run"
-    wait_on_run $run
-    set status [get_property STATUS [get_runs $run]]
-    if { $status ne "route_design Complete!" } {
-        puts "WARNING: $run ended with status: $status"
+    if { [catch {wait_on_run $run} err] } {
+        puts "WARNING: wait_on_run failed for $run: $err"
+    }
+    set routed_dcp [glob -nocomplain [get_property DIRECTORY [get_runs $run]]/*_routed.dcp]
+    if { $routed_dcp eq "" } {
+        set status [get_property STATUS [get_runs $run]]
+        puts "WARNING: $run did not produce a routed checkpoint (status: $status)"
     }
 }
 
@@ -115,7 +163,8 @@ file mkdir $report_dir
 
 foreach run $impl_runs {
     set status [get_property STATUS [get_runs $run]]
-    if { $status eq "route_design Complete!" } {
+    set routed_dcp [glob -nocomplain [get_property DIRECTORY [get_runs $run]]/*_routed.dcp]
+    if { $routed_dcp ne "" } {
         puts "  Generating report for: $run"
         open_run $run
         report_power -file "${report_dir}/${run}_power.rpt"
@@ -124,7 +173,7 @@ foreach run $impl_runs {
         report_timing_summary -file "${report_dir}/${run}_timing.rpt" -max_paths 10
         close_design
     } else {
-        puts "  Skipping $run (status: $status)"
+        puts "  Skipping $run (no routed checkpoint found)"
     }
 }
 
@@ -139,8 +188,8 @@ puts [format "%-25s %-12s %-12s %-12s %-10s" "Run" "Total(W)" "Dynamic(W)" "Stat
 puts [format "%-25s %-12s %-12s %-12s %-10s" "---" "--------" "----------" "---------" "-------"]
 
 foreach run $impl_runs {
-    set status [get_property STATUS [get_runs $run]]
-    if { $status eq "route_design Complete!" } {
+    set routed_dcp [glob -nocomplain [get_property DIRECTORY [get_runs $run]]/*_routed.dcp]
+    if { $routed_dcp ne "" } {
         open_run $run
 
         # Extract power numbers

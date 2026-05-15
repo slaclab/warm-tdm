@@ -51,3 +51,45 @@ make gui
 - Implementation complete
 - Not yet tested against a live Vivado build
 - Next: run `make power_explore` and analyze results
+
+## 2026-05-15: First run & bug fixes
+
+### Issues encountered
+
+1. **IP black-box error** — Initial run failed because `FpMac` and `Int2Fp` IP OOC synthesis
+   outputs (`.dcp` files in `.gen/sources_1/ip/`) were missing when new impl runs launched.
+   The standard `impl_1` had these from its prior build, but newly-created runs didn't.
+   **Fix:** Added explicit IP OOC synthesis step in `power_explore.tcl` that ensures
+   `FpMac_synth_1` and `Int2Fp_synth_1` complete before launching impl runs.
+
+2. **Run status check mismatch** — Runs with `POST_ROUTE_PHYS_OPT_DESIGN` enabled
+   (`impl_1`, `impl_perf_power_opt`) report status "Not started phys_opt_design (Post-Route)"
+   after routing, not "route_design Complete!". This caused the report/summary sections to
+   skip them.
+   **Fix:** Changed completion detection to check for existence of `*_routed.dcp` in the
+   run directory instead of matching a specific status string.
+
+### Results (XC7K325T, Vivado 2024.1)
+
+| Run | Strategy | Total (W) | Dynamic (W) | Static (W) | WNS (ns) |
+|-----|----------|-----------|-------------|------------|-----------|
+| impl_1 | Perf_ExplorePostRoutePhysOpt (baseline) | **4.130** | 3.908 | 0.222 | 0.188 |
+| impl_perf_power_opt | Perf_ExplorePostRoutePhysOpt + power opts | **3.776** | 3.557 | 0.219 | 0.038 |
+| impl_power_default | Power_DefaultOpt | **3.763** | 3.544 | 0.218 | 0.153 |
+| impl_power_area | Power_ExploreArea | **3.929** | 3.709 | 0.220 | 0.279 |
+| impl_synth_power | Power_DefaultOpt (from synth_power/AreaOpt) | **3.937** | 3.719 | 0.218 | 0.153 |
+
+### Analysis
+
+- **Best power: `impl_power_default`** at 3.763W — **8.9% reduction** vs baseline (4.130W)
+- **Lowest-risk option: `impl_perf_power_opt`** at 3.776W — keeps the performance strategy,
+  just enables POWER_OPT_DESIGN + POST_PLACE_POWER_OPT_DESIGN steps. 8.6% reduction.
+- Area-optimized synthesis (`synth_power` → `impl_synth_power`) did not help; it's worse
+  than `impl_power_default` which uses the standard synthesis netlist
+- All runs meet timing comfortably (positive WNS)
+- Savings are almost entirely from dynamic power reduction (~350-365 mW); static unchanged
+
+### Current state
+- Power exploration complete with results
+- `power_explore.tcl` bugs fixed (IP synth step, status detection)
+- Next: decide which strategy to adopt for production builds
