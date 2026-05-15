@@ -25,6 +25,14 @@ set_clock_groups -asynchronous \
     -group [get_clocks gtRefClk0]
 
 set_clock_groups -asynchronous \
+    -group [get_clocks fabRefClk0] \
+    -group [get_clocks axilClk]
+
+set_clock_groups -asynchronous \
+    -group [get_clocks fabRefClk0] \
+    -group [get_clocks pgpClk]
+
+set_clock_groups -asynchronous \
     -group [get_clocks axilClk] \
     -group [get_clocks -include_generated_clocks timingRxClk]
 

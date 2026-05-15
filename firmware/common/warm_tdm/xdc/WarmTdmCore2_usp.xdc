@@ -14,3 +14,12 @@ create_generated_clock -name timingTxBitClk  [get_pins -hier -filter {NAME =~ *U
 create_generated_clock -name timingTxWordClk [get_pins -hier -filter {NAME =~ *U_TimingTx*PhyUsp*U_Pll/CLKOUT1}]
 create_generated_clock -name timingRxBitClk  [get_pins -hier -filter {NAME =~ *U_TimingRx*PhyUsp*U_Mmcm/CLKOUT0}]
 create_generated_clock -name timingRxWordClk [get_pins -hier -filter {NAME =~ *U_TimingRx*PhyUsp*U_Mmcm/CLKOUT1}]
+create_generated_clock -name timingRxClk125  [get_pins -hier -filter {NAME =~ *U_TimingRx*PhyUsp*U_Mmcm/CLKOUT2}]
+## Async clock groups that only reference clocks defined in this file
+set_clock_groups -asynchronous \
+    -group [get_clocks fabRefClk0] \
+    -group [get_clocks timingTxWordClk]
+
+set_clock_groups -asynchronous \
+    -group [get_clocks timingRxWordClk] \
+    -group [get_clocks timingRxClk125]
