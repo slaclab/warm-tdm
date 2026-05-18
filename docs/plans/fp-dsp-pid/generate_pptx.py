@@ -165,17 +165,35 @@ add_body(slide, [
     ("• Many files touched, but the design work is the hard part", {'size': 13, 'color': BODY_COLOR}),
 ], top=Emu(1600000), left=Emu(548640), width=Emu(5800000))
 
-# Right: screenshot placeholder of the existing AdcDsp code
-add_screenshot_placeholder(slide, Emu(6600000), Emu(1600000), Emu(4800000), Emu(4500000),
-    "[Screenshot: AdcDsp.vhd — existing fixed-point PID]\n\n"
-    "PID_P_S:\n"
-    "  v.pidResult := resize(\n"
-    "    r.pidResult +\n"
-    "    (r.pidCoef * r.pidMultiplier),\n"
-    "    v.pidResult);\n"
-    "  v.pidCoef := iSfixed;\n"
-    "  v.pidMultiplier := r.sumAccum;\n"
-    "  v.state := PID_I_S;")
+# Right: actual code from AdcDsp.vhd
+add_code_block(slide, Emu(6600000), Emu(1600000), Emu(4800000), Emu(4500000), [
+    "when PID_P_S =>",
+    "  v.pidResult := resize(",
+    "    r.pidResult +",
+    "    (r.pidCoef * r.pidMultiplier),",
+    "    v.pidResult);",
+    "  v.pidCoef       := iSfixed;",
+    "  v.pidMultiplier := r.sumAccum;",
+    "  v.state         := PID_I_S;",
+    "",
+    "when PID_I_S =>",
+    "  v.pidResult := resize(",
+    "    r.pidResult +",
+    "    (r.pidCoef * r.pidMultiplier),",
+    "    v.pidResult);",
+    "  v.pidCoef       := dSfixed;",
+    "  v.pidMultiplier := resize(",
+    "    r.lastAccumError - r.accumError,",
+    "    v.pidMultiplier);",
+    "  v.state         := PID_D_S;",
+    "",
+    "when PID_D_S =>",
+    "  pidResultNext := resize(",
+    "    r.pidResult +",
+    "    (r.pidCoef * r.pidMultiplier),",
+    "    pidResultNext);",
+    "  v.pidResult := pidResultNext;",
+], title="── AdcDsp.vhd (existing fixed-point) ──")
 
 # ============================================================================
 # Slide 3: The Workflow
@@ -195,18 +213,33 @@ add_body(slide, [
     ("take a day or more by hand.", {'size': 13, 'color': BODY_COLOR}),
 ], top=Emu(1600000), left=Emu(548640), width=Emu(5200000))
 
-# Right: terminal screenshot placeholder
-add_screenshot_placeholder(slide, Emu(6000000), Emu(1600000), Emu(5400000), Emu(4600000),
-    "[Screenshot: Terminal showing initial prompt]\n\n"
-    "$ claude\n\n"
-    "> Let's focus on the\n"
-    "> ColumnFpgaBoard325Coordinator10G target.\n"
-    "> The AdcDsp block implements a fixed-point\n"
-    "> PID. I'd like to adapt it to use floating\n"
-    "> point math. The design already has some FP\n"
-    "> IP cores. Make a plan.\n\n"
-    "I'll explore the codebase to understand the\n"
-    "existing floating point infrastructure...")
+# Right: terminal representation of the actual session
+add_code_block(slide, Emu(6000000), Emu(1600000), Emu(5400000), Emu(4600000), [
+    "╭─────────────────────────────────────────╮",
+    "│ > Let's focus on the                    │",
+    "│   ColumnFpgaBoard325Coordinator10G      │",
+    "│   target. In the data path, there is    │",
+    "│   a AdcDsp.vhd block that implements    │",
+    "│   a fixed point PID calculation. I'd    │",
+    "│   like to adapt this module to use      │",
+    "│   floating point math for the PID       │",
+    "│   calculation. The design already has   │",
+    "│   some floating point math happening    │",
+    "│   in it, and a few Vivado IP cores are  │",
+    "│   utilized for this. Let's make a plan. │",
+    "╰─────────────────────────────────────────╯",
+    "",
+    "I'll explore the codebase to understand the",
+    "existing floating point infrastructure and",
+    "the target structure before planning.",
+    "",
+    "  Agent(Explore): existing FP infrastructure",
+    "  Agent(Explore): target and data path",
+    "  Agent(Explore): PID state and RAM usage",
+    "",
+    "Found: FpMac (4-cyc FMA), Int2Fp (2-cyc),",
+    "BiquadFilter.vhd demonstrates the pattern...",
+], title="── claude ──")
 
 # ============================================================================
 # Slide 4: AGENTS.md
@@ -228,33 +261,36 @@ add_body(slide, [
     ("conventions from the start", {'size': 13, 'bold': True, 'color': HEADING_COLOR}),
 ], top=Emu(1600000), left=Emu(548640), width=Emu(4500000))
 
-# Right: code blocks showing AGENTS.md content
-add_code_block(slide, Emu(5300000), Emu(1500000), Emu(6200000), Emu(1000000), [
-    "### Data Flow (Column Board)",
+# Right: one large code block with AGENTS.md excerpts
+add_code_block(slide, Emu(5100000), Emu(1500000), Emu(6500000), Emu(4800000), [
+    "## Project Summary",
+    "Warm TDM is a time-division multiplexing detector",
+    "readout system for TES bolometric detector arrays.",
     "",
-    "AD9681 ADC → DataPath → AdcDsp (PID) → EventBuilder → Host",
-    "                             ↕",
-    "                   FastDacDriver (SQ1 feedback)",
-], title="── AGENTS.md ──")
-
-add_code_block(slide, Emu(5300000), Emu(2650000), Emu(6200000), Emu(900000), [
-    "| Task Area       | Start With These Files             |",
-    "|─────────────────|────────────────────────────────────|",
-    "| DSP / data path | DataPath.vhd, AdcDsp.vhd,          |",
-    "|                 | BiquadFilter.vhd, EventBuilder.vhd |",
-])
-
-add_code_block(slide, Emu(5300000), Emu(3700000), Emu(6200000), Emu(750000), [
+    "### Data Flow (Column Board)",
+    "AD9681 ADC → DataPath → AdcDsp (PID + flux-jump)",
+    "  → EventBuilder → PGP Stream → Host",
+    "       ↕ FastDacDriver (SQ1 feedback)",
+    "",
+    "## Essential Reading by Task",
+    "| Task Area       | Start With               |",
+    "|-----------------|--------------------------|",
+    "| DSP / data path | DataPath.vhd, AdcDsp.vhd |",
+    "|                 | BiquadFilter.vhd          |",
+    "| Timing protocol | TimingPkg.vhd, TimingTx   |",
+    "| Communication   | PgpEthCore, RingRouter    |",
+    "",
     "## Firmware Conventions",
-    "- Generics suffixed _G (e.g., TPD_G, SIMULATION_G)",
-    "- Constants suffixed _C (e.g., AXIL_CLK_FREQ_C)",
+    "- Library: All RTL loaded as -lib warm_tdm",
+    "- VHDL standard: 2008",
+    "- Generics suffixed _G (TPD_G, SIMULATION_G)",
+    "- Constants suffixed _C (AXIL_CLK_FREQ_C)",
     "- Architecture always named `rtl`",
-])
-
-add_code_block(slide, Emu(5300000), Emu(4600000), Emu(6200000), Emu(600000), [
-    "For substantial feature work, keep planning, progress,",
-    "and handoff Markdown under docs/plans/<task-name>/.",
-])
+    "",
+    "For substantial feature work, keep planning,",
+    "progress, and handoff Markdown under",
+    "docs/plans/<task-name>/.",
+], title="── AGENTS.md (excerpts) ──")
 
 # ============================================================================
 # Slide 5: Plan Docs
@@ -355,22 +391,29 @@ add_title(slide, "Implementation Output")
 add_subtitle(slide, "All created/modified in one ~30 minute session")
 
 add_body(slide, [
-    ("Created:", {'size': 14, 'bold': True, 'color': GREEN}),
-    ("  AdcDspFp.vhd      — 600-line FP PID module", {'size': 12, 'color': BODY_COLOR}),
-    ("  Fp2Int.xci          — Xilinx IP core (float→int)", {'size': 12, 'color': BODY_COLOR}),
-    ("  _AdcDspFp.py       — Python register driver", {'size': 12, 'color': BODY_COLOR}),
+    ("Created:", {'size': 13, 'bold': True, 'color': GREEN}),
+    ("firmware/common/warm_tdm/", {'size': 11, 'bold': True, 'color': HEADING_COLOR, 'mono': True}),
+    ("  rtl/AdcDspFp.vhd", {'size': 11, 'color': BODY_COLOR, 'mono': True}),
+    ("  ip/Fp2Int/Fp2Int.xci", {'size': 11, 'color': BODY_COLOR, 'mono': True}),
+    ("firmware/python/warm_tdm/", {'size': 11, 'bold': True, 'color': HEADING_COLOR, 'mono': True}),
+    ("  _AdcDspFp.py", {'size': 11, 'color': BODY_COLOR, 'mono': True}),
     ("", {'size': 6}),
-    ("Modified:", {'size': 14, 'bold': True, 'color': BLUE}),
-    ("  DataPath.vhd       — generate blocks", {'size': 12, 'color': BODY_COLOR}),
-    ("  BiquadFilter.vhd   — float bypass", {'size': 12, 'color': BODY_COLOR}),
-    ("  WarmTdmPkg.vhd    — stream config", {'size': 12, 'color': BODY_COLOR}),
-    ("  ColumnFpgaBoard    — top generic", {'size': 12, 'color': BODY_COLOR}),
-    ("  ruckus.tcl           — IP loading", {'size': 12, 'color': BODY_COLOR}),
-    ("  + 7 Python files    — CLI + SW stack", {'size': 12, 'color': BODY_COLOR}),
-    ("", {'size': 6}),
-    ("~800 lines of production code", {'size': 14, 'bold': True, 'color': HEADING_COLOR}),
-    ("all following existing conventions.", {'size': 14, 'bold': True, 'color': HEADING_COLOR}),
-], top=Emu(1600000), left=Emu(548640), width=Emu(5200000))
+    ("Modified:", {'size': 13, 'bold': True, 'color': BLUE}),
+    ("firmware/common/warm_tdm/", {'size': 11, 'bold': True, 'color': HEADING_COLOR, 'mono': True}),
+    ("  rtl/DataPath.vhd", {'size': 11, 'color': BODY_COLOR, 'mono': True}),
+    ("  rtl/BiquadFilter.vhd", {'size': 11, 'color': BODY_COLOR, 'mono': True}),
+    ("  rtl/WarmTdmPkg.vhd", {'size': 11, 'color': BODY_COLOR, 'mono': True}),
+    ("  ruckus.tcl", {'size': 11, 'color': BODY_COLOR, 'mono': True}),
+    ("firmware/targets/ColumnFpgaBoard/", {'size': 11, 'bold': True, 'color': HEADING_COLOR, 'mono': True}),
+    ("  rtl/ColumnFpgaBoard.vhd", {'size': 11, 'color': BODY_COLOR, 'mono': True}),
+    ("firmware/targets/...Coordinator10G/", {'size': 11, 'bold': True, 'color': HEADING_COLOR, 'mono': True}),
+    ("  ruckus.tcl", {'size': 11, 'color': BODY_COLOR, 'mono': True}),
+    ("firmware/python/warm_tdm/", {'size': 11, 'bold': True, 'color': HEADING_COLOR, 'mono': True}),
+    ("  _DataPath.py, _ColumnFpgaBoard.py", {'size': 11, 'color': BODY_COLOR, 'mono': True}),
+    ("  _HardwareGroup.py, __init__.py", {'size': 11, 'color': BODY_COLOR, 'mono': True}),
+    ("software/python/warm_tdm_api/", {'size': 11, 'bold': True, 'color': HEADING_COLOR, 'mono': True}),
+    ("  _ArgParser.py, _GroupRoot.py, _Group.py", {'size': 11, 'color': BODY_COLOR, 'mono': True}),
+], top=Emu(1600000), left=Emu(548640), width=Emu(5400000))
 
 # Right: code sample from the generated VHDL
 add_code_block(slide, Emu(5800000), Emu(1500000), Emu(5600000), Emu(4800000), [
@@ -427,17 +470,40 @@ add_body(slide, [
     ("the engineer owns the design.", {'size': 16, 'bold': True, 'color': HEADING_COLOR}),
 ], top=Emu(5400000), left=Emu(548640), width=Emu(11000000))
 
-# Right: screenshot of a review catch
-add_screenshot_placeholder(slide, Emu(6300000), Emu(1200000), Emu(5100000), Emu(3800000),
-    "[Screenshot: Review catch in terminal]\n\n"
-    "> _AdcDsp.py has P_CoefRaw, I_CoefRaw\n"
-    "> and D_CoefRaw. The new FP version\n"
-    "> only has I_CoefRaw. Why?\n\n"
-    "In the original, all three use the\n"
-    "Raw/Link pattern... I simplified P\n"
-    "and D. Should I add Raw/Link for all\n"
-    "three for consistency?\n\n"
-    "→ Add Raw/Link for all three")
+# Right: Claude terminal style showing review catches
+add_code_block(slide, Emu(6300000), Emu(1200000), Emu(5100000), Emu(4000000), [
+    "╭─────────────────────────────────────╮",
+    "│ > _AdcDsp.py has P_CoefRaw,         │",
+    "│   I_CoefRaw and D_CoefRaw. The new  │",
+    "│   FP version only has I_CoefRaw.    │",
+    "│   Why?                              │",
+    "╰─────────────────────────────────────╯",
+    "",
+    "No good reason — it was an oversight.",
+    "In the original, all three use the",
+    "Raw/Link pattern...",
+    "",
+    "Should I add Raw/Link for all three",
+    "for consistency?",
+    "",
+    "  ● Add Raw/Link for all three",
+    "  ○ Keep as-is (simplified)",
+    "",
+    "───────────────────────────────────────",
+    "╭─────────────────────────────────────╮",
+    "│ > There should be just one non-     │",
+    "│   hidden FluxQuantum LinkVariable.  │",
+    "│   It should set all raw registers.  │",
+    "╰─────────────────────────────────────╯",
+], title="── claude ──")
+
+# Note about underspecified software
+add_body(slide, [
+    ("Note: The software side was underspecified", {'size': 11, 'color': BODY_COLOR}),
+    ("in the original prompt and plan. Additional", {'size': 11, 'color': BODY_COLOR}),
+    ("prompting was needed to generate the Python", {'size': 11, 'color': BODY_COLOR}),
+    ("drivers and CLI integration correctly.", {'size': 11, 'color': BODY_COLOR}),
+], top=Emu(5400000), left=Emu(6300000), width=Emu(5100000))
 
 # ============================================================================
 # Slide 9: Tips
