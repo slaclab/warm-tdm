@@ -77,6 +77,7 @@ def add_body(slide, lines, top=Emu(1700000), left=Emu(548640), width=Emu(5500000
 def add_code_block(slide, left, top, width, height, code_lines, title=None):
     """Dark background code block with monospace font."""
     shape = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, left, top, width, height)
+    shape.adjustments[0] = 0.02  # Reduce corner rounding
     shape.fill.solid()
     shape.fill.fore_color.rgb = DARK_BG
     shape.line.color.rgb = RGBColor(0x44, 0x44, 0x55)
@@ -203,18 +204,26 @@ add_title(slide, "The Workflow")
 add_subtitle(slide, "Claude Code operates in the terminal alongside your normal dev tools")
 
 add_body(slide, [
-    ("1. Explore — Agent reads codebase, understands architecture", {'size': 14, 'color': BODY_COLOR}),
-    ("2. Plan — Proposes approach, asks clarifying questions", {'size': 14, 'color': BODY_COLOR}),
-    ("3. Implement — Writes code across multiple files", {'size': 14, 'color': BODY_COLOR}),
-    ("4. Iterate — Responds to feedback, fixes issues", {'size': 14, 'color': BODY_COLOR}),
-    ("5. Document — Creates plan docs and progress tracking", {'size': 14, 'color': BODY_COLOR}),
-    ("", {'size': 8}),
-    ("~30 minutes of interaction for a feature that would", {'size': 13, 'color': BODY_COLOR}),
-    ("take a day or more by hand.", {'size': 13, 'color': BODY_COLOR}),
-], top=Emu(1600000), left=Emu(548640), width=Emu(5200000))
+    ("Used via VSCode extension (also", {'size': 13, 'color': BODY_COLOR}),
+    ("available as CLI and web app)", {'size': 13, 'color': BODY_COLOR}),
+    ("", {'size': 6}),
+    ("Started in Plan Mode:", {'size': 14, 'bold': True, 'color': HEADING_COLOR}),
+    ("• Agent explores code (read-only)", {'size': 13, 'color': BODY_COLOR}),
+    ("• Proposes approach, asks questions", {'size': 13, 'color': BODY_COLOR}),
+    ("• No edits until plan is approved", {'size': 13, 'color': BODY_COLOR}),
+    ("• Ensures alignment before effort", {'size': 13, 'color': BODY_COLOR}),
+    ("", {'size': 6}),
+    ("Then implementation:", {'size': 14, 'bold': True, 'color': HEADING_COLOR}),
+    ("• Writes code across files", {'size': 13, 'color': BODY_COLOR}),
+    ("• Responds to feedback/review", {'size': 13, 'color': BODY_COLOR}),
+    ("• Documents progress", {'size': 13, 'color': BODY_COLOR}),
+    ("", {'size': 6}),
+    ("~30 min interaction → ~1 day of work", {'size': 13, 'bold': True, 'color': HEADING_COLOR}),
+], top=Emu(1600000), left=Emu(548640), width=Emu(5000000))
 
-# Right: terminal representation of the actual session
-add_code_block(slide, Emu(6000000), Emu(1600000), Emu(5400000), Emu(4600000), [
+# Right: terminal box - taller, more content
+add_code_block(slide, Emu(5600000), Emu(1200000), Emu(5800000), Emu(5300000), [
+    "                    ┌ Plan Mode ┐",
     "╭─────────────────────────────────────────╮",
     "│ > Let's focus on the                    │",
     "│   ColumnFpgaBoard325Coordinator10G      │",
@@ -233,13 +242,17 @@ add_code_block(slide, Emu(6000000), Emu(1600000), Emu(5400000), Emu(4600000), [
     "existing floating point infrastructure and",
     "the target structure before planning.",
     "",
-    "  Agent(Explore): existing FP infrastructure",
-    "  Agent(Explore): target and data path",
-    "  Agent(Explore): PID state and RAM usage",
+    "  ⟳ Agent(Explore): existing FP infra",
+    "  ⟳ Agent(Explore): target and data path",
+    "  ⟳ Agent(Explore): PID state and RAM usage",
     "",
     "Found: FpMac (4-cyc FMA), Int2Fp (2-cyc),",
-    "BiquadFilter.vhd demonstrates the pattern...",
-], title="── claude ──")
+    "8 instances of AdcDsp in DataPath.vhd,",
+    "BiquadFilter.vhd demonstrates the pattern.",
+    "DSP48: 8% used, BRAM: 59%, Slices: 75%.",
+    "",
+    "Writing plan to docs/plans/fp-dsp-pid/...",
+], title="── claude (VSCode extension) ──")
 
 # ============================================================================
 # Slide 4: AGENTS.md
@@ -368,20 +381,39 @@ add_body(slide, [
     ("", {'size': 10}),
     ("The agent participates in design — but the engineer", {'size': 14, 'bold': True, 'color': HEADING_COLOR}),
     ("makes the architectural calls.", {'size': 14, 'bold': True, 'color': HEADING_COLOR}),
-], top=Emu(1600000), left=Emu(548640), width=Emu(5800000))
+], top=Emu(1600000), left=Emu(548640), width=Emu(5500000))
 
-# Right: screenshot placeholder of the plan mode interaction
-add_screenshot_placeholder(slide, Emu(6600000), Emu(1600000), Emu(4800000), Emu(4600000),
-    "[Screenshot: Plan mode Q&A in terminal]\n\n"
-    "┌ Question ─────────────────────────┐\n"
-    "│ Should we create a new module      │\n"
-    "│ (AdcDspFp.vhd) or modify AdcDsp   │\n"
-    "│ in place?                          │\n"
-    "│                                    │\n"
-    "│ ● New module (AdcDspFp.vhd)        │\n"
-    "│ ○ Modify in place with generic     │\n"
-    "│ ○ Modify in place, replace         │\n"
-    "└────────────────────────────────────┘")
+# Right: terminal-style code block showing the Q&A
+add_code_block(slide, Emu(6200000), Emu(1200000), Emu(5200000), Emu(5300000), [
+    "┌ Question ────────────────────────────┐",
+    "│ For the floating point PID, should   │",
+    "│ we create a new module or modify     │",
+    "│ AdcDsp.vhd in place?                 │",
+    "│                                      │",
+    "│ ● New module (AdcDspFp.vhd)          │",
+    "│ ○ Modify in place with generic       │",
+    "│ ○ Modify in place, replace           │",
+    "└────────────────────────────────────────┘",
+    "",
+    "╭──────────────────────────────────────╮",
+    "│ > Can we pass the FP PID results     │",
+    "│   directly to the biquad filter?     │",
+    "╰──────────────────────────────────────╯",
+    "",
+    "Yes — add INPUT_IS_FLOAT_G generic to",
+    "BiquadFilter. Skip its Int2Fp stage.",
+    "Eliminates 8 redundant IP instances.",
+    "",
+    "╭──────────────────────────────────────╮",
+    "│ > Is it possible to have a jump of   │",
+    "│   more than 1 flux quantum? Can we   │",
+    "│   support this now with FP range?    │",
+    "╰──────────────────────────────────────╯",
+    "",
+    "Yes — iterative integer loop. Each iter",
+    "costs 1 cycle. Bounded by DAC range /",
+    "fluxQuantum ≈ 4-8 iterations max.",
+], title="── claude (plan mode Q&A) ──")
 
 # ============================================================================
 # Slide 7: Output
@@ -470,8 +502,8 @@ add_body(slide, [
     ("the engineer owns the design.", {'size': 16, 'bold': True, 'color': HEADING_COLOR}),
 ], top=Emu(5400000), left=Emu(548640), width=Emu(11000000))
 
-# Right: Claude terminal style showing review catches
-add_code_block(slide, Emu(6300000), Emu(1200000), Emu(5100000), Emu(4000000), [
+# Right: Claude terminal style showing review catches - taller
+add_code_block(slide, Emu(6300000), Emu(1200000), Emu(5100000), Emu(5200000), [
     "╭─────────────────────────────────────╮",
     "│ > _AdcDsp.py has P_CoefRaw,         │",
     "│   I_CoefRaw and D_CoefRaw. The new  │",
@@ -480,30 +512,42 @@ add_code_block(slide, Emu(6300000), Emu(1200000), Emu(5100000), Emu(4000000), [
     "╰─────────────────────────────────────╯",
     "",
     "No good reason — it was an oversight.",
-    "In the original, all three use the",
-    "Raw/Link pattern...",
-    "",
-    "Should I add Raw/Link for all three",
-    "for consistency?",
     "",
     "  ● Add Raw/Link for all three",
     "  ○ Keep as-is (simplified)",
     "",
-    "───────────────────────────────────────",
     "╭─────────────────────────────────────╮",
     "│ > There should be just one non-     │",
     "│   hidden FluxQuantum LinkVariable.  │",
     "│   It should set all raw registers.  │",
     "╰─────────────────────────────────────╯",
-], title="── claude ──")
+    "",
+    "Done. FluxQuantum LinkVariable now sets",
+    "FluxQuantumIntRaw, FluxQuantumFpRaw,",
+    "and InvFluxQuantumFpRaw internally.",
+    "",
+    "╭─────────────────────────────────────╮",
+    "│ > Make sure the software is also    │",
+    "│   updated to instantiate the new    │",
+    "│   AdcDspFp device. There should be  │",
+    "│   a CLI arg to select FP version.   │",
+    "╰─────────────────────────────────────╯",
+    "",
+    "Threaded --floatPid through:",
+    "ArgParser → GroupRoot → Group →",
+    "HardwareGroup → ColumnFpgaBoard →",
+    "DataPath (selects AdcDspFp vs AdcDsp)",
+], title="── claude (review & iteration) ──")
 
-# Note about underspecified software
+# Note about underspecified software - within the left body area
 add_body(slide, [
-    ("Note: The software side was underspecified", {'size': 11, 'color': BODY_COLOR}),
-    ("in the original prompt and plan. Additional", {'size': 11, 'color': BODY_COLOR}),
-    ("prompting was needed to generate the Python", {'size': 11, 'color': BODY_COLOR}),
-    ("drivers and CLI integration correctly.", {'size': 11, 'color': BODY_COLOR}),
-], top=Emu(5400000), left=Emu(6300000), width=Emu(5100000))
+    ("", {'size': 4}),
+    ("Note: Software side was underspecified", {'size': 12, 'bold': True, 'color': HEADING_COLOR}),
+    ("in the original prompt and plan —", {'size': 12, 'color': BODY_COLOR}),
+    ("additional prompting rounds were needed", {'size': 12, 'color': BODY_COLOR}),
+    ("to get Python drivers and CLI flag", {'size': 12, 'color': BODY_COLOR}),
+    ("integration generated correctly.", {'size': 12, 'color': BODY_COLOR}),
+], top=Emu(5300000), left=Emu(548640), width=Emu(5500000))
 
 # ============================================================================
 # Slide 9: Tips
