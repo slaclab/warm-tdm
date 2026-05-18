@@ -32,7 +32,7 @@ Most timing events are sent as control characters. For row boundaries, the contr
 
 ## Control Characters
 
-These values are defined in [`TimingPkg.vhd`](/Users/bareese/warm-tdm/firmware/common/warm_tdm/rtl/TimingPkg.vhd).
+These values are defined in [`TimingPkg.vhd`](warm_tdm/rtl/TimingPkg.vhd).
 
 | Symbol | Meaning |
 | --- | --- |
@@ -88,6 +88,23 @@ When the row sequence wrap also aligns with a DAQ readout interval, the boundary
 1. `DAQ_READOUT_START_C`
 2. pending row index byte for the row after the newly entered row
 
+### End-of-run boundary
+
+`END_RUN_C` piggybacks on a row-boundary timeslot:
+
+1. The normal row-boundary control character (`ROW_STROBE_C`, `ROW_SEQ_START_C`, or `DAQ_READOUT_START_C`) is emitted and the row transition is committed (rowStrobe fires).
+2. On the following cycle, `END_RUN_C` is emitted in place of the pending-row-index byte.
+
+The receiver handles this because `END_RUN_C` is a K character, which overrides the pending-row-index capture state.
+
+## Waveform Capture
+
+`WAVEFORM_CAPTURE_C` is a software-armed one-shot. Emission constraints:
+
+- It only fires when `rowSeq = 0` (the first row of a sequence pass).
+- It fires at a programmable row-time offset (`waveformCaptureTime`).
+- Writing register `0x20` arms the capture; the transmitter auto-clears it after emission.
+
 ## Receiver Interpretation
 
 `TimingRx` updates state from the received control words as follows:
@@ -95,24 +112,30 @@ When the row sequence wrap also aligns with a DAQ readout interval, the boundary
 - `START_RUN_C`
   - enters running state
   - clears counters
+  - clears the sample level
   - sets `rowSeq = 0`
+  - clears `pwrSyncWait`
   - expects one following data byte:
     - that byte loads `rowIndexNext` for the first row-boundary event
 - `END_RUN_C`
   - exits running state
   - clears the sample level
   - clears `rowTime`
+  - clears `pwrSyncWait`
   - does not assert `rowStrobe` or commit a new row
 - `ROW_STROBE_C`
+  - asserts `rowStrobe`
   - increments `rowSeq`
   - updates `rowIndex` from the previously received `rowIndexNext`
   - clears `rowTime`
 - `ROW_SEQ_START_C`
+  - asserts `rowStrobe`
   - sets `rowSeq = 0`
   - asserts `rowSeqStart`
   - increments `rowSeqCount`
   - updates `rowIndex`
   - clears `rowTime`
+  - clears `pwrSyncWait`
 - `DAQ_READOUT_START_C`
   - same as `ROW_SEQ_START_C`
   - also asserts `daqReadoutStart`
@@ -208,7 +231,7 @@ Without an explicit wait marker, the receiver would continue counting during a `
 
 - latch a wait state
 - stop incrementing `runTime` and `rowTime`
-- resume when `ROW_SEQ_START_C` or `DAQ_READOUT_START_C` arrives
+- resume when `ROW_SEQ_START_C`, `DAQ_READOUT_START_C`, `START_RUN_C`, or `END_RUN_C` arrives
 
 ## Power-Sync Outputs
 

@@ -5,7 +5,7 @@ import warm_tdm_api
 
 
 class GroupRoot(pyrogue.Root):
-    def __init__(self, colBoardClass, colFeClass, rowBoardClass, rowFeClass, numRowSelects, numChipSelects, groupConfig, simulation=False, emulate=False, **kwargs):
+    def __init__(self, colBoardClass, colFeClass, rowBoardClass, rowFeClass, numRowSelects, numChipSelects, groupConfig, simulation=False, emulate=False, useFloatPid=False, **kwargs):
         """
         Root class container for Warm-TDM Groups.
         Parameters
@@ -64,5 +64,6 @@ class GroupRoot(pyrogue.Root):
             expand=True,
             dataWriter=self.DataWriter,
             simulation=simulation,
-            emulate=emulate))
+            emulate=emulate,
+            useFloatPid=useFloatPid))
 

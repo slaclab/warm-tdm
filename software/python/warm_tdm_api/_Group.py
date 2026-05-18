@@ -204,6 +204,7 @@ class Group(pr.Device):
                  dataWriter,
                  simulation=False,
                  emulate=False,
+                 useFloatPid=False,
                  **kwargs):
         """
         Warm TDM Device
@@ -241,6 +242,7 @@ class Group(pr.Device):
             rowFeClass=rowFeClass,
             num_row_selects=num_row_selects,
             num_chip_selects=num_chip_selects,
+            useFloatPid=useFloatPid,
 #            rows=rows,
             groups=['Hardware'],
             expand=True))

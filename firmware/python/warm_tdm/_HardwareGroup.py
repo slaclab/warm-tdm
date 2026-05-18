@@ -55,6 +55,7 @@ class HardwareGroup(pyrogue.Device):
             rowBoards=1,
             num_row_selects=32,
             num_chip_selects=0,
+            useFloatPid=False,
 #            rows=32,
             **kwargs):
 
@@ -128,7 +129,8 @@ class HardwareGroup(pyrogue.Device):
                 frontEndClass=colFeClass,
                 memBase=srp,
                 expand=True,
-                rows=rows))
+                rows=rows,
+                useFloatPid=useFloatPid))
             
             pidDebug = [warm_tdm.PidDebugger(name=f'PidDebug[{i}]', hidden=False, numRows=rows, col=i, frontEnd=self.ColumnBoard[index].AnalogFrontEnd) for i in range(8)]
             saAmps = [self.ColumnBoard[index].AnalogFrontEnd.Channel[x].SAAmp for x in range(8)]

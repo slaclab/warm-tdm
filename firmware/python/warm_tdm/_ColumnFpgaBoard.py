@@ -13,6 +13,7 @@ class ColumnFpgaBoard(pr.Device):
                  frontEndClass,
 #                 loading={},
                  rows=256,
+                 useFloatPid=False,
                  **kwargs):
         super().__init__(**kwargs)
 
@@ -20,7 +21,7 @@ class ColumnFpgaBoard(pr.Device):
 
         self.add(frontEndClass(
             name='AnalogFrontEnd'))
- 
+
         self.add(warm_tdm.WarmTdmCore2(
             name = 'WarmTdmCore',
             offset = 0x00000000,
@@ -33,7 +34,8 @@ class ColumnFpgaBoard(pr.Device):
             expand = True,
             timingTx = self.WarmTdmCore.Timing.TimingTx,
             rows=rows,
-            frontEnd=self.AnalogFrontEnd))
+            frontEnd=self.AnalogFrontEnd,
+            useFloatPid=useFloatPid))
 
         self.add(warm_tdm.Ad5679R(
             name = 'SaBiasDac',

@@ -24,6 +24,7 @@ from ._ComCore import *
 from ._DataPath import *
 from ._FastDacDriver import *
 from ._AdcDsp import *
+from ._AdcDspFp import *
 from ._Ad5679R import *
 from ._Ad5263 import *
 from ._RowSelect import *

@@ -42,6 +42,7 @@ entity DataPath is
       TPD_G            : time                 := 1 ns;
       SIMULATION_G     : boolean              := false;
       GEN_ADC_FILTER_G : boolean              := true;
+      USE_FLOAT_PID_G  : boolean              := false;
       ROW_ADDR_BITS_G  : integer range 3 to 8 := 8;
       NEGATE_ADC_G     : boolean              := true;
       INVERT_SQ1FB_G   : boolean              := true;
@@ -409,50 +410,84 @@ begin
 
 
    GEN_ADC_DSP : for i in 7 downto 0 generate
-      U_AdcDsp_1 : entity warm_tdm.AdcDsp
-         generic map (
-            TPD_G            => TPD_G,
-            COLUMN_NUM_G     => i,
-            INVERT_SQ1FB_G   => INVERT_SQ1FB_G,
-            ROW_ADDR_BITS_G  => ROW_ADDR_BITS_G,
-            AXIL_BASE_ADDR_G => ADC_DSP_XBAR_CFG_C(i).baseAddr,
-            SQ1FB_RAM_ADDR_G => SQ1FB_RAM_ADDR_G(31 downto 16) & toslv(i, 4) & X"000")
-         port map (
-            timingRxClk125   => timingRxClk125,             -- [in]
-            timingRxRst125   => timingRxRst125,             -- [in]
-            timingRxData     => timingRxDataDelayed,        -- [in]
-            adcAxisMaster    => selectedAdcStreams(i),      -- [in]
-            sAxilReadMaster  => adcDspAxilReadMasters(i),   -- [in]
-            sAxilReadSlave   => adcDspAxilReadSlaves(i),    -- [out]
-            sAxilWriteMaster => adcDspAxilWriteMasters(i),  -- [in]
-            sAxilWriteSlave  => adcDspAxilWriteSlaves(i),   -- [out]
-            mAxilReadMaster  => sq1fbAxilReadMasters(i),    -- [out]
-            mAxilReadSlave   => sq1fbAxilReadSlaves(i),     -- [in]
-            mAxilWriteMaster => sq1fbAxilWriteMasters(i),   -- [out]
-            mAxilWriteSlave  => sq1fbAxilWriteSlaves(i),    -- [in]
-            pidStreamMaster  => pidStreamMasters(i),        -- [out]
-            pidStreamSlave   => pidStreamSlaves(i),         -- [in]
-            axisClk          => axisClk,                    -- [in]
-            axisRst          => axisRst,                    -- [in]
-            pidDebugMaster   => pidDebugMasters(i),         -- [out]
-            pidDebugSlave    => pidDebugSlaves(i));         -- [in]
+
+      GEN_FIXED_PID : if (not USE_FLOAT_PID_G) generate
+         U_AdcDsp_1 : entity warm_tdm.AdcDsp
+            generic map (
+               TPD_G            => TPD_G,
+               COLUMN_NUM_G     => i,
+               INVERT_SQ1FB_G   => INVERT_SQ1FB_G,
+               ROW_ADDR_BITS_G  => ROW_ADDR_BITS_G,
+               AXIL_BASE_ADDR_G => ADC_DSP_XBAR_CFG_C(i).baseAddr,
+               SQ1FB_RAM_ADDR_G => SQ1FB_RAM_ADDR_G(31 downto 16) & toslv(i, 4) & X"000")
+            port map (
+               timingRxClk125   => timingRxClk125,
+               timingRxRst125   => timingRxRst125,
+               timingRxData     => timingRxDataDelayed,
+               adcAxisMaster    => selectedAdcStreams(i),
+               sAxilReadMaster  => adcDspAxilReadMasters(i),
+               sAxilReadSlave   => adcDspAxilReadSlaves(i),
+               sAxilWriteMaster => adcDspAxilWriteMasters(i),
+               sAxilWriteSlave  => adcDspAxilWriteSlaves(i),
+               mAxilReadMaster  => sq1fbAxilReadMasters(i),
+               mAxilReadSlave   => sq1fbAxilReadSlaves(i),
+               mAxilWriteMaster => sq1fbAxilWriteMasters(i),
+               mAxilWriteSlave  => sq1fbAxilWriteSlaves(i),
+               pidStreamMaster  => pidStreamMasters(i),
+               pidStreamSlave   => pidStreamSlaves(i),
+               axisClk          => axisClk,
+               axisRst          => axisRst,
+               pidDebugMaster   => pidDebugMasters(i),
+               pidDebugSlave    => pidDebugSlaves(i));
+      end generate GEN_FIXED_PID;
+
+      GEN_FLOAT_PID : if (USE_FLOAT_PID_G) generate
+         U_AdcDspFp_1 : entity warm_tdm.AdcDspFp
+            generic map (
+               TPD_G            => TPD_G,
+               COLUMN_NUM_G     => i,
+               INVERT_SQ1FB_G   => INVERT_SQ1FB_G,
+               ROW_ADDR_BITS_G  => ROW_ADDR_BITS_G,
+               AXIL_BASE_ADDR_G => ADC_DSP_XBAR_CFG_C(i).baseAddr,
+               SQ1FB_RAM_ADDR_G => SQ1FB_RAM_ADDR_G(31 downto 16) & toslv(i, 4) & X"000")
+            port map (
+               timingRxClk125   => timingRxClk125,
+               timingRxRst125   => timingRxRst125,
+               timingRxData     => timingRxDataDelayed,
+               adcAxisMaster    => selectedAdcStreams(i),
+               sAxilReadMaster  => adcDspAxilReadMasters(i),
+               sAxilReadSlave   => adcDspAxilReadSlaves(i),
+               sAxilWriteMaster => adcDspAxilWriteMasters(i),
+               sAxilWriteSlave  => adcDspAxilWriteSlaves(i),
+               mAxilReadMaster  => sq1fbAxilReadMasters(i),
+               mAxilReadSlave   => sq1fbAxilReadSlaves(i),
+               mAxilWriteMaster => sq1fbAxilWriteMasters(i),
+               mAxilWriteSlave  => sq1fbAxilWriteSlaves(i),
+               pidStreamMaster  => pidStreamMasters(i),
+               pidStreamSlave   => pidStreamSlaves(i),
+               axisClk          => axisClk,
+               axisRst          => axisRst,
+               pidDebugMaster   => pidDebugMasters(i),
+               pidDebugSlave    => pidDebugSlaves(i));
+      end generate GEN_FLOAT_PID;
 
       U_BiquadFilter_1 : entity warm_tdm.BiquadFilter
          generic map (
             TPD_G                => TPD_G,
             CASCADE_SIZE_G       => 2,
-            CHANNEL_ADDR_WIDTH_G => 8)
+            CHANNEL_ADDR_WIDTH_G => 8,
+            INPUT_IS_FLOAT_G     => USE_FLOAT_PID_G)
          port map (
-            axisClk         => timingRxClk125,                -- [in]
-            axisRst         => timingRxRst125,                -- [in]
-            sAxisMaster     => pidStreamMasters(i),           -- [in]
-            sAxisSlave      => pidStreamSlaves(i),            -- [out]
-            mAxisMaster     => pidFilterStreamMasters(i),     -- [out]
-            mAxisSlave      => pidFilterStreamSlaves(i),      -- [in]
-            axilReadMaster  => pidFilterAxilReadMasters(i),   -- [in]
-            axilReadSlave   => pidFilterAxilReadSlaves(i),    -- [out]
-            axilWriteMaster => pidFilterAxilWriteMasters(i),  -- [in]
-            axilWriteSlave  => pidFilterAxilWriteSlaves(i));  -- [out]
+            axisClk         => timingRxClk125,
+            axisRst         => timingRxRst125,
+            sAxisMaster     => pidStreamMasters(i),
+            sAxisSlave      => pidStreamSlaves(i),
+            mAxisMaster     => pidFilterStreamMasters(i),
+            mAxisSlave      => pidFilterStreamSlaves(i),
+            axilReadMaster  => pidFilterAxilReadMasters(i),
+            axilReadSlave   => pidFilterAxilReadSlaves(i),
+            axilWriteMaster => pidFilterAxilWriteMasters(i),
+            axilWriteSlave  => pidFilterAxilWriteSlaves(i));
    end generate;
 
    U_EventBuilder_1 : entity warm_tdm.EventBuilder

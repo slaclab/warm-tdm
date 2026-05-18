@@ -10,16 +10,24 @@ import warm_tdm
 
 
 class DataPath(pr.Device):
-    def __init__(self, timingTx, frontEnd, rows, **kwargs):
+    def __init__(self, timingTx, frontEnd, rows, useFloatPid=False, **kwargs):
         super().__init__(**kwargs)
 
         for i in range(8):
-            self.add(warm_tdm.AdcDsp(
-                name = f'AdcDsp[{i}]',
-                frontEnd = frontEnd,
-                rows = rows,
-                column = i,
-                offset = (4 << 20) + (i << 16)))
+            if useFloatPid:
+                self.add(warm_tdm.AdcDspFp(
+                    name = f'AdcDsp[{i}]',
+                    frontEnd = frontEnd,
+                    rows = rows,
+                    column = i,
+                    offset = (4 << 20) + (i << 16)))
+            else:
+                self.add(warm_tdm.AdcDsp(
+                    name = f'AdcDsp[{i}]',
+                    frontEnd = frontEnd,
+                    rows = rows,
+                    column = i,
+                    offset = (4 << 20) + (i << 16)))
 
         self.add(DownsampleFilters(
             offset = (5 << 20),

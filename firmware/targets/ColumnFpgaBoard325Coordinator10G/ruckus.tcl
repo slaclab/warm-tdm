@@ -31,7 +31,7 @@ set_property top {ColumnFpgaBoard} [get_filesets {sources_1}]
 #set sysGeneric [get_property generic -object [current_fileset]]
 #set testGeneric "${sysGeneric}, RING_ADDR_0_G=true, ETH_10G_G=true"
 #set_property generic {RING_ADDR_0_G=true ETH_10G_G=true}  [get_filesets {sources_1}]
-set_property generic "[get_property generic [current_fileset]] RING_ADDR_0_G=true ETH_10G_G=true" [current_fileset]
+set_property generic "[get_property generic [current_fileset]] RING_ADDR_0_G=true ETH_10G_G=true USE_FLOAT_PID_G=true" [current_fileset]
 
 set_property strategy Performance_ExplorePostRoutePhysOpt [get_runs impl_1]
 

@@ -91,6 +91,12 @@ class WarmTdmArgparse(argparse.ArgumentParser):
             default= 'FpgaColFeb')
 
         self.add_argument(
+            "--floatPid",
+            action = 'store_true',
+            default = False,
+            help = 'Use floating-point PID (AdcDspFp) instead of fixed-point')
+
+        self.add_argument(
             "--rowFrontEnd",
             choices= ['Legacy', 'FpgaRowFeb'],
             default= 'FpgaRowFeb')
@@ -133,6 +139,7 @@ def arg_dict(args):
     ret['colFeClass'] = colFeDict[args.columnFrontEnd]
     ret['rowBoardClass'] = rowBoardDict[args.rowBoardType]
     ret['rowFeClass'] = rowFeDict[args.rowFrontEnd]
+    ret['useFloatPid'] = args.floatPid
     ret['groupConfig'] = warm_tdm_api.GroupConfig(groupId = 0,
                                                   rowBoards = args.rowBoards,
                                                   columnBoards = args.columnBoards,
