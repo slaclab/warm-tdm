@@ -51,6 +51,7 @@ entity AdcDspFp is
       timingRxRst125   : in  sl;
       timingRxData     : in  LocalTimingType;
       adcAxisMaster    : in  AxiStreamMasterType;
+      sq1FbDac         : in  slv(13 downto 0);
       sAxilReadMaster  : in  AxiLiteReadMasterType;
       sAxilReadSlave   : out AxiLiteReadSlaveType  := AXI_LITE_READ_SLAVE_EMPTY_DECERR_C;
       sAxilWriteMaster : in  AxiLiteWriteMasterType;
@@ -706,8 +707,8 @@ begin
                   v.dropCount := r.dropCount + 1;
                end if;
 
-               if (adcAxisMaster.tUser(2) = '1') then
-                  v.rowIndex   := adcAxisMaster.tId(ROW_ADDR_BITS_G-1 downto 0);
+               if (timingRxData.rowStrobe = '1') then
+                  v.rowIndex   := timingRxData.rowIndex(ROW_ADDR_BITS_G-1 downto 0);
                   v.accumError := (others => '0');
                   v.rowEnabled := r.rowEnableMask(to_integer(unsigned(v.rowIndex)));
 
@@ -717,7 +718,7 @@ begin
                   v.pidDebugMaster.tData(15 downto 8)  := resize(v.rowIndex, 8);
                   v.pidDebugMaster.tData(63 downto 16) := timingRxData.runTime(47 downto 0);
 
-                  if (adcAxisMaster.tUser(5) = '1') then
+                  if (timingRxData.rowSeqStart = '1') then
                      v.pidStreamMaster.tValid := '1';
                      v.pidStreamMaster.tKeep  := (others => '0');
                      v.pidStreamMaster.tLast  := '1';
@@ -727,7 +728,7 @@ begin
                end if;
 
             when WAIT_FIRST_SAMPLE_S =>
-               if (adcAxisMaster.tUser(0) = '1') then
+               if (timingRxData.firstSample = '1') then
                   v.pidDebugMaster.tValid             := r.pidDebugEnable;
                   v.pidDebugMaster.tData(31 downto 0) := resize(adcBaselineRamOut, 32);
                   v.accumSamples := (others => '0');
@@ -737,7 +738,7 @@ begin
             when ACCUMULATE_S =>
                v.accumError   := resize(r.accumError + (adcValue - adcBaseline), ACCUM_BITS_C);
                v.accumSamples := r.accumSamples + 1;
-               if (adcAxisMaster.tUser(1) = '1') then
+               if (timingRxData.lastSample = '1') then
                   v.state := PREP_PID_S;
                end if;
 

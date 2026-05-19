@@ -39,6 +39,8 @@ entity AdcDsp is
       timingRxData     : in  LocalTimingType;
       -- Incomming ADC Stream
       adcAxisMaster    : in  AxiStreamMasterType;
+      -- SQ1 feedback DAC value (delayed to match timing)
+      sq1FbDac         : in  slv(13 downto 0);
       -- AXI-Lite
       -- Local register access
       sAxilReadMaster  : in  AxiLiteReadMasterType;
@@ -623,8 +625,8 @@ begin
 
                -- Row strobe comes first (bit 26).
                -- Register the rowIndex (23:16) and reset accumulated error
-               if (adcAxisMaster.tUser(2) = '1') then
-                  v.rowIndex   := adcAxisMaster.tId(ROW_ADDR_BITS_G-1 downto 0);
+               if (timingRxData.rowStrobe = '1') then
+                  v.rowIndex   := timingRxData.rowIndex(ROW_ADDR_BITS_G-1 downto 0);
                   v.accumError := (others => '0');
                   -- Apply the enable mask to the row that just arrived with this strobe.
                   -- Using r.rowIndex here shifts the mask to the next row in the sequence.
@@ -638,7 +640,7 @@ begin
                   v.pidDebugMaster.tData(63 downto 16) := timingRxData.runTime(47 downto 0);
 
                   -- Check for rowSeqStart
-                  if (adcAxisMaster.tUser(5) = '1') then
+                  if (timingRxData.rowSeqStart = '1') then
                      -- Terminate previous frame
                      v.pidStreamMaster.tValid := '1';
                      v.pidStreamMaster.tKeep  := (others => '0');
@@ -653,7 +655,7 @@ begin
                -- Activate and deactivate the accumulator
                -- RAMs have a 3 cycle latency so this needs to happen at least 3 cycles after row strobe
                -- In practice it will always be much longer than 3 cycles
-               if (adcAxisMaster.tUser(0) = '1') then
+               if (timingRxData.firstSample = '1') then
                   -- Word 1 is baseline
                   v.pidDebugMaster.tValid             := r.pidDebugEnable;
                   v.pidDebugMaster.tData(31 downto 0) := resize(adcBaselineRamOut, 32);
@@ -664,7 +666,7 @@ begin
             when ACCUMULATE_S =>
                v.accumError   := resize((adcValueSfixed - adcBaselineSfixed) + v.accumError, v.accumError);
                v.accumSamples := resize(r.accumSamples + 1, r.accumSamples);
-               if (adcAxisMaster.tUser(1) = '1') then
+               if (timingRxData.lastSample = '1') then
                   v.state := PREP_PID_S;
                end if;
 
@@ -679,7 +681,7 @@ begin
                -- Register current sq1FB here
                -- Convert offset binary to 2-s complement
                -- Store in sfixed type register
-               v.sq1FB          := to_sfixed(convOffsetBin(adcAxisMaster.tData(29 downto 16)), r.sq1FB);
+               v.sq1FB          := to_sfixed(convOffsetBin(sq1FbDac), r.sq1FB);
 
                -- Word 2 is accum error
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
