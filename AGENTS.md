@@ -65,6 +65,7 @@ A dedicated serialized link distributes synchronization across all boards:
 - `LocalTimingType` record decodes timing into: runTime, rowStrobe, sample, rowSeq, daqReadout signals
 - Coordinator board (RING_ADDR_0) generates timing; other boards receive and decode
 - See `firmware/common/warm_tdm/rtl/TimingPkg.vhd` for all protocol constants
+- For the full protocol specification (control characters, row-boundary sequences, pwrSync behavior), see [`firmware/common/TimingProtocol.md`](firmware/common/TimingProtocol.md)
 
 ### Communication
 
@@ -202,7 +203,7 @@ python warmTdmEmulate.py
 
 | Task Area | Start With These Files |
 |-----------|----------------------|
-| Timing protocol | `TimingPkg.vhd`, `TimingTx.vhd`, `TimingRx.vhd`, `TimingSerializer*.vhd`, `TimingDeserializer*.vhd` |
+| Timing protocol | [`TimingProtocol.md`](firmware/common/TimingProtocol.md), `TimingPkg.vhd`, `TimingTx.vhd`, `TimingRx.vhd`, `TimingSerializer*.vhd`, `TimingDeserializer*.vhd` |
 | DSP / data path | `DataPath.vhd`, `AdcDsp.vhd`, `BiquadFilter.vhd`, `EventBuilder.vhd` |
 | Communication / PGP | `PgpEthCore.vhd`, `RingRouter.vhd`, `PgpRingRouter.vhd`, `EthCore.vhd` |
 | Row board firmware | `RowDacDriver2.vhd`, `RowModuleDacs.vhd`, `RowModuleTimingRx.vhd` |
