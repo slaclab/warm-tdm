@@ -780,45 +780,44 @@ begin
                end if;
 
             -------------------------------------------------------------------
-            -- WAIT_INT2FP_S (Cycles 1-2)
-            -- Cycle 1: Capture RAM outputs (1-cycle BRAM latency from IDLE_S)
-            -- Cycle 2: Int2Fp result ready; launch D-diff (FpAdd) and P-term
-            --          (FpMac) in parallel
+            -- WAIT_INT2FP_S (Cycles 1-4)
+            -- Wait for RAM read latency (READ_LATENCY_G=3) and Int2Fp
+            -- (C_Latency=2). Poll int2FpOutValid each cycle to capture the
+            -- one-cycle result pulse. At wc=3 RAM outputs are valid; launch
+            -- D-diff (FpAdd) and P-term (FpMac) in parallel.
             -------------------------------------------------------------------
             when WAIT_INT2FP_S =>
-               if (r.waitCount = 0) then
-                  -- Cycle 1: RAM outputs now valid
+               if (int2FpOutValid = '1') then
+                  v.accumErrorFp := int2FpOutData;
+               end if;
+
+               if (r.waitCount = 3) then
                   v.lastAccumErrorFp := accumErrorRamOut;
                   v.sumAccumFp       := sumAccumRamOut;
                   v.sq1FbFullFp      := sq1FbFullRamOut;
                   v.fluxOffsetFp     := fluxOffsetRamOut;
                   v.numFluxJumps     := signed(fluxJumpRamOut);
-                  v.waitCount        := r.waitCount + 1;
 
-               elsif (r.waitCount = 1) then
-                  -- Cycle 2: Int2Fp result ready
-                  if (int2FpOutValid = '1') then
-                     v.accumErrorFp := int2FpOutData;
+                  -- Write accumErrorFp to RAM for next iteration's D-term
+                  v.accumErrorRamWrEn   := '1';
+                  v.accumErrorRamWrData := r.accumErrorFp;
 
-                     -- Write accumErrorFp to RAM for next iteration's D-term
-                     v.accumErrorRamWrEn   := '1';
-                     v.accumErrorRamWrData := int2FpOutData;
+                  -- Launch FpAdd: lastAccumErrorFp - accumErrorFp (D-diff)
+                  v.fpAddInValid := '1';
+                  v.fpAddA       := accumErrorRamOut;
+                  v.fpAddB       := r.accumErrorFp;
+                  v.fpAddSub     := '1';  -- subtract
 
-                     -- Launch FpAdd: lastAccumErrorFp - accumErrorFp (D-diff)
-                     v.fpAddInValid := '1';
-                     v.fpAddA       := r.lastAccumErrorFp;
-                     v.fpAddB       := int2FpOutData;
-                     v.fpAddSub     := '1';  -- subtract
+                  -- Launch FpMac: P * accumErrorFp + 0.0 (P-term)
+                  v.fpMacInValid := '1';
+                  v.fpMacA       := r.accumErrorFp;
+                  v.fpMacB       := r.pCoef;
+                  v.fpMacC       := X"00000000";
 
-                     -- Launch FpMac: P * accumErrorFp + 0.0 (P-term)
-                     v.fpMacInValid := '1';
-                     v.fpMacA       := int2FpOutData;
-                     v.fpMacB       := r.pCoef;
-                     v.fpMacC       := X"00000000";
-
-                     v.waitCount := (others => '0');
-                     v.state     := PID_COMPUTE_S;
-                  end if;
+                  v.waitCount := (others => '0');
+                  v.state     := PID_COMPUTE_S;
+               else
+                  v.waitCount := r.waitCount + 1;
                end if;
 
             -------------------------------------------------------------------
@@ -1088,9 +1087,7 @@ begin
                   v.sumAccumRamWrData := r.newSumAccum;
                end if;
 
-               -- Write all state RAMs
-               v.accumErrorRamWrEn   := '1';
-               v.accumErrorRamWrData := r.accumErrorFp;
+               -- Write all state RAMs (accumError already written in WAIT_INT2FP_S)
                v.sumAccumRamWrEn     := '1';
                v.sq1FbFullRamWrEn    := '1';
                v.sq1FbFullRamWrData  := r.sq1FbFullFp;
