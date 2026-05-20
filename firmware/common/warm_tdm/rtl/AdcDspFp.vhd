@@ -136,7 +136,7 @@ architecture rtl of AdcDspFp is
       state              : StateType;
       rowIndex           : slv(ROW_ADDR_BITS_G-1 downto 0);
       -- Integer accumulation
-      accumSamples       : unsigned(31 downto 0);
+      accumSamples       : unsigned(7 downto 0);
       accumError         : signed(ACCUM_BITS_C-1 downto 0);
       -- FP PID state
       accumErrorFp       : slv(31 downto 0);
@@ -927,7 +927,8 @@ begin
                v.pidDebugMaster.tValid              := r.pidDebugEnable;
                v.pidDebugMaster.tData(15 downto 0)  := std_logic_vector(r.numFluxJumps);
                v.pidDebugMaster.tData(31 downto 16) := (others => '0');
-               v.pidDebugMaster.tData(63 downto 32) := slv(r.accumSamples);
+               v.pidDebugMaster.tData(39 downto 32) := slv(r.accumSamples);
+               v.pidDebugMaster.tData(63 downto 40) := (others => '0');
                v.state := LOOP_DONE_S;
 
             when LOOP_DONE_S =>
