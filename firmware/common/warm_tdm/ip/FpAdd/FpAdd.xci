@@ -8,7 +8,7 @@
     "parameters": {
       "component_parameters": {
         "Component_Name": [ { "value": "FpAdd", "resolve_type": "user", "usage": "all" } ],
-        "Operation_Type": [ { "value": "Add_Sub", "value_src": "user", "resolve_type": "user", "usage": "all" } ],
+        "Operation_Type": [ { "value": "Add_Subtract", "value_src": "user", "resolve_type": "user", "usage": "all" } ],
         "Add_Sub_Value": [ { "value": "Both", "value_src": "user", "resolve_type": "user", "usage": "all" } ],
         "C_Compare_Operation": [ { "value": "Programmable", "resolve_type": "user", "usage": "all" } ],
         "A_Precision_Type": [ { "value": "Single", "value_src": "user", "resolve_type": "user", "usage": "all" } ],
@@ -27,7 +27,7 @@
         "Axi_Optimize_Goal": [ { "value": "Resources", "resolve_type": "user", "usage": "all" } ],
         "Has_RESULT_TREADY": [ { "value": "false", "value_src": "user", "resolve_type": "user", "format": "bool", "usage": "all" } ],
         "Maximum_Latency": [ { "value": "false", "value_src": "user", "resolve_type": "user", "format": "bool", "usage": "all" } ],
-        "C_Latency": [ { "value": "2", "value_src": "user", "resolve_type": "user", "format": "long", "usage": "all" } ],
+        "C_Latency": [ { "value": "1", "value_src": "user", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "C_Rate": [ { "value": "1", "value_src": "user", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "Has_ACLKEN": [ { "value": "false", "resolve_type": "user", "format": "bool", "usage": "all" } ],
         "Has_ARESETn": [ { "value": "false", "resolve_type": "user", "format": "bool", "usage": "all" } ],
