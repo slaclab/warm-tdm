@@ -14,6 +14,11 @@ class DataPath(pr.Device):
         super().__init__(**kwargs)
 
         for i in range(8):
+            self.add(warm_tdm.AdcAccumulator(
+                name = f'AdcAccumulator[{i}]',
+                rows = rows,
+                offset = (7 << 20) + (i << 12)))
+
             if useFloatPid:
                 self.add(warm_tdm.AdcDspFp(
                     name = f'AdcDsp[{i}]',
