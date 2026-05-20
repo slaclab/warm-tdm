@@ -1,5 +1,37 @@
 # FP DSP PID — Progress
 
+## 2026-05-20: PI-Only Simplification (single FpMac, 34-cycle pipeline)
+
+### Completed
+
+- Major rewrite of `AdcDspFp.vhd`: PI-only (D-term removed), single FpMac for all FP operations
+- Removed FpAdd IP entirely (commented out in `ruckus.tcl`); saves ~1800 LUTs × 8 instances
+- Removed FLUX_OFFSET RAM (no incremental offset tracking)
+- Reduced AXIL crossbar from 6 to 5 masters (LOCAL, ACCUM_ERROR, SUM_ACCUM, SQ1FB_FULL, FLUX_JUMP)
+- New linear state machine: IDLE → WAIT_INT2FP → INTEGRATOR → PID_P → PID_I →
+  FLUX_DIVIDE → FLUX_TRUNCATE → FLUX_INT2FP → WRAP → DAC_CONVERT → RAM_WRITE → DATA_STREAM
+- Folded PI+SQ1FB into 2 FpMac ops: FpMac(P, error, sq1FbFull) then FpMac(I, sumAccum, prev) → sq1FbNew directly
+- Direct flux jump computation: numFluxJumps = trunc(sq1FbNew * invFluxQuantum),
+  single FMA wrap: FpMac(numFluxJumpsFp, -fluxQuantum, sq1FbNew) → wrappedFp
+- Eliminated jumpCountToFloat LUT (Int2Fp reconversion instead)
+- Software-configurable wrap period via `WrapMultiplier` in `_AdcDspFp.py`:
+  firmware register gets N * physicalQuantum, reducing flux jump frequency
+- 5-word (40-byte) debug stream: accumErrorFp, sq1FbFullFp, sumAccum before/after,
+  sq1FbNew, numFluxJumps, sq1FbInt (DAC), accumSamples, dropCount
+- Created `_PidDebuggerFp.py` — live pyrogue DataReceiver for 40-byte FP debug frames
+- Created `PidDebugFileReaderFp.py` — offline numpy-based file reader
+- Updated `_AdcDspFp.py`: removed D_Coef, updated RAM offsets, added WrapMultiplier,
+  outputMode '11' now outputs NewSumAccum (integrator state)
+- Preserved existing `_PidDebugger.py` and `PidDebugFileReader.py` unchanged (AdcDsp path)
+- Updated `PLAN.md` to reflect final PI-only architecture
+
+### Not Yet Done
+
+- Synthesis run to verify timing closure and utilization
+- Simulation verification (cycle count, PI response, flux jumping)
+- Hardware validation
+- Verify BiquadFilter still receives correct float stream
+
 ## 2026-05-19: Constant-Time Redesign (35-cycle all-float pipeline)
 
 ### Completed
