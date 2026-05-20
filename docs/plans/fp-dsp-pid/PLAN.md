@@ -27,6 +27,7 @@ Goals:
 
 | RAM | Width | Contents |
 |-----|-------|----------|
+| ACCUM_ERROR | 32-bit float | Last accumErrorFp (debug readback only) |
 | SUM_ACCUM | 32-bit float | Integral accumulator |
 | SQ1FB_FULL | 32-bit float | Unwrapped SQ1FB (primary state) |
 | FLUX_JUMP | 32-bit int | numFluxJumps (for debug readback) |
@@ -119,9 +120,9 @@ DATA_STREAM_S (1 cyc)
 ### Resource Impact (8 instances, XC7K325T)
 
 Compared to original AdcDsp + proposed PID+FpAdd design:
-- Removes: 8× FpAdd IP (~1800 LUTs), 2 RAMs (ACCUM_ERROR, FLUX_OFFSET)
-- Keeps: 8× FpMac, 8× Int2Fp, 8× Fp2Int, 3 RAMs per instance
-- AXIL crossbar: 4 masters (was 6)
+- Removes: 8× FpAdd IP (~1800 LUTs), 1 RAM (FLUX_OFFSET)
+- Keeps: 8× FpMac, 8× Int2Fp, 8× Fp2Int, 4 RAMs per instance
+- AXIL crossbar: 5 masters (was 6)
 - Timing: single-IP pipelined path, no parallel timing constraints
 
 ## Register Map (AdcDspFp local offsets)
@@ -144,9 +145,10 @@ Compared to original AdcDsp + proposed PID+FpAdd design:
 ```
 
 RAM arrays at AXIL crossbar offsets:
-- 0x1000: SumAccum (32-bit float, RW)
-- 0x2000: Sq1FbFull (32-bit float, RW)
-- 0x3000: FluxJumps (32-bit int, RW)
+- 0x1000: AccumError (32-bit float, RO — debug readback)
+- 0x2000: SumAccum (32-bit float, RW)
+- 0x3000: Sq1FbFull (32-bit float, RW)
+- 0x4000: FluxJumps (32-bit int, RW)
 
 ## Debug Stream (40 bytes per row)
 
