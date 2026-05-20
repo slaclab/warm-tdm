@@ -28,3 +28,4 @@ software/scripts/warmTdmClientMuxTest.py
 firmware/python/warm_tdm/_AwaXeSq1BiasDriver.py
 firmware/targets/ColumnFpgaBoardAwaXe/sim/ColumnFpgaBoardTb.vhd
 firmware/targets/RowFpgaBoard/sim/RowFpgaBoardTb.vhd
+.planning/
