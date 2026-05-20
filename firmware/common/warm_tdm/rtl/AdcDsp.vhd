@@ -3,8 +3,7 @@
 
 library ieee;
 use ieee.std_logic_1164.all;
-
---use ieee.numeric_std.all;
+use ieee.numeric_std.all;
 
 library unisim;
 use unisim.vcomponents.all;
@@ -573,7 +572,7 @@ begin
          if (r.pidStateRamAddr = CLEAR_LAST_ADDR_C) then
             v.clearPidStateBusy := '0';
          else
-            v.pidStateRamAddr := r.pidStateRamAddr + 1;
+            v.pidStateRamAddr := slv(unsigned(r.pidStateRamAddr) + 1);
          end if;
       elsif (r.fllEnable = '0' and accumValid = '1' and accumIn.seqStart = '1') then
          v.pidStreamMaster.tValid := '1';
