@@ -38,7 +38,8 @@ architecture sim of GroupTb is
    constant COLUMN_BOARDS_C : integer := 1;
    constant ROW_BOARDS_C    : integer := 1;
 
-   constant AWAXE_G : boolean := false;
+   constant AWAXE_G         : boolean := false;
+   constant USE_FLOAT_PID_C : boolean := true;
 
    constant NUM_WAFERS_G       : integer range 1 to 2  := 1;
    constant NUM_ROW_SELECTS_G  : integer range 1 to 32 := 32;
@@ -84,6 +85,7 @@ begin
          generic map (
             TPD_G                   => TPD_G,
             RING_ADDR_0_G           => (i = 0),
+            USE_FLOAT_PID_G         => USE_FLOAT_PID_C,
             AWAXE_G                 => AWAXE_G,
             SIM_PGP_PORT_NUM_G      => 7000 + (40 *i),  --ite(SIM_PGP_GT_C, 0, 7000),
             SIM_ETH_SRP_PORT_NUM_G  => 10000 + (i * 1000),
