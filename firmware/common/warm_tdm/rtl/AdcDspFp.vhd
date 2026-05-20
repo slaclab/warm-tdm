@@ -107,25 +107,19 @@ architecture rtl of AdcDspFp is
 
    type StateType is (
       IDLE_S,
-      PREP_PID_S,
       WAIT_INT2FP_S,
-      PID_P_S,
+      PID_COMPUTE_S,
       PID_I_S,
-      PID_D_DIFF_S,
       PID_D_S,
       SQ1FB_ADD_S,
-      DERIVE_WRAPPED_S,
-      FP2INT_S,
-      FLUX_JUMP_CHECK_S,
-      ANTI_WINDUP_S,
-      SUM_UPDATE_S,
-      FLUX_OFFSET_UPDATE_INT2FP_S,
-      FLUX_OFFSET_UPDATE_FMA_S,
+      WRAP_S,
+      FLUX_RECIPROCAL_S,
+      FLUX_TRUNCATE_S,
+      OFFSET_UPDATE_S,
+      DAC_WRAP_S,
+      DAC_CONVERT_S,
       RAM_WRITE_S,
       DATA_STREAM_S,
-      DEBUG_0_S,
-      DEBUG_1_S,
-      LOOP_DONE_S,
       CLEAR_STATE_S);
 
    type RegType is record
@@ -145,6 +139,10 @@ architecture rtl of AdcDspFp is
       sq1FbFullFp        : slv(31 downto 0);
       fluxOffsetFp       : slv(31 downto 0);
       pidResultFp        : slv(31 downto 0);
+      dErr               : slv(31 downto 0);
+      newSumAccum        : slv(31 downto 0);
+      wrappedFp          : slv(31 downto 0);
+      dacValueFp         : slv(31 downto 0);
       -- FP coefficients (IEEE 754)
       pCoef              : slv(31 downto 0);
       iCoef              : slv(31 downto 0);
@@ -155,12 +153,13 @@ architecture rtl of AdcDspFp is
       sq1FbInt           : signed(31 downto 0);
       sq1FbValid         : sl;
       numFluxJumps       : signed(15 downto 0);
+      additionalJumps    : signed(31 downto 0);
       fluxQuantumInt     : slv(13 downto 0);
       -- Control
       clearPidState      : sl;
       clearPidStateBusy  : sl;
       pidStateRamAddr    : slv(ROW_ADDR_BITS_G-1 downto 0);
-      fluxJumpOccurred   : sl;
+      waitCount          : unsigned(2 downto 0);
       saturatedHigh      : sl;
       saturatedLow       : sl;
       -- RAM write signals
@@ -181,6 +180,10 @@ architecture rtl of AdcDspFp is
       fpMacA             : slv(31 downto 0);
       fpMacB             : slv(31 downto 0);
       fpMacC             : slv(31 downto 0);
+      fpAddInValid       : sl;
+      fpAddA             : slv(31 downto 0);
+      fpAddB             : slv(31 downto 0);
+      fpAddSub           : sl;
       fp2IntInValid      : sl;
       fp2IntInData       : slv(31 downto 0);
       -- Debug
@@ -208,6 +211,10 @@ architecture rtl of AdcDspFp is
       sq1FbFullFp        => (others => '0'),
       fluxOffsetFp       => (others => '0'),
       pidResultFp        => (others => '0'),
+      dErr               => (others => '0'),
+      newSumAccum        => (others => '0'),
+      wrappedFp          => (others => '0'),
+      dacValueFp         => (others => '0'),
       pCoef              => (others => '0'),
       iCoef              => (others => '0'),
       dCoef              => (others => '0'),
@@ -216,11 +223,12 @@ architecture rtl of AdcDspFp is
       sq1FbInt           => (others => '0'),
       sq1FbValid         => '0',
       numFluxJumps       => (others => '0'),
+      additionalJumps    => (others => '0'),
       fluxQuantumInt     => (others => '0'),
       clearPidState      => '0',
       clearPidStateBusy  => '0',
       pidStateRamAddr    => (others => '0'),
-      fluxJumpOccurred   => '0',
+      waitCount          => (others => '0'),
       saturatedHigh      => '0',
       saturatedLow       => '0',
       accumErrorRamWrEn  => '0',
@@ -239,6 +247,10 @@ architecture rtl of AdcDspFp is
       fpMacA             => (others => '0'),
       fpMacB             => (others => '0'),
       fpMacC             => (others => '0'),
+      fpAddInValid       => '0',
+      fpAddA             => (others => '0'),
+      fpAddB             => (others => '0'),
+      fpAddSub           => '0',
       fp2IntInValid      => '0',
       fp2IntInData       => (others => '0'),
       dropCount          => (others => '0'),
@@ -262,6 +274,8 @@ architecture rtl of AdcDspFp is
    signal int2FpOutData  : slv(31 downto 0);
    signal fpMacOutValid  : sl;
    signal fpMacOutData   : slv(31 downto 0);
+   signal fpAddOutValid  : sl;
+   signal fpAddOutData   : slv(31 downto 0);
    signal fp2IntOutValid : sl;
    signal fp2IntOutData  : slv(31 downto 0);
 
@@ -308,6 +322,33 @@ architecture rtl of AdcDspFp is
    signal sq1fbOffsetBin : slv(13 downto 0);
 
    -------------------------------------------------------------------------------------------------
+   -- LUT: Convert small integer jump count to IEEE 754 single-precision float
+   -- Saturates at +/- 4.0 for values outside [-4, +4]
+   -------------------------------------------------------------------------------------------------
+   function jumpCountToFloat (jumps : signed(31 downto 0)) return slv is
+      variable ret : slv(31 downto 0);
+   begin
+      case to_integer(jumps) is
+         when -4     => ret := X"C0800000";  -- -4.0
+         when -3     => ret := X"C0400000";  -- -3.0
+         when -2     => ret := X"C0000000";  -- -2.0
+         when -1     => ret := X"BF800000";  -- -1.0
+         when  0     => ret := X"00000000";  --  0.0
+         when  1     => ret := X"3F800000";  --  1.0
+         when  2     => ret := X"40000000";  --  2.0
+         when  3     => ret := X"40400000";  --  3.0
+         when  4     => ret := X"40800000";  --  4.0
+         when others =>
+            if (jumps > 0) then
+               ret := X"40800000";  -- saturate at +4.0
+            else
+               ret := X"C0800000";  -- saturate at -4.0
+            end if;
+      end case;
+      return ret;
+   end function jumpCountToFloat;
+
+   -------------------------------------------------------------------------------------------------
    -- FP IP Core component declarations
    -------------------------------------------------------------------------------------------------
    component FpMac
@@ -339,6 +380,19 @@ architecture rtl of AdcDspFp is
          s_axis_a_tdata       : in  std_logic_vector(31 downto 0);
          m_axis_result_tvalid : out std_logic;
          m_axis_result_tdata  : out std_logic_vector(31 downto 0));
+   end component;
+
+   component FpAdd
+      port (
+         aclk                    : in  std_logic;
+         s_axis_a_tvalid         : in  std_logic;
+         s_axis_a_tdata          : in  std_logic_vector(31 downto 0);
+         s_axis_b_tvalid         : in  std_logic;
+         s_axis_b_tdata          : in  std_logic_vector(31 downto 0);
+         s_axis_operation_tvalid : in  std_logic;
+         s_axis_operation_tdata  : in  std_logic_vector(7 downto 0);
+         m_axis_result_tvalid    : out std_logic;
+         m_axis_result_tdata     : out std_logic_vector(31 downto 0));
    end component;
 
 begin
@@ -534,14 +588,26 @@ begin
          m_axis_result_tvalid => fp2IntOutValid,
          m_axis_result_tdata  => fp2IntOutData);
 
+   U_FpAdd_1 : FpAdd
+      port map (
+         aclk                    => timingRxClk125,
+         s_axis_a_tvalid         => r.fpAddInValid,
+         s_axis_a_tdata          => r.fpAddA,
+         s_axis_b_tvalid         => r.fpAddInValid,
+         s_axis_b_tdata          => r.fpAddB,
+         s_axis_operation_tvalid => r.fpAddInValid,
+         s_axis_operation_tdata  => "0000000" & r.fpAddSub,
+         m_axis_result_tvalid    => fpAddOutValid,
+         m_axis_result_tdata     => fpAddOutData);
+
    -------------------------------------------------------------------------------------------------
    -- Main combinatorial process
    -------------------------------------------------------------------------------------------------
    comb : process (accumErrorRamOut, accumIn, accumValid, fluxJumpRamOut,
-                   fluxOffsetRamOut, fp2IntOutData, fp2IntOutValid, fpMacOutData, fpMacOutValid,
-                   int2FpOutData, int2FpOutValid, pidDebugCtrl, r, sq1FbFullRamOut,
-                   sumAccumRamOut, timingAxilReadMaster, timingAxilWriteMaster, timingRxData,
-                   timingRxRst125) is
+                   fluxOffsetRamOut, fp2IntOutData, fp2IntOutValid, fpAddOutData, fpAddOutValid,
+                   fpMacOutData, fpMacOutValid, int2FpOutData, int2FpOutValid, pidDebugCtrl, r,
+                   sq1FbFullRamOut, sumAccumRamOut, timingAxilReadMaster, timingAxilWriteMaster,
+                   timingRxData, timingRxRst125) is
       variable v              : RegType;
       variable requestClear   : boolean;
       variable iContribSign   : sl;
@@ -594,6 +660,7 @@ begin
       v.fluxJumpRamWrEn    := '0';
       v.int2FpInValid      := '0';
       v.fpMacInValid       := '0';
+      v.fpAddInValid       := '0';
       v.fp2IntInValid      := '0';
 
       v.pidStreamMaster  := axiStreamMasterInit(PID_DATA_FP_AXIS_CFG_C);
@@ -669,6 +736,11 @@ begin
 
       elsif (r.fllEnable = '1') then
          case r.state is
+            -------------------------------------------------------------------
+            -- IDLE_S (Cycle 0)
+            -- Wait for new accumulation result. Capture inputs, launch Int2Fp,
+            -- emit debug SOF header, handle seqStart frame marker.
+            -------------------------------------------------------------------
             when IDLE_S =>
                v.pidDebugEnable := not pidDebugCtrl.pause and r.axilPidDebugEnable;
                if (r.axilPidDebugEnable = '1' and pidDebugCtrl.pause = '1') then
@@ -676,228 +748,363 @@ begin
                end if;
 
                if (accumValid = '1') then
+                  -- Capture accumulation inputs
                   v.rowIndex     := accumIn.rowIndex(ROW_ADDR_BITS_G-1 downto 0);
                   v.accumError   := resize(accumIn.accumError, ACCUM_BITS_C);
                   v.accumSamples := accumIn.numSamples;
                   v.rowEnabled   := r.rowEnableMask(to_integer(unsigned(accumIn.rowIndex)));
 
-                  ssiSetUserSof(AXIS_DEBUG_CFG_C, v.pidDebugMaster, '1');
-                  v.pidDebugMaster.tValid              := v.pidDebugEnable;
-                  v.pidDebugMaster.tData(3 downto 0)   := toSlv(COLUMN_NUM_G, 4);
-                  v.pidDebugMaster.tData(15 downto 8)  := resize(v.rowIndex, 8);
-                  v.pidDebugMaster.tData(63 downto 16) := timingRxData.runTime(47 downto 0);
+                  -- pidStateRamAddr tracks rowIndex via assignment after case
+                  -- RAM outputs will be valid next cycle (1-cycle BRAM latency)
 
+                  -- Launch Int2Fp(accumError) -- result ready in 2 cycles
+                  v.int2FpInValid := '1';
+                  v.int2FpInData  := std_logic_vector(resize(accumIn.accumError, 32));
+
+                  -- Handle sequence start frame marker
                   if (accumIn.seqStart = '1') then
                      v.pidStreamMaster.tValid := '1';
                      v.pidStreamMaster.tKeep  := (others => '0');
                      v.pidStreamMaster.tLast  := '1';
                   end if;
 
-                  v.state := PREP_PID_S;
+                  -- Debug SOF header packet
+                  ssiSetUserSof(AXIS_DEBUG_CFG_C, v.pidDebugMaster, '1');
+                  v.pidDebugMaster.tValid              := v.pidDebugEnable;
+                  v.pidDebugMaster.tData(3 downto 0)   := toSlv(COLUMN_NUM_G, 4);
+                  v.pidDebugMaster.tData(15 downto 8)  := resize(v.rowIndex, 8);
+                  v.pidDebugMaster.tData(63 downto 16) := timingRxData.runTime(47 downto 0);
+
+                  v.waitCount := (others => '0');
+                  v.state     := WAIT_INT2FP_S;
                end if;
 
-            when PREP_PID_S =>
-               -- RAM values are available (3+ cycles since rowIndex was set)
-               v.lastAccumErrorFp := accumErrorRamOut;
-               v.sumAccumFp       := sumAccumRamOut;
-               v.sq1FbFullFp      := sq1FbFullRamOut;
-               v.fluxOffsetFp     := fluxOffsetRamOut;
-               v.numFluxJumps     := signed(fluxJumpRamOut);
-               -- Convert integer accumError to float
-               v.int2FpInValid    := '1';
-               v.int2FpInData     := std_logic_vector(resize(r.accumError, 32));
-               v.pidDebugMaster.tValid             := r.pidDebugEnable;
-               v.pidDebugMaster.tData(31 downto 0) := std_logic_vector(resize(r.accumError, 32));
-               v.state := WAIT_INT2FP_S;
-
+            -------------------------------------------------------------------
+            -- WAIT_INT2FP_S (Cycles 1-2)
+            -- Cycle 1: Capture RAM outputs (1-cycle BRAM latency from IDLE_S)
+            -- Cycle 2: Int2Fp result ready; launch D-diff (FpAdd) and P-term
+            --          (FpMac) in parallel
+            -------------------------------------------------------------------
             when WAIT_INT2FP_S =>
-               if (int2FpOutValid = '1') then
-                  v.accumErrorFp := int2FpOutData;
-                  -- Write accumError float to RAM for next cycle's D-term
-                  v.accumErrorRamWrEn   := '1';
-                  v.accumErrorRamWrData := int2FpOutData;
-                  -- Start P term: result = P * accumError + 0.0
-                  v.fpMacInValid := '1';
-                  v.fpMacA       := int2FpOutData;
-                  v.fpMacB       := r.pCoef;
-                  v.fpMacC       := X"00000000";
-                  v.state        := PID_P_S;
+               if (r.waitCount = 0) then
+                  -- Cycle 1: RAM outputs now valid
+                  v.lastAccumErrorFp := accumErrorRamOut;
+                  v.sumAccumFp       := sumAccumRamOut;
+                  v.sq1FbFullFp      := sq1FbFullRamOut;
+                  v.fluxOffsetFp     := fluxOffsetRamOut;
+                  v.numFluxJumps     := signed(fluxJumpRamOut);
+                  v.waitCount        := r.waitCount + 1;
+
+               elsif (r.waitCount = 1) then
+                  -- Cycle 2: Int2Fp result ready
+                  if (int2FpOutValid = '1') then
+                     v.accumErrorFp := int2FpOutData;
+
+                     -- Write accumErrorFp to RAM for next iteration's D-term
+                     v.accumErrorRamWrEn   := '1';
+                     v.accumErrorRamWrData := int2FpOutData;
+
+                     -- Launch FpAdd: lastAccumErrorFp - accumErrorFp (D-diff)
+                     v.fpAddInValid := '1';
+                     v.fpAddA       := r.lastAccumErrorFp;
+                     v.fpAddB       := int2FpOutData;
+                     v.fpAddSub     := '1';  -- subtract
+
+                     -- Launch FpMac: P * accumErrorFp + 0.0 (P-term)
+                     v.fpMacInValid := '1';
+                     v.fpMacA       := int2FpOutData;
+                     v.fpMacB       := r.pCoef;
+                     v.fpMacC       := X"00000000";
+
+                     v.waitCount := (others => '0');
+                     v.state     := PID_COMPUTE_S;
+                  end if;
                end if;
 
-            when PID_P_S =>
-               if (fpMacOutValid = '1') then
-                  v.pidResultFp := fpMacOutData;
-                  -- I term: result += I * sumAccum
-                  v.fpMacInValid := '1';
-                  v.fpMacA       := r.sumAccumFp;
-                  v.fpMacB       := r.iCoef;
-                  v.fpMacC       := fpMacOutData;
-                  v.state        := PID_I_S;
-               end if;
+            -------------------------------------------------------------------
+            -- PID_COMPUTE_S (Cycles 3-6)
+            -- Parallel FpAdd (D-diff, 2-cycle) and FpMac (P-term, 4-cycle).
+            -- After D-diff arrives, launch speculative integrator on FpAdd.
+            -- Both FpAdd (integrator) and FpMac (P-term) complete at wc=3.
+            -------------------------------------------------------------------
+            when PID_COMPUTE_S =>
+               case to_integer(r.waitCount) is
+                  when 0 =>
+                     -- Cycle 3: FpAdd computing D-diff, FpMac computing P
+                     v.waitCount := r.waitCount + 1;
 
+                  when 1 =>
+                     -- Cycle 4: FpAdd result ready (D-diff = last - current)
+                     if (fpAddOutValid = '1') then
+                        v.dErr := fpAddOutData;
+
+                        -- Launch FpAdd: accumErrorFp + sumAccumFp (speculative integrator)
+                        v.fpAddInValid := '1';
+                        v.fpAddA       := r.accumErrorFp;
+                        v.fpAddB       := r.sumAccumFp;
+                        v.fpAddSub     := '0';  -- add
+
+                        v.waitCount := r.waitCount + 1;
+                     end if;
+
+                  when 2 =>
+                     -- Cycle 5: FpAdd computing integrator, FpMac computing P
+                     v.waitCount := r.waitCount + 1;
+
+                  when 3 =>
+                     -- Cycle 6: FpAdd integrator result + FpMac P-term result
+                     if (fpAddOutValid = '1' and fpMacOutValid = '1') then
+                        v.newSumAccum := fpAddOutData;
+                        v.pidResultFp := fpMacOutData;
+
+                        -- Launch FpMac: I * sumAccumFp + pidResultFp (I-term)
+                        v.fpMacInValid := '1';
+                        v.fpMacA       := r.sumAccumFp;
+                        v.fpMacB       := r.iCoef;
+                        v.fpMacC       := fpMacOutData;
+
+                        v.waitCount := (others => '0');
+                        v.state     := PID_I_S;
+                     end if;
+
+                  when others =>
+                     null;
+               end case;
+
+            -------------------------------------------------------------------
+            -- PID_I_S (Cycles 7-10)
+            -- Wait for I-term FpMac result (4-cycle latency), then launch
+            -- D-term computation.
+            -------------------------------------------------------------------
             when PID_I_S =>
                if (fpMacOutValid = '1') then
                   v.pidResultFp := fpMacOutData;
-                  -- Compute dError = lastAccumError - accumError
-                  -- FMA: (-1.0) * accumError + lastAccumError
-                  v.fpMacInValid := '1';
-                  v.fpMacA       := r.accumErrorFp;
-                  v.fpMacB       := X"BF800000";
-                  v.fpMacC       := r.lastAccumErrorFp;
-                  v.pidDebugMaster.tValid             := r.pidDebugEnable;
-                  v.pidDebugMaster.tData(31 downto 0) := r.sumAccumFp;
-                  v.state        := PID_D_DIFF_S;
-               end if;
 
-            when PID_D_DIFF_S =>
-               if (fpMacOutValid = '1') then
-                  -- fpMacOutData = dError (lastAccumError - accumError)
-                  -- D term: result += D * dError
+                  -- Launch FpMac: D * dErr + pidResultFp (D-term)
                   v.fpMacInValid := '1';
-                  v.fpMacA       := fpMacOutData;
+                  v.fpMacA       := r.dErr;
                   v.fpMacB       := r.dCoef;
-                  v.fpMacC       := r.pidResultFp;
-                  v.state        := PID_D_S;
+                  v.fpMacC       := fpMacOutData;
+
+                  v.state := PID_D_S;
                end if;
 
+            -------------------------------------------------------------------
+            -- PID_D_S (Cycles 11-14)
+            -- Wait for D-term FpMac result (full PID output), then launch
+            -- SQ1FB update addition.
+            -------------------------------------------------------------------
             when PID_D_S =>
                if (fpMacOutValid = '1') then
                   v.pidResultFp := fpMacOutData;
-                  -- Add pidResult to sq1FbFull: sq1FbFull += pidResult
-                  -- FMA: pidResult * 1.0 + sq1FbFull
-                  v.fpMacInValid := '1';
-                  v.fpMacA       := fpMacOutData;
-                  v.fpMacB       := X"3F800000";
-                  v.fpMacC       := r.sq1FbFullFp;
-                  v.pidDebugMaster.tValid             := r.pidDebugEnable;
-                  v.pidDebugMaster.tData(31 downto 0) := fpMacOutData;
-                  v.state        := SQ1FB_ADD_S;
+
+                  -- Launch FpAdd: pidResultFp + sq1FbFullFp (SQ1FB update)
+                  v.fpAddInValid := '1';
+                  v.fpAddA       := fpMacOutData;
+                  v.fpAddB       := r.sq1FbFullFp;
+                  v.fpAddSub     := '0';  -- add
+
+                  v.state := SQ1FB_ADD_S;
                end if;
 
+            -------------------------------------------------------------------
+            -- SQ1FB_ADD_S (Cycles 15-16)
+            -- Wait for FpAdd result (new unwrapped SQ1FB value), then launch
+            -- wrapping subtraction.
+            -------------------------------------------------------------------
             when SQ1FB_ADD_S =>
-               if (fpMacOutValid = '1') then
-                  v.sq1FbFullFp := fpMacOutData;
-                  -- Derive wrapped value: wrapped = sq1FbFull - fluxOffset
-                  -- FMA: fluxOffset * (-1.0) + sq1FbFull
-                  v.fpMacInValid := '1';
-                  v.fpMacA       := r.fluxOffsetFp;
-                  v.fpMacB       := X"BF800000";
-                  v.fpMacC       := fpMacOutData;
-                  v.state        := DERIVE_WRAPPED_S;
+               if (fpAddOutValid = '1') then
+                  v.sq1FbFullFp := fpAddOutData;
+
+                  -- Launch FpAdd: sq1FbFullFp - fluxOffsetFp (wrapping)
+                  v.fpAddInValid := '1';
+                  v.fpAddA       := fpAddOutData;
+                  v.fpAddB       := r.fluxOffsetFp;
+                  v.fpAddSub     := '1';  -- subtract
+
+                  v.state := WRAP_S;
                end if;
 
-            when DERIVE_WRAPPED_S =>
+            -------------------------------------------------------------------
+            -- WRAP_S (Cycles 17-18)
+            -- Wait for wrapped value, launch reciprocal multiply to determine
+            -- number of flux jumps.
+            -------------------------------------------------------------------
+            when WRAP_S =>
+               if (fpAddOutValid = '1') then
+                  v.wrappedFp := fpAddOutData;
+
+                  -- Launch FpMac: wrappedFp * invFluxQuantumFp + 0.0
+                  v.fpMacInValid := '1';
+                  v.fpMacA       := fpAddOutData;
+                  v.fpMacB       := r.invFluxQuantumFp;
+                  v.fpMacC       := X"00000000";
+
+                  v.state := FLUX_RECIPROCAL_S;
+               end if;
+
+            -------------------------------------------------------------------
+            -- FLUX_RECIPROCAL_S (Cycles 19-22)
+            -- Wait for FpMac result (jumps as float), launch Fp2Int truncation
+            -- to get integer jump count.
+            -------------------------------------------------------------------
+            when FLUX_RECIPROCAL_S =>
                if (fpMacOutValid = '1') then
-                  -- Convert wrapped float to integer for threshold check
+                  -- Convert jumpsFp to integer (truncate toward zero)
                   v.fp2IntInValid := '1';
                   v.fp2IntInData  := fpMacOutData;
-                  v.state         := FP2INT_S;
+
+                  v.state := FLUX_TRUNCATE_S;
                end if;
 
-            when FP2INT_S =>
+            -------------------------------------------------------------------
+            -- FLUX_TRUNCATE_S (Cycles 23-24)
+            -- Wait for Fp2Int result. Update numFluxJumps, look up float via
+            -- LUT, launch FpMac for flux offset update. Emit debug pkt 0.
+            -------------------------------------------------------------------
+            when FLUX_TRUNCATE_S =>
                if (fp2IntOutValid = '1') then
-                  v.sq1FbInt         := signed(fp2IntOutData);
-                  v.fluxJumpOccurred := '0';
-                  v.saturatedHigh    := '0';
-                  v.saturatedLow     := '0';
-                  v.state            := FLUX_JUMP_CHECK_S;
+                  v.additionalJumps := signed(fp2IntOutData);
+                  v.numFluxJumps    := r.numFluxJumps + resize(signed(fp2IntOutData), 16);
+
+                  -- Launch FpMac: additionalJumpsFp * fluxQuantumFp + fluxOffsetFp
+                  -- (incremental offset update)
+                  v.fpMacInValid := '1';
+                  v.fpMacA       := jumpCountToFloat(signed(fp2IntOutData));
+                  v.fpMacB       := r.fluxQuantumFp;
+                  v.fpMacC       := r.fluxOffsetFp;
+
+                  -- Emit debug packet 0: sq1FbFullFp & pidResultFp
+                  v.pidDebugMaster.tValid              := r.pidDebugEnable;
+                  v.pidDebugMaster.tData(31 downto 0)  := r.pidResultFp;
+                  v.pidDebugMaster.tData(63 downto 32) := r.sq1FbFullFp;
+
+                  v.waitCount := (others => '0');
+                  v.state     := OFFSET_UPDATE_S;
                end if;
 
-            when FLUX_JUMP_CHECK_S =>
-               -- Iterative flux jump check (supports multi-quantum jumps)
-               if (r.sq1FbInt > FLUX_JUMP_THRESHOLD_C) then
-                  v.sq1FbInt         := r.sq1FbInt - signed(resize(unsigned(r.fluxQuantumInt), 32));
-                  v.numFluxJumps     := r.numFluxJumps + 1;
-                  v.fluxJumpOccurred := '1';
-                  -- Stay in this state for another iteration
-               elsif (r.sq1FbInt < -FLUX_JUMP_THRESHOLD_C) then
-                  v.sq1FbInt         := r.sq1FbInt + signed(resize(unsigned(r.fluxQuantumInt), 32));
-                  v.numFluxJumps     := r.numFluxJumps - 1;
-                  v.fluxJumpOccurred := '1';
-                  -- Stay in this state for another iteration
-               else
-                  -- Check DAC saturation for anti-windup
-                  if (r.sq1FbInt > SQ1FB_MAX_C) then
+            -------------------------------------------------------------------
+            -- OFFSET_UPDATE_S (Cycles 25-28)
+            -- Emit debug packets while waiting for FpMac flux offset result.
+            -- On wc=3, capture new fluxOffsetFp and launch DAC value subtract.
+            -------------------------------------------------------------------
+            when OFFSET_UPDATE_S =>
+               case to_integer(r.waitCount) is
+                  when 0 =>
+                     -- Cycle 25: Emit debug packet 1
+                     v.pidDebugMaster.tValid              := r.pidDebugEnable;
+                     v.pidDebugMaster.tData(15 downto 0)  := std_logic_vector(r.numFluxJumps);
+                     v.pidDebugMaster.tData(23 downto 16) := slv(r.accumSamples);
+                     v.pidDebugMaster.tData(31 downto 24) := (others => '0');
+                     v.pidDebugMaster.tData(63 downto 32) := std_logic_vector(r.additionalJumps);
+                     v.waitCount := r.waitCount + 1;
+
+                  when 1 =>
+                     -- Cycle 26: Emit debug packet 2 (last)
+                     v.pidDebugMaster.tValid              := r.pidDebugEnable;
+                     v.pidDebugMaster.tData(31 downto 0)  := slv(r.dropCount);
+                     v.pidDebugMaster.tData(63 downto 32) := timingRxData.rowSeqCount(31 downto 0);
+                     v.pidDebugMaster.tLast               := '1';
+                     v.waitCount := r.waitCount + 1;
+
+                  when 2 =>
+                     -- Cycle 27: Wait for FpMac
+                     v.waitCount := r.waitCount + 1;
+
+                  when 3 =>
+                     -- Cycle 28: FpMac result ready (new flux offset)
+                     if (fpMacOutValid = '1') then
+                        v.fluxOffsetFp := fpMacOutData;
+
+                        -- Launch FpAdd: sq1FbFullFp - newFluxOffset (DAC value)
+                        v.fpAddInValid := '1';
+                        v.fpAddA       := r.sq1FbFullFp;
+                        v.fpAddB       := fpMacOutData;
+                        v.fpAddSub     := '1';  -- subtract
+
+                        v.state := DAC_WRAP_S;
+                     end if;
+
+                  when others =>
+                     null;
+               end case;
+
+            -------------------------------------------------------------------
+            -- DAC_WRAP_S (Cycles 29-30)
+            -- Wait for FpAdd result (DAC value as float), launch Fp2Int for
+            -- final integer conversion.
+            -------------------------------------------------------------------
+            when DAC_WRAP_S =>
+               if (fpAddOutValid = '1') then
+                  v.dacValueFp := fpAddOutData;
+
+                  -- Launch Fp2Int for final DAC conversion
+                  v.fp2IntInValid := '1';
+                  v.fp2IntInData  := fpAddOutData;
+
+                  v.state := DAC_CONVERT_S;
+               end if;
+
+            -------------------------------------------------------------------
+            -- DAC_CONVERT_S (Cycles 31-32)
+            -- Wait for Fp2Int result, clip to DAC range [SQ1FB_MIN_C,
+            -- SQ1FB_MAX_C], set saturation flags.
+            -------------------------------------------------------------------
+            when DAC_CONVERT_S =>
+               if (fp2IntOutValid = '1') then
+                  v.sq1FbInt      := signed(fp2IntOutData);
+                  v.saturatedHigh := '0';
+                  v.saturatedLow  := '0';
+
+                  -- Clip to DAC range
+                  if (signed(fp2IntOutData) > SQ1FB_MAX_C) then
                      v.sq1FbInt      := to_signed(SQ1FB_MAX_C, 32);
                      v.saturatedHigh := '1';
-                  elsif (r.sq1FbInt < SQ1FB_MIN_C) then
+                  elsif (signed(fp2IntOutData) < SQ1FB_MIN_C) then
                      v.sq1FbInt     := to_signed(SQ1FB_MIN_C, 32);
                      v.saturatedLow := '1';
                   end if;
+
                   v.sq1FbValid := r.rowEnabled;
-                  v.state      := ANTI_WINDUP_S;
+                  v.state      := RAM_WRITE_S;
                end if;
 
-            when ANTI_WINDUP_S =>
-               -- Determine sign of I-contribution: sign(I * accumError)
-               -- Positive if signs of iCoef and accumError match
+            -------------------------------------------------------------------
+            -- RAM_WRITE_S (Cycle 33)
+            -- Anti-windup mux: decide whether to commit speculative integrator.
+            -- Write all PID state RAMs.
+            -------------------------------------------------------------------
+            when RAM_WRITE_S =>
+               -- Anti-windup: determine sign of I-contribution
                iContribSign := r.iCoef(31) xor r.accumErrorFp(31);
 
-               if (r.iCoef = x"00000000") then
-                  -- I coef is zero: clear integrator
-                  v.sumAccumFp := X"00000000";
-                  v.state      := RAM_WRITE_S;
-               elsif (r.saturatedHigh = '1' and iContribSign = '0') then
-                  -- Saturated high and I would push higher: don't integrate
-                  v.state := RAM_WRITE_S;
-               elsif (r.saturatedLow = '1' and iContribSign = '1') then
-                  -- Saturated low and I would push lower: don't integrate
-                  v.state := RAM_WRITE_S;
+               if (r.iCoef = X"00000000") or
+                  (r.saturatedHigh = '1' and iContribSign = '0') or
+                  (r.saturatedLow = '1' and iContribSign = '1') then
+                  -- Discard integrator update (anti-windup active)
+                  v.sumAccumRamWrData := r.sumAccumFp;
                else
-                  -- Allow integration: sumAccum += accumError
-                  -- FMA: accumError * 1.0 + sumAccum
-                  v.fpMacInValid := '1';
-                  v.fpMacA       := r.accumErrorFp;
-                  v.fpMacB       := X"3F800000";
-                  v.fpMacC       := r.sumAccumFp;
-                  v.state        := SUM_UPDATE_S;
+                  -- Commit speculative integrator
+                  v.sumAccumRamWrData := r.newSumAccum;
                end if;
 
-            when SUM_UPDATE_S =>
-               if (fpMacOutValid = '1') then
-                  v.sumAccumFp := fpMacOutData;
-                  v.state      := RAM_WRITE_S;
-               end if;
+               -- Write all state RAMs
+               v.accumErrorRamWrEn   := '1';
+               v.accumErrorRamWrData := r.accumErrorFp;
+               v.sumAccumRamWrEn     := '1';
+               v.sq1FbFullRamWrEn    := '1';
+               v.sq1FbFullRamWrData  := r.sq1FbFullFp;
+               v.fluxOffsetRamWrEn   := '1';
+               v.fluxOffsetRamWrData := r.fluxOffsetFp;
+               v.fluxJumpRamWrEn     := '1';
+               v.fluxJumpRamWrData   := std_logic_vector(r.numFluxJumps);
 
-            when RAM_WRITE_S =>
-               -- Write updated state to RAMs
-               v.sumAccumRamWrEn    := '1';
-               v.sumAccumRamWrData  := r.sumAccumFp;
-               v.sq1FbFullRamWrEn   := '1';
-               v.sq1FbFullRamWrData := r.sq1FbFullFp;
-               v.fluxJumpRamWrEn    := '1';
-               v.fluxJumpRamWrData  := std_logic_vector(r.numFluxJumps);
+               v.state := DATA_STREAM_S;
 
-               if (r.fluxJumpOccurred = '1') then
-                  -- Need to recompute fluxOffset = numFluxJumps * fluxQuantum
-                  -- First convert numFluxJumps to float
-                  v.int2FpInValid := '1';
-                  v.int2FpInData  := std_logic_vector(resize(r.numFluxJumps, 32));
-                  v.state         := FLUX_OFFSET_UPDATE_INT2FP_S;
-               else
-                  v.fluxOffsetRamWrEn   := '1';
-                  v.fluxOffsetRamWrData := r.fluxOffsetFp;
-                  v.state               := DATA_STREAM_S;
-               end if;
-
-            when FLUX_OFFSET_UPDATE_INT2FP_S =>
-               if (int2FpOutValid = '1') then
-                  -- Compute fluxOffset = numFluxJumpsFp * fluxQuantumFp
-                  v.fpMacInValid := '1';
-                  v.fpMacA       := int2FpOutData;
-                  v.fpMacB       := r.fluxQuantumFp;
-                  v.fpMacC       := X"00000000";
-                  v.state        := FLUX_OFFSET_UPDATE_FMA_S;
-               end if;
-
-            when FLUX_OFFSET_UPDATE_FMA_S =>
-               if (fpMacOutValid = '1') then
-                  v.fluxOffsetFp        := fpMacOutData;
-                  v.fluxOffsetRamWrEn   := '1';
-                  v.fluxOffsetRamWrData := fpMacOutData;
-                  v.state               := DATA_STREAM_S;
-               end if;
-
+            -------------------------------------------------------------------
+            -- DATA_STREAM_S (Cycle 34)
+            -- Emit PID stream output based on outputMode selection.
+            -------------------------------------------------------------------
             when DATA_STREAM_S =>
                v.pidStreamMaster.tValid := r.rowEnabled;
                if (r.outputMode = "00") then
@@ -915,29 +1122,12 @@ begin
                end if;
 
                v.pidStreamMaster.tId(ROW_ADDR_BITS_G-1 downto 0) := r.rowIndex;
-               v.state := DEBUG_0_S;
-
-            when DEBUG_0_S =>
-               v.pidDebugMaster.tValid              := r.pidDebugEnable;
-               v.pidDebugMaster.tData(31 downto 0)  := r.sq1FbFullFp;
-               v.pidDebugMaster.tData(63 downto 32) := std_logic_vector(r.sq1FbInt);
-               v.state := DEBUG_1_S;
-
-            when DEBUG_1_S =>
-               v.pidDebugMaster.tValid              := r.pidDebugEnable;
-               v.pidDebugMaster.tData(15 downto 0)  := std_logic_vector(r.numFluxJumps);
-               v.pidDebugMaster.tData(31 downto 16) := (others => '0');
-               v.pidDebugMaster.tData(39 downto 32) := slv(r.accumSamples);
-               v.pidDebugMaster.tData(63 downto 40) := (others => '0');
-               v.state := LOOP_DONE_S;
-
-            when LOOP_DONE_S =>
-               v.pidDebugMaster.tValid              := r.pidDebugEnable;
-               v.pidDebugMaster.tData(31 downto 0)  := slv(r.dropCount);
-               v.pidDebugMaster.tData(63 downto 32) := timingRxData.rowSeqCount(31 downto 0);
-               v.pidDebugMaster.tLast               := '1';
                v.state := IDLE_S;
 
+            -------------------------------------------------------------------
+            -- CLEAR_STATE_S
+            -- Unused placeholder state
+            -------------------------------------------------------------------
             when CLEAR_STATE_S =>
                null;
 

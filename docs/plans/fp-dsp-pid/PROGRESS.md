@@ -1,5 +1,31 @@
 # FP DSP PID — Progress
 
+## 2026-05-19: Constant-Time Redesign (35-cycle all-float pipeline)
+
+### Completed
+
+- Rewrote `AdcDspFp.vhd` state machine: 35 cycles constant, no conditional branches
+- Added `FpAdd` IP core (Xilinx FP v7.1, Add/Sub, 2-cycle latency, NonBlocking)
+  - New file: `firmware/common/warm_tdm/ip/FpAdd/FpAdd.xci`
+  - Updated `ruckus.tcl` to load FpAdd
+- Replaced iterative flux jump loop with constant-time all-float approach:
+  - FpMac reciprocal multiply (`wrappedFp * invFluxQuantumFp`)
+  - Fp2Int truncation for integer jump count
+  - Combinatorial LUT (±4 → IEEE 754) avoids Int2Fp entirely
+  - FMA incremental offset update: `newOffset = oldOffset + jumps * quantum`
+- Moved add/subtract operations from FpMac to FpAdd (2 cycles vs 4):
+  D-diff, integrator, SQ1FB-add, wrapping, DAC-wrap
+- Speculative integrator: always computed, apply/discard at RAM_WRITE via mux
+- Debug packets emit during FpMac wait cycles (zero overhead)
+- Merged IDLE + PREP_PID (RAM latency hides in Int2Fp wait)
+- Software already compatible (InvFluxQuantumFp register exists at 0x44)
+
+### Not Yet Done
+
+- Synthesis run to verify timing closure and utilization
+- Simulation verification (cycle count counter)
+- Hardware validation
+
 ## 2026-05-19: Accumulator Split Refactor
 
 ### Completed
