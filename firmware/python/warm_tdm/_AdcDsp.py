@@ -28,11 +28,6 @@ class RowPidStatus(pr.Device):
         super().__init__(**kwargs)
 
         self.add(IndexedLinkVariable(
-            name = 'AdcBaseline',
-            dep = dsp.AdcBaselines,
-            index = rowNum))
-
-        self.add(IndexedLinkVariable(
             name = 'AccumError',
             dep = dsp.AccumError,
             index = rowNum))
@@ -276,18 +271,8 @@ class AdcDsp(pr.Device):
 
 
         self.add(pr.RemoteVariable(
-            name = 'AdcBaselines',
-            offset = 0x1000,
-            base = pr.Int,
-            mode = 'RW',
-            numValues = rows,
-            valueBits = 14,
-            valueStride = 32))
-
-
-        self.add(pr.RemoteVariable(
             name = 'AccumError',
-            offset = 0x2000,
+            offset = 0x1000,
             base = AdcDsp.ACCUM_BASE,
             mode = 'RO',
             numValues = rows,
@@ -297,7 +282,7 @@ class AdcDsp(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'SumAccum',
-            offset = 0x3000,
+            offset = 0x2000,
             base = AdcDsp.ACCUM_BASE,
             mode = 'RW',
             numValues = rows,
@@ -307,7 +292,7 @@ class AdcDsp(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'PidResults',
-            offset = 0x4000,
+            offset = 0x3000,
             mode = 'RW',
             base = AdcDsp.RESULT_BASE,
             numValues = rows,
@@ -315,18 +300,9 @@ class AdcDsp(pr.Device):
             valueStride = 64))
 
 
-#         self.add(pr.RemoteVariable(
-#             name = 'FilterResults',
-#             offset = 0x5000,
-#             mode = 'RO',
-#             base = AdcDsp.RESULT_BASE,
-#             numValues = rows,
-#             valueBits = AdcDsp.RESULT_BASE.bitSize,
-#             valueStride = 64))
-
         self.add(pr.RemoteVariable(
             name = 'FluxJumps',
-            offset = 0x7000,
+            offset = 0x6000,
             base = pr.Int,
             mode = 'RW',
             numValues = rows,

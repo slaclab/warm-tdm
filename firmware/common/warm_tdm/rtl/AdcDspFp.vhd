@@ -50,8 +50,8 @@ entity AdcDspFp is
       timingRxClk125   : in  sl;
       timingRxRst125   : in  sl;
       timingRxData     : in  LocalTimingType;
-      adcAxisMaster    : in  AxiStreamMasterType;
-      sq1FbDac         : in  slv(13 downto 0);
+      accumIn          : in  AdcAccumResultType;
+      accumValid       : in  sl;
       sAxilReadMaster  : in  AxiLiteReadMasterType;
       sAxilReadSlave   : out AxiLiteReadSlaveType  := AXI_LITE_READ_SLAVE_EMPTY_DECERR_C;
       sAxilWriteMaster : in  AxiLiteWriteMasterType;
@@ -71,14 +71,13 @@ end entity;
 
 architecture rtl of AdcDspFp is
 
-   constant NUM_AXIL_MASTERS_C : integer := 7;
+   constant NUM_AXIL_MASTERS_C : integer := 6;
    constant LOCAL_C            : integer := 0;
-   constant ADC_BASELINE_C     : integer := 1;
-   constant ACCUM_ERROR_C      : integer := 2;
-   constant SUM_ACCUM_C        : integer := 3;
-   constant SQ1FB_FULL_C       : integer := 4;
-   constant FLUX_OFFSET_C      : integer := 5;
-   constant FLUX_JUMP_C        : integer := 6;
+   constant ACCUM_ERROR_C      : integer := 1;
+   constant SUM_ACCUM_C        : integer := 2;
+   constant SQ1FB_FULL_C       : integer := 3;
+   constant FLUX_OFFSET_C      : integer := 4;
+   constant FLUX_JUMP_C        : integer := 5;
 
    constant XBAR_CONFIG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) :=
       genAxiLiteConfig(NUM_AXIL_MASTERS_C, AXIL_BASE_ADDR_G, 16, 12);
@@ -107,9 +106,7 @@ architecture rtl of AdcDspFp is
       tDestBits => 4);
 
    type StateType is (
-      WAIT_ROW_STROBE_S,
-      WAIT_FIRST_SAMPLE_S,
-      ACCUMULATE_S,
+      IDLE_S,
       PREP_PID_S,
       WAIT_INT2FP_S,
       PID_P_S,
@@ -201,7 +198,7 @@ architecture rtl of AdcDspFp is
       rowEnableMask      => (others => '1'),
       rowEnabled         => '0',
       outputMode         => (others => '0'),
-      state              => WAIT_ROW_STROBE_S,
+      state              => IDLE_S,
       rowIndex           => (others => '0'),
       accumSamples       => (others => '0'),
       accumError         => (others => '0'),
@@ -255,7 +252,6 @@ architecture rtl of AdcDspFp is
    signal r   : RegType := REG_INIT_C;
    signal rin : RegType;
 
-   signal adcBaselineRamOut  : slv(15 downto 0);
    signal accumErrorRamOut   : slv(31 downto 0);
    signal sumAccumRamOut     : slv(31 downto 0);
    signal sq1FbFullRamOut    : slv(31 downto 0);
@@ -372,30 +368,6 @@ begin
    locAxilWriteSlaves(LOCAL_C) <= timingAxilWriteSlave;
 
    -- ADC Baseline RAM (16-bit integer, unchanged)
-   U_AxiDualPortRam_ADC_BASELINE : entity surf.AxiDualPortRam
-      generic map (
-         TPD_G            => TPD_G,
-         SYNTH_MODE_G     => "inferred",
-         MEMORY_TYPE_G    => "distributed",
-         READ_LATENCY_G   => 1,
-         AXI_WR_EN_G      => true,
-         SYS_WR_EN_G      => false,
-         SYS_BYTE_WR_EN_G => false,
-         COMMON_CLK_G     => false,
-         ADDR_WIDTH_G     => ROW_ADDR_BITS_G,
-         DATA_WIDTH_G     => 16)
-      port map (
-         axiClk         => timingRxClk125,
-         axiRst         => timingRxRst125,
-         axiReadMaster  => locAxilReadMasters(ADC_BASELINE_C),
-         axiReadSlave   => locAxilReadSlaves(ADC_BASELINE_C),
-         axiWriteMaster => locAxilWriteMasters(ADC_BASELINE_C),
-         axiWriteSlave  => locAxilWriteSlaves(ADC_BASELINE_C),
-         clk            => timingRxClk125,
-         rst            => timingRxRst125,
-         addr           => r.rowIndex,
-         dout           => adcBaselineRamOut);
-
    -- AccumError RAM (32-bit float)
    U_AxiDualPortRam_ACCUM_ERROR : entity surf.AxiDualPortRam
       generic map (
@@ -565,14 +537,12 @@ begin
    -------------------------------------------------------------------------------------------------
    -- Main combinatorial process
    -------------------------------------------------------------------------------------------------
-   comb : process (accumErrorRamOut, adcAxisMaster, adcBaselineRamOut, fluxJumpRamOut,
+   comb : process (accumErrorRamOut, accumIn, accumValid, fluxJumpRamOut,
                    fluxOffsetRamOut, fp2IntOutData, fp2IntOutValid, fpMacOutData, fpMacOutValid,
                    int2FpOutData, int2FpOutValid, pidDebugCtrl, r, sq1FbFullRamOut,
                    sumAccumRamOut, timingAxilReadMaster, timingAxilWriteMaster, timingRxData,
                    timingRxRst125) is
       variable v              : RegType;
-      variable adcValue       : signed(13 downto 0);
-      variable adcBaseline    : signed(13 downto 0);
       variable requestClear   : boolean;
       variable iContribSign   : sl;
       variable axilEp         : AxiLiteEndpointType;
@@ -630,8 +600,6 @@ begin
       v.pidDebugMaster   := axiStreamMasterInit(AXIS_DEBUG_CFG_C);
       v.pidDebugMaster.tDest := toSlv(8, 8);
 
-      adcValue    := signed(adcAxisMaster.tData(15 downto 2));
-      adcBaseline := signed(adcBaselineRamOut(15 downto 2));
 
       requestClear := false;
 
@@ -650,7 +618,7 @@ begin
 
       if (requestClear) then
          v.clearPidStateBusy := '1';
-         v.state             := WAIT_ROW_STROBE_S;
+         v.state             := IDLE_S;
          v.rowEnabled        := '0';
          v.accumSamples      := (others => '0');
          v.accumError        := (others => '0');
@@ -676,7 +644,7 @@ begin
          v.fluxJumpRamWrEn     := '1';
          v.fluxJumpRamWrData   := (others => '0');
       elsif (r.clearPidStateBusy = '1') then
-         v.state := WAIT_ROW_STROBE_S;
+         v.state := IDLE_S;
          v.accumErrorRamWrEn   := '1';
          v.accumErrorRamWrData := (others => '0');
          v.sumAccumRamWrEn     := '1';
@@ -694,23 +662,24 @@ begin
             v.pidStateRamAddr := slv(unsigned(r.pidStateRamAddr) + 1);
          end if;
 
-      elsif (r.fllEnable = '0' and timingRxData.rowSeqStart = '1') then
+      elsif (r.fllEnable = '0' and accumValid = '1' and accumIn.seqStart = '1') then
          v.pidStreamMaster.tValid := '1';
          v.pidStreamMaster.tKeep  := (others => '0');
          v.pidStreamMaster.tLast  := '1';
 
       elsif (r.fllEnable = '1') then
          case r.state is
-            when WAIT_ROW_STROBE_S =>
+            when IDLE_S =>
                v.pidDebugEnable := not pidDebugCtrl.pause and r.axilPidDebugEnable;
                if (r.axilPidDebugEnable = '1' and pidDebugCtrl.pause = '1') then
                   v.dropCount := r.dropCount + 1;
                end if;
 
-               if (timingRxData.rowStrobe = '1') then
-                  v.rowIndex   := timingRxData.rowIndex(ROW_ADDR_BITS_G-1 downto 0);
-                  v.accumError := (others => '0');
-                  v.rowEnabled := r.rowEnableMask(to_integer(unsigned(v.rowIndex)));
+               if (accumValid = '1') then
+                  v.rowIndex     := accumIn.rowIndex(ROW_ADDR_BITS_G-1 downto 0);
+                  v.accumError   := resize(accumIn.accumError, ACCUM_BITS_C);
+                  v.accumSamples := accumIn.numSamples;
+                  v.rowEnabled   := r.rowEnableMask(to_integer(unsigned(accumIn.rowIndex)));
 
                   ssiSetUserSof(AXIS_DEBUG_CFG_C, v.pidDebugMaster, '1');
                   v.pidDebugMaster.tValid              := v.pidDebugEnable;
@@ -718,27 +687,12 @@ begin
                   v.pidDebugMaster.tData(15 downto 8)  := resize(v.rowIndex, 8);
                   v.pidDebugMaster.tData(63 downto 16) := timingRxData.runTime(47 downto 0);
 
-                  if (timingRxData.rowSeqStart = '1') then
+                  if (accumIn.seqStart = '1') then
                      v.pidStreamMaster.tValid := '1';
                      v.pidStreamMaster.tKeep  := (others => '0');
                      v.pidStreamMaster.tLast  := '1';
                   end if;
 
-                  v.state := WAIT_FIRST_SAMPLE_S;
-               end if;
-
-            when WAIT_FIRST_SAMPLE_S =>
-               if (timingRxData.firstSample = '1') then
-                  v.pidDebugMaster.tValid             := r.pidDebugEnable;
-                  v.pidDebugMaster.tData(31 downto 0) := resize(adcBaselineRamOut, 32);
-                  v.accumSamples := (others => '0');
-                  v.state        := ACCUMULATE_S;
-               end if;
-
-            when ACCUMULATE_S =>
-               v.accumError   := resize(r.accumError + (adcValue - adcBaseline), ACCUM_BITS_C);
-               v.accumSamples := r.accumSamples + 1;
-               if (timingRxData.lastSample = '1') then
                   v.state := PREP_PID_S;
                end if;
 
@@ -981,7 +935,7 @@ begin
                v.pidDebugMaster.tData(31 downto 0)  := slv(r.dropCount);
                v.pidDebugMaster.tData(63 downto 32) := timingRxData.rowSeqCount(31 downto 0);
                v.pidDebugMaster.tLast               := '1';
-               v.state := WAIT_ROW_STROBE_S;
+               v.state := IDLE_S;
 
             when CLEAR_STATE_S =>
                null;

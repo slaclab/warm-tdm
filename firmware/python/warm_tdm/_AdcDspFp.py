@@ -23,11 +23,6 @@ class RowPidStatusFp(pr.Device):
         super().__init__(**kwargs)
 
         self.add(IndexedLinkVariable(
-            name = 'AdcBaseline',
-            dep = dsp.AdcBaselines,
-            index = rowNum))
-
-        self.add(IndexedLinkVariable(
             name = 'AccumError',
             dep = dsp.AccumError,
             index = rowNum))
@@ -300,17 +295,8 @@ class AdcDspFp(pr.Device):
 
         # Per-row RAM arrays
         self.add(pr.RemoteVariable(
-            name = 'AdcBaselines',
-            offset = 0x1000,
-            base = pr.Int,
-            mode = 'RW',
-            numValues = rows,
-            valueBits = 14,
-            valueStride = 32))
-
-        self.add(pr.RemoteVariable(
             name = 'AccumError',
-            offset = 0x2000,
+            offset = 0x1000,
             base = pr.Float,
             mode = 'RO',
             numValues = rows,
@@ -319,7 +305,7 @@ class AdcDspFp(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'SumAccum',
-            offset = 0x3000,
+            offset = 0x2000,
             base = pr.Float,
             mode = 'RW',
             numValues = rows,
@@ -328,7 +314,7 @@ class AdcDspFp(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'Sq1FbFull',
-            offset = 0x4000,
+            offset = 0x3000,
             base = pr.Float,
             mode = 'RW',
             numValues = rows,
@@ -337,7 +323,7 @@ class AdcDspFp(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'FluxOffset',
-            offset = 0x5000,
+            offset = 0x4000,
             base = pr.Float,
             mode = 'RW',
             numValues = rows,
@@ -346,7 +332,7 @@ class AdcDspFp(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'FluxJumps',
-            offset = 0x6000,
+            offset = 0x5000,
             base = pr.Int,
             mode = 'RW',
             numValues = rows,

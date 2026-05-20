@@ -88,7 +88,7 @@ architecture rtl of DataPath is
    constant FILTER_COEFFICIENTS_C : IntegerArray(0 to FILTER_NUM_TAPS_C-1) := ((FILTER_NUM_TAPS_C-1)/2 => (2**FILTER_COEFF_WIDTH_C)-1, others => 0);
 
    -- Main crossbar config
-   constant NUM_AXIL_MASTERS_C   : integer := 7;
+   constant NUM_AXIL_MASTERS_C   : integer := 8;
    constant ADC_READOUT_AXIL_C   : integer := 0;
    constant WAVEFORM_AXIL_C      : integer := 1;
    constant EVENT_BUILDER_AXIL_C : integer := 2;
@@ -96,12 +96,14 @@ architecture rtl of DataPath is
    constant ADC_DSP_AXIL_C       : integer := 4;
    constant PID_FILTER_AXIL_C    : integer := 5;
    constant DELAY_AXIL_C         : integer := 6;
+   constant ACCUM_AXIL_C         : integer := 7;
 
    constant XBAR_COFNIG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_MASTERS_C, AXIL_BASE_ADDR_G, 24, 20);
 
    constant ADC_FILTER_XBAR_CFG_C : AxiLiteCrossbarMasterConfigArray(7 downto 0) := genAxiLiteConfig(8, XBAR_COFNIG_C(ADC_FILTER_AXIL_C).baseAddr, 16, 12);
    constant PID_FILTER_XBAR_CFG_C : AxiLiteCrossbarMasterConfigArray(7 downto 0) := genAxiLiteConfig(8, XBAR_COFNIG_C(PID_FILTER_AXIL_C).baseAddr, 16, 12);
    constant ADC_DSP_XBAR_CFG_C    : AxiLiteCrossbarMasterConfigArray(7 downto 0) := genAxiLiteConfig(8, XBAR_COFNIG_C(ADC_DSP_AXIL_C).baseAddr, 20, 16);
+   constant ACCUM_XBAR_CFG_C      : AxiLiteCrossbarMasterConfigArray(7 downto 0) := genAxiLiteConfig(8, XBAR_COFNIG_C(ACCUM_AXIL_C).baseAddr, 16, 12);
 
    signal syncAxilReadMaster  : AxiLiteReadMasterType;
    signal syncAxilReadSlave   : AxiLiteReadSlaveType;
@@ -127,6 +129,11 @@ architecture rtl of DataPath is
    signal pidFilterAxilWriteSlaves  : AxiLiteWriteSlaveArray(7 downto 0);
    signal pidFilterAxilReadMasters  : AxiLiteReadMasterArray(7 downto 0);
    signal pidFilterAxilReadSlaves   : AxiLiteReadSlaveArray(7 downto 0);
+
+   signal accumAxilWriteMasters : AxiLiteWriteMasterArray(7 downto 0);
+   signal accumAxilWriteSlaves  : AxiLiteWriteSlaveArray(7 downto 0);
+   signal accumAxilReadMasters  : AxiLiteReadMasterArray(7 downto 0);
+   signal accumAxilReadSlaves   : AxiLiteReadSlaveArray(7 downto 0);
 
 
    signal adcStreams         : AxiStreamMasterArray(7 downto 0) := (others => AXI_STREAM_MASTER_INIT_C);
@@ -169,6 +176,10 @@ architecture rtl of DataPath is
    signal timingDelayValue    : slv(6 downto 0);
    signal sq1FbDacsDelayed    : Slv14Array(7 downto 0);
    signal selectedSq1FbDacs   : Slv14Array(7 downto 0);
+
+   type AdcAccumResultArray is array (natural range <>) of AdcAccumResultType;
+   signal accumResults : AdcAccumResultArray(7 downto 0);
+   signal accumValids  : slv(7 downto 0);
 
    type LocalTimingTypeArray is array (natural range <>) of LocalTimingType;
    signal selectedTimingRxData : LocalTimingTypeArray(7 downto 0);
@@ -301,6 +312,25 @@ begin
          mAxiWriteSlaves     => pidFilterAxilWriteSlaves,                -- [in]
          mAxiReadMasters     => pidFilterAxilReadMasters,                -- [out]
          mAxiReadSlaves      => pidFilterAxilReadSlaves);                -- [in]
+
+   U_AxiLiteCrossbar_ACCUM : entity surf.AxiLiteCrossbar
+      generic map (
+         TPD_G              => TPD_G,
+         NUM_SLAVE_SLOTS_G  => 1,
+         NUM_MASTER_SLOTS_G => 8,
+         MASTERS_CONFIG_G   => ACCUM_XBAR_CFG_C,
+         DEBUG_G            => false)
+      port map (
+         axiClk              => timingRxClk125,                      -- [in]
+         axiClkRst           => timingRxRst125,                      -- [in]
+         sAxiWriteMasters(0) => locAxilWriteMasters(ACCUM_AXIL_C),   -- [in]
+         sAxiWriteSlaves(0)  => locAxilWriteSlaves(ACCUM_AXIL_C),    -- [out]
+         sAxiReadMasters(0)  => locAxilReadMasters(ACCUM_AXIL_C),    -- [in]
+         sAxiReadSlaves(0)   => locAxilReadSlaves(ACCUM_AXIL_C),     -- [out]
+         mAxiWriteMasters    => accumAxilWriteMasters,               -- [out]
+         mAxiWriteSlaves     => accumAxilWriteSlaves,                -- [in]
+         mAxiReadMasters     => accumAxilReadMasters,                -- [out]
+         mAxiReadSlaves      => accumAxilReadSlaves);                -- [in]
 
    -------------------------------------------------------------------------------------------------
    -- Delay timing by 20 cycles to account for ADC Latency
@@ -440,6 +470,24 @@ begin
 
    GEN_ADC_DSP : for i in 7 downto 0 generate
 
+      U_AdcAccumulator_1 : entity warm_tdm.AdcAccumulator
+         generic map (
+            TPD_G           => TPD_G,
+            ROW_ADDR_BITS_G => ROW_ADDR_BITS_G)
+         port map (
+            clk             => timingRxClk125,              -- [in]
+            rst             => timingRxRst125,              -- [in]
+            timingRxData    => selectedTimingRxData(i),     -- [in]
+            adcValid        => selectedAdcStreams(i).tValid, -- [in]
+            adcData         => selectedAdcStreams(i).tData(15 downto 0), -- [in]
+            sq1FbDac        => selectedSq1FbDacs(i),        -- [in]
+            accumOut        => accumResults(i),             -- [out]
+            accumValid      => accumValids(i),             -- [out]
+            axilReadMaster  => accumAxilReadMasters(i),     -- [in]
+            axilReadSlave   => accumAxilReadSlaves(i),      -- [out]
+            axilWriteMaster => accumAxilWriteMasters(i),    -- [in]
+            axilWriteSlave  => accumAxilWriteSlaves(i));    -- [out]
+
       GEN_FIXED_PID : if (not USE_FLOAT_PID_G) generate
          U_AdcDsp_1 : entity warm_tdm.AdcDsp
             generic map (
@@ -453,8 +501,8 @@ begin
                timingRxClk125   => timingRxClk125,
                timingRxRst125   => timingRxRst125,
                timingRxData     => selectedTimingRxData(i),
-               adcAxisMaster    => selectedAdcStreams(i),
-               sq1FbDac         => selectedSq1FbDacs(i),
+               accumIn          => accumResults(i),
+               accumValid       => accumValids(i),
                sAxilReadMaster  => adcDspAxilReadMasters(i),
                sAxilReadSlave   => adcDspAxilReadSlaves(i),
                sAxilWriteMaster => adcDspAxilWriteMasters(i),
@@ -484,8 +532,8 @@ begin
                timingRxClk125   => timingRxClk125,
                timingRxRst125   => timingRxRst125,
                timingRxData     => selectedTimingRxData(i),
-               adcAxisMaster    => selectedAdcStreams(i),
-               sq1FbDac         => selectedSq1FbDacs(i),
+               accumIn          => accumResults(i),
+               accumValid       => accumValids(i),
                sAxilReadMaster  => adcDspAxilReadMasters(i),
                sAxilReadSlave   => adcDspAxilReadSlaves(i),
                sAxilWriteMaster => adcDspAxilWriteMasters(i),

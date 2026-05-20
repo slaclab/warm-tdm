@@ -23,6 +23,7 @@ from ._WarmTdmRoot import *
 from ._ComCore import *
 from ._DataPath import *
 from ._FastDacDriver import *
+from ._AdcAccumulator import *
 from ._AdcDsp import *
 from ._AdcDspFp import *
 from ._Ad5679R import *
