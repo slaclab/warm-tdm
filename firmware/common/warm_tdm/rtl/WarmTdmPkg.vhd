@@ -17,8 +17,7 @@
 -------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.std_logic_arith.all;
-use ieee.std_logic_unsigned.all;
+use ieee.numeric_std.all;
 
 
 library surf;
@@ -67,6 +66,23 @@ package WarmTdmPkg is
       TKEEP_MODE_C => TKEEP_NORMAL_C,
       TUSER_BITS_C => 8,
       TUSER_MODE_C => TUSER_NORMAL_C);
+
+   type AdcAccumResultType is record
+      accumError      : signed(31 downto 0);
+      numSamples      : unsigned(7 downto 0);
+      rowIndex        : slv(7 downto 0);
+      sq1FbDac        : slv(13 downto 0);
+      seqStart        : sl;
+      daqReadoutStart : sl;
+   end record AdcAccumResultType;
+
+   constant ADC_ACCUM_RESULT_INIT_C : AdcAccumResultType := (
+      accumError      => (others => '0'),
+      numSamples      => (others => '0'),
+      rowIndex        => (others => '0'),
+      sq1FbDac        => (others => '0'),
+      seqStart        => '0',
+      daqReadoutStart => '0');
 
 end package;
 

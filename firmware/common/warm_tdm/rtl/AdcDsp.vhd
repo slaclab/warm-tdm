@@ -37,10 +37,9 @@ entity AdcDsp is
       timingRxClk125   : in  sl;
       timingRxRst125   : in  sl;
       timingRxData     : in  LocalTimingType;
-      -- Incomming ADC Stream
-      adcAxisMaster    : in  AxiStreamMasterType;
-      -- SQ1 feedback DAC value (delayed to match timing)
-      sq1FbDac         : in  slv(13 downto 0);
+      -- Accumulated ADC result from AdcAccumulator
+      accumIn          : in  AdcAccumResultType;
+      accumValid       : in  sl;
       -- AXI-Lite
       -- Local register access
       sAxilReadMaster  : in  AxiLiteReadMasterType;
@@ -65,15 +64,14 @@ end entity;
 
 architecture rtl of AdcDsp is
 
-   constant NUM_AXIL_MASTERS_C : integer := 8;
+   constant NUM_AXIL_MASTERS_C : integer := 7;
    constant LOCAL_C            : integer := 0;
-   constant ADC_BASELINE_C     : integer := 1;
-   constant ACCUM_ERROR_C      : integer := 2;
-   constant SUM_ACCUM_C        : integer := 3;
-   constant PID_RESULTS_C      : integer := 4;
-   constant FILTER_RESULTS_C   : integer := 5;
-   constant FILTER_COEF_C      : integer := 6;
-   constant FLUX_JUMP_C        : integer := 7;
+   constant ACCUM_ERROR_C      : integer := 1;
+   constant SUM_ACCUM_C        : integer := 2;
+   constant PID_RESULTS_C      : integer := 3;
+   constant FILTER_RESULTS_C   : integer := 4;
+   constant FILTER_COEF_C      : integer := 5;
+   constant FLUX_JUMP_C        : integer := 6;
 
    constant XBAR_CONFIG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) :=
       genAxiLiteConfig(NUM_AXIL_MASTERS_C, AXIL_BASE_ADDR_G, 16, 12);
@@ -113,11 +111,8 @@ architecture rtl of AdcDsp is
 
 
    type StateType is (
-      WAIT_ROW_STROBE_S,
-      WAIT_FIRST_SAMPLE_S,
-      ACCUMULATE_S,
+      IDLE_S,
       PREP_PID_S,
---      PID_PRESHIFT_S,
       PID_P_S,
       PID_I_S,
       PID_D_S,
@@ -137,6 +132,7 @@ architecture rtl of AdcDsp is
       outputMode         : slv(1 downto 0);
       state              : StateType;
       rowIndex           : slv(ROW_ADDR_BITS_G-1 downto 0);
+      sq1FbDacIn         : slv(13 downto 0);
       accumSamples       : ufixed(31 downto 0);
       accumError         : sfixed(ACCUM_BITS_C-1 downto 0);
       lastAccumError     : sfixed(ACCUM_BITS_C-1 downto 0);
@@ -178,8 +174,9 @@ architecture rtl of AdcDsp is
       rowEnableMask      => (others => '1'),
       rowEnabled         => '0',
       outputMode         => (others => '0'),
-      state              => WAIT_ROW_STROBE_S,
+      state              => IDLE_S,
       rowIndex           => (others => '0'),
+      sq1FbDacIn         => (others => '0'),
       accumSamples       => (others => '0'),
       accumError         => (others => '0'),
       lastAccumError     => (others => '0'),
@@ -218,7 +215,6 @@ architecture rtl of AdcDsp is
    signal r   : RegType := REG_INIT_C;
    signal rin : RegType;
 
-   signal adcBaselineRamOut : slv(15 downto 0);
    signal accumRamOut       : slv(ACCUM_BITS_C-1 downto 0);
    signal sumRamOut         : slv(SUM_BITS_C-1 downto 0);
    signal pidRamOut         : slv(RESULT_BITS_C-1 downto 0);
@@ -321,30 +317,6 @@ begin
 
 
    -- RAM for ADC Baselines
-   U_AxiDualPortRam_ADC_BASELINE : entity surf.AxiDualPortRam
-      generic map (
-         TPD_G            => TPD_G,
-         SYNTH_MODE_G     => "inferred",
-         MEMORY_TYPE_G    => "distributed",
-         READ_LATENCY_G   => 1,
-         AXI_WR_EN_G      => true,
-         SYS_WR_EN_G      => false,
-         SYS_BYTE_WR_EN_G => false,
-         COMMON_CLK_G     => false,
-         ADDR_WIDTH_G     => ROW_ADDR_BITS_G,
-         DATA_WIDTH_G     => adcBaselineRamOut'length)
-      port map (
-         axiClk         => timingRxClk125,                       -- [in]
-         axiRst         => timingRxRst125,                       -- [in]
-         axiReadMaster  => locAxilReadMasters(ADC_BASELINE_C),   -- [in]
-         axiReadSlave   => locAxilReadSlaves(ADC_BASELINE_C),    -- [out]
-         axiWriteMaster => locAxilWriteMasters(ADC_BASELINE_C),  -- [in]
-         axiWriteSlave  => locAxilWriteSlaves(ADC_BASELINE_C),   -- [out]
-         clk            => timingRxClk125,                       -- [in]
-         rst            => timingRxRst125,                       -- [in]
-         addr           => r.rowIndex,                           -- [in]
-         dout           => adcBaselineRamOut);                   -- [out]
-
    U_AxiDualPortRam_FLUX_JUMP : entity surf.AxiDualPortRam
       generic map (
          TPD_G            => TPD_G,
@@ -451,12 +423,10 @@ begin
          dout           => pidRamOut);                          -- [in]
 
 
-   comb : process (accumRamOut, adcAxisMaster, adcBaselineRamOut, fluxJumpRamOut, pidDebugCtrl, r,
-                   sumRamOut, timingAxilReadMaster, timingAxilWriteMaster, timingRxData,
-                   timingRxRst125) is
+   comb : process (accumIn, accumRamOut, accumValid, fluxJumpRamOut, pidDebugCtrl, r,
+                   sumRamOut, timingAxilReadMaster, timingAxilWriteMaster,
+                   timingRxData, timingRxRst125) is
       variable v                 : RegType;
-      variable adcValueSfixed    : sfixed(13 downto 0);
-      variable adcBaselineSfixed : sfixed(13 downto 0);
       variable pSfixed           : sfixed(COEF_HIGH_C downto COEF_LOW_C);
       variable iSfixed           : sfixed(COEF_HIGH_C downto COEF_LOW_C);
       variable dSfixed           : sfixed(COEF_HIGH_C downto COEF_LOW_C);
@@ -527,8 +497,6 @@ begin
       v.pidDebugMaster       := axiStreamMasterInit(AXIS_DEBUG_CFG_C);
       v.pidDebugMaster.tDest := toSlv(8, 8);  -- No longer necessary. Could be 0.
 
-      adcValueSfixed    := to_sfixed(adcAxisMaster.tData(15 downto 2), adcValueSFixed);
-      adcBaselineSfixed := to_sfixed(adcBaselineRamOut(15 downto 2), adcBaselineSFixed);
       pSfixed           := to_sfixed(r.p, pSfixed);
       iSfixed           := to_sfixed(r.i, iSfixed);
       dSfixed           := to_sfixed(r.d, dSfixed);
@@ -557,7 +525,7 @@ begin
 
       if (requestClear) then
          v.clearPidStateBusy := '1';
-         v.state             := WAIT_ROW_STROBE_S;
+         v.state             := IDLE_S;
          v.rowEnabled        := '0';
          v.accumSamples      := (others => '0');
          v.accumError        := (others => '0');
@@ -580,7 +548,7 @@ begin
          v.fluxJumpRamWrEn     := '1';
          v.fluxJumpRamWrData   := (others => '0');
       elsif (r.clearPidStateBusy = '1') then
-         v.state             := WAIT_ROW_STROBE_S;
+         v.state             := IDLE_S;
          v.rowEnabled        := '0';
          v.accumSamples      := (others => '0');
          v.accumError        := (others => '0');
@@ -607,30 +575,25 @@ begin
          else
             v.pidStateRamAddr := r.pidStateRamAddr + 1;
          end if;
-      elsif (r.fllEnable = '0' and timingRxData.rowSeqStart = '1') then
-         -- Special case when row not running. Output empty tlast only
-         -- to signal to event builder that seq is done.
+      elsif (r.fllEnable = '0' and accumValid = '1' and accumIn.seqStart = '1') then
          v.pidStreamMaster.tValid := '1';
          v.pidStreamMaster.tKeep  := (others => '0');
          v.pidStreamMaster.tLast  := '1';
 
       elsif (r.fllEnable = '1') then
          case r.state is
-            when WAIT_ROW_STROBE_S =>
-               -- Watch pidDebugPuase while we wait
+            when IDLE_S =>
                v.pidDebugEnable := not pidDebugCtrl.pause and r.axilPidDebugEnable;
                if (r.axilPidDebugEnable = '1' and pidDebugCtrl.pause = '1') then
                   v.dropCount := resize(r.dropCount + 1, r.dropCount);
                end if;
 
-               -- Row strobe comes first (bit 26).
-               -- Register the rowIndex (23:16) and reset accumulated error
-               if (timingRxData.rowStrobe = '1') then
-                  v.rowIndex   := timingRxData.rowIndex(ROW_ADDR_BITS_G-1 downto 0);
-                  v.accumError := (others => '0');
-                  -- Apply the enable mask to the row that just arrived with this strobe.
-                  -- Using r.rowIndex here shifts the mask to the next row in the sequence.
-                  v.rowEnabled := r.rowEnableMask(to_integer(to_ufixed(v.rowIndex, 7, 0)));
+               if (accumValid = '1') then
+                  v.rowIndex     := accumIn.rowIndex(ROW_ADDR_BITS_G-1 downto 0);
+                  v.accumError   := to_sfixed(slv(accumIn.accumError(ACCUM_BITS_C-1 downto 0)), v.accumError);
+                  v.accumSamples := to_ufixed(slv(accumIn.numSamples), v.accumSamples);
+                  v.sq1FbDacIn   := accumIn.sq1FbDac;
+                  v.rowEnabled   := r.rowEnableMask(to_integer(unsigned(accumIn.rowIndex)));
 
                   -- Word 0 is Column and Row
                   ssiSetUserSof(AXIS_DEBUG_CFG_C, v.pidDebugMaster, '1');
@@ -639,34 +602,12 @@ begin
                   v.pidDebugMaster.tData(15 downto 8)  := resize(v.rowIndex, 8);
                   v.pidDebugMaster.tData(63 downto 16) := timingRxData.runTime(47 downto 0);
 
-                  -- Check for rowSeqStart
-                  if (timingRxData.rowSeqStart = '1') then
-                     -- Terminate previous frame
+                  if (accumIn.seqStart = '1') then
                      v.pidStreamMaster.tValid := '1';
                      v.pidStreamMaster.tKeep  := (others => '0');
                      v.pidStreamMaster.tLast  := '1';
                   end if;
 
-                  v.state := WAIT_FIRST_SAMPLE_S;
-               end if;
-
-
-            when WAIT_FIRST_SAMPLE_S =>
-               -- Activate and deactivate the accumulator
-               -- RAMs have a 3 cycle latency so this needs to happen at least 3 cycles after row strobe
-               -- In practice it will always be much longer than 3 cycles
-               if (timingRxData.firstSample = '1') then
-                  -- Word 1 is baseline
-                  v.pidDebugMaster.tValid             := r.pidDebugEnable;
-                  v.pidDebugMaster.tData(31 downto 0) := resize(adcBaselineRamOut, 32);
-                  v.accumSamples                      := (others => '0');
-                  v.state                             := ACCUMULATE_S;
-               end if;
-
-            when ACCUMULATE_S =>
-               v.accumError   := resize((adcValueSfixed - adcBaselineSfixed) + v.accumError, v.accumError);
-               v.accumSamples := resize(r.accumSamples + 1, r.accumSamples);
-               if (timingRxData.lastSample = '1') then
                   v.state := PREP_PID_S;
                end if;
 
@@ -681,7 +622,7 @@ begin
                -- Register current sq1FB here
                -- Convert offset binary to 2-s complement
                -- Store in sfixed type register
-               v.sq1FB          := to_sfixed(convOffsetBin(sq1FbDac), r.sq1FB);
+               v.sq1FB          := to_sfixed(convOffsetBin(r.sq1FbDacIn), r.sq1FB);
 
                -- Word 2 is accum error
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
@@ -829,7 +770,7 @@ begin
                v.pidDebugMaster.tData(63 downto 32) := timingRxData.rowSeqCount(31 downto 0);
                v.pidDebugMaster.tLast               := '1';
 
-               v.state := WAIT_ROW_STROBE_S;
+               v.state := IDLE_S;
 
          end case;
       end if;
