@@ -165,14 +165,9 @@ class FastDacVariable(GroupLinkVariable):
 
             # Full array access
             else:
-                rows = 256 #self._config.numRows
                 cols = len(self._config.columnMap)
-
-                ret = np.zeros((cols, rows), np.float64)
-                for colIndex in range(cols):
-                    ret[colIndex] = self.dependencies[colIndex].get(index=-1, read=read)
-
-                return ret
+                ret = [self.dependencies[colIndex].get(index=-1, read=read) for colIndex in range(cols)]
+                return np.array(ret, dtype=np.float64)
 
 
 
@@ -200,8 +195,8 @@ class Group(pr.Device):
                  groupId,
                  num_row_selects,
                  num_chip_selects,
-#                 rows,
-                 dataWriter,
+                 rows=32,
+                 dataWriter=None,
                  simulation=False,
                  emulate=False,
                  useFloatPid=False,
@@ -243,7 +238,7 @@ class Group(pr.Device):
             num_row_selects=num_row_selects,
             num_chip_selects=num_chip_selects,
             useFloatPid=useFloatPid,
-#            rows=rows,
+            rows=rows,
             groups=['Hardware'],
             expand=True))
 
@@ -341,7 +336,7 @@ class Group(pr.Device):
             self._rowMap = value
             
             # Turn off all rows by default
-            ram = [0x8080 for x in range(256)]
+            ram = [0x8080 for x in range(rows)]
 
             # Build RowMap RAM
             # Set active Row Selects for each logical row in input

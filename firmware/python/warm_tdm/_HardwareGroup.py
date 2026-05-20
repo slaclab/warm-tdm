@@ -56,15 +56,12 @@ class HardwareGroup(pyrogue.Device):
             num_row_selects=32,
             num_chip_selects=0,
             useFloatPid=False,
-#            rows=32,
+            rows=32,
             **kwargs):
 
         super().__init__(**kwargs)
 
-        print(f'Starting HardwareGroup with {colBoards=}')
-
-        rows = 256 #num_row_selects * num_chip_selects        
-#        print(f'HardwareGroup with {rows} rows')
+        print(f'Starting HardwareGroup with {colBoards=}, {rows=}')
 
         # Open rUDP connections to the Manager board
         if simulation is False and emulate is False:
@@ -188,6 +185,7 @@ class HardwareGroup(pyrogue.Device):
             self.add(rowBoardClass(
                 name=f'RowBoard[{rowIndex}]',
                 frontEndClass=rowFeClass,
+                rows=rows,
                 num_row_selects=num_row_selects,
                 num_chip_selects=num_chip_selects,
                 memBase=srp,

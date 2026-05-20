@@ -63,11 +63,11 @@ class WarmTdmArgparse(argparse.ArgumentParser):
             default = 0,
             help = 'Number of row selects on row board')
         
-#         self.add_argument(
-#             "--maxRows",
-#             type = int,
-#             default = 32,
-#             help = "Maximum number of physical rows available")
+        self.add_argument(
+            "--rows",
+            type = int,
+            default = 32,
+            help = "Maximum number of row indices to map registers for")
 
         self.add_argument(
             "--columnBoards",
@@ -133,7 +133,7 @@ def arg_dict(args):
     ret['emulate'] = args.emulate
     ret['numRowSelects'] = args.numRowSelects
     ret['numChipSelects'] = args.numChipSelects
-#    ret['numRows'] = args.maxRows
+    ret['rows'] = args.rows
     ret['initRead'] = False #args.initRead and not args.sim
     ret['colBoardClass'] = colBoardDict[args.columnBoardType]
     ret['colFeClass'] = colFeDict[args.columnFrontEnd]
