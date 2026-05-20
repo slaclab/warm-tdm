@@ -42,7 +42,7 @@ entity AdcDspFp is
       TPD_G            : time                 := 1 ns;
       INVERT_SQ1FB_G   : boolean              := true;
       COLUMN_NUM_G     : integer range 0 to 7 := 0;
-      ROW_ADDR_BITS_G  : integer range 3 to 8 := 8;
+      ROW_ADDR_BITS_G  : integer range 3 to 8 := 7;
       AXIL_BASE_ADDR_G : slv(31 downto 0)     := (others => '0');
       SQ1FB_RAM_ADDR_G : slv(31 downto 0)     := (others => '0'));
 

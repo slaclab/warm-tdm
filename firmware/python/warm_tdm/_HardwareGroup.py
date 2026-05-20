@@ -56,12 +56,12 @@ class HardwareGroup(pyrogue.Device):
             num_row_selects=32,
             num_chip_selects=0,
             useFloatPid=False,
-            rows=32,
+            maxRows=128,
             **kwargs):
 
         super().__init__(**kwargs)
 
-        print(f'Starting HardwareGroup with {colBoards=}, {rows=}')
+        print(f'Starting HardwareGroup with {colBoards=}, {maxRows=}')
 
         # Open rUDP connections to the Manager board
         if simulation is False and emulate is False:
@@ -126,10 +126,10 @@ class HardwareGroup(pyrogue.Device):
                 frontEndClass=colFeClass,
                 memBase=srp,
                 expand=True,
-                rows=rows,
+                maxRows=maxRows,
                 useFloatPid=useFloatPid))
             
-            pidDebug = [warm_tdm.PidDebugger(name=f'PidDebug[{i}]', hidden=False, numRows=rows, col=i, frontEnd=self.ColumnBoard[index].AnalogFrontEnd) for i in range(8)]
+            pidDebug = [warm_tdm.PidDebugger(name=f'PidDebug[{i}]', hidden=False, numRows=maxRows, col=i, frontEnd=self.ColumnBoard[index].AnalogFrontEnd) for i in range(8)]
             saAmps = [self.ColumnBoard[index].AnalogFrontEnd.Channel[x].SAAmp for x in range(8)]
             waveGui = warm_tdm.WaveformCaptureReceiver(hidden=False, captureDev=self.ColumnBoard[index].DataPath.WaveformCapture, amplifiers=saAmps)
 
@@ -185,7 +185,7 @@ class HardwareGroup(pyrogue.Device):
             self.add(rowBoardClass(
                 name=f'RowBoard[{rowIndex}]',
                 frontEndClass=rowFeClass,
-                rows=rows,
+                maxRows=maxRows,
                 num_row_selects=num_row_selects,
                 num_chip_selects=num_chip_selects,
                 memBase=srp,

@@ -12,7 +12,7 @@ class ColumnFpgaBoard(pr.Device):
     def __init__(self,
                  frontEndClass,
 #                 loading={},
-                 rows=256,
+                 maxRows=128,
                  useFloatPid=False,
                  **kwargs):
         super().__init__(**kwargs)
@@ -33,7 +33,7 @@ class ColumnFpgaBoard(pr.Device):
             offset = 0xC1000000,
             expand = True,
             timingTx = self.WarmTdmCore.Timing.TimingTx,
-            rows=rows,
+            maxRows=maxRows,
             frontEnd=self.AnalogFrontEnd,
             useFloatPid=useFloatPid))
 
@@ -77,21 +77,21 @@ class ColumnFpgaBoard(pr.Device):
             name = 'SAFb',
             offset = 0xC0600000,
             frontEnd = self.AnalogFrontEnd,
-            rows = rows,            
+            maxRows = maxRows,            
         ))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Bias',
             offset = 0xC0400000,
             frontEnd = self.AnalogFrontEnd,
-            rows = rows,
+            maxRows = maxRows,
         ))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Fb',
             offset =0xC0500000,
             frontEnd = self.AnalogFrontEnd,
-            rows = rows,
+            maxRows = maxRows,
         ))
 
         self.add(warm_tdm.GroupLinkVariable(

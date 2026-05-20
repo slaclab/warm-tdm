@@ -33,7 +33,7 @@ use warm_tdm.WarmTdmPkg.all;
 entity AdcAccumulator is
    generic (
       TPD_G           : time    := 1 ns;
-      ROW_ADDR_BITS_G : integer := 8);
+      ROW_ADDR_BITS_G : integer := 7);
    port (
       clk             : in  sl;
       rst             : in  sl;

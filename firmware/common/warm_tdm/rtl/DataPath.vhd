@@ -43,7 +43,7 @@ entity DataPath is
       SIMULATION_G     : boolean              := false;
       GEN_ADC_FILTER_G : boolean              := true;
       USE_FLOAT_PID_G  : boolean              := false;
-      ROW_ADDR_BITS_G  : integer range 3 to 8 := 8;
+      ROW_ADDR_BITS_G  : integer range 3 to 8 := 7;
       NEGATE_ADC_G     : boolean              := true;
       INVERT_SQ1FB_G   : boolean              := true;
       AXIL_BASE_ADDR_G : slv(31 downto 0)     := (others => '0');

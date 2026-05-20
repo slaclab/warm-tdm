@@ -13,7 +13,7 @@ class ColumnAwaXeFpgaBoard(pr.Device):
     def __init__(self,
                  frontEndClass,
 #                 loading={},
-                 rows=256,
+                 maxRows=128,
                  **kwargs):
         super().__init__(**kwargs)
 
@@ -31,7 +31,7 @@ class ColumnAwaXeFpgaBoard(pr.Device):
             offset = 0xC1000000,
             expand = True,
             timingTx = self.WarmTdmCore.Timing.TimingTx,
-            rows=rows,
+            maxRows=maxRows,
             frontEnd=self.AnalogFrontEnd))
 
         # AwaXe ASIC takes over channels 0 and 1
@@ -74,21 +74,21 @@ class ColumnAwaXeFpgaBoard(pr.Device):
             name = 'SAFb',
             offset = 0xC0600000,
             frontEnd = self.AnalogFrontEnd,
-            rows = rows,            
+            maxRows = maxRows,            
         ))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Bias',
             offset = 0xC0400000,
             frontEnd = self.AnalogFrontEnd,
-            rows = rows,
+            maxRows = maxRows,
         ))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Fb',
             offset =0xC0500000,
             frontEnd = self.AnalogFrontEnd,
-            rows = rows,
+            maxRows = maxRows,
         ))
 
         self.add(warm_tdm.GroupLinkVariable(

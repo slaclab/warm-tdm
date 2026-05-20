@@ -7,7 +7,7 @@ class RowDacDriver2(pr.Device):
     def __init__(
             self,
             frontEnd,
-            rows=256,
+            maxRows=128,
             **kwargs):
         super().__init__(**kwargs)
 
@@ -55,7 +55,7 @@ class RowDacDriver2(pr.Device):
             name = 'RowMap',
             offset = 0x1000,
             base = pr.UInt,
-            numValues = rows,
+            numValues = maxRows,
             valueBits = 16,
             valueStride = 32))
 

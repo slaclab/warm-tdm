@@ -42,10 +42,10 @@ class RowPidStatusFp(pr.Device):
 
 
 class RowPidStatusFpArray(pr.Device):
-    def __init__(self, dsp, rows, **kwargs):
+    def __init__(self, dsp, maxRows, **kwargs):
         super().__init__(**kwargs)
 
-        for row in range(rows):
+        for row in range(maxRows):
             self.add(RowPidStatusFp(
                 name = f'Row[{row}]',
                 dsp = dsp,
@@ -54,11 +54,11 @@ class RowPidStatusFpArray(pr.Device):
 
 class AdcDspFp(pr.Device):
 
-    def __init__(self, frontEnd, column, rows=256, **kwargs):
+    def __init__(self, frontEnd, column, maxRows=128, **kwargs):
         super().__init__(**kwargs)
 
         self.amp = frontEnd.Channel[column].SQ1FbAmp
-        self.rows = rows
+        self.maxRows = maxRows
 
         self.add(pr.RemoteVariable(
             name = 'PidEnableRaw',
@@ -272,7 +272,7 @@ class AdcDspFp(pr.Device):
             offset = 0x1000,
             base = pr.Float,
             mode = 'RO',
-            numValues = rows,
+            numValues = maxRows,
             valueBits = 32,
             valueStride = 32))
 
@@ -281,7 +281,7 @@ class AdcDspFp(pr.Device):
             offset = 0x2000,
             base = pr.Float,
             mode = 'RW',
-            numValues = rows,
+            numValues = maxRows,
             valueBits = 32,
             valueStride = 32))
 
@@ -290,7 +290,7 @@ class AdcDspFp(pr.Device):
             offset = 0x3000,
             base = pr.Float,
             mode = 'RW',
-            numValues = rows,
+            numValues = maxRows,
             valueBits = 32,
             valueStride = 32))
 
@@ -299,7 +299,7 @@ class AdcDspFp(pr.Device):
             offset = 0x4000,
             base = pr.Int,
             mode = 'RW',
-            numValues = rows,
+            numValues = maxRows,
             valueBits = 32,
             valueStride = 32))
 
@@ -307,7 +307,7 @@ class AdcDspFp(pr.Device):
             name = 'RowPidStatus',
             groups = ['NoConfig'],
             dsp = self,
-            rows = rows))
+            maxRows = maxRows))
 
         @self.command()
         def ClearPids():

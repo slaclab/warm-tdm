@@ -195,7 +195,7 @@ class Group(pr.Device):
                  groupId,
                  num_row_selects,
                  num_chip_selects,
-                 rows=32,
+                 maxRows=128,
                  dataWriter=None,
                  simulation=False,
                  emulate=False,
@@ -238,7 +238,7 @@ class Group(pr.Device):
             num_row_selects=num_row_selects,
             num_chip_selects=num_chip_selects,
             useFloatPid=useFloatPid,
-            rows=rows,
+            maxRows=maxRows,
             groups=['Hardware'],
             expand=True))
 
@@ -336,7 +336,7 @@ class Group(pr.Device):
             self._rowMap = value
             
             # Turn off all rows by default
-            ram = [0x8080 for x in range(rows)]
+            ram = [0x8080 for x in range(maxRows)]
 
             # Build RowMap RAM
             # Set active Row Selects for each logical row in input
