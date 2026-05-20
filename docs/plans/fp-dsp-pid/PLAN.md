@@ -14,10 +14,10 @@ Goals:
 
 ## Affected Subsystems
 
-- `firmware/common/warm_tdm/rtl/AdcDspFp.vhd` (new)
-- `firmware/common/warm_tdm/rtl/DataPath.vhd` (generic added)
+- `firmware/common/warm_tdm/rtl/AdcDspFp.vhd` (new — PID-only, receives `AdcAccumResultType`)
+- `firmware/common/warm_tdm/rtl/DataPath.vhd` (generic added, instantiation rewired)
 - `firmware/common/warm_tdm/rtl/BiquadFilter.vhd` (float input bypass)
-- `firmware/common/warm_tdm/rtl/WarmTdmPkg.vhd` (stream config)
+- `firmware/common/warm_tdm/rtl/WarmTdmPkg.vhd` (stream config, `AdcAccumResultType`)
 - `firmware/common/warm_tdm/ip/Fp2Int/` (new IP core)
 - `firmware/common/warm_tdm/ruckus.tcl`
 - `firmware/python/warm_tdm/_AdcDspFp.py` (new)
@@ -32,7 +32,7 @@ Goals:
 | Int2Fp (existing) | int32 → float32 | 2 cycles | For accumError conversion |
 | Fp2Int (new) | float32 → int32 | 2 cycles | For DAC output |
 
-### Per-Row RAM State
+### Per-Row RAM State (within AdcDspFp)
 
 | RAM | Width | Contents |
 |-----|-------|----------|
@@ -41,12 +41,13 @@ Goals:
 | SQ1FB_FULL | 32-bit | Unwrapped SQ1FB (float, primary state) |
 | FLUX_OFFSET | 32-bit | Cached `numFluxJumps * fluxQuantum` (float) |
 | FLUX_JUMP | 16-bit | numFluxJumps (integer, widened from 9-bit) |
-| ADC_BASELINE | 16-bit | Unchanged from AdcDsp |
 
-### State Machine (PID portion)
+Note: ADC_BASELINE moved to the upstream `AdcAccumulator` entity.
+
+### State Machine
 
 ```
-ACCUMULATE_S        (integer ADC sum, unchanged)
+IDLE_S              (wait for accumValid from upstream AdcAccumulator)
 PREP_PID_S          (read RAMs, start Int2Fp of accumError)
 WAIT_INT2FP_S       (2 cycles)
 PID_P_S             (FMA: P * error + 0, 4 cycles)
@@ -65,6 +66,7 @@ DATA_STREAM_S       (output sq1FbFullFp to biquad)
 ```
 
 Common case: ~38 cycles. Flux jump case: +~10 cycles.
+Accumulation is handled by the upstream `AdcAccumulator` entity (pipelined).
 
 ### Key Design Decisions
 
@@ -129,9 +131,11 @@ The module uses `slv(31 downto 0)` for all FP state. Switching to FP16 requires:
 ```
 
 RAM arrays at AXIL crossbar offsets:
-- 0x1000: AdcBaselines (16-bit int, RW)
-- 0x2000: AccumError (32-bit float, RO)
-- 0x3000: SumAccum (32-bit float, RW)
-- 0x4000: Sq1FbFull (32-bit float, RW)
-- 0x5000: FluxOffset (32-bit float, RW)
-- 0x6000: FluxJumps (16-bit int, RW)
+- 0x1000: AccumError (32-bit float, RO)
+- 0x2000: SumAccum (32-bit float, RW)
+- 0x3000: Sq1FbFull (32-bit float, RW)
+- 0x4000: FluxOffset (32-bit float, RW)
+- 0x5000: FluxJumps (16-bit int, RW)
+
+Note: AdcBaselines moved to the upstream `AdcAccumulator` entity (see
+pipelined-dsp-accumulator plan).

@@ -1,5 +1,22 @@
 # FP DSP PID — Progress
 
+## 2026-05-19: Accumulator Split Refactor
+
+### Completed
+
+- Removed accumulation states (`WAIT_ROW_STROBE_S`, `WAIT_FIRST_SAMPLE_S`,
+  `ACCUMULATE_S`) — replaced by `IDLE_S` waiting on `accumValid`
+- Changed port interface: `adcAxisMaster` → `accumIn : AdcAccumResultType` + `accumValid`
+- Removed ADC baseline RAM from AdcDspFp (moved to new `AdcAccumulator` entity)
+- AXI-Lite crossbar reduced from 7 to 6 masters; RAM offsets shifted down:
+  - AccumError: 0x2000 → 0x1000
+  - SumAccum: 0x3000 → 0x2000
+  - Sq1FbFull: 0x4000 → 0x3000
+  - FluxOffset: 0x5000 → 0x4000
+  - FluxJumps: 0x6000 → 0x5000
+- Updated `_AdcDspFp.py` to match new offsets and removed AdcBaselines variable
+- Removed AdcBaseline from `RowPidStatusFp` per-row views
+
 ## 2026-05-18: Software Integration & Polish
 
 ### Completed
@@ -12,7 +29,7 @@
 - Added `USE_FLOAT_PID_G` generic to `ColumnFpgaBoard.vhd` entity, passed to DataPath
 - Set `USE_FLOAT_PID_G=true` in ColumnFpgaBoard325Coordinator10G target ruckus.tcl
 - Added `RowPidStatusFp` / `RowPidStatusFpArray` to `_AdcDspFp.py` for per-row
-  debug views (AdcBaseline, AccumError, SumAccum, Sq1FbFull, FluxOffset, FluxJumps)
+  debug views (AccumError, SumAccum, Sq1FbFull, FluxOffset, FluxJumps)
 - Matched original `_AdcDsp.py` coefficient pattern: all three P/I/D use
   hidden Raw RemoteVariables with LinkVariable wrappers (`_setCoef` helper)
 - Replaced standalone `setFluxQuantum()` method with a proper `FluxQuantum`
@@ -38,12 +55,6 @@
 - Modified `BiquadFilter.vhd` — `INPUT_IS_FLOAT_G` generic skips Int2Fp
 - Updated `ruckus.tcl` to load Fp2Int IP
 - Created `firmware/python/warm_tdm/_AdcDspFp.py` — PyRogue device driver
-
-## Not Yet Done
-
-- Synthesis run (target is configured, needs `make` in Vivado environment)
-- Testbench/simulation
-- Hardware validation
 
 ## Resolved Questions
 

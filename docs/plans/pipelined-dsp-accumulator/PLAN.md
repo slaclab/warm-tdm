@@ -39,6 +39,7 @@ type AdcAccumResultType is record
    accumError      : signed(31 downto 0);   -- Saturating 32-bit
    numSamples      : unsigned(7 downto 0);
    rowIndex        : slv(7 downto 0);
+   sq1FbDac        : slv(13 downto 0);      -- Captured SQ1FB DAC value
    seqStart        : sl;                    -- First row of new sequence
    daqReadoutStart : sl;                    -- Also starts DAQ readout
 end record;
