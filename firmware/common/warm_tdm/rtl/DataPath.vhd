@@ -417,7 +417,16 @@ begin
 
          filteredAdcStreams(i).tData(1 downto 0) <= "00";
 
-         filteredTimingRxData                 <= timingRxDataDelayed;
+         filteredTimingRxData.startRun        <= timingRxDataDelayed.startRun;
+         filteredTimingRxData.endRun          <= timingRxDataDelayed.endRun;
+         filteredTimingRxData.running         <= timingRxDataDelayed.running;
+         filteredTimingRxData.runTime         <= timingRxDataDelayed.runTime;
+         filteredTimingRxData.stageNextRow    <= timingRxDataDelayed.stageNextRow;
+         filteredTimingRxData.rowSeq          <= timingRxDataDelayed.rowSeq;
+         filteredTimingRxData.rowIndexNext    <= timingRxDataDelayed.rowIndexNext;
+         filteredTimingRxData.rowTime         <= timingRxDataDelayed.rowTime;
+         filteredTimingRxData.rowSeqCount     <= timingRxDataDelayed.rowSeqCount;
+         filteredTimingRxData.daqReadoutCount <= timingRxDataDelayed.daqReadoutCount;
          filteredTimingRxData.rowIndex        <= filterTimingSbOut(7 downto 0);
          filteredTimingRxData.firstSample     <= filterTimingSbOut(8);
          filteredTimingRxData.lastSample      <= filterTimingSbOut(9);
