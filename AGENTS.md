@@ -180,6 +180,28 @@ cd firmware/targets && make ColumnAu25p
 cd firmware/targets/ColumnFpgaBoard && make gui
 ```
 
+### Build Output Location
+
+Vivado project and run outputs are at:
+```
+firmware/build/<TargetName>/
+├── <TargetName>_project.xpr         # Vivado project file
+├── <TargetName>_project.runs/
+│   ├── synth_1/runme.log            # Synthesis log (check for ERRORs here)
+│   ├── impl_1/runme.log             # Implementation log
+│   └── <IpName>_synth_1/runme.log   # Per-IP synthesis logs
+```
+
+Final images (`.bit`, `.mcs`) go to:
+```
+firmware/targets/<TargetName>/images/
+```
+
+To diagnose a failed build, check:
+```bash
+grep "ERROR" firmware/build/<TargetName>/<TargetName>_project.runs/synth_1/runme.log
+```
+
 ## Running the Software
 
 ```bash
