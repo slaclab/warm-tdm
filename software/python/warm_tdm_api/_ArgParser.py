@@ -52,18 +52,6 @@ class WarmTdmArgparse(argparse.ArgumentParser):
             help     = "Number of row boards in group")
 
         self.add_argument(
-            "--numRowSelects",
-            type = int,
-            default = 32,
-            help = 'Number of row selects on row board')
-
-        self.add_argument(
-            "--numChipSelects",
-            type = int,
-            default = 0,
-            help = 'Number of row selects on row board')
-        
-        self.add_argument(
             "--maxRows",
             type = int,
             default = 128,
@@ -77,17 +65,17 @@ class WarmTdmArgparse(argparse.ArgumentParser):
 
         self.add_argument(
             "--columnBoardType",
-            choices= ['Legacy', 'FPGA', 'AwaXe'],
+            choices= ['FPGA', 'AwaXe'],
             default= 'FPGA')
 
         self.add_argument(
             "--rowBoardType",
-            choices= ['Legacy', 'FPGA'],
+            choices= ['FPGA'],
             default= 'FPGA')
 
         self.add_argument(
             "--columnFrontEnd",
-            choices= ['Legacy', 'LegacyCh0Feb', 'FpgaColFeb', 'FpgaColAwaXeFeb', 'FpgaColFebLnTes'],
+            choices= ['FpgaColFeb', 'FpgaColAwaXeFeb', 'FpgaColFebLnTes'],
             default= 'FpgaColFeb')
 
         self.add_argument(
@@ -98,31 +86,23 @@ class WarmTdmArgparse(argparse.ArgumentParser):
 
         self.add_argument(
             "--rowFrontEnd",
-            choices= ['Legacy', 'FpgaRowFeb'],
+            choices= ['FpgaRowFeb'],
             default= 'FpgaRowFeb')
 
 
 colBoardDict = {
-    'Legacy': warm_tdm.ColumnModule,
     'FPGA': warm_tdm.ColumnFpgaBoard,
     'AwaXe': warm_tdm.ColumnAwaXeFpgaBoard}
 
-
 colFeDict = {
-    'Legacy': warm_tdm.ColumnBoardC00StandardFrontEnd,
-    'LegacyCh0Feb': warm_tdm.ColumnBoardC00FebBypassCh0,
     'FpgaColFeb': warm_tdm.FpgaBoardColumnFeb,
-    'FpgaColAwaXeFeb':warm_tdm.FpgaBoardColumnAwaXeFeb,
-    'FpgaColFebLnTes': warm_tdm.FpgaBoardColumnFebLnTes
-
-}
+    'FpgaColAwaXeFeb': warm_tdm.FpgaBoardColumnAwaXeFeb,
+    'FpgaColFebLnTes': warm_tdm.FpgaBoardColumnFebLnTes}
 
 rowBoardDict = {
-    'Legacy': warm_tdm.RowModule,
     'FPGA': warm_tdm.RowFpgaBoard}
 
 rowFeDict = {
-    'Legacy': warm_tdm.RowBoardC01StandardFrontEnd,
     'FpgaRowFeb': warm_tdm.FpgaBoardRowFeb}
 
 
@@ -131,19 +111,16 @@ def arg_dict(args):
     ret['pollEn'] = args.pollEn
     ret['simulation'] = args.sim
     ret['emulate'] = args.emulate
-    ret['numRowSelects'] = args.numRowSelects
-    ret['numChipSelects'] = args.numChipSelects
     ret['maxRows'] = args.maxRows
-    ret['initRead'] = False #args.initRead and not args.sim
+    ret['initRead'] = False
     ret['colBoardClass'] = colBoardDict[args.columnBoardType]
     ret['colFeClass'] = colFeDict[args.columnFrontEnd]
     ret['rowBoardClass'] = rowBoardDict[args.rowBoardType]
     ret['rowFeClass'] = rowFeDict[args.rowFrontEnd]
     ret['useFloatPid'] = args.floatPid
-    ret['groupConfig'] = warm_tdm_api.GroupConfig(groupId = 0,
-                                                  rowBoards = args.rowBoards,
-                                                  columnBoards = args.columnBoards,
-                                                  numRowSelects = args.numRowSelects,
-                                                  numChipSelects = args.numChipSelects,
-                                                  host=args.ip)
+    ret['groupConfig'] = warm_tdm_api.GroupConfig(
+        columnBoards=args.columnBoards,
+        rowBoards=args.rowBoards,
+        maxRows=args.maxRows,
+        host=args.ip)
     return ret

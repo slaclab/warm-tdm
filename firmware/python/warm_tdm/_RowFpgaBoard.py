@@ -6,7 +6,7 @@ import surf.protocols.ssi
 import warm_tdm
 
 class RowFpgaBoard(pr.Device):
-    def __init__(self, frontEndClass, maxRows=128, num_wafers=1, num_row_selects=32, num_chip_selects=0, **kwargs):
+    def __init__(self, frontEndClass, maxRows=128, **kwargs):
         super().__init__(**kwargs)
 
         self.forceCheckEach = True

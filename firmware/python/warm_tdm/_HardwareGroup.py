@@ -53,8 +53,6 @@ class HardwareGroup(pyrogue.Device):
             host='192.168.3.11',
             colBoards=1,
             rowBoards=1,
-            num_row_selects=32,
-            num_chip_selects=0,
             useFloatPid=False,
             maxRows=128,
             **kwargs):
@@ -186,8 +184,6 @@ class HardwareGroup(pyrogue.Device):
                 name=f'RowBoard[{rowIndex}]',
                 frontEndClass=rowFeClass,
                 maxRows=maxRows,
-                num_row_selects=num_row_selects,
-                num_chip_selects=num_chip_selects,
                 memBase=srp,
                 expand=True,
                 enabled=True))

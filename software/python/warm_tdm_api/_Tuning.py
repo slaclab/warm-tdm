@@ -16,10 +16,10 @@ def saOffset(*, group, process=None):
     kd = group.SaOffsetProcess.Kd.get()
     precision = group.SaOffsetProcess.Precision.get()
     maxLoops = group.SaOffsetProcess.MaxLoops.get()
-    colCount = len(group.ColumnMap.get())    
+    colCount = group.NumColumns.get()    
 
     # Setup PID controller
-    pid = [PID(kp, ki, kd) for _ in range(len(group.ColumnMap.value()))]
+    pid = [PID(kp, ki, kd) for _ in range(group.NumColumns.get())]
 
     for p in pid:
         p.setpoint = 0  # want to zero out SaOut
@@ -28,7 +28,7 @@ def saOffset(*, group, process=None):
 
     # Final output should be near SaBias, so start near there
     # Start at half the current bias
-    # control = np.zeros(len(group.ColumnMap.value()))
+    # control = np.zeros(group.NumColumns.get())
     control = group.SaBiasVoltage.get() * 0.9
 
     group.SaOffset.set(value=control)
@@ -89,7 +89,7 @@ def saFbSweep(*, group, bias, saFbRange, process):
     Return list of Curve objects containing curves for each column
     """
     row = 0
-    colCount = len(group.ColumnMap.get())
+    colCount = group.NumColumns.get()
     curves = [warm_tdm_api.Curve(bias[i]) for i in range(colCount)]
 
     saFbArray = np.zeros(colCount, np.float64)
@@ -145,7 +145,7 @@ def saBiasSweep(*, group, process, doBiasRamp=True):
 
     # Extract iteration steps from Rogue variables
     # Create CurveData obects for storing output data
-    colCount = len(group.ColumnMap.get())
+    colCount = group.NumColumns.get()
     colTuneEnable = group.ColTuneEnable.value()    
     numBiasSteps = group.SaTuneProcess.SaBiasNumSteps.get() if doBiasRamp else 1
     numFbSteps = group.SaTuneProcess.SaFbNumSteps.get()
@@ -243,9 +243,9 @@ def saTune(*, group, process=None, doSet=True, doBiasRamp=True):
     saBiasResults = saBiasSweep(group=group, process=process, doBiasRamp=doBiasRamp)
 
     if doSet:
-        for col in range(len(group.ColumnMap.get())):
+        for col in range(group.NumColumns.get()):
             # xOut represents the tuned saFB. Set it for every row.
-            for row in range(len(group.RowMap.get())):
+            for row in range(group.NumRows.get()):
                 group.SaFbCurrent.set(index=(col,row), value=saBiasResults[col].xOut)
             # biasOut represents the tuned SA Bias point
             group.SaBiasCurrent.set(index=col, value=saBiasResults[col].biasOut)
@@ -269,7 +269,7 @@ def saFbServo(*, group, process):
     precision = process.ServoPrecision.get()
     maxLoops = process.ServoMaxLoops.get()
     
-    pid = [PID(kp, ki, kd) for _ in range(len(group.ColumnMap.value()))]
+    pid = [PID(kp, ki, kd) for _ in range(group.NumColumns.get())]
 
     for p in pid:
         p.setpoint = 0 # want to zero out SaOut
@@ -313,7 +313,7 @@ def fasSweep(*, group, row, process):
     Adds this curve to the numpy array
     """
 
-    colCount = len(group.ColumnMap.get())
+    colCount = group.NumColumns.get()
     numSteps = group.FasTuneProcess.FasFluxNumSteps.get()
     low =  group.FasTuneProcess.FasFluxLowOffset.get()
     high = group.FasTuneProcess.FasFluxHighOffset.get()
@@ -405,7 +405,7 @@ def sq1FbSweep(*, group, bias, fbRange, process):
     highoffset,step. Generates curve points with saOffset()
     """
     #print(f'sq1FbSweep({bias=}, {fbRange=})')
-    colCount = len(group.ColumnMap.get())
+    colCount = group.NumColumns.get()
     curves = [warm_tdm_api.Curve(bias[i]) for i in range(colCount)]
     numSteps = len(fbRange[0])
 
@@ -445,7 +445,7 @@ def sq1BiasSweep(group, process, rowIndex, doBiasRamp=True):
 
     # Extract iteration steps from Rogue variables
     # Create CurveData obects for storing output data
-    colCount = len(group.ColumnMap.get())
+    colCount = group.NumColumns.get()
     numBiasSteps = process.Sq1BiasNumSteps.get() if doBiasRamp else 1
     numFbSteps = process.Sq1FbNumSteps.get()
     biasRange = np.zeros((colCount, numBiasSteps), np.float64)
@@ -551,55 +551,47 @@ def sq1Tune(group, process, doBiasRamp=True):
 
 
 
-#SQ1 DIAGNOSTIC -output vs sq1 feedback for every row  for every column
-def sq1Ramp(group, row, column):
-    """Returns list of offsets that zero out SaOut depending
-    on the biasIterates through Sq1Fb values determined by
-    lowoffset,highoffset,step and records output of saOffset().
-    """
-    low = group.Sq1Fb.get() + group.Sq1FbLowOffset.get()
-    high = group.Sq1Fb.get() + group.Sq1FbHighOffset.get()
-    step = group.Sq1FbStepSize.get()
+def sq1Ramp(group, row, column, low_offset=-77.0, high_offset=77.0, step=1.0):
+    """Sweep Sq1Fb around its current value and record saOffset at each point."""
+    center = group.Sq1FbCurrent.get(index=(column, row))
+    low = center + low_offset
+    high = center + high_offset
 
     outputs = []
-    for fb in np.arange(low,high+step,step):
-        group.Sq1Fb.set(index=(column,row),value=fb)
-        offset = saOffset(group,row,column)
+    for fb in np.arange(low, high + step, step):
+        group.Sq1FbForceCurrent.set(value=fb, index=column)
+        offset = saOffset(group=group)
         outputs.append(offset)
     return outputs
 
-def sq1RampRow(group,column):
-    """Iterates through all rows, enabling tuning, and then calls sq1Ramp
-    """
+def sq1RampRow(group, column, **kwargs):
+    """Iterate through all rows, activating each, and call sq1Ramp."""
+    results = []
     for row in range(group.NumRows.get()):
-        group.RowForceIndex.set(row)
-        group.RowForceEn.set(True)
-        sq1RampResults = sq1Ramp(group,row,column)
-    group.RowForceEn.set(False)
+        group.ActivateRowIndex(row)
+        results.append(sq1Ramp(group, row, column, **kwargs))
+        group.DeactivateRowIndex(row)
+    return results
 
 
-
-#TES BIAS DIAGNOSTIC - what to do with this data?
-def tesRamp(group,row, column):
-    """Returns list of offsets that zero out SaOut depending on the bias
-    Iterates through TesBias values determined by lowoffset,highoffset,step
-    and records output of saOffset().
-    """
-    low = group.TesBias.get() + group.TesBiasLowOffset.get()
-    high = group.TesBias.get() + group.TesBiasHighOffset.get()
-    step = group.TesBiasStepSize.get()
+def tesRamp(group, row, column, low_offset=0.0, high_offset=100.0, step=1.0):
+    """Sweep TesBias around its current value and record saOffset at each point."""
+    center = group.TesBias.get(index=column)
+    low = center + low_offset
+    high = center + high_offset
 
     outputs = []
-    for bias in np.arange(low,high,step):
-        group.TesBias.set(index=row,value=bias)
-        offset = saOffset(group,row,column=0)
+    for bias in np.arange(low, high, step):
+        group.TesBias.set(index=column, value=bias)
+        offset = saOffset(group=group)
         outputs.append(offset)
     return outputs
 
-def tesRampRow(group,column):
-    """Iterates through all rows, enabling tuning, and then calls tesRamp
-    """
+def tesRampRow(group, column, **kwargs):
+    """Iterate through all rows, activating each, and call tesRamp."""
+    results = []
     for row in range(group.NumRows.get()):
-        group.RowForceEn.set(True)
-        tesRampResults = tesRamp(group,row,column)
-    group.RowForceEn.set(False)
+        group.ActivateRowIndex(row)
+        results.append(tesRamp(group, row, column, **kwargs))
+        group.DeactivateRowIndex(row)
+    return results

@@ -209,7 +209,7 @@ class Sq1TuneProcess(pr.Process):
             name='PlotColumn',
             value=0,
             minimum=0,
-            maximum=max(len(config.columnMap)-1, 0),
+            maximum=max(config.numColumns-1, 0),
             mode='RW',
             description="Controls which column is selected for the resulting plot and fitted value variables below"))
 
@@ -217,7 +217,7 @@ class Sq1TuneProcess(pr.Process):
             name='PlotRow',
             value=0,
             minimum=0,
-            maximum=max(len(config.rowMap)-1, 0),
+            maximum=max(config.maxRows-1, 0),
             mode='RW',
             description="Controls which row is selected for the resulting plot and fitted value variables below"))
 
