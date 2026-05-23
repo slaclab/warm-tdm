@@ -382,13 +382,6 @@ class Group(pr.Device):
                 self.Sq1BiasCurrent,
                 self.Sq1FbCurrent]
 
-            self.add(pr.LocalVariable(
-                name='FllEnable',
-                value=False,
-                mode='RW',
-                groups='TopApi',
-                description="FLL Enable Control."))
-
             self.add(warm_tdm_api.ConfigSelect(self, groups=['NoDoc', 'NoConfig']))
 
             #############################################

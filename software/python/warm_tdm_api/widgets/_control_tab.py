@@ -55,10 +55,6 @@ class ControlTab(PyDMFrame):
             PyDMLabel(init_channel=group_path + '.RowTuneIndex/name'),
             sp)
 
-        fl_left.addRow(
-            PyDMLabel(init_channel=group_path + '.FllEnable/name'),
-            PyDMEnumComboBox(init_channel=group_path + '.FllEnable'))
-
         hb.addItem(QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum))
 
         fl_right = QFormLayout()
