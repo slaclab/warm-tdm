@@ -65,6 +65,7 @@ def saOffset(*, group, process=None):
             return control
 
     if count == maxLoops:
+        group._log.warning(f'saOffset failed to converge: ADC={masked}, control={control}')
         raise Exception(f"saOffset PID loop failed to converge after {maxLoops} loops")
     else:
         group._log.info(f'saOffset PID loop converged after {count} loops')
@@ -213,10 +214,8 @@ def saTune(*, group, process=None, doSet=True, doBiasRamp=True):
      is plotted against SaFb values, which each curve
      representing a different bias.
     """
-#    group.Init()
+    group._log.info(f'saTune starting: doBiasRamp={doBiasRamp}, doSet={doSet}')
 
-    #group.RowTuneIndex.set(0)
-    #group.RowTuneMode.set(True)
     saBiasResults = saBiasSweep(group=group, process=process, doBiasRamp=doBiasRamp)
 
     if doSet:
@@ -229,7 +228,8 @@ def saTune(*, group, process=None, doSet=True, doBiasRamp=True):
 
         # Run saOffset to zero out the ADC value at the tuned SaBias,SaFb point
         saOffset(group=group)
-            
+
+    group._log.info('saTune complete')
     return saBiasResults
 
 
@@ -267,6 +267,7 @@ def saFbServo(*, group, process):
 
         # All channels have converged
         if (max(masked) < precision) and (min(masked) > (-1.0*precision)):
+            group._log.debug(f'saFbServo converged after {count+1} loops')
             break
 
         for i, p in enumerate(pid):
@@ -345,6 +346,7 @@ def fasTune(*,group,process=None):
     curves = []
     numRows = group.NumRows.get()
 
+    group._log.info(f'fasTune starting: {numRows} rows')
     process.TotalSteps.set(numRows * process.FasFluxNumSteps.get())
 
     #group.RowForceEn.set(True)
@@ -488,13 +490,14 @@ def sq1Tune(group, process, doBiasRamp=True):
     outputs = []
     numRows = group.NumRows.get()
     rowTuneList = group.RowIndexOrderList.value()
-    colTuneEnable = group.ColTuneEnable.value()    
+    colTuneEnable = group.ColTuneEnable.value()
     numEnabledRows = len(rowTuneList)
     numColumns = group.NumColumns.get()
 
     numBiasSteps = process.Sq1BiasNumSteps.get() if doBiasRamp else 1
     totalSteps = numEnabledRows * numBiasSteps * process.Sq1FbNumSteps.get()
     process.TotalSteps.set(totalSteps)
+    group._log.info(f'sq1Tune starting: {numEnabledRows} rows, {totalSteps} total steps')
 
     #group.RowForceEn.set(True)
     saOffset(group=group)
@@ -522,6 +525,8 @@ def sq1Ramp(group, row, column, low_offset=-77.0, high_offset=77.0, step=1.0):
     center = group.Sq1FbCurrent.get(index=(column, row))
     low = center + low_offset
     high = center + high_offset
+    numSteps = int((high - low) / step) + 1
+    group._log.info(f'sq1Ramp row={row}, col={column}: center={center:.2f}, {numSteps} steps')
 
     outputs = []
     for fb in np.arange(low, high + step, step):
@@ -532,8 +537,10 @@ def sq1Ramp(group, row, column, low_offset=-77.0, high_offset=77.0, step=1.0):
 
 def sq1RampRow(group, column, **kwargs):
     """Iterate through all rows, activating each, and call sq1Ramp."""
+    numRows = group.NumRows.get()
+    group._log.info(f'sq1RampRow col={column}: {numRows} rows')
     results = []
-    for row in range(group.NumRows.get()):
+    for row in range(numRows):
         group.ActivateRowIndex(row)
         results.append(sq1Ramp(group, row, column, **kwargs))
         group.DeactivateRowIndex(row)
@@ -545,6 +552,8 @@ def tesRamp(group, row, column, low_offset=0.0, high_offset=100.0, step=1.0):
     center = group.TesBias.get(index=column)
     low = center + low_offset
     high = center + high_offset
+    numSteps = int((high - low) / step)
+    group._log.info(f'tesRamp row={row}, col={column}: center={center:.2f}, {numSteps} steps')
 
     outputs = []
     for bias in np.arange(low, high, step):
@@ -555,8 +564,10 @@ def tesRamp(group, row, column, low_offset=0.0, high_offset=100.0, step=1.0):
 
 def tesRampRow(group, column, **kwargs):
     """Iterate through all rows, activating each, and call tesRamp."""
+    numRows = group.NumRows.get()
+    group._log.info(f'tesRampRow col={column}: {numRows} rows')
     results = []
-    for row in range(group.NumRows.get()):
+    for row in range(numRows):
         group.ActivateRowIndex(row)
         results.append(tesRamp(group, row, column, **kwargs))
         group.DeactivateRowIndex(row)
