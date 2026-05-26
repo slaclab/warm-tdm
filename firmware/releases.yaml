@@ -12,7 +12,6 @@ RogueScripts:
   - software/scripts/warmTdmClientCmd.py
   - software/scripts/warmTdmClientGui.py
   - software/scripts/warmTdmEmulate.py
-  - software/scripts/warmTdmGui.py
   - software/scripts/warmTdmServer.py
 
 CondaDependencies:

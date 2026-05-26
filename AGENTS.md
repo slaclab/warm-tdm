@@ -208,11 +208,11 @@ grep "ERROR" firmware/build/<TargetName>/<TargetName>_project.runs/synth_1/runme
 # Create conda environment
 conda env create -f conda.yml
 
-# Start hardware server
+# Start hardware server (headless)
 cd software/scripts && python warmTdmServer.py --ip <board-ip>
 
-# Start GUI
-python warmTdmGui.py
+# Start with GUI
+python warmTdmServer.py --gui --ip <board-ip>
 
 # Command-line client
 python warmTdmClientCmd.py

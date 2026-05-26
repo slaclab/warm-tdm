@@ -125,8 +125,7 @@ Frame format defined in `warm_tdm._DataFormats.DataReadout`.
 
 | Script | Purpose |
 |--------|---------|
-| `warmTdmServer.py` | PyRogue hardware server (main entry point) |
-| `warmTdmGui.py` | Full GUI application |
+| `warmTdmServer.py` | PyRogue hardware server (use `--gui` to launch GUI) |
 | `warmTdmClientGui.py` | Remote GUI client (connects via ZMQ) |
 | `warmTdmClientCmd.py` | Command-line client |
 | `warmTdmEmulate.py` | Software emulation (no hardware) |

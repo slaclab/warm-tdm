@@ -8,42 +8,47 @@ class WarmTdmArgparse(argparse.ArgumentParser):
         super().__init__()
 
         self.add_argument(
+            "--gui",
+            action = 'store_true',
+            default = False,
+            help = "Launch PyDM GUI after starting the server")
+
+        self.add_argument(
             "--docs",
             type     = str,
             required = False,
             default = '',
-            help     = "Path To Store Docs")
+            help     = "Path to store generated documentation")
 
         self.add_argument(
             "--sim",
             action = 'store_true',
-            default = False)
+            default = False,
+            help = "Run in simulation mode (disables polling, increases timeout)")
 
         self.add_argument(
             "--emulate",
             action = 'store_true',
-            default = False)
+            default = False,
+            help = "Run in emulation mode (no hardware)")
 
         self.add_argument(
             "--ip",
             type     = str,
-            required = False,
             default = '192.168.3.11',
-            help     = "IP address")
+            help     = "IP address of the group coordinator board")
 
         self.add_argument(
             "--pollEn",
-            type = bool,
-            required = False,
+            action = 'store_true',
             default = False,
-            help = 'Enable or disable polling on startup')
+            help = 'Enable polling on startup')
 
         self.add_argument(
             "--initRead",
-            type = bool,
-            required = False,
+            action = 'store_true',
             default = True,
-            help = 'Enable or disable read of all register on startup')
+            help = 'Read all registers on startup')
 
         self.add_argument(
             "--rowBoards",
@@ -60,23 +65,26 @@ class WarmTdmArgparse(argparse.ArgumentParser):
         self.add_argument(
             "--columnBoards",
             type     = int,
-            default  = 1,
+            default  = 4,
             help     = "Number of column boards in group")
 
         self.add_argument(
             "--columnBoardType",
             choices= ['FPGA', 'AwaXe'],
-            default= 'FPGA')
+            default= 'FPGA',
+            help = "Column board hardware type")
 
         self.add_argument(
             "--rowBoardType",
             choices= ['FPGA'],
-            default= 'FPGA')
+            default= 'FPGA',
+            help = "Row board hardware type")
 
         self.add_argument(
             "--columnFrontEnd",
             choices= ['FpgaColFeb', 'FpgaColAwaXeFeb', 'FpgaColFebLnTes'],
-            default= 'FpgaColFeb')
+            default= 'FpgaColFeb',
+            help = "Column front-end board type")
 
         self.add_argument(
             "--floatPid",
@@ -87,7 +95,8 @@ class WarmTdmArgparse(argparse.ArgumentParser):
         self.add_argument(
             "--rowFrontEnd",
             choices= ['FpgaRowFeb'],
-            default= 'FpgaRowFeb')
+            default= 'FpgaRowFeb',
+            help = "Row front-end board type")
 
 
 colBoardDict = {
@@ -112,7 +121,7 @@ def arg_dict(args):
     ret['simulation'] = args.sim
     ret['emulate'] = args.emulate
     ret['maxRows'] = args.maxRows
-    ret['initRead'] = False
+    ret['initRead'] = args.initRead
     ret['colBoardClass'] = colBoardDict[args.columnBoardType]
     ret['colFeClass'] = colFeDict[args.columnFrontEnd]
     ret['rowBoardClass'] = rowBoardDict[args.rowBoardType]

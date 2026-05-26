@@ -14,6 +14,15 @@ Goals:
 
 ## Completed Work
 
+### Phase 1.5: Unified launch script (branch: cleanup)
+
+| Change | Files |
+|--------|-------|
+| Consolidate scripts | Merged `warmTdmGui.py`, `gui.py`, old `warmTdmServer.py` → new `warmTdmServer.py` with `--gui` flag |
+| Fix ArgParser | Added `--gui`, fixed `type=bool` bug on `--pollEn`/`--initRead`, added help strings, set standard defaults |
+| Remove stale files | Deleted `gui.py`, `warmTdmGui.py`, `.ipynb_checkpoints/` |
+| Update references | `releases.yaml`, `AGENTS.md`, `SOFTWARE_GUIDE.md` |
+
 ### Phase 1: Legacy removal and config simplification (commits f917982, 58eef7c)
 
 | Change | Files |
