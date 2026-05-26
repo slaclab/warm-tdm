@@ -15,27 +15,16 @@ DATA_PORT = 8193
 
 class DataDebug(rogue.interfaces.stream.Slave):
 
+    def __init__(self):
+        super().__init__()
+        import logging
+        self._log = logging.getLogger('warm_tdm.DataDebug')
+
     def _acceptFrame(self, frame):
         arr = frame.getNumpy()
-
         dr = warm_tdm.DataReadout.from_numpy(arr)
-        
-        print(f'Got frame with {len(arr)} bytes')
-
-        print(dr)
-#         words = arr[:-5].reshape(-1, 5)
-#         readoutCount = int.from_bytes( words[0:2, 0:4], byteorder='little', signed=False)
-#         rowSeqCount = int.from_bytes(words[2:4, 0:4], byteorder='little', signed=False)
-#         runTime = int.from_bytes(words[4:6, 0:4], byteorder='little', signed=False)
-#         samples = words[6:]
-
-#         print(f'{readoutCount=}')
-#         print(f'{rowSeqCount=}')
-#         print(f'{runTime=}')        
-#         for s in samples:
-#             value = int.from_bytes(s[0:3], byteorder='little', signed=True)
-#             print(f'col {s[4]}, row {s[3]}, value 0x{value:x}')
-        
+        self._log.debug(f'Got frame with {len(arr)} bytes')
+        self._log.debug(dr)
 
 class HardwareGroup(pyrogue.Device):
 
@@ -59,7 +48,7 @@ class HardwareGroup(pyrogue.Device):
 
         super().__init__(**kwargs)
 
-        print(f'Starting HardwareGroup with {colBoards=}, {maxRows=}')
+        self._log.info(f'Starting HardwareGroup with {colBoards=}, {maxRows=}')
 
         # Open rUDP connections to the Manager board
         if simulation is False and emulate is False:
