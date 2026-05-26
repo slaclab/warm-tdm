@@ -236,6 +236,17 @@ python warmTdmEmulate.py
 | Simulation | `firmware/simulations/StackTb/` (full system), `firmware/common/warm_tdm/sim/` (device models) |
 | Constraints / timing closure | `common/warm_tdm/xdc/WarmTdmCore2.xdc` (shared), target-specific `xdc/` dirs |
 
+## Task Plans
+
+For substantial feature work, debug efforts, refactors, or multi-step investigations, keep planning, progress, and handoff Markdown under `docs/plans/<task-name>/`. Use a short kebab-case task name, keep notes factual, and update the plan as the work changes.
+
+Each task directory should include enough context for another contributor (or a future agent session) to resume without reconstructing the work from chat history. Capture the goal, current status, decisions made, files or modules involved, validation run, open risks, and next steps. Keep large logs, generated output, and build artifacts out of `docs/plans`; summarize them and link to durable locations instead.
+
+Current plans:
+- [`docs/plans/fp-dsp-pid/`](docs/plans/fp-dsp-pid/) — Floating-point PID servo (AdcDspFp)
+- [`docs/plans/pipelined-dsp-accumulator/`](docs/plans/pipelined-dsp-accumulator/) — Pipelined DSP accumulator
+- [`docs/plans/sw-cleanup/`](docs/plans/sw-cleanup/) — Python legacy removal and API simplification
+
 ## Submodules
 
 | Submodule | URL | Purpose |
