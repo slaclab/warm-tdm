@@ -159,8 +159,8 @@ begin
       U_AxiDualPortRam_1 : entity surf.AxiDualPortRam
          generic map (
             TPD_G            => TPD_G,
-            SYNTH_MODE_G     => "inferred",
-            MEMORY_TYPE_G    => "distributed",
+            SYNTH_MODE_G     => "xpm",
+            MEMORY_TYPE_G    => "block",
             READ_LATENCY_G   => 0,
             AXI_WR_EN_G      => true,
             SYS_WR_EN_G      => false,
@@ -187,7 +187,7 @@ begin
    U_AxiDualPortRam_OVERRIDE : entity surf.AxiDualPortRam
       generic map (
          TPD_G            => TPD_G,
-         SYNTH_MODE_G     => "inferred",
+         SYNTH_MODE_G     => "xpm",
          MEMORY_TYPE_G    => "distributed",
          READ_LATENCY_G   => 0,
          AXI_WR_EN_G      => true,
