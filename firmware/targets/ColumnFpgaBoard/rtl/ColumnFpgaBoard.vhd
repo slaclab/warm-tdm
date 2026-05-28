@@ -57,6 +57,7 @@ entity ColumnFpgaBoard is
       GEN_ADC_FILTER_G        : boolean              := true;
       USE_FLOAT_PID_G         : boolean              := true;
       GEN_PID_DEBUG_G         : boolean              := true;
+      FAST_DAC_BRAM_G         : boolean              := false;
       ROW_ADDR_BITS_G         : integer range 3 to 8 := 7);  -- 128 rows
    port (
       -- Clocks
@@ -624,6 +625,7 @@ begin
       generic map (
          TPD_G            => TPD_G,
          SIMULATION_G     => SIMULATION_G,
+         USE_BRAM_G       => FAST_DAC_BRAM_G,
          ROW_ADDR_BITS_G  => ROW_ADDR_BITS_G,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_SQ1_BIAS_DAC_C).baseAddr)
       port map (
@@ -646,6 +648,7 @@ begin
       generic map (
          TPD_G            => TPD_G,
          SIMULATION_G     => SIMULATION_G,
+         USE_BRAM_G       => FAST_DAC_BRAM_G,
          ROW_ADDR_BITS_G  => ROW_ADDR_BITS_G,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_SQ1_FB_DAC_C).baseAddr)
       port map (
@@ -669,6 +672,7 @@ begin
       generic map (
          TPD_G            => TPD_G,
          SIMULATION_G     => SIMULATION_G,
+         USE_BRAM_G       => FAST_DAC_BRAM_G,
          ROW_ADDR_BITS_G  => ROW_ADDR_BITS_G,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_SA_FB_DAC_C).baseAddr)
       port map (
@@ -690,6 +694,7 @@ begin
    U_FastDacDriver_AUX : entity warm_tdm.FastDacDriver
       generic map (
          TPD_G            => TPD_G,
+         USE_BRAM_G       => FAST_DAC_BRAM_G,
          ROW_ADDR_BITS_G  => ROW_ADDR_BITS_G,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_AUX_DAC_C).baseAddr)
       port map (
