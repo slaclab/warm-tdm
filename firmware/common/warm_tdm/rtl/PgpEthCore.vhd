@@ -38,19 +38,20 @@ library warm_tdm;
 entity PgpEthCore is
 
    generic (
-      TPD_G                   : time             := 1 ns;
-      SIMULATION_G            : boolean          := false;
-      SIMULATE_PGP_G          : boolean          := true;
-      SIM_PGP_PORT_NUM_G      : integer          := 7000;
-      SIM_ETH_SRP_PORT_NUM_G  : integer          := 8000;
-      SIM_ETH_DATA_PORT_NUM_G : integer          := 9000;
-      REF_CLK_FREQ_G          : real             := 250.0e+6;
-      RING_ADDR_0_G           : boolean          := false;
-      AXIL_BASE_ADDR_G        : slv(31 downto 0) := X"00000000";
-      ETH_10G_G               : boolean          := true;
-      DHCP_G                  : boolean          := false;  -- true = DHCP, false = static address
-      IP_ADDR_G               : slv(31 downto 0) := X"0A01A8C0";  -- 192.168.1.10 (before DHCP)
-      MAC_ADDR_G              : slv(47 downto 0) := x"00_00_16_56_00_08");
+      TPD_G                    : time             := 1 ns;
+      SIMULATION_G             : boolean          := false;
+      SIMULATE_PGP_G           : boolean          := true;
+      SIM_PGP_PORT_NUM_G       : integer          := 7000;
+      SIM_ETH_SRP_PORT_NUM_G   : integer          := 8000;
+      SIM_ETH_DATA_PORT_NUM_G  : integer          := 9000;
+      REF_CLK_FREQ_G           : real             := 250.0e+6;
+      RING_ADDR_0_G            : boolean          := false;
+      AXIL_BASE_ADDR_G         : slv(31 downto 0) := X"00000000";
+      ETH_10G_G                : boolean          := true;
+      RSSI_WINDOW_ADDR_SIZE_G  : positive         := 3;
+      DHCP_G                   : boolean          := false;  -- true = DHCP, false = static address
+      IP_ADDR_G                : slv(31 downto 0) := X"0A01A8C0";  -- 192.168.1.10 (before DHCP)
+      MAC_ADDR_G               : slv(47 downto 0) := x"00_00_16_56_00_08");
    port (
       gtRefClk250  : in sl;
       fabRefClk125 : in sl;
@@ -196,17 +197,18 @@ begin
    ---------------------
    U_EthCore_1 : entity warm_tdm.EthCore
       generic map (
-         TPD_G               => TPD_G,
-         RING_ADDR_0_G       => RING_ADDR_0_G,
-         ETH_10G_G           => ETH_10G_G,
-         SIMULATION_G        => SIMULATION_G,
-         SIM_SRP_PORT_NUM_G  => SIM_ETH_SRP_PORT_NUM_G,
-         SIM_DATA_PORT_NUM_G => SIM_ETH_DATA_PORT_NUM_G,
-         AXIL_BASE_ADDR_G    => AXIL_BASE_ADDR_G + X"00100000",
-         AXIL_CLK_FREQ_G     => 125.0e6,
-         DHCP_G              => DHCP_G,
-         IP_ADDR_G           => IP_ADDR_G,
-         MAC_ADDR_G          => MAC_ADDR_G)
+         TPD_G                   => TPD_G,
+         RING_ADDR_0_G           => RING_ADDR_0_G,
+         ETH_10G_G               => ETH_10G_G,
+         SIMULATION_G            => SIMULATION_G,
+         SIM_SRP_PORT_NUM_G      => SIM_ETH_SRP_PORT_NUM_G,
+         SIM_DATA_PORT_NUM_G     => SIM_ETH_DATA_PORT_NUM_G,
+         AXIL_BASE_ADDR_G        => AXIL_BASE_ADDR_G + X"00100000",
+         AXIL_CLK_FREQ_G         => 125.0e6,
+         RSSI_WINDOW_ADDR_SIZE_G => RSSI_WINDOW_ADDR_SIZE_G,
+         DHCP_G                  => DHCP_G,
+         IP_ADDR_G               => IP_ADDR_G,
+         MAC_ADDR_G              => MAC_ADDR_G)
       port map (
          extRst                => '0',                               -- [in]
          gtRefClk250           => gtRefClk250,                       -- [in]

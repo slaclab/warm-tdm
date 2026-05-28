@@ -30,9 +30,10 @@ use warm_tdm.TimingPkg.all;
 entity FastDacDriver is
 
    generic (
-      TPD_G            : time             := 1 ns;
-      SIMULATION_G     : boolean          := false;
-      AXIL_BASE_ADDR_G : slv(31 downto 0) := (others => '0'));
+      TPD_G            : time                 := 1 ns;
+      SIMULATION_G     : boolean              := false;
+      ROW_ADDR_BITS_G  : integer range 3 to 8 := 8;
+      AXIL_BASE_ADDR_G : slv(31 downto 0)     := (others => '0'));
 
    port (
       timingRxClk125 : in sl;
@@ -165,7 +166,7 @@ begin
             SYS_WR_EN_G      => false,
             SYS_BYTE_WR_EN_G => false,
             COMMON_CLK_G     => false,
-            ADDR_WIDTH_G     => 8,
+            ADDR_WIDTH_G     => ROW_ADDR_BITS_G,
             DATA_WIDTH_G     => 16,
             INIT_G           => X"2000")               -- init to midscale for DAC
          port map (
@@ -175,12 +176,12 @@ begin
             axiReadSlave   => locAxilReadSlaves(i),    -- [out]
             axiWriteMaster => locAxilWriteMasters(i),  -- [in]
             axiWriteSlave  => locAxilWriteSlaves(i),   -- [out]
-            clk            => timingRxClk125,          -- [in]
---            we             => r.ramWrite,              -- [in]
-            rst            => timingRxRst125,          -- [in]
-            addr           => r.rowIndex,              -- [in]
---            din            => r.ramDin,                -- [in]
-            dout           => ramDout(i));             -- [out]
+            clk            => timingRxClk125,                          -- [in]
+--            we             => r.ramWrite,                              -- [in]
+            rst            => timingRxRst125,                          -- [in]
+            addr           => r.rowIndex(ROW_ADDR_BITS_G-1 downto 0), -- [in]
+--            din            => r.ramDin,                                -- [in]
+            dout           => ramDout(i));                             -- [out]
    end generate GEN_AXIL_RAM;
 
    U_AxiDualPortRam_OVERRIDE : entity surf.AxiDualPortRam

@@ -28,9 +28,9 @@ loadConstraints  -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore2.xdc
 loadConstraints -dir  "$::DIR_PATH/../ColumnFpgaBoard/xdc/"
 
 set_property top {ColumnFpgaBoard} [get_filesets {sources_1}]
-set_property generic "[get_property generic [current_fileset]] RING_ADDR_0_G=true ETH_10G_G=false GEN_ADC_FILTER_G=false ROW_ADDR_BITS_G=5" [current_fileset]
+set_property generic "[get_property generic [current_fileset]] RING_ADDR_0_G=true ETH_10G_G=false GEN_ADC_FILTER_G=false GEN_PID_DEBUG_G=false RSSI_WINDOW_ADDR_SIZE_G=2 ROW_ADDR_BITS_G=6" [current_fileset]
 
-set_property strategy Performance_ExplorePostRoutePhysOpt [get_runs impl_1]
+set_property strategy Power_DefaultOpt [get_runs impl_1]
 
 
 
