@@ -15,6 +15,7 @@ Boards communicate via a **PGP ring topology** with Ethernet bridge for host acc
 ```
 warm-tdm/
 ├── firmware/
+│   ├── build/ -> (symlink)     # Vivado build outputs (symlink to local scratch)
 │   ├── targets/                # 14 FPGA build targets (Row/Column variants)
 │   │   ├── ColumnFpgaBoard/    #   Kintex-7, prom output
 │   │   ├── ColumnAu25p/        #   Artix UltraScale+, bit output, 10G Ethernet
@@ -182,14 +183,22 @@ cd firmware/targets/ColumnFpgaBoard && make gui
 
 ### Build Output Location
 
-Vivado project and run outputs are at:
-```
+**IMPORTANT**: `firmware/build/` is a symlink (typically to a local scratch disk). It will NOT appear in `find` searches unless you follow symlinks. Always check this path directly — do not search the filesystem for build outputs.
+
+```bash
+# List available build targets
+ls firmware/build/
+
+# Typical structure for a target
 firmware/build/<TargetName>/
 ├── <TargetName>_project.xpr         # Vivado project file
 ├── <TargetName>_project.runs/
 │   ├── synth_1/runme.log            # Synthesis log (check for ERRORs here)
 │   ├── impl_1/runme.log             # Implementation log
 │   └── <IpName>_synth_1/runme.log   # Per-IP synthesis logs
+├── <TargetName>_project.cache/
+├── <TargetName>_project.gen/
+└── <TargetName>_project.srcs/
 ```
 
 Final images (`.bit`, `.mcs`) go to:
@@ -197,9 +206,16 @@ Final images (`.bit`, `.mcs`) go to:
 firmware/targets/<TargetName>/images/
 ```
 
-To diagnose a failed build, check:
+To diagnose a failed build:
 ```bash
+# Check synthesis log for errors
 grep "ERROR" firmware/build/<TargetName>/<TargetName>_project.runs/synth_1/runme.log
+
+# Check implementation log
+grep "ERROR" firmware/build/<TargetName>/<TargetName>_project.runs/impl_1/runme.log
+
+# List all available build outputs
+ls firmware/build/
 ```
 
 ## Running the Software
