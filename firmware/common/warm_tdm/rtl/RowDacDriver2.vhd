@@ -278,7 +278,7 @@ begin
          axiWriteSlave  => locAxilWriteSlaves(MAP_RAM_AXIL_C),   -- [out]
          clk            => timingRxClk125,                       -- [in]
          rst            => timingRxRst125,                       -- [in]
-         addr           => r.mapRamAddr,                         -- [in]
+         addr           => r.mapRamAddr(ROW_ADDR_BITS_G-1 downto 0),  -- [in]
          dout           => mapRamOut);                           -- [out]
 
 
