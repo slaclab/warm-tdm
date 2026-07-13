@@ -195,7 +195,7 @@ class Sq1TuneProcess(pr.Process):
         # SQ1 Tuning Results
         self.add(pr.LocalVariable(
             name='Sq1TuneOutput',
-            value={},
+            value=[],  # set to a nested list of dicts, indexed [row][col]
             hidden=True,
             mode='RO',
             description="Results Data From SQ1 Tuning"))
