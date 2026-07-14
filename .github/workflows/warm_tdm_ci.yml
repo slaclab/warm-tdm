@@ -57,3 +57,17 @@ jobs:
           github_token: ${{ secrets.GH_TOKEN }}
           publish_dir: docs/build/html
 
+# ----------------------------------------------------------------------------
+
+  # Generate a GitHub release when a version tag (vX.Y.Z) is pushed.
+  # Firmware .mcs images are attached to the release separately by a
+  # maintainer running ruckus/scripts/firmwareRelease.py (see docs/RELEASE.md),
+  # since FPGA images cannot be built in CI.
+  gen_release:
+    needs: [test_and_document]
+    uses: slaclab/ruckus/.github/workflows/gen_release.yml@main
+    with:
+      version: '1.0.0'
+    secrets:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
