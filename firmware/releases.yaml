@@ -36,66 +36,70 @@ Targets:
     ImageDir: targets/ColumnFpgaBoard/images
     Extensions:
       - mcs
+      - mcs.gz
 
   ColumnFpgaBoard0:
     ImageDir: targets/ColumnFpgaBoard0/images
     Extensions:
       - mcs
+      - mcs.gz
 
   ColumnFpgaBoard325Coordinator:
     ImageDir: targets/ColumnFpgaBoard325Coordinator/images
     Extensions:
       - mcs
+      - mcs.gz
 
   ColumnFpgaBoard325Coordinator10G:
     ImageDir: targets/ColumnFpgaBoard325Coordinator10G/images
     Extensions:
       - mcs
+      - mcs.gz
 
   ColumnFpgaBoardAwaXe:
     ImageDir: targets/ColumnFpgaBoardAwaXe/images
     Extensions:
       - mcs
+      - mcs.gz
 
   ColumnModule:
     ImageDir: targets/ColumnModule/images
     Extensions:
       - mcs
+      - mcs.gz
 
   ColumnModule0:
     ImageDir: targets/ColumnModule0/images
     Extensions:
       - mcs
+      - mcs.gz
 
   RowFpgaBoard:
     ImageDir: targets/RowFpgaBoard/images
     Extensions:
       - mcs
+      - mcs.gz
 
   RowFpgaBoard0:
     ImageDir: targets/RowFpgaBoard0/images
     Extensions:
       - mcs
+      - mcs.gz
 
   RowFpgaBoard325:
     ImageDir: targets/RowFpgaBoard325/images
     Extensions:
       - mcs
+      - mcs.gz
 
 
 Releases:
   warmTdm:
     Primary: true
     Targets:
-      - ColumnFpgaBoard
-      - ColumnFpgaBoard0
       - ColumnFpgaBoard325Coordinator
       - ColumnFpgaBoard325Coordinator10G
-      - ColumnFpgaBoardAwaXe
-      - ColumnModule
-      - ColumnModule0
       - RowFpgaBoard
-      - RowFpgaBoard0
       - RowFpgaBoard325
     Types:
       - Rogue
