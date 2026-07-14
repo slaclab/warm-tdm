@@ -40,7 +40,9 @@ warm-tdm/
 │   ├── cfg/                    # YAML hardware configuration files
 │   ├── lib/                    # C/C++ shared library
 │   └── jupyter/                # Analysis notebooks
-├── docs/src/                   # Sphinx documentation source
+├── docs/
+│   ├── RELEASE.md              # Release process + git workflow
+│   └── src/                    # Sphinx documentation source
 ├── conda.yml                   # Conda environment definition
 ├── .gitmodules                 # Submodule declarations (surf, ruckus)
 └── releases.yaml               # Top-level release config
@@ -197,6 +199,18 @@ python warmTdmClientCmd.py
 # Emulation mode (no hardware)
 python warmTdmEmulate.py
 ```
+
+## Releases
+
+WarmTDM uses a surf-style branch model: feature branches merge into
+`pre-release`, which is promoted to `main`, and releases are cut by tagging
+`main` with `vX.Y.Z`. Pushing a version tag triggers the `gen_release` CI job,
+and firmware `.mcs` images are attached to the GitHub Release via
+`ruckus/scripts/firmwareRelease.py`.
+
+For the full workflow, versioning scheme, and release steps, see
+[`docs/RELEASE.md`](docs/RELEASE.md). Release packaging config is in
+[`firmware/releases.yaml`](firmware/releases.yaml).
 
 ## Essential Reading by Task
 
