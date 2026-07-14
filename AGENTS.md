@@ -143,6 +143,16 @@ For detailed software conventions, see [`software/SOFTWARE_GUIDE.md`](software/S
 
 Uses SLAC **ruckus** build system wrapping Xilinx Vivado.
 
+### Vivado version (important)
+
+Firmware builds **must use Vivado 2024.1**. Later versions have a bug that
+causes hold-time errors in timing closure. Vivado is not on PATH by default;
+source it before building:
+
+```bash
+source /sdf/group/faders/tools/xilinx/2024.1/Vivado/2024.1/settings64.sh
+```
+
 ### Target Makefile Pattern
 ```makefile
 target: prom                    # 'prom' for 7-series, 'bit' for AU25P
