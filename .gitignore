@@ -15,6 +15,7 @@ images/
 *.html
 *.*~
 build*
+!firmware/targets/build_release.sh
 __pycache__/
 .vscode/
 .claude/
