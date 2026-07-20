@@ -118,7 +118,7 @@ Platform-specific files use suffixes: `*7s.vhd` (7-Series), `*Usp.vhd` (UltraSca
 - **Signal style**: camelCase (`axilClk`, `timingRxData`)
 - **Architecture**: Always named `rtl`
 - **SURF library usage**: Import `surf.StdRtlPkg`, `surf.AxiLitePkg`, `surf.AxiStreamPkg`, `surf.SsiPkg`
-- **XDC split**: Common timing constraints in `common/warm_tdm/xdc/`, board pinout in `targets/*/xdc/`
+- **XDC split**: Common timing constraints AND board pinouts live in `common/warm_tdm/xdc/`; each target loads its own pinout by explicit `loadConstraints -path` (the common `xdc` `-dir` auto-load stays disabled so a target pulls in only its own pinout)
 - **Platform abstraction**: Wrapper entities instantiate `*7s` or `*Usp` variants based on `FPGA_FAMILY_G` or target context
 - **License**: SLAC proprietary header required on all source files
 
