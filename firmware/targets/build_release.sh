@@ -10,11 +10,14 @@
 # that every release image carries a clean git hash rather than "-dirty".
 #
 # Usage:
-#   ./build_release.sh [-r RELEASE] [-j N] [-t SUBTARGET] [--force] [--list]
+#   ./build_release.sh [-r RELEASE] [-j N] [-t SUBTARGET] [--clean] [--force] [--list]
 #
 #   -r RELEASE    Release name in releases.yaml (default: warmTdm)
 #   -j N          Max concurrent builds (default: all at once)
 #   -t SUBTARGET  Make subtarget to invoke (default: prom)
+#   --clean       Run 'make clean' before each target (wipes its build/ dir
+#                 so the image is built from a clean slate, not an incremental
+#                 reuse of a stale Vivado project)
 #   --force       Build even if the git tree is dirty (NOT for releases)
 #   --list        Print the resolved target list and exit
 #   -h, --help    Show this help
@@ -32,14 +35,16 @@ SUBTARGET="prom"
 JOBS=0            # 0 = unlimited (all at once)
 FORCE=0
 LIST_ONLY=0
+CLEAN=0
 
-usage() { sed -n '2,22p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,25p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -r) RELEASE="$2"; shift 2 ;;
         -j) JOBS="$2"; shift 2 ;;
         -t) SUBTARGET="$2"; shift 2 ;;
+        --clean) CLEAN=1; shift ;;
         --force) FORCE=1; shift ;;
         --list) LIST_ONLY=1; shift ;;
         -h|--help) usage; exit 0 ;;
@@ -127,8 +132,19 @@ build_one() {
     local log="$LOG_DIR/${target}.log"
     local start end
     start=$(date +%s)
+    : >"$log"   # truncate any stale log from a prior run at this git hash
     echo ">>> [$target] starting (log: $log)"
-    if (cd "$SCRIPT_DIR/$target" && make "$SUBTARGET") >"$log" 2>&1; then
+    # Optionally wipe the target's build/ dir first so the image is built from a
+    # clean slate rather than reusing a stale (or half-written) Vivado project.
+    if [[ $CLEAN -eq 1 ]]; then
+        if ! (cd "$SCRIPT_DIR/$target" && make clean) >"$log" 2>&1; then
+            end=$(date +%s)
+            echo "FAILED  $target" > "$LOG_DIR/${target}.status"
+            echo "!!! [$target] FAILED (make clean) after $((end - start))s (see $log)"
+            return
+        fi
+    fi
+    if (cd "$SCRIPT_DIR/$target" && make "$SUBTARGET") >>"$log" 2>&1; then
         end=$(date +%s)
         echo "OK      $target" > "$LOG_DIR/${target}.status"
         echo "<<< [$target] SUCCESS in $((end - start))s"
