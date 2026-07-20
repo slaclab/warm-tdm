@@ -3,17 +3,17 @@ GitBase: ..
 TopRoguePackage: warm_tdm
 
 RoguePackages:
-  - firmware/python
-  - software/python
+  - python
+  - ../software/python
 
 RogueScripts:
-  - software/scripts/DataFileReader.py
-  - software/scripts/PidDebugFileReader.py
-  - software/scripts/warmTdmClientCmd.py
-  - software/scripts/warmTdmClientGui.py
-  - software/scripts/warmTdmEmulate.py
-  - software/scripts/warmTdmGui.py
-  - software/scripts/warmTdmServer.py
+  - ../software/scripts/DataFileReader.py
+  - ../software/scripts/PidDebugFileReader.py
+  - ../software/scripts/warmTdmClientCmd.py
+  - ../software/scripts/warmTdmClientGui.py
+  - ../software/scripts/warmTdmEmulate.py
+  - ../software/scripts/warmTdmGui.py
+  - ../software/scripts/warmTdmServer.py
 
 CondaDependencies:
   - rogue
