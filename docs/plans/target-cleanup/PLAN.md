@@ -8,7 +8,7 @@
 
 **Tech Stack:** Bash, `git mv`, Edit/Write for `ruckus.tcl` rewrites, SLAC ruckus build system, `sfs-lint` release linter, `build_release.sh --list`. Definitive correctness requires a Vivado 2024.1 build (out of scope for the coding steps; called out in final verification).
 
-**Spec:** [docs/superpowers/specs/2026-07-20-target-cleanup-design.md](../../superpowers/specs/2026-07-20-target-cleanup-design.md)
+**Spec:** [SPEC.md](SPEC.md)
 
 ---
 

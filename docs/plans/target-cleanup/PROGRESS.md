@@ -1,6 +1,6 @@
 # Target Cleanup — Progress
 
-Plan: [PLAN.md](PLAN.md) · Spec: [../../superpowers/specs/2026-07-20-target-cleanup-design.md](../../superpowers/specs/2026-07-20-target-cleanup-design.md)
+Plan: [PLAN.md](PLAN.md) · Spec: [SPEC.md](SPEC.md)
 
 ## Status: not started
 
