@@ -122,11 +122,13 @@ set_property generic "... RING_ADDR_0_G=true ETH_10G_G=false" [current_fileset]
 Consequences accepted:
 - Every target compiles-in all three board top entities. Unused ones are
   elaborated away — no bitstream impact, negligible parse cost.
-- `targets/ColumnFpgaBoardAwaXe/sim/ColumnFpgaBoardTb.vhd` is a *divergent* copy
-  of the Column TB that shares the same entity name but is **not loaded** (its
-  `loadSource -sim_only` line is commented out). To avoid an entity-name
-  collision in the shared `sim/`, it is NOT moved; it stays as dead code in the
-  AwaXe target dir and is noted as a leftover, not migrated.
+- `targets/ColumnFpgaBoardAwaXe/sim/ColumnFpgaBoardTb.vhd` is **deleted**. It is
+  a stale near-copy of the Column TB: never loaded (its `loadSource -sim_only`
+  line is commented out), never a sim top, and it does not even test AwaXe
+  (`AWAXE_G := false`, instantiates the generic `ColumnFpgaBoardModel`). Keeping
+  it would carry dead code into the AwaXe target and duplicate the entity name of
+  the surviving shared `common/warm_tdm/sim/ColumnFpgaBoardTb.vhd`. Git history
+  preserves it.
 - AGENTS.md currently says "board pinout in `targets/*/xdc/`". That convention
   line is updated to reflect pinouts now living in `common/warm_tdm/xdc/`.
 

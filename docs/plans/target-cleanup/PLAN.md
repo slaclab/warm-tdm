@@ -42,8 +42,10 @@ Each target loads pinout: Column* → `ColumnFpgaBoard.xdc`; AwaXe → `ColumnFp
 ### Legacy archive map
 `ColumnModule`, `ColumnModule0`, `RowModule`, `RowModule0`, `RowModuleC00` → `firmware/targets/legacy/<same-name>` (unchanged internally).
 
+### Deleted
+- `targets/ColumnFpgaBoardAwaXe/sim/ColumnFpgaBoardTb.vhd` — stale unused near-copy of the Column TB (never loaded, never a sim top, `AWAXE_G=false`, instantiates the generic `ColumnFpgaBoardModel`; does not test AwaXe). Deleted in Task 2 (git history preserves it).
+
 ### Not moved / untouched
-- `targets/ColumnFpgaBoardAwaXe/sim/ColumnFpgaBoardTb.vhd` — divergent, unused (its `loadSource` is commented out), same entity name as the Column TB → NOT moved (would collide in shared `sim/`); left as leftover in the renamed AwaXe target dir.
 - `ColumnAu25p`, Vesper/Boreas `~` backups, RTL top-entity names, generics.
 
 ---
@@ -123,9 +125,23 @@ renamed. **Setting the top explicitly is now mandatory** — with all three boar
 tops in the shared fileset, Vivado can no longer auto-detect a single top.
 
 **Files:**
+- Delete: `targets/ColumnFpgaBoardAwaXe/sim/ColumnFpgaBoardTb.vhd` (stale unused TB).
 - Modify then rename five Column target `ruckus.tcl` + dirs per the Rename map.
 
-- [ ] **Step 1: Rename the five Column dirs**
+- [ ] **Step 1: Delete the stale AwaXe testbench**
+
+This must happen before the AwaXe dir is renamed. It is unused dead code that
+would otherwise collide with the shared Column TB entity name.
+
+Run:
+```bash
+cd firmware/targets
+git rm ColumnFpgaBoardAwaXe/sim/ColumnFpgaBoardTb.vhd
+```
+Expected: the file is staged for deletion. (If the `sim/` dir is now empty of
+tracked files, that is fine — git does not track empty dirs.)
+
+- [ ] **Step 2: Rename the five Column dirs**
 
 Run:
 ```bash
@@ -137,7 +153,7 @@ git mv ColumnFpgaBoard325Coordinator10G ColumnFpgaBoard325Coord10G
 git mv ColumnFpgaBoardAwaXe ColumnFpgaBoard325AwaXeCoord10G
 ```
 
-- [ ] **Step 2: Write the thin ruckus.tcl for `ColumnFpgaBoard160`**
+- [ ] **Step 3: Write the thin ruckus.tcl for `ColumnFpgaBoard160`**
 
 Overwrite `firmware/targets/ColumnFpgaBoard160/ruckus.tcl` with exactly:
 ```tcl
@@ -161,36 +177,36 @@ loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/ColumnFpgaBoard.xdc
 set_property top {ColumnFpgaBoard} [get_filesets {sources_1}]
 ```
 
-- [ ] **Step 3: Write the thin ruckus.tcl for `ColumnFpgaBoard160Coord`**
+- [ ] **Step 4: Write the thin ruckus.tcl for `ColumnFpgaBoard160Coord`**
 
-Same as Step 2 but append the generics + strategy lines after `set_property top`:
+Same as Step 3 but append the generics + strategy lines after `set_property top`:
 ```tcl
 set_property top {ColumnFpgaBoard} [get_filesets {sources_1}]
 set_property generic "[get_property generic [current_fileset]] RING_ADDR_0_G=true ETH_10G_G=false GEN_ADC_FILTER_G=false ROW_ADDR_BITS_G=5" [current_fileset]
 set_property strategy Performance_ExplorePostRoutePhysOpt [get_runs impl_1]
 ```
-(Header + `loadRuckusTcl` + `loadConstraints` block identical to Step 2.)
+(Header + `loadRuckusTcl` + `loadConstraints` block identical to Step 3.)
 
-- [ ] **Step 4: Write the thin ruckus.tcl for `ColumnFpgaBoard325Coord`**
+- [ ] **Step 5: Write the thin ruckus.tcl for `ColumnFpgaBoard325Coord`**
 
-Same header/loads/top as Step 2, plus:
+Same header/loads/top as Step 3, plus:
 ```tcl
 set_property generic "[get_property generic [current_fileset]] RING_ADDR_0_G=true ETH_10G_G=false" [current_fileset]
 ```
 
-- [ ] **Step 5: Write the thin ruckus.tcl for `ColumnFpgaBoard325Coord10G`**
+- [ ] **Step 6: Write the thin ruckus.tcl for `ColumnFpgaBoard325Coord10G`**
 
-Same header/loads/top as Step 2, plus:
+Same header/loads/top as Step 3, plus:
 ```tcl
 set_property generic "[get_property generic [current_fileset]] RING_ADDR_0_G=true ETH_10G_G=true" [current_fileset]
 set_property strategy Performance_ExplorePostRoutePhysOpt [get_runs impl_1]
 ```
 
-- [ ] **Step 6: Write the thin ruckus.tcl for `ColumnFpgaBoard325AwaXeCoord10G`**
+- [ ] **Step 7: Write the thin ruckus.tcl for `ColumnFpgaBoard325AwaXeCoord10G`**
 
 This target's top is the AwaXe entity and its pinout is the AwaXe `.xdc`.
 Overwrite `firmware/targets/ColumnFpgaBoard325AwaXeCoord10G/ruckus.tcl` with the
-Step-2 header + loads, but the last three lines are:
+Step-3 header + loads, but the last four lines are:
 ```tcl
 loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore2.xdc
 loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/ColumnFpgaBoardAwaXe.xdc
@@ -199,7 +215,7 @@ set_property top {ColumnFpgaBoardAwaXe} [get_filesets {sources_1}]
 set_property generic "[get_property generic [current_fileset]] RING_ADDR_0_G=true ETH_10G_G=true" [current_fileset]
 ```
 
-- [ ] **Step 7: Verify all five Column targets are thin, top-explicit, and pinout-correct**
+- [ ] **Step 8: Verify all five Column targets are thin, top-explicit, and pinout-correct**
 
 Run:
 ```bash
@@ -216,7 +232,7 @@ targets show top `{ColumnFpgaBoard}` and pinout `xdc/ColumnFpgaBoard.xdc`; the
 AwaXe target shows top `{ColumnFpgaBoardAwaXe}` and pinout
 `xdc/ColumnFpgaBoardAwaXe.xdc`.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 cd "$(git rev-parse --show-toplevel)"
@@ -231,7 +247,8 @@ ColumnFpgaBoardAwaXe              -> ColumnFpgaBoard325AwaXeCoord10G
 
 Each ruckus.tcl now sources RTL/TB from common/warm_tdm, sets its top
 explicitly (required now that all board tops share one fileset), and loads
-its own pinout .xdc by path. No ../ cross-references remain.
+its own pinout .xdc by path. No ../ cross-references remain. Also deletes the
+AwaXe target's stale unused ColumnFpgaBoardTb.vhd (never loaded, AWAXE_G=false).
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
@@ -601,9 +618,6 @@ attempt it as part of plan execution.
   — managed-IP output-path artifacts, regenerated on build; left as-is.
 - Old-named `.mcs` images inside the renamed dirs' `images/` folders are
   regenerated under the new dir name on the clean rebuild; optional to prune.
-- `targets/ColumnFpgaBoard325AwaXeCoord10G/sim/ColumnFpgaBoardTb.vhd` — divergent
-  unused TB left in place (see spec §2); a future cleanup could reconcile or
-  delete it.
 - `ColumnAu25p` (AU25P chip exploration, no board) kept per the spec.
 - The `~` editor-backup files throughout the target dirs are untracked and
   outside this plan's scope.
