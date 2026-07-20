@@ -6,17 +6,23 @@ Plan: [PLAN.md](PLAN.md) · Spec: [../../superpowers/specs/2026-07-20-target-cle
 
 | Task | Description | Status |
 |---|---|---|
-| 1 | Rename Column targets (part + Coord tokens; repoint canonical paths) | ☐ |
-| 2 | Rename Row targets (part + Coord tokens; repoint canonical paths) | ☐ |
-| 3 | Archive legacy `*Module*` targets to `targets/legacy/` | ☐ |
-| 4 | Update aggregate `firmware/targets/Makefile` | ☐ |
-| 5 | Update `firmware/releases.yaml` | ☐ |
-| 6 | Full verification (linter, git tree) | ☐ |
+| 1 | Move shared board code (tops, TB, pinouts) into `common/warm_tdm/` | ☐ |
+| 2 | Rewrite + rename the five Column targets (thin, common-sourced) | ☐ |
+| 3 | Rewrite + rename the Row targets (thin, common-sourced) | ☐ |
+| 4 | Archive legacy `*Module*` targets to `targets/legacy/` | ☐ |
+| 5 | Update aggregate `firmware/targets/Makefile` | ☐ |
+| 6 | Update `firmware/releases.yaml` | ☐ |
+| 7 | Update AGENTS.md xdc-convention note | ☐ |
+| 8 | Full verification (linter, config checks) — plus a Vivado build (user) | ☐ |
 
 ## Log
 
 - 2026-07-20: Spec and plan written. Awaiting execution decision.
-- 2026-07-20: Revised scope — every active target now carries an explicit
-  `160`/`325` part token, and AwaXe gets full `325AwaXeCoord10G` tokens. This
-  renames the canonical `*FpgaBoard` RTL dirs, so the plan now includes
-  repointing the `../` loadSource paths in the 325/Coord variants.
+- 2026-07-20: Revised scope — every active target carries an explicit `160`/`325`
+  part token; AwaXe gets full `325AwaXeCoord10G`.
+- 2026-07-20: Adopted the shared-code fix (Option B): board tops + testbench +
+  pinouts move into `common/warm_tdm/`, and every target `ruckus.tcl` becomes a
+  uniform thin file (explicit `set_property top` + own pinout by path, no `../`
+  refs). This is the real fix for the fragile canonical-dir pattern and makes the
+  renames mechanical. A Vivado 2024.1 build remains the definitive correctness
+  check for the source move.

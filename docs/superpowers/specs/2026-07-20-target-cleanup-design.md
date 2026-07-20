@@ -57,19 +57,80 @@ Notes:
 - `ColumnFpgaBoard160Coord` (formerly `ColumnFpgaBoard0`) keeps its extra generics
   `GEN_ADC_FILTER_G=false ROW_ADDR_BITS_G=5` unchanged — preserved as-is by this
   rename. This spec does not judge whether they are stale.
-- **`ColumnFpgaBoard` and `RowFpgaBoard` are the canonical dirs that physically
-  hold the shared RTL/sim/xdc.** The 325/Coord variants `loadSource` from them via
-  `../ColumnFpgaBoard/rtl` etc. Renaming these two canonical dirs to `*160`
-  therefore REQUIRES updating those relative paths in every referencing
-  `ruckus.tcl` to `../ColumnFpgaBoard160/...` / `../RowFpgaBoard160/...`.
 - The `set_property top {ColumnFpgaBoard}` / `{RowFpgaBoard}` lines name the
   **RTL top entity**, not the directory. These are NOT renamed — the entity names
-  (and thus the rogue device classes) stay `ColumnFpgaBoard` / `RowFpgaBoard`.
-- `ColumnFpgaBoard325AwaXe*` builds its own top entity `ColumnFpgaBoardAwaXe`
-  from its own `rtl/`; it does not loadSource from a sibling, so only its own
-  dir name and catalog entry change.
+  (and thus the rogue device classes) stay `ColumnFpgaBoard` / `RowFpgaBoard` /
+  `ColumnFpgaBoardAwaXe`.
+- Once the shared board code moves into `common/warm_tdm/` (§2), no target
+  contains RTL, and no target references another via a relative `../` path — so
+  each rename above is an isolated `git mv` of a now-thin target dir plus a
+  catalog edit. This is what makes the rename safe.
 
-### 2. Archive legacy targets to `firmware/targets/legacy/`
+### 2. Move shared board code into `common/warm_tdm/` (the real fix)
+
+**Problem being fixed:** Today `ColumnFpgaBoard/` and `RowFpgaBoard/` are
+*canonical* target dirs that physically hold the board top entity, its testbench,
+and its pinout `.xdc`. Every other variant reaches into them via
+`loadSource "$::DIR_PATH/../ColumnFpgaBoard/rtl"`. That makes one target's *name*
+load-bearing in its siblings' build scripts: it cannot be renamed, moved, or
+deleted without editing every referrer, and it forces exactly the fragile path
+edits this rename would otherwise require.
+
+**Fix:** move the board tops (and the Column testbench) into the existing shared
+RTL library `common/warm_tdm/`, so every target — including the plain 160 one —
+becomes a thin, uniform `Makefile + ruckus.tcl` that selects a top entity and
+generics. No target is canonical; there are no `../` cross-references.
+
+Files to move (tracked files only; untracked `~` editor backups are not moved):
+
+| From | To |
+|---|---|
+| `targets/ColumnFpgaBoard/rtl/ColumnFpgaBoard.vhd` | `common/warm_tdm/rtl/ColumnFpgaBoard.vhd` |
+| `targets/ColumnFpgaBoardAwaXe/rtl/ColumnFpgaBoardAwaXe.vhd` | `common/warm_tdm/rtl/ColumnFpgaBoardAwaXe.vhd` |
+| `targets/RowFpgaBoard/rtl/RowFpgaBoard.vhd` | `common/warm_tdm/rtl/RowFpgaBoard.vhd` |
+| `targets/ColumnFpgaBoard/sim/ColumnFpgaBoardTb.vhd` | `common/warm_tdm/sim/ColumnFpgaBoardTb.vhd` |
+| `targets/ColumnFpgaBoard/xdc/ColumnFpgaBoard.xdc` | `common/warm_tdm/xdc/ColumnFpgaBoard.xdc` |
+| `targets/ColumnFpgaBoardAwaXe/xdc/ColumnFpgaBoardAwaXe.xdc` | `common/warm_tdm/xdc/ColumnFpgaBoardAwaXe.xdc` |
+| `targets/RowFpgaBoard/xdc/RowFpgaBoard.xdc` | `common/warm_tdm/xdc/RowFpgaBoard.xdc` |
+
+How loading works after the move — two distinct mechanisms, deliberately:
+
+- **RTL + testbenches: auto-loaded, shared.** `common/warm_tdm/ruckus.tcl`
+  already does `loadSource -dir rtl` and `loadSource -sim_only -dir sim` — so
+  every target that does `loadRuckusTcl .../common/warm_tdm` gets all board tops
+  in its fileset. Having multiple board tops in the fileset is harmless: only the
+  entity named by `set_property top` is synthesized; the rest are elaborated
+  away. (This is exactly how surf loads its entire library into every project.)
+- **Pinout `.xdc`: explicit per target, NOT auto-loaded.** The `loadConstraints
+  -dir xdc` line in `common/warm_tdm/ruckus.tcl` is (and must stay) commented
+  out — otherwise every target would pull in *both* the Column and Row pinouts
+  and conflict. Each target instead loads only its own pinout by exact path,
+  right next to the `WarmTdmCore2.xdc` it already loads that way:
+  `loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/ColumnFpgaBoard.xdc`.
+
+Resulting per-target `ruckus.tcl` shape (uniform across all eight targets):
+```tcl
+source -quiet $::env(RUCKUS_DIR)/vivado_proc.tcl
+loadRuckusTcl $::env(TOP_DIR)/submodules/surf
+loadRuckusTcl $::env(TOP_DIR)/common/warm_tdm           ;# board tops + TBs + shared RTL
+loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore2.xdc
+loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/ColumnFpgaBoard.xdc  ;# this target's pinout
+set_property top {ColumnFpgaBoard} [get_filesets sources_1]
+set_property generic "... RING_ADDR_0_G=true ETH_10G_G=false" [current_fileset]
+```
+
+Consequences accepted:
+- Every target compiles-in all three board top entities. Unused ones are
+  elaborated away — no bitstream impact, negligible parse cost.
+- `targets/ColumnFpgaBoardAwaXe/sim/ColumnFpgaBoardTb.vhd` is a *divergent* copy
+  of the Column TB that shares the same entity name but is **not loaded** (its
+  `loadSource -sim_only` line is commented out). To avoid an entity-name
+  collision in the shared `sim/`, it is NOT moved; it stays as dead code in the
+  AwaXe target dir and is noted as a leftover, not migrated.
+- AGENTS.md currently says "board pinout in `targets/*/xdc/`". That convention
+  line is updated to reflect pinouts now living in `common/warm_tdm/xdc/`.
+
+### 3. Archive legacy targets to `firmware/targets/legacy/`
 
 Move (no rename) the following into `firmware/targets/legacy/`:
 
@@ -80,21 +141,9 @@ Move (no rename) the following into `firmware/targets/legacy/`:
 - `RowModuleC00`
 
 They move together, so their relative `../ColumnModule` / `../RowModule`
-`loadSource` paths continue to resolve within `legacy/`.
-
-### 3. Update cross-references to the renamed canonical dirs
-
-Because `ColumnFpgaBoard` → `ColumnFpgaBoard160` and `RowFpgaBoard` →
-`RowFpgaBoard160`, every `ruckus.tcl` that `loadSource`/`loadConstraints` from
-those dirs via a relative `../` path must be updated:
-
-- `../ColumnFpgaBoard/{rtl,sim,xdc}` → `../ColumnFpgaBoard160/{rtl,sim,xdc}` in
-  the Column 325 Coord and 325 Coord10G targets.
-- `../RowFpgaBoard/{rtl,sim,xdc}` → `../RowFpgaBoard160/{rtl,sim,xdc}` in the
-  Row Coord and Row 325 targets.
-
-The `set_property top {ColumnFpgaBoard}` / `{RowFpgaBoard}` lines are the RTL
-entity name and are left unchanged.
+`loadSource` paths continue to resolve within `legacy/`. (These legacy targets
+are not migrated to the `common/`-hosted pattern of §2 — they keep their own
+canonical-dir arrangement, isolated under `legacy/`.)
 
 ### 4. releases.yaml updates
 
@@ -131,11 +180,17 @@ the archived Module targets.
 
 ## Impact & risk
 
-- **Low–moderate.** `git mv` of seven active dirs + move of five legacy dirs +
-  path edits in four referencing `ruckus.tcl` files + edits to `releases.yaml`
-  and the aggregate `Makefile`. The one real hazard is the relative-path updates
-  when the canonical `*FpgaBoard` dirs are renamed — enumerated in §3 and
-  verified by a build-config check, not left implicit.
+- **Moderate.** The substantive step is §2 (moving board tops + pinouts into
+  `common/warm_tdm/` and rewriting every target `ruckus.tcl` to the uniform
+  thin shape). The renames (§1), archive (§3), yaml (§4), and Makefile (§5) are
+  then mechanical.
+- **The one real hazard is a build regression from the §2 move**, not a path
+  string: if the common `xdc` `-dir` auto-load were enabled, or a target loaded
+  the wrong pinout, a build would fail place-and-route. Mitigated by loading
+  each pinout explicitly by path and by the verification below. This risk is
+  only fully closed by an actual Vivado build (see Verification step 4).
+- Because no target references another via `../` after §2, the renames
+  themselves carry essentially no cross-reference risk.
 - Existing build artifacts inside the renamed dirs' `images/` carry the old name
   in their filenames. These are regenerated on the clean release rebuild, so
   stale-named artifacts are a non-issue; they may be pruned opportunistically.
@@ -145,9 +200,13 @@ the archived Module targets.
 
 ## Verification
 
-1. `git mv` history is preserved for the renamed/moved dirs.
-2. `firmware/targets/build_release.sh --list` resolves the `warmTdm` release to
+1. `git mv` history is preserved for the renamed/moved files and dirs.
+2. Every target `ruckus.tcl` loads exactly one board pinout `.xdc` (its own) by
+   explicit path, and the `common/warm_tdm/ruckus.tcl` `xdc -dir` auto-load
+   stays disabled.
+3. `firmware/targets/build_release.sh --list` resolves the `warmTdm` release to
    the renamed targets without error.
-3. `sfs-lint release .` → 0 errors.
-4. A clean rebuild of the four release targets (Vivado 2024.1) produces images
-   under the new dir names.
+4. `sfs-lint release .` → 0 errors.
+5. A clean rebuild of the four release targets (Vivado 2024.1) produces images
+   under the new dir names — this is the definitive check that the §2 source
+   reorganization did not break synthesis/constraints.
