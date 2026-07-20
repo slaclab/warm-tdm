@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Rename ring-coordinator targets to a consistent `Coord` token, archive the legacy `*Module*` targets under `targets/legacy/`, and prune stale entries from `releases.yaml` — without touching the rogue software hierarchy.
+**Goal:** Give every active target an explicit FPGA-part token (`160`/`325`), standardize the ring-coordinator token on `Coord`, archive the legacy `*Module*` targets under `targets/legacy/`, and prune stale `releases.yaml` entries — without touching the rogue software hierarchy.
 
-**Architecture:** Pure mechanical rename/move. Target directory names appear in exactly three places — the dirs themselves, `firmware/targets/Makefile`, and `firmware/releases.yaml`. The four renamed variant targets `loadSource` their RTL *from* `ColumnFpgaBoard/`/`RowFpgaBoard/` (which are NOT renamed), so no intra-target `ruckus.tcl` path edits are needed. The legacy dirs move together, preserving their relative `../ColumnModule` / `../RowModule` load paths.
+**Architecture:** Directory renames + one dir move. The catch: `ColumnFpgaBoard` and `RowFpgaBoard` are the *canonical* dirs that physically hold the shared RTL/sim/xdc; the 325/Coord variants `loadSource` from them via relative `../` paths. Renaming these to `*160` requires updating those relative paths in the referencing `ruckus.tcl` files. RTL top-entity names (`set_property top {ColumnFpgaBoard}`) are NOT renamed — only directories.
 
-**Tech Stack:** Bash, `git mv`, SLAC ruckus build system, `sfs-lint` release linter. No compiled/test code — verification is via the linter and `build_release.sh --list`.
+**Tech Stack:** Bash, `git mv`, `sed`/Edit for `ruckus.tcl` path edits, SLAC ruckus build system, `sfs-lint` release linter, `build_release.sh --list`.
 
 **Spec:** [docs/superpowers/specs/2026-07-20-target-cleanup-design.md](../../superpowers/specs/2026-07-20-target-cleanup-design.md)
 
@@ -14,91 +14,201 @@
 
 ## Rename map (reference)
 
-| Current dir | New dir |
-|---|---|
-| `ColumnFpgaBoard0` | `ColumnFpgaBoardCoord` |
-| `RowFpgaBoard0` | `RowFpgaBoardCoord` |
-| `ColumnFpgaBoard325Coordinator` | `ColumnFpgaBoard325Coord` |
-| `ColumnFpgaBoard325Coordinator10G` | `ColumnFpgaBoard325Coord10G` |
+| Current dir | New dir | Part |
+|---|---|---|
+| `ColumnFpgaBoard` | `ColumnFpgaBoard160` | 160T (canonical RTL dir) |
+| `ColumnFpgaBoard0` | `ColumnFpgaBoard160Coord` | 160T |
+| `ColumnFpgaBoard325Coordinator` | `ColumnFpgaBoard325Coord` | 325T |
+| `ColumnFpgaBoard325Coordinator10G` | `ColumnFpgaBoard325Coord10G` | 325T |
+| `ColumnFpgaBoardAwaXe` | `ColumnFpgaBoard325AwaXeCoord10G` | 325T |
+| `RowFpgaBoard` | `RowFpgaBoard160` | 160T (canonical RTL dir) |
+| `RowFpgaBoard0` | `RowFpgaBoard160Coord` | 160T |
+| `RowFpgaBoard325` | `RowFpgaBoard325` (unchanged) | 325T |
 
 ## Move map (reference)
 
 `ColumnModule`, `ColumnModule0`, `RowModule`, `RowModule0`, `RowModuleC00`
 → `firmware/targets/legacy/<same-name>`
 
+## Cross-references to fix when the canonical dirs are renamed (reference)
+
+These `ruckus.tcl` files reference `../ColumnFpgaBoard/` or `../RowFpgaBoard/`
+(lines 25, 26, 28 in each) and must be repointed to the `*160` names:
+
+- `ColumnFpgaBoard0` (→ `ColumnFpgaBoard160Coord`): `../ColumnFpgaBoard/` → `../ColumnFpgaBoard160/`
+- `ColumnFpgaBoard325Coordinator` (→ `ColumnFpgaBoard325Coord`): `../ColumnFpgaBoard/` → `../ColumnFpgaBoard160/`
+- `ColumnFpgaBoard325Coordinator10G` (→ `ColumnFpgaBoard325Coord10G`): `../ColumnFpgaBoard/` → `../ColumnFpgaBoard160/`
+- `RowFpgaBoard0` (→ `RowFpgaBoard160Coord`): `../RowFpgaBoard/` → `../RowFpgaBoard160/`
+- `RowFpgaBoard325`: `../RowFpgaBoard/` → `../RowFpgaBoard160/`
+
+`ColumnFpgaBoardAwaXe` loads only its own `rtl/` — no cross-reference to fix.
+
 ## Untouched (reference)
 
-`ColumnFpgaBoard`, `RowFpgaBoard`, `RowFpgaBoard325`, `ColumnFpgaBoardAwaXe`, `ColumnAu25p`.
+`RowFpgaBoard325` (name), `ColumnAu25p`, Vesper/Boreas `~` backups, all RTL top-entity names, all generics.
 
 ---
 
-## Task 1: Rename the four coordinator target directories
+## Task 1: Rename the Column targets
 
 **Files:**
-- Rename: `firmware/targets/ColumnFpgaBoard0` → `firmware/targets/ColumnFpgaBoardCoord`
-- Rename: `firmware/targets/RowFpgaBoard0` → `firmware/targets/RowFpgaBoardCoord`
-- Rename: `firmware/targets/ColumnFpgaBoard325Coordinator` → `firmware/targets/ColumnFpgaBoard325Coord`
-- Rename: `firmware/targets/ColumnFpgaBoard325Coordinator10G` → `firmware/targets/ColumnFpgaBoard325Coord10G`
+- Rename: `firmware/targets/ColumnFpgaBoard` → `ColumnFpgaBoard160`
+- Rename: `firmware/targets/ColumnFpgaBoard0` → `ColumnFpgaBoard160Coord`
+- Rename: `firmware/targets/ColumnFpgaBoard325Coordinator` → `ColumnFpgaBoard325Coord`
+- Rename: `firmware/targets/ColumnFpgaBoard325Coordinator10G` → `ColumnFpgaBoard325Coord10G`
+- Rename: `firmware/targets/ColumnFpgaBoardAwaXe` → `ColumnFpgaBoard325AwaXeCoord10G`
 
-- [ ] **Step 1: Perform the four renames with git mv**
+- [ ] **Step 1: Perform the Column renames with git mv**
 
-Run from repo root:
+Run:
 ```bash
 cd firmware/targets
-git mv ColumnFpgaBoard0 ColumnFpgaBoardCoord
-git mv RowFpgaBoard0 RowFpgaBoardCoord
+git mv ColumnFpgaBoard ColumnFpgaBoard160
+git mv ColumnFpgaBoard0 ColumnFpgaBoard160Coord
 git mv ColumnFpgaBoard325Coordinator ColumnFpgaBoard325Coord
 git mv ColumnFpgaBoard325Coordinator10G ColumnFpgaBoard325Coord10G
+git mv ColumnFpgaBoardAwaXe ColumnFpgaBoard325AwaXeCoord10G
 ```
 
-- [ ] **Step 2: Verify the renames landed and no old names remain as dirs**
+- [ ] **Step 2: Verify new dirs exist and old ones are gone**
 
 Run:
 ```bash
 cd firmware/targets
-ls -d ColumnFpgaBoardCoord RowFpgaBoardCoord ColumnFpgaBoard325Coord ColumnFpgaBoard325Coord10G
-ls -d ColumnFpgaBoard0 RowFpgaBoard0 ColumnFpgaBoard325Coordinator ColumnFpgaBoard325Coordinator10G 2>&1
+ls -d ColumnFpgaBoard160 ColumnFpgaBoard160Coord ColumnFpgaBoard325Coord ColumnFpgaBoard325Coord10G ColumnFpgaBoard325AwaXeCoord10G
+ls -d ColumnFpgaBoard ColumnFpgaBoard0 ColumnFpgaBoard325Coordinator ColumnFpgaBoard325Coordinator10G ColumnFpgaBoardAwaXe 2>&1
 ```
-Expected: first `ls` prints all four new dirs; second `ls` prints four "No such file or directory" errors.
+Expected: first `ls` prints all five new dirs; second prints five "No such file or directory" errors.
 
-- [ ] **Step 3: Confirm the renamed targets still reference the un-renamed base RTL dirs**
+- [ ] **Step 3: Repoint the Column variant ruckus.tcl paths to ColumnFpgaBoard160**
+
+Three targets reference the old canonical `../ColumnFpgaBoard/`. Update them:
+```bash
+cd firmware/targets
+for d in ColumnFpgaBoard160Coord ColumnFpgaBoard325Coord ColumnFpgaBoard325Coord10G; do
+  sed -i 's#\.\./ColumnFpgaBoard/#../ColumnFpgaBoard160/#g' "$d/ruckus.tcl"
+done
+```
+
+- [ ] **Step 4: Verify no Column variant still references the old canonical path, and entity names are intact**
 
 Run:
 ```bash
 cd firmware/targets
-grep -h 'DIR_PATH/\.\./' ColumnFpgaBoardCoord/ruckus.tcl RowFpgaBoardCoord/ruckus.tcl ColumnFpgaBoard325Coord/ruckus.tcl ColumnFpgaBoard325Coord10G/ruckus.tcl | grep -v '^#'
+echo "--- stale ../ColumnFpgaBoard/ refs (expect none) ---"
+grep -rn '\.\./ColumnFpgaBoard/' ColumnFpgaBoard160Coord ColumnFpgaBoard325Coord ColumnFpgaBoard325Coord10G || echo "clean"
+echo "--- new ../ColumnFpgaBoard160/ refs (expect 3 lines each: rtl, sim, xdc) ---"
+grep -rn '\.\./ColumnFpgaBoard160/' ColumnFpgaBoard160Coord ColumnFpgaBoard325Coord ColumnFpgaBoard325Coord10G
+echo "--- top entity still ColumnFpgaBoard (must NOT change) ---"
+grep -rn 'set_property top' ColumnFpgaBoard160Coord ColumnFpgaBoard325Coord ColumnFpgaBoard325Coord10G
 ```
-Expected: every path points to `../ColumnFpgaBoard/...` or `../RowFpgaBoard/...` (both dirs still exist — nothing to fix).
+Expected: "clean"; nine `../ColumnFpgaBoard160/` lines (3 per target); each `set_property top {ColumnFpgaBoard}` unchanged.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Confirm the canonical ColumnFpgaBoard160 dir still holds the RTL**
+
+Run:
+```bash
+cd firmware/targets
+ls ColumnFpgaBoard160/rtl/*.vhd | head -1
+grep -c 'DIR_PATH/rtl/' ColumnFpgaBoard160/ruckus.tcl
+```
+Expected: at least one `.vhd` file listed; grep count `>= 1` (the canonical dir loads its own `rtl/`, confirming the shared RTL moved with the rename).
+
+- [ ] **Step 6: Commit**
 
 ```bash
 cd "$(git rev-parse --show-toplevel)"
 git add -A firmware/targets
-git commit -m "Rename coordinator targets to consistent Coord token
+git commit -m "Rename Column targets with explicit part + Coord tokens
 
-ColumnFpgaBoard0        -> ColumnFpgaBoardCoord
-RowFpgaBoard0          -> RowFpgaBoardCoord
+ColumnFpgaBoard                   -> ColumnFpgaBoard160  (canonical RTL dir)
+ColumnFpgaBoard0                  -> ColumnFpgaBoard160Coord
 ColumnFpgaBoard325Coordinator     -> ColumnFpgaBoard325Coord
 ColumnFpgaBoard325Coordinator10G  -> ColumnFpgaBoard325Coord10G
+ColumnFpgaBoardAwaXe              -> ColumnFpgaBoard325AwaXeCoord10G
 
-The trailing '0' and 'Coordinator' suffixes both meant RING_ADDR_0_G=true
-(ring node-0 / stack ethernet driver). Standardize on 'Coord'. These dirs
-loadSource their RTL from the un-renamed ColumnFpgaBoard/RowFpgaBoard dirs,
-so no ruckus.tcl path edits are needed.
+Variant ruckus.tcl paths repointed to ../ColumnFpgaBoard160/. RTL top
+entity names (set_property top {ColumnFpgaBoard}) left unchanged.
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
 
-## Task 2: Archive the legacy Module targets
+## Task 2: Rename the Row targets
 
 **Files:**
-- Create: `firmware/targets/legacy/` (new directory)
+- Rename: `firmware/targets/RowFpgaBoard` → `RowFpgaBoard160`
+- Rename: `firmware/targets/RowFpgaBoard0` → `RowFpgaBoard160Coord`
+- Modify: `firmware/targets/RowFpgaBoard325/ruckus.tcl` (repoint path only; not renamed)
+
+- [ ] **Step 1: Perform the Row renames with git mv**
+
+Run:
+```bash
+cd firmware/targets
+git mv RowFpgaBoard RowFpgaBoard160
+git mv RowFpgaBoard0 RowFpgaBoard160Coord
+```
+
+- [ ] **Step 2: Verify new dirs exist and old ones are gone**
+
+Run:
+```bash
+cd firmware/targets
+ls -d RowFpgaBoard160 RowFpgaBoard160Coord RowFpgaBoard325
+ls -d RowFpgaBoard RowFpgaBoard0 2>&1
+```
+Expected: first `ls` prints the three dirs (`RowFpgaBoard325` unchanged); second prints two "No such file or directory" errors.
+
+- [ ] **Step 3: Repoint the Row variant ruckus.tcl paths to RowFpgaBoard160**
+
+Both `RowFpgaBoard160Coord` and `RowFpgaBoard325` reference `../RowFpgaBoard/`:
+```bash
+cd firmware/targets
+for d in RowFpgaBoard160Coord RowFpgaBoard325; do
+  sed -i 's#\.\./RowFpgaBoard/#../RowFpgaBoard160/#g' "$d/ruckus.tcl"
+done
+```
+
+- [ ] **Step 4: Verify no stale refs remain and entity names intact**
+
+Run:
+```bash
+cd firmware/targets
+echo "--- stale ../RowFpgaBoard/ refs (expect none) ---"
+grep -rn '\.\./RowFpgaBoard/' RowFpgaBoard160Coord RowFpgaBoard325 || echo "clean"
+echo "--- new ../RowFpgaBoard160/ refs (expect 3 lines each) ---"
+grep -rn '\.\./RowFpgaBoard160/' RowFpgaBoard160Coord RowFpgaBoard325
+echo "--- top entity still RowFpgaBoard (must NOT change) ---"
+grep -rn 'set_property top' RowFpgaBoard160Coord RowFpgaBoard325
+```
+Expected: "clean"; six `../RowFpgaBoard160/` lines; `set_property top {RowFpgaBoard}` unchanged in both.
+
+- [ ] **Step 5: Commit**
+
+```bash
+cd "$(git rev-parse --show-toplevel)"
+git add -A firmware/targets
+git commit -m "Rename Row targets with explicit part + Coord tokens
+
+RowFpgaBoard   -> RowFpgaBoard160  (canonical RTL dir)
+RowFpgaBoard0  -> RowFpgaBoard160Coord
+RowFpgaBoard325 unchanged; its ruckus.tcl path repointed to
+../RowFpgaBoard160/. RTL top entity name (RowFpgaBoard) left unchanged.
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+## Task 3: Archive the legacy Module targets
+
+**Files:**
+- Create: `firmware/targets/legacy/`
 - Move: `firmware/targets/{ColumnModule,ColumnModule0,RowModule,RowModule0,RowModuleC00}` → `firmware/targets/legacy/<same-name>`
 
-- [ ] **Step 1: Create the legacy dir and move all five Module targets**
+- [ ] **Step 1: Create legacy dir and move all five Module targets**
 
 Run:
 ```bash
@@ -111,28 +221,27 @@ git mv RowModule0     legacy/RowModule0
 git mv RowModuleC00   legacy/RowModuleC00
 ```
 
-- [ ] **Step 2: Verify the moves and that relative RTL load paths still resolve**
+- [ ] **Step 2: Verify moves and that relative RTL load paths still resolve within legacy/**
 
-The `0` variants load from `../ColumnModule` / `../RowModule`. Since all five moved into the same `legacy/` dir, `legacy/ColumnModule0/../ColumnModule` still resolves.
+The `0` variants load from `../ColumnModule` / `../RowModule`; since all moved into the same `legacy/` dir, those paths still resolve.
 
 Run:
 ```bash
 cd firmware/targets
 ls -d legacy/ColumnModule legacy/ColumnModule0 legacy/RowModule legacy/RowModule0 legacy/RowModuleC00
-# Confirm the sibling RTL dir each '0' variant references now exists next to it:
 test -d legacy/ColumnModule0/../ColumnModule && echo "ColumnModule0 base OK"
 test -d legacy/RowModule0/../RowModule && echo "RowModule0 base OK"
 ```
 Expected: all five dirs listed; both "base OK" lines print.
 
-- [ ] **Step 3: Confirm no non-legacy target references a moved dir**
+- [ ] **Step 3: Confirm no active (non-legacy) target references a moved dir**
 
 Run:
 ```bash
 cd "$(git rev-parse --show-toplevel)"
 grep -rn 'ColumnModule\|RowModule' firmware/targets --include=ruckus.tcl | grep -v '/legacy/'
 ```
-Expected: no output (only files inside `legacy/` reference these names).
+Expected: no output.
 
 - [ ] **Step 4: Commit**
 
@@ -141,57 +250,52 @@ cd "$(git rev-parse --show-toplevel)"
 git add -A firmware/targets
 git commit -m "Archive legacy Module targets under targets/legacy/
 
-Move ColumnModule, ColumnModule0, RowModule, RowModule0, RowModuleC00
-into firmware/targets/legacy/. These use the legacy WarmTdmCore v1 and are
-no longer maintained. They move together so their relative ../ load paths
-still resolve.
+Move ColumnModule, ColumnModule0, RowModule, RowModule0, RowModuleC00 into
+firmware/targets/legacy/. Legacy WarmTdmCore v1, no longer maintained. They
+move together so relative ../ load paths still resolve.
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
 
-## Task 3: Update the aggregate targets Makefile
+## Task 4: Update the aggregate targets Makefile
 
 **Files:**
 - Modify: `firmware/targets/Makefile`
 
-The `TARGETS` list hardcodes every target name and the rule `$(TARGETS): cd $@ && $(MAKE)` uses each name as a path. Renamed targets need new names; legacy targets, if kept in the list, would need a `legacy/` path prefix — but per spec they are archived and dropped from release builds, so remove them from this aggregate list entirely.
-
 - [ ] **Step 1: Replace the TARGETS list**
 
-Replace the existing `TARGETS := \ ... ` block (the 14-entry list) with the active-only list below. Keep the rest of the file (`.PHONY`, `all`, `list`, `$(TARGETS)` rule, `clean`) unchanged.
+Replace the existing `TARGETS := \ ...` block with the list below. Leave the rest of the file (`SUBTARGET`, `.PHONY`, `all`, `list`, the `$(TARGETS)` rule, `clean`) unchanged.
 
 ```makefile
 TARGETS := \
-	ColumnFpgaBoard \
-	ColumnFpgaBoardCoord \
+	ColumnFpgaBoard160 \
+	ColumnFpgaBoard160Coord \
 	ColumnFpgaBoard325Coord \
 	ColumnFpgaBoard325Coord10G \
-	ColumnFpgaBoardAwaXe \
-	RowFpgaBoard \
-	RowFpgaBoardCoord \
+	ColumnFpgaBoard325AwaXeCoord10G \
+	RowFpgaBoard160 \
+	RowFpgaBoard160Coord \
 	RowFpgaBoard325
 ```
 
-Note: `ColumnAu25p` is intentionally NOT in this list — it has no Makefile/ruckus.tcl (it never built here) and was excluded from the aggregate before this change as well.
-
-- [ ] **Step 2: Verify the Makefile lists exactly the eight active targets**
+- [ ] **Step 2: Verify `make list` prints exactly the eight active targets**
 
 Run:
 ```bash
 cd firmware/targets
 make list
 ```
-Expected output (order as listed):
+Expected:
 ```
-ColumnFpgaBoard
-ColumnFpgaBoardCoord
+ColumnFpgaBoard160
+ColumnFpgaBoard160Coord
 ColumnFpgaBoard325Coord
 ColumnFpgaBoard325Coord10G
-ColumnFpgaBoardAwaXe
-RowFpgaBoard
-RowFpgaBoardCoord
+ColumnFpgaBoard325AwaXeCoord10G
+RowFpgaBoard160
+RowFpgaBoard160Coord
 RowFpgaBoard325
 ```
 
@@ -211,46 +315,50 @@ cd "$(git rev-parse --show-toplevel)"
 git add firmware/targets/Makefile
 git commit -m "Update aggregate targets Makefile for renamed/archived targets
 
-Point TARGETS at the renamed Coord targets and drop the archived legacy
-Module targets from the aggregate build list.
+Point TARGETS at the renamed part+Coord target names and drop the archived
+legacy Module targets.
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
 
-## Task 4: Update releases.yaml
+## Task 5: Update releases.yaml
 
 **Files:**
 - Modify: `firmware/releases.yaml`
 
-Three edits: rename the four catalog keys + their `ImageDir` paths, update the two renamed entries in the `warmTdm` release `Targets` list, and remove the legacy `ColumnModule` / `ColumnModule0` catalog entries.
+- [ ] **Step 1: Rename the catalog keys and their ImageDir paths**
 
-- [ ] **Step 1: Rename the four catalog keys and their ImageDir paths**
-
-In the `Targets:` catalog, apply these substitutions to both the key line and the `ImageDir:` line under it:
+In the `Targets:` catalog, apply these substitutions to each key line and the `ImageDir:` line beneath it:
 
 ```
-  ColumnFpgaBoard0:                     ->  ColumnFpgaBoardCoord:
-    ImageDir: targets/ColumnFpgaBoard0/images
-                                        ->  ImageDir: targets/ColumnFpgaBoardCoord/images
+  ColumnFpgaBoard:                  ->  ColumnFpgaBoard160:
+    targets/ColumnFpgaBoard/images  ->    targets/ColumnFpgaBoard160/images
 
-  ColumnFpgaBoard325Coordinator:        ->  ColumnFpgaBoard325Coord:
-    ImageDir: targets/ColumnFpgaBoard325Coordinator/images
-                                        ->  ImageDir: targets/ColumnFpgaBoard325Coord/images
+  ColumnFpgaBoard0:                 ->  ColumnFpgaBoard160Coord:
+    targets/ColumnFpgaBoard0/images ->    targets/ColumnFpgaBoard160Coord/images
 
-  ColumnFpgaBoard325Coordinator10G:     ->  ColumnFpgaBoard325Coord10G:
-    ImageDir: targets/ColumnFpgaBoard325Coordinator10G/images
-                                        ->  ImageDir: targets/ColumnFpgaBoard325Coord10G/images
+  ColumnFpgaBoard325Coordinator:            ->  ColumnFpgaBoard325Coord:
+    targets/ColumnFpgaBoard325Coordinator/images ->  targets/ColumnFpgaBoard325Coord/images
 
-  RowFpgaBoard0:                        ->  RowFpgaBoardCoord:
-    ImageDir: targets/RowFpgaBoard0/images
-                                        ->  ImageDir: targets/RowFpgaBoardCoord/images
+  ColumnFpgaBoard325Coordinator10G:            ->  ColumnFpgaBoard325Coord10G:
+    targets/ColumnFpgaBoard325Coordinator10G/images -> targets/ColumnFpgaBoard325Coord10G/images
+
+  ColumnFpgaBoardAwaXe:                 ->  ColumnFpgaBoard325AwaXeCoord10G:
+    targets/ColumnFpgaBoardAwaXe/images ->    targets/ColumnFpgaBoard325AwaXeCoord10G/images
+
+  RowFpgaBoard:                  ->  RowFpgaBoard160:
+    targets/RowFpgaBoard/images  ->    targets/RowFpgaBoard160/images
+
+  RowFpgaBoard0:                 ->  RowFpgaBoard160Coord:
+    targets/RowFpgaBoard0/images ->    targets/RowFpgaBoard160Coord/images
 ```
+`RowFpgaBoard325` and its ImageDir are unchanged.
 
 - [ ] **Step 2: Remove the legacy ColumnModule catalog entries**
 
-Delete these two blocks (key + `ImageDir` + `Extensions` list) from the `Targets:` catalog entirely:
+Delete these two blocks entirely from the `Targets:` catalog:
 ```yaml
   ColumnModule:
     ImageDir: targets/ColumnModule/images
@@ -264,37 +372,36 @@ Delete these two blocks (key + `ImageDir` + `Extensions` list) from the `Targets
       - mcs
       - mcs.gz
 ```
-(The Row `*Module*` targets were never in the catalog — nothing to remove there.)
 
 - [ ] **Step 3: Update the warmTdm release Targets list**
 
-In `Releases: warmTdm: Targets:`, rename the two coordinator entries:
+In `Releases: warmTdm: Targets:`:
 ```yaml
       - ColumnFpgaBoard325Coordinator      ->  - ColumnFpgaBoard325Coord
       - ColumnFpgaBoard325Coordinator10G   ->  - ColumnFpgaBoard325Coord10G
+      - RowFpgaBoard                       ->  - RowFpgaBoard160
+      - RowFpgaBoard325                    ->  (unchanged)
 ```
-(`RowFpgaBoard` and `RowFpgaBoard325` in that list are unchanged.)
 
-- [ ] **Step 4: Verify the YAML parses and every release target resolves to a real dir**
+- [ ] **Step 4: Verify YAML parses and every release target resolves to a real dir**
 
 Run from repo root:
 ```bash
 firmware/targets/build_release.sh -r warmTdm --list
 ```
-Expected output:
+Expected:
 ```
 ColumnFpgaBoard325Coord
 ColumnFpgaBoard325Coord10G
-RowFpgaBoard
+RowFpgaBoard160
 RowFpgaBoard325
 ```
-(The script fails loudly if any release target is missing from the catalog.)
 
 - [ ] **Step 5: Verify no stale old names remain in releases.yaml**
 
 Run:
 ```bash
-grep -nE 'ColumnFpgaBoard0|RowFpgaBoard0|325Coordinator|ColumnModule' firmware/releases.yaml
+grep -nE 'ColumnFpgaBoard0|RowFpgaBoard0|325Coordinator|FpgaBoardAwaXe|ColumnModule|ColumnFpgaBoard:|RowFpgaBoard:' firmware/releases.yaml
 ```
 Expected: no output.
 
@@ -305,7 +412,7 @@ cd "$(git rev-parse --show-toplevel)"
 git add firmware/releases.yaml
 git commit -m "Update releases.yaml for renamed and archived targets
 
-Rename the four coordinator catalog keys + ImageDir paths to the Coord
+Rename all seven affected catalog keys + ImageDir paths to the part+Coord
 scheme, update the warmTdm release target list, and drop the archived
 ColumnModule / ColumnModule0 catalog entries.
 
@@ -314,7 +421,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 5: Full verification
+## Task 6: Full verification
 
 **Files:** none (verification only)
 
@@ -324,37 +431,51 @@ Run from repo root:
 ```bash
 python3 $HOME/.claude/slac-fpga-skills/bin/sfs-lint release . 2>&1 | grep -E '"severity": "Error"' || echo "NO ERRORS"
 ```
-Expected: `NO ERRORS` (the 4 intentional `_*.py` re-export warnings and the packaging/config Info items may remain — those predate this work).
+Expected: `NO ERRORS` (the 4 intentional `_*.py` re-export warnings and packaging/config Info items may remain — they predate this work).
 
-- [ ] **Step 2: Confirm the git tree is clean and history preserved renames as moves**
+- [ ] **Step 2: Confirm no old target dir names survive anywhere in the target tree or build config**
+
+Run from repo root:
+```bash
+grep -rn 'ColumnFpgaBoard0\|RowFpgaBoard0\|325Coordinator\|ColumnFpgaBoardAwaXe' \
+  firmware/targets firmware/releases.yaml \
+  --include=ruckus.tcl --include=Makefile --include='*.yaml' 2>/dev/null || echo "no stale names"
+# Bare canonical names should now only appear as RTL entity refs (set_property top), not as paths:
+grep -rn '\.\./ColumnFpgaBoard/\|\.\./RowFpgaBoard/' firmware/targets --include=ruckus.tcl || echo "no stale canonical paths"
+```
+Expected: `no stale names` and `no stale canonical paths`.
+
+- [ ] **Step 3: Confirm git tree is clean and history preserved renames as moves**
 
 Run:
 ```bash
 cd "$(git rev-parse --show-toplevel)"
 git status --porcelain
-git log --oneline -5
+git log --oneline -6
 ```
-Expected: empty `git status` (all committed); the last 4 commits are Tasks 1–4.
+Expected: empty `git status`; last 5 commits are Tasks 1–5.
 
-- [ ] **Step 3: Sanity-check a renamed target's dir contents survived the move**
+- [ ] **Step 4: Sanity-check the renamed AwaXe target survived intact**
 
 Run:
 ```bash
 cd firmware/targets
-ls ColumnFpgaBoard325Coord10G
-grep -c 'ETH_10G_G=true' ColumnFpgaBoard325Coord10G/ruckus.tcl
+ls ColumnFpgaBoard325AwaXeCoord10G
+grep -c 'ETH_10G_G=true' ColumnFpgaBoard325AwaXeCoord10G/ruckus.tcl
 ```
-Expected: `Makefile`, `ruckus.tcl`, `images/` present; grep count `1` (the 10G generic is intact).
+Expected: `Makefile`, `ruckus.tcl`, `rtl/`, `images/` present; grep count `1`.
 
 ---
 
 ## Notes / non-blocking follow-ups (do NOT action in this plan)
 
 - `firmware/common/warm_tdm/ip/{FpMac,Int2Fp}/*.xci` contain stale Vivado
-  `gen_directory` / `OUTPUTDIR` paths mentioning `ColumnFpgaBoard325Coordinator10G_project.gen`.
-  These are managed-IP output-path artifacts, regenerated by Vivado on build;
-  they do not affect the rename and are left as-is.
-- Old-named `.mcs` images still live inside the renamed dirs' `images/` folders.
-  They are regenerated under the new dir name on the clean release rebuild;
-  optional to prune.
+  `gen_directory` / `OUTPUTDIR` paths mentioning
+  `ColumnFpgaBoard325Coordinator10G_project.gen`. Managed-IP output-path
+  artifacts, regenerated by Vivado on build; left as-is.
+- Old-named `.mcs` images inside the renamed dirs' `images/` folders are
+  regenerated under the new dir name on the clean release rebuild; optional to
+  prune.
 - `ColumnAu25p` (AU25P chip exploration, no board) is kept per the spec.
+- The extra generics on `ColumnFpgaBoard160Coord`
+  (`GEN_ADC_FILTER_G=false ROW_ADDR_BITS_G=5`) are preserved, not judged.
