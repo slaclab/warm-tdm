@@ -142,8 +142,9 @@ def tesBiasWaveform(*, group, process=None):
     # Prepare waveforms
     wfs = []
 
-    # Assumes all generators support same modes
-    num_generators = 8  # SHOULD REMOVE HARDCODE
+    # Number of generators is sized dynamically by _ensureWaveformGenerators
+    # (one per TES bias entry); use that count rather than a hardcode.
+    num_generators = process._waveformGeneratorCount
     if len(orig_tes_bias) != num_generators:
         raise ValueError(
             f"TES bias vector length ({len(orig_tes_bias)}) does not match "
@@ -152,7 +153,7 @@ def tesBiasWaveform(*, group, process=None):
     enum0 = process.tesBiasWaveformGenerator[0].Mode.enum
     valid_modes = {'None', 'Sine', 'Square'}
     modes = []
-    for ii in range(num_generators):  # SHOULD REMOVE HARDCODE
+    for ii in range(num_generators):
         mode_value = process.tesBiasWaveformGenerator[ii].Mode.get()
         mode = enum0.get(mode_value)
         if mode is None or mode not in valid_modes:
