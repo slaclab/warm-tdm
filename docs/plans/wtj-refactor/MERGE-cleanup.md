@@ -61,11 +61,26 @@ the matching firmware. Adopting the software side while running **current**
 supports, and needs hardware validation. This is the real reason "we can't just
 go merge it yet."
 
-Also: f917982 deletes low-level `firmware/python/warm_tdm` device drivers
-(`_Ad9106.py`, `_ColumnModule.py`, `_RowModule.py`, `_RowSelect.py`, …) as part
-of "remove legacy Python code." Those are firmware-register drivers — deleting
-them is a firmware-facing decision, not a software-only cleanup, and should be
-scoped out of the software-first adoption.
+Also: f917982 deletes 10 low-level PyRogue **register-map device drivers** from
+`firmware/python/warm_tdm/` (the package that maps FPGA registers to Python).
+These fall into two groups:
+
+- **Superseded "v1" drivers** whose "v2" replacement is already the active one:
+  `_WarmTdmCommon.py`→`_WarmTdmCommon2.py`, `_WarmTdmCore.py`→`_WarmTdmCore2.py`,
+  `_SaBiasOffset.py`→`_SaBiasOffset2.py`, `_TesBias.py`→`_TesBias2.py`,
+  `_RowDacDriver.py`→`_RowDacDriver2.py`.
+- **Retired board-variant drivers:** `_Ad9106.py` (a 1970-line DAC-chip driver),
+  `_ColumnModule.py`, `_RowModule.py`, `_RowModuleDacs.py`, `_RowSelect.py` —
+  these correspond to the `*Module` targets the target-cleanup reorg already
+  archived to `targets/legacy/`.
+
+The commit's `firmware/python/warm_tdm/__init__.py` rewrite drops all of these
+imports **and adds `_AdcAccumulator`/`_AdcDspFp`** — the untested floating-point
+firmware drivers. So this file cannot be taken wholesale: it is bundled with the
+firmware track. Whether a given v1 driver is truly unused also depends on which
+board firmware is deployed (the v1/v2 split tracks a hardware revision). Deleting
+these is a firmware-facing decision, not a software-only cleanup, and is scoped
+out of the software-first adoption.
 
 ## Recommended approach: cherry-pick the software refactor, gated
 
@@ -97,14 +112,31 @@ its own reviewed step on a branch off `wtj-refactor`, decoupled from firmware:
      its `__init__.py` import (cleanup does not have this file).
    - Fold our Task 1 `scipy` add into cleanup's identical `conda.yml` line
      (drop the duplicate).
-4. **Pin `maxRows`** to the value matching the firmware currently on the boards;
-   record it in `GroupConfig` defaults + a note in this doc.
+4. **Pin `maxRows`** to match the firmware, derived directly from the RTL (see
+   "maxRows value" below). Record it in `GroupConfig` defaults.
 5. **Hardware validation gate (user step).** Import check + a live smoke test
    (server starts, Group builds, a tune/SaOffset runs) before this feeds back
    into `wtj-refactor`.
 6. **Re-sequence the main plan.** Once adopted, our G1/G3 migrations target the
    *new* `_GroupVariables.GroupLinkVariable` home — update PLAN.md task order so
    the cleanup adoption precedes the Group-migration tasks.
+
+## maxRows value (derived from the RTL)
+
+`maxRows` is a row *count*, and it equals `2 ** ROW_ADDR_BITS_G` (cleanup's
+`_Group.py` uses it as `range(maxRows)` for the RowMap RAM and exposes it as the
+`NumRows` variable). `ROW_ADDR_BITS_G` is declared `integer range 3 to 8 := 8`
+in `ColumnFpgaBoard.vhd:57`, `DataPath.vhd:45`, `AdcDsp.vhd:31`.
+
+| Firmware target | `ROW_ADDR_BITS_G` | correct `maxRows` |
+|---|---|---|
+| default (all `325` targets inherit it) | 8 | **256** |
+| `ColumnFpgaBoard160Coord` (only override) | 5 | **32** |
+
+**Pin `GroupConfig.maxRows = 256`** to match the RTL default that every `325`
+build uses; treat `160Coord` (→ 32) as the documented exception. Note cleanup's
+shipped default of `maxRows=128` (2⁷) matches **neither** target — it is a stale
+value and must not be adopted as-is.
 
 ## Firmware side (explicitly deferred)
 
@@ -116,9 +148,13 @@ post-target-cleanup firmware. **Out of scope for the software adoption above.**
 
 ## Open questions for the user
 
-1. What `maxRows`/`ROW_ADDR_BITS_G` value is on the boards we'll test against?
-   (Determines the `GroupConfig` default we pin.)
+1. ~~What `maxRows` value?~~ **Resolved from RTL: pin 256** (RTL default; 32 for
+   `160Coord`). See "maxRows value" above. Only open sub-question: which board
+   is physically on the test bench — determines which of the two we validate
+   against first.
 2. Do you want the unified launch-script consolidation (deletes `gui.py`,
    `warmTdmGui.py`, `testGroup.py`) in this pass, or is that a separate cleanup?
-3. Should the `firmware/python/warm_tdm` legacy-driver deletions wait for the
-   firmware track entirely, or are some (e.g. truly-unused `_Ad9106`) safe now?
+3. Should the v1/retired-module register-driver deletions wait for the firmware
+   track entirely, or are the retired-module ones (`_ColumnModule`, `_RowModule`,
+   `_RowModuleDacs`, `_RowSelect`, `_Ad9106` — targets already archived to
+   `legacy/`) safe to remove now?
