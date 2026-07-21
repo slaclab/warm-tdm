@@ -2,19 +2,14 @@
 # Keep this list aligned with firmware/releases.yaml.
 
 TARGETS := \
-	ColumnFpgaBoard \
-	ColumnFpgaBoard0 \
-	ColumnFpgaBoard325Coordinator \
-	ColumnFpgaBoard325Coordinator10G \
-	ColumnFpgaBoardAwaXe \
-	ColumnModule \
-	ColumnModule0 \
-	RowFpgaBoard \
-	RowFpgaBoard0 \
-	RowFpgaBoard325 \
-	RowModule \
-	RowModule0 \
-	RowModuleC00
+	ColumnFpgaBoard160 \
+	ColumnFpgaBoard160Coord \
+	ColumnFpgaBoard325Coord \
+	ColumnFpgaBoard325Coord10G \
+	ColumnFpgaBoard325AwaXeCoord10G \
+	RowFpgaBoard160 \
+	RowFpgaBoard160Coord \
+	RowFpgaBoard325
 
 SUBTARGET ?= prom
 

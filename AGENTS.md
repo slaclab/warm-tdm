@@ -40,7 +40,9 @@ warm-tdm/
 │   ├── cfg/                    # YAML hardware configuration files
 │   ├── lib/                    # C/C++ shared library
 │   └── jupyter/                # Analysis notebooks
-├── docs/src/                   # Sphinx documentation source
+├── docs/
+│   ├── RELEASE.md              # Release process + git workflow
+│   └── src/                    # Sphinx documentation source
 ├── conda.yml                   # Conda environment definition
 ├── .gitmodules                 # Submodule declarations (surf, ruckus)
 └── releases.yaml               # Top-level release config
@@ -116,7 +118,7 @@ Platform-specific files use suffixes: `*7s.vhd` (7-Series), `*Usp.vhd` (UltraSca
 - **Signal style**: camelCase (`axilClk`, `timingRxData`)
 - **Architecture**: Always named `rtl`
 - **SURF library usage**: Import `surf.StdRtlPkg`, `surf.AxiLitePkg`, `surf.AxiStreamPkg`, `surf.SsiPkg`
-- **XDC split**: Common timing constraints in `common/warm_tdm/xdc/`, board pinout in `targets/*/xdc/`
+- **XDC split**: Common timing constraints AND board pinouts live in `common/warm_tdm/xdc/`; each target loads its own pinout by explicit `loadConstraints -path` (the common `xdc` `-dir` auto-load stays disabled so a target pulls in only its own pinout)
 - **Platform abstraction**: Wrapper entities instantiate `*7s` or `*Usp` variants based on `FPGA_FAMILY_G` or target context
 - **License**: SLAC proprietary header required on all source files
 
@@ -140,6 +142,16 @@ For detailed software conventions, see [`software/SOFTWARE_GUIDE.md`](software/S
 ## Build System
 
 Uses SLAC **ruckus** build system wrapping Xilinx Vivado.
+
+### Vivado version (important)
+
+Firmware builds **must use Vivado 2024.1**. Later versions have a bug that
+causes hold-time errors in timing closure. Vivado is not on PATH by default;
+source it before building:
+
+```bash
+source /sdf/group/faders/tools/xilinx/2024.1/Vivado/2024.1/settings64.sh
+```
 
 ### Target Makefile Pattern
 ```makefile
@@ -197,6 +209,18 @@ python warmTdmClientCmd.py
 # Emulation mode (no hardware)
 python warmTdmEmulate.py
 ```
+
+## Releases
+
+WarmTDM uses a surf-style branch model: feature branches merge into
+`pre-release`, which is promoted to `main`, and releases are cut by tagging
+`main` with `vX.Y.Z`. Pushing a version tag triggers the `gen_release` CI job,
+and firmware `.mcs` images are attached to the GitHub Release via
+`ruckus/scripts/firmwareRelease.py`.
+
+For the full workflow, versioning scheme, and release steps, see
+[`docs/RELEASE.md`](docs/RELEASE.md). Release packaging config is in
+[`firmware/releases.yaml`](firmware/releases.yaml).
 
 ## Essential Reading by Task
 
