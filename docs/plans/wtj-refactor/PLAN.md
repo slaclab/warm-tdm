@@ -14,6 +14,39 @@ analysis math or removing the accepted single-system assumption.
 
 ---
 
+## Conventions & references (reconciled with repo guides)
+
+This plan must follow the repo's own documented software conventions. Read
+before executing:
+
+- Root [AGENTS.md](../../../AGENTS.md) — project orientation + software
+  conventions (device tree hierarchy `GroupRoot → Group → HardwareGroup →
+  boards`, `pr.Process` for long-running algorithms, PyDM GUI).
+- [software/SOFTWARE_GUIDE.md](../../../software/SOFTWARE_GUIDE.md) — the
+  detailed software reference. Most relevant here:
+  - **`GroupLinkVariable` pattern** (`_Group.py`) for cross-board array access
+    with `tuneEnVar` gating. This is the idiomatic way to expose a per-channel
+    quantity across all boards — a better fit than raw board loops for several
+    G-items below (esp. G3 cryo resistance, and the PID/timing scalars in G1).
+  - Tuning/long-running algorithms are `pr.Process` devices (start/stop/status).
+  - Config via `GroupRoot.SaveConfig`/`LoadConfig` (confirms G8 stays as a thin
+    session wrapper).
+- [docs/RELEASE.md](../../../docs/RELEASE.md) — **branch flow: feature →
+  `pre-release` → `main`.** The eventual PR target for this work is
+  `pre-release`, not `main`.
+
+**Naming:** new `pr.Device`/`pr.Process` modules use the `_Xxx.py`
+underscore-prefix convention, exported via `warm_tdm_api/__init__.py` (as
+`_TesBiasWaveform.py` already does). The convenience-layer modules (plain
+`client.py`, `data.py`, `analysis.py`) are a subpackage and keep plain names.
+
+**Documentation gap to close (see Task 3):** neither AGENTS.md nor
+SOFTWARE_GUIDE mentions `warm_tdm_jupyter`. AGENTS.md:42 lists `software/jupyter/`
+(notebooks, a separate existing dir) as the "Analysis" location. The rename must
+update both guides so the new package/home is documented.
+
+---
+
 ## Capabilities to move to Group (the running list)
 
 This is the list the user asked to start. Each row is a candidate to become a
@@ -25,9 +58,9 @@ Legend for **Form**: `method` = plain `Group` method; `process` = `pr.Process`
 
 | # | Current location | Capability | Proposed form | Notes / dependencies |
 |---|---|---|---|---|
-| G1 | `utils.py:setup_mux` (`:400-465`) | Configure MUX readout timing + enable SQ1 PID for active columns | `method` on `Group` (or small `device` holding the timing params) | Uses `ColTuneEnable`, `TimingTx`, `AdcDsp[col]`, row DAC `Mode`. Timing params (num_pts, sample window) are good candidates for `pr.LocalVariable`s so they're serialized. Has a `# TODO: multiple column boards` hardcode to resolve. |
+| G1 | `utils.py:setup_mux` (`:400-465`) | Configure MUX readout timing + enable SQ1 PID for active columns | `method` on `Group` (or small `device` holding the timing params) | Uses `ColTuneEnable`, `TimingTx`, `AdcDsp[col]`, row DAC `Mode`. Timing params (num_pts, sample window) are good candidates for `pr.LocalVariable`s so they're serialized; the per-column PID enable could be a `GroupLinkVariable` gated by `ColTuneEnable`/`tuneEnVar` rather than a manual loop. Has a `# TODO: multiple column boards` hardcode to resolve. |
 | G2 | `utils.py:all_off` (`:304-341`) | Panic/clean-slate: zero all non-MUX outputs, end run, drop to manual timing | `method` on `Group` | Already operates on `Group.<X>ForceCurrent` / `TesBias` etc. Blocked partly by a known firmware bug (row-DAC zeroing commented out) — carry that TODO across. |
-| G3 | `utils.py:set_cryo_resistance` (`:75-113`) | Set roundtrip cable R on all column+row AFE amps | `method` on `Group` | Iterates all boards + channels; pure register writes. Strong fit. |
+| G3 | `utils.py:set_cryo_resistance` (`:75-113`) | Set roundtrip cable R on all column+row AFE amps | `GroupLinkVariable` (RW scalar fanned out) or `method` on `Group` | Iterates all boards + channels writing the same value to many `CableR`/`R_CABLE` vars — the textbook `GroupLinkVariable` fan-out case, which would also make it GUI-settable + serialized. Strong fit. |
 | G4 | `utils.py:set_ps_synch` / `check_ps_synch` (`:116-188`) | Set / report power-supply sync state across boards | `method` pair on `Group`, or a `device` with a `RW` sync var + `RO` status | `check` returns a summary; consider a `pr.LinkVariable` for the aggregate state so the GUI shows it. |
 | G5 | `utils.py:print_hardware` (`:24-50`) | Print BuildStamp/DNA/GitHash/ImageName per board | `method` on `Group` (or `HardwareGroup`) | Read-only convenience; low risk. Could also be a `RO` summary variable. |
 | G6 | `utils.py:disable_leds` (`:53-72`) | Stop status-LED blinking on all boards | `method` on `Group` | Trivial; pure register writes. |
@@ -86,6 +119,9 @@ Legend for **Form**: `method` = plain `Group` method; `process` = `pr.Process`
 - [ ] Update `__init__` imports, add `__all__`, drop `import *` sprawl.
 - [ ] Remove import-time `addLibraryPath` side effects from `streamreader.py`.
 - [ ] Update existing notebooks / docs that import `warm_tdm_jupyter`.
+- [ ] **Document the package** in root `AGENTS.md` and `software/SOFTWARE_GUIDE.md`
+      (both currently omit it; AGENTS.md:42 only lists `software/jupyter/`
+      notebooks). Add the new name/home to the package-structure sections.
 
 ### Task 4: Remaining Group migrations
 - [ ] G3–G6 per the table, delegating convenience wrappers as in Task 2.
@@ -100,3 +136,4 @@ Legend for **Form**: `method` = plain `Group` method; `process` = `pr.Process`
 - [ ] `warm_tdm_api` and the renamed package import cleanly.
 - [ ] Notebook entry points still work against live hardware (user step).
 - [ ] New `Group` capabilities visible/serializable (SaveConfig round-trip).
+- [ ] PR targets `pre-release` (not `main`), per docs/RELEASE.md branch flow.

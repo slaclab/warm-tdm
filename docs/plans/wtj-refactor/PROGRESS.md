@@ -32,3 +32,10 @@ home — see PLAN.md "Open decisions".
   "Capabilities to move to Group": G1–G8).
 - 2026-07-21: Created `wtj-refactor` branch off `wtj` and scaffolded SPEC/PLAN/
   PROGRESS under `docs/plans/wtj-refactor/`. Awaiting decisions before executing.
+- 2026-07-21: Merged `origin/pre-release` into `wtj-refactor` (merge `d9baabb`,
+  no conflicts). Brought in the target-cleanup firmware reorg, root `AGENTS.md`,
+  `firmware/FIRMWARE_GUIDE.md`, `software/SOFTWARE_GUIDE.md`, `docs/RELEASE.md`,
+  and release automation. Reconciled the plan against these guides: added a
+  Conventions & references section, adopted the documented `GroupLinkVariable`
+  pattern for G1/G3, added doc-update steps to the rename task (both guides omit
+  the new package), and pinned the PR target to `pre-release`.

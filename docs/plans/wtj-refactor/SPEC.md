@@ -45,6 +45,17 @@ Two things drive this effort:
   (`_Group.py:356`, `:463`), and already exposes `ColTuneEnable`, `TesBias`,
   the `*ForceCurrent` arrays, etc. So the hardware capabilities in `utils.py`
   can be expressed as `Group` methods with no new plumbing.
+- The repo's own `software/SOFTWARE_GUIDE.md` documents the **`GroupLinkVariable`
+  pattern** for cross-board array access (RW scalar or array fanned out to a
+  `dependencies=[...]` list across boards, gated by `tuneEnVar`). This is the
+  idiomatic path for the per-channel/per-board register fan-outs in `utils.py`
+  (e.g. `set_cryo_resistance`) and is preferable to raw board loops because it
+  is also GUI-settable and config-serialized.
+- Branch flow (`docs/RELEASE.md`): feature → `pre-release` → `main`. This work
+  merges to `pre-release`.
+- Neither `AGENTS.md` nor `SOFTWARE_GUIDE.md` currently mentions the new
+  package; `AGENTS.md:42` only lists the separate `software/jupyter/` notebook
+  dir. Documenting the renamed package is part of the rename task.
 
 ## Accepted constraints (explicitly OK, not to be "fixed")
 
