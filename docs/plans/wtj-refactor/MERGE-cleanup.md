@@ -47,29 +47,42 @@ firmware**; the software refactor itself merges cleanly. So the right move is to
 | **`GroupConfig` simplification** | `_GroupConfig.py`, `_GroupRoot.py`, `_ArgParser.py` | Config carries `columnBoards`, `rowBoards`, `maxRows`, `host`. Processes now constructed as `SaTuneProcess(config=self.config)`. **IN SCOPE.** |
 | **logging over print** | `_Tuning.py`, others | `Replace print calls with logging` (c94df81), `Add more logging` (54d4097). **IN SCOPE.** |
 | **scipy dep** | `conda.yml` +1 | Same line our Task 1 already plans to add — harmless overlap. **IN SCOPE.** |
-| ~~Unified launch script~~ | `warmTdmServer.py` (−112), deletes `gui.py`, `warmTdmGui.py`, `testGroup.py` | **DEFERRED** (user, 2026-07-21) — does not affect the software merge. See "Deferred" below. |
+| **Unified launch script** (89c194f) | `warmTdmServer.py` (−112), deletes `gui.py` + `warmTdmGui.py`, `_ArgParser.py` | **IN SCOPE** (user, 2026-07-21). Folds the GUI into `warmTdmServer.py` behind a `--gui` flag via a new `WarmTdmArgparse`/`arg_dict` surface; standalone `gui.py`/`warmTdmGui.py` removed. Does **not** delete `testGroup.py` (my earlier note was wrong). See "Launch-script details" below. |
 | ~~v1/retired register-driver deletions~~ | `firmware/python/warm_tdm/*` (f917982) | **DEFERRED** (user, 2026-07-21) — firmware-track, does not affect the software merge. |
 | Dead `_FllEnable` var | `_Group`/related | `Remove dead FllEnable variable` (58eef7c). Software-only, keep IN SCOPE (independent of the firmware deletions above). |
 
+## Launch-script details (89c194f, IN SCOPE)
+
+What it actually does (verified):
+- **`warmTdmServer.py`** becomes the single entry point: it builds `GroupRoot`
+  from parsed args and, if `--gui` is passed, launches PyDM inline
+  (`pyrogue.pydm.runPyDM(... display=warm_tdm_api.WarmTdmDisplay)`); otherwise
+  `waitCntrlC()`. `--docs` triggers `genDocuments`.
+- **Deletes** the standalone `gui.py` and `warmTdmGui.py` (their behavior now
+  lives behind `--gui`). Does **not** touch `testGroup.py`.
+- **`_ArgParser.py`** gains a `WarmTdmArgparse(argparse.ArgumentParser)` class +
+  `arg_dict()` helper exposing: `--gui`, `--docs`, `--sim`, `--emulate`, `--ip`,
+  `--pollEn`, `--initRead`, `--rowBoards`, `--maxRows`, `--columnBoards`,
+  `--columnBoardType`, `--rowBoardType`, `--columnFrontEnd`, `--floatPid`, …
+
+**Two coupling points to handle when porting:**
+1. This shares `_ArgParser.py` edits with the in-scope `GroupConfig` commit
+   (f917982), so porting is by **content** (path-scoped diff), not commit
+   cherry-pick — both files' argument plumbing come in together, which is fine
+   now that both are in scope.
+2. The arg surface includes **`--floatPid`** (and `--maxRows`), which map to the
+   deferred firmware FP path. Bring the *flags/plumbing* in, but their defaults
+   must reflect **current** firmware: `floatPid` default off, `maxRows` pinned
+   per the RTL (256 — see below). Do not let the launcher's defaults silently
+   assume the FP firmware.
+
 ## Deferred (user, 2026-07-21) — not part of the software merge
 
-These are separable and do not affect the `_Group.py`/`_GroupVariables`/
-`_GroupConfig` structural adoption:
-
-- **Unified launch-script consolidation** (89c194f) — deletes `gui.py`,
-  `warmTdmGui.py`, `testGroup.py`, rewrites `warmTdmServer.py`. Its own cleanup
-  later.
 - **v1/retired register-driver deletions** (f917982's `firmware/python/warm_tdm`
   removals + `__init__` rewrite) — firmware track, gated on `_AdcDspFp` hardware
-  validation.
-
-**Porting nuance:** both the launch commit (89c194f) and the in-scope
-`GroupConfig` commit (f917982) edit `_ArgParser.py`, so deferral is **not** a
-clean commit-level exclusion. This is why the adoption is done by **content**
-(path-scoped diff apply, per the recommended approach), not by cherry-picking
-whole commits — take the config/argument-plumbing changes to `_ArgParser.py`,
-drop the launcher-specific bits. Verify the resulting `_ArgParser.py` still
-drives the existing (retained) entry-point scripts.
+  validation. This is a **subset** of commit f917982: take that commit's
+  `software/` GroupConfig changes, leave its `firmware/python/warm_tdm/*`
+  deletions and `__init__` rewrite for the firmware track.
 
 ## The critical coupling (why it can't be blindly adopted either)
 
@@ -120,12 +133,19 @@ its own reviewed step on a branch off `wtj-refactor`, decoupled from firmware:
      software/python/warm_tdm_api/_GroupRoot.py \
      software/python/warm_tdm_api/_Mapping.py \
      software/python/warm_tdm_api/_ArgParser.py \
-     software/python/warm_tdm_api/_Tuning.py
+     software/python/warm_tdm_api/_Tuning.py \
+     software/scripts/warmTdmServer.py
+   # plus the two script deletions from 89c194f:
+   #   git rm software/scripts/gui.py software/scripts/warmTdmGui.py
    ```
    Apply the `_Group.py`/`_GroupVariables.py`/`_GroupConfig.py`/`_Mapping.py`
-   split and the `_ArgParser`/`_Tuning`/logging changes. **Hold back**:
+   split, the `_ArgParser`/`_Tuning`/logging changes, and the unified
+   `warmTdmServer.py` + `gui.py`/`warmTdmGui.py` removal (launch-script
+   consolidation, now in scope). **Hold back**:
    - the `firmware/python/warm_tdm` device-driver deletions (firmware-coupled),
-   - anything that lowers `maxRows`/row-sizing below what current firmware runs.
+   - anything that lowers `maxRows`/row-sizing below what current firmware runs,
+   - `--floatPid`/`--maxRows` **defaults** that assume the FP firmware (bring the
+     flags, default `floatPid` off and `maxRows` to the RTL value).
 3. **Reconcile with wtj changes:**
    - Re-apply wtj's `TesBiasWaveformProcess` registration into the *new*
      `_Group.py` structure (verified it survives a textual merge, but the file
@@ -135,9 +155,11 @@ its own reviewed step on a branch off `wtj-refactor`, decoupled from firmware:
      (drop the duplicate).
 4. **Pin `maxRows`** to match the firmware, derived directly from the RTL (see
    "maxRows value" below). Record it in `GroupConfig` defaults.
-5. **Hardware validation gate (user step).** Import check + a live smoke test
-   (server starts, Group builds, a tune/SaOffset runs) before this feeds back
-   into `wtj-refactor`.
+5. **Hardware validation gate (user step).** Import check + a live smoke test:
+   `warmTdmServer.py` starts, Group builds, a tune/SaOffset runs, and — since the
+   launcher is now in scope — `warmTdmServer.py --gui` brings up the PyDM display
+   (replacing the deleted `gui.py`/`warmTdmGui.py`). Then feed back to
+   `wtj-refactor`.
 6. **Re-sequence the main plan.** Once adopted, our G1/G3 migrations target the
    *new* `_GroupVariables.GroupLinkVariable` home — update PLAN.md task order so
    the cleanup adoption precedes the Group-migration tasks.
@@ -173,8 +195,11 @@ post-target-cleanup firmware. **Out of scope for the software adoption above.**
    `160Coord`). See "maxRows value" above. Only open sub-question: which board
    is physically on the test bench — determines which of the two we validate
    against first.
-2. ~~Unified launch-script consolidation in this pass?~~ **Resolved: deferred**
-   (2026-07-21) — separate cleanup, does not affect the software merge.
+2. ~~Unified launch-script consolidation in this pass?~~ **Resolved: IN SCOPE**
+   (2026-07-21, reversed earlier deferral). Bring in the `warmTdmServer.py`
+   consolidation + `gui.py`/`warmTdmGui.py` removal + `_ArgParser` surface;
+   default `floatPid` off and `maxRows` to the RTL value. See "Launch-script
+   details".
 3. ~~v1/retired register-driver deletions now?~~ **Resolved: deferred**
    (2026-07-21) — firmware track, does not affect the software merge.
 

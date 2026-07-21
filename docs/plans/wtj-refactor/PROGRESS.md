@@ -38,11 +38,18 @@ home — see PLAN.md "Open decisions".
   PROGRESS under `docs/plans/wtj-refactor/`. Awaiting decisions before executing.
 - 2026-07-21: Scoped the cleanup software adoption. Resolved: `maxRows` pinned
   to 256 (derived from RTL — `2**ROW_ADDR_BITS_G`, default 8; `160Coord`
-  overrides to 32). Deferred (not part of the software merge): the unified
-  launch-script consolidation and the v1/retired register-driver deletions.
-  Noted the porting nuance that both the launcher and the in-scope GroupConfig
-  commit edit `_ArgParser.py`, so adoption is by content (path-scoped diff), not
-  commit cherry-pick.
+  overrides to 32). Deferred (not part of the software merge): the v1/retired
+  register-driver deletions (firmware track). Adoption is by content (path-scoped
+  diff), not commit cherry-pick, because the software refactor spans partial
+  commits (e.g. f917982 mixes GroupConfig software changes with firmware-python
+  deletions).
+- 2026-07-21: Reversed the launch-script deferral — the unified `warmTdmServer.py`
+  consolidation (89c194f: GUI folded behind `--gui`, `gui.py`/`warmTdmGui.py`
+  deleted, new `WarmTdmArgparse`/`arg_dict` surface) is now IN SCOPE. Corrected
+  an earlier wrong note: that commit does NOT delete `testGroup.py`. Flagged that
+  its `--floatPid`/`--maxRows` flags come in but must default to current
+  (pre-FP) firmware values, and added a `--gui` GUI-launch check to the
+  validation gate.
 - 2026-07-21: Analyzed the `cleanup` branch for merge. Straight `git merge`
   rejected: 52 commits, merge-base predates `pre-release`, all conflicts are
   firmware/target-reorg (old target names vs our renames, submodule + AdcDsp +
