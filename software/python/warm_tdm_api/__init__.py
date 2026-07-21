@@ -2,7 +2,7 @@ from ._CurveClass import *
 from ._FasTune import *
 from ._Group import *
 from ._GroupRoot import *
-from ._Mapping import *
+from ._GroupConfig import *
 from ._SaOffset import *
 from ._SaTune import *
 from ._Sq1Diag import *
