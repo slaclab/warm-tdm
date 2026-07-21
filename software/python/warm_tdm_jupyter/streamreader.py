@@ -28,9 +28,8 @@ def signed_int(arr):
     return int.from_bytes(arr, 'little', signed=True)
 
 def unsigned_int(arr):
-    return int.from_bytes(arr, 'little', signed=False)    
+    return int.from_bytes(arr, 'little', signed=False)
 
-import pandas as pd
 class StreamReader():
     def __init__(self):
         self.data = nesteddict()
