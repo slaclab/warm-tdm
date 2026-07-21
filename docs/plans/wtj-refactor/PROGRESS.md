@@ -2,7 +2,7 @@
 
 Plan: [PLAN.md](PLAN.md) · Spec: [SPEC.md](SPEC.md)
 
-## Status: Task 1 done; Task 2 (cleanup adoption, HW-gated) next
+## Status: Task 2 code ported on `wtj-cleanup-sw`; awaiting hardware gate before merge to `wtj-refactor`
 
 See also: [MERGE-cleanup.md](MERGE-cleanup.md) — analysis + plan for adopting the
 `cleanup` branch's software refactor (do NOT straight-merge; cherry-pick the
@@ -15,7 +15,7 @@ scaffolded. No source code changed yet.
 |---|---|---|---|
 | 0 | Review PR #61 + scaffold plan/branch | ✅ | — |
 | 1 | Correctness fixes (README, scipy, take_raw timeout, dead import, num_generators) | ✅ | 0a8f16f, 5d097db, 78a1946, 2f079de, fd5d97a |
-| 2 | Adopt `cleanup` software refactor (Group split, launcher, maxRows) — [MERGE-cleanup.md](MERGE-cleanup.md), HW-gated | ⬜ | — |
+| 2 | Adopt `cleanup` software refactor (Group split, launcher, maxRows) — [MERGE-cleanup.md](MERGE-cleanup.md), HW-gated | 🔨 code ported on `wtj-cleanup-sw`; HW gate pending | 80aa394, da07664, 6f41239, acdcf59 |
 | 3 | Rename/rehome → `warm_tdm_api.operations` | ⬜ | — |
 | 4 | Analysis + `operations` structural cleanup | ⬜ | — |
 | 5 | Group graduations (G-items, as they mature — deprioritized) | ⬜ | — |
@@ -27,6 +27,24 @@ resolved (rehome-first, graduate-later).
 
 ## Log
 
+- 2026-07-21: Executed Task 2 code port on branch `wtj-cleanup-sw` (off
+  `wtj-refactor`), by content per Option A (adapt firmware seam, no firmware
+  track). Commits: 80aa394 (Group split → `_GroupVariables`/`_GroupConfig`,
+  `_Mapping` removed, firmware seam adapted, maxRows=256, TesBiasWaveform
+  re-applied), da07664 (`_Tuning` logging + tuning-process config-model renames
+  + drop FllEnable widget), 6f41239 (unified `warmTdmServer.py`, remove
+  `gui.py`/`warmTdmGui.py`), acdcf59 (remove stale `testGroup.py`). Held back:
+  all `firmware/python` (0 files changed), `_AdcDspFp`, `PidDebugFileReaderFp.py`.
+  Discovered mid-task that the cleanup software `_Group.py` is coupled to cleanup
+  *firmware* `HardwareGroup` (threads `useFloatPid`/`maxRows` → `_AdcDspFp`);
+  resolved via Option A — kept our `HardwareGroup(num_row_selects/num_chip_selects)`
+  call, `maxRows` software-side only, `--floatPid` accepted-but-ignored w/ warning.
+  **Validation (real warm-tdm-env, emulate mode, no hardware):** package imports
+  clean; `arg_dict` binds to `GroupRoot`; full `GroupRoot` start/stop lifecycle
+  succeeds; `NumColumns=8`/`NumRows=256`; `TesBiasWaveformProcess` node present;
+  `--floatPid` warns and continues fixed-point. Remaining: **hardware gate**
+  (real boards: server + tune/SaOffset + `--gui`), then merge `wtj-cleanup-sw`
+  → `wtj-refactor`.
 - 2026-07-21: Executed Task 1 (correctness fixes), one commit per fix on
   `wtj-refactor`: README install path (0a8f16f), scipy dep (5d097db), take_raw
   timeout (78a1946), dead pandas import (2f079de), TesBiasWaveform dynamic
