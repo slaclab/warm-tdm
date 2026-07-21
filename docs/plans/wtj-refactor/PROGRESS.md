@@ -4,6 +4,10 @@ Plan: [PLAN.md](PLAN.md) · Spec: [SPEC.md](SPEC.md)
 
 ## Status: planning — awaiting approval to execute
 
+See also: [MERGE-cleanup.md](MERGE-cleanup.md) — analysis + plan for adopting the
+`cleanup` branch's software refactor (do NOT straight-merge; cherry-pick the
+software side, gated on hardware validation).
+
 Review of PR #61 complete. Branch `wtj-refactor` created off `wtj`. Plan set
 scaffolded. No source code changed yet.
 
@@ -32,6 +36,17 @@ home — see PLAN.md "Open decisions".
   "Capabilities to move to Group": G1–G8).
 - 2026-07-21: Created `wtj-refactor` branch off `wtj` and scaffolded SPEC/PLAN/
   PROGRESS under `docs/plans/wtj-refactor/`. Awaiting decisions before executing.
+- 2026-07-21: Analyzed the `cleanup` branch for merge. Straight `git merge`
+  rejected: 52 commits, merge-base predates `pre-release`, all conflicts are
+  firmware/target-reorg (old target names vs our renames, submodule + AdcDsp +
+  releases.yaml), and it would drag in untested firmware (AdcDspFp FP rewrite,
+  accumulator split). The `software/` refactor itself auto-merges clean, but
+  `GroupConfig.maxRows` couples to firmware `ROW_ADDR_BITS_G`, so it still needs
+  hardware validation. Recommendation written to MERGE-cleanup.md: cherry-pick
+  the software refactor (Group split → `_GroupVariables`/`_GroupConfig`, logging,
+  ArgParser) on a gated branch, hold back firmware-python deletions and row-size
+  reductions. This should precede the G1/G3 Group migrations since it changes
+  where `GroupLinkVariable` lives.
 - 2026-07-21: Merged `origin/pre-release` into `wtj-refactor` (merge `d9baabb`,
   no conflicts). Brought in the target-cleanup firmware reorg, root `AGENTS.md`,
   `firmware/FIRMWARE_GUIDE.md`, `software/SOFTWARE_GUIDE.md`, `docs/RELEASE.md`,
