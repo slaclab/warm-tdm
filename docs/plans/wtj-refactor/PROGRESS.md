@@ -27,6 +27,14 @@ resolved (rehome-first, graduate-later).
 
 ## Log
 
+- 2026-07-21: **Cosim validation passed.** Ran GroupTb in VCS + `warmTdmServer.py
+  --sim` (TCP socket bridge, SRP port 10000+i*1000). User confirmed "everything
+  seems to be working": config scalars (NumColumns=8, NumRows=256), raw SRP
+  register access, the `GroupLinkVariable`/`GroupArrayLinkVariable`/`FastDacVariable`
+  split (get/set roundtrips), and tuning-process startup all exercised against
+  real RTL register maps (not emulate's MemEmulate). This validates the entire
+  Task 2 register/software-integration layer. Not covered by cosim: analog-domain
+  behavior (a real tune converging on SQUIDs) — that still wants the bench.
 - 2026-07-21: Executed Task 2 code port on branch `wtj-cleanup-sw` (off
   `wtj-refactor`), by content per Option A (adapt firmware seam, no firmware
   track). Commits: 80aa394 (Group split → `_GroupVariables`/`_GroupConfig`,
