@@ -90,7 +90,7 @@ class StreamData:
         raise ValueError(f"No StreamData instance found with file name '{file_name}'")
 
 # Need to add outputdir=None feature
-def take_raw(col, outputdir=None, synch=False, fadc=125e6, decimation=0, check_delay_sec=0.1):
+def take_raw(col, outputdir=None, synch=False, fadc=125e6, decimation=0, check_delay_sec=0.1, timeout_sec=30.0):
     """
     Capture raw waveform data from a single column of the detector.
 
@@ -100,9 +100,13 @@ def take_raw(col, outputdir=None, synch=False, fadc=125e6, decimation=0, check_d
         fadc (float, optional): The FADC sampling rate in Hz. Default is 125e6 (125 MHz).
         decimation (int, optional): The decimation factor to apply to the waveform data. Default is 0 (no decimation).
         check_delay_sec (float, optional): The time in seconds to wait between checks for the saved waveform file. Default is 0.1 (100 ms).
+        timeout_sec (float, optional): Maximum time in seconds to wait for the waveform file to appear before giving up. Default is 30.0.
 
     Returns:
         str: The full path to the saved waveform file.
+
+    Raises:
+        TimeoutError: If no new waveform file is saved within timeout_sec.
     """
     # Get the last saved raw dataset filename
     last_raw0 = Client.hwg.WaveformCaptureReceiver.LastSavedFileName.get()
@@ -135,19 +139,25 @@ def take_raw(col, outputdir=None, synch=False, fadc=125e6, decimation=0, check_d
     else:
         cb.DataPath.WaveformCapture.CaptureWaveform()
 
-    # Wait for the waveform to be saved to disk
+    # Wait for the waveform to be saved to disk (bounded by timeout_sec)
     last_raw = None
-    while True:
-        if last_raw is not None:
-            #print(f'last_raw = {last_raw}')
-            #print(f'os.path.getsize(last_raw) = {os.path.getsize(last_raw)}')
-            if last_raw != last_raw0 and os.path.getsize(last_raw) > 0:
-                break
-        time.sleep(check_delay_sec)
-        last_raw = Client.hwg.WaveformCaptureReceiver.LastSavedFileName.get()
-
-    # Disable waveform capture
-    Client.hwg.WaveformCaptureReceiver.SaveData.set(False)
+    deadline = time.time() + timeout_sec
+    try:
+        while True:
+            if last_raw is not None:
+                #print(f'last_raw = {last_raw}')
+                #print(f'os.path.getsize(last_raw) = {os.path.getsize(last_raw)}')
+                if last_raw != last_raw0 and os.path.getsize(last_raw) > 0:
+                    break
+            if time.time() > deadline:
+                raise TimeoutError(
+                    f"take_raw: no new waveform file for column {col} within "
+                    f"{timeout_sec} s (last seen: {last_raw!r}).")
+            time.sleep(check_delay_sec)
+            last_raw = Client.hwg.WaveformCaptureReceiver.LastSavedFileName.get()
+    finally:
+        # Always disable waveform capture, even if we timed out
+        Client.hwg.WaveformCaptureReceiver.SaveData.set(False)
 
     # Return the path to the saved waveform file
     return last_raw
