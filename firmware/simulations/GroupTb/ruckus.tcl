@@ -14,13 +14,9 @@ source -quiet $::env(RUCKUS_DIR)/vivado_proc.tcl
 loadRuckusTcl $::env(TOP_DIR)/submodules/surf
 
 # Warm TDM Common
+# (board top entities ColumnFpgaBoard/RowFpgaBoard and the Column testbench now
+#  live in common/warm_tdm/{rtl,sim} and are loaded by the line below)
 loadRuckusTcl $::env(TOP_DIR)/common/warm_tdm
-
-# Target tops
-loadSource  -lib warm_tdm   -dir           $::env(TOP_DIR)/targets/RowFpgaBoard/rtl
-loadSource  -lib warm_tdm   -sim_only -dir $::env(TOP_DIR)/targets/RowFpgaBoard/sim
-loadSource  -lib warm_tdm   -dir           $::env(TOP_DIR)/targets/ColumnFpgaBoard/rtl
-loadSource  -lib warm_tdm   -sim_only -dir $::env(TOP_DIR)/targets/ColumnFpgaBoard/sim -fileType "VHDL 2008"
 
 # Load target's source code and constraints
 loadSource -lib warm_tdm -sim_only -dir $::env(PROJ_DIR)/tb

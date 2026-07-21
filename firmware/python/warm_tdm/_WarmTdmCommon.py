@@ -16,7 +16,6 @@ class WarmTdmCommon(pr.Device):
         self.add(surf.axi.AxiVersion(
             offset = 0x0000))
 
-        print(f'Creating XADC with channels = {therm_channels}')
         self.add(surf.xilinx.Xadc(
             enabled = False,
             offset = 0x00001000,

@@ -1,9 +1,21 @@
-
 # Exclude data files
 *.npy
 *.dat
+*.zip
+*.mcs
+*.bit
+*.bin
+*.ipynb
+*.yml
+.ipynb_checkpoints/
+images/
+**/ip/**
+!**/ip/**/
+!*.xci
+*.html
 *.*~
 build*
+!firmware/targets/build_release.sh
 __pycache__/
 
 .ipynb_checkpoints/
@@ -13,3 +25,13 @@ __pycache__/
 *_raw.txt
 .vscode/
 .claude/
+\#*\#
+firmware/python/warm_tdm/_Sq1BiasDriverAwaXe.py
+software/python/warm_tdm_api/_GroupConfigs.py
+software/python/warm_tdm_api/wam_tdm_gui_sav.ui
+software/scripts/AdcCapture.py
+software/scripts/packetizer_test.py
+software/scripts/warmTdmClientMuxTest.py
+firmware/python/warm_tdm/_AwaXeSq1BiasDriver.py
+firmware/targets/RowFpgaBoard160/sim/RowFpgaBoardTb.vhd
+.planning/

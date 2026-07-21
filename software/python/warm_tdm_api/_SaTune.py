@@ -30,7 +30,7 @@ class SinglePlot(pr.LinkVariable):
         
         tune = self.parent.SaTuneOutput.value()
         
-        if tune == {}:
+        if tune == {} or tune == []:
             return self._fig
 
         col = index
@@ -62,7 +62,7 @@ class MultiPlot(SinglePlot):
         tune = self.parent.SaTuneOutput.value()
  #       shunts = [self.parent.loading.Column[x].SA_FB_SHUNT_R.value() for x in range(8)]
 
-        if tune == {}:
+        if tune == {} or tune == []:
             return self._fig
 
         axes = self._ax.reshape(8)
@@ -159,7 +159,7 @@ class SaTuneProcess(pr.Process):
         # SA Tuning Results
         self.add(pr.LocalVariable(name='SaTuneOutput',
                                   hidden=True,
-                                  value={},
+                                  value=[],  # set to a list of dicts, one per column
                                   mode='RO',
                                   description="Results Data From SA Tuning. "
                                               "This is a list of dictionaries, with one dictionary for each column in the system (ColumBoards * 8). "
