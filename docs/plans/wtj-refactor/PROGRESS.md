@@ -2,7 +2,7 @@
 
 Plan: [PLAN.md](PLAN.md) · Spec: [SPEC.md](SPEC.md)
 
-## Status: planning — awaiting approval to execute
+## Status: Task 1 done; Task 2 (cleanup adoption, HW-gated) next
 
 See also: [MERGE-cleanup.md](MERGE-cleanup.md) — analysis + plan for adopting the
 `cleanup` branch's software refactor (do NOT straight-merge; cherry-pick the
@@ -14,7 +14,7 @@ scaffolded. No source code changed yet.
 | Task | Description | Status | Commit |
 |---|---|---|---|
 | 0 | Review PR #61 + scaffold plan/branch | ✅ | — |
-| 1 | Correctness fixes (README, scipy, take_raw timeout, dead import, num_generators) | ⬜ | — |
+| 1 | Correctness fixes (README, scipy, take_raw timeout, dead import, num_generators) | ✅ | 0a8f16f, 5d097db, 78a1946, 2f079de, fd5d97a |
 | 2 | Adopt `cleanup` software refactor (Group split, launcher, maxRows) — [MERGE-cleanup.md](MERGE-cleanup.md), HW-gated | ⬜ | — |
 | 3 | Rename/rehome → `warm_tdm_api.operations` | ⬜ | — |
 | 4 | Analysis + `operations` structural cleanup | ⬜ | — |
@@ -27,6 +27,11 @@ resolved (rehome-first, graduate-later).
 
 ## Log
 
+- 2026-07-21: Executed Task 1 (correctness fixes), one commit per fix on
+  `wtj-refactor`: README install path (0a8f16f), scipy dep (5d097db), take_raw
+  timeout (78a1946), dead pandas import (2f079de), TesBiasWaveform dynamic
+  generator count (fd5d97a). All touched Python files py_compile-clean; no
+  hardware needed for these. Next: Task 2 cleanup adoption (hardware-gated).
 - 2026-07-21: Reviewed PR #61 (branch `wtj`). Findings: the package is
   mislabeled "jupyter" (only one incidental, unused-downstream Jupyter call);
   the central smell is the global-singleton `Client`; reusable hardware

@@ -145,14 +145,16 @@ delegation seam, not to force them server-side prematurely.
 - [x] Create `wtj-refactor` branch off `wtj`.
 - [x] Scaffold this plan set.
 
-### Task 1: Correctness fixes (low-risk, do first)
-- [ ] Fix README install command to match repo-root `install.sh`.
-- [ ] Add `scipy` to `conda.yml`. (Note: the Task 2 cleanup adoption adds the
-      same line — dedup there.)
-- [ ] Add a timeout to the `take_raw` capture-wait loop (`data.py:140-147`).
-- [ ] Remove dead `import pandas as pd` (`streamreader.py:33`).
-- [ ] Replace `_TesBiasWaveform.py` hardcoded `num_generators = 8` with the
-      dynamic count from `_ensureWaveformGenerators`.
+### Task 1: Correctness fixes (low-risk, do first) — DONE
+- [x] Fix README install command to match repo-root `install.sh`. (0a8f16f)
+- [x] Add `scipy` to `conda.yml`. (5d097db) Note: the Task 2 cleanup adoption
+      adds the same line after `numpy` — placed identically here, dedup on merge.
+- [x] Add a timeout to the `take_raw` capture-wait loop. (78a1946) Added
+      `timeout_sec=30.0`, raises `TimeoutError`, `SaveData` disable moved to
+      `finally`.
+- [x] Remove dead `import pandas as pd` (`streamreader.py`). (2f079de)
+- [x] Replace `_TesBiasWaveform.py` hardcoded `num_generators = 8` with the
+      dynamic count `process._waveformGeneratorCount`. (fd5d97a)
 
 ### Task 2: Adopt the `cleanup` software refactor — full plan in [MERGE-cleanup.md](MERGE-cleanup.md)
 This is the structural foundation the later tasks build on: it splits `_Group.py`
