@@ -9,7 +9,7 @@
 From the root of the repository, run:
 
 \```bash
-bash scripts/install.sh
+bash install.sh
 \```
 
 This will create a conda environment called `warm-tdm-env` with all required dependencies,
