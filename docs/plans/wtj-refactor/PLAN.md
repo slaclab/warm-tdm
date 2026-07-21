@@ -147,17 +147,33 @@ delegation seam, not to force them server-side prematurely.
 
 ### Task 1: Correctness fixes (low-risk, do first)
 - [ ] Fix README install command to match repo-root `install.sh`.
-- [ ] Add `scipy` to `conda.yml`.
+- [ ] Add `scipy` to `conda.yml`. (Note: the Task 2 cleanup adoption adds the
+      same line — dedup there.)
 - [ ] Add a timeout to the `take_raw` capture-wait loop (`data.py:140-147`).
 - [ ] Remove dead `import pandas as pd` (`streamreader.py:33`).
 - [ ] Replace `_TesBiasWaveform.py` hardcoded `num_generators = 8` with the
       dynamic count from `_ensureWaveformGenerators`.
 
-### Task 2: Proof-of-concept Group migration (validates architecture)
-- [ ] Implement G2 (`all_off`) and G1 (`setup_mux`) as `Group` methods/nodes.
-- [ ] Have the convenience-layer functions delegate to the new `Group`
-      capability (keep the notebook entry points working).
-- [ ] Validate on hardware (user step).
+### Task 2: Adopt the `cleanup` software refactor — full plan in [MERGE-cleanup.md](MERGE-cleanup.md)
+This is the structural foundation the later tasks build on: it splits `_Group.py`
+into `_GroupVariables.py` (the `GroupLinkVariable` home the Group migrations in
+Task 5 target) + `_GroupConfig.py`, adopts the unified launch script, and pins
+`maxRows`. **Do this before the rename and the Group migrations** — migrating
+onto the pre-split structure would mean redoing that work.
+- [ ] Branch `wtj-cleanup-sw` off `wtj-refactor`; port the software refactor by
+      content (path-scoped diff), NOT a branch merge. See MERGE-cleanup.md for
+      the exact file list and hold-backs.
+- [ ] In scope: `_Group.py`/`_GroupVariables.py`/`_GroupConfig.py`/`_Mapping.py`
+      split, `_ArgParser`/`_Tuning`/logging, unified `warmTdmServer.py`
+      (+ `gui.py`/`warmTdmGui.py` removal), `scipy`, dead `_FllEnable`.
+- [ ] Hold back: `firmware/python/warm_tdm` v1/retired driver deletions;
+      `--floatPid`/`--maxRows` defaults must reflect current (pre-FP) firmware.
+- [ ] Pin `GroupConfig.maxRows = 256` (RTL default; 32 for `160Coord`).
+- [ ] Re-apply wtj's `TesBiasWaveformProcess` registration into the new
+      `_Group.py`; keep `_TesBiasWaveform.py` + its `__init__` import.
+- [ ] **Hardware validation gate (user step):** `warmTdmServer.py` starts, Group
+      builds, a tune/SaOffset runs, `--gui` brings up PyDM. Then merge
+      `wtj-cleanup-sw` back into `wtj-refactor`.
 
 ### Task 3: Package rename / rehome → `warm_tdm_api.operations`
 - [ ] Move `software/python/warm_tdm_jupyter/` → `software/python/warm_tdm_api/operations/`.
@@ -169,17 +185,25 @@ delegation seam, not to force them server-side prematurely.
       (both currently omit it; AGENTS.md:42 only lists `software/jupyter/`
       notebooks). Add `warm_tdm_api.operations` to the package-structure sections.
 
-### Task 4: Remaining Group migrations
-- [ ] G3–G6 per the table, delegating convenience wrappers as in Task 2.
-
-### Task 5: Analysis + convenience structural cleanup
+### Task 4: Analysis + `operations` structural cleanup
 - [ ] Extract pure `compute_asd` / `channel_timeseries` helpers shared by
       `plot_stream_data` and `analyze_pair`.
-- [ ] Move `sq1fb_to_pA` / `fs` calibration constants out of default args.
+- [ ] Move `sq1fb_to_pA` / `fs` calibration constants out of default args
+      (see open decision 3: `constants.py` vs derive from tree).
 - [ ] Bound / rethink `StreamData._instances` unbounded registry.
 
+### Task 5: Group graduations (as capabilities mature — deprioritized)
+Per the graduation criterion, nothing here meets the "move now" gate today, so
+this is not urgent. Graduate individual G-items into `Group` once they stabilize,
+targeting the `_GroupVariables`/`_GroupConfig` structure adopted in Task 2. Each
+graduation keeps a thin `operations` wrapper delegating to the new `Group`
+capability so call sites don't break.
+- [ ] Graduate G3 (`set_cryo_resistance`) as a `GroupLinkVariable` — likely the
+      first, being the most stable + textbook fan-out.
+- [ ] Graduate G1/G2/G4–G6 individually as each stops changing (see G-table).
+
 ### Task 6: Verification
-- [ ] `warm_tdm_api` and the renamed package import cleanly.
-- [ ] Notebook entry points still work against live hardware (user step).
-- [ ] New `Group` capabilities visible/serializable (SaveConfig round-trip).
+- [ ] `warm_tdm_api` and `warm_tdm_api.operations` import cleanly.
+- [ ] Notebook / operations entry points still work against live hardware (user step).
+- [ ] Any graduated `Group` capabilities visible/serializable (SaveConfig round-trip).
 - [ ] PR targets `pre-release` (not `main`), per docs/RELEASE.md branch flow.

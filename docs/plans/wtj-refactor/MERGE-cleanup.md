@@ -160,9 +160,12 @@ its own reviewed step on a branch off `wtj-refactor`, decoupled from firmware:
    launcher is now in scope — `warmTdmServer.py --gui` brings up the PyDM display
    (replacing the deleted `gui.py`/`warmTdmGui.py`). Then feed back to
    `wtj-refactor`.
-6. **Re-sequence the main plan.** Once adopted, our G1/G3 migrations target the
-   *new* `_GroupVariables.GroupLinkVariable` home — update PLAN.md task order so
-   the cleanup adoption precedes the Group-migration tasks.
+6. **Placement in the main plan.** This adoption is **PLAN.md Task 2** — right
+   after the correctness fixes and before the rename (Task 3) and Group
+   graduations (Task 5). Rationale: it creates the `_GroupVariables`/
+   `_GroupConfig` structure that the rename rehomes around and the Group
+   graduations target; doing it later would mean redoing that work on a
+   throwaway structure.
 
 ## maxRows value (derived from the RTL)
 

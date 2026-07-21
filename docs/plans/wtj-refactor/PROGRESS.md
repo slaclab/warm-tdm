@@ -15,14 +15,15 @@ scaffolded. No source code changed yet.
 |---|---|---|---|
 | 0 | Review PR #61 + scaffold plan/branch | ✅ | — |
 | 1 | Correctness fixes (README, scipy, take_raw timeout, dead import, num_generators) | ⬜ | — |
-| 2 | Proof-of-concept Group migration (G2 all_off, G1 setup_mux) | ⬜ | — |
-| 3 | Package rename / rehome away from "jupyter" | ⬜ | — |
-| 4 | Remaining Group migrations (G3–G6) | ⬜ | — |
-| 5 | Analysis + convenience structural cleanup | ⬜ | — |
+| 2 | Adopt `cleanup` software refactor (Group split, launcher, maxRows) — [MERGE-cleanup.md](MERGE-cleanup.md), HW-gated | ⬜ | — |
+| 3 | Rename/rehome → `warm_tdm_api.operations` | ⬜ | — |
+| 4 | Analysis + `operations` structural cleanup | ⬜ | — |
+| 5 | Group graduations (G-items, as they mature — deprioritized) | ⬜ | — |
 | 6 | Verification | ⬜ | — |
 
-**Blocked on user decisions:** package name/home, migration cadence, constants
-home — see PLAN.md "Open decisions".
+**Blocked on user decisions:** constants home (PLAN open decision 3) and the
+bench board for the Task 2 HW gate. Package name resolved (`operations`); cadence
+resolved (rehome-first, graduate-later).
 
 ## Log
 
@@ -43,6 +44,15 @@ home — see PLAN.md "Open decisions".
   diff), not commit cherry-pick, because the software refactor spans partial
   commits (e.g. f917982 mixes GroupConfig software changes with firmware-python
   deletions).
+- 2026-07-21: Placed the cleanup adoption as **Task 2** (was unplaced — it lived
+  only in MERGE-cleanup.md while the task list jumped to a Group-migration PoC).
+  It's the structural foundation: it creates `_GroupVariables`/`_GroupConfig`,
+  which the rename (Task 3) rehomes and the Group graduations (Task 5) target, so
+  it must precede both. Dropped the old "PoC Group migration" task — the
+  graduation reframing made it obsolete (nothing meets the move-now gate, and
+  adopting cleanup's `_GroupVariables` split is what validates the architecture
+  the PoC was meant to prove). Resequenced: 1 fixes → 2 cleanup (HW-gated) →
+  3 rename → 4 analysis cleanup → 5 graduations → 6 verify.
 - 2026-07-21: Resolved package name → **`warm_tdm_api.operations`** (subpackage,
   not sibling). It's the client-side operational layer, production-bound, not
   throwaway. Also captured the original author's key rationale: these functions
