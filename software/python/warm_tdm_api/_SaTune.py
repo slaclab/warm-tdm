@@ -76,7 +76,7 @@ class SaTuneProcess(pr.Process):
 
     def __init__(self, *, config, **kwargs):
         
-        self._columns = len(config.columnMap)
+        self._columns = config.numColumns
 
         # Init master class
         pr.Process.__init__(self, function=self._saTuneWrap,
@@ -180,7 +180,7 @@ class SaTuneProcess(pr.Process):
         self.add(pr.LocalVariable(name='PlotColumn',
                                   value=0,
                                   minimum=0,
-                                  maximum=len(config.columnMap)-1,
+                                  maximum=config.numColumns-1,
                                   hidden=True,
                                   mode='RW',
                                   description="Controls which column is selected for the resulting plot and fitted value variables below"))
