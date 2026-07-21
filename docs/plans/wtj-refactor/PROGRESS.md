@@ -2,7 +2,7 @@
 
 Plan: [PLAN.md](PLAN.md) · Spec: [SPEC.md](SPEC.md)
 
-## Status: Task 2 code ported on `wtj-cleanup-sw`; awaiting hardware gate before merge to `wtj-refactor`
+## Status: Task 2 merged to `wtj-refactor` (cosim-validated); Task 3 (rename → operations) next. Analog bench deferred to integrated branch.
 
 See also: [MERGE-cleanup.md](MERGE-cleanup.md) — analysis + plan for adopting the
 `cleanup` branch's software refactor (do NOT straight-merge; cherry-pick the
@@ -15,7 +15,7 @@ scaffolded. No source code changed yet.
 |---|---|---|---|
 | 0 | Review PR #61 + scaffold plan/branch | ✅ | — |
 | 1 | Correctness fixes (README, scipy, take_raw timeout, dead import, num_generators) | ✅ | 0a8f16f, 5d097db, 78a1946, 2f079de, fd5d97a |
-| 2 | Adopt `cleanup` software refactor (Group split, launcher, maxRows) — [MERGE-cleanup.md](MERGE-cleanup.md), HW-gated | 🔨 code ported on `wtj-cleanup-sw`; HW gate pending | 80aa394, da07664, 6f41239, acdcf59 |
+| 2 | Adopt `cleanup` software refactor (Group split, launcher, maxRows) — [MERGE-cleanup.md](MERGE-cleanup.md) | ✅ merged (cosim-validated; analog bench deferred) | 28bdcaf, da07664, 6f41239, acdcf59, 0491e7b |
 | 3 | Rename/rehome → `warm_tdm_api.operations` | ⬜ | — |
 | 4 | Analysis + `operations` structural cleanup | ⬜ | — |
 | 5 | Group graduations (G-items, as they mature — deprioritized) | ⬜ | — |
@@ -27,6 +27,12 @@ resolved (rehome-first, graduate-later).
 
 ## Log
 
+- 2026-07-21: **Merged `wtj-cleanup-sw` → `wtj-refactor`** (merge 0491e7b,
+  `--no-ff`) on the cosim result (user decision: merge now, bench later). Merge
+  clean; post-merge import + emulate lifecycle re-verified on `wtj-refactor`
+  (NumColumns=8, NumRows=256, TesBiasWaveformProcess present); firmware/ still
+  untouched by Task 2. Task 2 complete. **Deferred, not skipped:** analog-domain
+  bench validation (real tune on SQUIDs) now happens on the integrated branch.
 - 2026-07-21: **Cosim validation passed.** Ran GroupTb in VCS + `warmTdmServer.py
   --sim` (TCP socket bridge, SRP port 10000+i*1000). User confirmed "everything
   seems to be working": config scalars (NumColumns=8, NumRows=256), raw SRP

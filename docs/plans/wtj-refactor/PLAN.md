@@ -156,26 +156,27 @@ delegation seam, not to force them server-side prematurely.
 - [x] Replace `_TesBiasWaveform.py` hardcoded `num_generators = 8` with the
       dynamic count `process._waveformGeneratorCount`. (fd5d97a)
 
-### Task 2: Adopt the `cleanup` software refactor — full plan in [MERGE-cleanup.md](MERGE-cleanup.md)
+### Task 2: Adopt the `cleanup` software refactor — DONE (merged 0491e7b) — full plan in [MERGE-cleanup.md](MERGE-cleanup.md)
 This is the structural foundation the later tasks build on: it splits `_Group.py`
 into `_GroupVariables.py` (the `GroupLinkVariable` home the Group migrations in
 Task 5 target) + `_GroupConfig.py`, adopts the unified launch script, and pins
-`maxRows`. **Do this before the rename and the Group migrations** — migrating
-onto the pre-split structure would mean redoing that work.
-- [ ] Branch `wtj-cleanup-sw` off `wtj-refactor`; port the software refactor by
-      content (path-scoped diff), NOT a branch merge. See MERGE-cleanup.md for
-      the exact file list and hold-backs.
-- [ ] In scope: `_Group.py`/`_GroupVariables.py`/`_GroupConfig.py`/`_Mapping.py`
+`maxRows`.
+- [x] Branch `wtj-cleanup-sw` off `wtj-refactor`; ported by content (Option A).
+- [x] In scope: `_Group.py`/`_GroupVariables.py`/`_GroupConfig.py`/`_Mapping.py`
       split, `_ArgParser`/`_Tuning`/logging, unified `warmTdmServer.py`
-      (+ `gui.py`/`warmTdmGui.py` removal), `scipy`, dead `_FllEnable`.
-- [ ] Hold back: `firmware/python/warm_tdm` v1/retired driver deletions;
-      `--floatPid`/`--maxRows` defaults must reflect current (pre-FP) firmware.
-- [ ] Pin `GroupConfig.maxRows = 256` (RTL default; 32 for `160Coord`).
-- [ ] Re-apply wtj's `TesBiasWaveformProcess` registration into the new
-      `_Group.py`; keep `_TesBiasWaveform.py` + its `__init__` import.
-- [ ] **Hardware validation gate (user step):** `warmTdmServer.py` starts, Group
-      builds, a tune/SaOffset runs, `--gui` brings up PyDM. Then merge
-      `wtj-cleanup-sw` back into `wtj-refactor`.
+      (+ `gui.py`/`warmTdmGui.py`/`testGroup.py` removal), `scipy` (Task 1), dead
+      `_FllEnable` widget.
+- [x] Held back: all `firmware/python/warm_tdm` (0 files changed), `_AdcDspFp`,
+      `PidDebugFileReaderFp.py`. Firmware seam adapted: kept
+      `HardwareGroup(num_row_selects/num_chip_selects)`; `--floatPid`
+      accepted-but-ignored w/ warning; `maxRows` software-side only.
+- [x] Pinned `GroupConfig.maxRows = 256` (RTL default; 32 for `160Coord`).
+- [x] Re-applied wtj's `TesBiasWaveformProcess` registration into new `_Group.py`;
+      kept `_TesBiasWaveform.py` + `__init__` import.
+- [x] Validated: emulate-mode lifecycle + GroupTb(VCS)+`--sim` cosim against real
+      RTL register maps. Merged `wtj-cleanup-sw` → `wtj-refactor` (0491e7b).
+- [ ] **Analog bench (deferred, user step):** real tune/SaOffset converging on
+      SQUIDs + `--gui`, on the integrated branch. Not blocking further tasks.
 
 ### Task 3: Package rename / rehome → `warm_tdm_api.operations`
 - [ ] Move `software/python/warm_tdm_jupyter/` → `software/python/warm_tdm_api/operations/`.
