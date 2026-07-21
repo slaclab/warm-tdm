@@ -13,6 +13,8 @@ loadRuckusTcl $::env(TOP_DIR)/submodules/surf
 loadRuckusTcl $::env(TOP_DIR)/common/warm_tdm
 
 loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore2.xdc
-loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/RowFpgaBoard.xdc
+loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/ColumnFpgaBoard.xdc
 
-set_property top {RowFpgaBoard} [get_filesets {sources_1}]
+set_property top {ColumnFpgaBoard} [get_filesets {sources_1}]
+set_property generic "[get_property generic [current_fileset]] RING_ADDR_0_G=true ETH_10G_G=false GEN_ADC_FILTER_G=false ROW_ADDR_BITS_G=5" [current_fileset]
+set_property strategy Performance_ExplorePostRoutePhysOpt [get_runs impl_1]

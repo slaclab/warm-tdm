@@ -3,17 +3,17 @@ GitBase: ..
 TopRoguePackage: warm_tdm
 
 RoguePackages:
-  - firmware/python
-  - software/python
+  - python
+  - ../software/python
 
 RogueScripts:
-  - software/scripts/DataFileReader.py
-  - software/scripts/PidDebugFileReader.py
-  - software/scripts/warmTdmClientCmd.py
-  - software/scripts/warmTdmClientGui.py
-  - software/scripts/warmTdmEmulate.py
-  - software/scripts/warmTdmGui.py
-  - software/scripts/warmTdmServer.py
+  - ../software/scripts/DataFileReader.py
+  - ../software/scripts/PidDebugFileReader.py
+  - ../software/scripts/warmTdmClientCmd.py
+  - ../software/scripts/warmTdmClientGui.py
+  - ../software/scripts/warmTdmEmulate.py
+  - ../software/scripts/warmTdmGui.py
+  - ../software/scripts/warmTdmServer.py
 
 CondaDependencies:
   - rogue
@@ -32,70 +32,62 @@ CondaDependencies:
 RogueConfig:
 
 Targets:
-  ColumnFpgaBoard:
-    ImageDir: targets/ColumnFpgaBoard/images
+  ColumnFpgaBoard160:
+    ImageDir: targets/ColumnFpgaBoard160/images
     Extensions:
       - mcs
+      - mcs.gz
 
-  ColumnFpgaBoard0:
-    ImageDir: targets/ColumnFpgaBoard0/images
+  ColumnFpgaBoard160Coord:
+    ImageDir: targets/ColumnFpgaBoard160Coord/images
     Extensions:
       - mcs
+      - mcs.gz
 
-  ColumnFpgaBoard325Coordinator:
-    ImageDir: targets/ColumnFpgaBoard325Coordinator/images
+  ColumnFpgaBoard325Coord:
+    ImageDir: targets/ColumnFpgaBoard325Coord/images
     Extensions:
       - mcs
+      - mcs.gz
 
-  ColumnFpgaBoard325Coordinator10G:
-    ImageDir: targets/ColumnFpgaBoard325Coordinator10G/images
+  ColumnFpgaBoard325Coord10G:
+    ImageDir: targets/ColumnFpgaBoard325Coord10G/images
     Extensions:
       - mcs
+      - mcs.gz
 
-  ColumnFpgaBoardAwaXe:
-    ImageDir: targets/ColumnFpgaBoardAwaXe/images
+  ColumnFpgaBoard325AwaXeCoord10G:
+    ImageDir: targets/ColumnFpgaBoard325AwaXeCoord10G/images
     Extensions:
       - mcs
+      - mcs.gz
 
-  ColumnModule:
-    ImageDir: targets/ColumnModule/images
+  RowFpgaBoard160:
+    ImageDir: targets/RowFpgaBoard160/images
     Extensions:
       - mcs
+      - mcs.gz
 
-  ColumnModule0:
-    ImageDir: targets/ColumnModule0/images
+  RowFpgaBoard160Coord:
+    ImageDir: targets/RowFpgaBoard160Coord/images
     Extensions:
       - mcs
-
-  RowFpgaBoard:
-    ImageDir: targets/RowFpgaBoard/images
-    Extensions:
-      - mcs
-
-  RowFpgaBoard0:
-    ImageDir: targets/RowFpgaBoard0/images
-    Extensions:
-      - mcs
+      - mcs.gz
 
   RowFpgaBoard325:
     ImageDir: targets/RowFpgaBoard325/images
     Extensions:
       - mcs
+      - mcs.gz
 
 
 Releases:
   warmTdm:
     Primary: true
     Targets:
-      - ColumnFpgaBoard
-      - ColumnFpgaBoard0
-      - ColumnFpgaBoard325Coordinator
-      - ColumnFpgaBoard325Coordinator10G
-      - ColumnFpgaBoardAwaXe
-      - ColumnModule
-      - ColumnModule0
-      - RowFpgaBoard
-      - RowFpgaBoard0
+      - ColumnFpgaBoard325Coord
+      - ColumnFpgaBoard325Coord10G
+      - RowFpgaBoard160
       - RowFpgaBoard325
     Types:
       - Rogue
