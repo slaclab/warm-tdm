@@ -43,6 +43,17 @@ home — see PLAN.md "Open decisions".
   diff), not commit cherry-pick, because the software refactor spans partial
   commits (e.g. f917982 mixes GroupConfig software changes with firmware-python
   deletions).
+- 2026-07-21: Resolved package name → **`warm_tdm_api.operations`** (subpackage,
+  not sibling). It's the client-side operational layer, production-bound, not
+  throwaway. Also captured the original author's key rationale: these functions
+  were kept client-side deliberately for **runtime editability** (a `Group`
+  method needs a server restart → drops tuning state → slow re-tune). Reframed
+  the G-list as a **maturity-gated graduation list** with a client/server
+  criterion: move now only if it needs server-side execution (loops/GUI/state,
+  like the already-migrated `TesBiasWaveformProcess`); otherwise keep in
+  `operations` and graduate as it stabilizes. Near-term: rehome everything into
+  `operations`, graduate later. Noted the "make retuning MCE-fast" alternative as
+  the deeper (out-of-scope) unblock.
 - 2026-07-21: Reversed the launch-script deferral — the unified `warmTdmServer.py`
   consolidation (89c194f: GUI folded behind `--gui`, `gui.py`/`warmTdmGui.py`
   deleted, new `WarmTdmArgparse`/`arg_dict` surface) is now IN SCOPE. Corrected

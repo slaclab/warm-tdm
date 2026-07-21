@@ -67,22 +67,34 @@ Two things drive this effort:
 
 ## Scope
 
-### 1. Rename / rehome the package (decision pending — see PLAN "Open decisions")
+### 1. Rename / rehome the package → `warm_tdm_api.operations` (RESOLVED)
 
-Drop the "jupyter" name. Candidate homes:
-- `warm_tdm_api` subpackage (e.g. `warm_tdm_api.scripting` or `.notebook`)
-- sibling package `warm_tdm_tools`
+Drop the "jupyter" name. The package becomes the **`operations` subpackage of
+`warm_tdm_api`** — the client-side operational layer for running the system
+(acquisition + setup + analysis), deliberately runtime-editable and
+production-bound. A subpackage (not a sibling) because it is API-coupled.
 
-Keep it as **one cohesive procedural layer**. Do NOT smear its global-`Client`
-procedural style into the `warm_tdm_api` `_Xxx.py` device modules — the two
-paradigms should stay visibly distinct.
+Keep it as **one cohesive layer**. Do NOT smear its global-`Client` procedural
+style into the `warm_tdm_api` `_Xxx.py` device modules — the two paradigms stay
+visibly distinct. (Name rationale + rejected alternatives: PLAN "Open decisions".)
 
-### 2. Migrate reusable hardware capabilities down into the rogue tree
+### 2. Graduate reusable hardware capabilities into the rogue tree — as they mature
 
-Move capabilities that everyone should have (not just notebook users) onto
-`Group` (as methods) or into small `pr.Process` / `pr.Device` nodes. See the
-**"Capabilities to move to Group"** table in PLAN.md — this is the running list
-the user asked to start.
+**Key rationale (from the original author):** these functions were kept
+client-side on purpose, for **runtime editability**. A `Group` method runs
+server-side, so changing it needs a server restart, which drops tuning state and
+forces a slow re-tune. So capabilities graduate into `Group` **individually, as
+they stabilize**, not in a batch. The exception is anything that *needs*
+server-side execution (continuous loops, GUI, serialized state) — e.g.
+`TesBiasWaveformProcess`, already correctly in `Group`.
+
+The deeper fix the author noted: if re-tuning were as fast as MCE, restarts would
+be cheap and this pressure would largely disappear, enabling broader migration.
+That is a separate, larger effort — out of scope here.
+
+See the **"Capabilities to move to Group — graduation candidates"** table in
+PLAN.md (with the client/server graduation criterion) — the running list the
+user asked to start.
 
 ### 3. Structural / quality cleanup of the remaining convenience + analysis code
 
