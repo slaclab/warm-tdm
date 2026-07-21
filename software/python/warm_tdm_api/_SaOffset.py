@@ -87,7 +87,7 @@ class SaOffsetSweepProcess(pr.Process):
         # Init master class
         pr.Process.__init__(self, description=description, function=self._saOffsetSweep, **kwargs)
 
-        self.columns = len(config.columnMap)
+        self.columns = config.numColumns
 
         self._fig = plt.Figure(tight_layout=True, figsize=(20,10))
         self._ax = self._fig.add_subplot()        
@@ -155,7 +155,7 @@ class SaOffsetSweepProcess(pr.Process):
             low = self.SaBiasLow.get()
             high = self.SaBiasHigh.get()
             biasSteps = self.SaBiasNumSteps.get()
-            colCount = len(group.ColumnMap.get())
+            colCount = group.NumColumns.get()
 
             biasRange = np.linspace(low, high, biasSteps, endpoint=True)
 
