@@ -44,11 +44,32 @@ firmware**; the software refactor itself merges cleanly. So the right move is to
 |---|---|---|
 | **`_Group.py` split** (−586 lines) | `_Group.py`, new `_GroupVariables.py`, new `_GroupConfig.py` | `GroupLinkVariable` moved out to `_GroupVariables.py`; config extracted to a `GroupConfig` dataclass-style object. **This is the same `GroupLinkVariable` pattern our G1/G3 plan targets** — adopting it first makes the Group-migration work land on the intended structure. |
 | **`_Mapping.py` removed** (−79) | `_Mapping.py` deleted | Folded into the new config/variables split. |
-| **`GroupConfig` simplification** | `_GroupConfig.py`, `_GroupRoot.py`, `_ArgParser.py` | Config carries `columnBoards`, `rowBoards`, `maxRows`, `host`. Processes now constructed as `SaTuneProcess(config=self.config)`. |
-| **Unified launch script** | `warmTdmServer.py` (−112), deletes `gui.py`, `warmTdmGui.py`, `testGroup.py` | Consolidates server/GUI entry points into one script + `_ArgParser` changes. |
-| **logging over print** | `_Tuning.py`, others | `Replace print calls with logging` (c94df81), `Add more logging` (54d4097). |
-| **Dead-code removal** | `_FllEnable` var, legacy `warm_tdm` firmware-python devices | `Remove dead FllEnable variable` (58eef7c) — but note f917982 *also* deletes low-level `firmware/python/warm_tdm` device files (`_Ad9106`, `_ColumnModule`, `_RowModule`, …). Those deletions are **coupled to firmware** and must be judged carefully. |
-| **scipy dep** | `conda.yml` +1 | Same line our Task 1 already plans to add — harmless overlap. |
+| **`GroupConfig` simplification** | `_GroupConfig.py`, `_GroupRoot.py`, `_ArgParser.py` | Config carries `columnBoards`, `rowBoards`, `maxRows`, `host`. Processes now constructed as `SaTuneProcess(config=self.config)`. **IN SCOPE.** |
+| **logging over print** | `_Tuning.py`, others | `Replace print calls with logging` (c94df81), `Add more logging` (54d4097). **IN SCOPE.** |
+| **scipy dep** | `conda.yml` +1 | Same line our Task 1 already plans to add — harmless overlap. **IN SCOPE.** |
+| ~~Unified launch script~~ | `warmTdmServer.py` (−112), deletes `gui.py`, `warmTdmGui.py`, `testGroup.py` | **DEFERRED** (user, 2026-07-21) — does not affect the software merge. See "Deferred" below. |
+| ~~v1/retired register-driver deletions~~ | `firmware/python/warm_tdm/*` (f917982) | **DEFERRED** (user, 2026-07-21) — firmware-track, does not affect the software merge. |
+| Dead `_FllEnable` var | `_Group`/related | `Remove dead FllEnable variable` (58eef7c). Software-only, keep IN SCOPE (independent of the firmware deletions above). |
+
+## Deferred (user, 2026-07-21) — not part of the software merge
+
+These are separable and do not affect the `_Group.py`/`_GroupVariables`/
+`_GroupConfig` structural adoption:
+
+- **Unified launch-script consolidation** (89c194f) — deletes `gui.py`,
+  `warmTdmGui.py`, `testGroup.py`, rewrites `warmTdmServer.py`. Its own cleanup
+  later.
+- **v1/retired register-driver deletions** (f917982's `firmware/python/warm_tdm`
+  removals + `__init__` rewrite) — firmware track, gated on `_AdcDspFp` hardware
+  validation.
+
+**Porting nuance:** both the launch commit (89c194f) and the in-scope
+`GroupConfig` commit (f917982) edit `_ArgParser.py`, so deferral is **not** a
+clean commit-level exclusion. This is why the adoption is done by **content**
+(path-scoped diff apply, per the recommended approach), not by cherry-picking
+whole commits — take the config/argument-plumbing changes to `_ArgParser.py`,
+drop the launcher-specific bits. Verify the resulting `_ArgParser.py` still
+drives the existing (retained) entry-point scripts.
 
 ## The critical coupling (why it can't be blindly adopted either)
 
@@ -152,9 +173,11 @@ post-target-cleanup firmware. **Out of scope for the software adoption above.**
    `160Coord`). See "maxRows value" above. Only open sub-question: which board
    is physically on the test bench — determines which of the two we validate
    against first.
-2. Do you want the unified launch-script consolidation (deletes `gui.py`,
-   `warmTdmGui.py`, `testGroup.py`) in this pass, or is that a separate cleanup?
-3. Should the v1/retired-module register-driver deletions wait for the firmware
-   track entirely, or are the retired-module ones (`_ColumnModule`, `_RowModule`,
-   `_RowModuleDacs`, `_RowSelect`, `_Ad9106` — targets already archived to
-   `legacy/`) safe to remove now?
+2. ~~Unified launch-script consolidation in this pass?~~ **Resolved: deferred**
+   (2026-07-21) — separate cleanup, does not affect the software merge.
+3. ~~v1/retired register-driver deletions now?~~ **Resolved: deferred**
+   (2026-07-21) — firmware track, does not affect the software merge.
+
+All merge-scoping questions are resolved. Remaining before execution is the
+main-plan open decision on package name/home (PLAN.md) and the hardware-bench
+choice (which board → validate maxRows 256 vs 32).

@@ -36,6 +36,13 @@ home — see PLAN.md "Open decisions".
   "Capabilities to move to Group": G1–G8).
 - 2026-07-21: Created `wtj-refactor` branch off `wtj` and scaffolded SPEC/PLAN/
   PROGRESS under `docs/plans/wtj-refactor/`. Awaiting decisions before executing.
+- 2026-07-21: Scoped the cleanup software adoption. Resolved: `maxRows` pinned
+  to 256 (derived from RTL — `2**ROW_ADDR_BITS_G`, default 8; `160Coord`
+  overrides to 32). Deferred (not part of the software merge): the unified
+  launch-script consolidation and the v1/retired register-driver deletions.
+  Noted the porting nuance that both the launcher and the in-scope GroupConfig
+  commit edit `_ArgParser.py`, so adoption is by content (path-scoped diff), not
+  commit cherry-pick.
 - 2026-07-21: Analyzed the `cleanup` branch for merge. Straight `git merge`
   rejected: 52 commits, merge-base predates `pre-release`, all conflicts are
   firmware/target-reorg (old target names vs our renames, submodule + AdcDsp +
