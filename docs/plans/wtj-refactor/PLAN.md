@@ -178,15 +178,19 @@ Task 5 target) + `_GroupConfig.py`, adopts the unified launch script, and pins
 - [ ] **Analog bench (deferred, user step):** real tune/SaOffset converging on
       SQUIDs + `--gui`, on the integrated branch. Not blocking further tasks.
 
-### Task 3: Package rename / rehome → `warm_tdm_api.operations`
-- [ ] Move `software/python/warm_tdm_jupyter/` → `software/python/warm_tdm_api/operations/`.
-- [ ] Update `__init__` imports, add `__all__`, drop `import *` sprawl.
-- [ ] Remove import-time `addLibraryPath` side effects from `streamreader.py`.
-- [ ] Update existing notebooks / docs that import `warm_tdm_jupyter` →
-      `warm_tdm_api.operations`.
-- [ ] **Document the package** in root `AGENTS.md` and `software/SOFTWARE_GUIDE.md`
-      (both currently omit it; AGENTS.md:42 only lists `software/jupyter/`
-      notebooks). Add `warm_tdm_api.operations` to the package-structure sections.
+### Task 3: Package rename / rehome → `warm_tdm_api.operations` — DONE (7b5946f, f5e22f6)
+- [x] Move `software/python/warm_tdm_jupyter/` → `software/python/warm_tdm_api/operations/` (git mv, history preserved).
+- [x] Replace `import *` sprawl with explicit re-exports + `__all__` (28 names);
+      internal helpers no longer leak.
+- [x] Remove import-time `addLibraryPath` side effects from `streamreader.py`.
+- [x] No tracked importers of `warm_tdm_jupyter` existed (notebooks not in repo);
+      nothing external to update. `warm_tdm_api/__init__` intentionally does NOT
+      auto-import `operations` (keeps matplotlib/scipy off the server path) — use
+      `import warm_tdm_api.operations`.
+- [x] Documented in root `AGENTS.md` (layout + Software Conventions) and
+      `software/SOFTWARE_GUIDE.md` (package-structure section).
+- [x] Import-checked in `warm-tdm-env`: `warm_tdm_api` imports without loading
+      `operations`; `import warm_tdm_api.operations` resolves all 28 exports.
 
 ### Task 4: Analysis + `operations` structural cleanup
 - [ ] Extract pure `compute_asd` / `channel_timeseries` helpers shared by

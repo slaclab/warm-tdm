@@ -2,7 +2,7 @@
 
 Plan: [PLAN.md](PLAN.md) · Spec: [SPEC.md](SPEC.md)
 
-## Status: Task 2 merged to `wtj-refactor` (cosim-validated); Task 3 (rename → operations) next. Analog bench deferred to integrated branch.
+## Status: Tasks 1–3 done on `wtj-refactor`. Task 4 (analysis/operations cleanup) next. Analog bench deferred to integrated branch.
 
 See also: [MERGE-cleanup.md](MERGE-cleanup.md) — analysis + plan for adopting the
 `cleanup` branch's software refactor (do NOT straight-merge; cherry-pick the
@@ -16,7 +16,7 @@ scaffolded. No source code changed yet.
 | 0 | Review PR #61 + scaffold plan/branch | ✅ | — |
 | 1 | Correctness fixes (README, scipy, take_raw timeout, dead import, num_generators) | ✅ | 0a8f16f, 5d097db, 78a1946, 2f079de, fd5d97a |
 | 2 | Adopt `cleanup` software refactor (Group split, launcher, maxRows) — [MERGE-cleanup.md](MERGE-cleanup.md) | ✅ merged (cosim-validated; analog bench deferred) | 28bdcaf, da07664, 6f41239, acdcf59, 0491e7b |
-| 3 | Rename/rehome → `warm_tdm_api.operations` | ⬜ | — |
+| 3 | Rename/rehome → `warm_tdm_api.operations` | ✅ | 7b5946f, f5e22f6 |
 | 4 | Analysis + `operations` structural cleanup | ⬜ | — |
 | 5 | Group graduations (G-items, as they mature — deprioritized) | ⬜ | — |
 | 6 | Verification | ⬜ | — |
@@ -27,6 +27,13 @@ resolved (rehome-first, graduate-later).
 
 ## Log
 
+- 2026-07-21: **Task 3 done** — renamed `warm_tdm_jupyter` → `warm_tdm_api.operations`
+  (7b5946f) + docs (f5e22f6). git mv preserved history; `__init__` now explicit
+  re-exports + `__all__` (28 names); dropped the redundant/broken import-time
+  `addLibraryPath` in `streamreader.py`; no tracked importers needed updating.
+  `operations` is NOT auto-imported by `warm_tdm_api` (keeps matplotlib/scipy off
+  the server path) — explicit `import warm_tdm_api.operations`. Documented in
+  AGENTS.md + SOFTWARE_GUIDE.md. Import-checked in warm-tdm-env.
 - 2026-07-21: **Merged `wtj-cleanup-sw` → `wtj-refactor`** (merge 0491e7b,
   `--no-ff`) on the cosim result (user decision: merge now, bench later). Merge
   clean; post-merge import + emulate lifecycle re-verified on `wtj-refactor`
