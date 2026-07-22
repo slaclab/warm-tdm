@@ -232,12 +232,13 @@ begin
    -------------------------------------------------------------------------------------------------
    -- ADC Deserializers
    -------------------------------------------------------------------------------------------------
-   U_Ad9681Readout_1 : entity surf.Ad9681Readout
+   U_Ad9681Readout_1 : entity surf.Ad9681Readout2
       generic map (
          TPD_G           => TPD_G,
-         SIMULATION_G    => SIMULATION_G,
-         DEFAULT_DELAY_G => 12,
          IODELAY_GROUP_G => IODELAY_GROUP_G,
+         DELAY_BITS_G    => 5,
+         DEVICE_FAMILY_G => "7SERIES",
+         LEFT_JUSTIFY_G  => true,
          NEGATE_G        => NEGATE_ADC_G)
       port map (
          axilClk         => timingRxClk125,                           -- [in]
@@ -247,8 +248,10 @@ begin
          axilReadMaster  => locAxilReadMasters(ADC_READOUT_AXIL_C),   -- [in]
          axilReadSlave   => locAxilReadSlaves(ADC_READOUT_AXIL_C),    -- [out]
          adcClkRst       => timingRxRst125,                           -- [in]
+         idelayCtrlRdy   => '1',                                      -- [in]
          adcSerial       => adc,                                      -- [in]
          adcStreamClk    => timingRxClk125,                           -- [in]
+         adcStreamRst    => timingRxRst125,                           -- [in]
          adcStreams      => adcStreams);                              -- [out]
 
    -------------------------------------------------------------------------------------------------

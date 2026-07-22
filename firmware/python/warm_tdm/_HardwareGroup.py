@@ -116,7 +116,7 @@ class HardwareGroup(pyrogue.Device):
                 maxRows=maxRows,
                 useFloatPid=useFloatPid))
             
-            pidDebug = [warm_tdm.PidDebugger(name=f'PidDebug[{i}]', hidden=False, numRows=maxRows, col=i, frontEnd=self.ColumnBoard[index].AnalogFrontEnd) for i in range(8)]
+            #pidDebug = [warm_tdm.PidDebugger(name=f'PidDebug[{i}]', hidden=False, numRows=maxRows, col=i, frontEnd=self.ColumnBoard[index].AnalogFrontEnd) for i in range(8)]
             saAmps = [self.ColumnBoard[index].AnalogFrontEnd.Channel[x].SAAmp for x in range(8)]
             waveGui = warm_tdm.WaveformCaptureReceiver(hidden=False, captureDev=self.ColumnBoard[index].DataPath.WaveformCapture, amplifiers=saAmps)
 
@@ -131,7 +131,7 @@ class HardwareGroup(pyrogue.Device):
                     packetizer.application(i) >> fifo1
                     fifo1 >> fifo2 >> dataWriter.getChannel(i)
                     #fifo1 >> rateDrop >> pidDebug[i]
-                    self.addInterface(fifo1, fifo2, pidDebug[i])
+                    self.addInterface(fifo1, fifo2)#, pidDebug[i])
 
                 packetizer.application(8) >> waveGui
 
@@ -232,7 +232,8 @@ class HardwareGroup(pyrogue.Device):
         if colBoards > 0:
             self.add(waveGui)
             for i in range(8):
-                self.add(pidDebug[i])
+                print('Adding pidDebug')
+                #self.add(pidDebug[i])
 
 
 
