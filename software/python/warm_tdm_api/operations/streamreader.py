@@ -8,17 +8,12 @@ import pyrogue
 import rogue.utilities
 import rogue.utilities.fileio
 
-import os
-_env_swpath = os.environ.get('WARM_TDM_PATH')
-if _env_swpath:
-    swpath = os.path.abspath(_env_swpath)
-else:
-    swpath = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-_firmware_path = os.path.join(os.path.dirname(swpath), 'firmware')
-pyrogue.addLibraryPath(os.path.join(swpath, 'python') + '/')
-pyrogue.addLibraryPath(os.path.join(_firmware_path, 'python') + '/')
-pyrogue.addLibraryPath(os.path.join(_firmware_path, 'submodules', 'surf', 'python') + '/')
-
+# NOTE: as a subpackage of warm_tdm_api, this module is only importable once
+# warm_tdm_api itself has been imported, so warm_tdm_api / warm_tdm / surf are
+# already on the library path. The previous import-time pyrogue.addLibraryPath()
+# block (relative to __file__) is therefore both redundant and, after the move
+# into warm_tdm_api/operations/, wrong. Path setup belongs to the entry-point
+# script (e.g. warmTdmServer.py) or WARM_TDM_PATH, not to a library module.
 import warm_tdm_api
 import warm_tdm
 
