@@ -11,6 +11,23 @@ Two Python packages work together:
 | `warm_tdm` | `firmware/python/warm_tdm/` | Low-level PyRogue device drivers mapping FPGA registers |
 | `warm_tdm_api` | `software/python/warm_tdm_api/` | High-level control, tuning, data, GUI |
 
+`warm_tdm_api` also contains the `operations` subpackage
+(`software/python/warm_tdm_api/operations/`): the **client-side operational
+layer** for running the system from a notebook, script, or production tooling —
+session/board management (`Client`), data acquisition (`take_raw`, `take_data`),
+hardware setup helpers (`setup_mux`, `all_off`, `set_cryo_resistance`), stream
+reading (`StreamReader`), and offline analysis/plotting (`plot_stream_data`,
+`analyze_pair`). It drives the rogue tree remotely and is deliberately kept
+distinct from the pyrogue-tree device modules (`_Group`, `_SaTune`, …). It is
+**not** auto-imported by `warm_tdm_api` (so the server import path stays free of
+matplotlib/scipy); import it explicitly:
+```python
+import warm_tdm_api.operations as ops
+```
+Reusable hardware capabilities here are candidates to graduate into `Group` as
+they mature (see `docs/plans/wtj-refactor`). This subpackage was formerly the
+standalone `warm_tdm_jupyter` package.
+
 Both are loaded via `pyrogue.addLibraryPath()` in scripts:
 ```python
 pyrogue.addLibraryPath(f'../python/')            # warm_tdm_api
