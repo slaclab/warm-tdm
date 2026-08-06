@@ -132,6 +132,17 @@ class Group(pr.Device):
 
         self._rowMap = []
         def _setRowMap(value):
+            # value is the logical->physical row map: value[i] is the physical
+            # (rs/cs) address for logical row i. Its length is the number of
+            # active logical rows, which cannot exceed the configured maxRows
+            # (the logical row address space / RowMap RAM depth).
+            if len(value) > self.config.maxRows:
+                raise ValueError(
+                    f'RowMap has {len(value)} logical rows but maxRows is '
+                    f'{self.config.maxRows}. Reduce the row map or start with a '
+                    f'larger --maxRows (must be <= 2**ROW_ADDR_BITS_G of the '
+                    f'deployed firmware).')
+
             self._rowMap = value
 
             ram = [0x8080 for x in range(self.config.maxRows)]
