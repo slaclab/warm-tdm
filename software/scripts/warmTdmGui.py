@@ -8,13 +8,14 @@
 ## may be copied, modified, propagated, or distributed except according to
 ## the terms contained in the LICENSE.txt file.
 ##############################################################################
-"""Start the Warm-TDM server (headless).
+"""Start the Warm-TDM server and launch the PyDM GUI.
 
-Builds the GroupRoot and waits. Pass --gui to also launch the PyDM display, or
-run warmTdmGui.py for a GUI-by-default launcher.
+This is the common user entry point: it builds the GroupRoot and always opens
+the GUI. For a headless server, run warmTdmServer.py (GUI is opt-in via --gui
+there).
 """
 import _setupLibPaths  # noqa: F401  (registers in-repo library paths)
 
 import warm_tdm_api
 
-warm_tdm_api.runServer()
+warm_tdm_api.runServer(forceGui=True)
