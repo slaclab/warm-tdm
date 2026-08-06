@@ -176,8 +176,8 @@ class SaOffsetSweepProcess(pr.Process):
                 group.SaBiasCurrent.set(saBias)
                 try:
                     warm_tdm_api.saOffset(group=group)
-                except:
-                    print('saOffset timed out')
+                except Exception:
+                    self._log.warning('saOffset timed out')
                 
                 for j, fb in enumerate(fbPoints):
                     saFb = mask * fb

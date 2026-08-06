@@ -257,7 +257,7 @@ class SaTuneProcess(pr.Process):
             self.SaTuneOutput.set(value=[r.asDict() for r in ret])
 
     def _saveData(self,arg):
-        print(f"SaTune - Save data called with {arg=}")
+        self._log.info(f"SaTune - Save data called with {arg=}")
         filename = arg
         if arg is None or arg == '':
             timestr = time.strftime("%Y%m%d-%H%M%S")

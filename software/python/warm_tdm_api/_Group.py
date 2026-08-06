@@ -34,7 +34,6 @@ class Group(pr.Device):
                  rowFeClass,
                  groupConfig,
                  groupId,
-                 maxRows=256,
                  num_row_selects=32,
                  num_chip_selects=0,
                  dataWriter=None,
@@ -61,18 +60,19 @@ class Group(pr.Device):
 
         self.config = groupConfig
 
-        # NOTE (wtj-cleanup-sw): useFloatPid / firmware-side maxRows are NOT
+        # NOTE (wtj-cleanup-sw): useFloatPid / firmware-side row sizing are NOT
         # wired into HardwareGroup on this branch. The floating-point PID path
         # (_AdcDspFp) and coherent row-sizing generics live on the deferred
         # firmware track and are not present in this firmware/python tree. We
         # therefore keep the current HardwareGroup signature
-        # (num_row_selects / num_chip_selects) and drop useFloatPid/maxRows from
-        # this call. maxRows is retained on the software side only, for RowMap
-        # RAM sizing below.
+        # (num_row_selects / num_chip_selects) and drop useFloatPid from this
+        # call. Row address space is software-side only, sourced from
+        # config.maxRows (single source of truth), used for RowMap RAM sizing
+        # below.
         if useFloatPid:
-            print("WARNING: useFloatPid=True requested, but the floating-point "
-                  "PID firmware is not available on this branch. Ignoring; "
-                  "using fixed-point firmware.")
+            self._log.warning("useFloatPid=True requested, but the floating-point "
+                              "PID firmware is not available on this branch. Ignoring; "
+                              "using fixed-point firmware.")
 
         self.add(warm_tdm.HardwareGroup(
             groupId=groupId,
@@ -134,7 +134,7 @@ class Group(pr.Device):
         def _setRowMap(value):
             self._rowMap = value
 
-            ram = [0x8080 for x in range(maxRows)]
+            ram = [0x8080 for x in range(self.config.maxRows)]
 
             for i, row in enumerate(value):
                 valueRs = (row['rsBoard'] << 5) | row['rsAddr']

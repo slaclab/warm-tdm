@@ -148,7 +148,6 @@ def arg_dict(args):
     ret['emulate'] = args.emulate
     ret['numRowSelects'] = args.numRowSelects
     ret['numChipSelects'] = args.numChipSelects
-    ret['maxRows'] = args.maxRows
     ret['initRead'] = args.initRead and not args.sim
     ret['colBoardClass'] = colBoardDict[args.columnBoardType]
     ret['colFeClass'] = colFeDict[args.columnFrontEnd]

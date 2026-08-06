@@ -112,7 +112,7 @@ def saFbSweep(*, group, bias, saFbRange, process):
         if np.any(np.abs(adcs) > 0.8):
             group._log.warning(f'High ADC value seen: SaBias={bias}, SaFb={saFbRange[:, idx]}, ADCs={adcs}')
             saOffset(group=group)
-            group._log.debug(f'After re-offset: SaOffset={group.SaOffset.get()}, ADC={group.SaOutAdc.get()}, SaOut={group.SaOut.get()}')
+            group._log.debug('After re-offset: SaOffset=%s, ADC=%s, SaOut=%s', group.SaOffset.get(), group.SaOutAdc.get(), group.SaOut.get())
 
     # Reset FB to zero after sweep
     group.SaFbForceCurrent.set(value=np.zeros(colCount, np.float64))
@@ -267,7 +267,7 @@ def saFbServo(*, group, process):
 
         # All channels have converged
         if (max(masked) < precision) and (min(masked) > (-1.0*precision)):
-            group._log.debug(f'saFbServo converged after {count+1} loops')
+            group._log.debug('saFbServo converged after %s loops', count+1)
             break
 
         for i, p in enumerate(pid):
@@ -510,7 +510,7 @@ def sq1Tune(group, process, doBiasRamp=True):
         group._log.info(f'sq1BiasSweep row={rowIndex}')
         results = sq1BiasSweep(group, process, rowIndex=rowIndex, doBiasRamp=doBiasRamp)
         for i, r in enumerate(results):
-            group._log.debug(f'Results col {i}: bias={r.biasOut}, xOut={r.xOut}, yOut={r.yOut}')
+            group._log.debug('Results col %s: bias=%s, xOut=%s, yOut=%s', i, r.biasOut, r.xOut, r.yOut)
             
         outputs.append(results)
 
