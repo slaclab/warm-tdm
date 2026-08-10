@@ -34,7 +34,7 @@ for i, row in enumerate(value):                       # i = LOGICAL row index
 
 The convenience commands `RowMap1x32`, `RowMap6x10`, `RowMap8x10`, etc. on
 `Group` just build different logical→physical `value` lists and push them through
-`RowMapTest`. The list length = number of active logical rows.
+`RowMap`. The list length = number of active logical rows.
 
 ## How the hardware uses it (RTL)
 
@@ -83,7 +83,7 @@ real sub-devices per row).
 
 Because RowMap is logical→physical and indexed by logical row, shrinking
 `maxRows` is safe **iff the readout sequence never defines more logical rows
-than `maxRows`** (`len(RowMapTest)` / `ReadoutList` ≤ `maxRows`). The physical
+than `maxRows`** (`len(RowMap)` / `ReadoutList` ≤ `maxRows`). The physical
 hardware is untouched; you are only declaring "this system uses at most N time
 slots." Over-running (defining more logical rows than `maxRows`) is the failure
 mode.

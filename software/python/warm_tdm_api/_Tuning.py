@@ -219,9 +219,18 @@ def saTune(*, group, process=None, doSet=True, doBiasRamp=True):
     saBiasResults = saBiasSweep(group=group, process=process, doBiasRamp=doBiasRamp)
 
     if doSet:
+        # SA tune is per-column: saBiasSweep returns one tuned SaFb (xOut) per
+        # column, which we broadcast to that column's mapped rows. Only the rows
+        # in the readout list are active, so iterate those rather than the full
+        # maxRows address space (matches sq1Tune). Requires a row map to be set.
+        rowTuneList = group.RowIndexOrderList.value()
+        if len(rowTuneList) == 0:
+            raise RuntimeError(
+                'saTune: no rows are mapped (RowIndexOrderList is empty). Set a '
+                'row map (Group.RowMap / RowMap*) before tuning.')
         for col in range(group.NumColumns.get()):
-            # xOut represents the tuned saFB. Set it for every row.
-            for row in range(group.NumRows.get()):
+            # xOut represents the tuned saFB. Set it for every active row.
+            for row in rowTuneList:
                 group.SaFbCurrent.set(index=(col,row), value=saBiasResults[col].xOut)
             # biasOut represents the tuned SA Bias point
             group.SaBiasCurrent.set(index=col, value=saBiasResults[col].biasOut)

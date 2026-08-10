@@ -163,34 +163,34 @@ class Group(pr.Device):
             return self._rowMap
 
         self.add(pr.LocalVariable(
-            name = 'RowMapTest',
+            name = 'RowMap',
             localSet = _setRowMap,
             localGet = _getRowMap))
 
         @self.command()
         def RowMap1x32():
             d = [{'rsBoard': 0, 'rsAddr': x} for x in range(32)]
-            self.RowMapTest.set(d)
+            self.RowMap.set(d)
 
         @self.command()
         def RowMap6x10():
             d = [{'rsBoard': 0, 'rsAddr': rs, 'csBoard':0, 'csAddr':cs } for cs in range(10, 16) for rs in range(10)]
-            self.RowMapTest.set(d)
+            self.RowMap.set(d)
 
         @self.command()
         def RowMap8x10():
             d = [{'rsBoard': 0, 'rsAddr': rs, 'csBoard':0, 'csAddr':cs } for cs in range(10, 18) for rs in range(10)]
-            self.RowMapTest.set(d)
+            self.RowMap.set(d)
 
         @self.command()
         def RowMap7x10():
             d = [{'rsBoard': 0, 'rsAddr': rs, 'csBoard':0, 'csAddr':cs } for cs in range(10, 17) for rs in range(10)]
-            self.RowMapTest.set(d)
+            self.RowMap.set(d)
 
         @self.command()
         def RowMap2x6x10():
             d = [{'rsBoard': 0, 'rsAddr': rs + (split*16), 'csBoard':0, 'csAddr': cs + (split * 16)} for split in range(2) for cs in range(10, 16) for rs in range(10)]
-            self.RowMapTest.set(d)
+            self.RowMap.set(d)
 
         if groupConfig.columnBoards > 0:
             self.add(pr.LinkVariable(
