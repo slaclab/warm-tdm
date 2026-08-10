@@ -33,7 +33,10 @@ def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title)
                 linewidth = 2.0
             peak = curveDataDict['peaks'][biasIndex]
             phinot = curveDataDict['phinots'][biasIndex]
-            label = f'{value:1.3f} - P-P: {peak:1.3f} - $\\phi_o$: {phinot:.2f}'
+            # Prefix with the curve index so every entry is unique: bias values
+            # closer together than the displayed precision would otherwise
+            # collide into identical legend labels (issue #35).
+            label = f'[{biasIndex}] {value:1.3f} - P-P: {peak:1.3f} - $\\phi_o$: {phinot:.2f}'
             color = ax._get_lines.get_next_color()
             # Plot the curve
             ax.plot(xValues, curveDataDict['curves'][biasIndex], label=label, linewidth=linewidth, color=color)
