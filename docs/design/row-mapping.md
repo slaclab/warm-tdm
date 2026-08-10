@@ -63,7 +63,7 @@ the readout sequence / number of time slots) — never physical hardware:
   DAC setpoint **per logical row**.
 - `PidDebugger` (`numRows`, `_PidDebugger.py`) — `numRows` per-logical-row debug
   sub-devices × 8 columns. **The dominant tree cost.**
-- `NumRows` variable = `config.maxRows` — reported max logical rows.
+- `MaxRows` variable = `config.maxRows` — reported max logical rows.
 - `_setRowMap`'s `ram` list — indexed by logical row.
 - RTL `ROW_ADDR_BITS_G` — logical address space width: `maxRows = 2**bits`
   (8 → 256 default; the `ColumnFpgaBoard160Coord` target uses 5 → 32).
@@ -98,7 +98,7 @@ all mean "max logical rows" but only some track `config.maxRows`:
 | `FastDacMem` / DAC RAM / `PidDebugger` (tree cost) | `rows` | **hardcoded 256** (`_HardwareGroup.py:65`) |
 | `RowDacDriver2.RowMap` (fw register) | `numValues` | **hardcoded 256** |
 | software RowMap `ram` list (`_Group.py`) | `config.maxRows` | tracks config ✅ |
-| `NumRows` variable | `config.maxRows` | tracks config ✅ |
+| `MaxRows` variable | `config.maxRows` | tracks config ✅ |
 | RTL `ROW_ADDR_BITS_G` | `2**n` | 8→256 (5→32 for 160Coord) |
 
 The `--maxRows` value reaches only the display variable, the software RowMap RAM

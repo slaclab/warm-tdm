@@ -107,8 +107,10 @@ class Group(pr.Device):
             groups='TopApi'))
 
         self.add(pr.LocalVariable(
-            name='NumRows',
-            description='Maximum number of row indices.',
+            name='MaxRows',
+            description='Maximum number of row indices (row address space = '
+                        'maxRows = 2**ROW_ADDR_BITS_G). Static; the active row '
+                        'count is len(RowIndexOrderList).',
             value=self.config.maxRows,
             mode='RO',
             groups='TopApi'))

@@ -225,7 +225,7 @@ def saTune(*, group, process=None, doSet=True, doBiasRamp=True):
         # rather than the readout list (which may not be set yet when saTune runs).
         for col in range(group.NumColumns.get()):
             # xOut represents the tuned saFB. Set it for every row.
-            for row in range(group.NumRows.get()):
+            for row in range(group.MaxRows.get()):
                 group.SaFbCurrent.set(index=(col,row), value=saBiasResults[col].xOut)
             # biasOut represents the tuned SA Bias point
             group.SaBiasCurrent.set(index=col, value=saBiasResults[col].biasOut)
@@ -348,7 +348,7 @@ def fasTune(*,group,process=None):
         subroutine is plotted against fasSweep
     """
     curves = []
-    numRows = group.NumRows.get()
+    numRows = group.MaxRows.get()
 
     group._log.info(f'fasTune starting: {numRows} rows')
     process.TotalSteps.set(numRows * process.FasFluxNumSteps.get())
@@ -492,7 +492,7 @@ def sq1Tune(group, process, doBiasRamp=True):
         list of list of CurveData objects 
     """
     outputs = []
-    numRows = group.NumRows.get()
+    numRows = group.MaxRows.get()
     rowTuneList = group.RowIndexOrderList.value()
     colTuneEnable = group.ColTuneEnable.value()
     numEnabledRows = len(rowTuneList)
@@ -541,7 +541,7 @@ def sq1Ramp(group, row, column, low_offset=-77.0, high_offset=77.0, step=1.0):
 
 def sq1RampRow(group, column, **kwargs):
     """Iterate through all rows, activating each, and call sq1Ramp."""
-    numRows = group.NumRows.get()
+    numRows = group.MaxRows.get()
     group._log.info(f'sq1RampRow col={column}: {numRows} rows')
     results = []
     for row in range(numRows):
@@ -568,7 +568,7 @@ def tesRamp(group, row, column, low_offset=0.0, high_offset=100.0, step=1.0):
 
 def tesRampRow(group, column, **kwargs):
     """Iterate through all rows, activating each, and call tesRamp."""
-    numRows = group.NumRows.get()
+    numRows = group.MaxRows.get()
     group._log.info(f'tesRampRow col={column}: {numRows} rows')
     results = []
     for row in range(numRows):
