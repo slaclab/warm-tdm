@@ -2,7 +2,7 @@
 
 Plan: [PLAN.md](PLAN.md) · Spec: [SPEC.md](SPEC.md)
 
-## Status: Tasks 1–3 done on `wtj-refactor`. Task 4 (analysis/operations cleanup) next. Analog bench deferred to integrated branch.
+## Status: Tasks 1–3 done + `pre-release` merged into `wtj-refactor` (2026-08-10). Task 4 (analysis/operations cleanup) next. Analog bench deferred to integrated branch.
 
 See also: [MERGE-cleanup.md](MERGE-cleanup.md) — analysis + plan for adopting the
 `cleanup` branch's software refactor (do NOT straight-merge; cherry-pick the
@@ -27,6 +27,33 @@ resolved (rehome-first, graduate-later).
 
 ## Log
 
+- 2026-08-10: **Merged `origin/pre-release` into `wtj-refactor`** (merge commit
+  `98abf67`, `--no-ff`) — issue #68 task 1. **Deviation from the roadmap plan:**
+  the plan called for a *rebase* dropping the four duplicated Task-2 commits;
+  since `pre-release` has moved well past PR #67 (now also #71/#75/#35 + the
+  firmware `maxRows`/`rowAddrBits` threading and `NumRows`→`MaxRows` rename), a
+  single merge was cleaner than replaying conflicts commit-by-commit. `wtj-refactor`
+  is local-only (never pushed), so either was safe. Conflicts (8 files) all
+  resolved **to the pre-release side**, since it is the further-evolved version
+  of the same Task-2 work wtj had content-ported:
+  - `_Group.py`, `_GroupConfig.py`, `_GroupRoot.py`, `_ArgParser.py`: took
+    pre-release's `rowAddrBits`/`rowAddrDepth` split, the `maxRows`-via-GroupConfig
+    threading (dropped wtj's standalone `maxRows` kwarg/`ret['maxRows']`), the
+    `MaxRows`/`RowMap` renames, and the hidden `Activate/DeactivateRowIndex`.
+    wtj's `TesBiasWaveformProcess` registration sat in a non-conflicted region and
+    is preserved.
+  - `_Tuning.py`: took pre-release (%-style logging + `NumRows`→`MaxRows`).
+  - Scripts: adopted pre-release's `_setupLibPaths` + `_server.runServer`
+    architecture (thin `warmTdmServer.py` headless / `warmTdmGui.py` GUI-default),
+    superseding wtj's inline-in-`warmTdmServer.py` approach. **Kept both intents:**
+    folded wtj's `WARM_TDM_PATH` env-var override (used by `install.sh`) into the
+    shared `_setupLibPaths.py`.
+  - `__init__.py` auto-merged cleanly (both `_TesBiasWaveform` and `_server`
+    imports present); `operations/` package intact (28 exports).
+  Verified in warm-tdm-env: `warm_tdm_api` + `warm_tdm_api.operations` import
+  clean; `GroupConfig` `1<=maxRows<=2**rowAddrBits` guard works; scripts
+  py_compile; full emulate-mode `GroupRoot` start/stop lifecycle (NumColumns=8,
+  MaxRows=256, `TesBiasWaveformProcess` + renamed `RowMap` present). Next: Task 4.
 - 2026-07-21: **Task 3 done** — renamed `warm_tdm_jupyter` → `warm_tdm_api.operations`
   (7b5946f) + docs (f5e22f6). git mv preserved history; `__init__` now explicit
   re-exports + `__all__` (28 names); dropped the redundant/broken import-time
