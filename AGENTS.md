@@ -238,8 +238,11 @@ For the full workflow, versioning scheme, and release steps, see
 Cross-branch planning and PR sequencing live on the GitHub Project board
 **["Warm-TDM Roadmap"](https://github.com/orgs/slaclab/projects/43)** (org-owned,
 linked to this repo — Projects v2 cannot be repo-owned). The board is the single
-source of prioritization; the detailed merge analysis lives in
-[`docs/plans/merge-roadmap/`](docs/plans/merge-roadmap/).
+source of prioritization; the cross-track merge roadmap (branch topology,
+landing order, sequencing decisions) lives on the
+[wiki](https://github.com/slaclab/warm-tdm/wiki/Branch-Merge-Roadmap) — it
+coordinates work across branches, so it is not tied to any one branch of the
+code tree.
 
 **Issue vs PR (the model this repo follows):**
 - An **Issue** is the durable *what/why* — a goal, feature, or track. It is what
