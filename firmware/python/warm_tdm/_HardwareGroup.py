@@ -236,23 +236,6 @@ class HardwareGroup(pyrogue.Device):
         def Readout(arg):
             self.ReadoutList.set(list(range(arg)))
 
-        @self.command()
-        def Readout22():
-            self.ReadoutList.set(list(range(22)))
-
-        @self.command()
-        def Readout32():
-            self.ReadoutList.set(list(range(32)))
-
-        @self.command()
-        def Readout64():
-            self.ReadoutList.set(list(range(64)))
-            
-        @self.command()
-        def Readout80():
-            self.ReadoutList.set(list(range(80)))
-            
-
         if colBoards > 0:
             self.add(waveGui)
             for i in range(8):
