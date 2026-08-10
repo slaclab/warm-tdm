@@ -189,8 +189,9 @@ value and must not be adopted as-is.
 The AdcDspFp floating-point PID rewrite, accumulator split, and row-sizing
 generics in `cleanup` are a separate, larger effort with its own plans
 (`docs/plans/` entries `Create plan for splitting accumulator`, the AdcDspFp
-PLAN, etc.). They need their own hardware-validation track and a rebase onto the
-post-target-cleanup firmware. **Out of scope for the software adoption above.**
+PLAN, etc.). They need their own hardware-validation track and a merge of the
+post-target-cleanup firmware from `main` (merge-not-rebase, per
+[docs/RELEASE.md](../../RELEASE.md)). **Out of scope for the software adoption above.**
 
 ## Open questions for the user
 

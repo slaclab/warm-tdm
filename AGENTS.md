@@ -224,6 +224,11 @@ WarmTDM uses a surf-style branch model: feature branches merge into
 and firmware `.mcs` images are attached to the GitHub Release via
 `ruckus/scripts/firmwareRelease.py`.
 
+**Merge, do not rebase.** This repo's workflow is merge-based throughout. To
+bring an upstream branch (e.g. `pre-release`) into a feature branch, `git merge`
+it and resolve conflicts in the merge commit — never `git rebase`. Rebase is not
+the workflow we use, even for a local-only branch that has never been pushed.
+
 For the full workflow, versioning scheme, and release steps, see
 [`docs/RELEASE.md`](docs/RELEASE.md). Release packaging config is in
 [`firmware/releases.yaml`](firmware/releases.yaml).
