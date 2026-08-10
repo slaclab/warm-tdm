@@ -93,25 +93,30 @@ mode.
 `maxRows` is **not** fully connected to tree sizing on this branch. Five things
 all mean "max logical rows" but only some track `config.maxRows`:
 
-| Thing | sizes to | current value |
+### Two distinct quantities — do not conflate
+
+- **`rowAddrBits`** = the deployed RTL generic `ROW_ADDR_BITS_G` (range 3..8).
+  The firmware row RAMs are `2**rowAddrBits` deep. A property of the **bitfile**,
+  not a software choice; software cannot read it back, so it must be told
+  (`--rowAddrBits`, default 8 → depth 256; the `ColumnFpgaBoard160Coord` target
+  builds with 5 → depth 32).
+- **`maxRows`** = how many row slots the **software** maps into Rogue variables
+  and sizes the RowMap RAM for. Bounded by the hardware depth:
+  `1 <= maxRows <= 2**rowAddrBits`. `GroupConfig` enforces this at construction.
+
+| Thing | sizes to | notes |
 |---|---|---|
-| `FastDacMem` / DAC RAM / `PidDebugger` (tree cost) | `rows` | **hardcoded 256** (`_HardwareGroup.py:65`) |
-| `RowDacDriver2.RowMap` (fw register) | `numValues` | **hardcoded 256** |
-| software RowMap `ram` list (`_Group.py`) | `config.maxRows` | tracks config ✅ |
-| `MaxRows` variable | `config.maxRows` | tracks config ✅ |
-| RTL `ROW_ADDR_BITS_G` | `2**n` | 8→256 (5→32 for 160Coord) |
+| `AdcDsp` per-row arrays / `RowDacDriver2.RowMap` (tree cost) | `rows` = `maxRows` | threaded via `HardwareGroup(maxRows=...)` ✅ |
+| software RowMap `ram` list (`_Group.py`) | `config.maxRows` | ✅ |
+| `MaxRows` variable | `config.maxRows` | ✅ |
+| RTL `ROW_ADDR_BITS_G` (hardware depth) | `2**rowAddrBits` | 8→256 (5→32 for 160Coord); set via `--rowAddrBits` |
 
-The `--maxRows` value reaches only the display variable, the software RowMap RAM
-length, and two GUI bounds. It does **not** reach the `rows=` that sizes the
-tree: `_HardwareGroup.py:65` hardcodes `rows = 256`, and the software→firmware
-seam in `_Group.py` deliberately does not thread it through (PR #67 was scoped to
-stay firmware-decoupled; the coherent row-sizing lives on the FP-PID / row-sizing
-firmware track).
-
-**Consequence:** on this branch `maxRows` describes logical rows for display and
-for the RowMap RAM *contents*, but the tree is still allocated for 256 logical
-rows. Wiring it up (pass `rows=config.maxRows` through `HardwareGroup` →
-`ColumnBoard`, drop the `256` hardcodes, reconcile the firmware `ROW_ADDR_BITS_G`
-generic) is the deferred work; it changes tree/register layout and needs bench
-validation.
+`maxRows` is threaded through `HardwareGroup` → `ColumnBoard`/`RowBoard`, so it
+sizes the mapped Rogue variables (`AdcDsp` per-row state, `RowDacDriver.RowMap`)
+as well as the display variable, the software RowMap RAM, and the GUI bounds. It
+maps the first `maxRows` strided entries of the `2**rowAddrBits`-deep firmware
+address space. It does **not** touch the RTL: `ROW_ADDR_BITS_G` remains a
+build-time generic, and reconciling it (e.g. exposing it as a readback register
+so software need not be told) is deferred to the FP-PID / row-sizing firmware
+track.
 </content>

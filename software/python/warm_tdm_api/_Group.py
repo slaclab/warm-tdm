@@ -88,6 +88,7 @@ class Group(pr.Device):
             rowFeClass=rowFeClass,
             num_row_selects=num_row_selects,
             num_chip_selects=num_chip_selects,
+            rowAddrBits=groupConfig.rowAddrBits,
             maxRows=groupConfig.maxRows,
             groups=['Hardware'],
             expand=True))
