@@ -222,6 +222,38 @@ For the full workflow, versioning scheme, and release steps, see
 [`docs/RELEASE.md`](docs/RELEASE.md). Release packaging config is in
 [`firmware/releases.yaml`](firmware/releases.yaml).
 
+## Project Board & Issue Tracking
+
+Cross-branch planning and PR sequencing live on the GitHub Project board
+**["Warm-TDM Roadmap"](https://github.com/orgs/slaclab/projects/43)** (org-owned,
+linked to this repo — Projects v2 cannot be repo-owned). The board is the single
+source of prioritization; the detailed merge analysis lives in
+[`docs/plans/merge-roadmap/`](docs/plans/merge-roadmap/).
+
+**Issue vs PR (the model this repo follows):**
+- An **Issue** is the durable *what/why* — a goal, feature, or track. It is what
+  gets prioritized on the board and can outlive several PRs.
+- A **PR** is the *how* — one concrete attempt. It is a review artifact, not a
+  planning card. A PR closes its issue with `Closes #<n>` in the body; on merge
+  GitHub auto-closes the issue and its board card moves to Done.
+- Do **not** add PRs to the board as separate cards when they close a tracked
+  issue — the linked issue already tracks the work. (PR #67 is a legacy
+  exception, added before this convention.)
+
+**Conventions:**
+- **`roadmap` label** — marks epic/planning issues (merge sequencing, multi-PR
+  tracks) so they stay out of the normal bug/feature stream. Filter the Issues
+  tab with `label:roadmap` (epics only) or `-label:roadmap` (real work only).
+- **Board fields:** `Track` (PR sequencing / Software / Firmware / DDR readout /
+  Other), `Priority` (P0-now / P1-next / P2-later), `Status` (Todo / In Progress
+  / Blocked / Done). Set these on each item, not on the issue body.
+- **Branch flow still applies:** roadmap PRs target `pre-release` (see Releases).
+
+**Tooling note:** Projects v2 is GraphQL-only and needs a token with the
+`project` (+ `read:org`) scope; the `gh project` subcommand requires gh ≳ 2.20.
+Board views (kanban, table) are created in the web UI — the API cannot create
+them.
+
 ## Essential Reading by Task
 
 | Task Area | Start With These Files |
