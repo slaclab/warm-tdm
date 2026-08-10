@@ -34,7 +34,6 @@ class Group(pr.Device):
                  rowFeClass,
                  groupConfig,
                  groupId,
-                 maxRows=256,
                  num_row_selects=32,
                  num_chip_selects=0,
                  dataWriter=None,
@@ -61,18 +60,19 @@ class Group(pr.Device):
 
         self.config = groupConfig
 
-        # NOTE (wtj-cleanup-sw): useFloatPid / firmware-side maxRows are NOT
-        # wired into HardwareGroup on this branch. The floating-point PID path
-        # (_AdcDspFp) and coherent row-sizing generics live on the deferred
-        # firmware track and are not present in this firmware/python tree. We
-        # therefore keep the current HardwareGroup signature
-        # (num_row_selects / num_chip_selects) and drop useFloatPid/maxRows from
-        # this call. maxRows is retained on the software side only, for RowMap
-        # RAM sizing below.
+        # NOTE (wtj-cleanup-sw): useFloatPid and the RTL row-sizing *generics*
+        # (ROW_ADDR_BITS_G) are NOT wired on this branch. The floating-point PID
+        # path (_AdcDspFp) and coherent RTL row-sizing live on the deferred
+        # firmware track and are not present in this firmware/python tree, so we
+        # drop useFloatPid from this call. config.maxRows IS threaded into the
+        # HardwareGroup as the single source of truth: it caps both the RowMap
+        # RAM sizing below and the number of firmware row indices mapped into
+        # Rogue variables (AdcDsp/SAFb arrays), which map the first maxRows
+        # strided entries of the 256-deep firmware address space.
         if useFloatPid:
-            print("WARNING: useFloatPid=True requested, but the floating-point "
-                  "PID firmware is not available on this branch. Ignoring; "
-                  "using fixed-point firmware.")
+            self._log.warning("useFloatPid=True requested, but the floating-point "
+                              "PID firmware is not available on this branch. Ignoring; "
+                              "using fixed-point firmware.")
 
         self.add(warm_tdm.HardwareGroup(
             groupId=groupId,
@@ -88,6 +88,8 @@ class Group(pr.Device):
             rowFeClass=rowFeClass,
             num_row_selects=num_row_selects,
             num_chip_selects=num_chip_selects,
+            rowAddrBits=groupConfig.rowAddrBits,
+            maxRows=groupConfig.maxRows,
             groups=['Hardware'],
             expand=True))
 
@@ -106,8 +108,10 @@ class Group(pr.Device):
             groups='TopApi'))
 
         self.add(pr.LocalVariable(
-            name='NumRows',
-            description='Maximum number of row indices.',
+            name='MaxRows',
+            description='Maximum number of row indices (row address space = '
+                        'maxRows = 2**ROW_ADDR_BITS_G). Static; the active row '
+                        'count is len(RowIndexOrderList).',
             value=self.config.maxRows,
             mode='RO',
             groups='TopApi'))
@@ -132,9 +136,20 @@ class Group(pr.Device):
 
         self._rowMap = []
         def _setRowMap(value):
+            # value is the logical->physical row map: value[i] is the physical
+            # (rs/cs) address for logical row i. Its length is the number of
+            # active logical rows, which cannot exceed the configured maxRows
+            # (the logical row address space / RowMap RAM depth).
+            if len(value) > self.config.maxRows:
+                raise ValueError(
+                    f'RowMap has {len(value)} logical rows but maxRows is '
+                    f'{self.config.maxRows}. Reduce the row map or start with a '
+                    f'larger --maxRows (must be <= 2**ROW_ADDR_BITS_G of the '
+                    f'deployed firmware).')
+
             self._rowMap = value
 
-            ram = [0x8080 for x in range(maxRows)]
+            ram = [0x8080 for x in range(self.config.maxRows)]
 
             for i, row in enumerate(value):
                 valueRs = (row['rsBoard'] << 5) | row['rsAddr']
@@ -151,34 +166,34 @@ class Group(pr.Device):
             return self._rowMap
 
         self.add(pr.LocalVariable(
-            name = 'RowMapTest',
+            name = 'RowMap',
             localSet = _setRowMap,
             localGet = _getRowMap))
 
         @self.command()
         def RowMap1x32():
             d = [{'rsBoard': 0, 'rsAddr': x} for x in range(32)]
-            self.RowMapTest.set(d)
+            self.RowMap.set(d)
 
         @self.command()
         def RowMap6x10():
             d = [{'rsBoard': 0, 'rsAddr': rs, 'csBoard':0, 'csAddr':cs } for cs in range(10, 16) for rs in range(10)]
-            self.RowMapTest.set(d)
+            self.RowMap.set(d)
 
         @self.command()
         def RowMap8x10():
             d = [{'rsBoard': 0, 'rsAddr': rs, 'csBoard':0, 'csAddr':cs } for cs in range(10, 18) for rs in range(10)]
-            self.RowMapTest.set(d)
+            self.RowMap.set(d)
 
         @self.command()
         def RowMap7x10():
             d = [{'rsBoard': 0, 'rsAddr': rs, 'csBoard':0, 'csAddr':cs } for cs in range(10, 17) for rs in range(10)]
-            self.RowMapTest.set(d)
+            self.RowMap.set(d)
 
         @self.command()
         def RowMap2x6x10():
             d = [{'rsBoard': 0, 'rsAddr': rs + (split*16), 'csBoard':0, 'csAddr': cs + (split * 16)} for split in range(2) for cs in range(10, 16) for rs in range(10)]
-            self.RowMapTest.set(d)
+            self.RowMap.set(d)
 
         if groupConfig.columnBoards > 0:
             self.add(pr.LinkVariable(
@@ -203,12 +218,14 @@ class Group(pr.Device):
         # Row board access variables
         ##################################
 
-        @self.command()
+        # Hidden: driven only by the tuning algorithms (_Tuning.py), never
+        # invoked manually from the GUI.
+        @self.command(hidden=True)
         def ActivateRowIndex(arg):
             for board in self.HardwareGroup.RowBoard.values():
                 board.RowDacDriver.ActivateRowIndex.set(arg, write=True)
 
-        @self.command()
+        @self.command(hidden=True)
         def DeactivateRowIndex(arg):
             for board in self.HardwareGroup.RowBoard.values():
                 board.RowDacDriver.DeactivateRowIndex.set(arg, write=True)

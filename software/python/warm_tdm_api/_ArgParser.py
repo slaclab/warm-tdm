@@ -69,12 +69,22 @@ class WarmTdmArgparse(argparse.ArgumentParser):
             help = 'Number of chip selects on row board')
 
         self.add_argument(
+            "--rowAddrBits",
+            type = int,
+            default = 8,
+            help = "Hardware row-address width: the deployed RTL generic "
+                   "ROW_ADDR_BITS_G (3..8). The firmware row RAMs are "
+                   "2**rowAddrBits deep. Default 8 (depth 256), the RTL default; "
+                   "use 5 (depth 32) for the ColumnFpgaBoard160Coord target. "
+                   "This must match the loaded bitfile.")
+
+        self.add_argument(
             "--maxRows",
             type = int,
             default = 256,
-            help = "Maximum number of row indices to map registers for. "
-                   "Default 256 = 2**ROW_ADDR_BITS_G(=8), the RTL default. Use "
-                   "32 for the ColumnFpgaBoard160Coord target (ROW_ADDR_BITS_G=5).")
+            help = "Number of row indices the software maps/uses. A software "
+                   "choice bounded by the hardware depth: 1 <= maxRows <= "
+                   "2**rowAddrBits. Default 256 (full depth of an 8-bit build).")
 
         self.add_argument(
             "--columnBoards",
@@ -148,7 +158,6 @@ def arg_dict(args):
     ret['emulate'] = args.emulate
     ret['numRowSelects'] = args.numRowSelects
     ret['numChipSelects'] = args.numChipSelects
-    ret['maxRows'] = args.maxRows
     ret['initRead'] = args.initRead and not args.sim
     ret['colBoardClass'] = colBoardDict[args.columnBoardType]
     ret['colFeClass'] = colFeDict[args.columnFrontEnd]
@@ -159,5 +168,6 @@ def arg_dict(args):
         columnBoards=args.columnBoards,
         rowBoards=args.rowBoards,
         maxRows=args.maxRows,
+        rowAddrBits=args.rowAddrBits,
         host=args.ip)
     return ret

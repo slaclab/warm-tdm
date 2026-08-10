@@ -62,7 +62,7 @@ class ControlTab(PyDMFrame):
         fl_right.setFormAlignment(Qt.AlignRight | Qt.AlignTop | Qt.AlignTrailing)
         hb.addLayout(fl_right)
 
-        for var in ('NumColumnBoards', 'NumColumns', 'NumRowBoards', 'NumRows'):
+        for var in ('NumColumnBoards', 'NumColumns', 'NumRowBoards', 'MaxRows'):
             le = PyRogueLineEdit(parent=None, init_channel=group_path + f'.{var}/disp')
             le.setReadOnly(True)
             fl_right.addRow(

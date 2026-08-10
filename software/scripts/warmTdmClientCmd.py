@@ -7,16 +7,7 @@ import pyrogue.pydm
 import pyrogue.interfaces
 import rogue
 
-import os
-# If WARM_TDM_PATH is not set, default to the repository root relative to this script
-script_dir = os.path.dirname(os.path.abspath(__file__))
-default_warm_tdm_path = os.path.join(script_dir, "..")
-warm_tdm_path = os.path.abspath(
-    os.path.expanduser(os.environ.get("WARM_TDM_PATH", default_warm_tdm_path))
-)
-pyrogue.addLibraryPath(os.path.join(warm_tdm_path, 'software/python/'))
-pyrogue.addLibraryPath(os.path.join(warm_tdm_path, 'firmware/python/'))
-pyrogue.addLibraryPath(os.path.join(warm_tdm_path, 'firmware/submodules/surf/python'))
+import _setupLibPaths  # noqa: F401  (registers in-repo library paths)
 
 import warm_tdm_api
 

@@ -55,15 +55,24 @@ class HardwareGroup(pyrogue.Device):
             rowBoards=1,
             num_row_selects=32,
             num_chip_selects=0,
-#            rows=32,
+            rowAddrBits=8,
+            maxRows=256,
             **kwargs):
 
         super().__init__(**kwargs)
 
-        print(f'Starting HardwareGroup with {colBoards=}')
-
-        rows = 256 #num_row_selects * num_chip_selects        
-#        print(f'HardwareGroup with {rows} rows')
+        # Two distinct quantities, deliberately not conflated:
+        #   rowAddrBits -> the deployed RTL generic ROW_ADDR_BITS_G (3..8). The
+        #     firmware row RAMs are 2**rowAddrBits deep. A property of the bitfile.
+        #   maxRows     -> how many of those row slots the software maps into
+        #     Rogue variables (AdcDsp per-row state, RowDacDriver.RowMap). A
+        #     software choice, bounded above by the hardware depth.
+        rowAddrDepth = 2 ** rowAddrBits
+        if not 1 <= maxRows <= rowAddrDepth:
+            raise ValueError(
+                f'maxRows ({maxRows}) must be between 1 and the hardware row '
+                f'depth 2**rowAddrBits = {rowAddrDepth} (rowAddrBits={rowAddrBits}).')
+        rows = maxRows
 
         # Open rUDP connections to the Manager board
         if simulation is False and emulate is False:
@@ -188,6 +197,7 @@ class HardwareGroup(pyrogue.Device):
                 frontEndClass=rowFeClass,
                 num_row_selects=num_row_selects,
                 num_chip_selects=num_chip_selects,
+                rows=rows,
                 memBase=srp,
                 expand=True,
                 enabled=True))
@@ -226,23 +236,6 @@ class HardwareGroup(pyrogue.Device):
         @self.command()
         def Readout(arg):
             self.ReadoutList.set(list(range(arg)))
-
-        @self.command()
-        def Readout22():
-            self.ReadoutList.set(list(range(22)))
-
-        @self.command()
-        def Readout32():
-            self.ReadoutList.set(list(range(32)))
-
-        @self.command()
-        def Readout64():
-            self.ReadoutList.set(list(range(64)))
-            
-        @self.command()
-        def Readout80():
-            self.ReadoutList.set(list(range(80)))
-            
 
         if colBoards > 0:
             self.add(waveGui)
