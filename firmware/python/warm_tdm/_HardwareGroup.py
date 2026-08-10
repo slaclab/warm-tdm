@@ -55,15 +55,23 @@ class HardwareGroup(pyrogue.Device):
             rowBoards=1,
             num_row_selects=32,
             num_chip_selects=0,
-#            rows=32,
+            maxRows=256,
             **kwargs):
 
         super().__init__(**kwargs)
 
-        print(f'Starting HardwareGroup with {colBoards=}')
-
-        rows = 256 #num_row_selects * num_chip_selects        
-#        print(f'HardwareGroup with {rows} rows')
+        # Number of row indices to map into Rogue variables, fed to both the
+        # column boards (AdcDsp per-row state) and the row boards
+        # (RowDacDriver.RowMap). The firmware row address space is
+        # 2**ROW_ADDR_BITS_G deep (256 by default); maxRows lets the software map
+        # only the first N strided entries when fewer rows are in use. It must
+        # not exceed the firmware depth.
+        FW_MAX_ROWS = 256  # 2**ROW_ADDR_BITS_G (RTL default)
+        if not 1 <= maxRows <= FW_MAX_ROWS:
+            raise ValueError(
+                f'maxRows must be between 1 and {FW_MAX_ROWS} '
+                f'(2**ROW_ADDR_BITS_G, the firmware row address depth), got {maxRows}.')
+        rows = maxRows
 
         # Open rUDP connections to the Manager board
         if simulation is False and emulate is False:
@@ -188,6 +196,7 @@ class HardwareGroup(pyrogue.Device):
                 frontEndClass=rowFeClass,
                 num_row_selects=num_row_selects,
                 num_chip_selects=num_chip_selects,
+                rows=rows,
                 memBase=srp,
                 expand=True,
                 enabled=True))

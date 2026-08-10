@@ -60,15 +60,15 @@ class Group(pr.Device):
 
         self.config = groupConfig
 
-        # NOTE (wtj-cleanup-sw): useFloatPid / firmware-side row sizing are NOT
-        # wired into HardwareGroup on this branch. The floating-point PID path
-        # (_AdcDspFp) and coherent row-sizing generics live on the deferred
-        # firmware track and are not present in this firmware/python tree. We
-        # therefore keep the current HardwareGroup signature
-        # (num_row_selects / num_chip_selects) and drop useFloatPid from this
-        # call. Row address space is software-side only, sourced from
-        # config.maxRows (single source of truth), used for RowMap RAM sizing
-        # below.
+        # NOTE (wtj-cleanup-sw): useFloatPid and the RTL row-sizing *generics*
+        # (ROW_ADDR_BITS_G) are NOT wired on this branch. The floating-point PID
+        # path (_AdcDspFp) and coherent RTL row-sizing live on the deferred
+        # firmware track and are not present in this firmware/python tree, so we
+        # drop useFloatPid from this call. config.maxRows IS threaded into the
+        # HardwareGroup as the single source of truth: it caps both the RowMap
+        # RAM sizing below and the number of firmware row indices mapped into
+        # Rogue variables (AdcDsp/SAFb arrays), which map the first maxRows
+        # strided entries of the 256-deep firmware address space.
         if useFloatPid:
             self._log.warning("useFloatPid=True requested, but the floating-point "
                               "PID firmware is not available on this branch. Ignoring; "
@@ -88,6 +88,7 @@ class Group(pr.Device):
             rowFeClass=rowFeClass,
             num_row_selects=num_row_selects,
             num_chip_selects=num_chip_selects,
+            maxRows=groupConfig.maxRows,
             groups=['Hardware'],
             expand=True))
 
