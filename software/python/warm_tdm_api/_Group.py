@@ -215,12 +215,14 @@ class Group(pr.Device):
         # Row board access variables
         ##################################
 
-        @self.command()
+        # Hidden: driven only by the tuning algorithms (_Tuning.py), never
+        # invoked manually from the GUI.
+        @self.command(hidden=True)
         def ActivateRowIndex(arg):
             for board in self.HardwareGroup.RowBoard.values():
                 board.RowDacDriver.ActivateRowIndex.set(arg, write=True)
 
-        @self.command()
+        @self.command(hidden=True)
         def DeactivateRowIndex(arg):
             for board in self.HardwareGroup.RowBoard.values():
                 board.RowDacDriver.DeactivateRowIndex.set(arg, write=True)
