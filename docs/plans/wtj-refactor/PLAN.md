@@ -192,12 +192,98 @@ Task 5 target) + `_GroupConfig.py`, adopts the unified launch script, and pins
 - [x] Import-checked in `warm-tdm-env`: `warm_tdm_api` imports without loading
       `operations`; `import warm_tdm_api.operations` resolves all 28 exports.
 
-### Task 4: Analysis + `operations` structural cleanup
-- [ ] Extract pure `compute_asd` / `channel_timeseries` helpers shared by
-      `plot_stream_data` and `analyze_pair`.
-- [ ] Move `sq1fb_to_pA` / `fs` calibration constants out of default args
-      (see open decision 3: `constants.py` vs derive from tree).
-- [ ] Bound / rethink `StreamData._instances` unbounded registry.
+### Task 4: Analysis + `operations` structural cleanup — DONE (2026-08-11)
+- [x] Extract pure `compute_asd` / `channel_timeseries` helpers shared by
+      `plot_stream_data` and `analyze_pair`. (in `analysis.py`)
+- [x] Move `sq1fb_to_pA` / `fs` calibration constants out of default args.
+      **Open decision 3 RESOLVED (2026-08-11): derive from the data file's Rogue
+      config channel** (user decision: "enable config capture first"). Both
+      constants are computable from the tree state, and that state is embedded in
+      each `.dat` at capture time, so derivation is *offline* (no live `Client`).
+
+      **Investigation findings (2026-08-11), verified in emulate mode:**
+      - The `GroupRoot.DataWriter` (`_GroupRoot.py:40-46`) already has a config
+        stream wired to **channel 255** via `pyrogue.interfaces.stream.Variable`;
+        `StreamWriter._open()`/`_close()` auto-dump the full tree YAML there. A
+        `.dat` opened through `DataWriter.Open()/Close()` **does** contain channel
+        255 — confirmed it carries every `ColumnBoard[i].AnalogFrontEnd.Channel[c]
+        .SQ1FbAmp.{ShuntR,FbR,InputR,IOUTFS,...}` and
+        `...DataPath.WaveformCapture.Decimation`, keyed by full tree path.
+      - **Why existing files lack it — two gaps, both real:**
+        1. **Read side:** `streamreader.py:36` calls `FileReader(files=[filename])`
+           *without* `configChan=255`, so channel-255 records are silently skipped
+           (the `configChan=255` version is commented out at `:35`). Even when
+           passed, `FileReader._updateConfig` hits a framework bug on this pyrogue
+           version: `yaml.load(...)` without a `Loader` raises under PyYAML 6.
+           Workaround: parse channel 255 ourselves with `yaml.SafeLoader`.
+        2. **Write side:** the `operations.take_raw` path does NOT use
+           `GroupRoot.DataWriter`. It saves via `WaveformCaptureReceiver`
+           (`_WaveformCapture.py:436-452`) as **`.npy`** (`np.save`), no config.
+           The channel-9 `.dat` files that analysis reads come from `DataWriter`
+           (readout streams linked at `_HardwareGroup.py:154`) — a separate path.
+      - **`sq1fb_to_pA`** = per-DAC-LSB output-current slope of the SQ1FB amp,
+        modeled by `FastDacAmplifierSE/Diff.dacToOutCurrent` (`_Amplifiers.py`)
+        from `IOUTFS`/`Gain`/`LoadR`/`rout()`:
+        `(dacToOutCurrent(1)-dacToOutCurrent(0)) * 1e6` (µA→pA), for the right
+        `ColumnBoard[i]...Channel[c].SQ1FbAmp`.
+        **Streamed-value provenance verified end-to-end (2026-08-11) through the
+        RTL** — the channel-9 `DataSample.value` float32 IS the flux-unwrapped
+        SQ1FB *DAC code*, so the per-LSB slope is the correct conversion:
+        1. `AdcDsp.vhd` `SQ1FB_ADJUST_S` (:766) `sq1Fb := sq1Fb + pidResult` — PID
+           delta applied; `sq1Fb` now = the real DAC code driving the SQ1FB DAC RAM.
+        2. `DATA_STREAM_FLUX_JUMP_0_S` (:786) reloads `pidResult := sq1Fb`, then
+           `_1_S` (:792) adds `fluxQuantum*numFluxJumps` → flux-unwrapped DAC code.
+           (The name `pidResult` is misleading here — at stream time it holds the
+           SQ1FB DAC value, NOT the PID delta.)
+        3. `DATA_STREAM_S` (:799, outputMode "00") packs it as an integer slv.
+        4. `BiquadFilter.vhd` `Int2Fp` IP (:268) converts int→IEEE float32; default
+           coeff `b0=1.0` (:136) = unity DC gain, no fractional rescale.
+        5. `EventBuilder`→channel 9→`DataSample.from_numpy` views 4 bytes as
+           float32. So value == DAC code as a real number.
+        The ~15x gap between the emulate default (`FastDacAmplifierDiff`,
+        ShuntR=7680/FbR=402 → ~18566 pA/LSB) and the notebook literal 1224.23 is a
+        **front-end-config difference** (1224.23 = a different SQ1FbAmp) — which is
+        exactly why this must be tree-derived per front-end, not hardcoded.
+      - **Home for the derived value — IMPLEMENTED (2026-08-11):** added
+        `CurrentPerLsb` RO LinkVariable on `FastDacAmplifierSE` (inherited by
+        `Diff` and every FastDacAmplifier in the design), units **`µA/LSB`**,
+        `linkedGet=currentPerLsb()` = `dacToOutCurrent(1)-dacToOutCurrent(0)`.
+        Generic (no SQ1 name; other FastDacAmplifiers exist) and in the µA
+        convention used by `MaxCurrent`/`MinCurrent`. Offline analysis reads it
+        straight from the config channel and applies the µA→pA (×1e6) itself.
+      - **`fs` — IMPLEMENTED:** direct read of `TimingTx.DaqReadoutRate` (Hz), a
+        LinkVariable that already folds in row period / active row count /
+        row-sequences-per-readout. No client-side derivation needed.
+      - **Config decode is broken in ALL released rogue** (verified 6.6.2 / 6.12.0
+        / 6.15.0, the last on py3.13):
+        - 6.6.2: `_FileReader` bare `yaml.load()` → PyYAML-6 Loader TypeError
+          (fixed in rogue v6.9.0, commit `582133155`).
+        - 6.12.0 + 6.15.0: root-caused to **rogue `_DataWriter.py:131`** — the
+          built-in `DataWriter.Bandwidth` LocalVariable has `disp='{:,.3f}'`, and
+          config serialization writes the *disp-formatted* string as a `!!float`
+          scalar (`!!float '256,939.708'`). The comma thousands-separators are
+          not round-trippable; one bad leaf aborts the whole `configDict` decode.
+          Filed upstream: **slaclab/rogue#1282**. Still open at rogue HEAD.
+      - **Decision: defensive read, no rogue-version dependency.** Neither
+        upgrading nor waiting on the upstream fix is required.
+      - **IMPLEMENTED (2026-08-11):** (a) `streamreader.py` collects channel-255
+        payloads and parses **defensively** — `_desep_commas()` strips commas from
+        quoted `!!float` scalars, then `pyrogue.yamlToData`; returns `{}` on any
+        failure (never breaks readout). Config exposed as `StreamData.config`.
+        (b) `operations/calibration.py`: `derive_fs` (reads `DaqReadoutRate`),
+        `derive_sq1fb_to_pA` (`CurrentPerLsb`×1e6, per-column), plus `resolve_*`
+        wrappers returning `(value, wasDerived)` with documented-literal fallback
+        (`DEFAULT_FS`/`DEFAULT_SQ1FB_TO_PA`). (c) `analysis.py`: `plot_stream_data`
+        /`analyze_pair` now default `fs`/`sq1fb_to_pA` to `None` → resolve from the
+        file's config (per-column for sq1fb), explicit override still honored,
+        literal fallback + note when no config. Validated in `warm-tdm-r615`
+        (py3.13/rogue 6.15.0): derived value matches the live tree, fallback works
+        on config-less input, full plot/analyze flow runs.
+- [x] Bound / rethink `StreamData._instances` unbounded registry. **DONE:** now a
+      `deque(maxlen=128)` (configurable via `set_max_instances`); `.index` is a
+      stable monotonic id (survives eviction) and `get_by_index` searches by it;
+      new `get_by_position` preserves the `stream_data_id`/`-1`-is-most-recent
+      contract used by the analysis functions.
 
 ### Task 5: Group graduations (as capabilities mature — deprioritized)
 Per the graduation criterion, nothing here meets the "move now" gate today, so

@@ -2,7 +2,7 @@
 
 Plan: [PLAN.md](PLAN.md) · Spec: [SPEC.md](SPEC.md)
 
-## Status: Tasks 1–3 done + `pre-release` merged into `wtj-refactor` (2026-08-10). Task 4 (analysis/operations cleanup) next. Analog bench deferred to integrated branch.
+## Status: Tasks 1–4 done + `pre-release` merged into `wtj-refactor`. Task 5 (Group graduations) deprioritized; analog bench deferred to integrated branch.
 
 See also: [MERGE-cleanup.md](MERGE-cleanup.md) — analysis + plan for adopting the
 `cleanup` branch's software refactor (do NOT straight-merge; cherry-pick the
@@ -17,7 +17,7 @@ scaffolded. No source code changed yet.
 | 1 | Correctness fixes (README, scipy, take_raw timeout, dead import, num_generators) | ✅ | 0a8f16f, 5d097db, 78a1946, 2f079de, fd5d97a |
 | 2 | Adopt `cleanup` software refactor (Group split, launcher, maxRows) — [MERGE-cleanup.md](MERGE-cleanup.md) | ✅ merged (cosim-validated; analog bench deferred) | 28bdcaf, da07664, 6f41239, acdcf59, 0491e7b |
 | 3 | Rename/rehome → `warm_tdm_api.operations` | ✅ | 7b5946f, f5e22f6 |
-| 4 | Analysis + `operations` structural cleanup | ⬜ | — |
+| 4 | Analysis + `operations` structural cleanup (config-derived fs/sq1fb_to_pA + CurrentPerLsb tree var, shared ASD helpers, bounded registry) | ✅ | 2026-08-11 |
 | 5 | Group graduations (G-items, as they mature — deprioritized) | ⬜ | — |
 | 6 | Verification | ⬜ | — |
 
@@ -27,6 +27,57 @@ resolved (rehome-first, graduate-later).
 
 ## Log
 
+- 2026-08-11: **Task 4 DONE — implemented + validated in `warm-tdm-r615`.**
+  - **Firmware:** added `CurrentPerLsb` RO LinkVariable to `FastDacAmplifierSE`
+    (`_Amplifiers.py`; inherited by `Diff` + every FastDacAmplifier), units
+    `µA/LSB`, = `dacToOutCurrent(1)-dacToOutCurrent(0)`. Generic name (not SQ1) +
+    µA convention per user direction. Flows into the config channel per amp.
+  - **`streamreader.py`:** defensive channel-255 config read (`_desep_commas` +
+    `pyrogue.yamlToData`, returns `{}` on failure) → `StreamData.config`.
+  - **`operations/calibration.py`** (new): `derive_fs` (reads
+    `TimingTx.DaqReadoutRate`), `derive_sq1fb_to_pA` (`CurrentPerLsb`×1e6,
+    per-column) + `resolve_*` fallbacks; exported from `operations`.
+  - **`analysis.py`:** extracted pure `compute_asd`/`channel_timeseries`;
+    `plot_stream_data`/`analyze_pair` default fs/sq1fb_to_pA to `None` → derive
+    from the file config (per-column sq1fb), explicit override honored, documented
+    literal fallback (`DEFAULT_FS`/`DEFAULT_SQ1FB_TO_PA`) + note when absent.
+  - **`data.py`:** bounded `StreamData._instances` → `deque(maxlen=128)`
+    (`set_max_instances` to resize); `.index` now a stable monotonic id,
+    `get_by_index` searches by it, new `get_by_position` keeps the
+    `stream_data_id` `-1`=most-recent contract.
+  - **Validated (warm-tdm-r615):** base import doesn't auto-load `operations`;
+    emulate lifecycle + `CurrentPerLsb`>0 + `TesBiasWaveformProcess` present;
+    derived `sq1fb_to_pA` (18566.0) matches live tree; config-less fallback works;
+    full `plot_stream_data`/`analyze_pair` run; bounded-registry eviction/ids
+    correct. Key provenance fact: streamed value IS the flux-unwrapped SQ1FB DAC
+    code (verified through AdcDsp→Biquad Int2Fp unity-gain path), so the per-LSB
+    slope is the right conversion; the 1224.23-vs-18566 gap is a front-end diff.
+- 2026-08-11: **Task 4 constants — resolved open decision 3 + config-channel
+  investigation.** Decided (user) to derive `fs`/`sq1fb_to_pA` from each data
+  file's Rogue **config channel (255)** rather than a `constants.py` of literals.
+  Verified in emulate mode that `GroupRoot.DataWriter` already dumps the full
+  tree YAML to channel 255 (auto on Open/Close), carrying every
+  `ColumnBoard[i].AnalogFrontEnd.Channel[c].SQ1FbAmp.{ShuntR,FbR,InputR,IOUTFS}`
+  and `...WaveformCapture.Decimation` — enough to reproduce both constants
+  offline (AFE-model slope for sq1fb_to_pA; fadc/decimation/row-mux for fs).
+  Read-path gaps found: (1) `streamreader.py:36` calls `FileReader` without
+  `configChan=255`, silently skipping config; (2) **two rogue version bugs block
+  a clean native decode** —
+    - rogue **6.6.2** (`warm-tdm-env`): `_FileReader` calls bare `yaml.load()`
+      → `TypeError` under PyYAML 6 (no Loader). **Fixed upstream in rogue
+      `v6.9.0`**, commit `582133155` (authored by us), switching to
+      `pr.yamlToData()`.
+    - rogue **6.12.0** (`warm-tdm-env2`/`3`): past that, but the real config dump
+      contains a surf `AxiStreamMonAxiL.Bandwidth` value serialized as
+      `!!float '3,545,197.211'` (comma thousands-separators) which PyYAML can't
+      parse back → one bad leaf aborts the whole decode.
+  Env rogue inventory: `warm-tdm-env`=6.6.2, `warm-tdm-env2`/`3`=6.12.0 (env3
+  lacks scipy), `rogue-latest`=6.15.0 (lacks scipy/full deps). **Decision (user):
+  build a fresh complete env from the canonical repo-root `conda.yml`** (rogue
+  unpinned → pulls latest 6.15.0 from tidair-tag; the post-merge conda.yml now
+  includes scipy+sympy), env name `warm-tdm-conda`, and validate our code there —
+  rather than mutate a shared env or ship a workaround. Env build in progress.
+  Full findings + design in PLAN.md Task 4.
 - 2026-08-10: **Merged `origin/pre-release` into `wtj-refactor`** (merge commit
   `98abf67`, `--no-ff`) — issue #68 task 1. **Deviation from the roadmap plan:**
   the plan called for a *rebase* dropping the four duplicated Task-2 commits;

@@ -1,6 +1,7 @@
 from .client import Client
 from .data import StreamData
 from .utils import get_row_col
+from .calibration import resolve_fs, resolve_sq1fb_to_pA
 
 import os
 import math
@@ -173,8 +174,65 @@ def expand_channels(pattern_str, data, exclude=None):
     return sorted(results, key=lambda s: (int(s[1:s.index('r')]), int(s[s.index('r')+1:])))
 
 
+def channel_timeseries(samples, fs, sq1fb_to_pA):
+    """Build the calibrated time-domain series for one channel's raw samples.
+
+    Args:
+        samples (array-like): Raw streamed SQ1FB values for one channel.
+        fs (float): Sample rate in Hz (sets the time axis).
+        sq1fb_to_pA (float): SQ1FB -> pA conversion factor.
+
+    Returns:
+        dict with 't' (sec), 'y' (pA), 'y_ms' (mean-subtracted pA).
+    """
+    y = np.array(samples) * sq1fb_to_pA
+    t = (1.0 / fs) * np.arange(len(y))
+    return {'t': t, 'y': y, 'y_ms': y - np.mean(y)}
+
+
+def compute_asd(y_ms, fs, nperseg=10):
+    """Welch amplitude spectral density of a mean-subtracted series.
+
+    Args:
+        y_ms (array-like): Mean-subtracted signal.
+        fs (float): Sample rate in Hz.
+        nperseg (int): Number of Welch segments to divide the series into
+            (more segments = smoother estimate, lower resolution).
+
+    Returns:
+        (freq, psd, asd): frequency axis (Hz), power spectral density, and
+        amplitude spectral density (sqrt of psd).
+    """
+    welch_nperseg = max(1, int(len(y_ms) / nperseg))
+    freq, psd = signal.welch(y_ms, nperseg=welch_nperseg, fs=fs)
+    return freq, psd, np.sqrt(psd)
+
+
+def _resolve_fs_arg(fs, sd, col):
+    """Pick fs: explicit caller value wins, else derive from the file config,
+    else documented-literal fallback (with a one-time note per resolution)."""
+    if fs is not None:
+        return fs
+    val, derived = resolve_fs(getattr(sd, 'config', {}), col=col)
+    if not derived:
+        print(f"Note: no fs in '{sd.file_name}' config; using default {val} Hz.")
+    return val
+
+
+def _resolve_sq1fb_arg(sq1fb_to_pA, sd, col):
+    """Pick sq1fb_to_pA: explicit caller value wins, else derive from the file
+    config for this column, else documented-literal fallback."""
+    if sq1fb_to_pA is not None:
+        return sq1fb_to_pA
+    val, derived = resolve_sq1fb_to_pA(getattr(sd, 'config', {}), col)
+    if not derived:
+        print(f"Note: no SQ1FB->pA in '{sd.file_name}' config for col {col}; "
+              f"using default {val}.")
+    return val
+
+
 def plot_stream_data(crstring, exclude=None, stream_data_id=-1, yoffset=2, nperseg=10,
-                     fs=396.332, sq1fb_to_pA=1224.23093499038):
+                     fs=None, sq1fb_to_pA=None):
     """
     Plot time-domain waveforms and frequency-domain ASDs for stream data channels.
 
@@ -191,9 +249,12 @@ def plot_stream_data(crstring, exclude=None, stream_data_id=-1, yoffset=2, npers
             Default is 2.
         nperseg (int): Welch method divides the time series into this many segments.
             Default is 10.
-        fs (float): Sampling frequency in Hz. Default is 396.332.
-        sq1fb_to_pA (float): Conversion factor from raw SQ1FB units to pA.
-            Default is 1224.23093499038.
+        fs (float): Sampling frequency in Hz. Default None -> derived from the
+            file's tree config (TimingTx.DaqReadoutRate), falling back to the
+            documented DEFAULT_FS if the file has no config.
+        sq1fb_to_pA (float): Conversion from raw SQ1FB (DAC code) to pA. Default
+            None -> derived per-column from the file's config
+            (SQ1FbAmp.CurrentPerLsb x 1e6), falling back to DEFAULT_SQ1FB_TO_PA.
 
     Returns:
         dict: Results keyed by channel string. Each entry contains:
@@ -207,7 +268,7 @@ def plot_stream_data(crstring, exclude=None, stream_data_id=-1, yoffset=2, npers
     Raises:
         ValueError: If no channels match crstring after applying exclusions.
     """
-    sd = StreamData._instances[stream_data_id]
+    sd = StreamData.get_by_position(stream_data_id)
     data = sd.data
     results = {}
 
@@ -218,18 +279,24 @@ def plot_stream_data(crstring, exclude=None, stream_data_id=-1, yoffset=2, npers
     if not crs:
         raise ValueError(f"No channels found matching '{crstring}' (exclude={exclude})")
 
+    # Resolve calibration constants: use caller overrides if given, else derive
+    # from the file's embedded tree config, else documented-literal fallback.
+    # sq1fb_to_pA is per-column (front-end); fs is shared. See calibration.py.
+    fs_val = _resolve_fs_arg(fs, sd, get_row_col(crs[0])[0])
+
     # --- Time domain ---
     color_cycle = make_color_cycle(len(crs))
     ylens = []
+    sq1fb_used = {}
     for idx, cr in enumerate(crs):
         col, row = get_row_col(cr)
-        results[cr] = {}
-        results[cr]['y'] = np.array(data[col][row]) * sq1fb_to_pA
-        results[cr]['t'] = (1. / fs) * np.array(range(len(results[cr]['y'])))
-        ylens.append(len(results[cr]['y']))
-        results[cr]['y_ms'] = results[cr]['y'] - np.mean(results[cr]['y'])
+        sq1fb = _resolve_sq1fb_arg(sq1fb_to_pA, sd, col)
+        sq1fb_used[cr] = sq1fb
+        ts = channel_timeseries(data[col][row], fs_val, sq1fb)
+        results[cr] = ts
+        ylens.append(len(ts['y']))
         # Offset each channel vertically so waveforms don't overlap
-        ax1.plot(results[cr]['t'], (results[cr]['y_ms'] / 1.e3 - idx * yoffset),
+        ax1.plot(ts['t'], (ts['y_ms'] / 1.e3 - idx * yoffset),
                  alpha=1.0, color=next(color_cycle), label=f'{cr}')
 
     if len(np.unique(ylens)) != 1:
@@ -238,17 +305,18 @@ def plot_stream_data(crstring, exclude=None, stream_data_id=-1, yoffset=2, npers
         print(f"{np.unique(ylens)[0]} samples on all plotted channels.")
 
     ax1.set_xlabel('Time (sec)', fontsize=14)
-    ax1.set_ylabel(r'TES Current Eq. (nA) [SQ1FB$\rightarrow$pA=' + f'{sq1fb_to_pA:.1f}]', fontsize=14)
+    _sq1fb_label = f'{sq1fb_used[crs[0]]:.1f}'
+    if len(set(sq1fb_used.values())) > 1:
+        _sq1fb_label += ',...'  # per-column values differ across plotted channels
+    ax1.set_ylabel(r'TES Current Eq. (nA) [SQ1FB$\rightarrow$pA=' + _sq1fb_label + ']', fontsize=14)
     ax1.set_xlim(np.min(results[crs[0]]['t']), np.max(results[crs[0]]['t']))
 
     # --- Frequency domain ---
     color_cycle = make_color_cycle(len(crs))
     for cr in crs:
         # nperseg sets the number of Welch segments; more segments = smoother but lower resolution
-        welch_nperseg = max(1, int(len(results[cr]['y_ms']) / nperseg))
-        results[cr]['freq'], results[cr]['psd'] = signal.welch(
-            results[cr]['y_ms'], nperseg=welch_nperseg, fs=fs)
-        results[cr]['asd'] = np.sqrt(results[cr]['psd'])
+        results[cr]['freq'], results[cr]['psd'], results[cr]['asd'] = compute_asd(
+            results[cr]['y_ms'], fs_val, nperseg=nperseg)
         ax2.loglog(results[cr]['freq'], results[cr]['asd'],
                    alpha=0.8, label=f'{cr}', color=next(color_cycle))
 
@@ -256,7 +324,7 @@ def plot_stream_data(crstring, exclude=None, stream_data_id=-1, yoffset=2, npers
     ax2.set_xlabel('Frequency (Hz)', fontsize=14)
     # Lower x limit: ~2 full cycles fit in the time span; upper: Nyquist
     tspan = np.max(results[crs[0]]['t']) - np.min(results[crs[0]]['t'])
-    ax2.set_xlim(2 / tspan, fs / 2)
+    ax2.set_xlim(2 / tspan, fs_val / 2)
 
     add_channel_legend(ax2)
     plt.tight_layout()
@@ -264,7 +332,7 @@ def plot_stream_data(crstring, exclude=None, stream_data_id=-1, yoffset=2, npers
     return results
 
 
-def analyze_pair(cr1, cr2, stream_data_id=-1, yoffset=2, nperseg=10, fs=396.332, sq1fb_to_pA=1224.23093499038,
+def analyze_pair(cr1, cr2, stream_data_id=-1, yoffset=2, nperseg=10, fs=None, sq1fb_to_pA=None,
                  do_fit=False, fit_freq_min=0.02, fit_freq_max=50, show_unfiltered=True, filter_f3db_hz=1,
                  p0=[125., 0.5, 0.1], bounds_low=[0., 0., 0.], bounds_high=[np.inf, np.inf, np.inf]):
     """
@@ -281,8 +349,12 @@ def analyze_pair(cr1, cr2, stream_data_id=-1, yoffset=2, nperseg=10, fs=396.332,
         stream_data_id (int): Index into StreamData._instances. Default -1 (most recent).
         yoffset (float): Vertical offset between waveforms in the time plot (nA). Default 2.
         nperseg (int): Number of Welch segments. Default 10.
-        fs (float): Sampling frequency in Hz. Default 396.332.
-        sq1fb_to_pA (float): SQ1FB-to-pA conversion factor. Default 1224.23093499038.
+        fs (float): Sampling frequency in Hz. Default None -> derived from the
+            file's tree config (TimingTx.DaqReadoutRate), falling back to the
+            documented DEFAULT_FS if the file has no config.
+        sq1fb_to_pA (float): SQ1FB-to-pA conversion. Default None -> derived
+            per-column from the file's config (SQ1FbAmp.CurrentPerLsb x 1e6),
+            falling back to the documented DEFAULT_SQ1FB_TO_PA.
         do_fit (bool): Fit a 1/f + white noise model to the mean ASD. Default False.
         fit_freq_min (float): Lower frequency bound for the noise model fit in Hz. Default 0.02.
         fit_freq_max (float): Upper frequency bound for the noise model fit in Hz. Default 50.
@@ -297,11 +369,15 @@ def analyze_pair(cr1, cr2, stream_data_id=-1, yoffset=2, nperseg=10, fs=396.332,
             't', 'y', 'y_ms', 'y_ms_filt', 'freq', 'psd', 'asd'.
             If do_fit=True, also includes fit parameters in the plot label.
     """
-    sd = StreamData._instances[stream_data_id]
+    sd = StreamData.get_by_position(stream_data_id)
     data = sd.data
 
+    # Resolve calibration: caller override wins, else derive from file config,
+    # else documented-literal fallback. fs is shared (resolve from cr1's column).
+    fs_val = _resolve_fs_arg(fs, sd, get_row_col(cr1)[0])
+
     # Design a 1st-order Butterworth low-pass filter for the time-domain display
-    b, a = signal.butter(N=1, Wn=filter_f3db_hz, btype='low', fs=fs)
+    b, a = signal.butter(N=1, Wn=filter_f3db_hz, btype='low', fs=fs_val)
     zi = signal.lfilter_zi(b, a)
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
@@ -310,13 +386,14 @@ def analyze_pair(cr1, cr2, stream_data_id=-1, yoffset=2, nperseg=10, fs=396.332,
     color_cycle = plt.rcParams['axes.prop_cycle'].by_key()['color']
     results = {}
 
+    sq1fb_used = {}
     for idx, cr in enumerate([cr1, cr2]):
         col, row = get_row_col(cr)
-        results[cr] = {}
-        results[cr]['y'] = np.array(data[col][row]) * sq1fb_to_pA
-        results[cr]['t'] = (1. / fs) * np.array(range(len(results[cr]['y'])))
-        print(f"{cr} : len(y) = {len(results[cr]['y'])}")
-        results[cr]['y_ms'] = results[cr]['y'] - np.mean(results[cr]['y'])
+        sq1fb = _resolve_sq1fb_arg(sq1fb_to_pA, sd, col)
+        sq1fb_used[cr] = sq1fb
+        ts = channel_timeseries(data[col][row], fs_val, sq1fb)
+        results[cr] = ts
+        print(f"{cr} : len(y) = {len(ts['y'])}")
         # Apply low-pass filter with correct initial conditions to avoid edge transients
         results[cr]['y_ms_filt'] = signal.lfilter(b, a, results[cr]['y_ms'],
                                                    zi=zi * results[cr]['y_ms'][0])[0]
@@ -336,21 +413,21 @@ def analyze_pair(cr1, cr2, stream_data_id=-1, yoffset=2, nperseg=10, fs=396.332,
              alpha=1.0, color=color_cycle[idx + 1], label=f'{cr2}-{cr1}')
 
     ax1.set_xlabel('Time (sec)', fontsize=14)
-    ax1.set_ylabel(r'TES Current Eq. (nA) [SQ1FB$\rightarrow$pA=' + f'{sq1fb_to_pA:.1f}]', fontsize=14)
+    _sq1fb_label = f'{sq1fb_used[cr1]:.1f}'
+    if sq1fb_used[cr1] != sq1fb_used[cr2]:
+        _sq1fb_label += f',{sq1fb_used[cr2]:.1f}'  # per-column values differ
+    ax1.set_ylabel(r'TES Current Eq. (nA) [SQ1FB$\rightarrow$pA=' + _sq1fb_label + ']', fontsize=14)
 
     # --- Frequency domain ---
     for idx, cr in enumerate([cr1, cr2]):
-        welch_nperseg = max(1, int(len(results[cr]['y_ms']) / nperseg))
-        results[cr]['freq'], results[cr]['psd'] = signal.welch(
-            results[cr]['y_ms'], nperseg=welch_nperseg, fs=fs)
-        results[cr]['asd'] = np.sqrt(results[cr]['psd'])
+        results[cr]['freq'], results[cr]['psd'], results[cr]['asd'] = compute_asd(
+            results[cr]['y_ms'], fs_val, nperseg=nperseg)
         ax2.loglog(results[cr]['freq'], results[cr]['asd'],
                    alpha=0.8, label=f'{cr}', color=color_cycle[idx])
 
     # Difference ASD: divide by sqrt(2) for same normalization as time domain
     y_ms_diff = results[cr2]['y_ms'] - results[cr1]['y_ms']
-    welch_nperseg_diff = max(1, int(len(y_ms_diff) / nperseg))
-    freq_diff, pxx_diff = signal.welch(y_ms_diff, nperseg=welch_nperseg_diff, fs=fs)
+    freq_diff, pxx_diff, _ = compute_asd(y_ms_diff, fs_val, nperseg=nperseg)
     asd_diff = np.sqrt(pxx_diff) / np.sqrt(2)
     ax2.loglog(freq_diff, asd_diff, alpha=0.5,
                label=f'({cr2}-{cr1})' + r'$/{\sqrt{2}}$', color=color_cycle[idx + 1])
@@ -377,7 +454,7 @@ def analyze_pair(cr1, cr2, stream_data_id=-1, yoffset=2, nperseg=10, fs=396.332,
 
     ax2.set_ylabel(r'TES Current Eq. ASD (pA$/\sqrt{Hz}$)', fontsize=16)
     ax2.set_xlabel('Frequency (Hz)', fontsize=14)
-    ax2.set_xlim(np.min(results[cr1]['freq']), fs / 2)
+    ax2.set_xlim(np.min(results[cr1]['freq']), fs_val / 2)
 
     legend_font_size = 8 if do_fit else 12
     ax2.legend(loc='lower left', fontsize=legend_font_size)

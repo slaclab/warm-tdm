@@ -42,6 +42,16 @@ from .data import (
 # Stream file reading
 from .streamreader import StreamReader
 
+# Calibration constant derivation (from a capture's embedded tree config)
+from .calibration import (
+    derive_fs,
+    derive_sq1fb_to_pA,
+    resolve_fs,
+    resolve_sq1fb_to_pA,
+    DEFAULT_FS,
+    DEFAULT_SQ1FB_TO_PA,
+)
+
 # Offline analysis + plotting
 from .analysis import (
     add_channel_legend,
@@ -78,6 +88,13 @@ __all__ = [
     'take_data',
     # streamreader
     'StreamReader',
+    # calibration
+    'derive_fs',
+    'derive_sq1fb_to_pA',
+    'resolve_fs',
+    'resolve_sq1fb_to_pA',
+    'DEFAULT_FS',
+    'DEFAULT_SQ1FB_TO_PA',
     # analysis
     'add_channel_legend',
     'make_color_cycle',
