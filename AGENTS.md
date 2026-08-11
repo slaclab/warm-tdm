@@ -134,7 +134,10 @@ For detailed firmware conventions, see [`firmware/FIRMWARE_GUIDE.md`](firmware/F
 - **`warm_tdm_api.operations` subpackage**: client-side operational layer
   (acquisition, hardware setup, analysis/plotting) driving the rogue tree
   remotely; kept distinct from the tree device modules. Not auto-imported — use
-  `import warm_tdm_api.operations`. (Formerly the `warm_tdm_jupyter` package.)
+  `import warm_tdm_api.operations`. Hardware-coupled ops are methods on a
+  `Session` object (`ops.connect()`/`ops.use()` establish a cached default for
+  the notebook shims; tests/scripts construct their own `Session`). Pure helpers
+  live in `formats.py`. (Formerly the `warm_tdm_jupyter` package.)
 - **Device file naming**: Underscore prefix (`_AdcDsp.py`), exported via `__init__.py`
 - **Device pattern**: Classes inherit `pr.Device`, registers defined as `pr.RemoteVariable(offset=..., bitSize=..., bitOffset=...)`
 - **Commands**: `pr.RemoteCommand` with function callbacks

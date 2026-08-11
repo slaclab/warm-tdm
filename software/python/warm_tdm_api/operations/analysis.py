@@ -1,6 +1,5 @@
-from .client import Client
 from .data import StreamData
-from .utils import get_row_col
+from .formats import get_row_col
 from .calibration import resolve_fs, resolve_sq1fb_to_pA
 
 import os
@@ -587,7 +586,7 @@ def plot_sq1curves(sq1tuneOutput, cols, rows):
 #    waveform = np.load(waveform_filename, allow_pickle=True)
 #
 #    # Assumes ColumnBoard[0] is connected and in control
-#    cb = Client.cbs[0]
+#    cb = session.cbs[0]
 #    RowPeriodCycles = cb.WarmTdmCore.Timing.TimingTx.RowPeriodCycles.value()
 #    WaveformCaptureTime = cb.WarmTdmCore.Timing.TimingTx.WaveformCaptureTime.value()
 #    NumRows = len(r.Group.RowIndexOrderList.get())

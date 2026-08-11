@@ -6,40 +6,48 @@ management, data acquisition, hardware setup helpers, stream reading, and offlin
 analysis/plotting. It drives the warm_tdm_api rogue tree remotely; it is distinct
 from the pyrogue-tree device modules (`_Group`, `_SaTune`, ...) by design.
 
-Reusable hardware capabilities here (e.g. setup_mux, all_off) are candidates to
-graduate into Group as they mature — see docs/plans/wtj-refactor.
+Hardware-coupled operations live on the `Session` object (an explicit, injectable
+handle around a connected client). For notebook convenience a process-wide default
+Session can be established with `connect()`/`use()`, after which the free-function
+shims (`ops.take_raw(0)`, `ops.setup_mux()`, ...) delegate to it. Scripts and tests
+should prefer calling methods on an explicit Session.
 """
 
-# Session / hardware connection
-from .client import Client
-
-# Hardware setup + config helpers
-from .utils import (
+# Hardware handle + session management
+from .session import (
+    Session,
+    OutputDir,
+    connect,
+    use,
+    set_default_session,
+    get_default_session,
+    # free-function shims that delegate to the default Session
     print_hardware,
     disable_leds,
     set_cryo_resistance,
     set_ps_synch,
     check_ps_synch,
-    get_row_col,
-    make_dead_masks,
-    write_dead_masks,
-    read_dead_masks,
     all_off,
     save_config,
     save_state,
     load_config,
     setup_mux,
-)
-
-# Data acquisition
-from .data import (
-    StreamData,
     take_raw,
     multi_raw,
     take_data,
+    new_session,
 )
 
-# Stream file reading
+# Pure format / bitmask / file helpers (no hardware)
+from .formats import (
+    get_row_col,
+    make_dead_masks,
+    write_dead_masks,
+    read_dead_masks,
+)
+
+# Stream data container + file reading
+from .data import StreamData
 from .streamreader import StreamReader
 
 # Calibration constant derivation (from a capture's embedded tree config)
@@ -57,6 +65,8 @@ from .analysis import (
     add_channel_legend,
     make_color_cycle,
     expand_channels,
+    channel_timeseries,
+    compute_asd,
     plot_stream_data,
     analyze_pair,
     simple_noise_model,
@@ -65,28 +75,36 @@ from .analysis import (
 )
 
 __all__ = [
-    'Client',
-    # utils
+    # session
+    'Session',
+    'OutputDir',
+    'connect',
+    'use',
+    'set_default_session',
+    'get_default_session',
+    'new_session',
+    # session shims (hardware setup)
     'print_hardware',
     'disable_leds',
     'set_cryo_resistance',
     'set_ps_synch',
     'check_ps_synch',
-    'get_row_col',
-    'make_dead_masks',
-    'write_dead_masks',
-    'read_dead_masks',
     'all_off',
     'save_config',
     'save_state',
     'load_config',
     'setup_mux',
-    # data
-    'StreamData',
+    # session shims (acquisition)
     'take_raw',
     'multi_raw',
     'take_data',
-    # streamreader
+    # formats
+    'get_row_col',
+    'make_dead_masks',
+    'write_dead_masks',
+    'read_dead_masks',
+    # data / streamreader
+    'StreamData',
     'StreamReader',
     # calibration
     'derive_fs',
@@ -99,6 +117,8 @@ __all__ = [
     'add_channel_legend',
     'make_color_cycle',
     'expand_channels',
+    'channel_timeseries',
+    'compute_asd',
     'plot_stream_data',
     'analyze_pair',
     'simple_noise_model',

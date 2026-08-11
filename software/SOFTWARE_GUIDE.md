@@ -14,19 +14,29 @@ Two Python packages work together:
 `warm_tdm_api` also contains the `operations` subpackage
 (`software/python/warm_tdm_api/operations/`): the **client-side operational
 layer** for running the system from a notebook, script, or production tooling —
-session/board management (`Client`), data acquisition (`take_raw`, `take_data`),
+session/board management (`Session`), data acquisition (`take_raw`, `take_data`),
 hardware setup helpers (`setup_mux`, `all_off`, `set_cryo_resistance`), stream
-reading (`StreamReader`), and offline analysis/plotting (`plot_stream_data`,
-`analyze_pair`). It drives the rogue tree remotely and is deliberately kept
-distinct from the pyrogue-tree device modules (`_Group`, `_SaTune`, …). It is
-**not** auto-imported by `warm_tdm_api` (so the server import path stays free of
-matplotlib/scipy); import it explicitly:
+reading (`StreamReader`), pure format helpers (`formats.py`), and offline
+analysis/plotting (`plot_stream_data`, `analyze_pair`). It drives the rogue tree
+remotely and is deliberately kept distinct from the pyrogue-tree device modules
+(`_Group`, `_SaTune`, …). It is **not** auto-imported by `warm_tdm_api` (so the
+server import path stays free of matplotlib/scipy); import it explicitly:
 ```python
 import warm_tdm_api.operations as ops
+
+# Hardware-coupled ops live on a Session. Establish a default for notebook use:
+sess = ops.connect(host='localhost', port=9099)   # or ops.use(existing_client)
+sess.setup_mux()
+sess.take_raw(0)
+# ...or via the convenience shims that delegate to the default Session:
+ops.take_raw(0)
 ```
-Reusable hardware capabilities here are candidates to graduate into `Group` as
-they mature (see `docs/plans/wtj-refactor`). This subpackage was formerly the
-standalone `warm_tdm_jupyter` package.
+The `Session` is an ordinary object (not a global singleton): tests and
+multi-system code construct their own `ops.Session(client)` and call methods on
+it directly, while `connect()`/`use()` cache a process-wide default for the
+free-function shims. Reusable hardware capabilities here are candidates to
+graduate into `Group` as they mature (see `docs/plans/wtj-refactor`). This
+subpackage was formerly the standalone `warm_tdm_jupyter` package.
 
 Both are loaded via `pyrogue.addLibraryPath()` in scripts:
 ```python
