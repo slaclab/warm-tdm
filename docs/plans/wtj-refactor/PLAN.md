@@ -512,23 +512,34 @@ These come out of the review section above. Task 7 is the prerequisite for the
 scaling decision; Task 8 is the experiment that decides federated vs. not; Task 9
 is operator-surface polish that can proceed independently.
 
-### Task 7: Decouple `Session` from tree topology (#3) — PREREQUISITE for scaling
+### Task 7: Decouple `Session` from tree topology (#3) — DONE (2026-08-11)
 Make `Session` orchestrate over `Group` instead of re-implementing topology.
-- [ ] Derive channels-per-board from the bound `Group`
-      (`NumColumns // NumColumnBoards`); remove hardcoded `//8` / `%8` /
-      `range(8)` / `range(32)`. Share one `col→(board,chan)` mapper between
-      `session.py` and `calibration.py` (kills the duplicated `_col_to_board_chan`).
-- [ ] Drop `coordinator_col` as a discovery concept — coordinator is always
-      `ColumnBoard[0]` (matches `_HardwareGroup.py:207`); at most a one-line assert.
-- [ ] Bind `Session` to an injected Group/Root node, NOT the global `root.Group`
-      singleton (foundation for multi-Group; strictly better than the hardcode
-      even for one Group).
-- [ ] Label the residual deep per-board reaches (AxiVersion build info, `LedEn`,
-      `TimingTx.PwrSync*`, `AdcDsp[col].PidEnable`) as *convenience shims pending
-      graduation* in a module docstring — do NOT build a path-resolution adapter.
-- [ ] Graduate the ripe fan-outs while here (see G-list): **G3** `CableResistance`
-      as a `GroupLinkVariable`; **G9** `apply_dead_masks` bridge to
-      `AdcDsp[col].RowEnableMask`. Keep thin `operations` wrappers delegating.
+- [x] Derive channels-per-board from the bound `Group`
+      (`NumColumns // NumColumnBoards`, `_derive_chans_per_board`, default-8
+      fallback); removed hardcoded `//8` / `%8`. Shared `col_to_board_chan` mapper
+      added to `formats.py`, used by `Session.col_to_board_chan` **and**
+      `calibration._col_to_board_chan` (duplication killed).
+- [x] Replaced `range(8)`/`range(32)` AFE loops with `Session._afe_amps()` which
+      enumerates the actual `Channel[*]`/`Amp[*]` nodes from the tree (front-end
+      classes differ in count). Validated: 8 col channels, 32 row amps in emulate.
+- [x] Dropped `coordinator_col` entirely — `COORDINATOR_COL_BOARD = 0` constant +
+      `Session.coordinator_cb` property (coordinator is always `ColumnBoard[0]`).
+- [x] `Session` now binds to an injected **Group node** (`Session(group)`), not
+      the global `root.Group`. `self.root = group.root` for Root-scoped ops;
+      Group-scoped access goes through `self.group` (no more `self.root.Group`).
+      `use(client, group='Group')` / `connect(..., group='Group')` resolve the
+      Group node under the client and support a future multi-Group root.
+- [x] Labeled the residual deep per-board reaches (AxiVersion, `LedEn`,
+      `PwrSync*`, `AdcDsp[col].PidEnable`) as *convenience shims pending
+      graduation* in a block comment — no path-resolution adapter built.
+- [x] Validated in `warm-tdm-r615` emulate: direct `Session(root.Group)` +
+      VirtualClient/ZMQ `ops.use(client)` seam; topology derivation,
+      `set_cryo_resistance` (enumerated AFE writes), `print_hardware`,
+      `check_ps_synch`, shims all work.
+- [ ] **Deferred to Task 5/G-list (not this task):** graduate G3
+      `CableResistance` as a `GroupLinkVariable` and add the G9 `apply_dead_masks`
+      bridge. Task 7 kept `set_cryo_resistance` client-side but routed it through
+      `_afe_amps` so the eventual graduation is a clean lift.
 
 ### Task 8: Multi-Group `Instrument` experiment — DECIDES federated vs. not
 Depends on Task 7. Build the non-federated attempt first as the scaling probe.

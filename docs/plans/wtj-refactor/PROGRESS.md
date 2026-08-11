@@ -2,7 +2,7 @@
 
 Plan: [PLAN.md](PLAN.md) · Spec: [SPEC.md](SPEC.md)
 
-## Status: Tasks 1–4 done + `pre-release` merged into `wtj-refactor`. Task 5 (Group graduations) deprioritized; analog bench deferred to integrated branch. **2026-08-11 API review added Tasks 7–9** (Session/topology decouple #3, multi-Group `Instrument` experiment, operator-surface polish) + the open federated-vs-non-federated scaling decision.
+## Status: Tasks 1–4 + **7** done + `pre-release` merged into `wtj-refactor`. Task 5 (Group graduations) deprioritized; analog bench deferred to integrated branch. **2026-08-11 API review added Tasks 7–9** (Session/topology decouple #3 ✅, multi-Group `Instrument` experiment, operator-surface polish) + the open federated-vs-non-federated scaling decision. Next: Task 8 (non-federated `Instrument` scaling experiment) or Task 9 (operator-surface polish).
 
 See also: [MERGE-cleanup.md](MERGE-cleanup.md) — analysis + plan for adopting the
 `cleanup` branch's software refactor (do NOT straight-merge; cherry-pick the
@@ -26,6 +26,27 @@ bench board for the Task 2 HW gate. Package name resolved (`operations`); cadenc
 resolved (rehome-first, graduate-later).
 
 ## Log
+
+- 2026-08-11: **Task 7 DONE — decoupled `Session` from tree topology (#3).**
+  `operations/session.py`: `Session` now binds to an injected **Group node**
+  (`Session(group)`), not the global `root.Group`; `self.root = group.root` for
+  Root-scoped ops, Group access via `self.group`. Topology derived, not
+  hardcoded: `_derive_chans_per_board()` = `NumColumns // NumColumnBoards`;
+  shared `formats.col_to_board_chan` mapper replaces the duplicated `//8` in both
+  `session` and `calibration`; `_afe_amps()` enumerates real `Channel[*]`/`Amp[*]`
+  nodes instead of `range(8)`/`range(32)`. Dropped `coordinator_col` →
+  `COORDINATOR_COL_BOARD=0` + `coordinator_cb` property (always `ColumnBoard[0]`,
+  per user). `use()/connect()` gained a `group=` selector (multi-Group-ready).
+  Residual deep per-board paths (AxiVersion/LedEn/PwrSync*/AdcDsp PID) labeled as
+  *convenience shims pending graduation* — no adapter layer built. Client/server
+  seam confirmed unchanged (VirtualClient mirror over ZMQ; `warmTdmServer` owns
+  the real root). **Validated in `warm-tdm-r615` emulate:** direct
+  `Session(root.Group)` and the `ops.use(VirtualClient)` ZMQ seam; chans_per_board
+  derived=8, coordinator resolved, 8 col-channels/32 row-amps enumerated,
+  `set_cryo_resistance`/`print_hardware`/`check_ps_synch`/shims all work. Docs:
+  SOFTWARE_GUIDE.md Session paragraph updated. **Deferred to Task 5/G-list:** G3
+  `CableResistance` GroupLinkVariable + G9 `apply_dead_masks` bridge (Task 7 only
+  routed `set_cryo_resistance` through `_afe_amps` to make that lift clean).
 
 - 2026-08-11: **Detached operations API review → layering, separation-of-concerns,
   and multi-Group scaling captured in PLAN.md** (new "Operations API review"

@@ -1,14 +1,25 @@
 ##
-## Session: the hardware handle for the operations layer.
+## Session: the per-Group hardware handle for the operations layer.
 ##
 ## Replaces the former all-classmethod `Client` global singleton. A `Session`
-## wraps a connected pyrogue client, discovers the boards from the device tree,
-## and exposes every hardware-coupled operation (acquisition + setup helpers) as
-## a method. Because it is an ordinary instance:
-##   - tests can construct one around a fake/emulate client, no global state;
-##   - two systems are simply two Session objects;
+## binds to ONE `Group` node of a connected pyrogue client's tree, discovers the
+## boards under its HardwareGroup, and exposes every hardware-coupled operation
+## (acquisition + setup helpers) as a method. Because it is an ordinary instance:
+##   - tests can construct one around a fake/emulate Group, no global state;
+##   - two Groups (or two systems) are simply two Session objects;
 ##   - a method never sees a half-initialized handle (boards are populated in
 ##     __init__), and missing pieces raise clear RuntimeErrors, not AttributeError.
+##
+## The client/server seam is unchanged: `warmTdmServer` owns the real GroupRoot
+## and a ZmqServer; a `VirtualClient` mirrors that tree over ZMQ, and Session
+## drives the mirror (`client.root.Group`). Binding to the *Group* node (not the
+## client) is what makes the layer multi-Group-ready: a future `Instrument`
+## holds one Session per Group -- N Sessions over one client (non-federated root
+## with several Groups) or N clients (federated, a server per Group). See
+## docs/plans/wtj-refactor/PLAN.md "Operations API review -> Scaling".
+##
+## Topology is derived from the bound Group (channels-per-board, board maps),
+## never hardcoded, so a differently-shaped Group works without code changes.
 ##
 ## For notebook ergonomics a module-level *default* Session is kept: `connect()`
 ## / `use()` build one and cache it, and thin free-function shims (exported from
@@ -23,10 +34,17 @@ import datetime
 
 import numpy as np
 
+from .formats import col_to_board_chan
+
 log = logging.getLogger(__name__)
 
 # Board node names look like 'ColumnBoard[3]' / 'RowBoard[1]'.
 _BOARD_INDEX_RE = re.compile(r'\[(\d+)\]$')
+
+# The timing coordinator is always the first column board (RING_ADDR_0). This is
+# a fixed hardware convention -- HardwareGroup itself assumes ColumnBoard[0] owns
+# TimingTx (see _HardwareGroup.py). There is nothing to discover.
+COORDINATOR_COL_BOARD = 0
 
 
 class OutputDir:
@@ -72,31 +90,72 @@ class OutputDir:
 
 
 class Session:
-    """A connected Warm-TDM hardware handle.
+    """A connected Warm-TDM hardware handle, bound to one Group.
 
-    Wraps a pyrogue client (typically a ``pyrogue.interfaces.VirtualClient``),
-    discovers the column/row boards from the device tree, and provides the
-    acquisition and hardware-setup operations as methods.
+    Binds to a ``Group`` device node (``root.Group`` today), discovers the
+    column/row boards under its ``HardwareGroup``, and provides the acquisition
+    and hardware-setup operations as methods.
+
+    Binding to the *Group* (rather than the client's global ``root.Group``) is
+    deliberate: it is the topology unit, and it is the seam a future multi-Group
+    ``Instrument`` needs -- a Session per Group, one Group per Session. All
+    per-Group state (board maps, channel count) is derived from the bound Group,
+    not hardcoded, so a differently-shaped Group (more/fewer column boards, a
+    different channels-per-board) works without code changes. See
+    ``docs/plans/wtj-refactor/PLAN.md`` "Operations API review -> Scaling".
+
+    Topology is read from the Group, never assumed:
+      - ``chans_per_board`` = ``NumColumns // NumColumnBoards``;
+      - per-board AFE sub-devices are enumerated from the tree (Column
+        ``Channel[*]``, Row ``Amp[*]``), not looped over a fixed ``range()``.
+    The one fixed convention kept as a literal is that the timing coordinator is
+    ``ColumnBoard[0]`` (``COORDINATOR_COL_BOARD``) -- a hardware fact, not a
+    discovery.
 
     Attributes:
-        client: the wrapped pyrogue client (has ``.root``).
-        hwg: ``client.root.Group.HardwareGroup``.
+        group: the bound ``Group`` device node.
+        root: the pyrogue Root the Group belongs to (for Root-scoped ops:
+            SaveConfig/LoadConfig, DataWriter).
+        hwg: ``group.HardwareGroup``.
         cbs (dict): {index: ColumnBoard node}.
         rbs (dict): {index: RowBoard node}.
         rdds (dict): {index: RowDacDriver node} for each row board.
-        coordinator_col (int): index of the column board that owns timing
-            (default 0); used where a single controller board is assumed.
+        chans_per_board (int): columns per column board, derived from the Group.
         output (OutputDir | None): where data files are written.
     """
 
-    def __init__(self, client, output=None, coordinator_col=0):
-        self.client = client
-        self.hwg = client.root.Group.HardwareGroup
+    def __init__(self, group, output=None):
+        self.group = group
+        # Every attached pyrogue Node exposes .root (the Root it belongs to).
+        # Group-scoped access goes through self.group; Root-scoped operations
+        # (SaveConfig, DataWriter, ...) go through self.root.
+        self.root = group.root
+        self.hwg = group.HardwareGroup
         self.cbs = self._discover(self.hwg.ColumnBoard)
         self.rbs = self._discover(self.hwg.RowBoard)
         self.rdds = {k: rb.RowDacDriver for k, rb in self.rbs.items()}
-        self.coordinator_col = coordinator_col
+        self.chans_per_board = self._derive_chans_per_board()
         self.output = output
+
+    def _derive_chans_per_board(self):
+        """Columns per column board = NumColumns / NumColumnBoards (from the tree).
+
+        Falls back to the shared default (8) if the Group lacks the count vars or
+        reports zero boards, so a partially-built tree never divides by zero.
+        """
+        try:
+            n_cols = int(self.group.NumColumns.get())
+            n_boards = int(self.group.NumColumnBoards.get())
+            if n_boards > 0 and n_cols > 0:
+                return n_cols // n_boards
+        except (AttributeError, TypeError, ZeroDivisionError) as e:
+            log.warning("Could not derive channels-per-board from Group (%s); "
+                        "defaulting to 8.", e)
+        return 8
+
+    def col_to_board_chan(self, col):
+        """Map a global column index to (board_index, channel) for this Group."""
+        return col_to_board_chan(col, self.chans_per_board)
 
     @staticmethod
     def _discover(board_node):
@@ -113,9 +172,23 @@ class Session:
                 boards[int(m.group(1))] = board
         return boards
 
+    @staticmethod
+    def _afe_amps(afe):
+        """Yield the AFE sub-device nodes (Column ``Channel[*]`` / Row ``Amp[*]``).
+
+        Enumerates whatever the front-end actually instantiated rather than
+        assuming a fixed count -- front-end classes differ in how many channels
+        they expose (see warm_tdm._FrontEnds), so ``range(8)``/``range(32)`` is
+        wrong for some boards.
+        """
+        for node in afe.nodes.values():
+            if _BOARD_INDEX_RE.search(node.name):
+                yield node
+
     @property
-    def root(self):
-        return self.client.root
+    def coordinator_cb(self):
+        """The column board that owns timing (always ``ColumnBoard[0]``)."""
+        return self.cbs[COORDINATOR_COL_BOARD]
 
     # ---- session output -------------------------------------------------
 
@@ -143,6 +216,17 @@ class Session:
         return boards
 
     # ---- hardware info / setup (ported from utils.py) -------------------
+    #
+    # Several methods below reach through fixed device-tree paths
+    # (WarmTdmCore.WarmTdmCommon2.AxiVersion, ...WarmTdmConfig.LedEn,
+    # WarmTdmCore.Timing.TimingTx.PwrSync*, DataPath.AdcDsp[col].PidEnable).
+    # These are deliberately client-side *convenience shims pending graduation*:
+    # each such capability's real home is an owning tree node (a board-device or
+    # HardwareGroup accessor for build-info/LED/PwrSync; a Group channel var for
+    # per-column PID). They are grouped here so the paths live in one file, and
+    # are meant to be trimmed as the G-list capabilities graduate onto the tree
+    # (see docs/plans/wtj-refactor/PLAN.md). Do NOT grow a path-resolution layer
+    # around them -- push each to its node instead.
 
     def print_hardware(self):
         """Print firmware/hardware version info for all connected boards."""
@@ -187,7 +271,13 @@ class Session:
         """Set cryostat roundtrip cable resistance on all boards' AFE amps.
 
         Column boards: sets CableR on SAFbAmp/SQ1BiasAmp/SQ1FbAmp/TesBiasAmp and
-        R_CABLE on SAAmp, for all 8 channels. Row boards: CableR on Amp[0..31].
+        R_CABLE on SAAmp, for every AFE ``Channel[*]``. Row boards: CableR on
+        every AFE ``Amp[*]``. The channel/amp nodes are enumerated from the tree
+        (front-end classes differ in how many they expose), not a fixed range.
+
+        (G3: the cleaner home for this is a Group ``CableResistance``
+        GroupLinkVariable fanned out over the AFE amps -- see PLAN.md. Kept here
+        as a client-side convenience until that graduates.)
         """
         boards = self.boards()
         if not boards:
@@ -198,8 +288,7 @@ class Session:
             try:
                 board_type, board_index = board_name.split(" ")
                 if board_type == "Column":
-                    for ch in range(8):
-                        afe_ch = getattr(board.AnalogFrontEnd, f'Channel[{ch}]')
+                    for afe_ch in self._afe_amps(board.AnalogFrontEnd):
                         afe_ch.SAFbAmp.CableR.set(Rcryo_Ohm)
                         afe_ch.SQ1BiasAmp.CableR.set(Rcryo_Ohm)
                         afe_ch.SQ1FbAmp.CableR.set(Rcryo_Ohm)
@@ -207,8 +296,8 @@ class Session:
                         afe_ch.SAAmp.R_CABLE.set(Rcryo_Ohm)
                     print(f"Set cryostat resistance to {Rcryo_Ohm} Ohm for Column Board {board_index}.")
                 elif board_type == "Row":
-                    for rs in range(32):
-                        getattr(board.AnalogFrontEnd, f'Amp[{rs}]').CableR.set(Rcryo_Ohm)
+                    for amp in self._afe_amps(board.AnalogFrontEnd):
+                        amp.CableR.set(Rcryo_Ohm)
                     print(f"Set cryostat resistance to {Rcryo_Ohm} Ohm for Row Board {board_index}.")
             except (AttributeError, TypeError) as e:
                 log.error("Error setting cryostat resistance for %s: %s", board_name, e)
@@ -282,14 +371,14 @@ class Session:
         try:
             for r in ['Sq1FbForceCurrent', 'Sq1BiasForceCurrent', 'SaFbForceCurrent',
                       'SaBiasCurrent', 'SaOffset', 'TesBias']:
-                var = getattr(self.root.Group, r)
+                var = getattr(self.group, r)
                 var.set(np.zeros_like(var.get()))
         except (AttributeError, TypeError) as e:
             log.error("Error zeroing %s: %s", r, e)
 
         # End the run if active; dropping out of MUX should zero multiplexed
         # outputs. The coordinator column board owns timing.
-        cb0 = self.cbs[self.coordinator_col]
+        cb0 = self.coordinator_cb
         if cb0.WarmTdmCore.Timing.TimingTx.Running.get():
             cb0.WarmTdmCore.Timing.TimingTx.EndRun()
 
@@ -342,12 +431,12 @@ class Session:
             return
         if len(self.cbs) > 1:
             log.warning("Multiple column boards detected %s. Assuming ColumnBoard[%d] "
-                        "is the controller.", list(self.cbs.keys()), self.coordinator_col)
+                        "is the controller.", list(self.cbs.keys()), COORDINATOR_COL_BOARD)
         if len(self.rbs) > 1:
             log.warning("Multiple row boards detected %s. Applying commands to all.",
                         list(self.rbs.keys()))
 
-        cb = self.cbs[self.coordinator_col]
+        cb = self.coordinator_cb
 
         # Mode 1 = hardware MUX (free-running), Mode 0 = software-stepped
         cb.WarmTdmCore.Timing.TimingTx.Mode.set(0 if strobe else 1)
@@ -365,7 +454,7 @@ class Session:
 
         # TODO: expand to support multiple column boards.
         # Enable PID for all columns flagged active in ColTuneEnable.
-        col_list = self.root.Group.ColTuneEnable.get()
+        col_list = self.group.ColTuneEnable.get()
         for col, enabled in enumerate(col_list):
             if enabled:
                 print(f"Enabling PID for column {col}")
@@ -393,7 +482,8 @@ class Session:
         wcr = self.hwg.WaveformCaptureReceiver
         last_raw0 = wcr.LastSavedFileName.get()
 
-        cb = self.cbs[col // 8]
+        board, chan = self.col_to_board_chan(col)
+        cb = self.cbs[board]
 
         if outputdir is None:
             outputdir = self._require_output()
@@ -402,9 +492,9 @@ class Session:
         wcr.SaveData.set(True)
 
         cb.DataPath.WaveformCapture.AllChannels.set(False)
-        cb.DataPath.WaveformCapture.SelectedChannel.set(col % 8)
+        cb.DataPath.WaveformCapture.SelectedChannel.set(chan)
         cb.DataPath.WaveformCapture.Decimation.set(decimation)
-        wcr.PlotColumn.set(col % 8)
+        wcr.PlotColumn.set(chan)
         wcr.PlotWaveform.set(True)
 
         if synch:
@@ -469,7 +559,7 @@ class Session:
         leaving the system in the state it was found). The DataWriter is always
         closed and the run state restored, even if acquisition is interrupted.
         """
-        cb0 = self.cbs[self.coordinator_col]
+        cb0 = self.coordinator_cb
         tx = cb0.WarmTdmCore.Timing.TimingTx
 
         was_running = tx.Running.get()
@@ -521,25 +611,31 @@ def get_default_session():
     return _default_session
 
 
-def use(client, path=OutputDir.DEFAULT_BASE, coordinator_col=0):
-    """Wrap an already-connected client in a Session, cache it as the default.
+def use(client, path=OutputDir.DEFAULT_BASE, group='Group'):
+    """Wrap a connected client's Group in a Session, cache it as the default.
+
+    The client is a pyrogue client (e.g. ``VirtualClient`` over ZMQ to the
+    ``warmTdmServer`` root); the Session binds to a Group node under it. The
+    server owns the real tree -- ``client.root`` is the client-side mirror.
 
     Args:
         client: a connected pyrogue client (e.g. VirtualClient) with ``.root``.
         path: base directory for the session output dir (None to skip creating).
-        coordinator_col: index of the timing controller column board.
+        group: which Group to bind -- a node name under ``client.root`` (default
+            ``'Group'``) or an already-resolved Group node. (Multi-Group roots
+            will expose several; today there is one.)
     """
+    group_node = getattr(client.root, group) if isinstance(group, str) else group
     output = OutputDir(base=path) if path is not None else None
-    return set_default_session(Session(client, output=output,
-                                       coordinator_col=coordinator_col))
+    return set_default_session(Session(group_node, output=output))
 
 
 def connect(host='localhost', port=9099, path=OutputDir.DEFAULT_BASE,
-            coordinator_col=0):
-    """Build a VirtualClient to (host, port), wrap it, cache as default Session."""
+            group='Group'):
+    """Build a VirtualClient to (host, port), wrap its Group, cache as default."""
     import pyrogue.interfaces
     client = pyrogue.interfaces.VirtualClient(addr=host, port=port)
-    return use(client, path=path, coordinator_col=coordinator_col)
+    return use(client, path=path, group=group)
 
 
 # Free-function shims: delegate to the default Session so notebooks can call

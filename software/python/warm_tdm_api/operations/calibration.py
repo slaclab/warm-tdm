@@ -12,6 +12,8 @@
 ## the needed keys are absent (e.g. a file captured before config embedding), the
 ## helpers return None and callers fall back to documented default constants.
 
+from .formats import col_to_board_chan
+
 # Documented fallback constants (the historical notebook values). Used only when
 # a file has no config channel to derive from. NOTE: sq1fb_to_pA is front-end
 # dependent -- this literal matches a specific SQ1FbAmp configuration and is NOT
@@ -21,8 +23,14 @@ DEFAULT_SQ1FB_TO_PA = 1224.23093499038
 
 
 def _col_to_board_chan(col):
-    """Map a global column index to (board, channel): 8 channels per board."""
-    return col // 8, col % 8
+    """Map a global column index to (board, channel).
+
+    Offline path: a parsed config dict carries no live NumColumns, so the
+    columns-per-board count cannot be read back here -- we use the shared
+    ``formats.col_to_board_chan`` default (8), the width of every column board
+    shipped to date. Live code derives the count from the bound Group instead.
+    """
+    return col_to_board_chan(col)
 
 
 def _lookup(config, path):

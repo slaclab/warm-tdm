@@ -31,12 +31,19 @@ sess.take_raw(0)
 # ...or via the convenience shims that delegate to the default Session:
 ops.take_raw(0)
 ```
-The `Session` is an ordinary object (not a global singleton): tests and
-multi-system code construct their own `ops.Session(client)` and call methods on
-it directly, while `connect()`/`use()` cache a process-wide default for the
-free-function shims. Reusable hardware capabilities here are candidates to
-graduate into `Group` as they mature (see `docs/plans/wtj-refactor`). This
-subpackage was formerly the standalone `warm_tdm_jupyter` package.
+The `Session` is an ordinary object (not a global singleton) bound to **one
+`Group`**: tests and multi-system code construct their own
+`ops.Session(client.root.Group)` and call methods on it directly, while
+`connect()`/`use()` cache a process-wide default for the free-function shims.
+Binding to the Group (not the client) is deliberate — it is the topology unit,
+and it is what makes the layer multi-Group-ready (a future `Instrument` holds one
+Session per Group). Per-Group topology (channels-per-board, board maps) is
+**derived from the bound Group**, not hardcoded; the timing coordinator is always
+`ColumnBoard[0]`. The client/server seam is unchanged: `warmTdmServer` owns the
+real `GroupRoot`+ZmqServer, and `Session` drives the `VirtualClient` mirror over
+ZMQ. Reusable hardware capabilities here are candidates to graduate into `Group`
+as they mature (see `docs/plans/wtj-refactor`). This subpackage was formerly the
+standalone `warm_tdm_jupyter` package.
 
 Both are loaded via `pyrogue.addLibraryPath()` in scripts:
 ```python

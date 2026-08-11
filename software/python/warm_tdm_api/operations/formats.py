@@ -9,6 +9,26 @@
 import re
 
 
+def col_to_board_chan(col, chans_per_board=8):
+    """Map a global column index to ``(board_index, channel)``.
+
+    Pure arithmetic: ``board = col // chans_per_board``, ``channel = col %
+    chans_per_board``. The single source of this mapping for the operations layer
+    -- both the live ``Session`` (which passes the count derived from its bound
+    ``Group``) and offline ``calibration`` call this so the ``//8`` split is not
+    duplicated. The default (8) matches every column board shipped to date; live
+    callers should pass the tree-derived value rather than rely on it.
+
+    Args:
+        col (int): global column index.
+        chans_per_board (int): columns (channels) per column board.
+
+    Returns:
+        tuple: (board_index, channel).
+    """
+    return col // chans_per_board, col % chans_per_board
+
+
 def get_row_col(value):
     """
     Extract column and row indices from a channel string.
