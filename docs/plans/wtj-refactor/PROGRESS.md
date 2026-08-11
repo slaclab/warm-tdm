@@ -2,7 +2,7 @@
 
 Plan: [PLAN.md](PLAN.md) · Spec: [SPEC.md](SPEC.md)
 
-## Status: Tasks 1–4 done + `pre-release` merged into `wtj-refactor`. Task 5 (Group graduations) deprioritized; analog bench deferred to integrated branch.
+## Status: Tasks 1–4 done + `pre-release` merged into `wtj-refactor`. Task 5 (Group graduations) deprioritized; analog bench deferred to integrated branch. **2026-08-11 API review added Tasks 7–9** (Session/topology decouple #3, multi-Group `Instrument` experiment, operator-surface polish) + the open federated-vs-non-federated scaling decision.
 
 See also: [MERGE-cleanup.md](MERGE-cleanup.md) — analysis + plan for adopting the
 `cleanup` branch's software refactor (do NOT straight-merge; cherry-pick the
@@ -26,6 +26,41 @@ bench board for the Task 2 HW gate. Package name resolved (`operations`); cadenc
 resolved (rehome-first, graduate-later).
 
 ## Log
+
+- 2026-08-11: **Detached operations API review → layering, separation-of-concerns,
+  and multi-Group scaling captured in PLAN.md** (new "Operations API review"
+  section + Tasks 7–9 + open decision 4). Key conclusions:
+  - **Intuitiveness gaps:** tuning has no `ops.*` presence (hand-rolled
+    `Process.Start()`/poll today) → add wrappers; `all_off` is misnamed (firmware
+    bug means it can't fully zero) → rename + `status()`; dead-mask helpers are
+    NOT orphaned — `{col:256-bit}` matches `AdcDsp[col].RowEnableMask`, only the
+    `apply_dead_masks` bridge is missing (new G9). Two data models kept
+    deliberately; `stream_data_id` is implicit module-global deque state.
+  - **Separation of concerns:** `Session` fuses handle + hardcoded topology
+    (`//8`, `range(8)`, `coordinator_col`) + deep-path verbs. Fix = orchestrate
+    over `Group` (which already exposes `NumColumns`/`NumColumnBoards`/`MaxRows`),
+    derive channels-per-board, share one `col→(board,chan)` mapper with
+    `calibration`. **Coordinator is always index 0** — dropped the earlier
+    "coordinator handle/discovery" idea. Deep paths are *convenience shims pending
+    graduation*, NOT a new adapter layer — they graduate to owning nodes (the
+    G-list). #3 collapses into the G-list + this principle.
+  - **Layering correction:** cross-board aggregation is NOT exclusive to
+    `warm_tdm_api` — `HardwareGroup` (in `firmware/python/warm_tdm`) already builds
+    board-spanning LinkVariables; `warm_tdm` has 135 Link + 81 Local vars, not a
+    pure register map. Keep the package split (sunk cost + real seam), but treat
+    **the node, not the package, as the unit of "where does this belong."**
+  - **Scaling (NEW, unsupported today):** all testing = 1 Group (1 row + 1 col);
+    BICEP3 ≈ 1+4; deployments = 10–100 Groups. Tree hardcodes one Group
+    (`GroupRoot` `groupId=0`; `Session` wraps `root.Group`). Converged on a
+    **two-object model: per-Group `Session` + client-side `Instrument` federation
+    coordinator** (`tune_all` + cross-group analysis). 1-Group bench = one Session,
+    no tax. Topology-API home = `Group` (per user).
+  - **Open decision (user, undecided):** federated (many Roots) vs. non-federated
+    (one Root, `Group[0..K]`). Lean federated; central worry = PyRogue tree size
+    (never scaled that large). **Method: do Task 7 (#3) first, then build a
+    non-federated `Instrument` (Task 8) as the scaling experiment and let tree
+    behavior decide.** Tie-breaker if it matters: a non-Python supervisory/EPICS
+    layer over the whole array would favor the single non-federated endpoint.
 
 - 2026-08-11: **API hardening before merge (PR #78 review follow-up).** A detached
   critique flagged that the acquisition/session layer inherited from PR #61 was

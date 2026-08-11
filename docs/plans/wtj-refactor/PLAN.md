@@ -8,7 +8,13 @@
 part of the software stack: rename away from "jupyter", push reusable hardware
 capabilities down onto `Group`/`pr.Process` nodes, factor out duplicated
 analysis code, and fix the handful of correctness bugs — without rewriting the
-analysis math or removing the accepted single-system assumption.
+analysis math.
+
+> **Scope grew (2026-08-11 operations API review):** the original "single-system
+> assumption is accepted" framing is superseded. Multi-Group scaling (10–100
+> Groups) is now an explicit forward concern — see the "Operations API review →
+> Scaling" section and Tasks 7–9. The single-Group assumption is now a *starting
+> point to decouple from*, not a permanent constraint.
 
 **Spec:** [SPEC.md](SPEC.md) · **Progress:** [PROGRESS.md](PROGRESS.md)
 
@@ -97,6 +103,7 @@ stable; `n/a` = stays in `operations`.
 | G6 | `utils.py:disable_leds` (`:53-72`) | Stop status-LED blinking on all boards | `method` on `Group` | mature | Trivial; pure register writes. |
 | G7 | `client.py` board discovery (`:42-50`) | Enumerate ColumnBoard/RowBoard indices + RowDacDriver handles | Already native to `HardwareGroup` | n/a | The regex-over-`dir()` discovery duplicates `HardwareGroup.ColumnBoard.values()`. Prefer the tree directly; likely no new method. |
 | G8 | `utils.py:save_config`/`save_state`/`load_config` (`:344-397`) | Timestamped config/state save + load | Leave as thin session helpers | n/a | Wrap existing `root.SaveConfig/SaveState/LoadConfig`; only added value is the timestamped path. Stays in `operations`. |
+| G9 | `formats.py:make/read/write_dead_masks` + missing `apply_dead_masks` | Per-column dead-row (256-bit) mask → hardware | Format helpers stay in `operations`; fanned-out RW `GroupLinkVariable` over `AdcDsp[col].RowEnableMask` gated by `ColTuneEnable` | mature | **The hardware sink exists** — `AdcDsp[col].RowEnableMask` (RW 256-bit, `_AdcDsp.py:116`; applied per row-strobe `AdcDsp.vhd:631`) matches the `{col: 256-bit mask}` shape exactly. Near-term: add `Session.apply_dead_masks()` bridge. Graduate the fanned-out RW to `Group` as it stabilizes. |
 
 Note: no G-item currently meets the **`now`** gate (none is a continuous loop /
 GUI button / server-owned-state case). `TesBiasWaveformProcess` was the one such
@@ -111,11 +118,199 @@ delegation seam, not to force them server-side prematurely.
   see Task 4: give `take_raw` a timeout.)
 - All of `analysis.py` and `streamreader.py` — offline, no hardware, must not
   depend on `Client`.
-- Dead-mask file I/O (`utils.py:make/write/read_dead_masks`) — file-format
-  helpers.
+- Dead-mask file I/O (`formats.py:make/write/read_dead_masks`) — file-format
+  helpers. **But they DO have a real hardware sink (see review below): the
+  `{col: 256-bit mask}` shape matches `AdcDsp[col].RowEnableMask`.** The format
+  helpers stay in `operations`, but an `apply_dead_masks(session)` bridge that
+  writes each column's mask to `AdcDsp[col].RowEnableMask` is a missing verb, and
+  the fanned-out RW ("dead mask as a channel-indexed Group var") is a graduation
+  candidate — see G9.
 
 > When a G-item does graduate, keep a thin `operations` wrapper delegating to the
 > new `Group` capability so notebook/production call sites don't break.
+
+---
+
+## Operations API review (2026-08-11) — layering, separation of concerns, scaling
+
+A detached review of `warm_tdm_api.operations` (does the operator-facing API make
+sense / is it intuitive / does it extend coherently / is separation of concerns
+right?) surfaced findings that reshape the later tasks. Recorded here so they are
+not re-derived.
+
+### Verdict summary
+
+The plumbing is sound (injectable `Session`, config-derived calibration, bounded
+registry) and the layer extends cleanly (method + shim + `__all__`; the
+`_resolve_*` override→derive→fallback ladder is reusable). The gaps are in
+**operator-facing surface** and **scaling**, not the internals.
+
+**Intuitiveness / completeness gaps (agreed):**
+- **Tuning is absent from `operations`.** The middle of the operator arc
+  (`SaOffset → SaTune → Sq1Tune → FasTune`) has no `ops.*` presence; today it is
+  hand-rolled `group.SaTuneProcess.Start(); while Running.get(): ...` (see
+  `scripts/Jupyter.py`). Add thin start-and-block wrappers (per-process, or one
+  `run_process(name, **params)` that returns the result payload). Highest
+  intuitiveness payoff. Client-side orchestration of existing tree Processes — no
+  graduation needed.
+- **`all_off` is misnamed** — a firmware bug means it does NOT fully zero biases
+  after MUX (row-DAC zeroing is commented out). Naming a best-effort safe-state
+  `all_off` is a footgun for the person reaching for it. Rename (`safe_reset` /
+  `stop_and_zero`), log what it cannot do. Also missing a one-shot
+  `status()`/`summary()` verb.
+- **Dead-mask helpers are NOT orphaned** (correction to first-pass review): their
+  `{col: 256-bit mask}` output matches `AdcDsp[col].RowEnableMask`
+  (`firmware/python/warm_tdm/_AdcDsp.py:116`, RW 256-bit; applied per row-strobe
+  in `AdcDsp.vhd:631`). The consumer exists and the representation already lines
+  up — only the `apply_dead_masks` bridge was never written. See G9.
+- **Two data models, deliberately** (`StreamData`/`data[col][row]` channel-9
+  `.dat` vs. the `.npy` raw-ADC path in `get_mean_raw_asd`). Keeping both is fine
+  **as long as each function is explicit about which stream it operates on** (user
+  direction). Action is documentation/naming clarity, not unification.
+- **`stream_data_id` is implicit global state.** `plot_stream_data(crstring,
+  stream_data_id=-1)` takes an *integer index into a module-global deque of the
+  last 128 loaded files* (`-1` = most-recently-loaded-anywhere-in-process), not a
+  `StreamData` or a path. Fine for a single notebook; surprising for scripted /
+  batch / two-analysis use. Minor: also accept an explicit `StreamData`/path as
+  first-class, keep `-1` as sugar.
+
+### Separation of concerns — the core structural finding
+
+`Session` currently fuses three roles: (1) a connection handle [keep], (2) a
+**hardcoded topology model** (`col//8`, `col%8`, `range(8)`, `range(32)`,
+`coordinator_col`), (3) the operation verbs (reaching through deep tree paths like
+`board.WarmTdmCore.WarmTdmCommon2.AxiVersion`). Roles (2) and (3) are the smells.
+
+**Principle: Session should orchestrate over `Group`/`HardwareGroup`
+abstractions, not re-implement the topology.** The tree is the single source of
+topology truth. Session's legitimately-client-side job is *sequencing* (setup
+order, acquisition try/finally bracketing, safe-state ordering) — that is why
+these stay client-side per the graduation criterion (runtime editability). But
+sequencing does not require owning the topology.
+
+- **Smell A — topology constants.** `col//8` etc. duplicate what `Group` already
+  exposes: `NumColumns`, `NumColumnBoards`, `NumRowBoards`, `MaxRows`
+  (`_Group.py:104-127`). `calibration._col_to_board_chan` hardcodes the *same*
+  `//8` independently → already duplicated within `operations`. **Fix: derive
+  channels-per-board = `NumColumns // NumColumnBoards` from the bound `Group`;
+  share one `col→(board,chan)` mapper between `session` and `calibration`.** No
+  new tree API needed — `Group` already knows the shape. **Coordinator is always
+  index 0** (user); drop `coordinator_col` as a discovery concept — a literal
+  `ColumnBoard[0]` (matching `HardwareGroup`'s own assumption at
+  `_HardwareGroup.py:207`), at most a one-line assert. (Retracts an earlier
+  "coordinator handle / discovery" idea — unnecessary.)
+
+- **Smell B — scattered deep paths.** A firmware rename breaks each method
+  separately because each re-spells the path. **Do NOT solve this with a new
+  path-resolution adapter layer in `operations`** (a fourth thing to maintain).
+  Instead, each deep path graduates to its **owning node** — which is the G-list
+  work already planned. Node-ownership table:
+
+  | Path Session uses today | Owner node | Package | Level |
+  |---|---|---|---|
+  | `WarmTdmCore.WarmTdmCommon2.AxiVersion.*` (build info) | board device / `HardwareGroup` summary | `warm_tdm` | driver (trim later) |
+  | `AnalogFrontEnd.Channel[ch].*Amp.CableR` fan-out | `Group.CableResistance` GroupLinkVariable (**G3**) | `warm_tdm_api` | Group var |
+  | `AdcDsp[col].PidEnable` / `RowEnableMask` per-col | `Group` channel var gated by `ColTuneEnable` (**G1/G9**) | `warm_tdm_api` | Group var |
+  | `TimingTx.PwrSync*` / `Mode` / `RowPeriodCycles` | `HardwareGroup` (owns the coordinator=`[0]` convention) | `warm_tdm` | HardwareGroup |
+
+  **So #3 collapses into the existing G-list + one small principle: deep per-board
+  reaches are *convenience shims pending graduation* — label them as such in
+  `operations` so nobody mistakes them for the intended access pattern, and trim
+  as they graduate.** No standalone adapter.
+
+### Layering model (corrected) — where warm_tdm_api earns its keep
+
+The three-package model is roughly right, with one correction: **cross-board
+aggregation is NOT exclusive to `warm_tdm_api`.** The aggregation point is
+`HardwareGroup`, which lives in `firmware/python/warm_tdm` and already builds
+board-spanning `LinkVariable`s (`_HardwareGroup.py:225`) and composite devices
+(`WaveformCaptureReceiver`). `warm_tdm` as a whole is not a pure register map: 290
+`RemoteVariable` **plus 135 `LinkVariable` + 81 `LocalVariable`**.
+
+Real distinction:
+- **`warm_tdm`** = everything describing *one hardware system's tree* — register
+  maps **and** the board-spanning structure (`HardwareGroup`) + per-device
+  conveniences.
+- **`warm_tdm_api`** = the `Group` **operator abstraction** (`GroupLinkVariable`
+  channel-indexed fan-out with `tuneEnVar` gating) + tuning `pr.Process`es + GUI.
+  "Operator concepts" (channels, tune-enable, tuning) vs. "hardware concepts"
+  (boards, chips, registers).
+- **`operations`** = client-side session / sequencing / analysis.
+
+**On "does `warm_tdm_api` need to be a separate package from `warm_tdm`":** the
+split is defensible but the fault line is drawn imperfectly, which is why it feels
+questionable. Do NOT try to back out the package split (sunk cost, and it does
+carry a real conceptual seam). **Stop treating "which package" as the meaningful
+question — the meaningful unit is "which *node* owns this capability."**
+`GroupRoot → Group → HardwareGroup → boards` is one runtime object graph; the
+package a node's class lives in follows from the node. This is exactly what the
+G-list already does (node-placement). Keep packages; let the node be the unit.
+
+### Scaling: single-Group today → 10–100 Groups deployed (NEW, unsupported)
+
+Critical context (user): all testing to date is **one Group = 1 row + 1 column
+board**; BICEP3 ≈ 1 row + 4 column; **real deployments are 10–100 Groups**, and
+**nothing in the stack supports multi-Group today.** The tree bakes in a single
+Group: `GroupRoot` instantiates one `Group` with `groupId=0` hardcoded
+(`_GroupRoot.py:55-61`); `Session` wraps `client.root.Group` (singular,
+`session.py:94`); `DataWriter` is a `GroupRoot`-level shared resource
+(`_GroupRoot.py:43`).
+
+**Two-object model we converged on** (do not fuse these into one `Session`):
+- **`Session`** = handle to **one Group's Root** (one server, one connection, one
+  DataWriter). All current `session.py` verbs are per-Group and stay here. This is
+  the object every bench uses today; the only change is it binds to *a* Root/Group
+  rather than *the* global `root.Group`.
+- **`Instrument`** (a.k.a. `Array`/`GroupSet`) = a **client-side federation
+  coordinator** holding N `Session`s. Its job is precisely the operator's
+  whole-instrument needs: **run tuning across all Groups** and **aggregate
+  analysis across all Groups**. The 1-Group bench is just an `Instrument` with one
+  `Session` (or the bare `Session`) — no federation tax for the common case.
+
+```
+Instrument                         # federation coordinator (client-side, operations)
+ ├── Session(root_0) → Group 0      # per-Group ops handle (one server each)
+ ├── Session(root_1) → Group 1
+ └── ... Session(root_N)
+```
+
+This cleanly answers "where does cross-group live": in `Instrument`, client-side.
+Per-Group trees never learn other Groups exist → federated servers stay
+independent, per-file channel-255 config dumps stay sane-sized, tuning `Process`es
+stay per-Group and `Instrument.tune_all()` orchestrates them (orchestration is
+what the client layer is for).
+
+**Topology-API home = `Group`** (user): `operations` should interact with `Group`
+to the extent it can, and `Group` already carries the per-group counts. `Group`
+owns per-group topology; `GroupRoot` owns the group registry + genuinely shared
+resources.
+
+### The open architectural decision: federated vs. non-federated
+
+**Undecided (user lean: federated, but genuinely uncertain).** This is the single
+question that gates the deployment design.
+
+- **Non-federated (one Root holds `Group[0..K]`):** gives a single
+  Instrument-level `LoadConfig`/`SaveConfig` and one endpoint a future
+  supervisory/EPICS/site-DAQ layer could connect to. **Main risk (user's central
+  worry): tree size — a 10–100-Group PyRogue tree may collapse under its own
+  weight; we have never scaled a PyRogue tree that large.** Also inflates the
+  channel-255 whole-tree config dump per data file and concentrates poll/register
+  load in one process.
+- **Federated (many Roots, one per Group/crate; `Instrument` federates
+  client-side):** matches how we test today (one Group per bench), scales
+  process/poll load horizontally, keeps each Group's data file self-describing at
+  sane size. **Cost:** additional federation logic/structure; **no single
+  server-side object represents "the whole instrument"** — if a non-Python
+  supervisory control layer over the whole array is ever required, that pushes
+  back toward non-federated. (This supervisory-layer question is *the* deciding
+  factor if it turns out to matter.)
+
+**Decision method (user):** don't pick on paper. **First implement "#3"
+(topology-from-`Group`, `Session` binds to an injected Group/Root, fan-out
+graduations), then build a NON-federated `Instrument` and see how it behaves —
+specifically whether the tree scales.** The non-federated attempt is the
+experiment that informs the choice; if the tree collapses, federated wins.
 
 ---
 
@@ -133,8 +328,16 @@ delegation seam, not to force them server-side prematurely.
    is nothing to force server-side. Cadence question is really "which mature
    G-items (e.g. G3) do we graduate first, if any, vs. just rehome everything
    into `operations` and graduate later?" Default: rehome first, graduate later.
-3. **Constants home** (Task 5): a `constants.py` in the package vs deriving
-   `fs`/`sq1fb_to_pA` from the rogue tree.
+3. ~~**Constants home**~~ **RESOLVED (2026-08-11):** derive `fs`/`sq1fb_to_pA`
+   from each data file's Rogue config channel (255), not a `constants.py`. See
+   Task 4.
+4. **Federated vs. non-federated multi-Group model** (see "Operations API review
+   → Scaling" above). **OPEN.** User lean: federated; central worry: PyRogue tree
+   size in the non-federated case. **Decision method: implement Task 7 (#3) first,
+   then build a non-federated `Instrument` (Task 8) as the experiment; let tree
+   scaling behavior decide.** The tie-breaker if it surfaces: whether a non-Python
+   supervisory/EPICS control layer over the whole array is ever required (→ favors
+   non-federated single-endpoint).
 
 ---
 
@@ -300,3 +503,58 @@ capability so call sites don't break.
 - [ ] Notebook / operations entry points still work against live hardware (user step).
 - [ ] Any graduated `Group` capabilities visible/serializable (SaveConfig round-trip).
 - [ ] PR targets `pre-release` (not `main`), per docs/RELEASE.md branch flow.
+
+---
+
+## Follow-on tasks from the 2026-08-11 operations API review
+
+These come out of the review section above. Task 7 is the prerequisite for the
+scaling decision; Task 8 is the experiment that decides federated vs. not; Task 9
+is operator-surface polish that can proceed independently.
+
+### Task 7: Decouple `Session` from tree topology (#3) — PREREQUISITE for scaling
+Make `Session` orchestrate over `Group` instead of re-implementing topology.
+- [ ] Derive channels-per-board from the bound `Group`
+      (`NumColumns // NumColumnBoards`); remove hardcoded `//8` / `%8` /
+      `range(8)` / `range(32)`. Share one `col→(board,chan)` mapper between
+      `session.py` and `calibration.py` (kills the duplicated `_col_to_board_chan`).
+- [ ] Drop `coordinator_col` as a discovery concept — coordinator is always
+      `ColumnBoard[0]` (matches `_HardwareGroup.py:207`); at most a one-line assert.
+- [ ] Bind `Session` to an injected Group/Root node, NOT the global `root.Group`
+      singleton (foundation for multi-Group; strictly better than the hardcode
+      even for one Group).
+- [ ] Label the residual deep per-board reaches (AxiVersion build info, `LedEn`,
+      `TimingTx.PwrSync*`, `AdcDsp[col].PidEnable`) as *convenience shims pending
+      graduation* in a module docstring — do NOT build a path-resolution adapter.
+- [ ] Graduate the ripe fan-outs while here (see G-list): **G3** `CableResistance`
+      as a `GroupLinkVariable`; **G9** `apply_dead_masks` bridge to
+      `AdcDsp[col].RowEnableMask`. Keep thin `operations` wrappers delegating.
+
+### Task 8: Multi-Group `Instrument` experiment — DECIDES federated vs. not
+Depends on Task 7. Build the non-federated attempt first as the scaling probe.
+- [ ] Introduce `operations.Instrument` (a.k.a. `Array`/`GroupSet`): holds N
+      `Session`s, exposes `tune_all()` (fan-out over existing per-Group tuning
+      `pr.Process`es) and cross-group analysis aggregation. 1-Group case = one
+      `Session`, no federation tax.
+- [ ] Prototype the **non-federated** tree: `GroupRoot` holds `Group[0..K]`
+      (remove the hardcoded single `groupId=0`). Measure PyRogue tree behavior at
+      representative group counts (10, then toward 100): build/poll load, memory,
+      channel-255 config-dump size per data file, client responsiveness.
+- [ ] **Decision gate:** if the tree scales acceptably → non-federated (keeps a
+      single Instrument-level `LoadConfig`/endpoint). If it collapses → federated
+      (many Roots, `Instrument` federates client-side). Record the result and the
+      supervisory-control tie-breaker in Open decision 4.
+
+### Task 9: Operator-facing surface polish (independent)
+- [ ] Add tuning wrappers to `operations` — per-process (`sa_tune`, `sq1_tune`,
+      `sa_offset`, ...) or one `run_process(name, **params)` that starts, blocks on
+      `Running`, and returns the result/plot payload. Closes the operator arc
+      (connect → setup → **tune** → take data → analyze).
+- [ ] Rename `all_off` → honest name (`safe_reset`/`stop_and_zero`); log what it
+      cannot zero (the known firmware bug). Add a `Session.status()`/`summary()`
+      one-shot state verb.
+- [ ] Make `plot_stream_data`/`analyze_pair` accept an explicit `StreamData`/path
+      as first-class input; keep `stream_data_id=-1` as sugar.
+- [ ] Documentation clarity for the two data models (channel-9 `.dat`
+      `StreamData` vs. `.npy` raw-ADC `get_mean_raw_asd`): each function states
+      which stream it operates on. (Keep both models — do not unify.)
