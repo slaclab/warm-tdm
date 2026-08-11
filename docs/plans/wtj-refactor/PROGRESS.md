@@ -27,6 +27,25 @@ resolved (rehome-first, graduate-later).
 
 ## Log
 
+- 2026-08-11: **API hardening before merge (PR #78 review follow-up).** A detached
+  critique flagged that the acquisition/session layer inherited from PR #61 was
+  not fit to become the foundational analysis API. Fixed in-PR rather than merging
+  with known issues:
+  - **`_TesBiasWaveform` split to its own PR #79** (off `pre-release`) — a
+    server-side `pr.Process`, unrelated to the operations client layer; merges
+    independently, arrives on `wtj-refactor` via the next pre-release merge.
+    print→logging cleanup folded in.
+  - **Replaced the `Client` global singleton with an injectable `Session`**
+    (`operations/session.py`): boards discovered from the tree (`.values()` +
+    name-index regex, no `dir()` scan); hardware ops are `Session` methods;
+    `connect()`/`use()` cache a process-default backing notebook shims; actionable
+    `RuntimeError` guards. `OutputDir` decouples session-dir from client binding.
+    Pure helpers moved to `operations/formats.py`. Deleted `client.py` + `utils.py`
+    and the dead `jupyter_client`/`jupyter_session` code. `take_data` gained
+    try/finally; `take_raw` lost the unused `fadc`; stale TODOs removed. No
+    external consumers existed, so no compat shim. Validated in `warm-tdm-r615`.
+    Design plan: `~/.claude/plans/greedy-cooking-pine.md`.
+
 - 2026-08-11: **Task 4 DONE — implemented + validated in `warm-tdm-r615`.**
   - **Firmware:** added `CurrentPerLsb` RO LinkVariable to `FastDacAmplifierSE`
     (`_Amplifiers.py`; inherited by `Diff` + every FastDacAmplifier), units
