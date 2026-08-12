@@ -1,7 +1,7 @@
 ##
 ## Offline analysis + plotting for the operations layer.
 ##
-## TWO DISTINCT DATA MODELS live here -- deliberately, because they come from two
+## THREE DISTINCT DATA MODELS live here -- deliberately, because they come from
 ## different streams. Each function operates on ONE of them; check which before
 ## use:
 ##
@@ -17,10 +17,17 @@
 ##      This is the pre-readout scope-style capture; its sample rate is the ADC
 ##      clock (fsamp default 125 MHz), NOT the row-mux readout rate.
 ##
-## Mixing the two (e.g. feeding a raw .npy path to plot_stream_data) will not
-## work -- they have different shapes, rates, and units.
+##   3. PID-debug stream (channels 0-7, same DataWriter .dat): per-(col,row)
+##      servo diagnostics pid[col][row][field] (accumError, sumAccumError,
+##      pidResult, sq1FbEnd, numFluxJumps, baseline, ...), loaded via
+##      PidDebugData (from the same StreamReader pass as model 1). Present only
+##      when AdcDsp[col].PidDebugEnable was set during the run. Function:
+##      plot_pid_debug. The natural x-axis is readoutCount (per-visit index).
+##
+## Mixing them (e.g. feeding a raw .npy path to plot_stream_data) will not work
+## -- they have different shapes, rates, and units.
 
-from .data import StreamData
+from .data import StreamData, PidDebugData
 from .channels import get_row_col
 from .unit_conversions import resolve_fs, resolve_sq1fb_to_pA
 
@@ -244,6 +251,22 @@ def _resolve_stream_data(stream_data):
     if isinstance(stream_data, str):
         return StreamData(stream_data)
     return StreamData.get_by_position(stream_data)
+
+
+def _resolve_pid_data(pid_data):
+    """Resolve the plot_pid_debug data argument to a PidDebugData instance.
+
+    Accepts a ``PidDebugData`` (used directly), a ``StreamData`` (wrapped via
+    its already-decoded PID stream, no re-read), a file path str (loaded), or an
+    int position into the PidDebugData registry (``-1`` = most recent).
+    """
+    if isinstance(pid_data, PidDebugData):
+        return pid_data
+    if isinstance(pid_data, StreamData):
+        return pid_data.pid_data()
+    if isinstance(pid_data, str):
+        return PidDebugData(pid_data)
+    return PidDebugData.get_by_position(pid_data)
 
 
 def _resolve_fs_arg(fs, sd, col):
@@ -625,6 +648,69 @@ def plot_sq1curves(sq1tuneOutput, cols, rows):
             plt.grid(True)
             plt.tight_layout()
             plt.show()
+
+
+def plot_pid_debug(crstring, field='accumError', exclude=None, pid_data_id=-1,
+                   yoffset=0, ax=None):
+    """Plot a PID-debug field timeseries for the requested channels (data model #3).
+
+    Reads the per-(col,row) PID-debug stream (channels 0-7; see the module
+    docstring and warm_tdm._DataFormats.PID_DEBUG_FIELDS) and plots one field
+    versus readout index -- the servo-diagnostics counterpart to
+    plot_stream_data. Use for watching accumError/pidResult/flux-jumps evolve
+    while a lock settles.
+
+    Args:
+        crstring (str): channel pattern, e.g. 'c*r*' or 'c0r0-5,c1r*' (same
+            expand_channels() syntax as plot_stream_data).
+        field (str): which PID field to plot (default 'accumError'). Must be one
+            of the decoded PID_DEBUG_FIELDS.
+        exclude (str, optional): channel patterns to exclude.
+        pid_data_id: a PidDebugData, a StreamData (wrapped, no re-read), a file
+            path, or an int position into the PidDebugData registry (-1 = most
+            recent). Default -1.
+        yoffset (float): vertical offset between channels (0 = overplot).
+        ax (matplotlib Axes, optional): plot target; a new figure is made if None.
+
+    Returns:
+        dict: results keyed by channel string, each {'x': readout index array,
+            'y': field value array}.
+
+    Raises:
+        ValueError: if no channels match, or `field` is not a decoded PID field.
+    """
+    pd_obj = _resolve_pid_data(pid_data_id)
+    pid = pd_obj.pid
+
+    # expand_channels expects a data[col][row]->truthy-list shape; adapt the
+    # pid[col][row][field] dict to that so the same pattern DSL applies.
+    shaped = {col: {row: (fields.get(field) or [])
+                    for row, fields in rows.items()}
+              for col, rows in pid.items()}
+    crs = expand_channels(crstring, shaped, exclude)
+    if not crs:
+        raise ValueError(
+            f"No PID-debug channels found matching '{crstring}' (exclude="
+            f"{exclude}); is field '{field}' present and PidDebugEnable was on?")
+
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(12, 6))
+        ax.set_title(f"PID debug: {field} ({pd_obj.file_name})")
+
+    results = {}
+    color_cycle = make_color_cycle(len(crs))
+    for idx, cr in enumerate(crs):
+        col, row = get_row_col(cr)
+        y = np.array(pid[col][row][field])
+        x = np.arange(len(y))
+        results[cr] = {'x': x, 'y': y}
+        ax.plot(x, y - idx * yoffset, color=next(color_cycle), label=cr)
+
+    ax.set_xlabel('Readout index', fontsize=14)
+    ax.set_ylabel(field, fontsize=14)
+    add_channel_legend(ax)
+    plt.tight_layout()
+    return results
 
 
 #def plot_timing(waveform_filename, stack_on=None, align_on=None):

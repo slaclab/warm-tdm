@@ -56,8 +56,8 @@ from .channels import (
     read_dead_masks,
 )
 
-# Stream data container + file reading
-from .data import StreamData
+# Stream data containers + file reading
+from .data import StreamData, PidDebugData
 from .streamreader import StreamReader
 
 # Unit-conversion factor derivation (from a capture's embedded tree config)
@@ -82,6 +82,7 @@ from .analysis import (
     simple_noise_model,
     get_mean_raw_asd,
     plot_sq1curves,
+    plot_pid_debug,
 )
 
 __all__ = [
@@ -121,6 +122,7 @@ __all__ = [
     'read_dead_masks',
     # data / streamreader
     'StreamData',
+    'PidDebugData',
     'StreamReader',
     # unit conversions
     'derive_fs',
@@ -140,4 +142,5 @@ __all__ = [
     'simple_noise_model',
     'get_mean_raw_asd',
     'plot_sq1curves',
+    'plot_pid_debug',
 ]

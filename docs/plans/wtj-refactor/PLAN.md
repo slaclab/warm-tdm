@@ -582,6 +582,36 @@ Depends on Task 7. Build the non-federated attempt first as the scaling probe.
       int position / bad path → FileNotFoundError). A *converging* tune needs the
       analog bench (not emulate); the wrapper plumbing around it is verified.
 
+### Task 10: PID-debug stream (data model #3) — DONE (2026-08-12)
+Surfaces the servo-diagnostics stream the bench notebooks used via `plot_data`
+but `operations` lacked. Mirrors the readout path.
+- [x] **Canonical format in firmware** `warm_tdm._DataFormats`: `PID_DEBUG_TYPE`
+      (80-byte numpy dtype), `PID_DEBUG_FIELDS`, `PID_DEBUG_FRAME_BYTES`, and a
+      `PidDebug` dataclass with `from_numpy`. Single source of truth next to
+      `DataReadout`; replaces the stranded (and buggy) copy in the notebook-dir
+      `datareader.py`. Field layout reconciled against `_PidDebugger.py`
+      (`dropCount` at word 8, not the `dummy8_1` the reader had).
+- [x] **`StreamReader` reads all channels in one pass:** ch 9 → `data`
+      (readout), ch 0-7 → `pid[col][row][field]` (PID-debug), ch 255 → `config`.
+      Added `READOUT_CHANNEL`/`PID_DEBUG_CHANNELS` constants + `_accept_pid`.
+- [x] **`PidDebugData` container** (data.py) parallel to `StreamData`: bounded
+      recent-instance registry + `get_by_position` (`-1` = most recent). Built
+      from a path (loads) or, preferably, `StreamData.pid_data()` /
+      `from_stream_data` (wraps the already-decoded `pid`, no second read).
+      `StreamData` now also carries `.pid` from its single read.
+- [x] **`plot_pid_debug(crstring, field='accumError', ...)`** (analysis.py):
+      servo-diagnostics counterpart to `plot_stream_data`, reuses the
+      `expand_channels` DSL (via a shape adapter) and the recent-instance
+      contract; x-axis = readout index. `_resolve_pid_data` accepts
+      PidDebugData / StreamData / path / int position.
+- [x] Exports: `PidDebugData`, `plot_pid_debug` (49 exports). Module docstring
+      now documents **three** data models.
+- [x] Validated in `warm-tdm-r615`: synthetic-frame decode round-trip (incl.
+      64-bit `pidResult`, signed `numFluxJumps`), `plot_pid_debug` channel
+      expansion + most-recent(-1) + bad-field→ValueError, `StreamData.pid` /
+      `pid_data()` wiring. A real PID-debug *file* needs the analog bench
+      (emulate doesn't run the servo); decode verified against the exact dtype.
+
 ---
 
 ## Real-workflow evidence (2026-08-12) — bench notebooks + the predecessor helpers
@@ -619,18 +649,14 @@ May–Jun 2026 notebooks open with `import warm_tdm_jupyter as wtj` +
   the `Client` singleton — a short compat/porting guide (or a temporary
   `warm_tdm_jupyter` alias) would smooth adoption. Not yet written.
 
-### THE GAP: the PID-debug stream is a third data model, not in `operations`
+### THE GAP: the PID-debug stream is a third data model — ADDRESSED (Task 10)
 `plot_data(key='accumError'|'sq1fb')` reads `parser.data[col][row][key]` from a
 **`PidDebugParser`** (`datareader.py`; repo has `_PidDebugger.py` +
 `PidDebugFileReader.py`) — the per-(col,row) PID diagnostic stream
 (`accumError`, `baseline`, `sq1Fb`, `fluxJumps`, `pidResult`, `sumAccum`, ...).
-This is distinct from both existing analysis data models (channel-9 readout
-`.dat` StreamData, and `.npy` raw-ADC). It was **actively used** for servo
-diagnostics but `operations` does not surface it. Candidate Task-9-follow-on /
-new task: a `PidDebugData` reader + `plot_pid_debug` in the analysis layer,
-mirroring `StreamData`/`plot_stream_data`. (Also: `setup_mux`/`lock_and_stream`
-has a commented `PidDebugEnable` — enabling this stream is part of the same
-workflow.)
+Distinct from both existing analysis data models (channel-9 readout `.dat`
+StreamData, and `.npy` raw-ADC). It was **actively used** for servo diagnostics
+but `operations` did not surface it. **Done in Task 10 below.**
 
 ### Bench-workflow shape (informs Task 8 scope)
 The dated-dir naming (`closedloop-synch`, `openloop-unsynch`, `highbias`,

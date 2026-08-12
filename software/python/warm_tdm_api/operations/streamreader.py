@@ -1,6 +1,14 @@
 ##
 ## Stream data reader
 ##
+## A DataWriter .dat file interleaves several stream channels (see
+## warm_tdm._HardwareGroup wiring):
+##   - channels 0-7  : per-column PID-debug frames (data model #3), present only
+##                     when AdcDsp[col].PidDebugEnable was set during the run.
+##   - channel  9    : the readout stream (per-(col,row) SQ1FB values) -> `data`.
+##   - channel  255  : the tree config/status YAML dump -> `config`.
+## StreamReader reads all of them in a single pass; StreamData exposes the
+## readout + config, PidDebugData exposes the PID-debug timeseries.
 
 import re
 from collections import defaultdict
@@ -22,6 +30,13 @@ import warm_tdm
 # DataWriter file is opened/closed. warm-tdm uses channel 255 (see
 # warm_tdm_api._GroupRoot: StreamWriter(configStream={255: ...})).
 CONFIG_CHANNEL = 255
+
+# The per-(col,row) readout stream (SQ1FB values) is written on this channel.
+READOUT_CHANNEL = 9
+
+# PID-debug frames are written one channel per column (0..7). The frame's own
+# header carries col/row, so we treat any of these channels as PID-debug.
+PID_DEBUG_CHANNELS = range(8)
 
 # Defensive config parse: some framework variables serialize a display-formatted
 # float into the config YAML as a quoted `!!float` scalar with comma thousands
@@ -50,13 +65,17 @@ def unsigned_int(arr):
 class StreamReader():
     def __init__(self):
         self.data = nesteddict()
+        # PID-debug timeseries: pid[col][row][field] -> list, built from the
+        # per-column channels 0-7. Empty if the run had PidDebugEnable off.
+        self.pid = nesteddict()
         # Parsed tree configuration captured in the file (channel 255), or {} if
         # the file predates config capture / has no config frame.
         self.config = {}
 
     def readStream(self, filename):
-        # clear the dictionary
+        # clear the dictionaries
         self.data = nesteddict()
+        self.pid = nesteddict()
         self.config = {}
         configBlobs = []
         with pyrogue.utilities.fileio.FileReader(files=[filename]) as fd:
@@ -67,16 +86,30 @@ class StreamReader():
                 if header.channel == CONFIG_CHANNEL:
                     configBlobs.append(bytes(data).decode('utf-8', errors='ignore'))
                 # readout
-                elif header.channel == 9:
+                elif header.channel == READOUT_CHANNEL:
                     dr = warm_tdm.DataReadout.from_numpy(data)
                     for s in dr.samples:
                         if not self.data[s.col][s.row]:
                             self.data[s.col][s.row] = []
 
                         self.data[s.col][s.row].append(s.value)
+                # PID-debug (one channel per column; col/row come from the frame)
+                elif header.channel in PID_DEBUG_CHANNELS:
+                    self._accept_pid(data)
 
         if configBlobs:
             self.config = self._parseConfig(''.join(configBlobs))
+
+    def _accept_pid(self, data):
+        """Decode one PID-debug frame into pid[col][row][field] timeseries."""
+        if len(data) != warm_tdm.PID_DEBUG_FRAME_BYTES:
+            return  # not a PID-debug frame (or truncated); skip defensively
+        msg = warm_tdm.PidDebug.from_numpy(data)
+        slot = self.pid[msg.col][msg.row]
+        for field, value in msg.fields.items():
+            if not slot[field]:
+                slot[field] = []
+            slot[field].append(value)
 
     @staticmethod
     def _parseConfig(text):

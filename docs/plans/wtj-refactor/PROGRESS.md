@@ -2,7 +2,7 @@
 
 Plan: [PLAN.md](PLAN.md) · Spec: [SPEC.md](SPEC.md)
 
-## Status: Tasks 1–4 + **7 + 9** done + `pre-release` merged into `wtj-refactor`. Task 5 (Group graduations) deprioritized; analog bench deferred to integrated branch. **2026-08-11 API review added Tasks 7–9** (Session/topology decouple #3 ✅, multi-Group `Instrument` experiment, operator-surface polish ✅) + the open federated-vs-non-federated scaling decision. Next: Task 8 (non-federated `Instrument` scaling experiment).
+## Status: Tasks 1–4 + **7 + 9 + 10** done + `pre-release` merged into `wtj-refactor`. Task 5 (Group graduations) deprioritized; analog bench deferred to integrated branch. **2026-08-11 API review added Tasks 7–9** (Session/topology decouple #3 ✅, multi-Group `Instrument` experiment, operator-surface polish ✅); **Task 10** (PID-debug data model #3 ✅) added from real-workflow evidence + the open federated-vs-non-federated scaling decision. Next: richer bring-up + config/tune-point save-restore helpers, then Task 8.
 
 See also: [MERGE-cleanup.md](MERGE-cleanup.md) — analysis + plan for adopting the
 `cleanup` branch's software refactor (do NOT straight-merge; cherry-pick the
@@ -26,6 +26,28 @@ bench board for the Task 2 HW gate. Package name resolved (`operations`); cadenc
 resolved (rehome-first, graduate-later).
 
 ## Log
+
+- 2026-08-12: **Task 10 DONE — PID-debug stream surfaced (data model #3).** The gap
+  the bench notebooks exposed (`plot_data(key='accumError')` via a stranded
+  `PidDebugParser`) is now first-class in `operations`, mirroring the readout path.
+  - **Canonical format** added to firmware `warm_tdm._DataFormats`: `PID_DEBUG_TYPE`
+    (80-byte dtype), `PID_DEBUG_FIELDS`, `PID_DEBUG_FRAME_BYTES`, `PidDebug` dataclass
+    (`from_numpy`). Reconciled against `_PidDebugger.py` (`dropCount` at word 8).
+    Replaces the buggy notebook-dir copy.
+  - **`StreamReader`** now reads all channels in one pass: ch9→`data`, ch0-7→
+    `pid[col][row][field]`, ch255→`config` (`READOUT_CHANNEL`/`PID_DEBUG_CHANNELS`
+    + `_accept_pid`).
+  - **`PidDebugData`** container (data.py) parallel to `StreamData` (bounded registry,
+    `get_by_position(-1)`); built from a path or `StreamData.pid_data()`/
+    `from_stream_data` (no re-read). `StreamData` also carries `.pid` now.
+  - **`plot_pid_debug(crstring, field='accumError', ...)`** (analysis.py) reuses the
+    `expand_channels` DSL + recent-instance contract; `_resolve_pid_data` accepts
+    PidDebugData/StreamData/path/int. Module docstring now documents 3 data models.
+  - Exports: `PidDebugData`, `plot_pid_debug` (49 total).
+  - **Validated in `warm-tdm-r615`:** synthetic-frame decode round-trip (incl. 64-bit
+    pidResult, signed numFluxJumps), plot channel-expansion + `-1` most-recent +
+    bad-field→ValueError, `StreamData.pid`/`pid_data()` wiring. Real PID-debug *file*
+    needs the analog bench (emulate doesn't run the servo).
 
 - 2026-08-12: **Merged dev-server bench notebooks + predecessor helpers; real-workflow
   scoping evidence.** Colleague pushed many `software/scripts/2026*/` bench notebooks
