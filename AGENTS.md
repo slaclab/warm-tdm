@@ -72,9 +72,10 @@ A dedicated serialized link distributes synchronization across all boards:
 
 ### Communication
 
-- **PGP ring**: Boards connected in a ring via MGT links; `RingRouter` routes frames by address
+- **PGP ring**: Boards connected in a ring via MGT links; `RingRouter` routes frames by address and tags each board's data with its ring address in `tDest[6:4]` (stream type in `tDest[3:0]`)
 - **Ethernet bridge**: Coordinator board bridges Ethernet↔PGP ring for host access
 - **Host protocol**: RSSI/SRP over UDP (register access on port 8192, data on port 8193)
+- **Data channelization**: the full TDEST scheme — per-board stream tags, the ring board tag, host demux, file-channel layout (readout=9, PID-debug=0–7, config=255), the multi-board caveat, and the migration plan — is documented in [`firmware/common/DataChannelization.md`](firmware/common/DataChannelization.md)
 
 ### Platform Support
 

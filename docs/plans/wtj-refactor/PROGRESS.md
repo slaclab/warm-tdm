@@ -27,6 +27,27 @@ resolved (rehome-first, graduate-later).
 
 ## Log
 
+- 2026-08-12: **Documented end-to-end data channelization + proposed self-describing
+  frames.** Traced the full path (RTL → ring → RSSI → host → file) and wrote the
+  canonical [`firmware/common/DataChannelization.md`](../../../firmware/common/DataChannelization.md);
+  linked it from AGENTS.md + SOFTWARE_GUIDE. Key findings:
+  - Wire TDEST = `(board<<4) | stream_type`; `RingRouter` tags `tDest[6:4]` with the
+    ring address, host demuxes per board via `UdpRssiPack.application(dest=index)`
+    then per stream via `packetizer.application(i)`. One RSSI link carries all boards.
+  - Stream types (per board): 0–7 PID-debug, 8 waveform, 9 readout; config → file
+    channel 255. Readout-at-9/debug-at-0–8 is a dev-order relic (treat as fixed).
+  - **Board identity is solved on the wire but dropped at file-write** —
+    `_HardwareGroup.py` reuses file channels 0–9 for every board, so 2 column
+    boards collide on channel 9. Host-only fix (`getChannel(board*16+stream)`);
+    no RTL change. Channel numbers are a split write/read contract → centralize.
+  - Waveform bypasses the file today (→ `.npy`); folding it in is host-only.
+  - **Proposed firmware-track item (user):** make all three frame formats
+    self-describing (embed board/Group id + global column) so reprocessed files
+    stay interpretable and channel ids can be sanity-checked. Coordinated RTL +
+    `_DataFormats` + reader change; sequence with the Task 8 Instrument decision
+    (Group-id field only meaningful once the multi-Group file model is chosen).
+    Captured in PLAN; no code yet.
+
 - 2026-08-12: **Task 10 DONE — PID-debug stream surfaced (data model #3).** The gap
   the bench notebooks exposed (`plot_data(key='accumError')` via a stranded
   `PidDebugParser`) is now first-class in `operations`, mirroring the readout path.

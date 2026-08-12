@@ -675,3 +675,46 @@ bias points and hardware reworks, many trials per day. Two implications:
   excluded at push). **Open policy decision:** where curated reference notebooks
   live + whether to strip outputs (`nbconvert --clear-output`) before tracking.
   Not resolved; flagged for a dedicated pass.
+
+---
+
+## Data channelization + self-describing frames (2026-08-12)
+
+Full end-to-end channelization is now documented canonically in
+[`firmware/common/DataChannelization.md`](../../../firmware/common/DataChannelization.md)
+(wire TDEST scheme, ring board tag in `tDest[6:4]`, host two-layer demux, file
+channels, the multi-board file-channel collision, migration direction). The
+guides (AGENTS.md, SOFTWARE_GUIDE.md) point at it. Key facts that bound the
+software here:
+
+- **Board identity is solved on the wire** (`RingRouter` tags `tDest[6:4]` with
+  the ring address; the host demuxes per board via `application(dest=index)`),
+  but **dropped at file-write time** — `_HardwareGroup.py` reuses file channels
+  `0–9` for every board. A 2-board readout collides on file channel 9. Host-only
+  fix (`getChannel(board*16 + stream)`); no RTL change needed.
+- **Channel numbers are a split contract** (write: `_HardwareGroup.py`; read:
+  `operations/streamreader.py`). Centralize the encoding in one authority so
+  board/Group namespacing is a single-point edit.
+- **Readout = channel 9, debug = 0–8** is a development-order relic; treat as a
+  fixed wire contract (renumbering is likely too costly).
+
+### Proposed firmware-track item: self-describing frames
+
+**Motivation (user):** large `.dat` files get reprocessed into derived files,
+where the *file channel number* can be renumbered or lost. Frames should carry
+their own channelization metadata so each is independently interpretable — and
+as a sanity check against the channel id. Applies to **all three** formats:
+
+| Format | Carries today | Add |
+|---|---|---|
+| Readout (`EventBuilder`) | per-sample `col` (3-bit), `row` | global column (board·8+chan), board id, Group id |
+| PID-debug (`_PidDebugger`) | `col`, `row` in body | board id, Group id |
+| Waveform | least (raw ADC) | col/board/Group id |
+
+**Scope/ownership:** this is a coordinated firmware change (frame layout in the
+RTL builders + the `warm_tdm._DataFormats` decoders + the host readers), so it
+is a **firmware-track design item**, not part of the operations refactor. It
+pairs naturally with the multi-board file-channel namespacing (both are "make
+the data path board/Group aware"). Captured here so it is not lost; sequence it
+with the Task 8 Instrument decision (the Group-id field only has meaning once the
+multi-Group file model is chosen). No code yet.

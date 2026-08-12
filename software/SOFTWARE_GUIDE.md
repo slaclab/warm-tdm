@@ -131,13 +131,22 @@ Process lifecycle:
 
 Data flows from FPGA → host via:
 1. `EventBuilder` (firmware) packs DSP output into AXI-Stream frames
-2. PGP ring transports frames to coordinator
+2. PGP ring transports frames to coordinator (each board's data tagged with its
+   ring address in `tDest[6:4]`; stream type in `tDest[3:0]`)
 3. Coordinator's Ethernet bridge sends frames via RSSI/UDP to host
-4. `DataRssi` on port 8193 receives frames
-5. `DataWriter` (pyrogue StreamWriter) records to file
-6. `TdmDataReceiver` (`_TdmDataReceiver.py`) decodes frames for real-time display
+4. `DataRssi` on port 8193 receives frames (one RSSI link carries all boards)
+5. Host demuxes by board (`application(dest=index)`) then by stream type; readout
+   → `DataWriter` file channel 9, PID-debug → channels 0–7, config → channel 255
+6. `DataWriter` (pyrogue StreamWriter, at `GroupRoot`) records to file; readers in
+   `operations/streamreader.py` demux the channels back out
 
-Frame format defined in `warm_tdm._DataFormats.DataReadout`.
+Frame formats defined in `warm_tdm._DataFormats` (`DataReadout`, `PidDebug`).
+
+**Full channelization** — the end-to-end TDEST scheme (per-board stream tagging,
+the ring board tag, host demux, file-channel layout, the multi-board file-channel
+collision, and the migration plan) is documented in
+[`firmware/common/DataChannelization.md`](../firmware/common/DataChannelization.md).
+Read it before touching stream wiring or adding a data format.
 
 ## Configuration Management
 
