@@ -715,6 +715,17 @@ as a sanity check against the channel id. Applies to **all three** formats:
 RTL builders + the `warm_tdm._DataFormats` decoders + the host readers), so it
 is a **firmware-track design item**, not part of the operations refactor. It
 pairs naturally with the multi-board file-channel namespacing (both are "make
-the data path board/Group aware"). Captured here so it is not lost; sequence it
-with the Task 8 Instrument decision (the Group-id field only has meaning once the
-multi-Group file model is chosen). No code yet.
+the data path board/Group aware"). Sequence it with the Task 8 Instrument
+decision (the Group-id field only has meaning once the multi-Group file model is
+chosen). No code yet.
+
+**Full design discussion lives in
+[`firmware/common/DataChannelization.md`](../../../firmware/common/DataChannelization.md)**
+("Self-describing frames") — including the guiding principle (frame
+interpretable from its body alone; channel becomes a checkable hint), the
+per-format gap table, the mandatory `formatVersion`, and the incremental
+sequencing. **Open question captured there:** one shared *frame-identity header*
+(formatType/version/group/board prefix on all streams, uniform dispatch) vs.
+*per-format fields* (lower blast radius, no forced common prefix). Not decided —
+(A) cleaner long-term, (B) lower-risk incremental; revisit when the firmware
+track is scheduled.

@@ -161,18 +161,82 @@ shared by the write side (`_HardwareGroup.py`) and the read side
 Define the encoding once so board/group migration is a single-point edit rather
 than a hunt across both sides.
 
-## Self-describing frames (proposed — see wtj-refactor plan)
+## Self-describing frames (design discussion — 2026-08-12)
 
-Large `.dat` files are routinely reprocessed into derived files, at which point
-the *file channel number* may be renumbered or lost. To make each frame
-independently interpretable — and to provide a sanity check against the channel
-id — the frame **bodies** should carry their own channelization metadata:
-Group id, board id, and (for readout) a global column index, in addition to the
-existing per-sample col/row. The PID-debug frame already carries `col`/`row` in
-its body; the readout frame carries per-sample `col` (3-bit) but no board/Group;
-waveform carries the least. Making all three formats self-describing is a
-firmware-track item (frame layout + `_DataFormats` decoders + the host readers).
-This is captured in `docs/plans/wtj-refactor/PLAN.md`.
+> Status: **agreed in principle, not yet designed or built.** This section
+> records the discussion so it does not have to be rehashed. It is a
+> **firmware-track** change (RTL frame builders + `_DataFormats` decoders + host
+> readers land together, since the byte layout is the contract), sequenced with
+> the multi-Group Instrument decision (see `docs/plans/wtj-refactor/PLAN.md`
+> Task 8 / open decision 4).
+
+### Motivation
+
+Large `.dat` files are routinely reprocessed into derived files (split, merged,
+downsampled). In that flow the **file channel number can be renumbered or lost**,
+so it must not be the only thing that says what a frame is. Guiding principle:
+
+> **Every frame must be interpretable from its body alone, with zero reliance on
+> the file channel it arrived on.** The file channel then becomes a redundant hint
+> that can be *cross-checked* (`body.boardId == file_channel >> 4`) — mismatch
+> signals corruption or a reprocessing bug — rather than a decode dependency.
+
+### What each format carries today vs. needs
+
+| Format | Carries today | Missing |
+|---|---|---|
+| Readout (`EventBuilder`) | header `readoutCount`/`rowSeqCount`/`runTime`; per-sample `col` (3-bit, board-local), `row`, value | board id, Group id, global column (3-bit col cannot name column 8+) |
+| PID-debug (`_PidDebugger`) | `col`/`row` per frame (board-local) | board id, Group id |
+| Waveform | least (raw ADC; today decoded structurally, not even in the file) | col / board / Group id |
+
+Concretely, the readout frame would gain a per-frame **identity block** in its
+header (once per frame, not per sample — negligible overhead): `groupId`,
+`boardId`, and a `colBase` (= boardId·8) so the reader computes
+`global_col = colBase + local_col`. PID-debug can likely absorb `groupId`/
+`boardId` into its existing dummy padding words (`dummy1`, `dummy3_1`, …) with
+**no frame-size change** — desirable for a debug stream. Waveform gets the same
+identity block when it is folded into the file (host-only restructure).
+
+### OPEN QUESTION — one common frame-identity header vs. per-format fields
+
+Two ways to add the metadata:
+
+- **(A) One shared "frame identity header"** — a small fixed prefix
+  (`formatType`, `formatVersion`, `groupId`, `boardId`) on *all* stream frames,
+  with the format-specific body after it. A single `_DataFormats` entry point
+  reads the identity, dispatches to the right body decoder, and the host reader
+  cross-checks identity-vs-file-channel uniformly. Adding a fourth stream later
+  is trivial. Most disciplined; pays off most under reprocessing (a derived-file
+  tool routes by self-declared type+identity, ignorant of the original channel
+  map). Cost: touches all three frame layouts at once and imposes a common prefix
+  on formats that today differ.
+- **(B) Per-format fields** — add `groupId`/`boardId`/`version` to each format
+  independently, fitting each one's existing layout (e.g. PID-debug reuses dummy
+  words; readout extends its header). Lower blast radius per format, no forced
+  common prefix, but no uniform dispatch and each new stream re-solves it.
+
+**Not decided.** (A) is the cleaner long-term shape; (B) is the lower-risk
+incremental one. Revisit when the firmware-track work is scheduled.
+
+### Versioning (non-negotiable whichever option)
+
+The moment frames are self-describing, include a **`formatVersion`** byte — even
+if it is always `1` initially. Reprocessed files outlive the firmware that wrote
+them, so a decoder must be able to tell which layout it is reading. Adding the
+version now is far cheaper than retrofitting it after the first format change.
+
+### Sequencing (incremental, no flag-day)
+
+1. **Now (host-only, no RTL):** centralize the channel map + board-namespace the
+   file channels (`getChannel(board*16 + stream)`), and add the reader-side
+   `boardId`-vs-channel cross-check hook. Board identity lives in the *channel*
+   immediately.
+2. **With Task 8:** decide the multi-Group file model, which fixes what `groupId`
+   means (single Root/DataWriter needs it in-band; federated writer-per-Group may
+   not).
+3. **Firmware track:** implement option (A) or (B) — the identity block across all
+   three formats + decoders + readers, as one coordinated change. After this the
+   body is authoritative and the channel is merely a checkable hint.
 
 ## Reference
 

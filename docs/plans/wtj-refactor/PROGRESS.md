@@ -27,6 +27,18 @@ resolved (rehome-first, graduate-later).
 
 ## Log
 
+- 2026-08-12: **Expanded self-describing-frames design discussion + flagged the
+  common-header open question.** Upgraded the `DataChannelization.md` stub into a
+  full design record: guiding principle (frame interpretable from its body alone;
+  file channel becomes a checkable hint via `boardId == channel>>4`), per-format
+  gap table, mandatory `formatVersion`, and incremental sequencing (host-only
+  channel namespacing now → Task 8 fixes `groupId` meaning → firmware-track
+  identity block). **OPEN QUESTION recorded:** one shared frame-identity header
+  (A, uniform dispatch) vs per-format fields (B, lower blast radius) — not
+  decided. PLAN points at the doc. Also saved a memory
+  ([[feedback_document_design_discussions]]) to routinely capture design
+  discussions + open questions durably (user's general ask).
+
 - 2026-08-12: **Documented end-to-end data channelization + proposed self-describing
   frames.** Traced the full path (RTL → ring → RSSI → host → file) and wrote the
   canonical [`firmware/common/DataChannelization.md`](../../../firmware/common/DataChannelization.md);
