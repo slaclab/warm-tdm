@@ -581,3 +581,71 @@ Depends on Task 7. Build the non-federated attempt first as the scaling probe.
       node/output-var mapping, and the analysis resolver (StreamData passthrough /
       int position / bad path → FileNotFoundError). A *converging* tune needs the
       analog bench (not emulate); the wrapper plumbing around it is verified.
+
+---
+
+## Real-workflow evidence (2026-08-12) — bench notebooks + the predecessor helpers
+
+Merged the dev-server bench notebooks (many `software/scripts/2026*/` dated dirs,
+Mar–Jun 2026, cm08rm05 / cm01rm05 modules) plus the colleague's hand-written
+helper `.py` files. This is ground-truth on whether the `operations` surface is
+correctly scoped. **Verdict: the verb set is strongly validated — we
+independently converged on the same operations an operator arrived at through
+real bench use — with ONE clear gap (the PID-debug stream).**
+
+### `slacwarmefcns.py` (the direct predecessor) maps ~1:1 onto `operations`
+`software/scripts/20260403/slacwarmefcns.py` is the hand-written "batch common
+workflows" file the operator actually used. Correspondence:
+
+| slacwarmefcns.py | operations | note |
+|---|---|---|
+| `take_fast` | `Session.take_raw` | + timeout, session dir |
+| `multi_fast` | `Session.multi_raw` | |
+| `take_data` | `Session.take_data` | + try/finally, run-state restore |
+| `get_mean_wf_asd` | `analysis.get_mean_raw_asd` | the `.npy` raw path (data model #2) |
+| `lock_and_stream` | `Session.setup_mux` | **identical signature** (`num_pts, sample_end_offset, sample_num, strobe`) |
+| `plot_data` | `analysis.plot_stream_data` | ours is richer |
+| `get_latest_file` | (folded into `take_raw`'s wait) | |
+
+### The most recent notebooks already use the predecessor package
+May–Jun 2026 notebooks open with `import warm_tdm_jupyter as wtj` +
+`wtj.Client.set_client(client)` and call `wtj.StreamData(path)` /
+`wtj.analyze_pair('c4r2','c5r2', ...)`. This confirms:
+- the **`Client`→`Session` migration matches real usage**: `wtj.Client.set_client(client)`
+  → `ops.use(client)` is a clean 1:1 for these notebooks;
+- the Task-9 **"explicit `StreamData`/path first-class"** change matches how they
+  actually call it (construct `StreamData(path)`, then analyze).
+- Migration note: these notebooks import `warm_tdm_jupyter` (pre-rename) and use
+  the `Client` singleton — a short compat/porting guide (or a temporary
+  `warm_tdm_jupyter` alias) would smooth adoption. Not yet written.
+
+### THE GAP: the PID-debug stream is a third data model, not in `operations`
+`plot_data(key='accumError'|'sq1fb')` reads `parser.data[col][row][key]` from a
+**`PidDebugParser`** (`datareader.py`; repo has `_PidDebugger.py` +
+`PidDebugFileReader.py`) — the per-(col,row) PID diagnostic stream
+(`accumError`, `baseline`, `sq1Fb`, `fluxJumps`, `pidResult`, `sumAccum`, ...).
+This is distinct from both existing analysis data models (channel-9 readout
+`.dat` StreamData, and `.npy` raw-ADC). It was **actively used** for servo
+diagnostics but `operations` does not surface it. Candidate Task-9-follow-on /
+new task: a `PidDebugData` reader + `plot_pid_debug` in the analysis layer,
+mirroring `StreamData`/`plot_stream_data`. (Also: `setup_mux`/`lock_and_stream`
+has a commented `PidDebugEnable` — enabling this stream is part of the same
+workflow.)
+
+### Bench-workflow shape (informs Task 8 scope)
+The dated-dir naming (`closedloop-synch`, `openloop-unsynch`, `highbias`,
+`postswitchmod`, `bamodI1-try{1..4}`) shows the real operator loop is: configure
+(bias/FB/PID + MUX) → take_data/stream → analyze noise (ASD), iterated across
+bias points and hardware reworks, many trials per day. Two implications:
+- confirms the acquisition+analysis core is the right target;
+- the low-level *configure* step (FAS on/off currents, per-column bias/offset,
+  row map + readout count) is still hand-written register work in these
+  notebooks — `setup_mux` covers only the timing/PID part. A richer bring-up
+  verb (or explicit "this stays low-level" decision) is worth considering.
+
+### Repo hygiene (from this merge)
+- `.gitignore` has a blanket `*.ipynb`; these were force-added. The tracked
+  notebooks carry heavy embedded output (several 10–24 MB; two were >100 MB and
+  excluded at push). **Open policy decision:** where curated reference notebooks
+  live + whether to strip outputs (`nbconvert --clear-output`) before tracking.
+  Not resolved; flagged for a dedicated pass.

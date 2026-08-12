@@ -27,6 +27,30 @@ resolved (rehome-first, graduate-later).
 
 ## Log
 
+- 2026-08-12: **Merged dev-server bench notebooks + predecessor helpers; real-workflow
+  scoping evidence.** Colleague pushed many `software/scripts/2026*/` bench notebooks
+  (Mar–Jun 2026, cm08rm05/cm01rm05) + hand-written helpers; merged into `wtj-refactor`
+  (merge-not-rebase). Findings (full detail in PLAN.md "Real-workflow evidence"):
+  - **Verb set strongly validated.** `slacwarmefcns.py` (the direct predecessor
+    "batch workflows" file) maps ~1:1 onto `operations`: `take_fast`→`take_raw`,
+    `multi_fast`→`multi_raw`, `take_data`, `get_mean_wf_asd`→`get_mean_raw_asd`,
+    `lock_and_stream`→`setup_mux` (**identical signature**), `plot_data`→`plot_stream_data`.
+  - **Client→Session migration matches usage.** Recent (May–Jun) notebooks use
+    `import warm_tdm_jupyter as wtj` + `wtj.Client.set_client(client)` +
+    `wtj.StreamData(path)`/`wtj.analyze_pair(...)` — `ops.use(client)` is a clean 1:1,
+    and the Task-9 explicit-StreamData/path change matches how they call it.
+  - **THE GAP: PID-debug stream** (`plot_data(key='accumError'|'sq1fb')` via
+    `PidDebugParser`; repo `_PidDebugger.py`/`PidDebugFileReader.py`) — a third data
+    model (per-col/row accumError/baseline/sq1Fb/fluxJumps/...) actively used for servo
+    diagnostics, NOT surfaced in `operations`. Candidate: `PidDebugData` +
+    `plot_pid_debug` mirroring StreamData/plot_stream_data.
+  - **Bring-up gap:** notebooks still hand-write the *configure* step (FAS currents,
+    per-column bias/offset, row map + readout count); `setup_mux` covers only
+    timing/PID. Consider a richer bring-up verb (or an explicit "stays low-level").
+  - **Repo hygiene:** `.gitignore` blanket-ignores `*.ipynb` (force-added); heavy
+    embedded outputs (10–24 MB; two >100 MB excluded at push). Open policy: curated
+    location + strip outputs before tracking. Flagged for a dedicated pass.
+
 - 2026-08-12: **Task 9 DONE — operator-facing surface polish.** Closed the
   operator arc and fixed the intuitiveness gaps from the API review.
   - **Tuning wrappers (generic + named):** `Session.run_process(name, block=True,
