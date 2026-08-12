@@ -669,6 +669,17 @@ bias points and hardware reworks, many trials per day. Two implications:
   notebooks — `setup_mux` covers only the timing/PID part. A richer bring-up
   verb (or explicit "this stays low-level" decision) is worth considering.
 
+> **Bring-up + config/tune-point save-restore — design in progress.** The
+> muxed-run bring-up model (the A/B/C configuration layers — enabled set / tune
+> point / run settings — their ordering constraints, the tune-point consistency
+> gate, and two open questions: artifact slicing, and per-thing `Tuned` validity
+> flags) is written up in
+> [`docs/design/muxed-run-bringup.md`](../../design/muxed-run-bringup.md).
+> **Agreed to settle that design before building any helper.** The Rogue-native
+> selector for a layer-scoped snapshot is a group tag (`'TunePoint'`, …) +
+> `saveYaml(incGroups=...)`; the existing `save_state`/`save_config` stay as the
+> broad snapshots.
+
 ### Repo hygiene (from this merge)
 - `.gitignore` has a blanket `*.ipynb`; these were force-added. The tracked
   notebooks carry heavy embedded output (several 10–24 MB; two were >100 MB and

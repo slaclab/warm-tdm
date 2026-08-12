@@ -27,6 +27,28 @@ resolved (rehome-first, graduate-later).
 
 ## Log
 
+- 2026-08-12: **Muxed-run bring-up design doc — the tune-point save/restore
+  foundation.** Started the config/tune-point save-restore work; it opened up the
+  bring-up workflow, so we designed first (per [[feedback_document_design_discussions]]).
+  Wrote [`docs/design/muxed-run-bringup.md`](../../design/muxed-run-bringup.md):
+  - **Three config layers**: A = enabled set (`ColTuneEnable`/`RowMap`/order), B =
+    tune point (Sa/Sq1 setpoints + TesBias + FAS), C = run settings (TimingTx
+    timing/Mode, per-col `PidEnable`/`RowEnableMask`).
+  - **Dependency graph**: A anchors both; B and C are siblings (either order valid)
+    — which is *why* "load tune point before or after run settings?" has no single
+    answer. Confirmed against the bench sequence (enabled set set first, tune in
+    stages against it, run timing/PID last).
+  - **Consistency gate**: a tune point embeds the A it was solved against;
+    `load_tune_point` compares recorded-A vs current-A, refuses/force= on mismatch.
+  - **Rogue mechanism confirmed**: `saveYaml`/`loadYaml`/`treeYaml` take
+    `incGroups`/`excGroups` — a `'TunePoint'` group tag + `incGroups` is the clean
+    layer-scoped selector, no YAML surgery. Keep existing save_state/save_config.
+  - **OPEN Q1**: artifact slicing — three artifacts (A/B/C separate) vs two (A+C
+    "run config" + B tune point). **OPEN Q2**: per-thing `Tuned` validity flags
+    (granularity per-col vs per-col/row vs per-stage; who sets/clears; new
+    server-side state model). Both deferred; build after settling.
+  Referenced from PLAN. No helper code yet.
+
 - 2026-08-12: **Recorded open design item — collapse per-column PID-debug onto one
   tDest.** In `DataChannelization.md`. The 8 PID streams sit on tDest 0–7
   (`DataPath` INDEXED mux) but the frame body already carries `col`, so the
