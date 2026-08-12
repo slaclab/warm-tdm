@@ -34,7 +34,7 @@ import datetime
 
 import numpy as np
 
-from .formats import col_to_board_chan
+from .channels import col_to_board_chan
 
 log = logging.getLogger(__name__)
 

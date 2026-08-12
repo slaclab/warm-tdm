@@ -103,7 +103,7 @@ stable; `n/a` = stays in `operations`.
 | G6 | `utils.py:disable_leds` (`:53-72`) | Stop status-LED blinking on all boards | `method` on `Group` | mature | Trivial; pure register writes. |
 | G7 | `client.py` board discovery (`:42-50`) | Enumerate ColumnBoard/RowBoard indices + RowDacDriver handles | Already native to `HardwareGroup` | n/a | The regex-over-`dir()` discovery duplicates `HardwareGroup.ColumnBoard.values()`. Prefer the tree directly; likely no new method. |
 | G8 | `utils.py:save_config`/`save_state`/`load_config` (`:344-397`) | Timestamped config/state save + load | Leave as thin session helpers | n/a | Wrap existing `root.SaveConfig/SaveState/LoadConfig`; only added value is the timestamped path. Stays in `operations`. |
-| G9 | `formats.py:make/read/write_dead_masks` + missing `apply_dead_masks` | Per-column dead-row (256-bit) mask → hardware | Format helpers stay in `operations`; fanned-out RW `GroupLinkVariable` over `AdcDsp[col].RowEnableMask` gated by `ColTuneEnable` | mature | **The hardware sink exists** — `AdcDsp[col].RowEnableMask` (RW 256-bit, `_AdcDsp.py:116`; applied per row-strobe `AdcDsp.vhd:631`) matches the `{col: 256-bit mask}` shape exactly. Near-term: add `Session.apply_dead_masks()` bridge. Graduate the fanned-out RW to `Group` as it stabilizes. |
+| G9 | `channels.py:make/read/write_dead_masks` + missing `apply_dead_masks` | Per-column dead-row (256-bit) mask → hardware | Format helpers stay in `operations`; fanned-out RW `GroupLinkVariable` over `AdcDsp[col].RowEnableMask` gated by `ColTuneEnable` | mature | **The hardware sink exists** — `AdcDsp[col].RowEnableMask` (RW 256-bit, `_AdcDsp.py:116`; applied per row-strobe `AdcDsp.vhd:631`) matches the `{col: 256-bit mask}` shape exactly. Near-term: add `Session.apply_dead_masks()` bridge. Graduate the fanned-out RW to `Group` as it stabilizes. |
 
 Note: no G-item currently meets the **`now`** gate (none is a continuous loop /
 GUI button / server-owned-state case). `TesBiasWaveformProcess` was the one such
@@ -118,7 +118,7 @@ delegation seam, not to force them server-side prematurely.
   see Task 4: give `take_raw` a timeout.)
 - All of `analysis.py` and `streamreader.py` — offline, no hardware, must not
   depend on `Client`.
-- Dead-mask file I/O (`formats.py:make/write/read_dead_masks`) — file-format
+- Dead-mask file I/O (`channels.py:make/write/read_dead_masks`) — file-format
   helpers. **But they DO have a real hardware sink (see review below): the
   `{col: 256-bit mask}` shape matches `AdcDsp[col].RowEnableMask`.** The format
   helpers stay in `operations`, but an `apply_dead_masks(session)` bridge that

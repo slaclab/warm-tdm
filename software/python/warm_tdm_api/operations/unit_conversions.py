@@ -18,7 +18,7 @@
 ## the needed keys are absent (e.g. a file captured before config embedding), the
 ## helpers return None and callers fall back to documented default factors.
 
-from .formats import col_to_board_chan
+from .channels import col_to_board_chan
 
 # Documented fallback constants (the historical notebook values). Used only when
 # a file has no config channel to derive from. NOTE: sq1fb_to_pA is front-end
@@ -33,7 +33,7 @@ def _col_to_board_chan(col):
 
     Offline path: a parsed config dict carries no live NumColumns, so the
     columns-per-board count cannot be read back here -- we use the shared
-    ``formats.col_to_board_chan`` default (8), the width of every column board
+    ``channels.col_to_board_chan`` default (8), the width of every column board
     shipped to date. Live code derives the count from the bound Group instead.
     """
     return col_to_board_chan(col)

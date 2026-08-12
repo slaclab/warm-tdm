@@ -38,8 +38,8 @@ from .session import (
     new_session,
 )
 
-# Pure format / bitmask / file helpers (no hardware)
-from .formats import (
+# Pure channel helpers: addressing, identifiers, dead masks (no hardware)
+from .channels import (
     get_row_col,
     make_dead_masks,
     write_dead_masks,
@@ -98,7 +98,7 @@ __all__ = [
     'take_raw',
     'multi_raw',
     'take_data',
-    # formats
+    # channels (addressing, identifiers, dead masks)
     'get_row_col',
     'make_dead_masks',
     'write_dead_masks',

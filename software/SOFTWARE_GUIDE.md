@@ -16,8 +16,9 @@ Two Python packages work together:
 layer** for running the system from a notebook, script, or production tooling —
 session/board management (`Session`), data acquisition (`take_raw`, `take_data`),
 hardware setup helpers (`setup_mux`, `all_off`, `set_cryo_resistance`), stream
-reading (`StreamReader`), pure format helpers (`formats.py`), and offline
-analysis/plotting (`plot_stream_data`, `analyze_pair`). It drives the rogue tree
+reading (`StreamReader`), pure channel helpers (`channels.py` — addressing,
+identifiers, dead masks), raw→physical unit conversions (`unit_conversions.py`),
+and offline analysis/plotting (`plot_stream_data`, `analyze_pair`). It drives the rogue tree
 remotely and is deliberately kept distinct from the pyrogue-tree device modules
 (`_Group`, `_SaTune`, …). It is **not** auto-imported by `warm_tdm_api` (so the
 server import path stays free of matplotlib/scipy); import it explicitly:

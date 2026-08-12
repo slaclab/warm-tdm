@@ -27,6 +27,16 @@ resolved (rehome-first, graduate-later).
 
 ## Log
 
+- 2026-08-12: **Renamed `operations/formats.py` → `channels.py`.** The generic
+  "formats" name didn't survive a one-day memory gap. Everything in it is about
+  channels — addressing (`col_to_board_chan`), identifiers (`get_row_col`), and
+  dead-channel masks (`make/write/read_dead_masks`) — so `channels.py` names the
+  unifying theme (dead masks are channel state). `git mv`; updated the 4
+  importers (`session`, `unit_conversions`, `analysis`, `__init__`), the module
+  header, `__all__` comment, SOFTWARE_GUIDE, and the current-state G9 / dead-mask
+  PLAN references. Public export names unchanged → no API break. Verified in
+  `warm-tdm-r615`: 42 exports intact, `channels` imports, old name gone.
+
 - 2026-08-12: **Renamed `operations/calibration.py` → `unit_conversions.py`.**
   The name read as *instrument calibration* (SA/SQ1 tuning), but the module only
   derives the raw→physical unit-conversion factors analysis works in — sample

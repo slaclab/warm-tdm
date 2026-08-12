@@ -1,5 +1,5 @@
 from .data import StreamData
-from .formats import get_row_col
+from .channels import get_row_col
 from .unit_conversions import resolve_fs, resolve_sq1fb_to_pA
 
 import os

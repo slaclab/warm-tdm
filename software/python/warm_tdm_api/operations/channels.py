@@ -1,10 +1,16 @@
 ##
-## Pure format / bitmask / file helpers for the operations layer.
+## Pure channel helpers for the operations layer: addressing, identifiers, and
+## dead-channel masks.
 ##
-## These functions have NO hardware coupling -- no Session, no rogue tree, no
-## live client. They are string parsing, dead-channel bitmask construction, and
-## the on-disk mask file format. Kept separate from the hardware-coupled Session
-## methods so they can be imported and unit-tested without a connection.
+## Three related channel concerns, all pure (NO hardware coupling -- no Session,
+## no rogue tree, no live client), so they can be imported and unit-tested
+## without a connection:
+##   - addressing:   col_to_board_chan (global column -> board, channel)
+##   - identifiers:  get_row_col (parse a 'c<col>r<row>'/'r<row>c<col>' string)
+##   - dead masks:   make/write/read_dead_masks (per-column dead-row bitmask +
+##                   its on-disk .cfg format). The mask shape matches the
+##                   AdcDsp[col].RowEnableMask hardware register; the Session-side
+##                   apply_dead_masks bridge / Group graduation is tracked as G9.
 
 import re
 
