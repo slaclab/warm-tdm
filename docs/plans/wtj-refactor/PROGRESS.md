@@ -27,6 +27,17 @@ resolved (rehome-first, graduate-later).
 
 ## Log
 
+- 2026-08-12: **Recorded open design item — collapse per-column PID-debug onto one
+  tDest.** In `DataChannelization.md`. The 8 PID streams sit on tDest 0–7
+  (`DataPath` INDEXED mux) but the frame body already carries `col`, so the
+  per-column tDest is redundant. Merging to one board-local tDest reclaims slots
+  1–7 (headroom for the board/Group channel scheme), loses nothing, and aligns
+  with "body is authoritative." Wasn't done originally because the live/GUI path
+  wires one `PidDebugger` per column via `packetizer.application(i)` (INDEXED mux
+  = path of least resistance — same relic family as readout-at-9). Coupled to the
+  frame-identity-header A/B question; land in the same firmware-track pass.
+  Debug-only stream, so not worth a standalone effort.
+
 - 2026-08-12: **Expanded self-describing-frames design discussion + flagged the
   common-header open question.** Upgraded the `DataChannelization.md` stub into a
   full design record: guiding principle (frame interpretable from its body alone;

@@ -161,6 +161,46 @@ shared by the write side (`_HardwareGroup.py`) and the read side
 Define the encoding once so board/group migration is a single-point edit rather
 than a hunt across both sides.
 
+## Open design item: collapse per-column PID-debug onto one tDest (2026-08-12)
+
+> Status: **agreed worthwhile, not scheduled.** Firmware-track; a natural
+> corollary of self-describing frames (below).
+
+Today `DataPath.vhd` spreads the 8 per-column PID-debug streams across tDest
+`0`–`7`: `U_AxiStreamMux_1` (`NUM_SLAVES_G => 8`, `MODE_G => "INDEXED"`) stamps
+`tDest = input index`, then `U_AxiStreamMux_2` routes the whole `00000---` block.
+But the PID frame **body already carries `col`** (`_PidDebugger`:
+`col = arr[0] & 0b111`), so the per-column tDest is **redundant with the body**.
+
+**Proposal:** merge the 8 PID streams onto a *single* board-local tDest (frames
+are atomic 80-byte records; a receiver dispatches by the body's `col`). This is
+what the file-based `PidDebugParser` already does.
+
+**Why it's worth doing:**
+- **Reclaims 7 of the 16 board-local stream slots.** The low nibble is nearly
+  full today (`0–7` PID, `8` waveform, `9` readout); collapsing PID to one slot
+  frees `1–7` — real headroom for the board/Group-aware channel scheme.
+- **No information lost** — the disambiguator (`col`) is already in the body.
+- **Aligns with self-describing frames**: if the body is authoritative, tDest
+  carrying per-column identity is exactly the redundancy we want to remove.
+- On the single serial RSSI link there is **no flow-control benefit** to keeping
+  them separate (all serialized downstream anyway).
+
+**Why it wasn't done originally (artifact, not a bug):** the host live/GUI path
+attaches one `PidDebugger` receiver per column via `packetizer.application(i)`
+(the `PidDebug[i]` tree nodes); the per-column tDest feeds those 8 devices
+directly. Collapsing means the live path becomes one receiver that reads `col`
+from the body and dispatches to `PID[col]` — a modest host rewrite. INDEXED mux
+was also the path of least resistance in RTL (same development-order relic family
+as readout-at-9).
+
+**Coupling:** this is nearly the same move as "make the body authoritative"
+below. If the **shared frame-identity header (option A)** is chosen, a single PID
+tDest per board is the obvious layout and per-column tDest becomes clearly
+vestigial — so decide this together with the A/B question, and land it in the
+same firmware-track pass. PID-debug is debug-only (not in a delivered
+instrument), so it does not justify a standalone effort.
+
 ## Self-describing frames (design discussion — 2026-08-12)
 
 > Status: **agreed in principle, not yet designed or built.** This section
