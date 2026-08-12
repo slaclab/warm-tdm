@@ -1,3 +1,25 @@
+##
+## Offline analysis + plotting for the operations layer.
+##
+## TWO DISTINCT DATA MODELS live here -- deliberately, because they come from two
+## different streams. Each function operates on ONE of them; check which before
+## use:
+##
+##   1. Readout stream (channel 9, DataWriter .dat): per-channel SQ1FB values
+##      indexed data[col][row], loaded via StreamData. This is the tuned/servoed
+##      MUX readout. Functions: plot_stream_data, analyze_pair (and the
+##      channel_timeseries/compute_asd/expand_channels helpers). Units come from
+##      the file's embedded config via unit_conversions (fs, sq1fb_to_pA).
+##
+##   2. Raw ADC waveform captures (.npy from WaveformCaptureReceiver): the raw
+##      digitized SA-amp waveform, structured data.item()[col]['V@AmpIn'].
+##      Function: get_mean_raw_asd, which reads an index file of .npy paths.
+##      This is the pre-readout scope-style capture; its sample rate is the ADC
+##      clock (fsamp default 125 MHz), NOT the row-mux readout rate.
+##
+## Mixing the two (e.g. feeding a raw .npy path to plot_stream_data) will not
+## work -- they have different shapes, rates, and units.
+
 from .data import StreamData
 from .channels import get_row_col
 from .unit_conversions import resolve_fs, resolve_sq1fb_to_pA
@@ -207,6 +229,23 @@ def compute_asd(y_ms, fs, nperseg=10):
     return freq, psd, np.sqrt(psd)
 
 
+def _resolve_stream_data(stream_data):
+    """Resolve the analysis functions' data argument to a StreamData instance.
+
+    Accepts, in order of preference for scripting:
+      - a ``StreamData`` instance     -> used directly (first-class path);
+      - a file path str               -> loaded into a new ``StreamData``;
+      - an int position               -> index into the retained registry
+                                         (``-1`` = most recently loaded), the
+                                         original notebook-convenience contract.
+    """
+    if isinstance(stream_data, StreamData):
+        return stream_data
+    if isinstance(stream_data, str):
+        return StreamData(stream_data)
+    return StreamData.get_by_position(stream_data)
+
+
 def _resolve_fs_arg(fs, sd, col):
     """Pick fs: explicit caller value wins, else derive from the file config,
     else documented-literal fallback (with a one-time note per resolution)."""
@@ -243,7 +282,10 @@ def plot_stream_data(crstring, exclude=None, stream_data_id=-1, yoffset=2, npers
         crstring (str): Channel pattern string, e.g. 'c*r*' or 'c0r0-5,c1r*'.
             See expand_channels() for full syntax.
         exclude (str, optional): Channel patterns to exclude. Same syntax as crstring.
-        stream_data_id (int): Index into StreamData._instances. Default is -1 (most recent).
+        stream_data_id: which stream data to plot. A ``StreamData`` instance or a
+            file path (both first-class, best for scripts/batch), or an int
+            position into the retained registry (``-1`` = most recently loaded),
+            the notebook-convenience default.
         yoffset (float): Vertical separation between waveforms in the time plot (nA).
             Default is 2.
         nperseg (int): Welch method divides the time series into this many segments.
@@ -267,7 +309,7 @@ def plot_stream_data(crstring, exclude=None, stream_data_id=-1, yoffset=2, npers
     Raises:
         ValueError: If no channels match crstring after applying exclusions.
     """
-    sd = StreamData.get_by_position(stream_data_id)
+    sd = _resolve_stream_data(stream_data_id)
     data = sd.data
     results = {}
 
@@ -345,7 +387,9 @@ def analyze_pair(cr1, cr2, stream_data_id=-1, yoffset=2, nperseg=10, fs=None, sq
     Args:
         cr1 (str): First channel, e.g. 'c0r5'.
         cr2 (str): Second channel, e.g. 'c0r6'.
-        stream_data_id (int): Index into StreamData._instances. Default -1 (most recent).
+        stream_data_id: which stream data to analyze. A ``StreamData`` instance
+            or a file path (first-class), or an int position into the retained
+            registry (``-1`` = most recently loaded). Default -1.
         yoffset (float): Vertical offset between waveforms in the time plot (nA). Default 2.
         nperseg (int): Number of Welch segments. Default 10.
         fs (float): Sampling frequency in Hz. Default None -> derived from the
@@ -368,7 +412,7 @@ def analyze_pair(cr1, cr2, stream_data_id=-1, yoffset=2, nperseg=10, fs=None, sq
             't', 'y', 'y_ms', 'y_ms_filt', 'freq', 'psd', 'asd'.
             If do_fit=True, also includes fit parameters in the plot label.
     """
-    sd = StreamData.get_by_position(stream_data_id)
+    sd = _resolve_stream_data(stream_data_id)
     data = sd.data
 
     # Resolve unit conversions: caller override wins, else derive from file config,
@@ -489,6 +533,12 @@ def simple_noise_model(freq, wl, n, f_knee):
 def get_mean_raw_asd(col, idxpath, fsamp=125e6):
     """
     Compute the mean ASD across a set of raw waveform captures for one column.
+
+    DATA MODEL: this is the RAW ADC path (data model #2, see module docstring) --
+    it reads ``.npy`` waveform captures (``data.item()[col]['V@AmpIn']``, volts at
+    the SA-amp input), NOT the channel-9 StreamData readout. Its rate is the ADC
+    clock ``fsamp``, not the row-mux readout rate. Produced by multi_raw()/the
+    WaveformCaptureReceiver, indexed by the text file multi_raw() writes.
 
     Reads file paths from an index file (one per line), loads each waveform,
     computes its periodogram, and averages the ASDs.

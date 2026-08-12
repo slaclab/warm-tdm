@@ -2,7 +2,7 @@
 
 Plan: [PLAN.md](PLAN.md) · Spec: [SPEC.md](SPEC.md)
 
-## Status: Tasks 1–4 + **7** done + `pre-release` merged into `wtj-refactor`. Task 5 (Group graduations) deprioritized; analog bench deferred to integrated branch. **2026-08-11 API review added Tasks 7–9** (Session/topology decouple #3 ✅, multi-Group `Instrument` experiment, operator-surface polish) + the open federated-vs-non-federated scaling decision. Next: Task 8 (non-federated `Instrument` scaling experiment) or Task 9 (operator-surface polish).
+## Status: Tasks 1–4 + **7 + 9** done + `pre-release` merged into `wtj-refactor`. Task 5 (Group graduations) deprioritized; analog bench deferred to integrated branch. **2026-08-11 API review added Tasks 7–9** (Session/topology decouple #3 ✅, multi-Group `Instrument` experiment, operator-surface polish ✅) + the open federated-vs-non-federated scaling decision. Next: Task 8 (non-federated `Instrument` scaling experiment).
 
 See also: [MERGE-cleanup.md](MERGE-cleanup.md) — analysis + plan for adopting the
 `cleanup` branch's software refactor (do NOT straight-merge; cherry-pick the
@@ -26,6 +26,31 @@ bench board for the Task 2 HW gate. Package name resolved (`operations`); cadenc
 resolved (rehome-first, graduate-later).
 
 ## Log
+
+- 2026-08-12: **Task 9 DONE — operator-facing surface polish.** Closed the
+  operator arc and fixed the intuitiveness gaps from the API review.
+  - **Tuning wrappers (generic + named):** `Session.run_process(name, block=True,
+    poll_sec, timeout_sec, **params)` — sets params, `Start()`s, polls `Running`
+    (timeout + KeyboardInterrupt→Stop), prints final `Message`, returns the output
+    var via a `_PROCESS_OUTPUT` map. Thin `sa_offset`/`sa_tune`/`sq1_tune`
+    delegate. Replaces the hand-rolled `proc.Start(); while Running` idiom.
+  - **`all_off` → `stop_and_zero`:** honest docstring + `log.warning` that it's
+    best-effort (biases may not zero after MUX; row DACs untouched — G2 firmware
+    bug); explicitly not an interlock.
+  - **`Session.status()`:** one-shot state (board counts, run/MUX mode,
+    tune-enabled cols, output dir); prints + returns dict.
+  - **Analysis input:** `plot_stream_data`/`analyze_pair` `stream_data_id` now
+    also accepts a `StreamData` instance or a file path (first-class) via
+    `_resolve_stream_data`; int position (`-1`) kept as sugar.
+  - **Two data models documented:** `analysis.py` module docstring + a DATA MODEL
+    note on `get_mean_raw_asd` (channel-9 `.dat` StreamData vs `.npy` raw-ADC).
+    Both kept, not unified (per user).
+  - Shims: added `status`/`stop_and_zero`/`run_process`/`sa_offset`/`sa_tune`/
+    `sq1_tune`, removed `all_off`. 47 exports.
+  - **Validated in `warm-tdm-r615` emulate:** `status()` output, `stop_and_zero()`
+    (2s + warning), `run_process` bad-name/bad-param → AttributeError, node/output
+    mapping, analysis resolver (passthrough/int/bad-path). A converging tune needs
+    the analog bench, not emulate; wrapper plumbing verified.
 
 - 2026-08-12: **Renamed `operations/formats.py` → `channels.py`.** The generic
   "formats" name didn't survive a one-day memory gap. Everything in it is about

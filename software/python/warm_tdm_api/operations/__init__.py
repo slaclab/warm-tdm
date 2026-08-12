@@ -2,9 +2,14 @@
 
 A cohesive, deliberately runtime-editable layer of procedures for *running* the
 system from a client (notebook, script, or production tooling): session/board
-management, data acquisition, hardware setup helpers, stream reading, and offline
+management, hardware setup helpers, data acquisition, tuning (start-and-block
+wrappers over the Group tuning processes), stream reading, and offline
 analysis/plotting. It drives the warm_tdm_api rogue tree remotely; it is distinct
 from the pyrogue-tree device modules (`_Group`, `_SaTune`, ...) by design.
+
+The operator arc reads end to end: `connect` -> `setup_mux` -> `sa_tune`/
+`sq1_tune` -> `take_data` -> `plot_stream_data`, with `status()` for state and
+`stop_and_zero()` for a best-effort safe baseline.
 
 Hardware-coupled operations live on the `Session` object (an explicit, injectable
 handle around a connected client). For notebook convenience a process-wide default
@@ -23,11 +28,12 @@ from .session import (
     get_default_session,
     # free-function shims that delegate to the default Session
     print_hardware,
+    status,
     disable_leds,
     set_cryo_resistance,
     set_ps_synch,
     check_ps_synch,
-    all_off,
+    stop_and_zero,
     save_config,
     save_state,
     load_config,
@@ -35,6 +41,10 @@ from .session import (
     take_raw,
     multi_raw,
     take_data,
+    run_process,
+    sa_offset,
+    sa_tune,
+    sq1_tune,
     new_session,
 )
 
@@ -85,11 +95,12 @@ __all__ = [
     'new_session',
     # session shims (hardware setup)
     'print_hardware',
+    'status',
     'disable_leds',
     'set_cryo_resistance',
     'set_ps_synch',
     'check_ps_synch',
-    'all_off',
+    'stop_and_zero',
     'save_config',
     'save_state',
     'load_config',
@@ -98,6 +109,11 @@ __all__ = [
     'take_raw',
     'multi_raw',
     'take_data',
+    # session shims (tuning)
+    'run_process',
+    'sa_offset',
+    'sa_tune',
+    'sq1_tune',
     # channels (addressing, identifiers, dead masks)
     'get_row_col',
     'make_dead_masks',

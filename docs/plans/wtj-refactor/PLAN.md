@@ -556,16 +556,28 @@ Depends on Task 7. Build the non-federated attempt first as the scaling probe.
       (many Roots, `Instrument` federates client-side). Record the result and the
       supervisory-control tie-breaker in Open decision 4.
 
-### Task 9: Operator-facing surface polish (independent)
-- [ ] Add tuning wrappers to `operations` — per-process (`sa_tune`, `sq1_tune`,
-      `sa_offset`, ...) or one `run_process(name, **params)` that starts, blocks on
-      `Running`, and returns the result/plot payload. Closes the operator arc
-      (connect → setup → **tune** → take data → analyze).
-- [ ] Rename `all_off` → honest name (`safe_reset`/`stop_and_zero`); log what it
-      cannot zero (the known firmware bug). Add a `Session.status()`/`summary()`
-      one-shot state verb.
-- [ ] Make `plot_stream_data`/`analyze_pair` accept an explicit `StreamData`/path
-      as first-class input; keep `stream_data_id=-1` as sugar.
-- [ ] Documentation clarity for the two data models (channel-9 `.dat`
-      `StreamData` vs. `.npy` raw-ADC `get_mean_raw_asd`): each function states
-      which stream it operates on. (Keep both models — do not unify.)
+### Task 9: Operator-facing surface polish — DONE (2026-08-12)
+- [x] Tuning wrappers (generic + named, per user): `Session.run_process(name,
+      block=True, poll_sec, timeout_sec, **params)` sets params, `Start()`s,
+      polls `Running` (with `timeout_sec` + KeyboardInterrupt→Stop), prints the
+      final `Message`, and returns the process output var (`_PROCESS_OUTPUT`
+      map). Thin `sa_offset`/`sa_tune`/`sq1_tune` delegate to it. Closes the
+      operator arc (connect → setup → **tune** → take data → analyze).
+- [x] Renamed `all_off` → `stop_and_zero`; honest docstring + a `log.warning`
+      that it is best-effort (biases may not zero after MUX; row DACs untouched
+      — the G2 firmware bug). Not a hardware interlock.
+- [x] Added `Session.status()` — one-shot state summary (board counts,
+      run/MUX mode, tune-enabled cols, output dir); prints and returns a dict.
+- [x] `plot_stream_data`/`analyze_pair` `stream_data_id` now accepts a
+      `StreamData` instance or a file path (first-class) as well as the int
+      position (`-1` = most recent) via `_resolve_stream_data`.
+- [x] Documented the two data models in `analysis.py` module docstring (channel-9
+      `.dat` `StreamData` vs. `.npy` raw-ADC `get_mean_raw_asd`) + a DATA MODEL
+      note on `get_mean_raw_asd`. Both kept — not unified.
+- [x] New shims (`status`, `stop_and_zero`, `run_process`, `sa_offset`,
+      `sa_tune`, `sq1_tune`) registered; `all_off` shim removed. 47 exports.
+- [x] Validated in `warm-tdm-r615` emulate: `status()` output, `stop_and_zero()`
+      (2s + warning), `run_process` bad-name/bad-param → AttributeError,
+      node/output-var mapping, and the analysis resolver (StreamData passthrough /
+      int position / bad path → FileNotFoundError). A *converging* tune needs the
+      analog bench (not emulate); the wrapper plumbing around it is verified.

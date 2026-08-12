@@ -215,6 +215,50 @@ class Session:
         boards.update({f"Row {i}": b for i, b in self.rbs.items()})
         return boards
 
+    def status(self):
+        """Print a one-shot summary of the instrument state, and return it.
+
+        The "where am I?" answer for an interactive prompt: board counts, timing
+        run/MUX mode, tune-enabled columns, and the output dir. Read-only; safe
+        to call any time.
+
+        Returns:
+            dict: the same fields that are printed (for scripting).
+        """
+        st = {
+            'columns': sorted(self.cbs),
+            'rows': sorted(self.rbs),
+            'chans_per_board': self.chans_per_board,
+            'output_dir': (self.output.sessiondir if self.output else None),
+        }
+        try:
+            tx = self.coordinator_cb.WarmTdmCore.Timing.TimingTx
+            st['running'] = bool(tx.Running.get())
+            # Mode: 1 = hardware MUX (free-running), 0 = software-stepped/manual.
+            st['mux_mode'] = 'MUX' if tx.Mode.get() == 1 else 'manual'
+        except (AttributeError, TypeError, KeyError) as e:
+            log.error("Could not read timing state: %s", e)
+            st['running'] = st['mux_mode'] = None
+        try:
+            col_en = self.group.ColTuneEnable.get()
+            st['tune_enabled_cols'] = [c for c, en in enumerate(col_en) if en]
+        except (AttributeError, TypeError) as e:
+            log.error("Could not read ColTuneEnable: %s", e)
+            st['tune_enabled_cols'] = None
+
+        print("+" * 60)
+        print("Session status")
+        print("+" * 60)
+        print(f"  Column boards      : {st['columns']}")
+        print(f"  Row boards         : {st['rows']}")
+        print(f"  Channels/board     : {st['chans_per_board']}")
+        print(f"  Timing run state   : {'RUNNING' if st['running'] else 'stopped'}")
+        print(f"  Timing mode        : {st['mux_mode']}")
+        print(f"  Tune-enabled cols  : {st['tune_enabled_cols']}")
+        print(f"  Output dir         : {st['output_dir']}")
+        print("+" * 60)
+        return st
+
     # ---- hardware info / setup (ported from utils.py) -------------------
     #
     # Several methods below reach through fixed device-tree paths
@@ -358,14 +402,20 @@ class Session:
         else:
             print("Power supplies are in a mixed state (some synchronized, some unsynchronized).")
 
-    def all_off(self):
-        """Zero all signal outputs and stop multiplexing (clean-slate reset).
+    def stop_and_zero(self):
+        """Best-effort return to a safe baseline: zero column outputs, stop MUX.
 
-        Zeros all non-multiplexed column outputs (SQ1/SA/TES bias + feedback),
+        Zeros the non-multiplexed column outputs (SQ1/SA/TES bias + feedback),
         ends any active run, and switches the coordinator board to manual timing.
 
-        Note: a firmware bug currently prevents zeroing biases after dropping out
-        of multiplexing; row-DAC zeroing is left commented pending resolution.
+        NOT a guaranteed "everything off" -- named ``stop_and_zero`` (not
+        ``all_off``) for that reason:
+          - A firmware bug means biases are NOT reliably zeroed after dropping
+            out of multiplexing (the DAC holds its last MUX value).
+          - Row DAC zeroing is left commented pending that fix, so row-select /
+            FAS DAC outputs are untouched here.
+        Treat this as "stop driving and zero what we safely can", not a hardware
+        interlock. See G2 in docs/plans/wtj-refactor/PLAN.md.
         """
         r = None
         try:
@@ -389,6 +439,10 @@ class Session:
         # for i, rdd in self.rdds.items():
         #     rdd.FasOn.Current.set(np.zeros_like(rdd.FasOn.Current.get()))
         #     rdd.FasOff.Current.set(np.zeros_like(rdd.FasOn.Current.get()))
+
+        log.warning("stop_and_zero is best-effort: column biases may not zero "
+                    "after MUX (firmware bug) and row DACs are left untouched. "
+                    "Do not rely on it as a hardware interlock.")
 
     def save_config(self):
         """Save writable config to ``<sessiondir>/config_<ctime>.yml``."""
@@ -589,6 +643,99 @@ class Session:
 
         return data_filename
 
+    # ---- tuning (start-and-block wrappers over the Group pr.Processes) ----
+
+    # Named tuning processes and their output variable, so the wrappers can
+    # return the result the algorithm produced. Every warm_tdm_api tuning
+    # algorithm is a pr.Process on Group with the uniform Start/Stop/Running/
+    # Progress/Message interface; run_process drives any of them by node name.
+    _PROCESS_OUTPUT = {
+        'SaOffsetProcess': 'SaOffsetOutput',
+        'SaTuneProcess': 'SaTuneOutput',
+        'Sq1TuneProcess': 'Sq1TuneOutput',
+        'FasTuneProcess': 'FasTuneOutput',
+    }
+
+    def run_process(self, name, block=True, poll_sec=1.0, timeout_sec=None,
+                    **params):
+        """Configure, start, and (optionally) block on a Group ``pr.Process``.
+
+        Replaces the hand-rolled ``proc.Start(); while proc.Running.get(): ...``
+        idiom (see the old ``scripts/Jupyter.py``). Any of the Group tuning
+        processes -- SaOffset, SaTune, Sq1Tune, FasTune, ... -- is driven by node
+        name, since they all share the ``pr.Process`` interface.
+
+        Args:
+            name (str): the Group child process node, e.g. ``'SaTuneProcess'``.
+            block (bool): if True, poll ``Running`` until the process finishes
+                (or ``timeout_sec`` elapses) before returning; if False, Start
+                and return immediately.
+            poll_sec (float): poll interval while blocking.
+            timeout_sec (float | None): max wall time to block; None = no limit.
+            **params: process variable settings applied before Start, e.g.
+                ``SaBiasNumSteps=5``. Unknown names raise AttributeError.
+
+        Returns:
+            The process's output value if it exposes a known output variable and
+            we blocked to completion; otherwise None. (When ``block=False`` the
+            result is not ready yet -- poll/collect via the process node.)
+
+        Raises:
+            AttributeError: no such process node, or an unknown param name.
+            TimeoutError: the process was still running at ``timeout_sec``.
+        """
+        try:
+            proc = getattr(self.group, name)
+        except AttributeError:
+            raise AttributeError(
+                f"No process '{name}' on Group. Known tuning processes: "
+                f"{sorted(self._PROCESS_OUTPUT)}.")
+
+        for k, v in params.items():
+            getattr(proc, k).set(v)  # AttributeError here = bad param name
+
+        proc.Start()
+        if not block:
+            return None
+
+        deadline = None if timeout_sec is None else time.time() + timeout_sec
+        try:
+            while proc.Running.get():
+                if deadline is not None and time.time() > deadline:
+                    raise TimeoutError(
+                        f"{name} still running after {timeout_sec} s "
+                        f"(last message: {proc.Message.get()!r}).")
+                time.sleep(poll_sec)
+        except KeyboardInterrupt:
+            # Interrupting the wait should stop the process, not orphan it.
+            proc.Stop()
+            raise
+
+        msg = proc.Message.get()
+        if msg:
+            print(f"{name}: {msg}")
+
+        out_var = self._PROCESS_OUTPUT.get(name)
+        if out_var is not None:
+            return getattr(proc, out_var).get()
+        return None
+
+    def sa_offset(self, block=True, **params):
+        """Run SaOffsetProcess (SA offset determination). See run_process."""
+        return self.run_process('SaOffsetProcess', block=block, **params)
+
+    def sa_tune(self, block=True, **params):
+        """Run SaTuneProcess (SA amplifier tuning). See run_process.
+
+        Example: ``sess.sa_tune(SaBiasLowOffset=.4, SaBiasHighOffset=.8,
+        SaBiasNumSteps=5)``.
+        """
+        return self.run_process('SaTuneProcess', block=block, **params)
+
+    def sq1_tune(self, block=True, **params):
+        """Run Sq1TuneProcess (first-stage SQUID tuning). See run_process."""
+        return self.run_process('Sq1TuneProcess', block=block, **params)
+
 
 # ---- module-level convenience (cached default Session) ------------------
 
@@ -651,11 +798,12 @@ def _shim(name):
 
 
 print_hardware = _shim('print_hardware')
+status = _shim('status')
 disable_leds = _shim('disable_leds')
 set_cryo_resistance = _shim('set_cryo_resistance')
 set_ps_synch = _shim('set_ps_synch')
 check_ps_synch = _shim('check_ps_synch')
-all_off = _shim('all_off')
+stop_and_zero = _shim('stop_and_zero')
 save_config = _shim('save_config')
 save_state = _shim('save_state')
 load_config = _shim('load_config')
@@ -663,4 +811,8 @@ setup_mux = _shim('setup_mux')
 take_raw = _shim('take_raw')
 multi_raw = _shim('multi_raw')
 take_data = _shim('take_data')
+run_process = _shim('run_process')
+sa_offset = _shim('sa_offset')
+sa_tune = _shim('sa_tune')
+sq1_tune = _shim('sq1_tune')
 new_session = _shim('new_session')
