@@ -1,6 +1,6 @@
 from .data import StreamData
 from .formats import get_row_col
-from .calibration import resolve_fs, resolve_sq1fb_to_pA
+from .unit_conversions import resolve_fs, resolve_sq1fb_to_pA
 
 import os
 import math
@@ -278,9 +278,9 @@ def plot_stream_data(crstring, exclude=None, stream_data_id=-1, yoffset=2, npers
     if not crs:
         raise ValueError(f"No channels found matching '{crstring}' (exclude={exclude})")
 
-    # Resolve calibration constants: use caller overrides if given, else derive
+    # Resolve unit-conversion factors: use caller overrides if given, else derive
     # from the file's embedded tree config, else documented-literal fallback.
-    # sq1fb_to_pA is per-column (front-end); fs is shared. See calibration.py.
+    # sq1fb_to_pA is per-column (front-end); fs is shared. See unit_conversions.py.
     fs_val = _resolve_fs_arg(fs, sd, get_row_col(crs[0])[0])
 
     # --- Time domain ---
@@ -371,7 +371,7 @@ def analyze_pair(cr1, cr2, stream_data_id=-1, yoffset=2, nperseg=10, fs=None, sq
     sd = StreamData.get_by_position(stream_data_id)
     data = sd.data
 
-    # Resolve calibration: caller override wins, else derive from file config,
+    # Resolve unit conversions: caller override wins, else derive from file config,
     # else documented-literal fallback. fs is shared (resolve from cr1's column).
     fs_val = _resolve_fs_arg(fs, sd, get_row_col(cr1)[0])
 

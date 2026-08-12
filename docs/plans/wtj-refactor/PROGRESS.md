@@ -27,6 +27,18 @@ resolved (rehome-first, graduate-later).
 
 ## Log
 
+- 2026-08-12: **Renamed `operations/calibration.py` → `unit_conversions.py`.**
+  The name read as *instrument calibration* (SA/SQ1 tuning), but the module only
+  derives the raw→physical unit-conversion factors analysis works in — sample
+  rate (Hz) and SQ1FB-DAC-code→pA. `git mv` (history preserved); updated the one
+  importer (`analysis.py`), the `__init__` re-export + `__all__` comment, and the
+  "calibration constant" comments in `formats.py`/`data.py`/`analysis.py`. Module
+  header now states explicitly it is NOT instrument calibration. Public export
+  names unchanged (`derive_fs`/`resolve_*`/`DEFAULT_*`), so no API break. Verified
+  in `warm-tdm-r615`: 42 exports intact, `unit_conversions` imports, old name
+  gone. (Historical Task-4 log/PLAN/SPEC entries still say `calibration.py` —
+  accurate for their date; not rewritten.)
+
 - 2026-08-11: **Task 7 DONE — decoupled `Session` from tree topology (#3).**
   `operations/session.py`: `Session` now binds to an injected **Group node**
   (`Session(group)`), not the global `root.Group`; `self.root = group.root` for

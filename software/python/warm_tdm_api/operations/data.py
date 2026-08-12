@@ -91,7 +91,7 @@ class StreamData:
         sr.readStream(self.file_path)
         self.data = sr.data
         # Parsed tree config captured in the file (channel 255), or {} if the
-        # file has no config frame. Used to derive calibration constants
+        # file has no config frame. Used to derive unit-conversion factors
         # (sample rate, DAC->current) from the capture itself.
         self.config = sr.config
 

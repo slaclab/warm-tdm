@@ -1,16 +1,22 @@
 ##
-## Calibration constant derivation from a captured file's tree config.
+## Unit-conversion factor derivation from a captured file's tree config.
+##
+## Analysis works in physical units, but the streamed data carries raw values:
+## SQ1FB DAC codes (not pA) and sample indices (not seconds). This module derives
+## the factors that map raw -> physical -- the sample rate (Hz) and the
+## SQ1FB-DAC-code-to-current conversion (pA/LSB). It is NOT instrument calibration
+## (SA/SQ1 tuning etc. -- that lives in the tuning pr.Processes); it just supplies
+## the units the analysis functions scale into.
 ##
 ## The Rogue config channel embedded in each data file (see streamreader.py)
-## carries the full device-tree state at capture time. That lets us derive the
-## analysis calibration constants -- the sample rate and the SQ1FB-DAC-to-current
-## conversion -- from the capture itself instead of hardcoding them, so they
-## always match the front-end / timing that actually produced the data.
+## carries the full device-tree state at capture time, so these factors are
+## derived from the capture itself instead of hardcoded, always matching the
+## front-end / timing that actually produced the data.
 ##
 ## These are pure functions of the parsed config dict (flat, keyed by full dotted
 ## tree path). They do NOT touch live hardware, so analysis stays offline. When
 ## the needed keys are absent (e.g. a file captured before config embedding), the
-## helpers return None and callers fall back to documented default constants.
+## helpers return None and callers fall back to documented default factors.
 
 from .formats import col_to_board_chan
 

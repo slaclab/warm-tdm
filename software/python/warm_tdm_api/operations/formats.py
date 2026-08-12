@@ -15,7 +15,7 @@ def col_to_board_chan(col, chans_per_board=8):
     Pure arithmetic: ``board = col // chans_per_board``, ``channel = col %
     chans_per_board``. The single source of this mapping for the operations layer
     -- both the live ``Session`` (which passes the count derived from its bound
-    ``Group``) and offline ``calibration`` call this so the ``//8`` split is not
+    ``Group``) and offline ``unit_conversions`` call this so the ``//8`` split is not
     duplicated. The default (8) matches every column board shipped to date; live
     callers should pass the tree-derived value rather than rely on it.
 

@@ -50,8 +50,8 @@ from .formats import (
 from .data import StreamData
 from .streamreader import StreamReader
 
-# Calibration constant derivation (from a capture's embedded tree config)
-from .calibration import (
+# Unit-conversion factor derivation (from a capture's embedded tree config)
+from .unit_conversions import (
     derive_fs,
     derive_sq1fb_to_pA,
     resolve_fs,
@@ -106,7 +106,7 @@ __all__ = [
     # data / streamreader
     'StreamData',
     'StreamReader',
-    # calibration
+    # unit conversions
     'derive_fs',
     'derive_sq1fb_to_pA',
     'resolve_fs',
