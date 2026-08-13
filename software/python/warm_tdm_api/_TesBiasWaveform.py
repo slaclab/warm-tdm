@@ -47,16 +47,7 @@ def wfsquare(t, f, low, high):
     return (high - low) * (np.floor(t * 2 * f) % 2 >= 1).astype(float) + low
 
 def wfconst(t, const):
-    """
-    Generate a constant waveform.
-
-    Args:
-        t (float): Time value (not used).
-        const (float): The constant value to return.
-
-    Returns:
-        float: The constant value.
-    """
+    """Constant waveform — the 'None' mode; holds `const`, ignoring `t`."""
     return const
 
 class TesBiasWaveformProcess(pr.Process):
