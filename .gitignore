@@ -6,6 +6,8 @@
 *.bit
 *.bin
 *.ipynb
+# ...but track curated, output-free template/reference notebooks:
+!software/jupyter/operations_template.ipynb
 *.yml
 .ipynb_checkpoints/
 images/

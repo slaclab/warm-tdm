@@ -27,6 +27,18 @@ resolved (rehome-first, graduate-later).
 
 ## Log
 
+- 2026-08-12: **Added `operations` workflow template** (`software/jupyter/
+  operations_template.{py,ipynb}`). Replaces the obsolete `jupyter_template.ipynb`
+  (4 cells of `warm_tdm.JupyterPlotter`). Rebuilt from the real bench sequence
+  using the new `ops.*` API, structured by the A/B/C bring-up layers (connect →
+  enabled set → tune stages → run settings → take_data → analyze → stop_and_zero).
+  Authored as a percent-format `.py` (diffable source of truth); the `.ipynb` is
+  generated from it (23 cells, outputs stripped) so the two stay in sync. Tracked
+  via a `.gitignore` negation exception (`!software/jupyter/operations_template.ipynb`)
+  past the blanket `*.ipynb`. **Validated:** `.py` py_compiles; every referenced
+  `ops.*` / `sess.*` / `group.*` symbol + tune-process param exists (no
+  aspirational API). Doubles as living documentation of the operations API.
+
 - 2026-08-12: **Muxed-run bring-up design doc — the tune-point save/restore
   foundation.** Started the config/tune-point save-restore work; it opened up the
   bring-up workflow, so we designed first (per [[feedback_document_design_discussions]]).
