@@ -73,11 +73,19 @@ class TesBiasWaveformProcess(pr.Process):
 
         self._config = config
 
-        self.add(pr.LocalVariable(name='SoftwareClock',
+        self.add(pr.LocalVariable(name='UpdateRate',
                                   value=1000.,
                                   units='Hz',
                                   mode='RW',
-                                  description='Software update rate.'))
+                                  description=(
+                                      'Requested rate at which the host recomputes and writes the '
+                                      'TES bias vector (the waveform sample rate, NOT the waveform '
+                                      'frequency). Best-effort and host-limited: the real ceiling is '
+                                      'the host->board TesBias.set() round-trip rate, so a value '
+                                      'above what the link can sustain just lags and logs a warning. '
+                                      'Keep it well above the highest per-line Frequency for a smooth '
+                                      'waveform. Bench-measured achievable rate is TBD (see issue #55); '
+                                      'start conservative (~10-100 Hz) until characterized.')))
 
         # One generator per TES bias entry. The TES bias vector has length
         # ColumnBoards * 8 == config.numColumns, so size the generator list from
@@ -159,10 +167,10 @@ def tesBiasWaveform(*, group, process):
     # Play waveforms
     new_tes_bias = orig_tes_bias.copy()
     last_tes_bias = orig_tes_bias.copy()
-    clk_hz = process.SoftwareClock.get()
+    clk_hz = process.UpdateRate.get()
     if clk_hz <= 0:
         raise ValueError(
-            f"SoftwareClock must be > 0 Hz (got {clk_hz}).")
+            f"UpdateRate must be > 0 Hz (got {clk_hz}).")
     dt = 1. / clk_hz
     t0 = time.time()
     counter = 0
@@ -170,7 +178,7 @@ def tesBiasWaveform(*, group, process):
     while True:
         step_t = counter * dt
         # Sleep until the next tick rather than busy-polling, so a high
-        # SoftwareClock doesn't spin the server CPU (remaining may be <= 0 if
+        # UpdateRate doesn't spin the server CPU (remaining may be <= 0 if
         # we're already behind, in which case we proceed immediately).
         remaining = step_t - (time.time() - t0)
         if remaining > 0:
@@ -182,13 +190,13 @@ def tesBiasWaveform(*, group, process):
             group.TesBias.set(new_tes_bias)
             last_tes_bias = new_tes_bias.copy()
 
-        # Warn (once) if the software can't sustain the requested SoftwareClock:
+        # Warn (once) if the host can't sustain the requested UpdateRate:
         # if we've fallen a full sample behind schedule after the set, the
         # host/link latency exceeds the requested update period (see #55).
         if not lag_warned and (time.time() - t0) - step_t > dt:
             process._log.warning(
-                f"SoftwareClock ({clk_hz} Hz) exceeds the achievable software "
-                f"update rate; waveform timing is lagging. Lower SoftwareClock.")
+                f"UpdateRate ({clk_hz} Hz) exceeds the achievable host "
+                f"update rate; waveform timing is lagging. Lower UpdateRate.")
             lag_warned = True
 
         # Check for stopped process
