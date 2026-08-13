@@ -354,6 +354,14 @@ class WaveformCaptureReceiver(pr.DataReceiver):
             name = 'LastSavedFileName',
             value = ''))
 
+        self.add(pr.LocalVariable(
+            name = 'MillisecondTimestamp',
+            value = False))
+
+        self.add(pr.LocalVariable(
+            name = 'SavedFilePath',
+            value = '../data'))
+
         @self.command()
         def CaptureAndWait():
             self.Updated.set(False)
@@ -426,9 +434,21 @@ class WaveformCaptureReceiver(pr.DataReceiver):
             self.RawData.set(d)
 
             if self.SaveData.value():
-                timestr = time.strftime("%Y%m%d-%H%M%S")
-                filename = Path(f'../data/Waveform_{timestr}.npy').resolve()
-                np.save(filename, self.RawData.value())
+                current_time = datetime.datetime.now()
+                timestr = current_time.strftime("%Y%m%d-%H%M%S")
+                if self.MillisecondTimestamp.value():
+                    timestr = f'{timestr}-{current_time.microsecond // 1000:03d}'
+
+                save_dir = Path(self.SavedFilePath.value()).expanduser().resolve()
+                save_dir.mkdir(parents=True, exist_ok=True)
+                filename = save_dir / f'Waveform_{timestr}.npy'
+
+                # Only publish LastSavedFileName once the file is fully written.
+                with open(filename, 'wb') as f:
+                    np.save(f, self.RawData.value())
+                    f.flush()
+                    os.fsync(f.fileno())
+
                 self.LastSavedFileName.set(str(filename))
 
 
@@ -550,8 +570,9 @@ class MultiPlot(pr.LinkVariable):
             parent.PlotPSD: (plot_psd_channel, parent.PSDSrc),
             parent.PlotWaveform: (plot_waveform_channel, parent.WaveformSrc)}
 
-
-#        self.fig = None
+        # Reuse a single matplotlib figure so GUI/Jupyter refreshes update
+        # the existing canvas instead of materializing a new window.
+        self._fig = plt.Figure(tight_layout=True, figsize=(20,20))
 
         def _conv(adc):
             return adc/2**13
@@ -560,7 +581,8 @@ class MultiPlot(pr.LinkVariable):
 
 
     def linkedGet(self, read, index=-1):
-        fig = plt.Figure(tight_layout=True, figsize=(20,20))
+        fig = self._fig
+        fig.clear()
 
         enabled_plot_functions = {
             k: v for k, v in self.plot_functions.items()
@@ -585,5 +607,3 @@ class MultiPlot(pr.LinkVariable):
                 func[0](ch, ax, data[ch][src], src, multi_channel=False)
 
         return fig
-
-

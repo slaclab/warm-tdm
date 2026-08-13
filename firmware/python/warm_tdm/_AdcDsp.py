@@ -89,8 +89,17 @@ class AdcDsp(pr.Device):
             bitSize = 1,
             bitOffset = 0))
 
+        self.add(pr.RemoteCommand(
+            name = 'ClearPidState',
+            description = 'Request a hardware scrub of the per-row PID state RAMs.',
+            offset = 0x30,
+            bitSize = 1,
+            bitOffset = 0,
+            function = pr.RemoteCommand.touchOne))
+
         def _enablePid(value, write):
-            self.ClearPids()
+            if write:
+                self.ClearPidState()
             self.PidEnableRaw.set(value, write=write)
 
         self.add(pr.LinkVariable(
@@ -128,25 +137,54 @@ class AdcDsp(pr.Device):
         
 
         self.add(pr.RemoteVariable(
-            name = 'P_Coef',
+            name = 'P_CoefRaw',
             offset = 0x04,
             base = AdcDsp.COEF_BASE,
+            hidden = True,
             bitSize = AdcDsp.COEF_BASE.bitSize,
             bitOffset = 0))
 
         self.add(pr.RemoteVariable(
-            name = 'I_Coef',
+            name = 'I_CoefRaw',
             offset = 0x08,
             base = AdcDsp.COEF_BASE,
+            hidden = True,
             bitSize = AdcDsp.COEF_BASE.bitSize,
             bitOffset = 0))
 
         self.add(pr.RemoteVariable(
-            name = 'D_Coef',
+            name = 'D_CoefRaw',
             offset = 0x0C,
             base = AdcDsp.COEF_BASE,
+            hidden = True,
             bitSize = AdcDsp.COEF_BASE.bitSize,
             bitOffset = 0))
+
+        def _setCoef(dep, value, write, *, clearState=False):
+            dep.set(value, write=write)
+            if write and clearState:
+                self.ClearPidState()
+
+        self.add(pr.LinkVariable(
+            name = 'P_Coef',
+            base = AdcDsp.COEF_BASE,
+            dependencies = [self.P_CoefRaw],
+            linkedSet = lambda value, write: _setCoef(self.P_CoefRaw, value, write),
+            linkedGet = self.P_CoefRaw.get))
+
+        self.add(pr.LinkVariable(
+            name = 'I_Coef',
+            base = AdcDsp.COEF_BASE,
+            dependencies = [self.I_CoefRaw],
+            linkedSet = lambda value, write: _setCoef(self.I_CoefRaw, value, write, clearState=True),
+            linkedGet = self.I_CoefRaw.get))
+
+        self.add(pr.LinkVariable(
+            name = 'D_Coef',
+            base = AdcDsp.COEF_BASE,
+            dependencies = [self.D_CoefRaw],
+            linkedSet = lambda value, write: _setCoef(self.D_CoefRaw, value, write),
+            linkedGet = self.D_CoefRaw.get))
 
         self.add(pr.RemoteVariable(
             name = 'FluxQuantumRaw',
@@ -303,10 +341,7 @@ class AdcDsp(pr.Device):
 
         @self.command()
         def ClearPids():
-            blank = [0 for x in range(self.rows)]
-            self.SumAccum.set(blank)
-            self.PidResults.set(blank)
-            self.FluxJumps.set(blank)
+            self.ClearPidState()
 
 #         self.add(surf.dsp.fixed.FirFilterMultiChannel(
 #             name = 'FirFilter',

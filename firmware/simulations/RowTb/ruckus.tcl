@@ -17,10 +17,10 @@ loadRuckusTcl $::env(TOP_DIR)/submodules/surf
 loadRuckusTcl $::env(TOP_DIR)/common/warm_tdm
 
 # Target tops
-loadSource  -lib warm_tdm   -dir           $::env(TOP_DIR)/targets/RowModule/rtl
-loadSource  -lib warm_tdm   -sim_only -dir $::env(TOP_DIR)/targets/RowModule/sim
-#loadSource  -lib warm_tdm   -dir           $::env(TOP_DIR)/targets/ColumnModule/rtl
-#loadSource  -lib warm_tdm   -sim_only -dir $::env(TOP_DIR)/targets/ColumnModule/sim
+loadSource  -lib warm_tdm   -dir           $::env(TOP_DIR)/targets/legacy/RowModule/rtl
+loadSource  -lib warm_tdm   -sim_only -dir $::env(TOP_DIR)/targets/legacy/RowModule/sim
+#loadSource  -lib warm_tdm   -dir           $::env(TOP_DIR)/targets/legacy/ColumnModule/rtl
+#loadSource  -lib warm_tdm   -sim_only -dir $::env(TOP_DIR)/targets/legacy/ColumnModule/sim
 
 # Load target's source code and constraints
 loadSource -lib warm_tdm -sim_only -dir $::env(PROJ_DIR)/tb

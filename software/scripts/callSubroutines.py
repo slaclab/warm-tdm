@@ -3,10 +3,10 @@
 import pyrogue
 import pyrogue.pydm
 import rogue
-from TDMSubroutines import *
 
-pyrogue.addLibraryPath(f'../python/')
-pyrogue.addLibraryPath(f'../../firmware/python/')
+import _setupLibPaths  # noqa: F401  (registers in-repo library paths)
+
+from TDMSubroutines import *
 
 import warm_tdm_api
 
