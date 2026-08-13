@@ -426,5 +426,5 @@ class Group(pr.Device):
             self.add(warm_tdm_api.FasTuneProcess(groups=['NoDoc']))
             self.add(warm_tdm_api.Sq1DiagProcess(groups=['NoDoc']))
             self.add(warm_tdm_api.TesRampProcess(groups=['NoDoc']))
-            self.add(warm_tdm_api.TesBiasWaveformProcess(groups=['NoDoc']))
+            self.add(warm_tdm_api.TesBiasWaveformProcess(config=self.config, groups=['NoDoc']))
             self.add(warm_tdm_api.SaStripChartProcess(groups=['NoDoc']))

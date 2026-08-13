@@ -8,11 +8,10 @@ The `TesBiasWaveformProcess` class is the main entry point for generating wavefo
 The available waveform types are:
 - Sine wave
 - Square wave
-- Nothing (no waveform)
+- None (hold the original bias)
 """
 
 import pyrogue as pr
-import warm_tdm_api
 import numpy as np
 import time
 from functools import partial
@@ -32,7 +31,7 @@ def wfsin(t, f, low, high):
     """
     return ((high - low) / 2.) * np.sin(2. * np.pi * f * t) + (high + low) / 2.
 
-def wfstep(t, f, low, high):
+def wfsquare(t, f, low, high):
     """
     Generate a square wave waveform.
 
@@ -65,16 +64,23 @@ class TesBiasWaveformProcess(pr.Process):
     TES Bias Waveform Generator Process
 
     This class manages the generation of various waveforms for the TES bias lines.
+    One `TesBiasWaveformGenerator` sub-device is created per TES bias entry
+    (``config.numColumns`` == ``ColumnBoards * 8``) at construction time.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, *, config, **kwargs):
         """
         Initialize the TES Bias Waveform Generator Process.
 
         Args:
+            config: Group configuration (provides ``numColumns``, i.e. the TES
+                bias vector length). Used to size the generator list once, here
+                at construction time.
             **kwargs: Additional keyword arguments passed to the parent class.
         """
         pr.Process.__init__(self, function=self._tesBiasWaveformWrap, **kwargs)
+
+        self._config = config
 
         self.add(pr.LocalVariable(name='SoftwareClock',
                                   value=1000.,
@@ -82,57 +88,28 @@ class TesBiasWaveformProcess(pr.Process):
                                   mode='RW',
                                   description='Software update rate.'))
 
-        self._waveformGeneratorCount = 0
-        self._ensureWaveformGenerators(getattr(self, 'parent', None))
-
-    def _getWaveformGeneratorCount(self, group):
-        """
-        Determine the number of TES bias waveform generators required for the
-        attached group configuration.
-        """
-        if group is not None:
-            tes_bias = getattr(group, 'TesBias', None)
-            if tes_bias is not None:
-                try:
-                    return len(tes_bias.get())
-                except TypeError:
-                    pass
-
-            column_map = getattr(group, 'ColumnMap', None)
-            if column_map is not None:
-                try:
-                    return len(column_map.get())
-                except TypeError:
-                    pass
-
-        return 8
-
-    def _ensureWaveformGenerators(self, group):
-        """
-        Ensure that there is one waveform generator per TES bias entry.
-        """
-        required_count = self._getWaveformGeneratorCount(group)
-
-        for i in range(self._waveformGeneratorCount, required_count):
-            self.add(warm_tdm_api.tesBiasWaveformGenerator(
-                name=f'tesBiasWaveformGenerator[{i}]'))
-
-        self._waveformGeneratorCount = required_count
+        # One generator per TES bias entry. The TES bias vector has length
+        # ColumnBoards * 8 == config.numColumns, so size the generator list from
+        # config at construction time (the parent isn't attached yet in __init__,
+        # and mutating the device tree at run time would desync connected clients).
+        self._waveformGeneratorCount = config.numColumns
+        for i in range(self._waveformGeneratorCount):
+            self.add(TesBiasWaveformGenerator(
+                name=f'TesBiasWaveformGenerator[{i}]'))
 
     def _tesBiasWaveformWrap(self):
         """
         Wrap the TES bias waveform generation process.
         """
-        self._ensureWaveformGenerators(self.parent)
         tesBiasWaveform(group=self.parent, process=self)
 
-def tesBiasWaveform(*, group, process=None):
+def tesBiasWaveform(*, group, process):
     """
     Generate TES bias waveforms and update the TES bias values.
 
     Args:
         group (pr.Device): The parent device group.
-        process (TesBiasWaveformProcess, optional): The TES bias waveform process instance.
+        process (TesBiasWaveformProcess): The TES bias waveform process instance.
     """
     process._log.info("TesBiasWaveformProcess Running.")
 
@@ -142,19 +119,18 @@ def tesBiasWaveform(*, group, process=None):
     # Prepare waveforms
     wfs = []
 
-    # Number of generators is sized dynamically by _ensureWaveformGenerators
-    # (one per TES bias entry); use that count rather than a hardcode.
+    # One generator per TES bias entry, sized from config at construction.
     num_generators = process._waveformGeneratorCount
     if len(orig_tes_bias) != num_generators:
         raise ValueError(
             f"TES bias vector length ({len(orig_tes_bias)}) does not match "
             f"the number of waveform generators ({num_generators}).")
 
-    enum0 = process.tesBiasWaveformGenerator[0].Mode.enum
+    enum0 = process.TesBiasWaveformGenerator[0].Mode.enum
     valid_modes = {'None', 'Sine', 'Square'}
     modes = []
     for ii in range(num_generators):
-        mode_value = process.tesBiasWaveformGenerator[ii].Mode.get()
+        mode_value = process.TesBiasWaveformGenerator[ii].Mode.get()
         mode = enum0.get(mode_value)
         if mode is None or mode not in valid_modes:
             raise ValueError(
@@ -167,15 +143,15 @@ def tesBiasWaveform(*, group, process=None):
             const = orig_tes_bias[ii]
             wfs.append(partial(wfconst, const=const))
         elif mode == 'Sine':
-            f_hz = process.tesBiasWaveformGenerator[ii].Frequency.get()
-            low_ua = process.tesBiasWaveformGenerator[ii].TESBiasLow.get()
-            high_ua = process.tesBiasWaveformGenerator[ii].TESBiasHigh.get()
+            f_hz = process.TesBiasWaveformGenerator[ii].Frequency.get()
+            low_ua = process.TesBiasWaveformGenerator[ii].TESBiasLow.get()
+            high_ua = process.TesBiasWaveformGenerator[ii].TESBiasHigh.get()
             wfs.append(partial(wfsin, f=f_hz, low=low_ua, high=high_ua))
         elif mode == 'Square':
-            f_hz = process.tesBiasWaveformGenerator[ii].Frequency.get()
-            low_ua = process.tesBiasWaveformGenerator[ii].TESBiasLow.get()
-            high_ua = process.tesBiasWaveformGenerator[ii].TESBiasHigh.get()
-            wfs.append(partial(wfstep, f=f_hz, low=low_ua, high=high_ua))
+            f_hz = process.TesBiasWaveformGenerator[ii].Frequency.get()
+            low_ua = process.TesBiasWaveformGenerator[ii].TESBiasLow.get()
+            high_ua = process.TesBiasWaveformGenerator[ii].TESBiasHigh.get()
+            wfs.append(partial(wfsquare, f=f_hz, low=low_ua, high=high_ua))
         else:
             raise ValueError(
                 f"Unhandled TES bias waveform mode for generator {ii}: {mode!r}")
@@ -196,12 +172,13 @@ def tesBiasWaveform(*, group, process=None):
     dt = 1. / clk_hz
     t0 = time.time()
     counter = 0
+    lag_warned = False
     while True:
         step_t = counter * dt
         t = time.time()
         # No rest for the wicked
         while t - t0 < step_t:
-            time.sleep(0.000010) # 10 us delay to reduce cpu usage 
+            time.sleep(0.000010) # 10 us delay to reduce cpu usage
             t = time.time()
 
         new_tes_bias = np.array([wf(t - t0) for wf in wfs])
@@ -209,15 +186,24 @@ def tesBiasWaveform(*, group, process=None):
             group.TesBias.set(new_tes_bias)
             last_tes_bias = new_tes_bias.copy()
 
+        # Warn (once) if the software can't sustain the requested SoftwareClock:
+        # if we've fallen a full sample behind schedule after the set, the
+        # host/link latency exceeds the requested update period (see #55).
+        if not lag_warned and (time.time() - t0) - step_t > dt:
+            process._log.warning(
+                f"SoftwareClock ({clk_hz} Hz) exceeds the achievable software "
+                f"update rate; waveform timing is lagging. Lower SoftwareClock.")
+            lag_warned = True
+
         # Check for stopped process
-        if process is not None and process._runEn == False:
+        if process._runEn is False:
             process._log.info('TesBiasWaveformProcess stopped, returning TES biases to original values')
             group.TesBias.set(orig_tes_bias)
             break
 
         counter += 1
 
-class tesBiasWaveformGenerator(pr.Device):
+class TesBiasWaveformGenerator(pr.Device):
     """
     TES Bias Waveform Generator
 
@@ -238,8 +224,8 @@ class tesBiasWaveformGenerator(pr.Device):
             mode='RW',
             enum={
                 0: 'None',
-                1: 'Square',
-                2: 'Sine'}))
+                1: 'Sine',
+                2: 'Square'}))
 
         self.add(pr.LocalVariable(name='Frequency',
                                   value=1.0,
