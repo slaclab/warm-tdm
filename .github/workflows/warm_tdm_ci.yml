@@ -65,9 +65,11 @@ jobs:
   # since FPGA images cannot be built in CI.
   gen_release:
     needs: [test_and_document]
+    permissions:
+      contents: write
     uses: slaclab/ruckus/.github/workflows/gen_release.yml@main
     with:
       version: '1.0.0'
     secrets:
-      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
 
