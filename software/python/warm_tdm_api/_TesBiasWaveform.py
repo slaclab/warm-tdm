@@ -169,17 +169,22 @@ def tesBiasWaveform(*, group, process):
     new_tes_bias = orig_tes_bias.copy()
     last_tes_bias = orig_tes_bias.copy()
     clk_hz = process.SoftwareClock.get()
+    if clk_hz <= 0:
+        raise ValueError(
+            f"SoftwareClock must be > 0 Hz (got {clk_hz}).")
     dt = 1. / clk_hz
     t0 = time.time()
     counter = 0
     lag_warned = False
     while True:
         step_t = counter * dt
+        # Sleep until the next tick rather than busy-polling, so a high
+        # SoftwareClock doesn't spin the server CPU (remaining may be <= 0 if
+        # we're already behind, in which case we proceed immediately).
+        remaining = step_t - (time.time() - t0)
+        if remaining > 0:
+            time.sleep(remaining)
         t = time.time()
-        # No rest for the wicked
-        while t - t0 < step_t:
-            time.sleep(0.000010) # 10 us delay to reduce cpu usage
-            t = time.time()
 
         new_tes_bias = np.array([wf(t - t0) for wf in wfs])
         if not np.allclose(new_tes_bias, last_tes_bias):
