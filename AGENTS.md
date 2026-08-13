@@ -206,8 +206,8 @@ python warmTdmGui.py
 # Command-line client
 python warmTdmClientCmd.py
 
-# Emulation mode (no hardware)
-python warmTdmEmulate.py
+# Emulation mode (no hardware — fakes register memory via MemEmulate)
+python Jupyter.py --emulate
 ```
 
 ## Releases
