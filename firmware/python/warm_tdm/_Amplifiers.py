@@ -107,7 +107,7 @@ class FEAmplifier3(SaAmplifier):
         super().__init__(**kwargs)
 
         self.add(pr.LocalVariable(
-            name = 'R_CABLE',
+            name = 'CableR',
             description = 'Cable resistance on SA Bias',
             value = 120.0,
             units = u'\u03a9'))
@@ -187,7 +187,7 @@ class FEAmplifier3(SaAmplifier):
             value = 3.67))
 
         sa_vars = [
-            self.R_CABLE,
+            self.CableR,
             self.BIAS_SHUNT_R_P,
             self.BIAS_SHUNT_R_N,
             self.RF1,
@@ -204,10 +204,10 @@ class FEAmplifier3(SaAmplifier):
 
     def saBiasCurrent(self, saBiasDacVoltageP, saBiasDacVoltageN=0.0):
         vdiff = saBiasDacVoltageP - (saBiasDacVoltageN + self.BIAS_DAC_N.value())
-        return vdiff / (self.R_CABLE.value() + self.BIAS_SHUNT_R_P.value() + self.BIAS_SHUNT_R_N.value())
+        return vdiff / (self.CableR.value() + self.BIAS_SHUNT_R_P.value() + self.BIAS_SHUNT_R_N.value())
 
     def saBiasDacVoltage(self, saBiasCurrent):
-        resistance = self.R_CABLE.value() + self.BIAS_SHUNT_R_P.value() + self.BIAS_SHUNT_R_N.value()
+        resistance = self.CableR.value() + self.BIAS_SHUNT_R_P.value() + self.BIAS_SHUNT_R_N.value()
         voltage = saBiasCurrent * resistance
         # apply neg offset
         voltage = voltage + self.BIAS_DAC_N.value()
@@ -345,7 +345,7 @@ class FEAmplifier4(SaAmplifier):
         super().__init__(**kwargs)
 
         self.add(pr.LocalVariable(
-            name = 'R_CABLE',
+            name = 'CableR',
             description = 'Cable resistance on SA Bias',
             value = 120.0,
             units = u'\u03a9'))
@@ -477,10 +477,10 @@ class FEAmplifier4(SaAmplifier):
 
     def saBiasCurrent(self, saBiasDacVoltageP, saBiasDacVoltageN=0.0):
         vdiff = saBiasDacVoltageP * 2
-        return vdiff / (self.R_CABLE.value() + (2*self.BIAS_SHUNT_R.value()))
+        return vdiff / (self.CableR.value() + (2*self.BIAS_SHUNT_R.value()))
 
     def saBiasDacVoltage(self, saBiasCurrent):
-        resistance = self.R_CABLE.value() + (2*self.BIAS_SHUNT_R.value())
+        resistance = self.CableR.value() + (2*self.BIAS_SHUNT_R.value())
         voltage = saBiasCurrent * resistance
 
         # Start with both dacs at midpoint

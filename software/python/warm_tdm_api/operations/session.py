@@ -301,9 +301,9 @@ class Session:
     def set_cryo_resistance(self, Rcryo_Ohm):
         """Set cryostat roundtrip cable resistance on all boards' AFE amps.
 
-        Broadcasts ``Rcryo_Ohm`` to every AFE cable-resistance model node
-        (column ``Channel[*]`` ``{SAFbAmp,SQ1BiasAmp,SQ1FbAmp,TesBiasAmp}.CableR``
-        + ``SAAmp.R_CABLE``; row ``Amp[*].CableR``).
+        Broadcasts ``Rcryo_Ohm`` to every AFE ``CableR`` model node (column
+        ``Channel[*].{SAAmp,SAFbAmp,SQ1BiasAmp,SQ1FbAmp,TesBiasAmp}``; row
+        ``Amp[*]``).
 
         This now delegates to the Group ``CableResistance`` variable, which owns
         the broadcast (issue #83, G3). Kept as a thin ``operations`` convenience

@@ -1,14 +1,9 @@
-import re
-
 import pyrogue as pr
 import warm_tdm
 import warm_tdm_api
 import numpy as np
 
 from ._GroupVariables import GroupLinkVariable, GroupArrayLinkVariable, FastDacVariable
-
-# AFE sub-device nodes are named 'Channel[n]' (column) / 'Amp[n]' (row).
-_AFE_INDEX_RE = re.compile(r'\[(\d+)\]$')
 
 
 class Group(pr.Device):
@@ -20,42 +15,20 @@ class Group(pr.Device):
                 yield (board, chan)
 
     def _cable_r_nodes(self):
-        """Collect every AFE cable-resistance model node across all boards.
+        """Find every AFE cable-resistance model node across all boards.
 
-        These are ``pr.LocalVariable``s that hold the roundtrip cryostat cable
-        resistance used by the front-end gain/conversion math -- client-side
-        model state, not a hardware register. On column boards each AFE
-        ``Channel[*]`` exposes ``{SAFbAmp,SQ1BiasAmp,SQ1FbAmp,TesBiasAmp}.CableR``
-        plus ``SAAmp.R_CABLE``; on row boards each AFE ``Amp[*]`` exposes
-        ``CableR``. The channel/amp count differs per front-end class, so the
-        nodes are enumerated from the tree rather than assuming a fixed range,
-        and each lookup is guarded so a board lacking a node is simply skipped.
+        These are ``pr.LocalVariable``s named ``CableR`` that hold the roundtrip
+        cryostat cable resistance used by the front-end gain/conversion math --
+        client-side model state, not a hardware register. Every AFE amplifier
+        (column ``Channel[*].{SAAmp,SAFbAmp,SQ1BiasAmp,SQ1FbAmp,TesBiasAmp}``,
+        row ``Amp[*]``) exposes one, so a single anchored ``find`` over the
+        HardwareGroup collects them all regardless of front-end class or channel
+        count. The ``CableR$`` anchor keeps this from also matching the Group's
+        own ``CableResistance`` broadcast variable (``find`` regex-matches names).
 
         This backs the ``CableResistance`` broadcast variable (issue #83, G3).
         """
-        def afe_children(afe):
-            for node in afe.nodes.values():
-                if _AFE_INDEX_RE.search(node.name):
-                    yield node
-
-        nodes = []
-        for cb in self.HardwareGroup.ColumnBoard.values():
-            for ch in afe_children(cb.AnalogFrontEnd):
-                for amp_name, var_name in (('SAFbAmp', 'CableR'),
-                                           ('SQ1BiasAmp', 'CableR'),
-                                           ('SQ1FbAmp', 'CableR'),
-                                           ('TesBiasAmp', 'CableR'),
-                                           ('SAAmp', 'R_CABLE')):
-                    amp = getattr(ch, amp_name, None)
-                    var = getattr(amp, var_name, None) if amp is not None else None
-                    if var is not None:
-                        nodes.append(var)
-        for rb in self.HardwareGroup.RowBoard.values():
-            for amp in afe_children(rb.AnalogFrontEnd):
-                var = getattr(amp, 'CableR', None)
-                if var is not None:
-                    nodes.append(var)
-        return nodes
+        return self.HardwareGroup.find(typ=pr.LocalVariable, name='CableR$')
 
     def makeGuiGroup(self, arrVar):
         for i in range(self.config.numColumns):
@@ -477,11 +450,11 @@ class Group(pr.Device):
         #####################################
 
         # Roundtrip cryostat cable resistance, broadcast to every AFE amp's
-        # cable-R model node (issue #83, G3 -- graduated from the operations-layer
+        # CableR model node (issue #83, G3 -- graduated from the operations-layer
         # set_cryo_resistance helper). A single scalar: set() writes the value to
-        # all AFE CableR/R_CABLE nodes; get() returns a representative node (they
-        # are kept in sync through this variable). These are model LocalVariables,
-        # so there is no hardware transaction and no tune-enable gating.
+        # all AFE CableR nodes; get() returns a representative node (they are kept
+        # in sync through this variable). These are model LocalVariables, so there
+        # is no hardware transaction and no tune-enable gating.
         _cable_r_deps = self._cable_r_nodes()
 
         def _set_cable_r(*, value, write):
