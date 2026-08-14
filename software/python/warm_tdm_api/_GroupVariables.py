@@ -2,6 +2,59 @@ import pyrogue as pr
 import numpy as np
 
 
+class GroupBroadcastVariable(pr.LinkVariable):
+    """One scalar value fanned out to many identical dependency Variables.
+
+    The scalar sibling of :class:`GroupLinkVariable`: ``set(v)`` writes ``v`` to
+    every dependency; ``get()`` returns the first dependency as a representative
+    (all are kept in sync through this variable). No per-element array, no
+    ``index``, no ``tuneEnVar`` -- use this when a single Group-level knob should
+    drive a homogeneous set of leaf nodes across boards (e.g. cable resistance,
+    an enable line).
+
+    Parameters
+    ----------
+    dependencies : list[pr.BaseVariable]
+        The leaf nodes to broadcast to. Must be homogeneous (accept the same
+        set value); heterogeneous multi-field broadcasts want a custom
+        ``LinkVariable`` instead.
+    value_map : dict, optional
+        Maps the logical value exposed here to the raw value each dependency
+        expects, e.g. ``{False: 0, True: 1}`` for an enum RemoteVariable. The
+        reverse map is applied on ``get``. Omit for a straight passthrough.
+    empty_value : optional
+        Value returned by ``get`` when there are no dependencies (default None).
+    groups : sequence[str]
+        Node groups. Defaults to ``('TopApi', 'NoConfig')``: the broadcaster is a
+        convenience view, and the underlying leaf vars own config serialization,
+        so it stays out of SaveConfig/LoadConfig to avoid a redundant (possibly
+        stale) double-write on load.
+    """
+
+    def __init__(self, *, dependencies, value_map=None, empty_value=None,
+                 groups=('TopApi', 'NoConfig'), **kwargs):
+        self._fwd = value_map
+        self._rev = {raw: logical for logical, raw in value_map.items()} if value_map else None
+        self._empty_value = empty_value
+        super().__init__(
+            dependencies=dependencies,
+            groups=list(groups),
+            linkedSet=self._set,
+            linkedGet=self._get,
+            **kwargs)
+
+    def _set(self, *, value, write):
+        raw = self._fwd[value] if self._fwd is not None else value
+        for dep in self.dependencies:
+            dep.set(value=raw, write=write)
+
+    def _get(self, *, read):
+        if len(self.dependencies) == 0:
+            return self._empty_value
+        raw = self.dependencies[0].get(read=read)
+        return self._rev[raw] if self._rev is not None else raw
+
+
 class GroupLinkVariable(pr.LinkVariable):
     def __init__(self, tuneEnVar=None, groups='TopApi', disp='{:0.4f}', **kwargs):
         super().__init__(

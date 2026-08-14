@@ -3,7 +3,7 @@ import warm_tdm
 import warm_tdm_api
 import numpy as np
 
-from ._GroupVariables import GroupLinkVariable, GroupArrayLinkVariable, FastDacVariable
+from ._GroupVariables import GroupLinkVariable, GroupArrayLinkVariable, FastDacVariable, GroupBroadcastVariable
 
 
 class Group(pr.Device):
@@ -451,35 +451,16 @@ class Group(pr.Device):
 
         # Roundtrip cryostat cable resistance, broadcast to every AFE amp's
         # CableR model node (issue #83, G3 -- graduated from the operations-layer
-        # set_cryo_resistance helper). A single scalar: set() writes the value to
-        # all AFE CableR nodes; get() returns a representative node (they are kept
-        # in sync through this variable). These are model LocalVariables, so there
+        # set_cryo_resistance helper). These are model LocalVariables, so there
         # is no hardware transaction and no tune-enable gating.
-        _cable_r_deps = self._cable_r_nodes()
-
-        def _set_cable_r(*, value, write):
-            for node in _cable_r_deps:
-                node.set(value=value, write=write)
-
-        def _get_cable_r(*, read):
-            if not _cable_r_deps:
-                return 0.0
-            return _cable_r_deps[0].get(read=read)
-
-        self.add(pr.LinkVariable(
+        self.add(GroupBroadcastVariable(
             name = 'CableResistance',
             description = 'Roundtrip cryostat cable resistance, broadcast to every '
                           'AFE amplifier cable-resistance model node on all boards.',
             units = 'Ω',
             disp = '{:0.1f}',
-            # NoConfig: the underlying per-amp CableR vars already serialize to
-            # config; this broadcaster is a convenience view, so keep it out of
-            # SaveConfig/LoadConfig to avoid a redundant (and possibly stale)
-            # double-write on load.
-            groups = ['TopApi', 'NoConfig'],
-            dependencies = _cable_r_deps,
-            linkedSet = _set_cable_r,
-            linkedGet = _get_cable_r))
+            empty_value = 0.0,
+            dependencies = self._cable_r_nodes()))
 
         # Power-supply synchronization, broadcast to every board's TimingTx
         # (issue #83, G4 -- graduated from operations set_ps_synch/check_ps_synch).
@@ -487,6 +468,11 @@ class Group(pr.Device):
         # all LOW (0), PwrSyncEn = 0. get() reports True only if all four are in
         # the synchronized state on the representative board. A TimingTx node
         # exists on every board (added unconditionally in WarmTdmCore2).
+        #
+        # This one drives FOUR heterogeneous fields per board (three enums + a
+        # bool) with an AND-reduce on get, so it stays a custom LinkVariable --
+        # GroupBroadcastVariable only covers the homogeneous one-value/many-
+        # identical-deps case (see CableResistance / LedEnable).
         _timing_tx = self.HardwareGroup.find(typ=warm_tdm.TimingTx)
 
         # PwrSync* are 2-bit enums: 0 = LOW, 2 = OSC (see _TimingTx.py). Enum
@@ -529,25 +515,11 @@ class Group(pr.Device):
 
         # Status-LED enable, broadcast to every board's WarmTdmConfig.LedEn
         # (issue #83, G6 -- graduated from operations disable_leds; now a
-        # two-way toggle rather than one-directional). LedEn is an enum
-        # ('Enabled'/'Disabled'); expose it as a plain bool here.
-        _led_en = self.HardwareGroup.find(typ=pr.RemoteVariable, name='LedEn$')
-
-        # LedEn is a 1-bit enum: 0 = Disabled, 1 = Enabled (see _WarmTdmConfig.py).
-        def _set_led_en(*, value, write):
-            for led in _led_en:
-                led.set(1 if value else 0, write=write)
-
-        def _get_led_en(*, read):
-            if not _led_en:
-                return False
-            return _led_en[0].get(read=read) == 1
-
-        self.add(pr.LinkVariable(
+        # two-way toggle rather than one-directional). LedEn is a 1-bit enum
+        # (0 = Disabled, 1 = Enabled); the value_map exposes it as a plain bool.
+        self.add(GroupBroadcastVariable(
             name = 'LedEnable',
             description = 'Enable/disable the status-blink LEDs on all boards.',
-            # NoConfig: the underlying WarmTdmConfig.LedEn vars already serialize.
-            groups = ['TopApi', 'NoConfig'],
-            dependencies = _led_en,
-            linkedSet = _set_led_en,
-            linkedGet = _get_led_en))
+            value_map = {False: 0, True: 1},
+            empty_value = False,
+            dependencies = self.HardwareGroup.find(typ=pr.RemoteVariable, name='LedEn$')))
