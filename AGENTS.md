@@ -272,6 +272,31 @@ code tree.
 Board views (kanban, table) are created in the web UI — the API cannot create
 them.
 
+### Hardware Verification wiki (the "hardware test list")
+
+The wiki page
+**[Hardware Verification](https://github.com/slaclab/warm-tdm/wiki/Hardware-Verification)**
+is the hardware test list: an index of every change that is *code-complete but
+still needs a pass on real hardware*, with one subpage per item
+(`HW-Verify-Issue-<n>-<slug>`) giving a step-by-step bench procedure and pass
+criteria. Like the roadmap, it lives on the wiki because it coordinates work
+that spans branches (some items merged, some on feature branches). The
+authoritative *status* is still the board field **`Status = Needs HW Test`**;
+the wiki holds the *how-to-verify* the board can't.
+
+**Keep it in sync (do this as a matter of course, not only when asked):**
+- When an item's board Status moves **to** `Needs HW Test` (a change lands
+  code-complete but unproven on hardware), add a subpage from the template shape
+  of the existing ones and a row to the index table.
+- When an item is verified on the bench and moves **off** `Needs HW Test`
+  (→ Done, or back to In Progress on failure), update its subpage outcome and
+  the index row to match — don't silently leave a stale "pending" page.
+- Keep the links bidirectional: each subpage links its Issue/PR, and each
+  Issue/PR body carries a backlink to its subpage (see the "Hardware
+  verification procedure" footer). Add the footer when you create a subpage.
+- The board is authoritative on *status*; the wiki is authoritative on *how to
+  verify*. When they disagree, fix the wiki to match the board.
+
 ## Essential Reading by Task
 
 | Task Area | Start With These Files |
