@@ -331,21 +331,56 @@ class Session:
         print(f"Power supplies are {'Synchronized' if synched else 'Unsynchronized'}.")
         return synched
 
-    def stop_and_zero(self):
-        """Best-effort return to a safe baseline: zero column outputs, stop MUX.
+    def stop_and_zero(self, settle_sec=2.0, poll_sec=0.05):
+        """Return to a safe baseline: stop MUX, then zero the column outputs.
 
-        Zeros the non-multiplexed column outputs (SQ1/SA/TES bias + feedback),
-        ends any active run, and switches the coordinator board to manual timing.
+        Order matters. The force/override DAC path (Sq1FbForceCurrent etc. ->
+        FastDacDriver override RAM) is only serviced while the driver FSM sits in
+        its IDLE state, i.e. when the run has stopped -- and the override write is
+        a single-cycle event. So this method:
+          1. ends any active run and switches the coordinator to manual timing;
+          2. waits for TimingTx.Running to drop (bounded by ``settle_sec``) so the
+             DAC FSM is guaranteed idle;
+          3. THEN writes the force/bias arrays to zero, so the override writes
+             land instead of racing the still-draining MUX sequence.
 
-        NOT a guaranteed "everything off" -- named ``stop_and_zero`` (not
-        ``all_off``) for that reason:
-          - A firmware bug means biases are NOT reliably zeroed after dropping
-            out of multiplexing (the DAC holds its last MUX value).
-          - Row DAC zeroing is left commented pending that fix, so row-select /
-            FAS DAC outputs are untouched here.
-        Treat this as "stop driving and zero what we safely can", not a hardware
-        interlock. See G2 in docs/plans/wtj-refactor/PLAN.md.
+        This reorder is the fix for the long-standing "biases don't zero after
+        MUX" report (Issue #32): that was an ordering/one-shot race, not an
+        inability to drive the DACs from software. See G2 in
+        docs/plans/wtj-refactor/PLAN.md.
+
+        NOT yet a hardware interlock:
+          - Needs bench confirmation that the reordered writes reliably land
+            (emulate does not clock the DAC FSM against live timing).
+          - Row DAC zeroing is still left commented (row-select / FAS DAC outputs
+            untouched) pending that bench check.
+
+        Args:
+            settle_sec (float): max time to wait for Running to drop after EndRun
+                (EndRun completes on the next row-boundary, so this is not
+                instantaneous).
+            poll_sec (float): poll interval while waiting for Running to drop.
         """
+        cb0 = self.coordinator_cb
+        tx = cb0.WarmTdmCore.Timing.TimingTx
+
+        # 1. Stop the run and leave MUX mode. EndRun completes on the next
+        #    row-boundary timeslot, so Running does not drop instantly.
+        if tx.Running.get():
+            tx.EndRun()
+        tx.Mode.set(0)
+
+        # 2. Wait for the run to actually stop, so the FastDacDriver FSM is idle
+        #    and will service the override writes below.
+        deadline = time.time() + settle_sec
+        while tx.Running.get():
+            if time.time() > deadline:
+                log.warning("stop_and_zero: TimingTx.Running did not drop within "
+                            "%.1f s; zeroing anyway (writes may not land).", settle_sec)
+                break
+            time.sleep(poll_sec)
+
+        # 3. Now zero the force/bias outputs.
         r = None
         try:
             for r in ['Sq1FbForceCurrent', 'Sq1BiasForceCurrent', 'SaFbForceCurrent',
@@ -355,23 +390,14 @@ class Session:
         except (AttributeError, TypeError) as e:
             log.error("Error zeroing %s: %s", r, e)
 
-        # End the run if active; dropping out of MUX should zero multiplexed
-        # outputs. The coordinator column board owns timing.
-        cb0 = self.coordinator_cb
-        if cb0.WarmTdmCore.Timing.TimingTx.Running.get():
-            cb0.WarmTdmCore.Timing.TimingTx.EndRun()
-
-        # Switch to manual (non-MUX) timing mode
-        cb0.WarmTdmCore.Timing.TimingTx.Mode.set(0)
-
-        # TODO: zero row DACs once firmware bug is resolved
+        # TODO: zero row DACs once the reorder is confirmed on the bench
         # for i, rdd in self.rdds.items():
         #     rdd.FasOn.Current.set(np.zeros_like(rdd.FasOn.Current.get()))
         #     rdd.FasOff.Current.set(np.zeros_like(rdd.FasOn.Current.get()))
 
-        log.warning("stop_and_zero is best-effort: column biases may not zero "
-                    "after MUX (firmware bug) and row DACs are left untouched. "
-                    "Do not rely on it as a hardware interlock.")
+        log.info("stop_and_zero: run stopped, manual timing, column force/bias "
+                 "outputs zeroed. Row DACs left untouched; not yet a verified "
+                 "hardware interlock (needs bench confirmation).")
 
     def save_config(self):
         """Save writable config to ``<sessiondir>/config_<ctime>.yml``."""
