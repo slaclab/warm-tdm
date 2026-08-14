@@ -67,16 +67,33 @@ class GroupBroadcastVariable(pr.LinkVariable):
             **kwargs)
 
     def _set(self, *, value, write: bool) -> None:
-        """Write ``value`` (mapped through ``value_map``) to every dependency."""
+        """Write ``value`` (mapped through ``value_map``) to every dependency.
+
+        Stages all dependency writes (``write=False``) and then flushes them as a
+        single batched transaction via ``writeAndVerifyBlocks`` inside an
+        ``updateGroup()`` context -- one coalesced hardware transaction and one
+        client tree-update, instead of one write + publish per dependency.
+        """
+        if len(self.dependencies) == 0:
+            return
         raw = self._fwd[value] if self._fwd is not None else value
-        for dep in self.dependencies:
-            dep.set(value=raw, write=write)
+        with self.parent.root.updateGroup():
+            for dep in self.dependencies:
+                dep.set(value=raw, write=False)
+            if write:
+                pr.writeAndVerifyBlocks(self.depBlocks)
 
     def _get(self, *, read: bool):
-        """Return the first dependency's value as the representative for the set."""
+        """Return the first dependency's value as the representative for the set.
+
+        Only the representative is read (the deps are kept in sync through this
+        variable), so this is a single transaction; the ``updateGroup()`` context
+        keeps it consistent with the batched write path.
+        """
         if len(self.dependencies) == 0:
             return self._empty_value
-        raw = self.dependencies[0].get(read=read)
+        with self.parent.root.updateGroup():
+            raw = self.dependencies[0].get(read=read)
         return self._rev[raw] if self._rev is not None else raw
 
 
