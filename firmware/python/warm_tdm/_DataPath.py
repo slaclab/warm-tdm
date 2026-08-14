@@ -100,8 +100,15 @@ class AdcFilters(pr.Device):
             self.filterFreq = value
             taps = scipy.signal.firwin(numberTaps, value, fs=125.0e6, window='hamming')
             print(f'Applying filter at {value} with taps {taps}')
-            for i in range(8):
-                self.FirFilter[i].Taps.set(taps, write=write)
+            # Stage all 8 channels' taps then flush, so the identical tap array
+            # is written as batched transactions inside one updateGroup() (one
+            # client tree-update) rather than 8 separate write+publish cycles.
+            with self.root.updateGroup():
+                for i in range(8):
+                    self.FirFilter[i].Taps.set(taps, write=False)
+                if write:
+                    for i in range(8):
+                        self.FirFilter[i].writeAndVerifyBlocks()
 
         def _get(read):
             return self.filterFreq
