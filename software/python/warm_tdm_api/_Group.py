@@ -1,9 +1,14 @@
+import re
+
 import pyrogue as pr
 import warm_tdm
 import warm_tdm_api
 import numpy as np
 
 from ._GroupVariables import GroupLinkVariable, GroupArrayLinkVariable, FastDacVariable
+
+# AFE sub-device nodes are named 'Channel[n]' (column) / 'Amp[n]' (row).
+_AFE_INDEX_RE = re.compile(r'\[(\d+)\]$')
 
 
 class Group(pr.Device):
@@ -13,6 +18,44 @@ class Group(pr.Device):
         for board in range(self.config.columnBoards):
             for chan in range(8):
                 yield (board, chan)
+
+    def _cable_r_nodes(self):
+        """Collect every AFE cable-resistance model node across all boards.
+
+        These are ``pr.LocalVariable``s that hold the roundtrip cryostat cable
+        resistance used by the front-end gain/conversion math -- client-side
+        model state, not a hardware register. On column boards each AFE
+        ``Channel[*]`` exposes ``{SAFbAmp,SQ1BiasAmp,SQ1FbAmp,TesBiasAmp}.CableR``
+        plus ``SAAmp.R_CABLE``; on row boards each AFE ``Amp[*]`` exposes
+        ``CableR``. The channel/amp count differs per front-end class, so the
+        nodes are enumerated from the tree rather than assuming a fixed range,
+        and each lookup is guarded so a board lacking a node is simply skipped.
+
+        This backs the ``CableResistance`` broadcast variable (issue #83, G3).
+        """
+        def afe_children(afe):
+            for node in afe.nodes.values():
+                if _AFE_INDEX_RE.search(node.name):
+                    yield node
+
+        nodes = []
+        for cb in self.HardwareGroup.ColumnBoard.values():
+            for ch in afe_children(cb.AnalogFrontEnd):
+                for amp_name, var_name in (('SAFbAmp', 'CableR'),
+                                           ('SQ1BiasAmp', 'CableR'),
+                                           ('SQ1FbAmp', 'CableR'),
+                                           ('TesBiasAmp', 'CableR'),
+                                           ('SAAmp', 'R_CABLE')):
+                    amp = getattr(ch, amp_name, None)
+                    var = getattr(amp, var_name, None) if amp is not None else None
+                    if var is not None:
+                        nodes.append(var)
+        for rb in self.HardwareGroup.RowBoard.values():
+            for amp in afe_children(rb.AnalogFrontEnd):
+                var = getattr(amp, 'CableR', None)
+                if var is not None:
+                    nodes.append(var)
+        return nodes
 
     def makeGuiGroup(self, arrVar):
         for i in range(self.config.numColumns):
@@ -428,3 +471,35 @@ class Group(pr.Device):
             self.add(warm_tdm_api.TesRampProcess(groups=['NoDoc']))
             self.add(warm_tdm_api.TesBiasWaveformProcess(groups=['NoDoc']))
             self.add(warm_tdm_api.SaStripChartProcess(groups=['NoDoc']))
+
+        #####################################
+        # Cross-board convenience variables
+        #####################################
+
+        # Roundtrip cryostat cable resistance, broadcast to every AFE amp's
+        # cable-R model node (issue #83, G3 -- graduated from the operations-layer
+        # set_cryo_resistance helper). A single scalar: set() writes the value to
+        # all AFE CableR/R_CABLE nodes; get() returns a representative node (they
+        # are kept in sync through this variable). These are model LocalVariables,
+        # so there is no hardware transaction and no tune-enable gating.
+        _cable_r_deps = self._cable_r_nodes()
+
+        def _set_cable_r(*, value, write):
+            for node in _cable_r_deps:
+                node.set(value=value, write=write)
+
+        def _get_cable_r(*, read):
+            if not _cable_r_deps:
+                return 0.0
+            return _cable_r_deps[0].get(read=read)
+
+        self.add(pr.LinkVariable(
+            name = 'CableResistance',
+            description = 'Roundtrip cryostat cable resistance, broadcast to every '
+                          'AFE amplifier cable-resistance model node on all boards.',
+            units = 'Ω',
+            disp = '{:0.1f}',
+            groups = 'TopApi',
+            dependencies = _cable_r_deps,
+            linkedSet = _set_cable_r,
+            linkedGet = _get_cable_r))

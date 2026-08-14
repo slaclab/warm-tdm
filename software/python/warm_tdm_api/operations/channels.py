@@ -9,8 +9,14 @@
 ##   - identifiers:  get_row_col (parse a 'c<col>r<row>'/'r<row>c<col>' string)
 ##   - dead masks:   make/write/read_dead_masks (per-column dead-row bitmask +
 ##                   its on-disk .cfg format). The mask shape matches the
-##                   AdcDsp[col].RowEnableMask hardware register; the Session-side
-##                   apply_dead_masks bridge / Group graduation is tracked as G9.
+##                   AdcDsp[col].RowEnableMask hardware register; these pure
+##                   helpers stay client-side. The Session-side hardware bridge
+##                   Session.apply_dead_masks (issue #83, G9) writes the masks to
+##                   RowEnableMask. Graduating the mask onto a Group variable is
+##                   deliberately deferred: RowEnableMask is a 256-bit int, and
+##                   the existing GroupArrayLinkVariable carries only np.float64
+##                   arrays -- a mask-capable Group node (or a Group command) can
+##                   follow if server-side execution is ever needed.
 
 import re
 

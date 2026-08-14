@@ -172,19 +172,6 @@ class Session:
                 boards[int(m.group(1))] = board
         return boards
 
-    @staticmethod
-    def _afe_amps(afe):
-        """Yield the AFE sub-device nodes (Column ``Channel[*]`` / Row ``Amp[*]``).
-
-        Enumerates whatever the front-end actually instantiated rather than
-        assuming a fixed count -- front-end classes differ in how many channels
-        they expose (see warm_tdm._FrontEnds), so ``range(8)``/``range(32)`` is
-        wrong for some boards.
-        """
-        for node in afe.nodes.values():
-            if _BOARD_INDEX_RE.search(node.name):
-                yield node
-
     @property
     def coordinator_cb(self):
         """The column board that owns timing (always ``ColumnBoard[0]``)."""
@@ -314,37 +301,17 @@ class Session:
     def set_cryo_resistance(self, Rcryo_Ohm):
         """Set cryostat roundtrip cable resistance on all boards' AFE amps.
 
-        Column boards: sets CableR on SAFbAmp/SQ1BiasAmp/SQ1FbAmp/TesBiasAmp and
-        R_CABLE on SAAmp, for every AFE ``Channel[*]``. Row boards: CableR on
-        every AFE ``Amp[*]``. The channel/amp nodes are enumerated from the tree
-        (front-end classes differ in how many they expose), not a fixed range.
+        Broadcasts ``Rcryo_Ohm`` to every AFE cable-resistance model node
+        (column ``Channel[*]`` ``{SAFbAmp,SQ1BiasAmp,SQ1FbAmp,TesBiasAmp}.CableR``
+        + ``SAAmp.R_CABLE``; row ``Amp[*].CableR``).
 
-        (G3: the cleaner home for this is a Group ``CableResistance``
-        GroupLinkVariable fanned out over the AFE amps -- see PLAN.md. Kept here
-        as a client-side convenience until that graduates.)
+        This now delegates to the Group ``CableResistance`` variable, which owns
+        the broadcast (issue #83, G3). Kept as a thin ``operations`` convenience
+        so notebook/script call sites (``ops.set_cryo_resistance(R)``) don't
+        change.
         """
-        boards = self.boards()
-        if not boards:
-            print("No column or row boards found.")
-            return
-
-        for board_name, board in sorted(boards.items()):
-            try:
-                board_type, board_index = board_name.split(" ")
-                if board_type == "Column":
-                    for afe_ch in self._afe_amps(board.AnalogFrontEnd):
-                        afe_ch.SAFbAmp.CableR.set(Rcryo_Ohm)
-                        afe_ch.SQ1BiasAmp.CableR.set(Rcryo_Ohm)
-                        afe_ch.SQ1FbAmp.CableR.set(Rcryo_Ohm)
-                        afe_ch.TesBiasAmp.CableR.set(Rcryo_Ohm)
-                        afe_ch.SAAmp.R_CABLE.set(Rcryo_Ohm)
-                    print(f"Set cryostat resistance to {Rcryo_Ohm} Ohm for Column Board {board_index}.")
-                elif board_type == "Row":
-                    for amp in self._afe_amps(board.AnalogFrontEnd):
-                        amp.CableR.set(Rcryo_Ohm)
-                    print(f"Set cryostat resistance to {Rcryo_Ohm} Ohm for Row Board {board_index}.")
-            except (AttributeError, TypeError) as e:
-                log.error("Error setting cryostat resistance for %s: %s", board_name, e)
+        self.group.CableResistance.set(Rcryo_Ohm)
+        print(f"Set cryostat resistance to {Rcryo_Ohm} Ohm.")
 
     def set_ps_synch(self, sync_mode):
         """Set power-supply synchronization mode on all boards.
@@ -515,6 +482,40 @@ class Session:
                 cb.DataPath.AdcDsp[col].ClearPids()
                 cb.DataPath.AdcDsp[col].PidEnable.set(enable_pid)
                 cb.DataPath.AdcDsp[col].PidDebugEnable.set(enable_pid_debug)
+
+    def apply_dead_masks(self, dead_masks):
+        """Write per-column dead-row masks to the ``AdcDsp[col].RowEnableMask``
+        hardware registers (issue #83, G9).
+
+        This is the missing bridge from the pure ``make_dead_masks`` /
+        ``read_dead_masks`` helpers (which only build ``{col: mask}`` dicts and
+        read/write mask files) to hardware: each mask is a 256-bit integer where
+        bit ``row`` = 1 means the row is active, 0 means dead. The servo acts only
+        on rows whose bit is set.
+
+        ``col`` keys are **global** column indices; they are mapped to the owning
+        column board and its board-local ``AdcDsp`` channel via the tree-derived
+        ``chans_per_board``. Columns whose board is not present are skipped with a
+        warning. Written values are read-back verified by the transaction.
+
+        Args:
+            dead_masks (dict): ``{col: mask}`` as returned by
+                ``make_dead_masks``/``read_dead_masks``.
+        """
+        if not self.cbs:
+            log.error("No column boards detected. Cannot apply dead masks.")
+            return
+
+        for col, mask in sorted(dead_masks.items()):
+            board_idx, chan = self.col_to_board_chan(col)
+            cb = self.cbs.get(board_idx)
+            if cb is None:
+                log.warning("Column %d maps to absent column board %d; "
+                            "skipping dead mask.", col, board_idx)
+                continue
+            cb.DataPath.AdcDsp[chan].RowEnableMask.set(mask)
+            print(f"Applied dead mask for column {col} "
+                  f"(ColumnBoard[{board_idx}].AdcDsp[{chan}]).")
 
     # ---- acquisition (ported from data.py) ------------------------------
 
@@ -808,6 +809,7 @@ save_config = _shim('save_config')
 save_state = _shim('save_state')
 load_config = _shim('load_config')
 setup_mux = _shim('setup_mux')
+apply_dead_masks = _shim('apply_dead_masks')
 take_raw = _shim('take_raw')
 multi_raw = _shim('multi_raw')
 take_data = _shim('take_data')
