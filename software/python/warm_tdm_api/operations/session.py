@@ -284,19 +284,14 @@ class Session:
         print("+" * 80)
 
     def disable_leds(self):
-        """Disable status-blinking LEDs on all boards."""
-        boards = self.boards()
-        if not boards:
-            print("No column or row boards found.")
-            return
+        """Disable status-blinking LEDs on all boards.
 
-        for board_name, board in sorted(boards.items()):
-            try:
-                board_type, board_index = board_name.split(" ")
-                board.WarmTdmCore.WarmTdmCommon2.WarmTdmConfig.LedEn.set(False)
-                print(f"Disabled LEDs for {board_type} Board {board_index}.")
-            except (AttributeError, TypeError) as e:
-                log.error("Error disabling LEDs for %s: %s", board_name, e)
+        Delegates to the Group ``LedEnable`` variable, which owns the broadcast
+        (issue #83, G6). Kept as a thin ``operations`` convenience so existing
+        call sites (``ops.disable_leds()``) don't change.
+        """
+        self.group.LedEnable.set(False)
+        print("Disabled LEDs on all boards.")
 
     def set_cryo_resistance(self, Rcryo_Ohm):
         """Set cryostat roundtrip cable resistance on all boards' AFE amps.
@@ -316,58 +311,25 @@ class Session:
     def set_ps_synch(self, sync_mode):
         """Set power-supply synchronization mode on all boards.
 
-        Synchronized (sync_mode=1): PwrSyncA/B/C=2, PwrSyncEn=1.
-        Unsynchronized (sync_mode=0): PwrSyncA/B/C=0, PwrSyncEn=0.
-        """
-        boards = self.boards()
-        if not boards:
-            print("No column or row boards found.")
-            return
+        ``sync_mode`` truthy => synchronized (PwrSyncA/B/C=OSC, PwrSyncEn on);
+        falsy => unsynchronized (all LOW, PwrSyncEn off).
 
-        for board_name, board in sorted(boards.items()):
-            try:
-                board_type, board_index = board_name.split(" ")
-                tx = board.WarmTdmCore.Timing.TimingTx
-                if sync_mode == 0:
-                    tx.PwrSyncA.set(0)
-                    tx.PwrSyncB.set(0)
-                    tx.PwrSyncC.set(0)
-                    tx.PwrSyncEn.set(0)
-                    print(f"Unsynchronized power supplies for {board_type} Board {board_index}.")
-                elif sync_mode == 1:
-                    tx.PwrSyncA.set(2)
-                    tx.PwrSyncB.set(2)
-                    tx.PwrSyncC.set(2)
-                    tx.PwrSyncEn.set(1)
-                    print(f"Synchronized power supplies for {board_type} Board {board_index}.")
-                else:
-                    log.warning("Invalid sync_mode value: %s", sync_mode)
-            except (AttributeError, TypeError) as e:
-                log.error("Error setting power supply synchronization for %s: %s", board_name, e)
+        Delegates to the Group ``PowerSupplySynchronized`` variable, which owns
+        the broadcast (issue #83, G4). Kept as a thin ``operations`` convenience
+        so existing call sites (``ops.set_ps_synch(1)``) don't change.
+        """
+        self.group.PowerSupplySynchronized.set(bool(sync_mode))
+        print("Synchronized power supplies."
+              if sync_mode else "Unsynchronized power supplies.")
 
     def check_ps_synch(self):
-        """Print the power-supply synchronization state across all boards."""
-        boards = self.boards()
-        if not boards:
-            print("No column or row boards found.")
-            return
+        """Print (and return) the power-supply synchronization state.
 
-        sync_state = set()
-        for board_name, board in sorted(boards.items()):
-            try:
-                tx = board.WarmTdmCore.Timing.TimingTx
-                if (tx.PwrSyncA.get() == 2 and tx.PwrSyncB.get() == 2
-                        and tx.PwrSyncC.get() == 2 and tx.PwrSyncEn.get() == 1):
-                    sync_state.add("Synchronized")
-                else:
-                    sync_state.add("Unsynchronized")
-            except (AttributeError, TypeError) as e:
-                log.error("Error checking power supply synchronization for %s: %s", board_name, e)
-
-        if len(sync_state) == 1:
-            print(f"Power supplies are {sync_state.pop()}.")
-        else:
-            print("Power supplies are in a mixed state (some synchronized, some unsynchronized).")
+        Reads the Group ``PowerSupplySynchronized`` variable (issue #83, G4).
+        """
+        synched = bool(self.group.PowerSupplySynchronized.get())
+        print(f"Power supplies are {'Synchronized' if synched else 'Unsynchronized'}.")
+        return synched
 
     def stop_and_zero(self):
         """Best-effort return to a safe baseline: zero column outputs, stop MUX.

@@ -472,7 +472,82 @@ class Group(pr.Device):
                           'AFE amplifier cable-resistance model node on all boards.',
             units = 'Ω',
             disp = '{:0.1f}',
-            groups = 'TopApi',
+            # NoConfig: the underlying per-amp CableR vars already serialize to
+            # config; this broadcaster is a convenience view, so keep it out of
+            # SaveConfig/LoadConfig to avoid a redundant (and possibly stale)
+            # double-write on load.
+            groups = ['TopApi', 'NoConfig'],
             dependencies = _cable_r_deps,
             linkedSet = _set_cable_r,
             linkedGet = _get_cable_r))
+
+        # Power-supply synchronization, broadcast to every board's TimingTx
+        # (issue #83, G4 -- graduated from operations set_ps_synch/check_ps_synch).
+        # Synchronized => PwrSyncA/B/C = OSC (2), PwrSyncEn = 1; unsynchronized =>
+        # all LOW (0), PwrSyncEn = 0. get() reports True only if all four are in
+        # the synchronized state on the representative board. A TimingTx node
+        # exists on every board (added unconditionally in WarmTdmCore2).
+        _timing_tx = self.HardwareGroup.find(typ=warm_tdm.TimingTx)
+
+        # PwrSync* are 2-bit enums: 0 = LOW, 2 = OSC (see _TimingTx.py). Enum
+        # RemoteVariables take the raw value on set(); OSC drives the sync
+        # oscillator on all three, LOW parks them.
+        _PWR_OSC, _PWR_LOW = 2, 0
+
+        def _set_ps_synch(*, value, write):
+            level = _PWR_OSC if value else _PWR_LOW
+            for tx in _timing_tx:
+                tx.PwrSyncA.set(level, write=write)
+                tx.PwrSyncB.set(level, write=write)
+                tx.PwrSyncC.set(level, write=write)
+                tx.PwrSyncEn.set(bool(value), write=write)
+
+        def _get_ps_synch(*, read):
+            if not _timing_tx:
+                return False
+            tx = _timing_tx[0]
+            return (tx.PwrSyncA.get(read=read) == _PWR_OSC
+                    and tx.PwrSyncB.get(read=False) == _PWR_OSC
+                    and tx.PwrSyncC.get(read=False) == _PWR_OSC
+                    and tx.PwrSyncEn.get(read=False) is True)
+
+        # LinkVariable dependencies must be Variables (not the TimingTx Devices),
+        # so depend on the individual PwrSync* nodes we broadcast to.
+        _ps_deps = [v for tx in _timing_tx
+                    for v in (tx.PwrSyncA, tx.PwrSyncB, tx.PwrSyncC, tx.PwrSyncEn)]
+
+        self.add(pr.LinkVariable(
+            name = 'PowerSupplySynchronized',
+            description = 'When set, synchronize all boards\' supply switchers to '
+                          'the timing domain (PwrSync A/B/C = OSC, PwrSyncEn on); '
+                          'clear to free-run them (all LOW, PwrSyncEn off).',
+            # NoConfig: the underlying TimingTx PwrSync* vars already serialize.
+            groups = ['TopApi', 'NoConfig'],
+            dependencies = _ps_deps,
+            linkedSet = _set_ps_synch,
+            linkedGet = _get_ps_synch))
+
+        # Status-LED enable, broadcast to every board's WarmTdmConfig.LedEn
+        # (issue #83, G6 -- graduated from operations disable_leds; now a
+        # two-way toggle rather than one-directional). LedEn is an enum
+        # ('Enabled'/'Disabled'); expose it as a plain bool here.
+        _led_en = self.HardwareGroup.find(typ=pr.RemoteVariable, name='LedEn$')
+
+        # LedEn is a 1-bit enum: 0 = Disabled, 1 = Enabled (see _WarmTdmConfig.py).
+        def _set_led_en(*, value, write):
+            for led in _led_en:
+                led.set(1 if value else 0, write=write)
+
+        def _get_led_en(*, read):
+            if not _led_en:
+                return False
+            return _led_en[0].get(read=read) == 1
+
+        self.add(pr.LinkVariable(
+            name = 'LedEnable',
+            description = 'Enable/disable the status-blink LEDs on all boards.',
+            # NoConfig: the underlying WarmTdmConfig.LedEn vars already serialize.
+            groups = ['TopApi', 'NoConfig'],
+            dependencies = _led_en,
+            linkedSet = _set_led_en,
+            linkedGet = _get_led_en))
