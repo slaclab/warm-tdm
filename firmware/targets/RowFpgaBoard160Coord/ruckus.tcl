@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 ##############################################################################
 ## This file is part of 'warm-tdm'.
 ## It is subject to the license terms in the LICENSE.txt file found in the
@@ -8,13 +7,13 @@
 ## may be copied, modified, propagated, or distributed except according to
 ## the terms contained in the LICENSE.txt file.
 ##############################################################################
-"""Start the Warm-TDM server (headless).
+source -quiet $::env(RUCKUS_DIR)/vivado_proc.tcl
 
-Builds the GroupRoot and waits. Pass --gui to also launch the PyDM display, or
-run warmTdmGui.py for a GUI-by-default launcher.
-"""
-import _setupLibPaths  # noqa: F401  (registers in-repo library paths)
+loadRuckusTcl $::env(TOP_DIR)/submodules/surf
+loadRuckusTcl $::env(TOP_DIR)/common/warm_tdm
 
-import warm_tdm_api
+loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore2.xdc
+loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/RowFpgaBoard.xdc
 
-warm_tdm_api.runServer()
+set_property top {RowFpgaBoard} [get_filesets {sources_1}]
+set_property generic "[get_property generic [current_fileset]] RING_ADDR_0_G=true" [current_fileset]

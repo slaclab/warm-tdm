@@ -48,7 +48,7 @@ class SinglePlot(pr.LinkVariable):
         else:
             col, row = index
 
-        print(f'Sq1TunePlot - {row=}, {col=}')
+        self._log.debug('Sq1TunePlot - row=%s, col=%s', row, col)
 
  #       shunts = [self.parent.Loading.Column[x].SQ1_FB_SHUNT_R.value() for x in range(8)]
 
@@ -195,7 +195,7 @@ class Sq1TuneProcess(pr.Process):
         # SQ1 Tuning Results
         self.add(pr.LocalVariable(
             name='Sq1TuneOutput',
-            value={},
+            value=[],  # set to a nested list of dicts, indexed [row][col]
             hidden=True,
             mode='RO',
             description="Results Data From SQ1 Tuning"))
@@ -209,7 +209,7 @@ class Sq1TuneProcess(pr.Process):
             name='PlotColumn',
             value=0,
             minimum=0,
-            maximum=max(len(config.columnMap)-1, 0),
+            maximum=max(config.numColumns-1, 0),
             mode='RW',
             description="Controls which column is selected for the resulting plot and fitted value variables below"))
 
@@ -217,7 +217,7 @@ class Sq1TuneProcess(pr.Process):
             name='PlotRow',
             value=0,
             minimum=0,
-            maximum=max(len(config.rowMap)-1, 0),
+            maximum=max(config.maxRows-1, 0),
             mode='RW',
             description="Controls which row is selected for the resulting plot and fitted value variables below"))
 
@@ -292,11 +292,10 @@ class Sq1TuneProcess(pr.Process):
                 process=self,
                 doBiasRamp=self.DoBiasRamp.value())
         self.Sq1TuneOutput.set(value = [[col.asDict() for col in row] for row in ret])
-        print('SQ1Tune Output')
-        print(self.Sq1TuneOutput.value())
+        self._log.debug('SQ1Tune Output: %s', self.Sq1TuneOutput.value())
 
     def _saveData(self,arg):
-        print(f"Sq1Tune - Save data called with {arg=}")
+        self._log.info(f"Sq1Tune - Save data called with {arg=}")
         filename = arg
         if arg is None or arg == '':
             timestr = time.strftime("%Y%m%d-%H%M%S")

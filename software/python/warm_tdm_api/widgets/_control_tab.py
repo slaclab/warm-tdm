@@ -55,10 +55,6 @@ class ControlTab(PyDMFrame):
             PyDMLabel(init_channel=group_path + '.RowTuneIndex/name'),
             sp)
 
-        fl_left.addRow(
-            PyDMLabel(init_channel=group_path + '.FllEnable/name'),
-            PyDMEnumComboBox(init_channel=group_path + '.FllEnable'))
-
         hb.addItem(QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum))
 
         fl_right = QFormLayout()
@@ -66,7 +62,7 @@ class ControlTab(PyDMFrame):
         fl_right.setFormAlignment(Qt.AlignRight | Qt.AlignTop | Qt.AlignTrailing)
         hb.addLayout(fl_right)
 
-        for var in ('NumColumnBoards', 'NumColumns', 'NumRowBoards', 'NumRows'):
+        for var in ('NumColumnBoards', 'NumColumns', 'NumRowBoards', 'MaxRows'):
             le = PyRogueLineEdit(parent=None, init_channel=group_path + f'.{var}/disp')
             le.setReadOnly(True)
             fl_right.addRow(

@@ -6,7 +6,7 @@ import surf.protocols.ssi
 import warm_tdm
 
 class RowModule(pr.Device):
-    def __init__(self, frontEndClass, num_row_selects=32, num_chip_selects=0, **kwargs):
+    def __init__(self, frontEndClass, num_row_selects=32, num_chip_selects=0, rows=256, **kwargs):
         super().__init__(**kwargs)
 
         self.forceCheckEach = True

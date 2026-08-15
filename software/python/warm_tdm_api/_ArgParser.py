@@ -8,42 +8,47 @@ class WarmTdmArgparse(argparse.ArgumentParser):
         super().__init__()
 
         self.add_argument(
+            "--gui",
+            action = 'store_true',
+            default = False,
+            help = "Launch PyDM GUI after starting the server")
+
+        self.add_argument(
             "--docs",
             type     = str,
             required = False,
             default = '',
-            help     = "Path To Store Docs")
+            help     = "Path to store generated documentation")
 
         self.add_argument(
             "--sim",
             action = 'store_true',
-            default = False)
+            default = False,
+            help = "Run in simulation mode (disables polling, increases timeout)")
 
         self.add_argument(
             "--emulate",
             action = 'store_true',
-            default = False)
+            default = False,
+            help = "Run in emulation mode (no hardware)")
 
         self.add_argument(
             "--ip",
             type     = str,
-            required = False,
             default = '192.168.3.11',
-            help     = "IP address")
+            help     = "IP address of the group coordinator board")
 
         self.add_argument(
             "--pollEn",
-            type = bool,
-            required = False,
+            action = 'store_true',
             default = False,
-            help = 'Enable or disable polling on startup')
+            help = 'Enable polling on startup')
 
         self.add_argument(
             "--initRead",
-            type = bool,
-            required = False,
+            action = 'store_true',
             default = True,
-            help = 'Enable or disable read of all register on startup')
+            help = 'Read all registers on startup')
 
         self.add_argument(
             "--rowBoards",
@@ -61,13 +66,25 @@ class WarmTdmArgparse(argparse.ArgumentParser):
             "--numChipSelects",
             type = int,
             default = 0,
-            help = 'Number of row selects on row board')
-        
+            help = 'Number of chip selects on row board')
+
+        self.add_argument(
+            "--rowAddrBits",
+            type = int,
+            default = 8,
+            help = "Hardware row-address width: the deployed RTL generic "
+                   "ROW_ADDR_BITS_G (3..8). The firmware row RAMs are "
+                   "2**rowAddrBits deep. Default 8 (depth 256), the RTL default; "
+                   "use 5 (depth 32) for the ColumnFpgaBoard160Coord target. "
+                   "This must match the loaded bitfile.")
+
         self.add_argument(
             "--maxRows",
             type = int,
-            default = 128,
-            help = "Maximum number of row indices to map registers for")
+            default = 256,
+            help = "Number of row indices the software maps/uses. A software "
+                   "choice bounded by the hardware depth: 1 <= maxRows <= "
+                   "2**rowAddrBits. Default 256 (full depth of an 8-bit build).")
 
         self.add_argument(
             "--columnBoards",
@@ -78,17 +95,20 @@ class WarmTdmArgparse(argparse.ArgumentParser):
         self.add_argument(
             "--columnBoardType",
             choices= ['Legacy', 'FPGA', 'AwaXe'],
-            default= 'FPGA')
+            default= 'FPGA',
+            help = "Column board hardware type")
 
         self.add_argument(
             "--rowBoardType",
             choices= ['Legacy', 'FPGA'],
-            default= 'FPGA')
+            default= 'FPGA',
+            help = "Row board hardware type")
 
         self.add_argument(
             "--columnFrontEnd",
             choices= ['Legacy', 'LegacyCh0Feb', 'FpgaColFeb', 'FpgaColAwaXeFeb', 'FpgaColFebLnTes'],
-            default= 'FpgaColFeb')
+            default= 'FpgaColFeb',
+            help = "Column front-end board type")
 
         self.add_argument(
             "--floatPid",
@@ -99,7 +119,8 @@ class WarmTdmArgparse(argparse.ArgumentParser):
         self.add_argument(
             "--rowFrontEnd",
             choices= ['Legacy', 'FpgaRowFeb'],
-            default= 'FpgaRowFeb')
+            default= 'FpgaRowFeb',
+            help = "Row front-end board type")
 
 
 colBoardDict = {
@@ -112,10 +133,8 @@ colFeDict = {
     'Legacy': warm_tdm.ColumnBoardC00StandardFrontEnd,
     'LegacyCh0Feb': warm_tdm.ColumnBoardC00FebBypassCh0,
     'FpgaColFeb': warm_tdm.FpgaBoardColumnFeb,
-    'FpgaColAwaXeFeb':warm_tdm.FpgaBoardColumnAwaXeFeb,
-    'FpgaColFebLnTes': warm_tdm.FpgaBoardColumnFebLnTes
-
-}
+    'FpgaColAwaXeFeb': warm_tdm.FpgaBoardColumnAwaXeFeb,
+    'FpgaColFebLnTes': warm_tdm.FpgaBoardColumnFebLnTes}
 
 rowBoardDict = {
     'Legacy': warm_tdm.RowModule,
@@ -133,17 +152,16 @@ def arg_dict(args):
     ret['emulate'] = args.emulate
     ret['numRowSelects'] = args.numRowSelects
     ret['numChipSelects'] = args.numChipSelects
-    ret['maxRows'] = args.maxRows
-    ret['initRead'] = False #args.initRead and not args.sim
+    ret['initRead'] = args.initRead and not args.sim
     ret['colBoardClass'] = colBoardDict[args.columnBoardType]
     ret['colFeClass'] = colFeDict[args.columnFrontEnd]
     ret['rowBoardClass'] = rowBoardDict[args.rowBoardType]
     ret['rowFeClass'] = rowFeDict[args.rowFrontEnd]
     ret['useFloatPid'] = args.floatPid
-    ret['groupConfig'] = warm_tdm_api.GroupConfig(groupId = 0,
-                                                  rowBoards = args.rowBoards,
-                                                  columnBoards = args.columnBoards,
-                                                  numRowSelects = args.numRowSelects,
-                                                  numChipSelects = args.numChipSelects,
-                                                  host=args.ip)
+    ret['groupConfig'] = warm_tdm_api.GroupConfig(
+        columnBoards=args.columnBoards,
+        rowBoards=args.rowBoards,
+        maxRows=args.maxRows,
+        rowAddrBits=args.rowAddrBits,
+        host=args.ip)
     return ret

@@ -30,7 +30,7 @@ class SinglePlot(pr.LinkVariable):
         
         tune = self.parent.SaTuneOutput.value()
         
-        if tune == {}:
+        if tune == {} or tune == []:
             return self._fig
 
         col = index
@@ -62,7 +62,7 @@ class MultiPlot(SinglePlot):
         tune = self.parent.SaTuneOutput.value()
  #       shunts = [self.parent.loading.Column[x].SA_FB_SHUNT_R.value() for x in range(8)]
 
-        if tune == {}:
+        if tune == {} or tune == []:
             return self._fig
 
         axes = self._ax.reshape(8)
@@ -76,7 +76,7 @@ class SaTuneProcess(pr.Process):
 
     def __init__(self, *, config, **kwargs):
         
-        self._columns = len(config.columnMap)
+        self._columns = config.numColumns
 
         # Init master class
         pr.Process.__init__(self, function=self._saTuneWrap,
@@ -159,7 +159,7 @@ class SaTuneProcess(pr.Process):
         # SA Tuning Results
         self.add(pr.LocalVariable(name='SaTuneOutput',
                                   hidden=True,
-                                  value={},
+                                  value=[],  # set to a list of dicts, one per column
                                   mode='RO',
                                   description="Results Data From SA Tuning. "
                                               "This is a list of dictionaries, with one dictionary for each column in the system (ColumBoards * 8). "
@@ -180,7 +180,7 @@ class SaTuneProcess(pr.Process):
         self.add(pr.LocalVariable(name='PlotColumn',
                                   value=0,
                                   minimum=0,
-                                  maximum=len(config.columnMap)-1,
+                                  maximum=config.numColumns-1,
                                   hidden=True,
                                   mode='RW',
                                   description="Controls which column is selected for the resulting plot and fitted value variables below"))
@@ -257,7 +257,7 @@ class SaTuneProcess(pr.Process):
             self.SaTuneOutput.set(value=[r.asDict() for r in ret])
 
     def _saveData(self,arg):
-        print(f"SaTune - Save data called with {arg=}")
+        self._log.info(f"SaTune - Save data called with {arg=}")
         filename = arg
         if arg is None or arg == '':
             timestr = time.strftime("%Y%m%d-%H%M%S")
