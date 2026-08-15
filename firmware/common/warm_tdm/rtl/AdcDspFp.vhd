@@ -40,6 +40,7 @@ entity AdcDspFp is
 
    generic (
       TPD_G            : time                 := 1 ns;
+      SIMULATION_G     : boolean              := false;
       INVERT_SQ1FB_G   : boolean              := true;
       COLUMN_NUM_G     : integer range 0 to 7 := 0;
       ROW_ADDR_BITS_G  : integer range 3 to 8 := 7;
@@ -107,6 +108,13 @@ architecture rtl of AdcDspFp is
       dataBytes => 8,
       tKeepMode => TKEEP_COMP_C,
       tDestBits => 4);
+
+   -- GHDL/cocotb cannot elaborate the XPM-backed FIFO primitives. Select the
+   -- vendor XPM path for hardware builds and an inferred (behavioral) FIFO for
+   -- simulation. NOTE: this only affects the AXI-stream FIFOs; the FpMac /
+   -- Int2Fp / Fp2Int Xilinx IP cores this entity instantiates still require a
+   -- simulator that can model them (XSIM) or behavioral stand-ins.
+   constant STREAM_FIFO_SYNTH_MODE_C : string := ite(SIMULATION_G, "inferred", "xpm");
 
    type StateType is (
       IDLE_S,
@@ -965,7 +973,7 @@ begin
          FIFO_PAUSE_THRESH_G => 15,
          GEN_SYNC_FIFO_G     => false,
          FIFO_ADDR_WIDTH_G   => 9,
-         SYNTH_MODE_G        => "xpm",
+         SYNTH_MODE_G        => STREAM_FIFO_SYNTH_MODE_C,
          MEMORY_TYPE_G       => "bram",
          INT_WIDTH_SELECT_G  => "WIDE",
          SLAVE_AXI_CONFIG_G  => AXIS_DEBUG_CFG_C,
@@ -992,7 +1000,7 @@ begin
          FIFO_PAUSE_THRESH_G => 15,
          GEN_SYNC_FIFO_G     => true,
          FIFO_ADDR_WIDTH_G   => 5,
-         SYNTH_MODE_G        => "xpm",
+         SYNTH_MODE_G        => STREAM_FIFO_SYNTH_MODE_C,
          MEMORY_TYPE_G       => "distributed",
          INT_WIDTH_SELECT_G  => "WIDE",
          SLAVE_AXI_CONFIG_G  => PID_DATA_FP_AXIS_CFG_C,
@@ -1019,7 +1027,7 @@ begin
          TPD_G           => TPD_G,
          GEN_SYNC_FIFO_G => false,
          FWFT_EN_G       => true,
-         SYNTH_MODE_G    => "xpm",
+         SYNTH_MODE_G    => STREAM_FIFO_SYNTH_MODE_C,
          MEMORY_TYPE_G   => "distributed",
          PIPE_STAGES_G   => 0,
          DATA_WIDTH_G    => 22,
