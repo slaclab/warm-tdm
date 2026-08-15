@@ -11,6 +11,41 @@ Two Python packages work together:
 | `warm_tdm` | `firmware/python/warm_tdm/` | Low-level PyRogue device drivers mapping FPGA registers |
 | `warm_tdm_api` | `software/python/warm_tdm_api/` | High-level control, tuning, data, GUI |
 
+`warm_tdm_api` also contains the `operations` subpackage
+(`software/python/warm_tdm_api/operations/`): the **client-side operational
+layer** for running the system from a notebook, script, or production tooling —
+session/board management (`Session`), data acquisition (`take_raw`, `take_data`),
+hardware setup helpers (`setup_mux`, `all_off`, `set_cryo_resistance`), stream
+reading (`StreamReader`), pure channel helpers (`channels.py` — addressing,
+identifiers, dead masks), raw→physical unit conversions (`unit_conversions.py`),
+and offline analysis/plotting (`plot_stream_data`, `analyze_pair`). It drives the rogue tree
+remotely and is deliberately kept distinct from the pyrogue-tree device modules
+(`_Group`, `_SaTune`, …). It is **not** auto-imported by `warm_tdm_api` (so the
+server import path stays free of matplotlib/scipy); import it explicitly:
+```python
+import warm_tdm_api.operations as ops
+
+# Hardware-coupled ops live on a Session. Establish a default for notebook use:
+sess = ops.connect(host='localhost', port=9099)   # or ops.use(existing_client)
+sess.setup_mux()
+sess.take_raw(0)
+# ...or via the convenience shims that delegate to the default Session:
+ops.take_raw(0)
+```
+The `Session` is an ordinary object (not a global singleton) bound to **one
+`Group`**: tests and multi-system code construct their own
+`ops.Session(client.root.Group)` and call methods on it directly, while
+`connect()`/`use()` cache a process-wide default for the free-function shims.
+Binding to the Group (not the client) is deliberate — it is the topology unit,
+and it is what makes the layer multi-Group-ready (a future `Instrument` holds one
+Session per Group). Per-Group topology (channels-per-board, board maps) is
+**derived from the bound Group**, not hardcoded; the timing coordinator is always
+`ColumnBoard[0]`. The client/server seam is unchanged: `warmTdmServer` owns the
+real `GroupRoot`+ZmqServer, and `Session` drives the `VirtualClient` mirror over
+ZMQ. Reusable hardware capabilities here are candidates to graduate into `Group`
+as they mature (see `docs/plans/wtj-refactor`). This subpackage was formerly the
+standalone `warm_tdm_jupyter` package.
+
 Both are loaded via `pyrogue.addLibraryPath()` in scripts:
 ```python
 pyrogue.addLibraryPath(f'../python/')            # warm_tdm_api
@@ -96,13 +131,22 @@ Process lifecycle:
 
 Data flows from FPGA → host via:
 1. `EventBuilder` (firmware) packs DSP output into AXI-Stream frames
-2. PGP ring transports frames to coordinator
+2. PGP ring transports frames to coordinator (each board's data tagged with its
+   ring address in `tDest[6:4]`; stream type in `tDest[3:0]`)
 3. Coordinator's Ethernet bridge sends frames via RSSI/UDP to host
-4. `DataRssi` on port 8193 receives frames
-5. `DataWriter` (pyrogue StreamWriter) records to file
-6. `TdmDataReceiver` (`_TdmDataReceiver.py`) decodes frames for real-time display
+4. `DataRssi` on port 8193 receives frames (one RSSI link carries all boards)
+5. Host demuxes by board (`application(dest=index)`) then by stream type; readout
+   → `DataWriter` file channel 9, PID-debug → channels 0–7, config → channel 255
+6. `DataWriter` (pyrogue StreamWriter, at `GroupRoot`) records to file; readers in
+   `operations/streamreader.py` demux the channels back out
 
-Frame format defined in `warm_tdm._DataFormats.DataReadout`.
+Frame formats defined in `warm_tdm._DataFormats` (`DataReadout`, `PidDebug`).
+
+**Full channelization** — the end-to-end TDEST scheme (per-board stream tagging,
+the ring board tag, host demux, file-channel layout, the multi-board file-channel
+collision, and the migration plan) is documented in
+[`firmware/common/DataChannelization.md`](../firmware/common/DataChannelization.md).
+Read it before touching stream wiring or adding a data format.
 
 ## Configuration Management
 

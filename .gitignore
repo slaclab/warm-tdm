@@ -6,6 +6,8 @@
 *.bit
 *.bin
 *.ipynb
+# ...but track curated, output-free template/reference notebooks:
+!software/jupyter/operations_template.ipynb
 *.yml
 .ipynb_checkpoints/
 images/
@@ -17,6 +19,12 @@ images/
 build*
 !firmware/targets/build_release.sh
 __pycache__/
+
+.ipynb_checkpoints/
+
+# Directories with YYYYMMDD format
+[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]
+*_raw.txt
 .vscode/
 .claude/
 \#*\#

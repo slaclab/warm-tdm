@@ -3,7 +3,7 @@ import warm_tdm
 import warm_tdm_api
 import numpy as np
 
-from ._GroupVariables import GroupLinkVariable, GroupArrayLinkVariable, FastDacVariable
+from ._GroupVariables import GroupLinkVariable, GroupArrayLinkVariable, FastDacVariable, GroupBroadcastVariable
 
 
 class Group(pr.Device):
@@ -13,6 +13,22 @@ class Group(pr.Device):
         for board in range(self.config.columnBoards):
             for chan in range(8):
                 yield (board, chan)
+
+    def _cable_r_nodes(self):
+        """Find every AFE cable-resistance model node across all boards.
+
+        These are ``pr.LocalVariable``s named ``CableR`` that hold the roundtrip
+        cryostat cable resistance used by the front-end gain/conversion math --
+        client-side model state, not a hardware register. Every AFE amplifier
+        (column ``Channel[*].{SAAmp,SAFbAmp,SQ1BiasAmp,SQ1FbAmp,TesBiasAmp}``,
+        row ``Amp[*]``) exposes one, so a single anchored ``find`` over the
+        HardwareGroup collects them all regardless of front-end class or channel
+        count. The ``CableR$`` anchor keeps this from also matching the Group's
+        own ``CableResistance`` broadcast variable (``find`` regex-matches names).
+
+        This backs the ``CableResistance`` broadcast variable (issue #83, G3).
+        """
+        return self.HardwareGroup.find(typ=pr.LocalVariable, name='CableR$')
 
     def makeGuiGroup(self, arrVar):
         for i in range(self.config.numColumns):
@@ -421,4 +437,84 @@ class Group(pr.Device):
             self.add(warm_tdm_api.FasTuneProcess(groups=['NoDoc']))
             self.add(warm_tdm_api.Sq1DiagProcess(groups=['NoDoc']))
             self.add(warm_tdm_api.TesRampProcess(groups=['NoDoc']))
+            self.add(warm_tdm_api.TesBiasWaveformProcess(groups=['NoDoc']))
             self.add(warm_tdm_api.SaStripChartProcess(groups=['NoDoc']))
+
+        #####################################
+        # Cross-board convenience variables
+        #####################################
+
+        # Roundtrip cryostat cable resistance, broadcast to every AFE amp's
+        # CableR model node (issue #83, G3 -- graduated from the operations-layer
+        # set_cryo_resistance helper). These are model LocalVariables, so there
+        # is no hardware transaction and no tune-enable gating.
+        self.add(GroupBroadcastVariable(
+            name = 'CableResistance',
+            description = 'Roundtrip cryostat cable resistance, broadcast to every '
+                          'AFE amplifier cable-resistance model node on all boards.',
+            units = 'Ω',
+            disp = '{:0.1f}',
+            empty_value = 0.0,
+            dependencies = self._cable_r_nodes()))
+
+        # Power-supply synchronization, broadcast to every board's TimingTx
+        # (issue #83, G4 -- graduated from operations set_ps_synch/check_ps_synch).
+        # Synchronized => PwrSyncA/B/C = OSC (2), PwrSyncEn = 1; unsynchronized =>
+        # all LOW (0), PwrSyncEn = 0. get() reports True only if all four are in
+        # the synchronized state on the representative board. A TimingTx node
+        # exists on every board (added unconditionally in WarmTdmCore2).
+        #
+        # This one drives FOUR heterogeneous fields per board (three enums + a
+        # bool) with an AND-reduce on get, so it stays a custom LinkVariable --
+        # GroupBroadcastVariable only covers the homogeneous one-value/many-
+        # identical-deps case (see CableResistance / LedEnable).
+        _timing_tx = self.HardwareGroup.find(typ=warm_tdm.TimingTx)
+
+        # PwrSync* are 2-bit enums: 0 = LOW, 2 = OSC (see _TimingTx.py). Enum
+        # RemoteVariables take the raw value on set(); OSC drives the sync
+        # oscillator on all three, LOW parks them.
+        _PWR_OSC, _PWR_LOW = 2, 0
+
+        def _set_ps_synch(*, value, write):
+            level = _PWR_OSC if value else _PWR_LOW
+            for tx in _timing_tx:
+                tx.PwrSyncA.set(level, write=write)
+                tx.PwrSyncB.set(level, write=write)
+                tx.PwrSyncC.set(level, write=write)
+                tx.PwrSyncEn.set(bool(value), write=write)
+
+        def _get_ps_synch(*, read):
+            if not _timing_tx:
+                return False
+            tx = _timing_tx[0]
+            return (tx.PwrSyncA.get(read=read) == _PWR_OSC
+                    and tx.PwrSyncB.get(read=False) == _PWR_OSC
+                    and tx.PwrSyncC.get(read=False) == _PWR_OSC
+                    and tx.PwrSyncEn.get(read=False) is True)
+
+        # LinkVariable dependencies must be Variables (not the TimingTx Devices),
+        # so depend on the individual PwrSync* nodes we broadcast to.
+        _ps_deps = [v for tx in _timing_tx
+                    for v in (tx.PwrSyncA, tx.PwrSyncB, tx.PwrSyncC, tx.PwrSyncEn)]
+
+        self.add(pr.LinkVariable(
+            name = 'PowerSupplySynchronized',
+            description = 'When set, synchronize all boards\' supply switchers to '
+                          'the timing domain (PwrSync A/B/C = OSC, PwrSyncEn on); '
+                          'clear to free-run them (all LOW, PwrSyncEn off).',
+            # NoConfig: the underlying TimingTx PwrSync* vars already serialize.
+            groups = ['TopApi', 'NoConfig'],
+            dependencies = _ps_deps,
+            linkedSet = _set_ps_synch,
+            linkedGet = _get_ps_synch))
+
+        # Status-LED enable, broadcast to every board's WarmTdmConfig.LedEn
+        # (issue #83, G6 -- graduated from operations disable_leds; now a
+        # two-way toggle rather than one-directional). LedEn is a 1-bit enum
+        # (0 = Disabled, 1 = Enabled); the value_map exposes it as a plain bool.
+        self.add(GroupBroadcastVariable(
+            name = 'LedEnable',
+            description = 'Enable/disable the status-blink LEDs on all boards.',
+            value_map = {False: 0, True: 1},
+            empty_value = False,
+            dependencies = self.HardwareGroup.find(typ=pr.RemoteVariable, name='LedEn$')))
