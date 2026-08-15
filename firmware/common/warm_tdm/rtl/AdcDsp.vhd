@@ -592,7 +592,12 @@ begin
                if (accumValid = '1') then
                   v.rowIndex     := accumIn.rowIndex(ROW_ADDR_BITS_G-1 downto 0);
                   v.accumError   := to_sfixed(slv(accumIn.accumError(ACCUM_BITS_C-1 downto 0)), v.accumError);
-                  v.accumSamples := to_ufixed(slv(accumIn.numSamples), v.accumSamples);
+                  -- accumIn.numSamples is unsigned(7 downto 0); accumSamples is
+                  -- ufixed(31 downto 0). Use the numeric unsigned->ufixed
+                  -- conversion (which resizes) rather than the slv overload,
+                  -- which requires matching vector widths and otherwise trips a
+                  -- length-mismatch bounds check under fixed_pkg.
+                  v.accumSamples := to_ufixed(accumIn.numSamples, v.accumSamples);
                   v.sq1FbDacIn   := accumIn.sq1FbDac;
                   v.rowEnabled   := r.rowEnableMask(to_integer(unsigned(accumIn.rowIndex)));
 
