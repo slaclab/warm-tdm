@@ -255,8 +255,8 @@ python warmTdmServer.py --gui --ip <board-ip>
 # Command-line client
 python warmTdmClientCmd.py
 
-# Emulation mode (no hardware)
-python warmTdmEmulate.py
+# Emulation mode (no hardware — fakes register memory via MemEmulate)
+python warmTdmGui.py --emulate       # or warmTdmServer.py --emulate (headless)
 ```
 
 ## Releases
