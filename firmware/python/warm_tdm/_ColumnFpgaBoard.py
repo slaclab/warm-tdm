@@ -12,7 +12,7 @@ class ColumnFpgaBoard(pr.Device):
     def __init__(self,
                  frontEndClass,
 #                 loading={},
-                 maxRows=128,
+                 rows=256,
                  useFloatPid=False,
                  **kwargs):
         super().__init__(**kwargs)
@@ -29,27 +29,13 @@ class ColumnFpgaBoard(pr.Device):
             local_therm_channels = [9, 10, 1, 11, 0, 3],
             fe_therm_channels = [2, 8]))
 
-        # ADC SPI config; created before DataPath so the readout alignment
-        # process (added below) can reference both it and the readout.
-        self.add(surf.devices.analog_devices.Ad9681Config(
-            enabled = True,
-            offset = 0xC0200000))
-
         self.add(warm_tdm.DataPath(
             offset = 0xC1000000,
             expand = True,
             timingTx = self.WarmTdmCore.Timing.TimingTx,
-            maxRows=maxRows,
+            rows=rows,
             frontEnd=self.AnalogFrontEnd,
             useFloatPid=useFloatPid))
-
-        # Software-driven FCO and per-lane IDELAY alignment. Drives the AD9681
-        # test-pattern output via the SPI config while scanning input delays on
-        # the AdcDdr readout, then applies the selected taps.
-        self.add(surf.devices.analog_devices.Ad9681ReadoutCalibration(
-            name    = 'Ad9681Alignment',
-            config  = self.Ad9681Config,
-            readout = self.DataPath.Ad9681Readout))
 
         self.add(warm_tdm.Ad5679R(
             name = 'SaBiasDac',
@@ -91,21 +77,21 @@ class ColumnFpgaBoard(pr.Device):
             name = 'SAFb',
             offset = 0xC0600000,
             frontEnd = self.AnalogFrontEnd,
-            maxRows = maxRows,            
+            rows = rows,            
         ))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Bias',
             offset = 0xC0400000,
             frontEnd = self.AnalogFrontEnd,
-            maxRows = maxRows,
+            rows = rows,
         ))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Fb',
             offset =0xC0500000,
             frontEnd = self.AnalogFrontEnd,
-            maxRows = maxRows,
+            rows = rows,
         ))
 
         self.add(warm_tdm.GroupLinkVariable(
@@ -122,8 +108,12 @@ class ColumnFpgaBoard(pr.Device):
             name = 'Sq1FbForceCurrent',
             disp = '{:0.03f}',            
             dependencies = list(self.SQ1Fb.OverrideCurrent.values())))
+                
 
 
+        self.add(surf.devices.analog_devices.Ad9681Config(
+            enabled = True,
+            offset = 0xC0200000))
 
         #########################################
         # Compute SA Out based on amplifier config
@@ -203,14 +193,17 @@ class ColumnFpgaBoard(pr.Device):
 
         @self.command()
         def AllFastDacs(arg):
-            for v in self.SAFb.Override.values():
-                v.set(value=arg, write=True)
-
-            for v in self.SQ1Fb.Override.values():
-                v.set(value=arg, write=True)
-
-            for v in self.SQ1Bias.Override.values():
-                v.set(value=arg, write=True)
+            # Broadcast a raw DAC code to every SAFb/SQ1Fb/SQ1Bias override
+            # channel. Stage all writes (write=False) inside one updateGroup(),
+            # then flush each driver once, so this is a handful of batched
+            # transactions instead of 24 individual write+publish cycles.
+            # (The nodes are OverrideRaw[*], not a nonexistent 'Override'.)
+            with self.root.updateGroup():
+                for drv in (self.SAFb, self.SQ1Fb, self.SQ1Bias):
+                    for v in drv.OverrideRaw.values():
+                        v.set(value=arg, write=False)
+                for drv in (self.SAFb, self.SQ1Fb, self.SQ1Bias):
+                    drv.writeAndVerifyBlocks()
 
 
         @self.command()

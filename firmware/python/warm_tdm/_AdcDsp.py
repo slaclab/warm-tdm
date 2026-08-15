@@ -53,10 +53,10 @@ class RowPidStatus(pr.Device):
             index = rowNum))
 
 class RowPidStatusArray(pr.Device):
-    def __init__(self, dsp, maxRows, **kwargs):
+    def __init__(self, dsp, rows, **kwargs):
         super().__init__(**kwargs)
 
-        for row in range(maxRows):
+        for row in range(rows):
             self.add(RowPidStatus(
                 name = f'Row[{row}]',
                 dsp = dsp,
@@ -68,11 +68,11 @@ class AdcDsp(pr.Device):
     ACCUM_BASE = pr.Fixed(18, 0)
     RESULT_BASE = pr.Fixed(48, 23)
 
-    def __init__(self, frontEnd, column, maxRows=128, **kwargs):
+    def __init__(self, frontEnd, column, rows=256, **kwargs):
         super().__init__(**kwargs)
 
         self.amp = frontEnd.Channel[column].SQ1FbAmp
-        self.maxRows = maxRows
+        self.rows = rows
 
         self.add(pr.RemoteVariable(
             name = 'PidEnableRaw',
@@ -275,7 +275,7 @@ class AdcDsp(pr.Device):
             offset = 0x1000,
             base = AdcDsp.ACCUM_BASE,
             mode = 'RO',
-            numValues = maxRows,
+            numValues = rows,
             valueBits = AdcDsp.ACCUM_BASE.bitSize,
             valueStride = 32))
 
@@ -285,7 +285,7 @@ class AdcDsp(pr.Device):
             offset = 0x2000,
             base = AdcDsp.ACCUM_BASE,
             mode = 'RW',
-            numValues = maxRows,
+            numValues = rows,
             valueBits = AdcDsp.ACCUM_BASE.bitSize,
             valueStride = 32))
 
@@ -295,7 +295,7 @@ class AdcDsp(pr.Device):
             offset = 0x3000,
             mode = 'RW',
             base = AdcDsp.RESULT_BASE,
-            numValues = maxRows,
+            numValues = rows,
             valueBits = AdcDsp.RESULT_BASE.bitSize,
             valueStride = 64))
 
@@ -305,7 +305,7 @@ class AdcDsp(pr.Device):
             offset = 0x6000,
             base = pr.Int,
             mode = 'RW',
-            numValues = maxRows,
+            numValues = rows,
             valueBits = 8,
             valueStride = 32))
 
@@ -313,7 +313,7 @@ class AdcDsp(pr.Device):
             name = 'RowPidStatus',
             groups = ['NoConfig'],            
             dsp = self,
-            maxRows = maxRows))
+            rows = rows))
 
         @self.command()
         def ClearPids():

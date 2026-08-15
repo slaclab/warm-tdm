@@ -10,27 +10,27 @@ import warm_tdm
 
 
 class DataPath(pr.Device):
-    def __init__(self, timingTx, frontEnd, maxRows=128, useFloatPid=False, **kwargs):
+    def __init__(self, timingTx, frontEnd, rows=256, useFloatPid=False, **kwargs):
         super().__init__(**kwargs)
 
         for i in range(8):
             self.add(warm_tdm.AdcAccumulator(
                 name = f'AdcAccumulator[{i}]',
-                maxRows = maxRows,
+                rows = rows,
                 offset = (7 << 20) + (i << 12)))
 
             if useFloatPid:
                 self.add(warm_tdm.AdcDspFp(
                     name = f'AdcDsp[{i}]',
                     frontEnd = frontEnd,
-                    maxRows = maxRows,
+                    rows = rows,
                     column = i,
                     offset = (4 << 20) + (i << 16)))
             else:
                 self.add(warm_tdm.AdcDsp(
                     name = f'AdcDsp[{i}]',
                     frontEnd = frontEnd,
-                    maxRows = maxRows,
+                    rows = rows,
                     column = i,
                     offset = (4 << 20) + (i << 16)))
 
@@ -50,16 +50,10 @@ class DataPath(pr.Device):
         self.add(EventBuilder(
             offset = 2 << 20))
 
-        self.add(surf.devices.analog_devices.AdcDdr(
-            enabled             = True,
-            name                = 'Ad9681Readout',
-            offset              = 0x00000000,
-            dataLanes           = 16,
-            fcoLanes            = 2,
-            channels            = 8,
-            sampleBits          = 14,
-            serializationFactor = 8,
-            delayBits           = 5))
+        self.add(surf.devices.analog_devices.Ad9681Readout(
+            enabled = True,
+            name = 'Ad9681Readout',
+            offset = 0x00000000))
 
         self.add(pr.RemoteVariable(
             name = 'AdcLatency',
@@ -119,8 +113,15 @@ class AdcFilters(pr.Device):
             self.filterFreq = value
             taps = scipy.signal.firwin(numberTaps, value, fs=125.0e6, window='hamming')
             print(f'Applying filter at {value} with taps {taps}')
-            for i in range(8):
-                self.FirFilter[i].Taps.set(taps, write=write)
+            # Stage all 8 channels' taps then flush, so the identical tap array
+            # is written as batched transactions inside one updateGroup() (one
+            # client tree-update) rather than 8 separate write+publish cycles.
+            with self.root.updateGroup():
+                for i in range(8):
+                    self.FirFilter[i].Taps.set(taps, write=False)
+                if write:
+                    for i in range(8):
+                        self.FirFilter[i].writeAndVerifyBlocks()
 
         def _get(read):
             return self.filterFreq

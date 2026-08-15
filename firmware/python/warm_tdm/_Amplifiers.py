@@ -37,6 +37,7 @@ class SaAmplifier(pr.Device):
 #             linkedGet = lambda read: (1-0.9) / (self.ampVin(0.0, 1.0)-self.ampVin(0.0, 0.9))))
 
 
+
 class FEAmplifier4(SaAmplifier):
     _model_ready = False
 
@@ -122,7 +123,7 @@ class FEAmplifier4(SaAmplifier):
         super().__init__(**kwargs)
 
         self.add(pr.LocalVariable(
-            name = 'R_CABLE',
+            name = 'CableR',
             description = 'Cable resistance on SA Bias',
             value = 120.0,
             units = u'\u03a9'))
@@ -254,10 +255,10 @@ class FEAmplifier4(SaAmplifier):
 
     def saBiasCurrent(self, saBiasDacVoltageP, saBiasDacVoltageN=0.0):
         vdiff = saBiasDacVoltageP * 2
-        return vdiff / (self.R_CABLE.value() + (2*self.BIAS_SHUNT_R.value()))
+        return vdiff / (self.CableR.value() + (2*self.BIAS_SHUNT_R.value()))
 
     def saBiasDacVoltage(self, saBiasCurrent):
-        resistance = self.R_CABLE.value() + (2*self.BIAS_SHUNT_R.value())
+        resistance = self.CableR.value() + (2*self.BIAS_SHUNT_R.value())
         voltage = saBiasCurrent * resistance
 
         # Start with both dacs at midpoint
@@ -538,6 +539,17 @@ class FastDacAmplifierSE(pr.Device):
             disp = '{:0.3f}',
             linkedGet = self.minCurrent))
 
+        self.add(pr.LinkVariable(
+            name = 'CurrentPerLsb',
+            description = 'Output current per DAC code LSB (the linear DAC-code -> '
+                          'output-current slope of this amplifier). Multiply a '
+                          'streamed DAC-code value by this to get output current.',
+            dependencies = [self.FilterR, self.ShuntR, self.CableR, self.FbR, self.InputR, self.IOUTFS, self.FSADJ, self.LoadR, self.Invert],
+            units = '\u03bcA/LSB',
+            mode = 'RO',
+            disp = '{:0.6f}',
+            linkedGet = self.currentPerLsb))
+
 
     def gain(self):
         ret = self.FbR.value() / (self.InputR.value())
@@ -566,6 +578,16 @@ class FastDacAmplifierSE(pr.Device):
         vout = self.dacToOutVoltage(dac)
         iout = vout / self.rout()
         return iout * 1e6
+
+    def currentPerLsb(self, read=True):
+        """Output current (uA) per DAC code LSB.
+
+        The DAC-code -> output-current transfer is linear, so the per-LSB slope
+        is just the one-LSB difference. Uses dacToOutCurrent(), so subclasses
+        (e.g. FastDacAmplifierDiff, which overrides gain()/rout()) get the
+        correct slope with no override needed.
+        """
+        return self.dacToOutCurrent(1) - self.dacToOutCurrent(0)
 
     def outVoltageToDac(self, voltage):
         gain = self.gain()

@@ -57,15 +57,39 @@ class WarmTdmArgparse(argparse.ArgumentParser):
             help     = "Number of row boards in group")
 
         self.add_argument(
+            "--numRowSelects",
+            type = int,
+            default = 32,
+            help = 'Number of row selects on row board')
+
+        self.add_argument(
+            "--numChipSelects",
+            type = int,
+            default = 0,
+            help = 'Number of chip selects on row board')
+
+        self.add_argument(
+            "--rowAddrBits",
+            type = int,
+            default = 8,
+            help = "Hardware row-address width: the deployed RTL generic "
+                   "ROW_ADDR_BITS_G (3..8). The firmware row RAMs are "
+                   "2**rowAddrBits deep. Default 8 (depth 256), the RTL default; "
+                   "use 5 (depth 32) for the ColumnFpgaBoard160Coord target. "
+                   "This must match the loaded bitfile.")
+
+        self.add_argument(
             "--maxRows",
             type = int,
-            default = 128,
-            help = "Maximum number of row indices to map registers for")
+            default = 256,
+            help = "Number of row indices the software maps/uses. A software "
+                   "choice bounded by the hardware depth: 1 <= maxRows <= "
+                   "2**rowAddrBits. Default 256 (full depth of an 8-bit build).")
 
         self.add_argument(
             "--columnBoards",
             type     = int,
-            default  = 4,
+            default  = 1,
             help     = "Number of column boards in group")
 
         self.add_argument(
@@ -103,6 +127,7 @@ colBoardDict = {
     'FPGA': warm_tdm.ColumnFpgaBoard,
     'AwaXe': warm_tdm.ColumnAwaXeFpgaBoard}
 
+
 colFeDict = {
     'FpgaColFeb': warm_tdm.FpgaBoardColumnFeb,
     'FpgaColAwaXeFeb': warm_tdm.FpgaBoardColumnAwaXeFeb,
@@ -120,8 +145,9 @@ def arg_dict(args):
     ret['pollEn'] = args.pollEn
     ret['simulation'] = args.sim
     ret['emulate'] = args.emulate
-    ret['maxRows'] = args.maxRows
-    ret['initRead'] = args.initRead
+    ret['numRowSelects'] = args.numRowSelects
+    ret['numChipSelects'] = args.numChipSelects
+    ret['initRead'] = args.initRead and not args.sim
     ret['colBoardClass'] = colBoardDict[args.columnBoardType]
     ret['colFeClass'] = colFeDict[args.columnFrontEnd]
     ret['rowBoardClass'] = rowBoardDict[args.rowBoardType]
@@ -131,5 +157,6 @@ def arg_dict(args):
         columnBoards=args.columnBoards,
         rowBoards=args.rowBoards,
         maxRows=args.maxRows,
+        rowAddrBits=args.rowAddrBits,
         host=args.ip)
     return ret

@@ -116,10 +116,10 @@ class FastDacMem(pr.Device):
 
 class FastDacDriver(pr.Device):
 
-    def __init__(self, frontEnd, maxRows=128, **kwargs):
+    def __init__(self, frontEnd, rows=256, **kwargs):
         super().__init__(**kwargs)
 
-        self.maxRows = maxRows
+        self.rows = rows
         self.frontEnd = frontEnd
         self.amps = [self.frontEnd.Channel[x].find(name=f'{self.name}Amp')[0] for x in range(8)]
 
@@ -199,4 +199,4 @@ class FastDacDriver(pr.Device):
                 name = f'Column[{col}]',
                 offset = col << 12,
                 amp = self.amps[col],
-                size = maxRows))
+                size = rows))

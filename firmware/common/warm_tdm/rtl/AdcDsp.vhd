@@ -432,6 +432,7 @@ begin
       variable dSfixed           : sfixed(COEF_HIGH_C downto COEF_LOW_C);
       variable fluxQuantumFixed  : sfixed(13 downto 0);
       variable numFluxJumpsFixed : sfixed(8 downto 0);
+      variable pidStateRamAddrFixed : ufixed(ROW_ADDR_BITS_G-1 downto 0);
       variable pidResultNext     : sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
       variable iContribution     : sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
       variable sq1FbCommand      : sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
@@ -502,6 +503,7 @@ begin
       dSfixed           := to_sfixed(r.d, dSfixed);
       fluxQuantumFixed  := to_sfixed(r.fluxQuantum, fluxQuantumFixed);
       numFluxJumpsFixed := to_sfixed(r.numFluxJumps, numFluxJumpsFixed);
+      pidStateRamAddrFixed := to_ufixed(r.pidStateRamAddr, pidStateRamAddrFixed);
       sq1FbHighLimit    := to_sfixed(SQ1FB_MAX_C, sq1FbHighLimit);
       sq1FbLowLimit     := to_sfixed(SQ1FB_MIN_C, sq1FbLowLimit);
       requestClear      := false;
@@ -573,7 +575,7 @@ begin
          if (r.pidStateRamAddr = CLEAR_LAST_ADDR_C) then
             v.clearPidStateBusy := '0';
          else
-            v.pidStateRamAddr := slv(unsigned(r.pidStateRamAddr) + 1);
+            v.pidStateRamAddr := to_slv(resize(pidStateRamAddrFixed + 1, pidStateRamAddrFixed));
          end if;
       elsif (r.fllEnable = '0' and accumValid = '1' and accumIn.seqStart = '1') then
          v.pidStreamMaster.tValid := '1';

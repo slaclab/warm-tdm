@@ -15,16 +15,27 @@ DATA_PORT = 8193
 
 class DataDebug(rogue.interfaces.stream.Slave):
 
-    def __init__(self):
-        super().__init__()
-        import logging
-        self._log = logging.getLogger('warm_tdm.DataDebug')
-
     def _acceptFrame(self, frame):
         arr = frame.getNumpy()
+
         dr = warm_tdm.DataReadout.from_numpy(arr)
-        self._log.debug(f'Got frame with {len(arr)} bytes')
-        self._log.debug(dr)
+        
+        print(f'Got frame with {len(arr)} bytes')
+
+        print(dr)
+#         words = arr[:-5].reshape(-1, 5)
+#         readoutCount = int.from_bytes( words[0:2, 0:4], byteorder='little', signed=False)
+#         rowSeqCount = int.from_bytes(words[2:4, 0:4], byteorder='little', signed=False)
+#         runTime = int.from_bytes(words[4:6, 0:4], byteorder='little', signed=False)
+#         samples = words[6:]
+
+#         print(f'{readoutCount=}')
+#         print(f'{rowSeqCount=}')
+#         print(f'{runTime=}')        
+#         for s in samples:
+#             value = int.from_bytes(s[0:3], byteorder='little', signed=True)
+#             print(f'col {s[4]}, row {s[3]}, value 0x{value:x}')
+        
 
 class HardwareGroup(pyrogue.Device):
 
@@ -42,13 +53,27 @@ class HardwareGroup(pyrogue.Device):
             host='192.168.3.11',
             colBoards=1,
             rowBoards=1,
+            num_row_selects=32,
+            num_chip_selects=0,
             useFloatPid=False,
-            maxRows=128,
+            rowAddrBits=8,
+            maxRows=256,
             **kwargs):
 
         super().__init__(**kwargs)
 
-        self._log.info(f'Starting HardwareGroup with {colBoards=}, {maxRows=}')
+        # Two distinct quantities, deliberately not conflated:
+        #   rowAddrBits -> the deployed RTL generic ROW_ADDR_BITS_G (3..8). The
+        #     firmware row RAMs are 2**rowAddrBits deep. A property of the bitfile.
+        #   maxRows     -> how many of those row slots the software maps into
+        #     Rogue variables (AdcDsp per-row state, RowDacDriver.RowMap). A
+        #     software choice, bounded above by the hardware depth.
+        rowAddrDepth = 2 ** rowAddrBits
+        if not 1 <= maxRows <= rowAddrDepth:
+            raise ValueError(
+                f'maxRows ({maxRows}) must be between 1 and the hardware row '
+                f'depth 2**rowAddrBits = {rowAddrDepth} (rowAddrBits={rowAddrBits}).')
+        rows = maxRows
 
         # Open rUDP connections to the Manager board
         if simulation is False and emulate is False:
@@ -113,10 +138,10 @@ class HardwareGroup(pyrogue.Device):
                 frontEndClass=colFeClass,
                 memBase=srp,
                 expand=True,
-                maxRows=maxRows,
+                rows=rows,
                 useFloatPid=useFloatPid))
-            
-            #pidDebug = [warm_tdm.PidDebugger(name=f'PidDebug[{i}]', hidden=False, numRows=maxRows, col=i, frontEnd=self.ColumnBoard[index].AnalogFrontEnd) for i in range(8)]
+
+            pidDebug = [warm_tdm.PidDebugger(name=f'PidDebug[{i}]', hidden=False, numRows=rows, col=i, frontEnd=self.ColumnBoard[index].AnalogFrontEnd) for i in range(8)]
             saAmps = [self.ColumnBoard[index].AnalogFrontEnd.Channel[x].SAAmp for x in range(8)]
             waveGui = warm_tdm.WaveformCaptureReceiver(hidden=False, captureDev=self.ColumnBoard[index].DataPath.WaveformCapture, amplifiers=saAmps)
 
@@ -131,7 +156,7 @@ class HardwareGroup(pyrogue.Device):
                     packetizer.application(i) >> fifo1
                     fifo1 >> fifo2 >> dataWriter.getChannel(i)
                     #fifo1 >> rateDrop >> pidDebug[i]
-                    self.addInterface(fifo1, fifo2)#, pidDebug[i])
+                    self.addInterface(fifo1, fifo2, pidDebug[i])
 
                 packetizer.application(8) >> waveGui
 
@@ -172,7 +197,9 @@ class HardwareGroup(pyrogue.Device):
             self.add(rowBoardClass(
                 name=f'RowBoard[{rowIndex}]',
                 frontEndClass=rowFeClass,
-                maxRows=maxRows,
+                num_row_selects=num_row_selects,
+                num_chip_selects=num_chip_selects,
+                rows=rows,
                 memBase=srp,
                 expand=True,
                 enabled=True))
@@ -212,28 +239,10 @@ class HardwareGroup(pyrogue.Device):
         def Readout(arg):
             self.ReadoutList.set(list(range(arg)))
 
-        @self.command()
-        def Readout22():
-            self.ReadoutList.set(list(range(22)))
-
-        @self.command()
-        def Readout32():
-            self.ReadoutList.set(list(range(32)))
-
-        @self.command()
-        def Readout64():
-            self.ReadoutList.set(list(range(64)))
-            
-        @self.command()
-        def Readout80():
-            self.ReadoutList.set(list(range(80)))
-            
-
         if colBoards > 0:
             self.add(waveGui)
             for i in range(8):
-                print('Adding pidDebug')
-                #self.add(pidDebug[i])
+                self.add(pidDebug[i])
 
 
 

@@ -36,12 +36,16 @@ warm-tdm/
 │   └── releases.yaml           # Release and packaging config
 ├── software/
 │   ├── python/warm_tdm_api/    # High-level API (tuning, data, GUI logic)
-│   │   └── widgets/            #   PyDM UI components
+│   │   ├── widgets/            #   PyDM UI components
+│   │   └── operations/         #   Client-side operational layer (acquisition,
+│   │                           #   setup, analysis); import explicitly
 │   ├── scripts/                # Executable entry points (server, GUI, client)
 │   ├── cfg/                    # YAML hardware configuration files
 │   ├── lib/                    # C/C++ shared library
 │   └── jupyter/                # Analysis notebooks
-├── docs/src/                   # Sphinx documentation source
+├── docs/
+│   ├── RELEASE.md              # Release process + git workflow
+│   └── src/                    # Sphinx documentation source
 ├── conda.yml                   # Conda environment definition
 ├── .gitmodules                 # Submodule declarations (surf, ruckus)
 └── releases.yaml               # Top-level release config
@@ -70,9 +74,10 @@ A dedicated serialized link distributes synchronization across all boards:
 
 ### Communication
 
-- **PGP ring**: Boards connected in a ring via MGT links; `RingRouter` routes frames by address
+- **PGP ring**: Boards connected in a ring via MGT links; `RingRouter` routes frames by address and tags each board's data with its ring address in `tDest[6:4]` (stream type in `tDest[3:0]`)
 - **Ethernet bridge**: Coordinator board bridges Ethernet↔PGP ring for host access
 - **Host protocol**: RSSI/SRP over UDP (register access on port 8192, data on port 8193)
+- **Data channelization**: the full TDEST scheme — per-board stream tags, the ring board tag, host demux, file-channel layout (readout=9, PID-debug=0–7, config=255), the multi-board caveat, and the migration plan — is documented in [`firmware/common/DataChannelization.md`](firmware/common/DataChannelization.md)
 
 ### Platform Support
 
@@ -118,7 +123,7 @@ Platform-specific files use suffixes: `*7s.vhd` (7-Series), `*Usp.vhd` (UltraSca
 - **Signal style**: camelCase (`axilClk`, `timingRxData`)
 - **Architecture**: Always named `rtl`
 - **SURF library usage**: Import `surf.StdRtlPkg`, `surf.AxiLitePkg`, `surf.AxiStreamPkg`, `surf.SsiPkg`
-- **XDC split**: Common timing constraints in `common/warm_tdm/xdc/`, board pinout in `targets/*/xdc/`
+- **XDC split**: Common timing constraints AND board pinouts live in `common/warm_tdm/xdc/`; each target loads its own pinout by explicit `loadConstraints -path` (the common `xdc` `-dir` auto-load stays disabled so a target pulls in only its own pinout)
 - **Platform abstraction**: Wrapper entities instantiate `*7s` or `*Usp` variants based on `FPGA_FAMILY_G` or target context
 - **License**: SLAC proprietary header required on all source files
 
@@ -129,6 +134,13 @@ For detailed firmware conventions, see [`firmware/FIRMWARE_GUIDE.md`](firmware/F
 - **Two Python packages**:
   - `warm_tdm` (in `firmware/python/`) — Low-level PyRogue device drivers mapping FPGA registers
   - `warm_tdm_api` (in `software/python/`) — High-level control, tuning algorithms, GUI logic
+- **`warm_tdm_api.operations` subpackage**: client-side operational layer
+  (acquisition, hardware setup, analysis/plotting) driving the rogue tree
+  remotely; kept distinct from the tree device modules. Not auto-imported — use
+  `import warm_tdm_api.operations`. Hardware-coupled ops are methods on a
+  `Session` object (`ops.connect()`/`ops.use()` establish a cached default for
+  the notebook shims; tests/scripts construct their own `Session`). Pure helpers
+  live in `formats.py`. (Formerly the `warm_tdm_jupyter` package.)
 - **Device file naming**: Underscore prefix (`_AdcDsp.py`), exported via `__init__.py`
 - **Device pattern**: Classes inherit `pr.Device`, registers defined as `pr.RemoteVariable(offset=..., bitSize=..., bitOffset=...)`
 - **Commands**: `pr.RemoteCommand` with function callbacks
@@ -142,6 +154,16 @@ For detailed software conventions, see [`software/SOFTWARE_GUIDE.md`](software/S
 ## Build System
 
 Uses SLAC **ruckus** build system wrapping Xilinx Vivado.
+
+### Vivado version (important)
+
+Firmware builds **must use Vivado 2024.1**. Later versions have a bug that
+causes hold-time errors in timing closure. Vivado is not on PATH by default;
+source it before building:
+
+```bash
+source /sdf/group/faders/tools/xilinx/2024.1/Vivado/2024.1/settings64.sh
+```
 
 ### Target Makefile Pattern
 ```makefile
@@ -236,6 +258,83 @@ python warmTdmClientCmd.py
 # Emulation mode (no hardware)
 python warmTdmEmulate.py
 ```
+
+## Releases
+
+WarmTDM uses a surf-style branch model: feature branches merge into
+`pre-release`, which is promoted to `main`, and releases are cut by tagging
+`main` with `vX.Y.Z`. Pushing a version tag triggers the `gen_release` CI job,
+and firmware `.mcs` images are attached to the GitHub Release via
+`ruckus/scripts/firmwareRelease.py`.
+
+**Merge, do not rebase.** This repo's workflow is merge-based throughout. To
+bring an upstream branch (e.g. `pre-release`) into a feature branch, `git merge`
+it and resolve conflicts in the merge commit — never `git rebase`. Rebase is not
+the workflow we use, even for a local-only branch that has never been pushed.
+
+For the full workflow, versioning scheme, and release steps, see
+[`docs/RELEASE.md`](docs/RELEASE.md). Release packaging config is in
+[`firmware/releases.yaml`](firmware/releases.yaml).
+
+## Project Board & Issue Tracking
+
+Cross-branch planning and PR sequencing live on the GitHub Project board
+**["Warm-TDM Roadmap"](https://github.com/orgs/slaclab/projects/43)** (org-owned,
+linked to this repo — Projects v2 cannot be repo-owned). The board is the single
+source of prioritization; the cross-track merge roadmap (branch topology,
+landing order, sequencing decisions) lives on the
+[wiki](https://github.com/slaclab/warm-tdm/wiki/Branch-Merge-Roadmap) — it
+coordinates work across branches, so it is not tied to any one branch of the
+code tree.
+
+**Issue vs PR (the model this repo follows):**
+- An **Issue** is the durable *what/why* — a goal, feature, or track. It is what
+  gets prioritized on the board and can outlive several PRs.
+- A **PR** is the *how* — one concrete attempt. It is a review artifact, not a
+  planning card. A PR closes its issue with `Closes #<n>` in the body; on merge
+  GitHub auto-closes the issue and its board card moves to Done.
+- Do **not** add PRs to the board as separate cards when they close a tracked
+  issue — the linked issue already tracks the work. (PR #67 is a legacy
+  exception, added before this convention.)
+
+**Conventions:**
+- **`roadmap` label** — marks epic/planning issues (merge sequencing, multi-PR
+  tracks) so they stay out of the normal bug/feature stream. Filter the Issues
+  tab with `label:roadmap` (epics only) or `-label:roadmap` (real work only).
+- **Board fields:** `Track` (PR sequencing / Software / Firmware / DDR readout /
+  Other), `Priority` (P0-now / P1-next / P2-later), `Status` (Todo / In Progress
+  / Blocked / Done). Set these on each item, not on the issue body.
+- **Branch flow still applies:** roadmap PRs target `pre-release` (see Releases).
+
+**Tooling note:** Projects v2 is GraphQL-only and needs a token with the
+`project` (+ `read:org`) scope; the `gh project` subcommand requires gh ≳ 2.20.
+Board views (kanban, table) are created in the web UI — the API cannot create
+them.
+
+### Hardware Verification wiki (the "hardware test list")
+
+The wiki page
+**[Hardware Verification](https://github.com/slaclab/warm-tdm/wiki/Hardware-Verification)**
+is the hardware test list: an index of every change that is *code-complete but
+still needs a pass on real hardware*, with one subpage per item
+(`HW-Verify-Issue-<n>-<slug>`) giving a step-by-step bench procedure and pass
+criteria. Like the roadmap, it lives on the wiki because it coordinates work
+that spans branches (some items merged, some on feature branches). The
+authoritative *status* is still the board field **`Status = Needs HW Test`**;
+the wiki holds the *how-to-verify* the board can't.
+
+**Keep it in sync (do this as a matter of course, not only when asked):**
+- When an item's board Status moves **to** `Needs HW Test` (a change lands
+  code-complete but unproven on hardware), add a subpage from the template shape
+  of the existing ones and a row to the index table.
+- When an item is verified on the bench and moves **off** `Needs HW Test`
+  (→ Done, or back to In Progress on failure), update its subpage outcome and
+  the index row to match — don't silently leave a stale "pending" page.
+- Keep the links bidirectional: each subpage links its Issue/PR, and each
+  Issue/PR body carries a backlink to its subpage (see the "Hardware
+  verification procedure" footer). Add the footer when you create a subpage.
+- The board is authoritative on *status*; the wiki is authoritative on *how to
+  verify*. When they disagree, fix the wiki to match the board.
 
 ## Essential Reading by Task
 

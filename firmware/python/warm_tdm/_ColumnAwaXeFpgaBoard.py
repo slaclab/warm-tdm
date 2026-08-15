@@ -13,7 +13,7 @@ class ColumnAwaXeFpgaBoard(pr.Device):
     def __init__(self,
                  frontEndClass,
 #                 loading={},
-                 maxRows=128,
+                 rows=256,
                  **kwargs):
         super().__init__(**kwargs)
 
@@ -31,7 +31,7 @@ class ColumnAwaXeFpgaBoard(pr.Device):
             offset = 0xC1000000,
             expand = True,
             timingTx = self.WarmTdmCore.Timing.TimingTx,
-            maxRows=maxRows,
+            rows=rows,
             frontEnd=self.AnalogFrontEnd))
 
         # AwaXe ASIC takes over channels 0 and 1
@@ -74,21 +74,21 @@ class ColumnAwaXeFpgaBoard(pr.Device):
             name = 'SAFb',
             offset = 0xC0600000,
             frontEnd = self.AnalogFrontEnd,
-            maxRows = maxRows,            
+            rows = rows,            
         ))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Bias',
             offset = 0xC0400000,
             frontEnd = self.AnalogFrontEnd,
-            maxRows = maxRows,
+            rows = rows,
         ))
 
         self.add(warm_tdm.FastDacDriver(
             name = 'SQ1Fb',
             offset =0xC0500000,
             frontEnd = self.AnalogFrontEnd,
-            maxRows = maxRows,
+            rows = rows,
         ))
 
         self.add(warm_tdm.GroupLinkVariable(
@@ -167,14 +167,17 @@ class ColumnAwaXeFpgaBoard(pr.Device):
 
         @self.command()
         def AllFastDacs(arg):
-            for v in self.SAFb.Override.values():
-                v.set(value=arg, write=True)
-
-            for v in self.SQ1Fb.Override.values():
-                v.set(value=arg, write=True)
-
-            for v in self.SQ1Bias.Override.values():
-                v.set(value=arg, write=True)
+            # Broadcast a raw DAC code to every SAFb/SQ1Fb/SQ1Bias override
+            # channel. Stage all writes (write=False) inside one updateGroup(),
+            # then flush each driver once, so this is a handful of batched
+            # transactions instead of 24 individual write+publish cycles.
+            # (The nodes are OverrideRaw[*], not a nonexistent 'Override'.)
+            with self.root.updateGroup():
+                for drv in (self.SAFb, self.SQ1Fb, self.SQ1Bias):
+                    for v in drv.OverrideRaw.values():
+                        v.set(value=arg, write=False)
+                for drv in (self.SAFb, self.SQ1Fb, self.SQ1Bias):
+                    drv.writeAndVerifyBlocks()
 
 
         @self.command()

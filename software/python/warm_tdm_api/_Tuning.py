@@ -112,7 +112,7 @@ def saFbSweep(*, group, bias, saFbRange, process):
         if np.any(np.abs(adcs) > 0.8):
             group._log.warning(f'High ADC value seen: SaBias={bias}, SaFb={saFbRange[:, idx]}, ADCs={adcs}')
             saOffset(group=group)
-            group._log.debug(f'After re-offset: SaOffset={group.SaOffset.get()}, ADC={group.SaOutAdc.get()}, SaOut={group.SaOut.get()}')
+            group._log.debug('After re-offset: SaOffset=%s, ADC=%s, SaOut=%s', group.SaOffset.get(), group.SaOutAdc.get(), group.SaOut.get())
 
     # Reset FB to zero after sweep
     group.SaFbForceCurrent.set(value=np.zeros(colCount, np.float64))
@@ -219,9 +219,13 @@ def saTune(*, group, process=None, doSet=True, doBiasRamp=True):
     saBiasResults = saBiasSweep(group=group, process=process, doBiasRamp=doBiasRamp)
 
     if doSet:
+        # SA tune is per-column: saBiasSweep returns one tuned SaFb (xOut) per
+        # column. The same value is written to every row slot, so this does not
+        # depend on the row map — broadcast across the full maxRows address space
+        # rather than the readout list (which may not be set yet when saTune runs).
         for col in range(group.NumColumns.get()):
             # xOut represents the tuned saFB. Set it for every row.
-            for row in range(group.NumRows.get()):
+            for row in range(group.MaxRows.get()):
                 group.SaFbCurrent.set(index=(col,row), value=saBiasResults[col].xOut)
             # biasOut represents the tuned SA Bias point
             group.SaBiasCurrent.set(index=col, value=saBiasResults[col].biasOut)
@@ -267,7 +271,7 @@ def saFbServo(*, group, process):
 
         # All channels have converged
         if (max(masked) < precision) and (min(masked) > (-1.0*precision)):
-            group._log.debug(f'saFbServo converged after {count+1} loops')
+            group._log.debug('saFbServo converged after %s loops', count+1)
             break
 
         for i, p in enumerate(pid):
@@ -344,7 +348,7 @@ def fasTune(*,group,process=None):
         subroutine is plotted against fasSweep
     """
     curves = []
-    numRows = group.NumRows.get()
+    numRows = group.MaxRows.get()
 
     group._log.info(f'fasTune starting: {numRows} rows')
     process.TotalSteps.set(numRows * process.FasFluxNumSteps.get())
@@ -488,7 +492,7 @@ def sq1Tune(group, process, doBiasRamp=True):
         list of list of CurveData objects 
     """
     outputs = []
-    numRows = group.NumRows.get()
+    numRows = group.MaxRows.get()
     rowTuneList = group.RowIndexOrderList.value()
     colTuneEnable = group.ColTuneEnable.value()
     numEnabledRows = len(rowTuneList)
@@ -510,7 +514,7 @@ def sq1Tune(group, process, doBiasRamp=True):
         group._log.info(f'sq1BiasSweep row={rowIndex}')
         results = sq1BiasSweep(group, process, rowIndex=rowIndex, doBiasRamp=doBiasRamp)
         for i, r in enumerate(results):
-            group._log.debug(f'Results col {i}: bias={r.biasOut}, xOut={r.xOut}, yOut={r.yOut}')
+            group._log.debug('Results col %s: bias=%s, xOut=%s, yOut=%s', i, r.biasOut, r.xOut, r.yOut)
             
         outputs.append(results)
 
@@ -537,7 +541,7 @@ def sq1Ramp(group, row, column, low_offset=-77.0, high_offset=77.0, step=1.0):
 
 def sq1RampRow(group, column, **kwargs):
     """Iterate through all rows, activating each, and call sq1Ramp."""
-    numRows = group.NumRows.get()
+    numRows = group.MaxRows.get()
     group._log.info(f'sq1RampRow col={column}: {numRows} rows')
     results = []
     for row in range(numRows):
@@ -564,7 +568,7 @@ def tesRamp(group, row, column, low_offset=0.0, high_offset=100.0, step=1.0):
 
 def tesRampRow(group, column, **kwargs):
     """Iterate through all rows, activating each, and call tesRamp."""
-    numRows = group.NumRows.get()
+    numRows = group.MaxRows.get()
     group._log.info(f'tesRampRow col={column}: {numRows} rows')
     results = []
     for row in range(numRows):
