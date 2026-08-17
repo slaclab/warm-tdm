@@ -40,5 +40,7 @@ from ._AwaXeI2c import *
 from ._SaBiasOffsetAwaXe import *
 from ._TesBiasAwaXe import *
 from ._GroupLinkVariable import *
+from ._Channels import *
+from ._DataWriter import *
 from ._DataFormats import *
 from ._TesBiasAd5542 import *

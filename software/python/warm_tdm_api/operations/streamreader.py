@@ -1,14 +1,25 @@
 ##
 ## Stream data reader
 ##
-## A DataWriter .dat file interleaves several stream channels (see
-## warm_tdm._HardwareGroup wiring):
-##   - channels 0-7  : per-column PID-debug frames (data model #3), present only
-##                     when AdcDsp[col].PidDebugEnable was set during the run.
-##   - channel  9    : the readout stream (per-(col,row) SQ1FB values) -> `data`.
-##   - channel  255  : the tree config/status YAML dump -> `config`.
-## StreamReader reads all of them in a single pass; StreamData exposes the
-## readout + config, PidDebugData exposes the PID-debug timeseries.
+## A DataWriter .dat file interleaves several stream channels. The channel byte
+## is namespaced by board via warm_tdm.file_channel() (= board*16 + stream_type),
+## mirroring the on-wire TDEST (see warm_tdm._HardwareGroup wiring and
+## firmware/common/DataChannelization.md):
+##   - stream 0-7 : per-column PID-debug frames (data model #3), present only when
+##                  AdcDsp[col].PidDebugEnable was set during the run.
+##   - stream 8   : waveform capture (not folded into the file today).
+##   - stream 9   : the readout stream (per-(col,row) SQ1FB values) -> `data`.
+##   - channel 255: the tree config/status YAML dump -> `config` (file-scope, not
+##                  board-namespaced).
+## This is the FILE-channel namespace (the DataWriter's 1-byte channel field),
+## which is distinct from the on-wire RSSI/PGP TDEST -- see warm_tdm._Channels
+## for the distinction. Offline, all we have is the file channel; the board index
+## is recovered from it (warm_tdm.board_of) and folded into a GLOBAL column
+## (board*8 + local_col) so multiple column boards do not collide. Board 0
+## reproduces the historical single-board layout exactly, so old single-board
+## files decode unchanged. StreamReader reads all channels in a single pass;
+## StreamData exposes the readout + config, PidDebugData exposes the PID-debug
+## timeseries.
 
 import re
 from collections import defaultdict
@@ -26,17 +37,15 @@ import rogue.utilities.fileio
 import warm_tdm_api
 import warm_tdm
 
-# Rogue writes the tree configuration/status to a reserved stream channel when a
-# DataWriter file is opened/closed. warm-tdm uses channel 255 (see
-# warm_tdm_api._GroupRoot: StreamWriter(configStream={255: ...})).
-CONFIG_CHANNEL = 255
+# The file-channel encoding (stream types, board namespacing, the config
+# channel) is defined once in warm_tdm._Channels and shared with the write side
+# (warm_tdm._HardwareGroup); this module reads it via the warm_tdm namespace
+# (warm_tdm.CONFIG_CHANNEL, warm_tdm.board_of, warm_tdm.is_readout, ...) rather
+# than re-declaring the numbers here.
 
-# The per-(col,row) readout stream (SQ1FB values) is written on this channel.
-READOUT_CHANNEL = 9
-
-# PID-debug frames are written one channel per column (0..7). The frame's own
-# header carries col/row, so we treat any of these channels as PID-debug.
-PID_DEBUG_CHANNELS = range(8)
+# Column channels per column board. The frame body carries a board-local column
+# (0-7); global_col = board*CHANS_PER_BOARD + local_col.
+CHANS_PER_BOARD = 8
 
 # Defensive config parse: some framework variables serialize a display-formatted
 # float into the config YAML as a quoted `!!float` scalar with comma thousands
@@ -80,32 +89,51 @@ class StreamReader():
         configBlobs = []
         with pyrogue.utilities.fileio.FileReader(files=[filename]) as fd:
             for header, data in fd.records():
+                channel = header.channel
                 # Config/status frame (tree YAML dump). Collect the raw payload
                 # and parse it ourselves rather than via FileReader(configChan=),
                 # whose strict decode trips over the comma-float bug above.
-                if header.channel == CONFIG_CHANNEL:
+                if channel == warm_tdm.CONFIG_CHANNEL:
                     configBlobs.append(bytes(data).decode('utf-8', errors='ignore'))
-                # readout
-                elif header.channel == READOUT_CHANNEL:
-                    dr = warm_tdm.DataReadout.from_numpy(data)
-                    for s in dr.samples:
-                        if not self.data[s.col][s.row]:
-                            self.data[s.col][s.row] = []
-
-                        self.data[s.col][s.row].append(s.value)
-                # PID-debug (one channel per column; col/row come from the frame)
-                elif header.channel in PID_DEBUG_CHANNELS:
-                    self._accept_pid(data)
+                # readout (any board); board recovered from the channel byte
+                elif warm_tdm.is_readout(channel):
+                    self._accept_readout(data, warm_tdm.board_of(channel))
+                # PID-debug (any board); col/row come from the frame body
+                elif warm_tdm.is_pid_debug(channel):
+                    self._accept_pid(data, warm_tdm.board_of(channel))
 
         if configBlobs:
             self.config = self._parseConfig(''.join(configBlobs))
 
-    def _accept_pid(self, data):
-        """Decode one PID-debug frame into pid[col][row][field] timeseries."""
-        if len(data) != warm_tdm.PID_DEBUG_FRAME_BYTES:
+    def _accept_readout(self, data, board):
+        """Decode one readout frame into data[global_col][row] timeseries.
+
+        The frame body carries a board-local column (0-7); fold in the board
+        index recovered from the file channel to form the global column.
+        """
+        dr = warm_tdm.DataReadout.from_numpy(data)
+        for s in dr.samples:
+            global_col = board * CHANS_PER_BOARD + s.col
+            if not self.data[global_col][s.row]:
+                self.data[global_col][s.row] = []
+            self.data[global_col][s.row].append(s.value)
+
+    def _accept_pid(self, data, board):
+        """Decode one PID-debug frame into pid[global_col][row][field] timeseries.
+
+        The PID-debug channels carry two frame layouts, distinguished by size:
+        the 80-byte fixed-point format (AdcDsp) and the 40-byte float format
+        (AdcDspFp). Both decode via warm_tdm._DataFormats to a col/row + fields
+        dict; a frame of neither size is skipped defensively.
+        """
+        if len(data) == warm_tdm.PID_DEBUG_FRAME_BYTES:
+            msg = warm_tdm.PidDebug.from_numpy(data)
+        elif len(data) == warm_tdm.PID_DEBUG_FP_FRAME_BYTES:
+            msg = warm_tdm.PidDebugFp.from_numpy(data)
+        else:
             return  # not a PID-debug frame (or truncated); skip defensively
-        msg = warm_tdm.PidDebug.from_numpy(data)
-        slot = self.pid[msg.col][msg.row]
+        global_col = board * CHANS_PER_BOARD + msg.col
+        slot = self.pid[global_col][msg.row]
         for field, value in msg.fields.items():
             if not slot[field]:
                 slot[field] = []

@@ -145,19 +145,36 @@ class HardwareGroup(pyrogue.Device):
             saAmps = [self.ColumnBoard[index].AnalogFrontEnd.Channel[x].SAAmp for x in range(8)]
             waveGui = warm_tdm.WaveformCaptureReceiver(hidden=False, captureDev=self.ColumnBoard[index].DataPath.WaveformCapture, amplifiers=saAmps)
 
-            # Link the data stream to the DataWriter
+            # Link each stream to the DataWriter.
+            #
+            # File channels are namespaced by board so multiple column boards no
+            # longer collide in the .dat file. The DataWriter's named accessors
+            # (readoutChannel/pidDebugChannel/waveformChannel) resolve the
+            # (board, stream) pair to a channel via warm_tdm.file_channel(); the
+            # per-board packetizer apps here are the SEPARATE on-wire TDEST
+            # namespace (app index = wire tDest[3:0], already board-demuxed
+            # upstream). Board 0 maps to the historical file layout (PID-debug
+            # 0-7, waveform 8, readout 9), so single-board files are byte-
+            # identical to before.
             if emulate is False:
+                # PID-debug: packetizer app i (wire stream 0-7) is column i.
                 for i in range(8):
                     rateDrop = rogue.interfaces.stream.RateDrop(True, 0.1)
                     self.addInterface(rateDrop)
-                    
+
                     fifo1 = rogue.interfaces.stream.Fifo(0, 0, False)
                     fifo2 = rogue.interfaces.stream.Fifo(0, 0, False)
                     packetizer.application(i) >> fifo1
-                    fifo1 >> fifo2 >> dataWriter.getChannel(i)
+                    fifo1 >> fifo2 >> dataWriter.pidDebugChannel(index, i)
                     #fifo1 >> rateDrop >> pidDebug[i]
                     self.addInterface(fifo1, fifo2, pidDebug[i])
 
+                # Waveform (packetizer app 8): live GUI receiver only, as today.
+                # Folding the waveform into the .dat file (via
+                # dataWriter.waveformChannel(index)) is a separate, opt-in change
+                # tracked in the channelization plan -- deferred here because
+                # raw-ADC captures are large and the reader does not yet decode
+                # them.
                 packetizer.application(8) >> waveGui
 
 #                 dataDbg = rogue.interfaces.stream.Slave()
@@ -166,11 +183,12 @@ class HardwareGroup(pyrogue.Device):
                 dataDbg = DataDebug()
                 dataDbg.setDebug(100, 'FinalFrame')
 
+                # Readout (packetizer app 9): the operational stream.
                 dataFifo = rogue.interfaces.stream.Fifo(0, 0, False)
                 self.addInterface(dataFifo)
                 packetizer.application(9) >> dataFifo
 
-                dataFifo >> dataWriter.getChannel(9)
+                dataFifo >> dataWriter.readoutChannel(index)
 #                dataFifo >> dataDbg
 
 

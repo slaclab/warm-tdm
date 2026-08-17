@@ -8,82 +8,31 @@
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 
-from collections import defaultdict
 import sys
-import numpy as np
 
-import rogue.interfaces.stream
-import rogue.utilities.fileio
+import _setupLibPaths  # noqa: F401  (registers in-repo library paths)
 
-nesteddict = lambda: defaultdict(nesteddict)
-
-PidDebugFpType = np.dtype([
-    # Word 0
-    ('col', np.uint8),
-    ('row', np.uint8),
-    ('runTimeLow', np.uint16),
-    ('runTimeHigh', np.uint32),
-    # Word 1
-    ('accumErrorFp', np.float32),
-    ('sq1FbFullFp', np.float32),
-    # Word 2
-    ('sumAccumFp', np.float32),
-    ('newSumAccum', np.float32),
-    # Word 3
-    ('sq1FbNewFp', np.float32),
-    ('numFluxJumps', np.int32),
-    # Word 4
-    ('sq1FbInt', np.uint16),
-    ('accumSamples', np.uint8),
-    ('pad4', np.uint8),
-    ('dropCount', np.uint32),
-])
+import warm_tdm_api  # noqa: F401  (makes the operations subpackage importable)
+from warm_tdm_api.operations.streamreader import StreamReader
 
 
-class PidDebugParserFp(rogue.interfaces.stream.Slave):
-    def __init__(self):
-        super().__init__()
-        self.data = nesteddict()
-
-    def _acceptFrame(self, frame):
-        arr = frame.getNumpy()
-
-        # Frame size must be 40 bytes
-        if len(arr) != 40:
-            return
-
-        msg = arr.view(PidDebugFpType)
-
-        col = int(msg['col'][0]) & 0b111
-        row = int(msg['row'][0]) & 0xFF
-
-        if not self.data[col][row]:
-            self.data[col][row] = {
-                'sq1FbNew': [],
-                'accumError': [],
-                'sumAccum': [],
-                'numFluxJumps': [],
-                'sq1FbInt': [],
-            }
-
-        self.data[col][row]['sq1FbNew'].append(float(msg['sq1FbNewFp'][0]))
-        self.data[col][row]['accumError'].append(float(msg['accumErrorFp'][0]))
-        self.data[col][row]['sumAccum'].append(float(msg['sumAccumFp'][0]))
-        self.data[col][row]['numFluxJumps'].append(int(msg['numFluxJumps'][0]))
-        self.data[col][row]['sq1FbInt'].append(int(msg['sq1FbInt'][0]))
-
-
+# Read the floating-point PID-debug streams from a DataWriter .dat file into
+# pid[global_col][row][field] = [values...].
+#
+# Thin CLI wrapper around warm_tdm_api.operations.StreamReader, the single reader
+# for warm-tdm .dat files. StreamReader dispatches PID-debug frames by size and
+# decodes the 40-byte float format via warm_tdm._DataFormats (PID_DEBUG_FP_TYPE /
+# PID_DEBUG_FP_FRAME_BYTES, emitted by the AdcDspFp path). Do NOT redeclare the
+# frame dtype or the channel check here -- extend StreamReader / _DataFormats
+# instead so every reader stays in sync. (The fixed-point AdcDsp PID-debug format
+# is a different 80-byte layout; the same StreamReader handles both.)
 def main(args):
-    reader = rogue.utilities.fileio.StreamReader()
-    parser = PidDebugParserFp()
-
-    reader >> parser
-
-    reader.open(args[1])
-    reader.closeWait()
-
-    return parser.data
+    sr = StreamReader()
+    sr.readStream(args[1])
+    return sr
 
 
 if __name__ == '__main__':
-    data = main(sys.argv)
+    sr = main(sys.argv)
+    ncols = len(sr.pid)
+    print(f'Read FP PID-debug data for {ncols} column(s) from {sys.argv[1]}')

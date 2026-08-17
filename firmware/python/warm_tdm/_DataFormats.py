@@ -126,6 +126,75 @@ class PidDebug:
             col = int(rec['col']) & 0b111,
             row = int(rec['row']) & 0xFF,
             fields = {k: rec[k].item() for k in PID_DEBUG_FIELDS})
+
+
+# Floating-point PID-debug frame: one 40-byte record per (col, row) servo visit,
+# emitted by the AdcDspFp path (float PID firmware, USE_FLOAT_PID_G) on the same
+# PID-debug channels 0-7. This is a DIFFERENT layout from the 80-byte fixed-point
+# PID_DEBUG_TYPE above -- shorter, and the PID terms are IEEE-754 float32 rather
+# than fixed-point ints. It mirrors the AdcDspFp PID debug word packing (see
+# firmware AdcDspFp.vhd and _PidDebuggerFp.py register decode). Decode a frame's
+# raw uint8 array with ``arr.view(PID_DEBUG_FP_TYPE)``; fields:
+#   accumErrorFp   P-term (float)
+#   sq1FbFullFp    full-precision SQ1FB feedback (float)
+#   sumAccumFp     I-term / accumulated integral (float)
+#   newSumAccum    updated integral after this visit (float)
+#   sq1FbNewFp     new SQ1FB feedback this visit (float)
+#   numFluxJumps   flux-jump count applied this visit
+#   sq1FbInt       SQ1FB DAC code (uint14) actually written
+#   accumSamples   samples averaged this readout
+#   dropCount      dropped-frame counter
+PID_DEBUG_FP_FRAME_BYTES = 40
+
+PID_DEBUG_FP_TYPE = np.dtype([
+    # Word 0
+    ('col', np.uint8),
+    ('row', np.uint8),
+    ('runTimeLow', np.uint16),
+    ('runTimeHigh', np.uint32),
+    # Word 1
+    ('accumErrorFp', np.float32),
+    ('sq1FbFullFp', np.float32),
+    # Word 2
+    ('sumAccumFp', np.float32),
+    ('newSumAccum', np.float32),
+    # Word 3
+    ('sq1FbNewFp', np.float32),
+    ('numFluxJumps', np.int32),
+    # Word 4
+    ('sq1FbInt', np.uint16),
+    ('accumSamples', np.uint8),
+    ('pad4', np.uint8),
+    ('dropCount', np.uint32),
+])
+
+# Timeseries fields worth keeping from each FP PID-debug frame (excludes padding
+# and the split runTime words).
+PID_DEBUG_FP_FIELDS = (
+    'accumErrorFp', 'sq1FbFullFp', 'sumAccumFp', 'newSumAccum', 'sq1FbNewFp',
+    'numFluxJumps', 'sq1FbInt', 'accumSamples', 'dropCount',
+)
+
+
+@dataclass
+class PidDebugFp:
+    """One decoded floating-point PID-debug frame (40 bytes, channels 0-7).
+
+    See PID_DEBUG_FP_TYPE. Distinct from the 80-byte fixed-point PidDebug; select
+    by frame size (len == PID_DEBUG_FP_FRAME_BYTES).
+    """
+
+    col: int
+    row: int
+    fields: dict
+
+    @classmethod
+    def from_numpy(cls, arr):
+        rec = arr.view(PID_DEBUG_FP_TYPE)[0]
+        return cls(
+            col = int(rec['col']) & 0b111,
+            row = int(rec['row']) & 0xFF,
+            fields = {k: rec[k].item() for k in PID_DEBUG_FP_FIELDS})
         
 
 

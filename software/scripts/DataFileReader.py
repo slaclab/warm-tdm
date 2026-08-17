@@ -1,32 +1,25 @@
 import sys
-from collections import defaultdict
-
-import pyrogue
-import rogue.utilities
-import rogue.utilities.fileio
 
 import _setupLibPaths  # noqa: F401  (registers in-repo library paths)
 
-import warm_tdm_api
-import warm_tdm
+import warm_tdm_api  # noqa: F401  (makes the operations subpackage importable)
+from warm_tdm_api.operations.streamreader import StreamReader
 
-nesteddict = lambda:defaultdict(nesteddict)
 
-datadict = nesteddict()
+# Read a DataWriter .dat readout stream into data[global_col][row] = [values...].
+#
+# Thin CLI wrapper around warm_tdm_api.operations.StreamReader, the single reader
+# for warm-tdm .dat files: it owns the file-channel demux (warm_tdm._Channels),
+# the board -> global-column folding, and the frame decoders
+# (warm_tdm._DataFormats). Do NOT re-implement channel checks or frame parsing
+# here -- extend StreamReader instead so every reader stays in sync.
 def main(args):
-    with pyrogue.utilities.fileio.FileReader(files=args) as fd:
+    sr = StreamReader()
+    sr.readStream(args[1])
+    return sr
 
-        for header, data in fd.records():
-            if header.channel == 9:
-                dr = warm_tdm.DataReadout.from_numpy(data)
-                for s in dr.samples:
-                    #print(s)
-                    if not datadict[s.col][s.row]:
-                        datadict[s.col][s.row] = []
-
-                    datadict[s.col][s.row].append(s.value)
-                
 
 if __name__ == '__main__':
-    main(sys.argv)
-        
+    sr = main(sys.argv)
+    ncols = len(sr.data)
+    print(f'Read readout data for {ncols} column(s) from {sys.argv[1]}')

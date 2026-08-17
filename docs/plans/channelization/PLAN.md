@@ -85,6 +85,17 @@ sequence them.
    federated-vs-not decision and is an explicit dependency, not part of this
    effort. Reserving the field now avoids a second format-version bump later.
 
+   **Replace the PID-format-by-size heuristic (carry-over from Phase 1).** The
+   two PID-debug layouts — the 80-byte fixed-point (`PID_DEBUG_TYPE`) and the
+   40-byte float (`PID_DEBUG_FP_TYPE`), both added to `warm_tdm._DataFormats` in
+   Phase 1 — are currently distinguished in `StreamReader._accept_pid` **by frame
+   size alone**. That is safe today (a board runs either fixed or float PID within
+   a file, and 40 != 80), but it is a heuristic, not a contract. When
+   self-describing frames land, the `formatType`/`formatVersion` byte becomes the
+   authoritative discriminator and the size check must be replaced by dispatch on
+   the declared type (with size then a cross-check, not the selector). This is a
+   concrete motivation for the version/type byte, not a separate task.
+
 4. **PID-debug tDest collapse** *(RTL).* Merge the 8 per-column PID-debug streams
    (currently on `tDest 0–7`, stamped by an INDEXED mux in `DataPath.vhd`) onto a
    single board-local tDest. The frame body already carries `col`, so the
@@ -126,8 +137,13 @@ FP-PID + resource-cleanup hardware pass.
   dispatch (Phase 3).
 - `software/python/warm_tdm_api/operations/streamreader.py` — read-side channel
   demux; consume the central channel map; `boardId`-vs-channel cross-check.
-- `software/python/warm_tdm_api/operations/channels.py` — natural home for the
-  central channel-encoding definition (already holds `col_to_board_chan`).
+- **Central channel-encoding module — must live in the lower-level `warm_tdm`
+  package**, not in `warm_tdm_api`. The write side (`_HardwareGroup.py`) is in
+  `warm_tdm`, which never imports `warm_tdm_api` (verified); the read side
+  (`operations/streamreader.py`) already imports `warm_tdm`, so both sides can
+  share one definition only if it lives in `warm_tdm`. (`operations/channels.py`
+  holds the pure `col_to_board_chan` helper and can re-export or call into it, but
+  cannot be the canonical home.)
 - `firmware/python/warm_tdm/_DataFormats.py` — `DataReadout`/`PidDebug` decoders;
   add identity-block parsing + `formatVersion` (Phase 3).
 - `software/python/warm_tdm_api/_GroupRoot.py` — `StreamWriter`/config channel
@@ -148,11 +164,16 @@ FP-PID + resource-cleanup hardware pass.
 
 ## Validation
 
-- **Phase 1 (emulate):** bring up an emulate GroupRoot with `colBoards=2`;
-  confirm the two boards' readout and PID-debug land on distinct file channels
-  (no channel-9 collision); confirm a written `.dat` round-trips through
-  `StreamReader` with per-board separation; confirm the config channel (255) is
-  unaffected. Conda env `warm-tdm-r615` (see memory).
+- **Phase 1:** the primary gate is **unit tests on the pure channel-map module**
+  (`file_channel(board, stream)` round-trips with `board_of`/`stream_of`; board 0
+  stays byte-identical to today so existing single-board files still decode) plus
+  **tree construction** of an emulate `GroupRoot` with `colBoards=2` (imports,
+  no exceptions). NOTE: emulate mode skips the file-write wiring entirely
+  (`_HardwareGroup.py` gates it behind `if emulate is False:` and feeds a bare
+  `Master()`), so **live per-board frame separation in a written `.dat` cannot be
+  exercised under emulate** — that verification moves to simulation/bench
+  alongside Phase 3. Confirm the config channel (255) is unaffected by the
+  renumbering. Conda env `warm-tdm-r615` (see memory).
 - **Phase 3 (sim + bench):** GHDL/cocotb bench on the DSP path (see Issue #90 /
   `rtl-cocotb-regression`) for the frame-builder byte layout where feasible;
   synthesis on a Column target (Vivado 2024.1); bench readout of a real 2-board
