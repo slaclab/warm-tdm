@@ -31,3 +31,4 @@ dependencies:
   - jupyterlab
   - simple-pid
   - sympy
+  - scipy
