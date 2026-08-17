@@ -1,0 +1,197 @@
+# Channelization: self-describing frames + channel-layout cleanup
+
+Development plan for **Issue #82** (Self-describing data frames + channel-layout
+cleanup). This is the sequenced work plan; the end-to-end *design spec* it
+implements is [`firmware/common/DataChannelization.md`](../../../firmware/common/DataChannelization.md)
+(read that first — it is the source of truth for the wire/file layout and the
+open design questions). This file captures goal, scope, decisions, the phased
+approach, affected files, validation, risks, and next steps so the effort can be
+resumed without reconstructing it from chat history.
+
+## Goal
+
+Make every bulk-data frame interpretable from its body alone — independent of the
+file channel it arrived on — and clean up the channel layout so it scales to
+multiple column boards (and, later, multiple Groups). Concretely:
+
+- A `.dat` file with more than one column board must not collide board data onto
+  shared file channels.
+- A reprocessed/renumbered `.dat` file must still decode: the body carries board
+  identity, (eventually) group identity, a global column index, and a format
+  version; the file channel becomes a cross-checkable hint, not a decode
+  dependency.
+- The channel numbering scheme lives in one place, shared by the write side and
+  the read side.
+
+## Branch & worktree
+
+- **Worktree:** `warm-tdm-channelization` (sibling dir), **branch:**
+  `channelization`, based off `origin/cleanup`. Upstream unset — push with
+  `git push -u origin channelization`; merge-not-rebase.
+- **Why `cleanup` is the base (decided 2026-08-17):** the read-side code and the
+  design doc exist only on the `wtj-refactor`/`fp-pid`/`cleanup` line (never on
+  `pre-release`/`main`), and `cleanup` is the only branch that also carries the
+  resource-optimization firmware this work touches — notably `GEN_PID_DEBUG_G`,
+  which is coupled to the PID-debug tDest collapse. Basing here means the RTL
+  frame-builder changes are designed against the *final* firmware shape and
+  co-validate with the rest of the stack in one hardware pass. Cost: this work
+  inherits the FP-PID + resource-cleanup hardware-validation gate and cannot reach
+  `pre-release` until that stack clears. Tops the PR stack above #88. Recorded on
+  the [Branch-Merge-Roadmap wiki](https://github.com/slaclab/warm-tdm/wiki/Branch-Merge-Roadmap).
+
+## Scope — four pieces of work
+
+Named by what they are (not by phase numbers or letters). The phases below
+sequence them.
+
+1. **File-channel namespacing fix** *(host-only, no RTL).* Today
+   `_HardwareGroup.py` wires every board's streams onto the same DataWriter file
+   channels (`getChannel(i)` / `getChannel(9)` with no board index), so two column
+   boards collide on channel 9 (readout) and 0–7 (PID-debug). Board identity is
+   already carried on the wire (`tDest[6:4]`) and preserved through the per-board
+   `application(dest=index)` demux — it is only dropped at file-write time.
+   Fix: namespace file channels by board, `getChannel(board*16 + stream)`,
+   mirroring the wire TDEST (uint8 channel = 16 boards × 16 streams). Centralize
+   the channel encoding so write side and read side share one definition. Also
+   fold the waveform stream into the file (route it to a `getChannel(...)` instead
+   of the `.npy` side path) so one file holds all streams. No firmware change.
+
+2. **Frame-identity design decision** *(design, blocks the RTL pieces).* Decide
+   how the self-describing metadata is added: **one shared frame-identity header**
+   on all stream frames (uniform prefix `formatType`/`formatVersion`/`groupId`/
+   `boardId`, single dispatch entry point) **vs. per-format fields** (each format
+   adds its own identity fields to its existing layout). Tradeoff: the shared
+   header is the cleanest long-term shape and pays off most under reprocessing,
+   but touches all three frame layouts at once and imposes a common prefix; the
+   per-format approach has lower blast radius but no uniform dispatch. **Not yet
+   decided** — see the design doc's "OPEN QUESTION" section. Resolve and record
+   the decision (with rationale) in `DataChannelization.md` before building the
+   RTL. A `formatVersion` byte is non-negotiable either way.
+
+3. **Self-describing frames** *(coordinated RTL + decoders + readers).* Embed
+   identity into the frame bodies of all three formats — Readout (`EventBuilder`),
+   PID-debug (`AdcDsp`/`AdcDspFp` debug word packing), Waveform — per the decision
+   from piece 2. Readout gains a per-frame identity block in its header
+   (`boardId`, `colBase = boardId·8` so the reader computes
+   `global_col = colBase + local_col`) plus `formatVersion`. PID-debug can likely
+   absorb identity into its existing dummy padding words (no frame-size change).
+   The RTL frame builders, the `_DataFormats` decoders, and the host readers land
+   together — the byte layout is the contract.
+
+   **Group-id decision for this effort (2026-08-17):** implement board-level
+   identity now; include a **reserved `groupId` field + `formatVersion`** in the
+   layout, but leave `groupId` semantics unused/zero. The meaning of `groupId`
+   (in-band field vs. federated writer-per-Group) is gated on the #80
+   federated-vs-not decision and is an explicit dependency, not part of this
+   effort. Reserving the field now avoids a second format-version bump later.
+
+4. **PID-debug tDest collapse** *(RTL).* Merge the 8 per-column PID-debug streams
+   (currently on `tDest 0–7`, stamped by an INDEXED mux in `DataPath.vhd`) onto a
+   single board-local tDest. The frame body already carries `col`, so the
+   per-column tDest is redundant. This reclaims stream slots `1–7` — the headroom
+   the board/group-namespaced channel scheme needs. Requires a host-side change:
+   the live/GUI path currently attaches one `PidDebugger` per column via
+   `packetizer.application(i)`; it becomes one receiver that reads `col` from the
+   body and dispatches. Land this together with the self-describing-frames work
+   (piece 3) since both make the body authoritative. This is coupled to
+   `GEN_PID_DEBUG_G` (present on the `cleanup` base).
+
+## Phased approach (sequencing)
+
+**Phase 1 — Host-only channel namespacing + central channel map.** Piece 1.
+No firmware; testable in emulate immediately; no hardware gate. Deliverable: a
+single channel-encoding definition used by `_HardwareGroup.py` (write) and
+`operations/streamreader.py` (read), board-namespaced file channels, waveform
+folded into the file, reader-side `boardId`-vs-channel cross-check hook stubbed.
+This phase is self-contained and could be cherry-picked onto `wtj-refactor`
+earlier if the multi-board file fix is needed before the stack lands.
+
+**Phase 2 — Resolve the frame-identity design question.** Piece 2. Decide
+shared-header vs per-format, record it in `DataChannelization.md` with rationale,
+and freeze the exact byte layout (including `formatVersion` and the reserved
+`groupId`) for all three formats. Gates Phase 3.
+
+**Phase 3 — Self-describing frames + PID-debug tDest collapse (coordinated
+RTL + host).** Pieces 3 and 4, landed together. RTL frame builders emit the
+identity block and global column; `_DataFormats` decoders and host readers parse
+it; the PID-debug streams collapse to one tDest and the host live path dispatches
+by body `col`. Needs synthesis (Vivado 2024.1) and bench validation — shares the
+FP-PID + resource-cleanup hardware pass.
+
+## Affected files / modules
+
+### Host (Python) — Phases 1 & 3
+- `firmware/python/warm_tdm/_HardwareGroup.py` — file-channel wiring
+  (`getChannel(...)`), per-board demux, waveform routing, PID-debug live-path
+  dispatch (Phase 3).
+- `software/python/warm_tdm_api/operations/streamreader.py` — read-side channel
+  demux; consume the central channel map; `boardId`-vs-channel cross-check.
+- `software/python/warm_tdm_api/operations/channels.py` — natural home for the
+  central channel-encoding definition (already holds `col_to_board_chan`).
+- `firmware/python/warm_tdm/_DataFormats.py` — `DataReadout`/`PidDebug` decoders;
+  add identity-block parsing + `formatVersion` (Phase 3).
+- `software/python/warm_tdm_api/_GroupRoot.py` — `StreamWriter`/config channel
+  255 (verify interaction with the new numbering).
+
+### Firmware (RTL) — Phase 3
+- `firmware/common/warm_tdm/rtl/EventBuilder.vhd` — readout frame header identity
+  block + global column + `formatVersion`.
+- `firmware/common/warm_tdm/rtl/DataPath.vhd` — PID-debug mux collapse
+  (`U_AxiStreamMux_1` INDEXED → single tDest), stream-type routing
+  (`U_AxiStreamMux_2`).
+- `firmware/common/warm_tdm/rtl/AdcDsp.vhd`, `AdcDspFp.vhd` — PID-debug word
+  identity fields (into dummy padding where possible).
+
+### Docs
+- `firmware/common/DataChannelization.md` — record the frame-identity decision;
+  update the layout tables and the migration section as pieces land.
+
+## Validation
+
+- **Phase 1 (emulate):** bring up an emulate GroupRoot with `colBoards=2`;
+  confirm the two boards' readout and PID-debug land on distinct file channels
+  (no channel-9 collision); confirm a written `.dat` round-trips through
+  `StreamReader` with per-board separation; confirm the config channel (255) is
+  unaffected. Conda env `warm-tdm-r615` (see memory).
+- **Phase 3 (sim + bench):** GHDL/cocotb bench on the DSP path (see Issue #90 /
+  `rtl-cocotb-regression`) for the frame-builder byte layout where feasible;
+  synthesis on a Column target (Vivado 2024.1); bench readout of a real 2-board
+  file decoding correctly from body alone (renumber a channel and confirm the
+  cross-check catches the mismatch). This shares the FP-PID hardware pass.
+
+## Open risks & dependencies
+
+- **Hardware gate.** Phase 3 cannot reach `pre-release` until the FP-PID +
+  resource-cleanup stack (#87/#88) clears hardware validation. Only Phase 1 is
+  independent.
+- **#80 federated-vs-not.** `groupId` semantics are undecided; this effort
+  reserves the field but does not define its meaning. If #80 lands "federated"
+  (writer-per-Group), the in-band `groupId` may stay permanently unused — the
+  reserved field costs one byte and a version note either way.
+- **Format-version discipline.** Every frame layout change from here on must bump
+  `formatVersion`; reprocessed files outlive the firmware that wrote them.
+- **`readout = channel 9` is a fixed wire/format contract** (relic of development
+  order). Do not renumber it; the namespacing scheme (`board*16 + stream`) is
+  designed around keeping stream-type 9 = readout.
+- **Live GUI PID-debug path.** The tDest collapse requires reworking the live
+  per-column `PidDebugger` attachment into a single body-`col`-dispatching
+  receiver; the file-based parser already dispatches by body `col`, so the file
+  path is unaffected.
+
+## Next steps
+
+1. Start Phase 1: define the central channel-encoding helper in `channels.py` and
+   rewire `_HardwareGroup.py` + `streamreader.py` to use it; board-namespace the
+   file channels; fold waveform into the file.
+2. Validate Phase 1 in emulate with `colBoards=2`.
+3. Resolve the frame-identity design question (Phase 2) and record it in
+   `DataChannelization.md`.
+4. Then Phase 3 (coordinated RTL + host), gated on the design decision and riding
+   the hardware pass.
+
+## References
+
+- Design spec: [`firmware/common/DataChannelization.md`](../../../firmware/common/DataChannelization.md)
+- Issue #82 (this work); related #80 (multi-Group Instrument), #83 (graduate
+  operations helpers), #90 (RTL cocotb regression — Phase 3 sim home).
+- Roadmap: [Branch-Merge-Roadmap wiki](https://github.com/slaclab/warm-tdm/wiki/Branch-Merge-Roadmap).

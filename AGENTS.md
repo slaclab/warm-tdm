@@ -361,6 +361,7 @@ Current plans:
 - [`docs/plans/fp-dsp-pid/`](docs/plans/fp-dsp-pid/) — Floating-point PID servo (AdcDspFp)
 - [`docs/plans/pipelined-dsp-accumulator/`](docs/plans/pipelined-dsp-accumulator/) — Pipelined DSP accumulator
 - [`docs/plans/sw-cleanup/`](docs/plans/sw-cleanup/) — Python legacy removal and API simplification
+- [`docs/plans/channelization/`](docs/plans/channelization/) — Self-describing data frames + channel-layout cleanup (#82)
 
 ## Submodules
 
