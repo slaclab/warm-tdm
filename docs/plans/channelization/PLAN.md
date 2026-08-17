@@ -56,17 +56,20 @@ sequence them.
    fold the waveform stream into the file (route it to a `getChannel(...)` instead
    of the `.npy` side path) so one file holds all streams. No firmware change.
 
-2. **Frame-identity design decision** *(design, blocks the RTL pieces).* Decide
-   how the self-describing metadata is added: **one shared frame-identity header**
-   on all stream frames (uniform prefix `formatType`/`formatVersion`/`groupId`/
-   `boardId`, single dispatch entry point) **vs. per-format fields** (each format
-   adds its own identity fields to its existing layout). Tradeoff: the shared
-   header is the cleanest long-term shape and pays off most under reprocessing,
-   but touches all three frame layouts at once and imposes a common prefix; the
-   per-format approach has lower blast radius but no uniform dispatch. **Not yet
-   decided** — see the design doc's "OPEN QUESTION" section. Resolve and record
-   the decision (with rationale) in `DataChannelization.md` before building the
-   RTL. A `formatVersion` byte is non-negotiable either way.
+2. **Frame-identity design decision** *(design, blocks the RTL pieces).*
+   **RESOLVED 2026-08-17 — see `DataChannelization.md` "DECISION" + "Timebase".**
+   Chose **one shared 16-byte frame-identity header** on all frames (rejected
+   per-format fields): two 64-bit words — word 0 = `formatType`/`formatVersion`/
+   `groupId`/`boardId`/`timeSource` (+reserved), word 1 = a **64-bit absolute-epoch
+   `timestamp`**. One `_DataFormats` entry point reads word 0, checks the version,
+   cross-checks `boardId` vs `file_channel>>4`, and dispatches by `formatType`;
+   this replaces the frame-size PID heuristic. The timestamp is committed to
+   absolute epoch, with a `timeSource` enum (`run-relative-ticks` / `group-epoch`
+   / `instrument-epoch`) and a **standalone invariant**: a Group's coordinator
+   always self-roots a valid monotonic timestamp (the near-term/bench fallback);
+   the eventual Path-2 instrument-distributed absolute source (PTP/White-Rabbit,
+   hardware years out) supersedes it via `timeSource`/`formatVersion` with no
+   re-layout. `groupId` stays reserved/zero until #80.
 
 3. **Self-describing frames** *(coordinated RTL + decoders + readers).* Embed
    identity into the frame bodies of all three formats — Readout (`EventBuilder`),
@@ -117,10 +120,10 @@ folded into the file, reader-side `boardId`-vs-channel cross-check hook stubbed.
 This phase is self-contained and could be cherry-picked onto `wtj-refactor`
 earlier if the multi-board file fix is needed before the stack lands.
 
-**Phase 2 — Resolve the frame-identity design question.** Piece 2. Decide
-shared-header vs per-format, record it in `DataChannelization.md` with rationale,
-and freeze the exact byte layout (including `formatVersion` and the reserved
-`groupId`) for all three formats. Gates Phase 3.
+**Phase 2 — Resolve the frame-identity design question. DONE (2026-08-17).**
+Chose the shared 16-byte header and committed the absolute-epoch timestamp +
+`timeSource` enum + standalone invariant; frozen byte layout and rationale are in
+`DataChannelization.md` ("DECISION", "Timebase"). Gates Phase 3, now unblocked.
 
 **Phase 3 — Self-describing frames + PID-debug tDest collapse (coordinated
 RTL + host).** Pieces 3 and 4, landed together. RTL frame builders emit the
@@ -198,21 +201,39 @@ FP-PID + resource-cleanup hardware pass.
   per-column `PidDebugger` attachment into a single body-`col`-dispatching
   receiver; the file-based parser already dispatches by body `col`, so the file
   path is unaffected.
+- **Absolute-epoch timebase.** The header commits to a 64-bit absolute-epoch
+  `timestamp`, but the eventual Path-2 instrument-distributed absolute time source
+  (PTP/White-Rabbit) is hardware that will not exist for some time. Phase 3
+  populates it via the Group-self-rooted fallback (host-seeded epoch); the
+  standalone invariant (a Group always self-roots a valid monotonic timestamp)
+  must hold on the bench with no upstream. Path 2 lands later as its own timing
+  effort into the same slot via `timeSource`/`formatVersion` — no re-layout.
+- **Size heuristic is interim.** Until the shared header lands, `StreamReader`
+  distinguishes the two PID formats by frame size (80 vs 40); Phase 3 replaces
+  that with `formatType`/`formatVersion` dispatch (size demoted to a cross-check).
 
 ## Next steps
 
-1. Start Phase 1: define the central channel-encoding helper in `channels.py` and
-   rewire `_HardwareGroup.py` + `streamreader.py` to use it; board-namespace the
-   file channels; fold waveform into the file.
-2. Validate Phase 1 in emulate with `colBoards=2`.
-3. Resolve the frame-identity design question (Phase 2) and record it in
-   `DataChannelization.md`.
-4. Then Phase 3 (coordinated RTL + host), gated on the design decision and riding
-   the hardware pass.
+1. ~~Phase 1: central channel-encoding helper + board-namespaced file channels +
+   unified readers.~~ **Done** (committed on `channelization`). Waveform folding
+   into the file was deferred (opt-in); not yet done.
+2. ~~Phase 2: resolve the frame-identity design and record it in
+   `DataChannelization.md`.~~ **Done** — shared 16-byte header, absolute-epoch
+   timestamp, standalone invariant.
+3. **Phase 3 (next, hardware-gated):** implement the 16-byte shared header across
+   the RTL frame builders (`EventBuilder`, `AdcDsp`/`AdcDspFp`) + `_DataFormats`
+   decoders + host readers as one coordinated change; collapse the PID-debug
+   tDests; populate `timestamp` from the Group-self-rooted epoch. Rides the FP-PID
+   + resource-cleanup hardware pass; sim-gate via #90 where feasible.
+4. Later / separate effort: Path-2 instrument-distributed absolute time (timing
+   subsystem), dropping into the reserved `timestamp` slot via `timeSource`.
 
 ## References
 
 - Design spec: [`firmware/common/DataChannelization.md`](../../../firmware/common/DataChannelization.md)
+- Timebase future: [`docs/design/timing-distribution.md`](../../design/timing-distribution.md)
+  (LCLS-II/LDMX-style timing distribution + standalone-Group invariant; motivates
+  the reserved absolute-time slot)
 - Issue #82 (this work); related #80 (multi-Group Instrument), #83 (graduate
   operations helpers), #90 (RTL cocotb regression — Phase 3 sim home).
 - Roadmap: [Branch-Merge-Roadmap wiki](https://github.com/slaclab/warm-tdm/wiki/Branch-Merge-Roadmap).
