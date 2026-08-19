@@ -57,19 +57,23 @@ sequence them.
    of the `.npy` side path) so one file holds all streams. No firmware change.
 
 2. **Frame-identity design decision** *(design, blocks the RTL pieces).*
-   **RESOLVED 2026-08-17 — see `DataChannelization.md` "DECISION" + "Timebase".**
+   **RESOLVED — see `DataChannelization.md` "DECISION" + "Timebase".**
    Chose **one shared 16-byte frame-identity header** on all frames (rejected
    per-format fields): two 64-bit words — word 0 = `formatType`/`formatVersion`/
-   `groupId`/`boardId`/`timeSource` (+reserved), word 1 = a **64-bit absolute-epoch
-   `timestamp`**. One `_DataFormats` entry point reads word 0, checks the version,
-   cross-checks `boardId` vs `file_channel>>4`, and dispatches by `formatType`;
-   this replaces the frame-size PID heuristic. The timestamp is committed to
-   absolute epoch, with a `timeSource` enum (`run-relative-ticks` / `group-epoch`
-   / `instrument-epoch`) and a **standalone invariant**: a Group's coordinator
-   always self-roots a valid monotonic timestamp (the near-term/bench fallback);
-   the eventual Path-2 instrument-distributed absolute source (PTP/White-Rabbit,
-   hardware years out) supersedes it via `timeSource`/`formatVersion` with no
-   re-layout. `groupId` stays reserved/zero until #80.
+   `groupId`/`boardId` (+reserved bytes 4–7), word 1 = a **64-bit absolute-
+   nanoseconds `timestamp`**. One `_DataFormats` entry point reads word 0, checks
+   the version, cross-checks `boardId` vs `file_channel>>4`, and dispatches by
+   `formatType`; this replaces the frame-size PID heuristic. The timestamp is
+   always absolute ns (125 MHz → 8 ns exact; converts trivially to LCLS-II ns /
+   PTP sec:ns) marking the frame's triggering event; within-run counters
+   (`rowSeqCount`/row) stay in the body. **No per-frame time-source field** — the
+   timing source/epoch is constant per run and recorded once in per-run metadata
+   (config channel), not stamped on every frame. **Standalone invariant**: a
+   Group's coordinator always self-roots a valid monotonic absolute-ns timestamp
+   (bench = the degenerate single-Group instrument); an instrument-distributed
+   clock, when present, is the epoch source for all Groups — same frame layout
+   either way, only per-run metadata records which applied. `groupId` reserved/
+   zero until #80.
 
 3. **Self-describing frames** *(coordinated RTL + decoders + readers).* Embed
    identity into the frame bodies of all three formats — Readout (`EventBuilder`),
@@ -120,10 +124,11 @@ folded into the file, reader-side `boardId`-vs-channel cross-check hook stubbed.
 This phase is self-contained and could be cherry-picked onto `wtj-refactor`
 earlier if the multi-board file fix is needed before the stack lands.
 
-**Phase 2 — Resolve the frame-identity design question. DONE (2026-08-17).**
-Chose the shared 16-byte header and committed the absolute-epoch timestamp +
-`timeSource` enum + standalone invariant; frozen byte layout and rationale are in
-`DataChannelization.md` ("DECISION", "Timebase"). Gates Phase 3, now unblocked.
+**Phase 2 — Resolve the frame-identity design question. DONE.**
+Chose the shared 16-byte header with a 64-bit absolute-nanoseconds timestamp (no
+per-frame time-source field — source/epoch is per-run metadata) + standalone
+invariant; frozen byte layout and rationale are in `DataChannelization.md`
+("DECISION", "Timebase"). Gates Phase 3, now unblocked.
 
 **Phase 3 — Self-describing frames + PID-debug tDest collapse (coordinated
 RTL + host).** Pieces 3 and 4, landed together. RTL frame builders emit the
@@ -201,13 +206,15 @@ FP-PID + resource-cleanup hardware pass.
   per-column `PidDebugger` attachment into a single body-`col`-dispatching
   receiver; the file-based parser already dispatches by body `col`, so the file
   path is unaffected.
-- **Absolute-epoch timebase.** The header commits to a 64-bit absolute-epoch
-  `timestamp`, but the eventual Path-2 instrument-distributed absolute time source
-  (PTP/White-Rabbit) is hardware that will not exist for some time. Phase 3
-  populates it via the Group-self-rooted fallback (host-seeded epoch); the
-  standalone invariant (a Group always self-roots a valid monotonic timestamp)
-  must hold on the bench with no upstream. Path 2 lands later as its own timing
-  effort into the same slot via `timeSource`/`formatVersion` — no re-layout.
+- **Absolute-ns timebase.** The header commits to a 64-bit absolute-nanoseconds
+  `timestamp`, but the eventual instrument-distributed absolute time source
+  (PTP/White-Rabbit or an LCLS-II-style link) is hardware that will not exist for
+  some time. Phase 3 populates it via the Group-self-rooted epoch (host-seeded);
+  the standalone invariant (a Group always self-roots a valid monotonic
+  absolute-ns timestamp) must hold on the bench with no upstream. The instrument
+  source lands later as its own timing effort feeding the same ns slot — no frame
+  re-layout; which epoch applied is recorded per-run, not per frame. See
+  `docs/design/timing-distribution.md`.
 - **Size heuristic is interim.** Until the shared header lands, `StreamReader`
   distinguishes the two PID formats by frame size (80 vs 40); Phase 3 replaces
   that with `formatType`/`formatVersion` dispatch (size demoted to a cross-check).
@@ -218,15 +225,16 @@ FP-PID + resource-cleanup hardware pass.
    unified readers.~~ **Done** (committed on `channelization`). Waveform folding
    into the file was deferred (opt-in); not yet done.
 2. ~~Phase 2: resolve the frame-identity design and record it in
-   `DataChannelization.md`.~~ **Done** — shared 16-byte header, absolute-epoch
-   timestamp, standalone invariant.
+   `DataChannelization.md`.~~ **Done** — shared 16-byte header, 64-bit absolute-ns
+   timestamp (source/epoch per-run, not per-frame), standalone invariant.
 3. **Phase 3 (next, hardware-gated):** implement the 16-byte shared header across
    the RTL frame builders (`EventBuilder`, `AdcDsp`/`AdcDspFp`) + `_DataFormats`
    decoders + host readers as one coordinated change; collapse the PID-debug
    tDests; populate `timestamp` from the Group-self-rooted epoch. Rides the FP-PID
    + resource-cleanup hardware pass; sim-gate via #90 where feasible.
-4. Later / separate effort: Path-2 instrument-distributed absolute time (timing
-   subsystem), dropping into the reserved `timestamp` slot via `timeSource`.
+4. Later / separate effort: instrument-distributed absolute time (timing
+   subsystem), feeding the reserved 64-bit ns `timestamp` slot; epoch source
+   recorded per-run. See `docs/design/timing-distribution.md`.
 
 ## References
 

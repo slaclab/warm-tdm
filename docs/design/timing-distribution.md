@@ -7,12 +7,14 @@ self-describing frame timestamp — see
 "Timebase"). Written to flesh out the likely path so today's format work
 accommodates it, not to specify the timing subsystem itself.
 
-> Status (2026-08-17): **design discussion / forward-looking.** No timing-
+> Status (2026-08-19): **design discussion / forward-looking.** No timing-
 > distribution firmware is being built as part of the channelization work. The
 > concrete near-term deliverable is only that the frame format reserves a
-> 64-bit absolute-time slot + a `timeSource` enum so this can drop in later
-> without a re-layout. The timing integration itself is a large, separate future
-> effort that will deprecate several current formats — accepted knowingly.
+> **64-bit absolute-nanoseconds** timestamp slot so this can drop in later without
+> a re-layout; the timing *source*/epoch is recorded once in per-run metadata, not
+> per frame (see `DataChannelization.md` "Timebase"). The timing integration
+> itself is a large, separate future effort that will deprecate several current
+> formats — accepted knowingly.
 
 ## Two timing regimes (the framing that organizes everything below)
 
@@ -93,11 +95,13 @@ Two structural ideas from that design are the ones that matter for us:
 
 The DAQ event **frame header** in that system is also a useful data point: it is
 a fixed 16-byte prefix carrying a two-level identity (subsystem + contributor)
-and a 64-bit timestamp that is itself a *composite fiducial* (the coarse pulse id
-in the high bits, the fine bunch count in the low bits) rather than a raw
-nanosecond count. This independently matches the 16-byte shared-header decision
-in the channelization work, and suggests our absolute-time field will likewise be
-a composite fiducial, not a plain tick count.
+and a 64-bit timestamp. This independently matches the 16-byte shared-header
+decision in the channelization work. Note LDMX packs its timestamp as a
+*composite fiducial* (coarse pulse id + fine bunch count) because *their* time is
+bunch-structured; WarmTDM instead uses **plain 64-bit absolute nanoseconds** (its
+125 MHz clock makes ns exact), keeping the header a pure physical-time value and
+leaving within-run structure — row/sequence counters — in the format body. See
+`DataChannelization.md` "Timebase".
 
 ## Likely WarmTDM path (direction 2)
 
@@ -122,9 +126,11 @@ discussing it:
   drift out of alignment — is handled the LDMX way: local counters are
   continuously corrected by the periodic frame, so a fixed configuration plus a
   self-correcting stream stays aligned by construction.
-- **Absolute time as a composite fiducial**, seeded from the global source when
+- **Absolute time as 64-bit nanoseconds**, seeded from the global source when
   present and self-generated on the bench, carried in the 64-bit frame-header
-  timestamp slot the channelization work reserves.
+  timestamp slot the channelization work reserves. (Internally the source may
+  distribute a fiducial/counter; what lands in the frame header is plain absolute
+  ns — see `DataChannelization.md` "Timebase".)
 
 ## Direction 1 in depth: PTP (IEEE 1588)
 
@@ -269,9 +275,10 @@ common to every option. The epoch **front-end** is then swappable:
 This is what makes "support both" plausibly *not* messy: the messy part (tight
 intra-Group distribution) is shared; only the epoch source differs, behind one
 seam. It also composes cleanly with the frame format — whichever front-end is
-active sets the frame's `timeSource`, and the reserved 64-bit `timestamp` slot
-holds the resulting epoch regardless. **Not yet designed in detail**; recorded
-here as the intended shape so the choice of front-end can stay open.
+active, the reserved 64-bit `timestamp` slot holds absolute nanoseconds
+regardless, and *which* front-end was active is recorded once in the per-run
+metadata, not per frame. **Not yet designed in detail**; recorded here as the
+intended shape so the choice of front-end can stay open.
 
 ## Timing master hardware (what sits at the top of the tree)
 
@@ -349,27 +356,32 @@ dedicated fanout stage because no WarmTDM board can drive more than 2 links.
 A WarmTDM **Group must function fully standalone** — a single Group on a bench,
 with no instrument-level timing source attached. This constrains the design the
 same way LDMX's local emulator does: the Group's coordinator must be able to
-generate its own timing (fiducials, run state, and a valid monotonic timestamp)
-with no external dependency. An upstream absolute source, when present,
-*supersedes* the self-generated epoch (and updates the frame's `timeSource`);
-when absent, the Group self-roots. Self-rooting is the **fallback**, not a
-co-equal mode — the eventual normal source of absolute time is the instrument-
-level distribution — but it is a permanent requirement because the bench case
-never goes away.
+generate its own timing (fiducials, run state, and a valid monotonic absolute-ns
+timestamp) with no external dependency. Framed as one model: a standalone Group is
+the *degenerate instrument* (one Group is the whole instrument), whose epoch is
+self-rooted; a multi-Group instrument disciplines every Group to a shared clock so
+all timestamps sit on one epoch. Self-rooting is the **fallback**, not a co-equal
+mode — the eventual normal source of absolute time is the instrument-level
+distribution — but it is a permanent requirement because the bench case never
+goes away.
 
-This is exactly why the frame timestamp carries a `timeSource` enum: a reader (or
-the future multi-Group `Instrument`, issue #80) uses it to know whether two
-Groups' timestamps are directly comparable (shared instrument epoch) or need
-software alignment (each self-rooted). See `DataChannelization.md` "Timebase".
+Which epoch applied (self-rooted vs. instrument-distributed) is recorded once in
+the **per-run metadata** (config channel), not in every frame — a reader or the
+future multi-Group `Instrument` (issue #80) consults that to know whether two
+Groups' timestamps are directly comparable or need software alignment. The frame
+timestamp itself is just absolute nanoseconds. See `DataChannelization.md`
+"Timebase".
 
 ## Consequences we accept now
 
 - **Timing integration will deprecate current formats.** Adopting a real timing
-  distribution will change the frame timestamp semantics (and possibly the timing
-  frame itself). We accept that the exact formats being built in the
-  channelization work are transitional; the `formatVersion` byte is what makes
-  that survivable, and reserving the 64-bit timestamp slot + `timeSource` now is
-  what lets the eventual timebase drop in without another flag-day re-layout.
+  distribution will change how the 64-bit ns timestamp is sourced/disciplined
+  (and possibly the timing frame itself). We accept that the exact formats being
+  built in the channelization work are transitional; the `formatVersion` byte is
+  what makes that survivable, and reserving the 64-bit absolute-ns timestamp slot
+  now is what lets the eventual timebase drop in without another flag-day
+  re-layout. (The timestamp's *meaning* — absolute ns — does not change; only its
+  epoch source does, recorded per-run.)
 - **This is a separate, larger effort.** No timing-distribution work is scheduled
   here. When it is, this doc is the starting point, and `ldmx-firmware`
   `firmware/common/tdaq/` (the `Fc*` modules, `FcPkg`, `DaqPkg`, and the
@@ -381,7 +393,8 @@ software alignment (each self-rooted). See `DataChannelization.md` "Timebase".
 - `ldmx-firmware` `firmware/common/tdaq/` — LCLS-II timing Rx + Fast Control
   fan-out + DAQ event header (the direction-2 reference implementation).
 - `firmware/common/DataChannelization.md` — the self-describing frame header and
-  the reserved absolute-time slot / `timeSource` enum this doc motivates.
+  the reserved 64-bit absolute-ns timestamp slot this doc motivates (timing
+  source/epoch recorded per-run, not per frame).
 - `firmware/common/warm_tdm/rtl/TimingPkg.vhd`, `TimingTx.vhd`, `TimingRx.vhd` —
   WarmTDM's current serial timing frame + `runTime` generation (the intra-Group
   broadcast link; 125 MHz timing clock, ~2 µs default row period). The

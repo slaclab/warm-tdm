@@ -234,7 +234,7 @@ so it must not be the only thing that says what a frame is. Guiding principle:
 **This is now supplied uniformly by the 16-byte shared frame-identity header —
 see "DECISION" below.** Rather than per-format ad-hoc fields, every frame gains
 the same fixed prefix (`formatType`, `formatVersion`, `groupId`, `boardId`,
-`timeSource`, 64-bit `timestamp`), with the format-specific body after it. The
+reserved, 64-bit absolute-ns `timestamp`), with the format-specific body after it. The
 readout reader derives `global_col = boardId·8 + local_col`; the header's
 `timestamp` supersedes readout's `runTime` and PID-debug's split `runTime` words
 (which become free padding); waveform gets the same header when it is folded into
@@ -267,14 +267,17 @@ PID-float 40→56; readout absorbs it into its existing header words).
 | 0 | 1 | `formatVersion` | starts at 1; **bump on any layout change** (see below) |
 | 0 | 2 | `groupId` | reserved, 0 until the multi-Group model is fixed (#80) |
 | 0 | 3 | `boardId` | source column board; cross-checks `file_channel >> 4` |
-| 0 | 4 | `timeSource` | how word 1 was produced (enum; see timebase below) |
-| 0 | 5–7 | reserved | future flags / `colBase`; zero-filled |
-| 1 | 8–15 | `timestamp` | **64-bit absolute time** (see timebase below) |
+| 0 | 4–7 | reserved | zero-filled; future flags / `colBase` |
+| 1 | 8–15 | `timestamp` | **64-bit absolute nanoseconds** (see timebase below) |
 
 A single `_DataFormats` entry point reads word 0, validates `formatVersion`,
 cross-checks `boardId` against the file channel, and dispatches to the body
 decoder named by `formatType`. `groupId`/`boardId`/global-column all live here
 once, not per sample.
+
+Note there is deliberately **no per-frame "time source" field** — the timing
+source and epoch are constant for a run, so they live in the per-run metadata
+(config channel), not in every frame. See the Timebase section for why.
 
 #### Versioning (non-negotiable)
 
@@ -283,60 +286,56 @@ outlive the firmware that wrote them, so a decoder must be able to tell which
 layout it is reading; `formatType`+`formatVersion` together are the authoritative
 discriminator, and frame size becomes a cross-check rather than the selector.
 
-### Timebase — absolute-epoch timestamp with a standalone fallback
+### Timebase — one semantics: absolute nanoseconds
 
-**The frame timestamp is committed to be an absolute epoch** (64-bit, word 1 of
-the header), not a run-relative counter. This is what lets frames from different
-runs — and eventually different Groups — correlate after reprocessing. Today's
-`runTime` (run-relative TimingClk ticks, reset at each `startRun`) is not enough
-on its own; the `timeSource` byte records how the 64-bit `timestamp` was produced
-so a reader knows how to interpret and compare it.
+**The `timestamp` is always 64-bit absolute nanoseconds** — ns since an epoch,
+marking the absolute time of the frame's triggering event (readout-sequence start
+for readout, servo visit for PID-debug, capture start for waveform). There is one
+semantics, not a menu of formats:
 
-**Where absolute time comes from — the eventual target vs. today.** The timing
-system already distributes a synchronized timebase within a Group: the
-coordinator board (`RING_ADDR_0_G`) generates `runTime` and fans it out over the
-serial timing link; every board decodes the same value (`LocalTimingType`). There
-is no external/upstream timing input today — the coordinator is the root of time
-for its Group.
+- **Nanoseconds, always.** At WarmTDM's 125 MHz timing clock, one tick is exactly
+  8 ns, so ns is exact (no accumulator, no rounding), and the field is portable —
+  a reprocessing tool never needs to know the clock rate. It converts trivially
+  to/from LCLS-II's 64-bit-ns `ClockTime` and to/from PTP's seconds:nanoseconds.
+  64-bit ns is ~585 years of range. (This *supersedes* today's `runTime`, which is
+  run-relative ticks; `timestamp = runTime * 8` in the degenerate case, so the
+  readout body's separate `runTime` word is dropped once the header lands.)
+- **Absolute time of the triggering event**, not a within-run position. The
+  intra-run structural counters (`rowSeqCount`, `daqReadoutCount`, per-sample row)
+  stay in the format-specific body where they already live — they answer "where in
+  the run," which is a different question from "what absolute time."
 
-- **Eventual target (Path 2, Instrument-distributed):** an instrument-level
-  absolute time source (PTP / White Rabbit or a super-coordinator) feeds all
-  Group coordinators a common absolute epoch, which they fan out unchanged. This
-  is the intended long-term architecture (it matches the non-federated /
-  supervisory direction in #80). **That hardware will not exist for some time**,
-  so it is the target the format must accommodate, not build now.
-- **Today / bench (Group self-rooted, the fallback):** with no upstream present,
-  the Group's coordinator roots its own epoch — seeded from the host at run start
-  (wall-clock ns written to a coordinator register, or reconstructed from a logged
-  start time + TimingClk frequency in the config channel). This is the near-term
-  implementation and the permanent behavior whenever no upstream source is
-  attached.
+**No per-frame time-source field — by design.** The timing source and epoch are
+**constant for a run**, so they are recorded once in the **per-run metadata**
+(the config channel), not stamped on every frame. A per-frame source enum would
+be redundant (all frames in a run share it) and a source of confusion (readers
+reasoning about frames that "disagree" — they can't). The header timestamp is
+therefore just a number; what that number is *relative to* is a run-level fact.
 
-**Standalone invariant (binding).** Group self-rooting is the *fallback*, not a
-co-equal mode: the eventual normal source of the epoch is the Path-2 upstream
-distribution, and a Group falls back to self-rooting only when no upstream is
-present (every bench today; a disconnected crate later). Stated as the invariant
-the design must hold: *a Group's coordinator must always be able to produce a
-valid, monotonic frame `timestamp` on its own, with no external dependency; an
-upstream/Instrument absolute source, when present, supersedes the self-rooted
-epoch and updates `timeSource` accordingly — its absence degrades cross-Group
-absolute alignment but never prevents a Group from running or timestamping data.*
+**One epoch model: "instrument nanoseconds," with standalone as the degenerate
+case.** Rather than distinct `group`/`instrument` modes, there is a single idea —
+absolute ns on the instrument's epoch — and a standalone/self-timed bench is
+simply the *degenerate instrument* (one Group is the whole instrument), whose
+epoch is self-rooted (host-seeded at run start). In a multi-Group instrument every
+Group is disciplined to the shared clock, so all timestamps sit on one epoch and
+are directly comparable. Either way:
 
-`timeSource` enumerates at least: `run-relative-ticks` (pre-epoch legacy /
-uninitialized), `group-epoch` (self-rooted, host-seeded — today's fallback), and
-`instrument-epoch` (Path-2 upstream-distributed — the eventual target). The
-frame layout is identical across all of them; only `timeSource` and the meaning
-of the 64-bit value change, so moving from the fallback to Path 2 is a
-`timeSource`/`formatVersion` change, not a re-layout.
+> **Binding invariant:** a Group's coordinator must always be able to produce a
+> valid, monotonic absolute-ns `timestamp` on its own (self-rooted epoch), with no
+> external dependency — this is the bench/standalone case and never goes away. An
+> instrument-level distributed clock, when present, *is* the epoch source for all
+> Groups; its absence just means each Group self-roots and cross-Group absolute
+> alignment is only as good as the per-run seeding. The frame format is identical
+> in both cases — only the per-run metadata records which applied.
 
-The two candidate directions for that upstream absolute source (PTP/White-Rabbit
-vs. an LCLS-II-style timing link with experiment-local fan-out), the likely
-WarmTDM path, and the standalone-Group invariant are explored in
+The candidate ways to distribute that instrument epoch (PTP/White-Rabbit vs. an
+LCLS-II-style timing link with experiment-local fan-out), the likely WarmTDM path
+(125 MHz / 2.5 Gbps link), the inter-Group clock-drift subtlety, and the master
+hardware are explored in
 [`docs/design/timing-distribution.md`](../../docs/design/timing-distribution.md).
-Notably, the LDMX/LCLS-II reference suggests the 64-bit `timestamp` is best
-carried as a **composite fiducial** (coarse pulse/frame id in the high bits, fine
-sub-count in the low bits) rather than a raw tick count — the exact encoding is
-deferred to that timing effort, but the 64-bit slot accommodates it.
+That effort may refine what is written *into* the 64-bit ns field at the source
+(e.g. how the epoch is disciplined), but the field's meaning here — absolute ns —
+does not change.
 
 ### Sequencing (incremental, no flag-day)
 
@@ -348,10 +347,11 @@ deferred to that timing effort, but the 64-bit slot accommodates it.
    The header reserves the field regardless.
 3. **Firmware track (Phase 3):** implement the 16-byte shared header across all
    three formats + `_DataFormats` decoders + host readers as one coordinated
-   change, with `timestamp` populated by the Group-self-rooted epoch initially.
-   After this the body is authoritative and the file channel is a checkable hint.
-   The Path-2 upstream absolute-time distribution lands later as its own timing
-   effort, dropping into the same 64-bit slot via `timeSource`/`formatVersion`.
+   change, with the absolute-ns `timestamp` populated by the Group-self-rooted
+   epoch initially. After this the body is authoritative and the file channel is a
+   checkable hint. The instrument-distributed absolute-time source lands later as
+   its own timing effort, feeding the same 64-bit ns slot — no frame re-layout;
+   which epoch applied is recorded per-run, not per frame.
 
 ## Reference
 
