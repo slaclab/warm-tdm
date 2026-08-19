@@ -219,7 +219,6 @@ begin
          TPD_G            => TPD_G,
          AXIL_BASE_ADDR_G => XBAR_COFNIG_C(ADC_READOUT_AXIL_C).baseAddr,
          IODELAY_GROUP_G  => IODELAY_GROUP_G,
-         DELAY_BITS_G     => 5,
          DEVICE_FAMILY_G  => "7SERIES",
          LEFT_JUSTIFY_G   => true,
          NEGATE_G         => NEGATE_ADC_G)
