@@ -207,6 +207,49 @@ needs discussion with the physicists. The design therefore:
   (below), so tightening later does not mean re-architecting — only swapping the
   epoch-source front-end.
 
+### Clock drift under PTP, and the fiducial-realignment mitigation
+
+There is a subtlety that is the real heart of the PTP-vs-LCLS-II difference.
+Under PTP, **each Group's readout is clocked by its own local 125 MHz
+oscillator.** PTP disciplines each Group's *notion of absolute time* (the epoch
+counter) to sub-µs, but it does **not** make the physical oscillators tick in
+lockstep — they free-run and **drift relative to one another**. So even with
+perfectly synced timestamps, the **readout-sequence phase between Groups slowly
+walks**: Group A begins readout sequence N (a full pass through all rows) at a
+slightly different real instant than Group B, and that difference accumulates.
+
+Under the **LCLS-II-style scheme this cannot happen** — the *same physical clock*
+is fanned to every Group, so the oscillators are one source and sequence phase
+stays locked by construction (syntonization is free). This is a large part of why
+the LCLS-II approach is cleaner and easier to reason about.
+
+**Mitigation for PTP — and WarmTDM already has the mechanism.** To keep Groups'
+readout sequences phase-aligned under PTP, gate each Group's **readout-sequence
+start** on a *shared fiducial* derived from the common PTP time (e.g. begin a
+sequence when the epoch crosses a period boundary), holding the coordinator until
+the fiducial. This is structurally identical to the existing **`pwrSync`** logic
+in `TimingTx.vhd`: when `pwrSyncEn = '1'`, a sequence-start boundary (the wrap
+from the last row back to row 0) freezes the timebase in `pwrSyncWait` and only
+advances when a `syncPulse` arrives — today used to align the readout sequence to
+the voltage-regulator / power-supply frequency. The PTP case reuses exactly this
+"hold the sequence start until a fiducial" pattern, with the fiducial sourced from
+PTP time instead of the supply sync. That the firmware already does this for the
+regulator is good evidence the PTP approach **fits in easily enough**.
+
+Note the mitigation aligns *sequence phase*, not the per-sample oscillator phase;
+it bounds inter-Group drift to within one realignment period rather than letting
+it accumulate freely. Sub-row/sample phase coherence across Groups (if ever
+needed) is the ns-class regime that only a shared clock (LCLS-II / White Rabbit)
+provides — see the two-regime framing above.
+
+### Stated preference (2026-08-19)
+
+The **LCLS-II approach is preferred** — distributing the same clock to all Groups
+is cleaner and easier to reason about (no inter-Group drift, sequence phase locked
+by construction). **Both approaches are kept in consideration for now**, and PTP
+appears to fit in easily enough — notably because the drift mitigation reuses the
+existing `pwrSync` sequence-start-hold mechanism. Not a final decision.
+
 ## The common seam: one interface, swappable front-end
 
 Both PTP and the LCLS-II-style link converge on the **same internal interface**:
@@ -229,6 +272,77 @@ seam. It also composes cleanly with the frame format — whichever front-end is
 active sets the frame's `timeSource`, and the reserved 64-bit `timestamp` slot
 holds the resulting epoch regardless. **Not yet designed in detail**; recorded
 here as the intended shape so the choice of front-end can stay open.
+
+## Timing master hardware (what sits at the top of the tree)
+
+Both schemes need dedicated hardware at the root of the multi-Group timing tree.
+It is a different animal in each case, and this is where the build-vs-buy tradeoff
+really lives. **Neither is needed for a standalone Group** — a single Group's
+coordinator self-roots (see the invariant below); the master only appears when
+going multi-Group.
+
+**Hard constraint on WarmTDM boards:** the current column/row FPGA boards expose
+only **2 SFP ports** to the FPGA — nowhere near enough to fan a timing link to
+many Groups. So in *either* scheme the master cannot be an ordinary WarmTDM board
+driving all the fibers directly; a dedicated fanout stage is required.
+
+### LCLS-II-style master: an FPGA timing generator + a fanout card
+
+The source is a **timing generator** in `lcls-timing-core` — the **TPG** (Timing
+Pattern Generator) family, `TPGMini` / `TPGMiniCore` / `TPGMiniStream`. In LCLS-II
+its timebase core is `ClockTime_186MHz`, which *"increments a 64-bit nanosecond
+timestamp in 1300/7 MHz steps"* (~185.7 MHz).
+
+**WarmTDM would distribute at its own rate, not LCLS-II's.** The base clock would
+be **125 MHz** (a **2.5 Gbps** serial link), not 186 MHz — matching WarmTDM's
+existing 125 MHz timing clock rather than the accelerator's 1300/7 MHz. So the
+TPG machinery is the *reference architecture* (generator → serialized fiducial
+stream → GT), but the timebase and line rate are WarmTDM's; the 64-bit ns
+timestamp would increment in 125 MHz (8 ns) steps. Given a `txClk`,
+`TPGMiniCore`-style logic emits the serialized timing stream (`txData`/`txDataK`)
+onto a GT lane. Two ways to source it:
+
+- **Upstream in:** receive a real LCLS-II timing fiber (`Lcls2TimingRx`) and
+  re-fan it — this is what LDMX's `FcHub` does. Only relevant if WarmTDM is ever
+  attached to an actual accelerator timing system.
+- **Self-generated:** instantiate `TPGMiniCore` to *be* the master, with no
+  upstream — the standalone-experiment case. This is the WarmTDM-realistic path.
+
+Either way the generator lives on an FPGA, but because a WarmTDM board has only 2
+SFPs, the generated timing signal must go to a **dedicated fanout card** that
+splits one timing source into a fiber (or copper) per Group. LDMX's reference for
+the whole master is the **`FcHubBittware`** target — the generator + fan-out
+implemented on a Bittware PCIe card with many GT lanes. WarmTDM would need an
+equivalent: an FPGA configured as the TPG master feeding a fanout card, not a
+stock column/row board.
+
+### PTP master: a GPS grandmaster appliance + PTP-aware switches
+
+PTP's master is not custom firmware at all — it is a **PTP grandmaster clock**, a
+COTS network appliance that holds a high-stability oscillator (OCXO or Rubidium),
+usually **disciplined to GPS/GNSS** (rooftop antenna) so its time is absolute UTC,
+and serves `Sync`/`Announce` onto the Ethernet. The other dedicated piece is the
+**network**: to hit sub-µs you want **PTP-aware switches** (transparent or
+boundary clocks) so per-hop queuing delay does not corrupt the offset estimate.
+There is no custom hub board — but the fanout is still "dedicated hardware," just
+COTS (grandmaster + switches) rather than an FPGA card you build.
+
+### The contrast
+
+| | LCLS-II-style master | PTP master |
+|---|---|---|
+| Time source | FPGA **TPG** generator (`TPGMiniCore` + `ClockTime_186MHz`), self-gen or from an LCLS-II fiber | **GPS-disciplined grandmaster** appliance |
+| Fan-out | dedicated **fanout card** (FPGA + many GTs; `FcHubBittware`-class) — required since boards have only 2 SFPs | **PTP-aware switches** on the data Ethernet |
+| Build vs buy | **build** (custom FPGA + fanout card) | **buy** (grandmaster + switches) |
+| Absolute UTC | only if fed from GPS/upstream | native (grandmaster is GPS-disciplined) |
+| Per-endpoint FPGA cost | timing Rx (already have the shape) | hardware-timestamp MAC on every board (surf lacks it) |
+| Where complexity concentrates | one fanout/generator card you design | spread across switches + every endpoint |
+
+The strategic read: LCLS-II-style concentrates custom work in *one generator +
+fanout card you build* and reuses the endpoint timing-Rx you already have; PTP
+lets you *buy* the master (and gets GPS/UTC for free) but spreads FPGA work to
+every endpoint and makes switch quality your problem. Both still require a
+dedicated fanout stage because no WarmTDM board can drive more than 2 links.
 
 ## The standalone-Group invariant (bench)
 
@@ -270,12 +384,20 @@ software alignment (each self-rooted). See `DataChannelization.md` "Timebase".
   the reserved absolute-time slot / `timeSource` enum this doc motivates.
 - `firmware/common/warm_tdm/rtl/TimingPkg.vhd`, `TimingTx.vhd`, `TimingRx.vhd` —
   WarmTDM's current serial timing frame + `runTime` generation (the intra-Group
-  broadcast link; 125 MHz timing clock, ~2 µs default row period).
+  broadcast link; 125 MHz timing clock, ~2 µs default row period). The
+  `pwrSync`/`pwrSyncWait` logic in `TimingTx.vhd` is the existing precedent for
+  holding a readout-sequence start until a fiducial — the pattern the PTP
+  drift-mitigation would reuse.
 - surf `ethernet/EthMacCore` — WarmTDM's Ethernet MAC; note the pinned surf
   version ships **no** IEEE-1588 hardware-timestamp hooks, so a PTP front-end
   needs that block built or a surf uprev.
 - `lcls-timing-core` (LCLS-II submodule in `ldmx-firmware`) — reference for the
-  LCLS-II-link epoch front-end.
+  LCLS-II-link epoch front-end. The **TPG** generator family
+  (`LCLS-II/core/rtl/TPGMini{,Core,Stream}.vhd`, `ClockTime_186MHz.vhd`) is the
+  timing-master source; WarmTDM would adapt it to a **125 MHz base / 2.5 Gbps
+  link** (8 ns timestamp steps) rather than LCLS-II's 1300/7 MHz.
+- WarmTDM boards expose only **2 SFP ports** to the FPGA — a dedicated fanout
+  card is required for a multi-Group master in either scheme.
 - IEEE 1588 (PTP); White Rabbit (CERN) — the protocol family for the PTP / ns
   front-ends.
 - Issue #80 (multi-Group Instrument) — the layer that would consume a shared
