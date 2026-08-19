@@ -505,6 +505,7 @@ begin
          U_AdcDsp_1 : entity warm_tdm.AdcDsp
             generic map (
                TPD_G            => TPD_G,
+               SIMULATION_G     => SIMULATION_G,
                COLUMN_NUM_G     => i,
                INVERT_SQ1FB_G   => INVERT_SQ1FB_G,
                ROW_ADDR_BITS_G  => ROW_ADDR_BITS_G,
@@ -537,6 +538,7 @@ begin
          U_AdcDspFp_1 : entity warm_tdm.AdcDspFp
             generic map (
                TPD_G            => TPD_G,
+               SIMULATION_G     => SIMULATION_G,
                COLUMN_NUM_G     => i,
                INVERT_SQ1FB_G   => INVERT_SQ1FB_G,
                ROW_ADDR_BITS_G  => ROW_ADDR_BITS_G,

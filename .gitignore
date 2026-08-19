@@ -20,6 +20,11 @@ build*
 !firmware/targets/build_release.sh
 __pycache__/
 
+# cocotb/GHDL regression flow (repo-local, generated)
+.venv/
+tests/sim_build/
+/ruckus/
+
 .ipynb_checkpoints/
 
 # Directories with YYYYMMDD format

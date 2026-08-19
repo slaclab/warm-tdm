@@ -25,6 +25,7 @@ entity AdcDsp is
 
    generic (
       TPD_G            : time                 := 1 ns;
+      SIMULATION_G     : boolean              := false;
       INVERT_SQ1FB_G   : boolean              := true;
       COLUMN_NUM_G     : integer range 0 to 7 := 0;
       ROW_ADDR_BITS_G  : integer range 3 to 8 := 7;
@@ -108,6 +109,12 @@ architecture rtl of AdcDsp is
       dataBytes => 8,
       tKeepMode => TKEEP_COMP_C,
       tDestBits => 4);
+
+   -- GHDL/cocotb cannot elaborate the XPM-backed FIFO primitives. Select the
+   -- vendor XPM path for hardware builds and an inferred (behavioral) FIFO for
+   -- simulation. This is the only functional difference the SIMULATION_G
+   -- generic introduces.
+   constant STREAM_FIFO_SYNTH_MODE_C : string := ite(SIMULATION_G, "inferred", "xpm");
 
 
    type StateType is (
@@ -320,7 +327,7 @@ begin
    U_AxiDualPortRam_FLUX_JUMP : entity surf.AxiDualPortRam
       generic map (
          TPD_G            => TPD_G,
-         SYNTH_MODE_G     => "xpm",
+         SYNTH_MODE_G     => STREAM_FIFO_SYNTH_MODE_C,
          MEMORY_TYPE_G    => "block",
          READ_LATENCY_G   => 3,
          AXI_WR_EN_G      => true,
@@ -346,7 +353,7 @@ begin
    U_AxiDualPortRam_ACCUM_ERROR : entity surf.AxiDualPortRam
       generic map (
          TPD_G            => TPD_G,
-         SYNTH_MODE_G     => "xpm",
+         SYNTH_MODE_G     => STREAM_FIFO_SYNTH_MODE_C,
          MEMORY_TYPE_G    => "block",
          READ_LATENCY_G   => 3,
          AXI_WR_EN_G      => true,
@@ -373,7 +380,7 @@ begin
    U_AxiDualPortRam_SUM_ACCUM : entity surf.AxiDualPortRam
       generic map (
          TPD_G            => TPD_G,
-         SYNTH_MODE_G     => "xpm",
+         SYNTH_MODE_G     => STREAM_FIFO_SYNTH_MODE_C,
          MEMORY_TYPE_G    => "block",
          READ_LATENCY_G   => 3,
          AXI_WR_EN_G      => true,
@@ -399,7 +406,7 @@ begin
    U_AxiDualPortRam_PID_RESULTS : entity surf.AxiDualPortRam
       generic map (
          TPD_G            => TPD_G,
-         SYNTH_MODE_G     => "xpm",
+         SYNTH_MODE_G     => STREAM_FIFO_SYNTH_MODE_C,
          MEMORY_TYPE_G    => "block",
          READ_LATENCY_G   => 3,
          AXI_WR_EN_G      => true,
@@ -593,7 +600,12 @@ begin
                if (accumValid = '1') then
                   v.rowIndex     := accumIn.rowIndex(ROW_ADDR_BITS_G-1 downto 0);
                   v.accumError   := to_sfixed(slv(accumIn.accumError(ACCUM_BITS_C-1 downto 0)), v.accumError);
-                  v.accumSamples := to_ufixed(slv(accumIn.numSamples), v.accumSamples);
+                  -- accumIn.numSamples is unsigned(7 downto 0); accumSamples is
+                  -- ufixed(31 downto 0). Use the numeric unsigned->ufixed
+                  -- conversion (which resizes) rather than the slv overload,
+                  -- which requires matching vector widths and otherwise trips a
+                  -- length-mismatch bounds check under fixed_pkg.
+                  v.accumSamples := to_ufixed(accumIn.numSamples, v.accumSamples);
                   v.sq1FbDacIn   := accumIn.sq1FbDac;
                   v.rowEnabled   := r.rowEnableMask(to_integer(unsigned(accumIn.rowIndex)));
 
@@ -815,7 +827,7 @@ begin
             FIFO_PAUSE_THRESH_G => 15,
             GEN_SYNC_FIFO_G     => false,
             FIFO_ADDR_WIDTH_G   => 9,
-            SYNTH_MODE_G        => "xpm",
+            SYNTH_MODE_G        => STREAM_FIFO_SYNTH_MODE_C,
             MEMORY_TYPE_G       => "bram",
             INT_WIDTH_SELECT_G  => "WIDE",
             SLAVE_AXI_CONFIG_G  => AXIS_DEBUG_CFG_C,
@@ -847,7 +859,7 @@ begin
          FIFO_PAUSE_THRESH_G => 15,
          GEN_SYNC_FIFO_G     => true,
          FIFO_ADDR_WIDTH_G   => 5,
-         SYNTH_MODE_G        => "xpm",
+         SYNTH_MODE_G        => STREAM_FIFO_SYNTH_MODE_C,
          MEMORY_TYPE_G       => "distributed",
          INT_WIDTH_SELECT_G  => "WIDE",
          SLAVE_AXI_CONFIG_G  => PID_DATA_AXIS_CFG_C,
@@ -877,7 +889,7 @@ begin
          TPD_G           => TPD_G,
          GEN_SYNC_FIFO_G => false,
          FWFT_EN_G       => true,
-         SYNTH_MODE_G    => "xpm",
+         SYNTH_MODE_G    => STREAM_FIFO_SYNTH_MODE_C,
          MEMORY_TYPE_G   => "distributed",
          PIPE_STAGES_G   => 0,
          DATA_WIDTH_G    => 22,
