@@ -2,6 +2,7 @@ import numpy as np
 
 from collections import defaultdict
 from dataclasses import dataclass, field
+from enum import IntEnum
 from typing import List
 
 def signed_int(arr):
@@ -9,6 +10,66 @@ def signed_int(arr):
 
 def unsigned_int(arr):
     return int.from_bytes(arr, 'little', signed=False)
+
+
+# --- Shared self-describing frame header -------------------------------------
+#
+# The 16-byte prefix on every Warm TDM bulk-data frame (readout, PID-debug
+# fixed/float, waveform). This is the host-side companion to
+# firmware/common/warm_tdm/rtl/FrameHeaderPkg.vhd -- the byte layout is the
+# contract shared by RTL and host, so the two MUST stay in lockstep. See
+# firmware/common/DataChannelization.md ("DECISION" / "Timebase").
+#
+# Layout (little-endian):
+#   byte 0     formatType     (FormatType enum below)
+#   byte 1     formatVersion  (== EXPECTED_FORMAT_VERSION; bump on any change)
+#   byte 2     groupId        (reserved, 0 until the multi-Group model, #80)
+#   byte 3     boardId         (source column board; cross-check channel>>4)
+#   bytes 4-7  reserved       (0)
+#   bytes 8-15 timestampNs    (64-bit absolute nanoseconds)
+
+FRAME_HEADER_BYTES = 16
+EXPECTED_FORMAT_VERSION = 1
+
+
+class FormatType(IntEnum):
+    """Frame formatType (header byte 0). Mirrors FrameHeaderPkg constants."""
+    READOUT   = 0x00
+    PID_FIXED = 0x01
+    PID_FLOAT = 0x02
+    WAVEFORM  = 0x03
+
+
+FRAME_HEADER_TYPE = np.dtype([
+    ('formatType', np.uint8),
+    ('formatVersion', np.uint8),
+    ('groupId', np.uint8),
+    ('boardId', np.uint8),
+    ('reserved', np.uint32),
+    ('timestampNs', np.uint64),
+])
+
+
+@dataclass
+class FrameHeader:
+    """One decoded 16-byte frame-identity header. See FRAME_HEADER_TYPE."""
+
+    formatType: int
+    formatVersion: int
+    groupId: int
+    boardId: int
+    timestampNs: int
+
+    @classmethod
+    def from_numpy(cls, arr):
+        """Parse the header from the first 16 bytes of a frame's uint8 array."""
+        rec = arr[:FRAME_HEADER_BYTES].view(FRAME_HEADER_TYPE)[0]
+        return cls(
+            formatType = int(rec['formatType']),
+            formatVersion = int(rec['formatVersion']),
+            groupId = int(rec['groupId']),
+            boardId = int(rec['boardId']),
+            timestampNs = int(rec['timestampNs']))
 
 
 @dataclass

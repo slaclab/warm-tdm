@@ -78,6 +78,7 @@ IMPORT_FILE_ALLOWLISTS = {
     "warm_tdm": {
         "AdcDsp.vhd",
         "FixedPkg.vhd",
+        "FrameHeaderPkg.vhd",
         "TimingPkg.vhd",
         "WarmTdmPkg.vhd",
     },
