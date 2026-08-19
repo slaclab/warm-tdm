@@ -53,8 +53,9 @@ sequence them.
    Fix: namespace file channels by board, `getChannel(board*16 + stream)`,
    mirroring the wire TDEST (uint8 channel = 16 boards × 16 streams). Centralize
    the channel encoding so write side and read side share one definition. Also
-   fold the waveform stream into the file (route it to a `getChannel(...)` instead
-   of the `.npy` side path) so one file holds all streams. No firmware change.
+   fold the waveform stream into the file (tee it to `waveformChannel(index)`
+   alongside the live GUI receiver) so one file holds all streams. No firmware
+   change. **Done** — including waveform folding.
 
 2. **Frame-identity design decision** *(design, blocks the RTL pieces).*
    **RESOLVED — see `DataChannelization.md` "DECISION" + "Timebase".**
@@ -222,8 +223,9 @@ FP-PID + resource-cleanup hardware pass.
 ## Next steps
 
 1. ~~Phase 1: central channel-encoding helper + board-namespaced file channels +
-   unified readers.~~ **Done** (committed on `channelization`). Waveform folding
-   into the file was deferred (opt-in); not yet done.
+   unified readers + waveform folding into the file.~~ **Done** (committed on
+   `channelization`). Waveform is now teed into the `.dat` file *and* still drives
+   the live GUI receiver + its optional per-capture `.npy` save (unchanged).
 2. ~~Phase 2: resolve the frame-identity design and record it in
    `DataChannelization.md`.~~ **Done** — shared 16-byte header, 64-bit absolute-ns
    timestamp (source/epoch per-run, not per-frame), standalone invariant.

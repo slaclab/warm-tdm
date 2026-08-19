@@ -99,67 +99,70 @@ The host separates the single RSSI stream back out in two layers:
 
 The apps are then wired to their sinks:
 
+The apps are wired to their sinks via the board-namespaced `warm_tdm.DataWriter`
+accessors (`pidDebugChannel`/`waveformChannel`/`readoutChannel`), so with N column
+boards each board's streams land on distinct file channels (`board*16 + stream`):
+
 | App | Sink | In the `.dat` file? |
 |---|---|---|
-| `0`–`7` (PID-debug) | `dataWriter.getChannel(i)` + live `PidDebugger` decoders | yes |
-| `8` (waveform) | `WaveformCaptureReceiver` → separate `.npy` | **no** (bypasses the file) |
-| `9` (readout) | `dataWriter.getChannel(9)` | yes |
+| `0`–`7` (PID-debug) | `dataWriter.pidDebugChannel(board, i)` + live `PidDebugger` decoders | yes |
+| `8` (waveform) | teed: `dataWriter.waveformChannel(board)` **and** live `WaveformCaptureReceiver` | **yes** (folded in; GUI + optional `.npy` save unchanged) |
+| `9` (readout) | `dataWriter.readoutChannel(board)` | yes |
 
 The tree config/status YAML is written to reserved file **channel 255** on
 `DataWriter` open/close (see `_GroupRoot.py`).
 
-### File-channel layout (as written today)
+### File-channel layout (board-namespaced)
 
-The `DataWriter` is a `StreamWriter` at `GroupRoot` scope. The file frame header
-carries a 1-byte `channel` field (256 slots). Current mapping:
+The `DataWriter` (`warm_tdm.DataWriter`, a `StreamWriter` subclass) is at
+`GroupRoot` scope. The file frame header carries a 1-byte `channel` field
+(256 slots), encoded `board*16 + stream_type` (see `warm_tdm._Channels`). Per
+board:
 
 | File channel | Contents |
 |---|---|
-| `0`–`7` | PID-debug (per board-channel) |
-| `9` | Readout |
-| `255` | Tree config/status YAML |
+| `board*16 + 0..7` | PID-debug (per board-channel) |
+| `board*16 + 8` | Waveform capture |
+| `board*16 + 9` | Readout |
+| `255` | Tree config/status YAML (file-scope, not board-namespaced) |
 
-Waveform is not in the file (it takes the `.npy` path).
+Board 0 is byte-identical to the historical layout (`0–7` PID, `8` waveform,
+`9` readout). Waveform is now folded into the file (stream 8) in addition to the
+live `WaveformCaptureReceiver` GUI path and its optional per-capture `.npy` save,
+which are unchanged.
 
 ## Multi-board / multi-Group migration
 
-**Known gap (single-board assumption in the file layer).** Board identity is
-carried correctly all the way to the host (TDEST `[6:4]`, then the per-board
-`application(dest=index)` demux) — but it is **dropped at file-write time**. In
-`_HardwareGroup.py` the `for index in range(colBoards)` loop wires every board's
-apps to the *same* file channels:
+**Board namespacing (DONE, host-only).** Board identity is carried on the wire
+(TDEST `[6:4]`, then the per-board `application(dest=index)` demux); it used to be
+**dropped at file-write time** — every board's apps wired to the *same* file
+channels (`getChannel(i)`/`getChannel(9)` with no `index`), so two boards collided
+on channel `9` (readout) and `0`–`7` (PID-debug). This was a host-side bug, not a
+firmware one. It is now fixed: `_HardwareGroup.py` writes through the
+`warm_tdm.DataWriter` accessors, which namespace channels by board
+(`board*16 + stream_type`, mirroring the wire TDEST), and `StreamReader` recovers
+the board from the channel and folds it into a global column. Waveform is teed
+into the file too. No RTL change was needed.
 
-```python
-packetizer.application(i) >> ... >> dataWriter.getChannel(i)   # no `index`
-packetizer.application(9) >> ... >> dataWriter.getChannel(9)   # no `index`
-```
+**Remaining migration direction:**
 
-So with two column boards, both boards' readout lands on file channel `9` and
-their PID-debug on `0`–`7`, interleaved with no board tag in the file. This is a
-host-side bug, not a firmware one — the wire already distinguishes the boards.
-
-**Migration direction (not yet implemented — see the wtj-refactor plan):**
-
-- **Namespace file channels by board** (host-only fix): e.g.
-  `channel = board*16 + stream_type`, mirroring the wire TDEST. The uint8 channel
-  field holds 16 boards × 16 streams. No RTL change needed.
 - **Namespace by Group** for a single Instrument-wide file: add group bits to the
-  channel encoding. This is coupled to the federated-vs-non-federated decision —
+  channel encoding. Coupled to the federated-vs-non-federated decision (#80) —
   a single Root/DataWriter needs group bits in the channel; a writer-per-Group
-  (federated) does not, and the Instrument correlates files client-side.
-- **Fold waveform into the file** (host-only): route app `8` to a
-  `getChannel(...)` like readout/PID instead of the `.npy` side path, so one file
-  holds all streams with config embedded.
-- **Widen the readout column field**: the 3-bit per-sample column in the
+  (federated) does not, and the Instrument correlates files client-side. *Not yet
+  done — gated on #80.*
+- **Widen the readout column field** (RTL): the 3-bit per-sample column in the
   EventBuilder body (`tData[47:40]`, low 3 bits) only distinguishes 8 columns of
   one board. A global column index (board·8 + channel) would make the readout
-  frame self-describing across boards — a coordinated RTL change (see below).
+  frame self-describing across boards — a coordinated RTL change, part of the
+  self-describing-frames work below.
 
-**Keep the channel scheme in one place.** The channel numbers are a contract
-shared by the write side (`_HardwareGroup.py`) and the read side
-(`operations/streamreader.py`, which decodes channels `9`, `0`–`7`, `255`).
-Define the encoding once so board/group migration is a single-point edit rather
-than a hunt across both sides.
+**Keep the channel scheme in one place (DONE).** The channel encoding is a
+contract shared by the write side (`_HardwareGroup.py`) and the read side
+(`operations/streamreader.py`, which decodes readout, PID-debug `0`–`7`, waveform
+`8`, and config `255`). It is now defined once in `warm_tdm._Channels`
+(`file_channel`/`board_of`/`stream_of` + `is_readout`/`is_pid_debug`/`is_waveform`)
+and consumed by both sides, so board/group migration is a single-point edit.
 
 ## Open design item: collapse per-column PID-debug onto one tDest (2026-08-12)
 

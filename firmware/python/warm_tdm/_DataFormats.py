@@ -195,7 +195,39 @@ class PidDebugFp:
             col = int(rec['col']) & 0b111,
             row = int(rec['row']) & 0xFF,
             fields = {k: rec[k].item() for k in PID_DEBUG_FP_FIELDS})
-        
 
 
-    
+# Waveform-capture frame: raw ADC samples for one capture, streamed on the
+# waveform stream (file stream type 8). Layout mirrors the live decode in
+# _WaveformCapture.WaveformCaptureReceiver.process(): the frame is a uint16 word
+# array whose header word 0 (low nibble) is the capture channel (0-7, or >=8 for
+# an all-channel interleaved capture) and word 1 is the decimation; ADC samples
+# start at word 8 as int16, with the low 2 bits of each sample carrying markers
+# (so the ADC value is sample // 4). This is the offline/file decoder companion
+# to that live receiver -- decode a frame's raw uint8 array with
+# WaveformReadout.from_numpy(arr).
+WAVEFORM_HEADER_WORDS = 8
+
+@dataclass
+class WaveformReadout:
+    """One decoded waveform-capture frame (file stream 8). See the module note."""
+
+    channel: int      # capture channel; >=8 means all-channel interleaved
+    decimation: int
+    adcs: np.ndarray  # int16 ADC values (markers already stripped)
+    markers: np.ndarray  # low-2-bit marker per sample
+
+    @classmethod
+    def from_numpy(cls, arr):
+        words = arr.view(np.uint16)
+        channel = int(words[0] & 0b1111)
+        decimation = int(words[1])
+        raw = words[WAVEFORM_HEADER_WORDS:].view(np.int16)
+        markers = raw & 0x3
+        adcs = raw // 4
+        # For an all-channel capture the samples are interleaved 8-wide.
+        if channel >= 8 and adcs.size % 8 == 0:
+            adcs = adcs.reshape(-1, 8)
+            markers = markers.reshape(-1, 8)
+        return cls(channel=channel, decimation=decimation, adcs=adcs, markers=markers)
+

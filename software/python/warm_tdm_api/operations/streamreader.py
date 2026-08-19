@@ -7,7 +7,8 @@
 ## firmware/common/DataChannelization.md):
 ##   - stream 0-7 : per-column PID-debug frames (data model #3), present only when
 ##                  AdcDsp[col].PidDebugEnable was set during the run.
-##   - stream 8   : waveform capture (not folded into the file today).
+##   - stream 8   : waveform capture -> `waveform` (folded into the file when the
+##                  run tees app 8 to the file; also still drives the live GUI).
 ##   - stream 9   : the readout stream (per-(col,row) SQ1FB values) -> `data`.
 ##   - channel 255: the tree config/status YAML dump -> `config` (file-scope, not
 ##                  board-namespaced).
@@ -40,8 +41,8 @@ import warm_tdm
 # The file-channel encoding (stream types, board namespacing, the config
 # channel) is defined once in warm_tdm._Channels and shared with the write side
 # (warm_tdm._HardwareGroup); this module reads it via the warm_tdm namespace
-# (warm_tdm.CONFIG_CHANNEL, warm_tdm.board_of, warm_tdm.is_readout, ...) rather
-# than re-declaring the numbers here.
+# (warm_tdm.CONFIG_CHANNEL, warm_tdm.board_of, warm_tdm.is_readout,
+# warm_tdm.is_waveform, ...) rather than re-declaring the numbers here.
 
 # Column channels per column board. The frame body carries a board-local column
 # (0-7); global_col = board*CHANS_PER_BOARD + local_col.
@@ -77,6 +78,10 @@ class StreamReader():
         # PID-debug timeseries: pid[col][row][field] -> list, built from the
         # per-column channels 0-7. Empty if the run had PidDebugEnable off.
         self.pid = nesteddict()
+        # Waveform captures: waveform[board] -> list of WaveformReadout, built
+        # from the per-board waveform stream (stream type 8). Empty unless the
+        # run folded waveform captures into the file.
+        self.waveform = nesteddict()
         # Parsed tree configuration captured in the file (channel 255), or {} if
         # the file predates config capture / has no config frame.
         self.config = {}
@@ -85,6 +90,7 @@ class StreamReader():
         # clear the dictionaries
         self.data = nesteddict()
         self.pid = nesteddict()
+        self.waveform = nesteddict()
         self.config = {}
         configBlobs = []
         with pyrogue.utilities.fileio.FileReader(files=[filename]) as fd:
@@ -101,6 +107,9 @@ class StreamReader():
                 # PID-debug (any board); col/row come from the frame body
                 elif warm_tdm.is_pid_debug(channel):
                     self._accept_pid(data, warm_tdm.board_of(channel))
+                # waveform capture (any board); folded into the file when enabled
+                elif warm_tdm.is_waveform(channel):
+                    self._accept_waveform(data, warm_tdm.board_of(channel))
 
         if configBlobs:
             self.config = self._parseConfig(''.join(configBlobs))
@@ -138,6 +147,18 @@ class StreamReader():
             if not slot[field]:
                 slot[field] = []
             slot[field].append(value)
+
+    def _accept_waveform(self, data, board):
+        """Decode one waveform-capture frame into waveform[board] list.
+
+        Keyed by board (not column) because a capture frame's own header carries
+        the capture channel (and an all-channel capture spans all 8). Decodes via
+        warm_tdm._DataFormats.WaveformReadout.
+        """
+        wf = warm_tdm.WaveformReadout.from_numpy(data)
+        if not self.waveform[board]:
+            self.waveform[board] = []
+        self.waveform[board].append(wf)
 
     @staticmethod
     def _parseConfig(text):

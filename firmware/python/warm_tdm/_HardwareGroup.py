@@ -169,13 +169,15 @@ class HardwareGroup(pyrogue.Device):
                     #fifo1 >> rateDrop >> pidDebug[i]
                     self.addInterface(fifo1, fifo2, pidDebug[i])
 
-                # Waveform (packetizer app 8): live GUI receiver only, as today.
-                # Folding the waveform into the .dat file (via
-                # dataWriter.waveformChannel(index)) is a separate, opt-in change
-                # tracked in the channelization plan -- deferred here because
-                # raw-ADC captures are large and the reader does not yet decode
-                # them.
+                # Waveform (packetizer app 8): drive the live GUI receiver AND
+                # fold a copy into the .dat file on the board's waveform channel,
+                # so one file holds every stream. The GUI path is unchanged; the
+                # file path gets its own FIFO (like readout/PID) so a slow writer
+                # cannot back-pressure the GUI.
                 packetizer.application(8) >> waveGui
+                waveFifo = rogue.interfaces.stream.Fifo(0, 0, False)
+                self.addInterface(waveFifo)
+                packetizer.application(8) >> waveFifo >> dataWriter.waveformChannel(index)
 
 #                 dataDbg = rogue.interfaces.stream.Slave()
 #                 dataDbg.setDebug(1000, f'DataStream_App')
