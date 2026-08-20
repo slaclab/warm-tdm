@@ -356,6 +356,36 @@ does not change.
    its own timing effort, feeding the same 64-bit ns slot — no frame re-layout;
    which epoch applied is recorded per-run, not per frame.
 
+## Verification of the frame formats
+
+How the self-describing frame formats are checked, and where each check lives —
+recorded because the natural instinct (a standalone per-module RTL bench) does not
+fit this design.
+
+- **Modules are deeply interdependent.** A frame builder emits nothing useful
+  without a timing bus, upstream data (accumulator/ADC), and its async output
+  FIFO. A "standalone" bench for one builder ends up re-integrating most of the
+  system with less realism — and fights the output FIFO's cross-domain /
+  burst-mode handshake. So frame-*byte* correctness is **not** verified with
+  isolated per-module benches.
+- **Integrated rogue↔firmware cosim already exists** and is the right home for
+  frame verification: `firmware/simulations/{GroupTb,StackTb,RowTb}` instantiate
+  the real boards (`ColumnFpgaBoardSim → ColumnFpgaBoardModel → ColumnFpgaBoard`)
+  plus device models, and expose SRP/Eth/PGP over TCP so real PyRogue
+  (`_HardwareGroup` with `simulation=True`) drives the simulated firmware. Data
+  returns through the actual `DataPath → EventBuilder → PGP` to the host
+  `StreamReader`. **These testbenches are Vivado/xsim-only** (not GHDL). The
+  end-to-end header check (host register-write → real datapath emits framed data →
+  `StreamReader` decodes the 16-byte header + global column) belongs here.
+- **Host-side decoder unit tests (no simulator)** cover the decode contract
+  cheaply: synthetic framed bytes → `_DataFormats`/`operations.StreamReader`
+  round-trip, asserting header fields, formatType dispatch, and global-column
+  derivation. These run anywhere Python + numpy are available.
+- **cocotb + GHDL module benches** (`tests/warm_tdm/…`, Issue #90) stay scoped to
+  **register-visible module logic** (e.g. the `AdcDsp` PID-math checks), which is
+  self-contained and does not depend on frame emission or the output FIFO. They
+  are not used for frame-byte capture.
+
 ## Reference
 
 | Layer | File | Role |
