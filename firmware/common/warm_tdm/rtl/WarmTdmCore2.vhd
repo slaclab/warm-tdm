@@ -127,8 +127,10 @@ entity WarmTdmCore2 is
       -- Amplifier power down
       ampPdB : out slv(7 downto 0) := (others => '1');
 
-      adcFilterEn : out slv(7 downto 0);
-      groupId     : out slv(7 downto 0) := (others => '0');
+      -- Aggregated config/identity bus for the data path (boardId/groupId/
+      -- adcFilterEn). Pin-facing config (ledEn/anaPwrEn/asicResetB/ampPdB) is
+      -- still surfaced on the individual pin ports above/below.
+      config : out WarmTdmConfigType := WARM_TDM_CONFIG_INIT_C;
 
       -- Status LEDs
       leds           : out slv(7 downto 0) := "00000000";
@@ -159,12 +161,7 @@ entity WarmTdmCore2 is
       -- Timing Rx
       timingRxClk125 : out sl;
       timingRxRst125 : out sl;
-      timingRxData   : out LocalTimingType;
-
-      -- This board's ring address (from the PGP core), for the data path's
-      -- self-describing frame-header boardId. Async (comms clock domain,
-      -- quasi-static after PGP link-up); the data path synchronizes it.
-      boardId        : out slv(2 downto 0));
+      timingRxData   : out LocalTimingType);
 
 
 
@@ -225,6 +222,7 @@ architecture rtl of WarmTdmCore2 is
    signal pgpRxLink         : sl;
    signal ledEn             : sl;
    signal ledsTmp           : slv(7 downto 0);
+   signal boardId           : slv(2 downto 0);  -- ring addr from PgpEthCore -> WarmTdmConfig
 
 
 begin
@@ -467,8 +465,8 @@ begin
          feThermistorP     => feThermistorP,                       -- [in]
          feThermistorN     => feThermistorN,                       -- [in]
          ampPdB            => ampPdB,                              -- [out]
-         adcFilterEn       => adcFilterEn,                         -- [out]
-         groupId           => groupId);                            -- [out]
+         boardId           => boardId,                             -- [in]
+         config            => config);                             -- [out]
 
 
 end rtl;

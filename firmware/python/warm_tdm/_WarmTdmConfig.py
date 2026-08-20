@@ -67,3 +67,12 @@ class WarmTdmConfig(pr.Device):
             offset = 0x28,
             bitSize = 8,
             base = pr.UInt))
+
+        # Read-only: the PGP ring address this board discovered at link-up (the
+        # frame-header boardId). Software has no other view of it.
+        self.add(pr.RemoteVariable(
+            name = 'BoardId',
+            mode = 'RO',
+            offset = 0x2C,
+            bitSize = 3,
+            base = pr.UInt))

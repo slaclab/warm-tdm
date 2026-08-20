@@ -36,20 +36,40 @@ package WarmTdmPkg is
 
    constant DATA_AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 8, tDestBits => 4, tUserBits => 2);
 
-   -- Per-frame identity fed to the frame builders for the self-describing header
-   -- (see FrameHeaderPkg). boardId is the PGP ring address (hardware-discovered);
-   -- groupId is a software-assigned config value (0 until the multi-Group model,
-   -- #80). Grouping them in one record keeps the builder interface stable as
-   -- identity fields are added. Both are already synchronized to the builder
-   -- clock domain when placed on this record (done in DataPath).
-   type FrameIdentityType is record
-      boardId : slv(2 downto 0);
-      groupId : slv(7 downto 0);
-   end record FrameIdentityType;
+   -- Board-level configuration + identity bus produced by WarmTdmConfig and
+   -- distributed through the core to the board top (where the pin-facing fields
+   -- drive physical pins) and to DataPath / the frame builders (which use the
+   -- identity fields for the self-describing header, see FrameHeaderPkg).
+   --
+   -- Field notes:
+   --   boardId     PGP ring address (hardware-discovered; a status input fed into
+   --               WarmTdmConfig). Frame-header boardId.
+   --   groupId     software-assigned Group id (0 until the multi-Group model, #80).
+   --               Frame-header groupId.
+   --   adcFilterEn per-channel ADC FIR filter enable (consumed by DataPath).
+   --   ledEn/anaPwrEn/ampPdB  board-pin config (broken out at the board top).
+   --   asicReset   ASIC reset *logic level* (the physical pin is open-drain: the
+   --               board top drives '0'/'Z' from this, keeping tristate at the pad).
+   -- All fields are in the config (axilClk) domain; cross-domain consumers (e.g.
+   -- DataPath's builders on timingRxClk125) synchronize as needed.
+   type WarmTdmConfigType is record
+      boardId     : slv(2 downto 0);
+      groupId     : slv(7 downto 0);
+      adcFilterEn : slv(7 downto 0);
+      ledEn       : sl;
+      anaPwrEn    : sl;
+      ampPdB      : slv(7 downto 0);
+      asicReset   : sl;
+   end record WarmTdmConfigType;
 
-   constant FRAME_IDENTITY_INIT_C : FrameIdentityType := (
-      boardId => (others => '0'),
-      groupId => (others => '0'));
+   constant WARM_TDM_CONFIG_INIT_C : WarmTdmConfigType := (
+      boardId     => (others => '0'),
+      groupId     => (others => '0'),
+      adcFilterEn => (others => '0'),
+      ledEn       => '1',
+      anaPwrEn    => '1',
+      ampPdB      => (others => '1'),
+      asicReset   => '1');
 
    --constant SQ1FB_DATA_AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 2, tDestBits => 8);
 

@@ -61,12 +61,10 @@ entity DataPath is
       timingRxData   : in LocalTimingType;
       sq1FbDacs      : in Slv14Array(7 downto 0);
 
-      -- Frame-header identity sources. boardId is the PGP ring address (comms
-      -- clock domain); groupId is a WarmTdmConfig register value (axilClk). Both
-      -- are async on entry, synchronized to timingRxClk125 internally, assembled
-      -- into a FrameIdentityType, and fed to the frame builders.
-      boardId        : in slv(2 downto 0) := "000";
-      groupId        : in slv(7 downto 0) := (others => '0');
+      -- Aggregated config/identity bus (WarmTdmConfig, axilClk domain). Carries
+      -- boardId/groupId for the frame-header (synchronized to timingRxClk125
+      -- internally and fed to the builders) and adcFilterEn for the FIR filters.
+      config         : in WarmTdmConfigType := WARM_TDM_CONFIG_INIT_C;
 
       -- Formatted data
       axisClk    : in  sl;
@@ -77,7 +75,6 @@ entity DataPath is
       -- Local register access
       axilClk          : in  sl;
       axilRst          : in  sl;
-      adcFilterEn      : in  slv(7 downto 0);
       sAxilReadMaster  : in  AxiLiteReadMasterType;
       sAxilReadSlave   : out AxiLiteReadSlaveType  := AXI_LITE_READ_SLAVE_EMPTY_DECERR_C;
       sAxilWriteMaster : in  AxiLiteWriteMasterType;
@@ -192,10 +189,11 @@ architecture rtl of DataPath is
    type LocalTimingTypeArray is array (natural range <>) of LocalTimingType;
    signal selectedTimingRxData : LocalTimingTypeArray(7 downto 0);
 
-   -- boardId+groupId synchronized into the timingRxClk125 domain and assembled
-   -- into the frame-identity record fed to the builders.
+   -- Config identity fields (boardId/groupId) synchronized into the
+   -- timingRxClk125 builder domain. The builders consume the identity fields of
+   -- this synchronized config record for the self-describing frame header.
    signal frameIdSyncVec : slv(10 downto 0);
-   signal frameId        : FrameIdentityType;
+   signal configSync     : WarmTdmConfigType := WARM_TDM_CONFIG_INIT_C;
 
 begin
 
@@ -209,11 +207,13 @@ begin
       port map (
          clk     => timingRxClk125,        -- [in]
          rst     => timingRxRst125,        -- [in]
-         dataIn  => groupId & boardId,     -- [in]
-         dataOut => frameIdSyncVec);       -- [out]
+         dataIn  => config.groupId & config.boardId,  -- [in]
+         dataOut => frameIdSyncVec);                  -- [out]
 
-   frameId.boardId <= frameIdSyncVec(2 downto 0);
-   frameId.groupId <= frameIdSyncVec(10 downto 3);
+   -- Builder-domain config: identity fields are the synchronized values; the
+   -- remaining fields are not used by the builders (kept for record completeness).
+   configSync.boardId <= frameIdSyncVec(2 downto 0);
+   configSync.groupId <= frameIdSyncVec(10 downto 3);
 
    U_AxiLiteAsync_SRP : entity surf.AxiLiteAsync
       generic map (
@@ -474,8 +474,8 @@ begin
             port map (
                clk     => timingRxClk125,       -- [in]
                rst     => timingRxRst125,       -- [in]
-               dataIn  => adcFilterEn(i),       -- [in]
-               dataOut => adcFilterEnSync(i));  -- [out]
+               dataIn  => config.adcFilterEn(i),  -- [in]
+               dataOut => adcFilterEnSync(i));     -- [out]
 
          selectedAdcStreams(i)   <= filteredAdcStreams(i) when adcFilterEnSync(i) = '1' else adcStreams(i);
          selectedTimingRxData(i) <= filteredTimingRxData when adcFilterEnSync(i) = '1' else timingRxDataDelayed;
@@ -498,7 +498,7 @@ begin
          timingRxClk125  => timingRxClk125,                        -- [in]
          timingRxRst125  => timingRxRst125,                        -- [in]
          timingRxData    => selectedTimingRxData(0),               -- [in]
-         frameId         => frameId,                               -- [in]
+         config          => configSync,                           -- [in]
          adcStreams      => selectedAdcStreams,                    -- [in]
          axilReadMaster  => locAxilReadMasters(WAVEFORM_AXIL_C),   -- [in]
          axilReadSlave   => locAxilReadSlaves(WAVEFORM_AXIL_C),    -- [out]
@@ -545,7 +545,7 @@ begin
                timingRxClk125   => timingRxClk125,
                timingRxRst125   => timingRxRst125,
                timingRxData     => selectedTimingRxData(i),
-               frameId          => frameId,
+               config           => configSync,
                accumIn          => accumResults(i),
                accumValid       => accumValids(i),
                sAxilReadMaster  => adcDspAxilReadMasters(i),
@@ -579,7 +579,7 @@ begin
                timingRxClk125   => timingRxClk125,
                timingRxRst125   => timingRxRst125,
                timingRxData     => selectedTimingRxData(i),
-               frameId          => frameId,
+               config           => configSync,
                accumIn          => accumResults(i),
                accumValid       => accumValids(i),
                sAxilReadMaster  => adcDspAxilReadMasters(i),
@@ -623,7 +623,7 @@ begin
       port map (
          timingRxClk125   => timingRxClk125,                             -- [in]
          timingRxRst125   => timingRxRst125,                             -- [in]
-         frameId          => frameId,                                    -- [in]
+         config           => configSync,                                -- [in]
          timingRxData     => timingRxDataDelayed,                        -- [in]
          pidStreamMasters => pidFilterStreamMasters,                     -- [out]
          pidStreamSlaves  => pidFilterStreamSlaves,                      -- [in]

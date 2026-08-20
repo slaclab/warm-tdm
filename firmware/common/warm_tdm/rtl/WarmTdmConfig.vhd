@@ -43,18 +43,16 @@ entity WarmTdmConfig is
 
       -- Status inputs
       timingRxClkLocked : in sl;
+      tempAlertL        : in sl;
+      -- PGP ring address (hardware-discovered, same axilClk domain), aggregated
+      -- into the config bus as the frame-header boardId.
+      boardId           : in slv(2 downto 0) := "000";
 
-      -- Output ports
-      tempAlertL  : in  sl;
-      ledEn       : out sl              := '1';
-      anaPwrEn    : out sl              := '1';
-      asicResetB  : out sl;
-      ampPdB      : out slv(7 downto 0) := (others => '1');
-      adcFilterEn : out slv(7 downto 0) := (others => '0');
-      -- Software-assigned Group id for the self-describing frame header. 0 until
-      -- the multi-Group model is defined (#80); the register+wiring exist now so
-      -- adding meaning later needs no RTL plumbing change.
-      groupId     : out slv(7 downto 0) := (others => '0')
+      -- Aggregated board configuration + identity bus. Pin-facing fields are
+      -- broken out to physical pins at the board top; identity/filter fields are
+      -- consumed by DataPath. asicReset is a logic level (open-drain tristate is
+      -- applied at the pad).
+      config      : out WarmTdmConfigType := WARM_TDM_CONFIG_INIT_C
 
       );
 
@@ -115,7 +113,7 @@ begin
 --          rstOut => asicResetB);         -- [out]
 
 
-   comb : process (axilReadMaster, axilRst, axilWriteMaster, r, tempAlertL, timingRxClkLockedSync) is
+   comb : process (axilReadMaster, axilRst, axilWriteMaster, boardId, r, tempAlertL, timingRxClkLockedSync) is
       variable v      : RegType;
       variable axilEp : AxiLiteEndpointType;
    begin
@@ -133,6 +131,9 @@ begin
       axiSlaveRegister(axilEp, X"20", 0, v.asicReset);
       axiSlaveRegister(axilEp, X"24", 0, v.adcFilterEn);
       axiSlaveRegister(axilEp, X"28", 0, v.groupId);
+      -- Read-only: the PGP ring address this board discovered (frame-header
+      -- boardId). Software cannot otherwise see it.
+      axiSlaveRegisterR(axilEp, X"2C", 0, boardId);
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
 
@@ -154,10 +155,16 @@ begin
       axilWriteSlave <= r.axilWriteSlave;
       axilReadSlave  <= r.axilReadSlave;
 
-      ledEn       <= r.ledEn;
-      anaPwrEn    <= r.anaPwrEn;
-      adcFilterEn <= r.adcFilterEn;
-      groupId     <= r.groupId;
+      -- Drive the aggregated config bus. boardId is a status input passed
+      -- through; asicReset is exposed as a logic level (the open-drain tristate
+      -- is applied at the board-top pad, not here).
+      config.boardId     <= boardId;
+      config.groupId     <= r.groupId;
+      config.adcFilterEn <= r.adcFilterEn;
+      config.ledEn       <= r.ledEn;
+      config.anaPwrEn    <= r.anaPwrEn;
+      config.ampPdB      <= (others => '1');  -- entity default preserved (never driven by regs)
+      config.asicReset   <= r.asicReset;
 
    end process;
 
@@ -167,7 +174,5 @@ begin
          r <= rin after TPD_G;
       end if;
    end process;
-
-   asicResetB <= '0' when r.asicReset = '1' else 'Z';
 
 end architecture rtl;

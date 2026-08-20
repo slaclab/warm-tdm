@@ -43,7 +43,7 @@ entity WaveformCapture is
       timingRxClk125 : in sl;
       timingRxRst125 : in sl;
       timingRxData   : in LocalTimingType;
-      frameId        : in FrameIdentityType := FRAME_IDENTITY_INIT_C;  -- board/group id for frame header
+      config         : in WarmTdmConfigType := WARM_TDM_CONFIG_INIT_C;  -- board/group id (synchronized) for frame header
 
       -- Adc Streams
       adcStreams : in AxiStreamMasterArray(7 downto 0);

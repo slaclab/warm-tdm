@@ -67,6 +67,13 @@ entity WarmTdmCommon2 is
       sfpScl : inout slv(1 downto 0);
       sfpSda : inout slv(1 downto 0);
 
+      -- PGP ring address (status input, aggregated into the config bus)
+      boardId : in slv(2 downto 0) := "000";
+      -- Aggregated config/identity bus for the datapath (boardId/groupId/
+      -- adcFilterEn). The pin-facing config fields are also broken out to the
+      -- individual pin ports below for the board top.
+      config  : out WarmTdmConfigType := WARM_TDM_CONFIG_INIT_C;
+
       -- Enable LEDs
       ledEn : out sl;
 
@@ -74,9 +81,6 @@ entity WarmTdmCommon2 is
       anaPwrEn : out sl := '0';
 
       asicResetB : out sl;
-
-      adcFilterEn : out slv(7 downto 0);
-      groupId     : out slv(7 downto 0) := (others => '0');
 
       timingRxClkLocked : in sl;
 
@@ -234,12 +238,15 @@ begin
          axilReadSlave     => locAxilReadSlaves(AXIL_CONFIG_C),    -- [out]
          timingRxClkLocked => timingRxClkLocked,                   -- [in]
          tempAlertL        => tempAlertL,                          -- [in]
-         ledEn             => ledEn,                               -- [out]
-         anaPwrEn          => anaPwrEn,                            -- [out]
-         asicResetB        => asicResetB,                          -- [out]
-         ampPdB            => ampPdB,                              -- [out]
-         adcFilterEn       => adcFilterEn,                         -- [out]
-         groupId           => groupId);                            -- [out]
+         boardId           => boardId,                             -- [in]
+         config            => config);                             -- [out]
+
+   -- Break the pin-facing config fields out to physical pin ports for the board
+   -- top. asicResetB is open-drain: drive '0' when asserted, tristate otherwise.
+   ledEn      <= config.ledEn;
+   anaPwrEn   <= config.anaPwrEn;
+   ampPdB     <= config.ampPdB;
+   asicResetB <= '0' when config.asicReset = '1' else 'Z';
 
    -------------------------------------------------------------------------------------------------
    -- XADC

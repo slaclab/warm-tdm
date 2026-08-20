@@ -359,8 +359,7 @@ begin
          dataRxAxisSlave  => dataRxAxisSlave,     -- [in]
          timingRxClk125   => timingRxClk125,      -- [out]
          timingRxRst125   => timingRxRst125,      -- [out]
-         timingRxData     => timingRxData,        -- [out]
-         boardId          => open);               -- [out] (no data path on row boards)
+         timingRxData     => timingRxData);       -- [out]
 
 
    -------------------------------------------------------------------------------------------------
