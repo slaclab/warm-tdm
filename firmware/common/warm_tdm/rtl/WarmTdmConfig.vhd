@@ -50,7 +50,11 @@ entity WarmTdmConfig is
       anaPwrEn    : out sl              := '1';
       asicResetB  : out sl;
       ampPdB      : out slv(7 downto 0) := (others => '1');
-      adcFilterEn : out slv(7 downto 0) := (others => '0')
+      adcFilterEn : out slv(7 downto 0) := (others => '0');
+      -- Software-assigned Group id for the self-describing frame header. 0 until
+      -- the multi-Group model is defined (#80); the register+wiring exist now so
+      -- adding meaning later needs no RTL plumbing change.
+      groupId     : out slv(7 downto 0) := (others => '0')
 
       );
 
@@ -63,6 +67,7 @@ architecture rtl of WarmTdmConfig is
       anaPwrEnAxi    : sl;
       asicReset      : sl;
       adcFilterEn    : slv(7 downto 0);
+      groupId        : slv(7 downto 0);
       ledEn          : sl;
       axilWriteSlave : AxiLiteWriteSlaveType;
       axilReadSlave  : AxiLiteReadSlaveType;
@@ -73,6 +78,7 @@ architecture rtl of WarmTdmConfig is
       anaPwrEnAxi    => '1',
       asicReset      => '1',
       adcFilterEn    => (others => '0'),
+      groupId        => (others => '0'),
       ledEn          => '1',
       axilWriteSlave => AXI_LITE_WRITE_SLAVE_INIT_C,
       axilReadSlave  => AXI_LITE_READ_SLAVE_INIT_C);
@@ -126,6 +132,7 @@ begin
       axiSlaveRegisterR(axilEp, X"18", 0, tempAlertL);
       axiSlaveRegister(axilEp, X"20", 0, v.asicReset);
       axiSlaveRegister(axilEp, X"24", 0, v.adcFilterEn);
+      axiSlaveRegister(axilEp, X"28", 0, v.groupId);
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
 
@@ -150,6 +157,7 @@ begin
       ledEn       <= r.ledEn;
       anaPwrEn    <= r.anaPwrEn;
       adcFilterEn <= r.adcFilterEn;
+      groupId     <= r.groupId;
 
    end process;
 

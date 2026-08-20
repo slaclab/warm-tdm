@@ -128,6 +128,7 @@ entity WarmTdmCore2 is
       ampPdB : out slv(7 downto 0) := (others => '1');
 
       adcFilterEn : out slv(7 downto 0);
+      groupId     : out slv(7 downto 0) := (others => '0');
 
       -- Status LEDs
       leds           : out slv(7 downto 0) := "00000000";
@@ -158,7 +159,12 @@ entity WarmTdmCore2 is
       -- Timing Rx
       timingRxClk125 : out sl;
       timingRxRst125 : out sl;
-      timingRxData   : out LocalTimingType);
+      timingRxData   : out LocalTimingType;
+
+      -- This board's ring address (from the PGP core), for the data path's
+      -- self-describing frame-header boardId. Async (comms clock domain,
+      -- quasi-static after PGP link-up); the data path synchronizes it.
+      boardId        : out slv(2 downto 0));
 
 
 
@@ -418,7 +424,8 @@ begin
          dataTxAxisMaster => dataTxAxisMaster,                 -- [in]
          dataTxAxisSlave  => dataTxAxisSlave,                  -- [out]
          dataRxAxisMaster => dataRxAxisMaster,                 -- [out]
-         dataRxAxisSlave  => dataRxAxisSlave);                 -- [in]
+         dataRxAxisSlave  => dataRxAxisSlave,                  -- [in]
+         boardId          => boardId);                         -- [out]
 
 
 
@@ -460,7 +467,8 @@ begin
          feThermistorP     => feThermistorP,                       -- [in]
          feThermistorN     => feThermistorN,                       -- [in]
          ampPdB            => ampPdB,                              -- [out]
-         adcFilterEn       => adcFilterEn);                        -- [out]
+         adcFilterEn       => adcFilterEn,                         -- [out]
+         groupId           => groupId);                            -- [out]
 
 
 end rtl;

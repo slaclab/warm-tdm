@@ -57,3 +57,13 @@ class WarmTdmConfig(pr.Device):
             bitSize = 8,
             base = pr.UInt,
             disp = '{:08b}'))
+
+        # Software-assigned Group id stamped into the self-describing data-frame
+        # header (header byte 2). 0 until the multi-Group model is defined
+        # (issue #80); the register exists now so the meaning can be assigned
+        # later without a firmware change.
+        self.add(pr.RemoteVariable(
+            name = 'GroupId',
+            offset = 0x28,
+            bitSize = 8,
+            base = pr.UInt))

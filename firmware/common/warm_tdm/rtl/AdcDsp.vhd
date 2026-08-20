@@ -38,6 +38,7 @@ entity AdcDsp is
       timingRxClk125   : in  sl;
       timingRxRst125   : in  sl;
       timingRxData     : in  LocalTimingType;
+      frameId          : in  FrameIdentityType := FRAME_IDENTITY_INIT_C;  -- board/group id for frame header
       -- Accumulated ADC result from AdcAccumulator
       accumIn          : in  AdcAccumResultType;
       accumValid       : in  sl;

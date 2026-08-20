@@ -76,6 +76,7 @@ entity WarmTdmCommon2 is
       asicResetB : out sl;
 
       adcFilterEn : out slv(7 downto 0);
+      groupId     : out slv(7 downto 0) := (others => '0');
 
       timingRxClkLocked : in sl;
 
@@ -237,7 +238,8 @@ begin
          anaPwrEn          => anaPwrEn,                            -- [out]
          asicResetB        => asicResetB,                          -- [out]
          ampPdB            => ampPdB,                              -- [out]
-         adcFilterEn       => adcFilterEn);                        -- [out]
+         adcFilterEn       => adcFilterEn,                         -- [out]
+         groupId           => groupId);                            -- [out]
 
    -------------------------------------------------------------------------------------------------
    -- XADC

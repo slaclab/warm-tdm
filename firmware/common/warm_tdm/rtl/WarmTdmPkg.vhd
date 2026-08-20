@@ -36,6 +36,21 @@ package WarmTdmPkg is
 
    constant DATA_AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 8, tDestBits => 4, tUserBits => 2);
 
+   -- Per-frame identity fed to the frame builders for the self-describing header
+   -- (see FrameHeaderPkg). boardId is the PGP ring address (hardware-discovered);
+   -- groupId is a software-assigned config value (0 until the multi-Group model,
+   -- #80). Grouping them in one record keeps the builder interface stable as
+   -- identity fields are added. Both are already synchronized to the builder
+   -- clock domain when placed on this record (done in DataPath).
+   type FrameIdentityType is record
+      boardId : slv(2 downto 0);
+      groupId : slv(7 downto 0);
+   end record FrameIdentityType;
+
+   constant FRAME_IDENTITY_INIT_C : FrameIdentityType := (
+      boardId => (others => '0'),
+      groupId => (others => '0'));
+
    --constant SQ1FB_DATA_AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 2, tDestBits => 8);
 
    -- Data from AdcDsp to filter and downsampler (fixed-point integer, 24-bit)

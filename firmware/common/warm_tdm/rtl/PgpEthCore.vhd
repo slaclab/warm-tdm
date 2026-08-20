@@ -92,7 +92,10 @@ entity PgpEthCore is
       dataTxAxisMaster : in  AxiStreamMasterType;
       dataTxAxisSlave  : out AxiStreamSlaveType;
       dataRxAxisMaster : out AxiStreamMasterType;
-      dataRxAxisSlave  : in  AxiStreamSlaveType);
+      dataRxAxisSlave  : in  AxiStreamSlaveType;
+      -- This board's ring address (from PgpCore), for the frame-header boardId.
+      -- Async (iAxiClk-domain, quasi-static); consumers synchronize as needed.
+      boardId          : out slv(2 downto 0));
 
 
 end entity PgpEthCore;
@@ -133,10 +136,16 @@ architecture rtl of PgpEthCore is
 
    signal refRst : sl;
 
+   -- Board ring address from PgpCore; defaults to coordinator "000" when PgpCore
+   -- is not generated (SIMULATE_PGP_G).
+   signal boardIdInt : slv(2 downto 0) := "000";
+
 begin
 
    axilClkOut <= axilClk;
    axilRstOut <= axilRst;
+
+   boardId <= boardIdInt;
 
 
    -----------------
@@ -189,7 +198,8 @@ begin
             dataTxAxisMaster => pgpDataTxAxisMaster,               -- [in]
             dataTxAxisSlave  => pgpDataTxAxisSlave,                -- [out]
             dataRxAxisMaster => pgpDataRxAxisMaster,               -- [out]
-            dataRxAxisSlave  => pgpDataRxAxisSlave);               -- [in]
+            dataRxAxisSlave  => pgpDataRxAxisSlave,                -- [in]
+            boardId          => boardIdInt);                       -- [out]
    end generate GEN_PGP;
 
    ---------------------

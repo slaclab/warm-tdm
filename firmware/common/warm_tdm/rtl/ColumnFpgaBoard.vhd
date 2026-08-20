@@ -289,6 +289,7 @@ architecture rtl of ColumnFpgaBoard is
    signal axilRst : sl;
 
    signal adcFilterEn : slv(7 downto 0);
+   signal groupId     : slv(7 downto 0);
 
    signal srpAxilWriteMaster : AxiLiteWriteMasterType;
    signal srpAxilWriteSlave  : AxiLiteWriteSlaveType;
@@ -324,6 +325,7 @@ architecture rtl of ColumnFpgaBoard is
    signal timingRxClk125 : sl;
    signal timingRxRst125 : sl;
    signal timingRxData   : LocalTimingType;
+   signal boardId        : slv(2 downto 0);
    signal sq1FbDacs      : Slv14Array(7 downto 0);
 
    signal adc : Ad9681SerialType;
@@ -402,6 +404,7 @@ begin
          asicResetB       => resetB,              -- [out]
          ampPdB           => ampPdB,              -- [out]
          adcFilterEn      => adcFilterEn,         -- [out]
+         groupId          => groupId,             -- [out]
          leds             => leds,                -- [out]
          conRxGreenLed    => conRxGreenLed,       -- [out]
          conRxYellowLed   => conRxYellowLed,      -- [out]
@@ -421,7 +424,8 @@ begin
          dataRxAxisSlave  => dataRxAxisSlave,     -- [in]
          timingRxClk125   => timingRxClk125,      -- [out]
          timingRxRst125   => timingRxRst125,      -- [out]
-         timingRxData     => timingRxData);       -- [out]
+         timingRxData     => timingRxData,        -- [out]
+         boardId          => boardId);            -- [out]
 
 
    -------------------------------------------------------------------------------------------------
@@ -599,6 +603,8 @@ begin
          timingRxClk125   => timingRxClk125,                         -- [in]
          timingRxRst125   => timingRxRst125,                         -- [in]
          timingRxData     => timingRxData,                           -- [in]
+         boardId          => boardId,                                -- [in]
+         groupId          => groupId,                                -- [in]
          sq1FbDacs        => sq1FbDacs,                              --[in]
          axisClk          => axisClk,                                -- [in]
          axisRst          => axisRst,                                -- [in]

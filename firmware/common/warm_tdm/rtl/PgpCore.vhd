@@ -75,7 +75,12 @@ entity PgpCore is
       dataTxAxisMaster : in  AxiStreamMasterType;
       dataTxAxisSlave  : out AxiStreamSlaveType;
       dataRxAxisMaster : out AxiStreamMasterType;
-      dataRxAxisSlave  : in  AxiStreamSlaveType);
+      dataRxAxisSlave  : in  AxiStreamSlaveType;
+
+      -- This board's ring address (RingRouter tDest[6:4]); async (iAxiClk-domain,
+      -- quasi-static after PGP link-up). Consumers synchronize as needed. Fed to
+      -- the frame builders' self-describing header as boardId.
+      boardId          : out slv(2 downto 0));
 
 end entity PgpCore;
 
@@ -472,6 +477,9 @@ begin
             axisSlave   => fifoRxSlaves(i));       -- [in]
 
       address <= ite(RING_ADDR_0_G, "000", pgpRxOut(0).remLinkData(2 downto 0) + 1);
+
+      -- Surface this board's ring address for the frame-header boardId.
+      boardId <= address;
 
       locPgpTxIn(0).locData <= "00000" & address;
       locPgpTxIn(1).locData <= X"AA";
