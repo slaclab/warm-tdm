@@ -76,7 +76,7 @@ class FrameHeader:
 class DataSample:
 
     row: int
-    col: int
+    col: int   # global column (board*8 + board-local); the RTL packs this directly
     value: int
 
     @classmethod
@@ -88,29 +88,39 @@ class DataSample:
 
 @dataclass
 class DataReadout:
+    """One decoded readout frame: 16-byte shared header + 2 structural counter
+    words (daqReadoutCount, rowSeqCount) + per-sample words. The absolute-ns
+    timestamp lives in the header (it superseded the old per-frame runTime word).
+    """
 
-    readoutCount: int
+    header: 'FrameHeader'
+    readoutCount: int   # daqReadoutCount
     rowSeqCount: int
-    runTime: int
     samples: List[DataSample] = field(default_factory=list)
 
     @classmethod
     def from_numpy(cls, arr):
-        #print(arr)
-        words = arr[:-8].reshape(-1, 8)
-        #print(words)
+        header = FrameHeader.from_numpy(arr)
+        # Body follows the 16-byte header; last word is the trailing burnCount.
+        body = arr[FRAME_HEADER_BYTES:-8].reshape(-1, 8)
         return cls(
-            readoutCount = unsigned_int(words[0]),
-            rowSeqCount = unsigned_int(words[1]),
-            runTime = unsigned_int(words[2]),
-            samples = [DataSample.from_numpy(w) for w in words[3:]])
+            header = header,
+            readoutCount = unsigned_int(body[0]),
+            rowSeqCount = unsigned_int(body[1]),
+            samples = [DataSample.from_numpy(w) for w in body[2:]])
+
+    @property
+    def timestampNs(self):
+        return self.header.timestampNs
 
 
-# PID-debug frame: one 80-byte record per (col, row) servo visit, streamed on
-# DataWriter channels 0-7 (one channel per column) when AdcDsp[col].PidDebugEnable
-# is set. This is the canonical binary layout -- it mirrors the AdcDsp PID debug
-# word packing (see firmware AdcDsp.vhd and _PidDebugger.py). Decode a frame's raw
-# uint8 array with ``arr.view(PID_DEBUG_TYPE)``; fields:
+# PID-debug frame: the 16-byte shared header + an 80-byte fixed-point body (one
+# record per (col, row) servo visit), streamed on the PID-debug channels when
+# AdcDsp[col].PidDebugEnable is set. PID_DEBUG_TYPE is the BODY layout (view
+# ``arr[FRAME_HEADER_BYTES:].view(PID_DEBUG_TYPE)``); it mirrors the AdcDsp PID
+# debug word packing (see firmware AdcDsp.vhd and _PidDebugger.py). The body's
+# word-0 runTime bits are now vestigial padding -- the header timestamp is
+# authoritative. Fields:
 #   accumError     P-term (proportional accumulated error)
 #   sumAccumError  I-term (integral)
 #   diffAccumError D-term (derivative)
@@ -121,7 +131,8 @@ class DataReadout:
 #   dropCount      dropped-frame counter
 #   numSamples     samples averaged this readout
 #   readoutCount   monotonic readout index (time axis)
-PID_DEBUG_FRAME_BYTES = 80
+PID_DEBUG_BODY_BYTES = 80
+PID_DEBUG_FRAME_BYTES = FRAME_HEADER_BYTES + PID_DEBUG_BODY_BYTES  # 96 (header + body)
 
 PID_DEBUG_TYPE = np.dtype([
     # Word 0
@@ -172,30 +183,38 @@ PID_DEBUG_FIELDS = (
 
 @dataclass
 class PidDebug:
-    """One decoded PID-debug frame (80 bytes, channels 0-7). See PID_DEBUG_TYPE."""
+    """One decoded fixed-point PID-debug frame (16-byte header + 80-byte body).
 
+    col is board-local (0-7); the header carries boardId/groupId/timestamp. See
+    PID_DEBUG_TYPE for the body layout.
+    """
+
+    header: 'FrameHeader'
     col: int
     row: int
     fields: dict
 
     @classmethod
     def from_numpy(cls, arr):
+        header = FrameHeader.from_numpy(arr)
         # view() yields a shape-(1,) structured array; take element 0 to get the
         # record scalar whose fields are numpy scalars (.item() -> python int).
-        rec = arr.view(PID_DEBUG_TYPE)[0]
+        rec = arr[FRAME_HEADER_BYTES:].view(PID_DEBUG_TYPE)[0]
         return cls(
+            header = header,
             col = int(rec['col']) & 0b111,
             row = int(rec['row']) & 0xFF,
             fields = {k: rec[k].item() for k in PID_DEBUG_FIELDS})
 
 
-# Floating-point PID-debug frame: one 40-byte record per (col, row) servo visit,
-# emitted by the AdcDspFp path (float PID firmware, USE_FLOAT_PID_G) on the same
-# PID-debug channels 0-7. This is a DIFFERENT layout from the 80-byte fixed-point
-# PID_DEBUG_TYPE above -- shorter, and the PID terms are IEEE-754 float32 rather
-# than fixed-point ints. It mirrors the AdcDspFp PID debug word packing (see
-# firmware AdcDspFp.vhd and _PidDebuggerFp.py register decode). Decode a frame's
-# raw uint8 array with ``arr.view(PID_DEBUG_FP_TYPE)``; fields:
+# Floating-point PID-debug frame: the 16-byte shared header + a 40-byte float body
+# (one record per (col, row) servo visit), emitted by the AdcDspFp path (float PID
+# firmware, USE_FLOAT_PID_G) on the PID-debug channels. PID_DEBUG_FP_TYPE is the
+# BODY layout (view ``arr[FRAME_HEADER_BYTES:].view(PID_DEBUG_FP_TYPE)``) -- a
+# DIFFERENT body from the 80-byte fixed-point PID_DEBUG_TYPE (float32 PID terms).
+# Mirrors the AdcDspFp PID debug word packing (see AdcDspFp.vhd /
+# _PidDebuggerFp.py). Body word-0 runTime bits are vestigial (header timestamp is
+# authoritative). Fields:
 #   accumErrorFp   P-term (float)
 #   sq1FbFullFp    full-precision SQ1FB feedback (float)
 #   sumAccumFp     I-term / accumulated integral (float)
@@ -205,7 +224,8 @@ class PidDebug:
 #   sq1FbInt       SQ1FB DAC code (uint14) actually written
 #   accumSamples   samples averaged this readout
 #   dropCount      dropped-frame counter
-PID_DEBUG_FP_FRAME_BYTES = 40
+PID_DEBUG_FP_BODY_BYTES = 40
+PID_DEBUG_FP_FRAME_BYTES = FRAME_HEADER_BYTES + PID_DEBUG_FP_BODY_BYTES  # 56 (header + body)
 
 PID_DEBUG_FP_TYPE = np.dtype([
     # Word 0
@@ -239,40 +259,44 @@ PID_DEBUG_FP_FIELDS = (
 
 @dataclass
 class PidDebugFp:
-    """One decoded floating-point PID-debug frame (40 bytes, channels 0-7).
+    """One decoded floating-point PID-debug frame (16-byte header + 40-byte body).
 
-    See PID_DEBUG_FP_TYPE. Distinct from the 80-byte fixed-point PidDebug; select
-    by frame size (len == PID_DEBUG_FP_FRAME_BYTES).
+    col is board-local (0-7); the header carries boardId/groupId/timestamp. See
+    PID_DEBUG_FP_TYPE for the body layout. Distinct from the fixed-point PidDebug;
+    dispatch by header.formatType (PID_FLOAT vs PID_FIXED).
     """
 
+    header: 'FrameHeader'
     col: int
     row: int
     fields: dict
 
     @classmethod
     def from_numpy(cls, arr):
-        rec = arr.view(PID_DEBUG_FP_TYPE)[0]
+        header = FrameHeader.from_numpy(arr)
+        rec = arr[FRAME_HEADER_BYTES:].view(PID_DEBUG_FP_TYPE)[0]
         return cls(
+            header = header,
             col = int(rec['col']) & 0b111,
             row = int(rec['row']) & 0xFF,
             fields = {k: rec[k].item() for k in PID_DEBUG_FP_FIELDS})
 
 
-# Waveform-capture frame: raw ADC samples for one capture, streamed on the
-# waveform stream (file stream type 8). Layout mirrors the live decode in
-# _WaveformCapture.WaveformCaptureReceiver.process(): the frame is a uint16 word
-# array whose header word 0 (low nibble) is the capture channel (0-7, or >=8 for
-# an all-channel interleaved capture) and word 1 is the decimation; ADC samples
-# start at word 8 as int16, with the low 2 bits of each sample carrying markers
-# (so the ADC value is sample // 4). This is the offline/file decoder companion
-# to that live receiver -- decode a frame's raw uint8 array with
-# WaveformReadout.from_numpy(arr).
-WAVEFORM_HEADER_WORDS = 8
+# Waveform-capture frame: the 16-byte shared header + a 16-byte config beat +
+# raw ADC samples, streamed on the waveform stream (file stream type 8). The RTL
+# emits, in INT_AXIS_CONFIG_C (16-byte) beats: beat 0 = shared identity header;
+# beat 1 = the config word (low nibble = capture channel 0-7, or >=8 for an
+# all-channel interleaved capture; bits[31:16] = decimation); then ADC samples as
+# int16 with the low 2 bits carrying markers (ADC value = sample // 4). Offline/
+# file companion to _WaveformCapture.WaveformCaptureReceiver.process().
+WAVEFORM_CONFIG_WORD_OFFSET = FRAME_HEADER_BYTES // 2   # uint16 index of config beat
+WAVEFORM_SAMPLE_WORD_OFFSET = (FRAME_HEADER_BYTES + 16) // 2  # uint16 index of first sample
 
 @dataclass
 class WaveformReadout:
     """One decoded waveform-capture frame (file stream 8). See the module note."""
 
+    header: 'FrameHeader'
     channel: int      # capture channel; >=8 means all-channel interleaved
     decimation: int
     adcs: np.ndarray  # int16 ADC values (markers already stripped)
@@ -280,15 +304,17 @@ class WaveformReadout:
 
     @classmethod
     def from_numpy(cls, arr):
+        header = FrameHeader.from_numpy(arr)
         words = arr.view(np.uint16)
-        channel = int(words[0] & 0b1111)
-        decimation = int(words[1])
-        raw = words[WAVEFORM_HEADER_WORDS:].view(np.int16)
+        channel = int(words[WAVEFORM_CONFIG_WORD_OFFSET] & 0b1111)
+        decimation = int(words[WAVEFORM_CONFIG_WORD_OFFSET + 1])
+        raw = words[WAVEFORM_SAMPLE_WORD_OFFSET:].view(np.int16)
         markers = raw & 0x3
         adcs = raw // 4
         # For an all-channel capture the samples are interleaved 8-wide.
         if channel >= 8 and adcs.size % 8 == 0:
             adcs = adcs.reshape(-1, 8)
             markers = markers.reshape(-1, 8)
-        return cls(channel=channel, decimation=decimation, adcs=adcs, markers=markers)
+        return cls(header=header, channel=channel, decimation=decimation,
+                   adcs=adcs, markers=markers)
 

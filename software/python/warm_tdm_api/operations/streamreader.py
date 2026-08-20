@@ -117,31 +117,30 @@ class StreamReader():
     def _accept_readout(self, data, board):
         """Decode one readout frame into data[global_col][row] timeseries.
 
-        The frame body carries a board-local column (0-7); fold in the board
-        index recovered from the file channel to form the global column.
+        The readout sample byte already carries the GLOBAL column (the RTL packs
+        boardId*8 + local), so it is used as-is -- no board fold-in here.
         """
         dr = warm_tdm.DataReadout.from_numpy(data)
         for s in dr.samples:
-            global_col = board * CHANS_PER_BOARD + s.col
-            if not self.data[global_col][s.row]:
-                self.data[global_col][s.row] = []
-            self.data[global_col][s.row].append(s.value)
+            if not self.data[s.col][s.row]:
+                self.data[s.col][s.row] = []
+            self.data[s.col][s.row].append(s.value)
 
     def _accept_pid(self, data, board):
         """Decode one PID-debug frame into pid[global_col][row][field] timeseries.
 
-        The PID-debug channels carry two frame layouts, distinguished by size:
-        the 80-byte fixed-point format (AdcDsp) and the 40-byte float format
-        (AdcDspFp). Both decode via warm_tdm._DataFormats to a col/row + fields
-        dict; a frame of neither size is skipped defensively.
+        Dispatch on the shared header's formatType (PID_FIXED vs PID_FLOAT), not
+        frame size. The PID body col is board-local, so the global column is
+        header.boardId*8 + col (in-band identity, not the file channel).
         """
-        if len(data) == warm_tdm.PID_DEBUG_FRAME_BYTES:
+        hdr = warm_tdm.FrameHeader.from_numpy(data)
+        if hdr.formatType == warm_tdm.FormatType.PID_FIXED:
             msg = warm_tdm.PidDebug.from_numpy(data)
-        elif len(data) == warm_tdm.PID_DEBUG_FP_FRAME_BYTES:
+        elif hdr.formatType == warm_tdm.FormatType.PID_FLOAT:
             msg = warm_tdm.PidDebugFp.from_numpy(data)
         else:
-            return  # not a PID-debug frame (or truncated); skip defensively
-        global_col = board * CHANS_PER_BOARD + msg.col
+            return  # not a PID-debug frame; skip defensively
+        global_col = msg.header.boardId * CHANS_PER_BOARD + msg.col
         slot = self.pid[global_col][msg.row]
         for field, value in msg.fields.items():
             if not slot[field]:

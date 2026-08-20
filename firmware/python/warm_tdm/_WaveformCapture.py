@@ -381,12 +381,14 @@ class WaveformCaptureReceiver(pr.DataReceiver):
         # Create a view of ADC values
         frame = data.view(np.uint16)
 
-        # Process header
-        channel = frame[0] & 0b1111
-        decimation = frame[1]
+        # Skip the 16-byte self-describing header beat; the config word (channel/
+        # decimation) is the next beat, ADC samples follow.
+        cfg = warm_tdm.WAVEFORM_CONFIG_WORD_OFFSET
+        channel = frame[cfg] & 0b1111
+        decimation = frame[cfg + 1]
 
-        adcs = frame[8:].view(np.int16).copy()
-        markers = adcs & 0x3        
+        adcs = frame[warm_tdm.WAVEFORM_SAMPLE_WORD_OFFSET:].view(np.int16).copy()
+        markers = adcs & 0x3
         adcs = adcs//4
 
         # Bits 0 and 1 indicate a marker

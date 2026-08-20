@@ -11,6 +11,7 @@
 import pyrogue as pr
 import pyrogue.interfaces.simulation
 import numpy as np
+import warm_tdm
 
 
 class PidRowDebuggerFp(pr.Device):
@@ -204,11 +205,14 @@ class PidDebuggerFp(pr.DataReceiver):
         raw = bytearray(fl)
         frame.read(raw, 0)
 
-        if fl != 40:
+        if fl != warm_tdm.PID_DEBUG_FP_FRAME_BYTES:
             print(f'Got PID FP debug frame with wrong size {fl}')
             return
 
-        for i, byte in enumerate(raw):
+        # Strip the 16-byte self-describing header; the register map addresses the
+        # 40-byte body, so copy only the body into the MemEmulate backing store.
+        body = raw[warm_tdm.FRAME_HEADER_BYTES:]
+        for i, byte in enumerate(body):
             self.mem._data[i] = byte
 
         self.readBlocks()
