@@ -77,6 +77,7 @@ def check_file(path, chk):
     bad_zero_ts = []
     bad_global_col = []
     bad_pid_len = []
+    bad_pid_chan = []
     n_frames = 0
 
     with pyrogue.utilities.fileio.FileReader(files=[path]) as fd:
@@ -103,6 +104,14 @@ def check_file(path, chk):
             if name == 'pid-float' and len(data) != warm_tdm.PID_DEBUG_FP_FRAME_BYTES:
                 bad_pid_len.append(('pid-float', len(data), warm_tdm.PID_DEBUG_FP_FRAME_BYTES))
 
+            # PID-debug streams are collapsed onto one board-local stream: every
+            # PID frame must land on file channel board*16 + PID_DEBUG_STREAM (the
+            # 8 per-column streams no longer exist).
+            if name in ('pid-fixed', 'pid-float') and \
+                    warm_tdm.stream_of(channel) != warm_tdm.PID_DEBUG_STREAM:
+                bad_pid_chan.append((name, warm_tdm.stream_of(channel),
+                                     warm_tdm.PID_DEBUG_STREAM))
+
             # Readout per-sample columns must be GLOBAL (boardId*8 + local).
             if name == 'readout':
                 dr = decoder.from_numpy(data)
@@ -124,6 +133,8 @@ def check_file(path, chk):
              '' if not bad_zero_ts else f'zero-timestamp frames: {set(bad_zero_ts)}')
     chk.item(not bad_pid_len, 'PID frame lengths match header+body',
              '' if not bad_pid_len else f'(name,got,want): {bad_pid_len[:5]}')
+    chk.item(not bad_pid_chan, 'PID frames arrive on the collapsed PID stream',
+             '' if not bad_pid_chan else f'(name,got,want): {bad_pid_chan[:5]}')
     chk.item(not bad_global_col, 'readout sample columns are global (boardId*8+local)',
              '' if not bad_global_col else f'(col,boardId): {bad_global_col[:5]}')
 

@@ -5,8 +5,9 @@
 ## is namespaced by board via warm_tdm.file_channel() (= board*16 + stream_type),
 ## mirroring the on-wire TDEST (see warm_tdm._HardwareGroup wiring and
 ## firmware/common/DataChannelization.md):
-##   - stream 0-7 : per-column PID-debug frames (data model #3), present only when
-##                  AdcDsp[col].PidDebugEnable was set during the run.
+##   - stream 1   : PID-debug frames (data model #3), all columns collapsed onto
+##                  one stream (source column carried in the frame body), present
+##                  only when AdcDsp[col].PidDebugEnable was set during the run.
 ##   - stream 8   : waveform capture -> `waveform` (folded into the file when the
 ##                  run tees app 8 to the file; also still drives the live GUI).
 ##   - stream 9   : the readout stream (per-(col,row) SQ1FB values) -> `data`.
@@ -16,9 +17,10 @@
 ## which is distinct from the on-wire RSSI/PGP TDEST -- see warm_tdm._Channels
 ## for the distinction. Offline, all we have is the file channel; the board index
 ## is recovered from it (warm_tdm.board_of) and folded into a GLOBAL column
-## (board*8 + local_col) so multiple column boards do not collide. Board 0
-## reproduces the historical single-board layout exactly, so old single-board
-## files decode unchanged. StreamReader reads all channels in a single pass;
+## (board*8 + local_col) so multiple column boards do not collide. PID-debug's
+## per-column stream was collapsed to one (col from body); pre-collapse files
+## carry PID on channels 0-7, post-collapse on channel 1 (see DataChannelization.md
+## migration note). StreamReader reads all channels in a single pass;
 ## StreamData exposes the readout + config, PidDebugData exposes the PID-debug
 ## timeseries.
 

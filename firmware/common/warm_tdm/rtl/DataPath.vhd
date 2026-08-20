@@ -637,13 +637,28 @@ begin
          eventAxisSlave   => eventAxisSlave);                            -- [in]
 
 
-   -- Multiplex debug streams
+   -- Merge the 8 per-column PID-debug streams onto a SINGLE board-local tDest.
+   -- ROUTED (not INDEXED) so all 8 columns land on stream 1 instead of being
+   -- spread across tDest 0-7: the frame body already carries `col`
+   -- (AdcDsp/AdcDspFp pack tData(3:0)=COLUMN_NUM_G) and the header carries
+   -- boardId, so per-column tDest is redundant. Collapsing frees board-local
+   -- stream slots 2-7 for the namespaced channel scheme (slot 0 reserved for a
+   -- future readout move). The mux still arbitrates the 8 masters frame-atomically.
    U_AxiStreamMux_1 : entity surf.AxiStreamMux
       generic map (
-         TPD_G         => TPD_G,
-         PIPE_STAGES_G => 1,
-         NUM_SLAVES_G  => 8,
-         MODE_G        => "INDEXED")
+         TPD_G          => TPD_G,
+         PIPE_STAGES_G  => 1,
+         NUM_SLAVES_G   => 8,
+         MODE_G         => "ROUTED",
+         TDEST_ROUTES_G => (
+            0 => "00000001",
+            1 => "00000001",
+            2 => "00000001",
+            3 => "00000001",
+            4 => "00000001",
+            5 => "00000001",
+            6 => "00000001",
+            7 => "00000001"))
       port map (
          axisClk      => axisClk,          -- [in]
          axisRst      => axisRst,          -- [in]
@@ -661,7 +676,7 @@ begin
          NUM_SLAVES_G   => 3,
          MODE_G         => "ROUTED",
          TDEST_ROUTES_G => (
-            0           => "00000---",  -- pid debug
+            0           => "00000001",  -- pid debug (all columns, collapsed)
             1           => "00001000",        -- waveform
             2           => "00001001"))       -- data
       port map (

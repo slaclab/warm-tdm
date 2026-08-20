@@ -32,16 +32,22 @@ TDEST (`U_AxiStreamMux_2`, `MODE_G => "ROUTED"`):
 
 | tDest[3:0] | Stream | Producer | Role |
 |---|---|---|---|
-| `0`–`7` | PID-debug | `AdcDsp` per board-channel (gated by `PidDebugEnable`) | debug (loop bring-up) |
+| `0` | *(reserved)* | — | unused; reserved for a future readout move |
+| `1` | PID-debug | `AdcDsp` all board-channels, collapsed (gated by `PidDebugEnable`) | debug (loop bring-up) |
 | `8` | Waveform | `WaveformCapture` | debug (raw ADC) |
 | `9` | Readout | `EventBuilder` | **operational data** |
 
-The board then packetizes the combined stream (`AxiStreamPacketizer2`).
+The 8 per-column PID-debug streams are **collapsed onto the single tDest `1`** by
+`U_AxiStreamMux_1` (`MODE_G => "ROUTED"`, all 8 slaves → `"00000001"`): the source
+column is carried in the frame body (`tData(3:0) = COLUMN_NUM_G`) and the header
+carries `boardId`, so per-column tDest is redundant. This frees stream slots
+`2`–`7` (and `0`). The board then packetizes the combined stream
+(`AxiStreamPacketizer2`).
 
 > Note (historical): the readout — the operational product — sits at `9`, *above*
-> the eight debug channels `0`–`8`. This is a relic of development order (the
-> debug streams were built first). It is a wire/format contract now and is likely
-> too costly to renumber; treat `9 = readout` as fixed and document around it.
+> the debug/waveform channels. This is a relic of development order (the debug
+> streams were built first). It is a wire/format contract now and is likely too
+> costly to renumber; treat `9 = readout` as fixed and document around it.
 
 ### Readout frame body (`EventBuilder.vhd`)
 
@@ -95,7 +101,7 @@ The host separates the single RSSI stream back out in two layers:
    application demux) yields one `dataStream` per board, keyed on the TDEST high
    bits. Board identity is preserved here.
 2. **By stream type** — each board's stream is depacketized and
-   `packetizer.application(i)` demuxes the low nibble into apps `0`–`9`.
+   `packetizer.application(i)` demuxes the low nibble into apps `1`, `8`, `9`.
 
 The apps are then wired to their sinks:
 
@@ -105,9 +111,13 @@ boards each board's streams land on distinct file channels (`board*16 + stream`)
 
 | App | Sink | In the `.dat` file? |
 |---|---|---|
-| `0`–`7` (PID-debug) | `dataWriter.pidDebugChannel(board, i)` + live `PidDebugger` decoders | yes |
+| `1` (PID-debug, all columns) | teed: `dataWriter.pidDebugChannel(board)` **and** `PidDebugDispatch` → per-column live `PidDebugger` decoders (col from body) | yes |
 | `8` (waveform) | teed: `dataWriter.waveformChannel(board)` **and** live `WaveformCaptureReceiver` | **yes** (folded in; GUI + optional `.npy` save unchanged) |
 | `9` (readout) | `dataWriter.readoutChannel(board)` | yes |
+
+The collapsed PID-debug stream carries all 8 columns; the host `PidDebugDispatch`
+reads the body column and fans out to the per-column live receivers (the wire
+demux that per-column tDests used to provide moved into software).
 
 The tree config/status YAML is written to reserved file **channel 255** on
 `DataWriter` open/close (see `_GroupRoot.py`).
@@ -121,15 +131,23 @@ board:
 
 | File channel | Contents |
 |---|---|
-| `board*16 + 0..7` | PID-debug (per board-channel) |
+| `board*16 + 0` | *(reserved; unused)* |
+| `board*16 + 1` | PID-debug (all columns; source column in body) |
 | `board*16 + 8` | Waveform capture |
 | `board*16 + 9` | Readout |
 | `255` | Tree config/status YAML (file-scope, not board-namespaced) |
 
-Board 0 is byte-identical to the historical layout (`0–7` PID, `8` waveform,
-`9` readout). Waveform is now folded into the file (stream 8) in addition to the
-live `WaveformCaptureReceiver` GUI path and its optional per-capture `.npy` save,
+Board 0 is the single-board layout (`1` PID, `8` waveform, `9` readout).
+Waveform is folded into the file (stream 8) in addition to the live
+`WaveformCaptureReceiver` GUI path and its optional per-capture `.npy` save,
 which are unchanged.
+
+> **Migration (PID-debug collapse).** The 8 per-column PID-debug streams were
+> collapsed onto a single stream (`board*16 + 1`); previously they occupied
+> `board*16 + 0..7`. Pre-collapse single-board `.dat` files therefore carry
+> PID-debug on file channels `0`–`7`; post-collapse files carry it on channel `1`.
+> Frame *bodies* are unchanged (same 16-byte header + body), so the decoders are
+> identical — only the channel numbering moved.
 
 ## Multi-board / multi-Group migration
 
@@ -159,25 +177,28 @@ into the file too. No RTL change was needed.
 
 **Keep the channel scheme in one place (DONE).** The channel encoding is a
 contract shared by the write side (`_HardwareGroup.py`) and the read side
-(`operations/streamreader.py`, which decodes readout, PID-debug `0`–`7`, waveform
+(`operations/streamreader.py`, which decodes readout `9`, PID-debug `1`, waveform
 `8`, and config `255`). It is now defined once in `warm_tdm._Channels`
 (`file_channel`/`board_of`/`stream_of` + `is_readout`/`is_pid_debug`/`is_waveform`)
 and consumed by both sides, so board/group migration is a single-point edit.
 
-## Open design item: collapse per-column PID-debug onto one tDest (2026-08-12)
+## Collapse per-column PID-debug onto one tDest (2026-08-12; DONE 2026-08-20)
 
-> Status: **agreed worthwhile, not scheduled.** Firmware-track; a natural
-> corollary of self-describing frames (below).
+> Status: **DONE** (channelization branch, Phase 3). The 8 per-column PID-debug
+> streams are collapsed onto board-local stream `1`; the host `PidDebugDispatch`
+> fans out to the per-column live receivers by body `col`. Freed board-local
+> stream slots `2`–`7` (and reserved `0`).
 
-Today `DataPath.vhd` spreads the 8 per-column PID-debug streams across tDest
-`0`–`7`: `U_AxiStreamMux_1` (`NUM_SLAVES_G => 8`, `MODE_G => "INDEXED"`) stamps
-`tDest = input index`, then `U_AxiStreamMux_2` routes the whole `00000---` block.
+Formerly `DataPath.vhd` spread the 8 per-column PID-debug streams across tDest
+`0`–`7`: `U_AxiStreamMux_1` (`NUM_SLAVES_G => 8`, `MODE_G => "INDEXED"`) stamped
+`tDest = input index`, then `U_AxiStreamMux_2` routed the whole `00000---` block.
 But the PID frame **body already carries `col`** (`_PidDebugger`:
 `col = arr[0] & 0b111`), so the per-column tDest is **redundant with the body**.
 
-**Proposal:** merge the 8 PID streams onto a *single* board-local tDest (frames
-are atomic 80-byte records; a receiver dispatches by the body's `col`). This is
-what the file-based `PidDebugParser` already does.
+**Implemented:** `U_AxiStreamMux_1` is now `MODE_G => "ROUTED"` with all 8 slaves
+→ `"00000001"`, and `U_AxiStreamMux_2` slot 0 routes the single `"00000001"`. The
+8 PID streams merge onto board-local tDest `1` (frames are atomic records; a
+receiver dispatches by the body's `col`) — what the file-based reader already does.
 
 **Why it's worth doing:**
 - **Reclaims 7 of the 16 board-local stream slots.** The low nibble is nearly
@@ -197,12 +218,10 @@ from the body and dispatches to `PID[col]` — a modest host rewrite. INDEXED mu
 was also the path of least resistance in RTL (same development-order relic family
 as readout-at-9).
 
-**Coupling:** this is nearly the same move as "make the body authoritative"
-below. If the **shared frame-identity header (option A)** is chosen, a single PID
-tDest per board is the obvious layout and per-column tDest becomes clearly
-vestigial — so decide this together with the A/B question, and land it in the
-same firmware-track pass. PID-debug is debug-only (not in a delivered
-instrument), so it does not justify a standalone effort.
+**Coupling:** this was nearly the same move as "make the body authoritative"
+below. With the shared frame-identity header (option A) in place, a single PID
+tDest per board is the obvious layout and per-column tDest is clearly vestigial,
+so it landed in the same firmware-track pass as the self-describing frames.
 
 ## Self-describing frames (design — resolved 2026-08-17)
 

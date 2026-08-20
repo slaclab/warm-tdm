@@ -507,7 +507,7 @@ begin
       v.pidStreamMaster := axiStreamMasterInit(PID_DATA_AXIS_CFG_C);
 
       v.pidDebugMaster       := axiStreamMasterInit(AXIS_DEBUG_CFG_C);
-      v.pidDebugMaster.tDest := toSlv(8, 8);  -- No longer necessary. Could be 0.
+      v.pidDebugMaster.tDest := toSlv(1, 8);  -- Board-local PID-debug stream (DataPath U_AxiStreamMux_1 ROUTED re-stamps this anyway).
 
       pSfixed           := to_sfixed(r.p, pSfixed);
       iSfixed           := to_sfixed(r.i, iSfixed);

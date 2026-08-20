@@ -104,16 +104,21 @@ sequence them.
    the declared type (with size then a cross-check, not the selector). This is a
    concrete motivation for the version/type byte, not a separate task.
 
-4. **PID-debug tDest collapse** *(RTL).* Merge the 8 per-column PID-debug streams
-   (currently on `tDest 0–7`, stamped by an INDEXED mux in `DataPath.vhd`) onto a
-   single board-local tDest. The frame body already carries `col`, so the
-   per-column tDest is redundant. This reclaims stream slots `1–7` — the headroom
-   the board/group-namespaced channel scheme needs. Requires a host-side change:
-   the live/GUI path currently attaches one `PidDebugger` per column via
-   `packetizer.application(i)`; it becomes one receiver that reads `col` from the
-   body and dispatches. Land this together with the self-describing-frames work
-   (piece 3) since both make the body authoritative. This is coupled to
-   `GEN_PID_DEBUG_G` (present on the `cleanup` base).
+4. **PID-debug tDest collapse** *(RTL + host).* **Done** (2026-08-20). Merged the
+   8 per-column PID-debug streams (formerly on `tDest 0–7`, stamped by an INDEXED
+   mux in `DataPath.vhd`) onto a single board-local `tDest 1` by switching
+   `U_AxiStreamMux_1` to ROUTED (all 8 → `"00000001"`) and updating
+   `U_AxiStreamMux_2` slot 0. The frame body already carries `col`, so the
+   per-column tDest was redundant. This reclaims stream slots `2–7` (and reserved
+   `0`) — the headroom the board/group-namespaced channel scheme needs. Host side:
+   the file reader already dispatches by body `col`; the live/GUI path now uses a
+   single `PidDebugDispatch` (in `_HardwareGroup.py`) that reads `col` from the
+   body and fans out to the per-column `PidDebugger` receivers (replacing the 8
+   per-column `packetizer.application(i)` attaches). `PID_DEBUG_STREAM=1` in
+   `_Channels.py`; `pidDebugChannel(board)` is now per-board. Landed with the
+   self-describing-frames work (piece 3) since both make the body authoritative.
+   Coupled to `GEN_PID_DEBUG_G` (present on the `cleanup` base). Bench/cosim
+   validation shares the FP-PID hardware pass.
 
 ## Phased approach (sequencing)
 
@@ -161,9 +166,9 @@ FP-PID + resource-cleanup hardware pass.
 ### Firmware (RTL) — Phase 3
 - `firmware/common/warm_tdm/rtl/EventBuilder.vhd` — readout frame header identity
   block + global column + `formatVersion`.
-- `firmware/common/warm_tdm/rtl/DataPath.vhd` — PID-debug mux collapse
-  (`U_AxiStreamMux_1` INDEXED → single tDest), stream-type routing
-  (`U_AxiStreamMux_2`).
+- `firmware/common/warm_tdm/rtl/DataPath.vhd` — PID-debug mux collapse **done**
+  (`U_AxiStreamMux_1` INDEXED → ROUTED single `tDest 1`; `U_AxiStreamMux_2` slot 0
+  → `"00000001"`).
 - `firmware/common/warm_tdm/rtl/AdcDsp.vhd`, `AdcDspFp.vhd` — PID-debug word
   identity fields (into dummy padding where possible).
 

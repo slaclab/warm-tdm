@@ -563,7 +563,7 @@ begin
 
       v.pidStreamMaster  := axiStreamMasterInit(PID_DATA_FP_AXIS_CFG_C);
       v.pidDebugMaster   := axiStreamMasterInit(AXIS_DEBUG_CFG_C);
-      v.pidDebugMaster.tDest := toSlv(8, 8);
+      v.pidDebugMaster.tDest := toSlv(1, 8);  -- Board-local PID-debug stream (DataPath U_AxiStreamMux_1 ROUTED re-stamps this anyway).
 
       -- Compute negFluxQuantum (sign bit flipped)
       negFluxQuantum := (not r.fluxQuantumFp(31)) & r.fluxQuantumFp(30 downto 0);

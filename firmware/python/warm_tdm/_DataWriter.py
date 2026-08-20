@@ -10,7 +10,7 @@
 ##
 ## Warm-TDM DataWriter: a pyrogue StreamWriter that knows the warm-tdm
 ## file-channel layout. It exposes named accessors -- readoutChannel(board),
-## pidDebugChannel(board, col), waveformChannel(board) -- so call sites ask for a
+## pidDebugChannel(board), waveformChannel(board) -- so call sites ask for a
 ## stream by meaning rather than open-coding channel arithmetic. Each accessor
 ## delegates to warm_tdm.file_channel(), keeping the encoding defined in exactly
 ## one place (warm_tdm._Channels).
@@ -51,24 +51,20 @@ class DataWriter(pyrogue.utilities.fileio.StreamWriter):
         """
         return self.getChannel(warm_tdm.file_channel(board, warm_tdm.READOUT_STREAM))
 
-    def pidDebugChannel(self, board, col):
-        """Return the writer channel for a board's per-column PID-debug stream.
+    def pidDebugChannel(self, board):
+        """Return the writer channel for a board's PID-debug stream.
+
+        All columns share one PID-debug stream (the source column is carried in
+        the frame body), so this is per-board, not per-column.
 
         Args:
             board (int): source column board index (0-15).
-            col (int): column channel within the board (0-7).
 
         Returns:
             rogue.interfaces.stream.Slave: the writer channel for that board's
-            PID-debug stream for the given column.
-
-        Raises:
-            ValueError: if ``col`` is not a valid PID-debug column.
+            PID-debug stream.
         """
-        if col not in warm_tdm.PID_DEBUG_STREAMS:
-            raise ValueError(
-                f'PID-debug column {col} out of range {warm_tdm.PID_DEBUG_STREAMS}')
-        return self.getChannel(warm_tdm.file_channel(board, col))
+        return self.getChannel(warm_tdm.file_channel(board, warm_tdm.PID_DEBUG_STREAM))
 
     def waveformChannel(self, board):
         """Return the writer channel for a board's waveform-capture stream.

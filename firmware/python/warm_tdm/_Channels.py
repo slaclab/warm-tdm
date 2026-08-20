@@ -51,18 +51,26 @@
 ##     file_channel[3:0] = stream type within that board
 ##
 ## i.e. ``file_channel = board * 16 + stream_type``. An 8-bit channel therefore
-## addresses 16 boards x 16 stream types. Board 0 is byte-identical to the
-## historical single-board layout (PID-debug 0-7, waveform 8, readout 9), so
-## files written by a single-board system decode unchanged; the board index only
-## matters once a second column board is present.
+## addresses 16 boards x 16 stream types. Board 0 is the single-board layout
+## (PID-debug 1, waveform 8, readout 9); the board index only matters once a
+## second column board is present.
 ##
 ## NOTE (relic, do not renumber): the operational readout sits at stream type 9,
-## ABOVE the eight debug channels 0-7. This is a development-order artifact that
+## ABOVE the debug/waveform channels. This is a development-order artifact that
 ## is now a wire/format contract. The board-namespacing scheme is built around
 ## keeping stream type 9 = readout.
+##
+## The 8 per-column PID-debug streams are COLLAPSED onto the single stream type 1
+## (see firmware/common/DataChannelization.md, "collapse per-column PID-debug onto
+## one tDest"): the frame body carries the source column, so per-column streams
+## are redundant. Stream type 0 is intentionally left reserved (a future readout
+## move). This freed stream slots 2-7 for the namespaced channel scheme.
+## MIGRATION: pre-collapse single-board .dat files carry PID-debug on channels
+## 0-7; post-collapse files carry it on channel 1. Frame bodies are unchanged.
 
 # Stream types within a board (the low nibble of the file channel / TDEST).
-PID_DEBUG_STREAMS = range(0, 8)   # one per column channel (0-7)
+# Stream type 0 is reserved (future readout move); nothing is assigned to it.
+PID_DEBUG_STREAM  = 1             # all columns (source column carried in body)
 WAVEFORM_STREAM   = 8             # raw ADC waveform capture
 READOUT_STREAM    = 9             # operational per-(col,row) readout
 
@@ -86,7 +94,7 @@ def file_channel(board, stream_type):
     Args:
         board (int): source column board index (0-15).
         stream_type (int): stream type within the board (0-15); use the
-            ``PID_DEBUG_STREAMS`` / ``WAVEFORM_STREAM`` / ``READOUT_STREAM``
+            ``PID_DEBUG_STREAM`` / ``WAVEFORM_STREAM`` / ``READOUT_STREAM``
             constants.
 
     Returns:
@@ -110,8 +118,8 @@ def stream_of(channel):
 
 
 def is_pid_debug(channel):
-    """True if the channel carries a PID-debug stream (any board)."""
-    return channel != CONFIG_CHANNEL and stream_of(channel) in PID_DEBUG_STREAMS
+    """True if the channel carries the PID-debug stream (any board)."""
+    return channel != CONFIG_CHANNEL and stream_of(channel) == PID_DEBUG_STREAM
 
 
 def is_waveform(channel):
