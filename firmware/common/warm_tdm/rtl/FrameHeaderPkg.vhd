@@ -70,13 +70,6 @@ package FrameHeaderPkg is
       timestampNs : slv(63 downto 0))
       return slv;
 
-   -- Convert a run-relative TimingClk count (125 MHz, 8 ns/tick) to nanoseconds
-   -- (x8). Exact -- no rounding. This is the value written to the header
-   -- timestamp today; a future instrument epoch feeds the same 64-bit field.
-   function runTimeToNs (
-      runTime : slv(63 downto 0))
-      return slv;
-
    -- Emit header word 0 onto an AXI-stream master variable: assert tValid, set
    -- Start-Of-Frame, and place word 0 in tData(63:0). Every frame's SOF moves
    -- here (the first header word). Intended to be called on the v.<master>
@@ -120,15 +113,6 @@ package body FrameHeaderPkg is
    begin
       return timestampNs;
    end function frameHeaderWord1;
-
-   function runTimeToNs (
-      runTime : slv(63 downto 0))
-      return slv is
-   begin
-      -- x8 (shift left 3). Upper 3 bits are dropped; 61-bit ns range is ~73
-      -- years, far beyond any run, so this cannot overflow in practice.
-      return runTime(60 downto 0) & "000";
-   end function runTimeToNs;
 
    procedure emitFrameHeaderWord0 (
       axisConfig       : in    AxiStreamConfigType;

@@ -329,8 +329,8 @@ class TimingTx(pr.Device):
             disp = '{:d}'))
 
         self.add(pr.RemoteVariable(
-            name = 'RunTime',
-            description = 'Timing-clock cycles elapsed since the current run was started.',
+            name = 'RunTimeNs',
+            description = 'Nanoseconds elapsed since the current run was started (TimingClk = 125 MHz, 8 ns/tick).',
             mode = 'RO',
             offset = 0x40,
             bitOffset = 0,

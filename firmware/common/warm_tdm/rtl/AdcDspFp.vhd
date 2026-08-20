@@ -35,6 +35,7 @@ use surf.SsiPkg.all;
 library warm_tdm;
 use warm_tdm.TimingPkg.all;
 use warm_tdm.WarmTdmPkg.all;
+use warm_tdm.FrameHeaderPkg.all;
 
 entity AdcDspFp is
 
@@ -120,6 +121,8 @@ architecture rtl of AdcDspFp is
 
    type StateType is (
       IDLE_S,
+      DEBUG_HDR1_S,
+      DEBUG_BODY_S,
       WAIT_INT2FP_S,
       INTEGRATOR_S,
       PID_P_S,
@@ -658,16 +661,35 @@ begin
                      v.pidStreamMaster.tLast  := '1';
                   end if;
 
-                  -- Debug Word 0 (SOF): col[3:0] | row[15:8] | runTime[63:16]
-                  ssiSetUserSof(AXIS_DEBUG_CFG_C, v.pidDebugMaster, '1');
-                  v.pidDebugMaster.tValid              := v.pidDebugEnable;
-                  v.pidDebugMaster.tData(3 downto 0)   := toSlv(COLUMN_NUM_G, 4);
-                  v.pidDebugMaster.tData(15 downto 8)  := resize(v.rowIndex, 8);
-                  v.pidDebugMaster.tData(63 downto 16) := timingRxData.runTime(47 downto 0);
+                  -- Frame word 0: shared identity header (SOF here). The old
+                  -- col/row/runTime word is demoted to a body word (DEBUG_BODY_S).
+                  emitFrameHeaderWord0(
+                     axisConfig => AXIS_DEBUG_CFG_C,
+                     axisMaster => v.pidDebugMaster,
+                     formatType => FRAME_FORMAT_PID_FLOAT_C,
+                     boardId    => "00000" & config.boardId,
+                     groupId    => config.groupId,
+                     valid      => v.pidDebugEnable);
 
                   v.waitCount := (others => '0');
-                  v.state     := WAIT_INT2FP_S;
+                  v.state     := DEBUG_HDR1_S;
                end if;
+
+            -- Frame word 1: 64-bit absolute-ns timestamp.
+            when DEBUG_HDR1_S =>
+               emitFrameHeaderWord1(
+                  axisMaster  => v.pidDebugMaster,
+                  timestampNs => timingRxData.runTimeNs,
+                  valid       => r.pidDebugEnable);
+               v.state := DEBUG_BODY_S;
+
+            -- Frame body word 0 (was word 0 pre-header): column + row index. The
+            -- runTime bits it used to carry are superseded by the header timestamp.
+            when DEBUG_BODY_S =>
+               v.pidDebugMaster.tValid             := r.pidDebugEnable;
+               v.pidDebugMaster.tData(3 downto 0)  := toSlv(COLUMN_NUM_G, 4);
+               v.pidDebugMaster.tData(15 downto 8) := resize(r.rowIndex, 8);
+               v.state                             := WAIT_INT2FP_S;
 
             -------------------------------------------------------------------
             -- WAIT_INT2FP_S (4 cycles: wc=0..3)

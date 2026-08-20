@@ -31,6 +31,7 @@ use surf.SsiPkg.all;
 library warm_tdm;
 use warm_tdm.TimingPkg.all;
 use warm_tdm.WarmTdmPkg.all;
+use warm_tdm.FrameHeaderPkg.all;
 
 entity EventBuilder is
 
@@ -68,8 +69,6 @@ architecture rtl of EventBuilder is
       DO_HEADER_1_S,
       DO_HEADER_2_S,
       DO_HEADER_3_S,
-      DO_HEADER_4_S,
-      DO_HEADER_5_S,
       DO_DATA_S);
 
    type RegType is record
@@ -109,7 +108,7 @@ architecture rtl of EventBuilder is
    signal readoutFifoValid    : sl;
    signal fifoDaqReadoutCount : slv(63 downto 0);
    signal fifoRowSeqCount     : slv(63 downto 0);
-   signal fifoRunTime         : slv(63 downto 0);
+   signal fifoRunTimeNs         : slv(63 downto 0);
    signal fifoDaqReadoutStart : sl;
 
 begin
@@ -129,13 +128,13 @@ begin
          wr_en                => timingRxData.rowSeqStart,      -- [in]
          din(63 downto 0)     => timingRxData.daqReadoutCount,  -- [in]
          din(127 downto 64)   => timingRxData.rowSeqCount,      -- [in]
-         din(191 downto 128)  => timingRxData.runTime,          -- [in]
+         din(191 downto 128)  => timingRxData.runTimeNs,        -- [in]
          din(192)             => timingRxData.daqReadoutStart,  -- [in]
          rd_clk               => timingRxClk125,                -- [in]
          rd_en                => r.fifoRdEn,                    -- [in]
          dout(63 downto 0)    => fifoDaqReadoutCount,           -- [out]
          dout(127 downto 64)  => fifoRowSeqCount,               -- [out]
-         dout(191 downto 128) => fifoRunTime,                   -- [out]
+         dout(191 downto 128) => fifoRunTimeNs,                   -- [out]
          dout(192)            => fifoDaqReadoutStart,           -- [in]
          valid                => readoutFifoValid);             -- [out]
 
@@ -163,7 +162,7 @@ begin
          mAxisSlave   => rin.muxAxisSlave);  -- [in]
 
    comb : process (axilReadMaster, axilWriteMaster, fifoAxisCtrl, fifoDaqReadoutCount,
-                   fifoDaqReadoutStart, fifoRowSeqCount, fifoRunTime, muxAxisMaster, r,
+                   fifoDaqReadoutStart, fifoRowSeqCount, fifoRunTimeNs, muxAxisMaster, r,
                    readoutFifoValid, timingRxData, timingRxRst125) is
       variable v      : RegType;
       variable axilEp : AxiLiteEndpointType;
@@ -211,38 +210,36 @@ begin
                end if;
             end if;
 
+         -- Word 0: shared frame-identity header (formatType/version/groupId/
+         -- boardId). SOF is set here for the whole frame.
          when DO_HEADER_0_S =>
-            v.eventAxisMaster.tValid             := '1';
-            ssiSetUserSof(EVENT_AXIS_CFG_C, v.eventAxisMaster, '1');
-            v.eventAxisMaster.tData(63 downto 0) := fifoDaqReadoutCount(63 downto 0);  -- r.timingRxData.daqReadoutCount(31 downto 0);
-            v.state                              := DO_HEADER_2_S;
+            emitFrameHeaderWord0(
+               axisConfig => EVENT_AXIS_CFG_C,
+               axisMaster => v.eventAxisMaster,
+               formatType => FRAME_FORMAT_READOUT_C,
+               boardId    => "00000" & config.boardId,
+               groupId    => config.groupId);
+            v.state := DO_HEADER_1_S;
 
---          when DO_HEADER_1_S =>
---             v.eventAxisMaster.tValid             := '1';
---             v.eventAxisMaster.tData(31 downto 0) := fifoDaqReadoutCount(63 downto 32);  -- r.timingRxData.daqReadoutCount(63 downto 32);
---             v.state                              := DO_HEADER_2_S;
+         -- Word 1: 64-bit absolute-ns timestamp (supersedes the old runTime word).
+         when DO_HEADER_1_S =>
+            emitFrameHeaderWord1(
+               axisMaster  => v.eventAxisMaster,
+               timestampNs => fifoRunTimeNs);
+            v.state := DO_HEADER_2_S;
 
+         -- Word 2: readout structural counter (daqReadoutCount).
          when DO_HEADER_2_S =>
             v.eventAxisMaster.tValid             := '1';
-            v.eventAxisMaster.tData(63 downto 0) := fifoRowSeqCount(63 downto 0);  -- r.timingRxData.rowSeqCount(31 downto 0);
-            v.state                              := DO_HEADER_4_S;
+            v.eventAxisMaster.tData(63 downto 0) := fifoDaqReadoutCount(63 downto 0);
+            v.state                              := DO_HEADER_3_S;
 
---          when DO_HEADER_3_S =>
---             v.eventAxisMaster.tValid             := '1';
---             v.eventAxisMaster.tData(31 downto 0) := fifoRowSeqCount(63 downto 32);  -- r.timingRxData.rowSeqCount(63 downto 32);
---             v.state                              := DO_HEADER_4_S;
-
-         when DO_HEADER_4_S =>
+         -- Word 3: readout structural counter (rowSeqCount); prefetch first data.
+         when DO_HEADER_3_S =>
             v.eventAxisMaster.tValid             := '1';
-            v.eventAxisMaster.tData(63 downto 0) := fifoRunTime(63 downto 0);  --r.timingRxData.runTime(31 downto 0);
-            v.fifoRdEn                           := '1';            
+            v.eventAxisMaster.tData(63 downto 0) := fifoRowSeqCount(63 downto 0);
+            v.fifoRdEn                           := '1';
             v.state                              := DO_DATA_S;
-
---          when DO_HEADER_5_S =>
---             v.eventAxisMaster.tValid             := '1';
---             v.eventAxisMaster.tData(31 downto 0) := fifoRunTime(63 downto 32);  --r.timingRxData.runTime(63 downto 32);
-
---             v.state                              := DO_DATA_S;
 
 
          when DO_DATA_S =>
@@ -256,9 +253,11 @@ begin
                   v.eventAxisMaster.tValid              := not r.burn;
                   v.eventAxisMaster.tData(31 downto 0)  := muxAxisMaster.tData(31 downto 0);
                   v.eventAxisMaster.tData(39 downto 32) := muxAxisMaster.tID(7 downto 0);
-                  v.eventAxisMaster.tData(47 downto 40) := muxAxisMaster.tDest(7 downto 0);
+                  -- Global column = boardId*8 + board-local column (low 3 bits),
+                  -- so the readout sample is self-describing across boards.
+                  v.eventAxisMaster.tData(47 downto 40) := "00" & config.boardId & muxAxisMaster.tDest(2 downto 0);
                   -- This wont work
-                  v.eventAxisMaster.tData(63 downto 48) := muxAxisMaster.tData(47 downto 32); 
+                  v.eventAxisMaster.tData(63 downto 48) := muxAxisMaster.tData(47 downto 32);
                end if;
             end if;
 

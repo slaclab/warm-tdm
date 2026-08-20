@@ -534,7 +534,7 @@ begin
       v := r;
 
       if (v.timingRxData.running = '1' and r.pwrSyncWait = '0') then
-         v.timingRxData.runTime := r.timingRxData.runTime + 1;
+         v.timingRxData.runTimeNs := r.timingRxData.runTimeNs + 8;  -- 125 MHz -> 8 ns/tick
          v.timingRxData.rowTime := r.timingRxData.rowTime + 1;
       end if;
 
@@ -555,7 +555,7 @@ begin
          case timingRxData is
             when START_RUN_C =>
                v.timingRxData.startRun        := '1';
-               v.timingRxData.runTime         := (others => '0');
+               v.timingRxData.runTimeNs       := (others => '0');
                v.timingRxData.rowTime         := (others => '0');
                v.timingRxData.rowSeqCount     := (others => '0');
                v.timingRxData.daqReadoutCount := (others => '0');

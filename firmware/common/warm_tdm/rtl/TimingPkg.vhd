@@ -49,7 +49,7 @@ package TimingPkg is
       startRun        : sl;                -- Strobed at start of run
       endRun          : sl;                -- Strobed at end of run
       running         : sl;                -- Set high during run
-      runTime         : slv(63 downto 0);  -- TimingClk counts since start of run
+      runTimeNs       : slv(63 downto 0);  -- Nanoseconds since start of run (TimingClk = 125 MHz, +8 ns/tick)
       rowStrobe       : sl;                -- Commit the pending row on a row-boundary event
       rowSeqStart     : sl;
       daqReadoutStart : sl;
@@ -70,7 +70,7 @@ package TimingPkg is
       startRun        => '0',
       endRun          => '0',
       running         => '0',
-      runTime         => (others => '0'),
+      runTimeNs       => (others => '0'),
       rowStrobe       => '0',
       rowSeqStart     => '0',
       daqReadoutStart => '0',
@@ -108,7 +108,7 @@ package body TimingPkg is
       assignSlv(i, vec, timing.startRun);
       assignSlv(i, vec, timing.endRun);
       assignSlv(i, vec, timing.running);
-      assignSlv(i, vec, timing.runTime);
+      assignSlv(i, vec, timing.runTimeNs);
       assignSlv(i, vec, timing.rowStrobe);
       assignSlv(i, vec, timing.rowSeqStart);
       assignSlv(i, vec, timing.daqReadoutStart);
@@ -136,7 +136,7 @@ package body TimingPkg is
       assignRecord(i, vec, timing.startRun);
       assignRecord(i, vec, timing.endRun);
       assignRecord(i, vec, timing.running);
-      assignRecord(i, vec, timing.runTime);
+      assignRecord(i, vec, timing.runTimeNs);
       assignRecord(i, vec, timing.rowStrobe);
       assignRecord(i, vec, timing.rowSeqStart);
       assignRecord(i, vec, timing.daqReadoutStart);

@@ -452,7 +452,7 @@ begin
          filteredTimingRxData.startRun        <= timingRxDataDelayed.startRun;
          filteredTimingRxData.endRun          <= timingRxDataDelayed.endRun;
          filteredTimingRxData.running         <= timingRxDataDelayed.running;
-         filteredTimingRxData.runTime         <= timingRxDataDelayed.runTime;
+         filteredTimingRxData.runTimeNs       <= timingRxDataDelayed.runTimeNs;
          filteredTimingRxData.stageNextRow    <= timingRxDataDelayed.stageNextRow;
          filteredTimingRxData.rowSeq          <= timingRxDataDelayed.rowSeq;
          filteredTimingRxData.rowIndexNext    <= timingRxDataDelayed.rowIndexNext;

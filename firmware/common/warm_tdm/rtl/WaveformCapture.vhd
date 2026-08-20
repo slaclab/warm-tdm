@@ -33,6 +33,7 @@ use surf.Ad9681Pkg.all;
 library warm_tdm;
 use warm_tdm.TimingPkg.all;
 use warm_tdm.WarmTdmPkg.all;
+use warm_tdm.FrameHeaderPkg.all;
 
 entity WaveformCapture is
 
@@ -101,6 +102,7 @@ architecture rtl of WaveformCapture is
       sampleFilterEn   : sl;
       waveformTrigger  : sl;
       doWaveform       : sl;
+      hdrCnt           : slv(1 downto 0);  -- 0=none,1=emit ts word,2=emit config word
       decimation       : slv(15 downto 0);
       decCnt           : slv(15 downto 0);
       selectedChannel  : slv(2 downto 0);
@@ -123,6 +125,7 @@ architecture rtl of WaveformCapture is
       sampleFilterEn   => '0',
       waveformTrigger  => '0',
       doWaveform       => '0',
+      hdrCnt           => (others => '0'),
       decimation       => (others => '0'),
       decCnt           => (others => '0'),
       selectedChannel  => (others => '0'),
@@ -293,17 +296,31 @@ begin
       -- Dump data info FIFO when triggered
       -- Multiplex combined or resized channel streams
       ----------------------------------------------------------------------------------------------
+      -- On trigger, prepend the 16-byte self-describing header: one INT beat
+      -- (word0 = identity in tData[63:0], word1 = timestamp in tData[127:64]),
+      -- SOF here. hdrCnt then sequences the config word before ADC data streams.
       if ((adcStreams(0).tValid = '1' and timingRxData.waveformCapture = '1') or r.waveformTrigger = '1') then
-         v.doWaveform                       := '1';
+         v.doWaveform                        := '1';
+         v.hdrCnt                            := "01";
+         v.bufferStream.tValid               := '1';
+         v.bufferStream.tData(63 downto 0)   := frameHeaderWord0(
+            formatType => FRAME_FORMAT_WAVEFORM_C,
+            boardId    => "00000" & config.boardId,
+            groupId    => config.groupId);
+         v.bufferStream.tData(127 downto 64) := timingRxData.runTimeNs;
+         ssiSetUserSof(INT_AXIS_CONFIG_C, v.bufferStream, '1');
+
+      elsif (r.hdrCnt = "01") then
+         -- Config word (channel/allChannels/decimation), no SOF. Then ADC data.
+         v.hdrCnt                           := "00";
          v.bufferStream.tValid              := '1';
+         v.bufferStream.tData               := (others => '0');
          v.bufferStream.tData(2 downto 0)   := r.selectedChannel;
          v.bufferStream.tData(3)            := r.allChannels;
          v.bufferStream.tData(31 downto 16) := r.decimation;
+         ssiSetUserSof(INT_AXIS_CONFIG_C, v.bufferStream, '0');
 
-         ssiSetUserSof(INT_AXIS_CONFIG_C, v.bufferStream, '1');
-      end if;
-
-      if (r.doWaveform = '1') then
+      elsif (r.doWaveform = '1') then
          if (r.allChannels = '1') then
             v.bufferStream := r.combinedStream;
          else
@@ -321,6 +338,7 @@ begin
 
       if (r.bufferStream.tLast = '1') then
          v.doWaveform          := '0';
+         v.hdrCnt              := "00";
          v.bufferStream.tValid := '0';
          v.bufferStream.tLast  := '0';
       end if;
