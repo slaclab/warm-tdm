@@ -89,24 +89,34 @@ class DataSample:
 @dataclass
 class DataReadout:
     """One decoded readout frame: 16-byte shared header + 2 structural counter
-    words (daqReadoutCount, rowSeqCount) + per-sample words. The absolute-ns
-    timestamp lives in the header (it superseded the old per-frame runTime word).
+    words (daqReadoutCount, rowSeqCount) + per-sample words + a trailing 8-byte
+    burnCount word. The absolute-ns timestamp lives in the header (it superseded
+    the old per-frame runTime word).
+
+    ``burnCount`` is the RTL's run-cumulative count of readout frames dropped
+    because the downstream FIFO was paused (EventBuilder.vhd). It resets on
+    startRun and is snapshotted into every frame's trailer, so the value on the
+    final frame of a run is the run total. A nonzero value means readout data was
+    lost to backpressure -- consumers should surface it (see StreamReader).
     """
 
     header: 'FrameHeader'
     readoutCount: int   # daqReadoutCount
     rowSeqCount: int
+    burnCount: int      # run-cumulative dropped-frame count (trailer word)
     samples: List[DataSample] = field(default_factory=list)
 
     @classmethod
     def from_numpy(cls, arr):
         header = FrameHeader.from_numpy(arr)
-        # Body follows the 16-byte header; last word is the trailing burnCount.
+        # Body follows the 16-byte header; last 8-byte word is the burnCount
+        # trailer (low 32 bits), which the RTL appends when tLast is set.
         body = arr[FRAME_HEADER_BYTES:-8].reshape(-1, 8)
         return cls(
             header = header,
             readoutCount = unsigned_int(body[0]),
             rowSeqCount = unsigned_int(body[1]),
+            burnCount = unsigned_int(arr[-8:-4]),
             samples = [DataSample.from_numpy(w) for w in body[2:]])
 
     @property

@@ -78,6 +78,7 @@ def check_file(path, chk):
     bad_global_col = []
     bad_pid_len = []
     bad_pid_chan = []
+    max_burn = 0
     n_frames = 0
 
     with pyrogue.utilities.fileio.FileReader(files=[path]) as fd:
@@ -115,6 +116,10 @@ def check_file(path, chk):
             # Readout per-sample columns must be GLOBAL (boardId*8 + local).
             if name == 'readout':
                 dr = decoder.from_numpy(data)
+                # burnCount is run-cumulative; track the max seen (run total of
+                # readout frames the firmware dropped to FIFO backpressure).
+                if dr.burnCount > max_burn:
+                    max_burn = dr.burnCount
                 lo = hdr.boardId * 8
                 for s in dr.samples:
                     if not (lo <= int(s.col) < lo + 8):
@@ -137,6 +142,8 @@ def check_file(path, chk):
              '' if not bad_pid_chan else f'(name,got,want): {bad_pid_chan[:5]}')
     chk.item(not bad_global_col, 'readout sample columns are global (boardId*8+local)',
              '' if not bad_global_col else f'(col,boardId): {bad_global_col[:5]}')
+    chk.item(max_burn == 0, 'no readout frames dropped (burnCount == 0)',
+             '' if max_burn == 0 else f'{max_burn} readout frame(s) burned to FIFO backpressure')
 
 
 def main(argv=None):

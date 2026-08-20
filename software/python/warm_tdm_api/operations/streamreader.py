@@ -25,6 +25,7 @@
 ## timeseries.
 
 import re
+import warnings
 from collections import defaultdict
 
 import pyrogue
@@ -87,6 +88,9 @@ class StreamReader():
         # Parsed tree configuration captured in the file (channel 255), or {} if
         # the file predates config capture / has no config frame.
         self.config = {}
+        # Run-cumulative count of readout frames the firmware dropped to FIFO
+        # backpressure (max burnCount seen across readout frames; 0 = none lost).
+        self.dropped_readouts = 0
 
     def readStream(self, filename):
         # clear the dictionaries
@@ -94,6 +98,7 @@ class StreamReader():
         self.pid = nesteddict()
         self.waveform = nesteddict()
         self.config = {}
+        self.dropped_readouts = 0
         configBlobs = []
         with pyrogue.utilities.fileio.FileReader(files=[filename]) as fd:
             for header, data in fd.records():
@@ -116,6 +121,14 @@ class StreamReader():
         if configBlobs:
             self.config = self._parseConfig(''.join(configBlobs))
 
+        # Surface firmware-side readout drops (FIFO backpressure). Warn but keep
+        # the decoded data -- a partial run is usually still useful.
+        if self.dropped_readouts:
+            warnings.warn(
+                f'{filename}: {self.dropped_readouts} readout frame(s) were '
+                'dropped during acquisition (FIFO backpressure); readout data '
+                'is incomplete.')
+
     def _accept_readout(self, data, board):
         """Decode one readout frame into data[global_col][row] timeseries.
 
@@ -123,6 +136,10 @@ class StreamReader():
         boardId*8 + local), so it is used as-is -- no board fold-in here.
         """
         dr = warm_tdm.DataReadout.from_numpy(data)
+        # burnCount is run-cumulative and snapshotted per frame, so the max seen
+        # is the run total of readout frames dropped to FIFO backpressure.
+        if dr.burnCount > self.dropped_readouts:
+            self.dropped_readouts = dr.burnCount
         for s in dr.samples:
             if not self.data[s.col][s.row]:
                 self.data[s.col][s.row] = []
