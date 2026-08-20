@@ -26,6 +26,7 @@ from ._HardwareGroup import *
 from ._Plotter import *
 from ._WaveformCapture import *
 from ._PidDebugger import *
+from ._PidDebugFilter import *
 from ._BoardTemp import *
 from ._BoardTemp2 import *
 from ._ColumnFpgaBoard import *
