@@ -140,10 +140,16 @@ class StreamReader():
         # is the run total of readout frames dropped to FIFO backpressure.
         if dr.burnCount > self.dropped_readouts:
             self.dropped_readouts = dr.burnCount
-        for s in dr.samples:
-            if not self.data[s.col][s.row]:
-                self.data[s.col][s.row] = []
-            self.data[s.col][s.row].append(s.value)
+        # Iterate the decoded arrays via .tolist() (C-speed extraction to native
+        # ints/floats, so dict keys are plain int and values plain float) rather
+        # than per-sample DataSample objects.
+        data_map = self.data
+        for col, row, value in zip(dr.cols.tolist(), dr.rows.tolist(), dr.values.tolist()):
+            slot = data_map[col][row]
+            if not slot:
+                data_map[col][row] = [value]
+            else:
+                slot.append(value)
 
     def _accept_pid(self, data, board):
         """Decode one PID-debug frame into pid[global_col][row][field] timeseries.

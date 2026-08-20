@@ -1,9 +1,7 @@
 import numpy as np
 
-from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import List
 
 def signed_int(arr):
     return int.from_bytes(arr, 'little', signed=True)
@@ -72,19 +70,38 @@ class FrameHeader:
             timestampNs = int(rec['timestampNs']))
 
 
+# One 8-byte readout sample word (EventBuilder DO_DATA_S packing):
+#   bytes 0-3  value  (float32 SQ1FB DAC code)
+#   byte  4    row    (tID)
+#   byte  5    col    (GLOBAL column = boardId*8 + board-local; packed by RTL)
+#   bytes 6-7  high   (high sample bits; unused by the host today)
+# The whole sample block decodes as ONE structured-array view -- no per-sample
+# Python object or numpy op. See DataReadout.from_numpy.
+DATA_SAMPLE_TYPE = np.dtype([
+    ('value', np.float32),
+    ('row', np.uint8),
+    ('col', np.uint8),
+    ('high', np.uint16),
+])
+
+# Readout body offset: 16-byte header + daqReadoutCount(8) + rowSeqCount(8).
+_READOUT_SAMPLE_OFFSET = FRAME_HEADER_BYTES + 16
+
+
 @dataclass
 class DataSample:
 
     row: int
     col: int   # global column (board*8 + board-local); the RTL packs this directly
-    value: int
+    value: float
 
     @classmethod
     def from_numpy(cls, arr):
+        rec = arr[:8].view(DATA_SAMPLE_TYPE)[0]
         return cls(
-            row = arr[4],
-            col = arr[5],
-            value = arr[0:4].view(np.float32)[0])
+            row = int(rec['row']),
+            col = int(rec['col']),
+            value = float(rec['value']))
 
 @dataclass
 class DataReadout:
@@ -92,6 +109,12 @@ class DataReadout:
     words (daqReadoutCount, rowSeqCount) + per-sample words + a trailing 8-byte
     burnCount word. The absolute-ns timestamp lives in the header (it superseded
     the old per-frame runTime word).
+
+    The per-sample columns/rows/values are exposed as parallel numpy arrays
+    (``cols``, ``rows``, ``values``) decoded in a single structured-array view --
+    iterate those for speed. ``samples`` is a lazily-built list of ``DataSample``
+    for callers that prefer per-object access; it is materialized only on first
+    access.
 
     ``burnCount`` is the RTL's run-cumulative count of readout frames dropped
     because the downstream FIFO was paused (EventBuilder.vhd). It resets on
@@ -104,20 +127,31 @@ class DataReadout:
     readoutCount: int   # daqReadoutCount
     rowSeqCount: int
     burnCount: int      # run-cumulative dropped-frame count (trailer word)
-    samples: List[DataSample] = field(default_factory=list)
+    cols: np.ndarray = field(default_factory=lambda: np.empty(0, np.uint8))
+    rows: np.ndarray = field(default_factory=lambda: np.empty(0, np.uint8))
+    values: np.ndarray = field(default_factory=lambda: np.empty(0, np.float32))
 
     @classmethod
     def from_numpy(cls, arr):
         header = FrameHeader.from_numpy(arr)
-        # Body follows the 16-byte header; last 8-byte word is the burnCount
-        # trailer (low 32 bits), which the RTL appends when tLast is set.
-        body = arr[FRAME_HEADER_BYTES:-8].reshape(-1, 8)
+        # Header counter words follow the 16-byte identity header; the last
+        # 8-byte word is the burnCount trailer (low 32 bits) the RTL appends
+        # when tLast is set. The sample block in between decodes as one view.
+        rec = arr[_READOUT_SAMPLE_OFFSET:-8].view(DATA_SAMPLE_TYPE)
         return cls(
             header = header,
-            readoutCount = unsigned_int(body[0]),
-            rowSeqCount = unsigned_int(body[1]),
+            readoutCount = unsigned_int(arr[FRAME_HEADER_BYTES:FRAME_HEADER_BYTES+8]),
+            rowSeqCount = unsigned_int(arr[FRAME_HEADER_BYTES+8:FRAME_HEADER_BYTES+16]),
             burnCount = unsigned_int(arr[-8:-4]),
-            samples = [DataSample.from_numpy(w) for w in body[2:]])
+            cols = rec['col'],
+            rows = rec['row'],
+            values = rec['value'])
+
+    @property
+    def samples(self):
+        """Lazily materialize the per-sample list (compat shim over the arrays)."""
+        return [DataSample(row=int(r), col=int(c), value=float(v))
+                for c, r, v in zip(self.cols, self.rows, self.values)]
 
     @property
     def timestampNs(self):
