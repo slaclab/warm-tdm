@@ -226,6 +226,24 @@ class ColumnFpgaBoard(pr.Device):
             self.DataPath.Ad9681Readout.Relock()
             self.DataPath.Ad9681Readout.ClearCounters()
 
+            # Full FCO/data-lane IDELAY calibration. On success the process
+            # retains and applies the selected taps; on failure it restores the
+            # firmware seed delays. Run it synchronously (rather than via the
+            # Process.Start() background thread) so init blocks on the result.
+            # Warn but continue so bring-up finishes even if alignment is marginal.
+            align = self.Ad9681Alignment
+            align.Operation.setDisp('Full calibration')
+            # Qualify centered taps with the deep hardware pattern tester (and
+            # PN23) rather than snapshot-only checks.
+            align.UsePatternTester.set(True)
+            try:
+                align._runCalibration(dev=align)
+            except Exception as e:
+                self._log.warning(
+                    f'Ad9681 alignment did not pass: '
+                    f'Outcome={align.Outcome.getDisp()}, '
+                    f'Message={align.Message.get()} ({e})')
+
             self.SaBiasDac.ZeroVoltages()
             for i in range(8):
                 self.TesBias.BiasCurrent[i].set(0.0)

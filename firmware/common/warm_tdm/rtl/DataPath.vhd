@@ -59,6 +59,9 @@ entity DataPath is
       timingRxData   : in LocalTimingType;
       sq1FbDacs      : in Slv14Array(7 downto 0);
 
+      -- ADC IODELAY group controller ready; resynchronized inside the readout PHY
+      idelayCtrlRdy : in sl := '0';
+
       -- Formatted data
       axisClk    : in  sl;
       axisRst    : in  sl;
@@ -234,7 +237,7 @@ begin
          axilReadMaster  => locAxilReadMasters(ADC_READOUT_AXIL_C),   -- [in]
          axilReadSlave   => locAxilReadSlaves(ADC_READOUT_AXIL_C),    -- [out]
          adcClkRst       => timingRxRst125,                           -- [in]
-         idelayCtrlRdy   => '1',                                      -- [in]
+         idelayCtrlRdy   => idelayCtrlRdy,                            -- [in]
          adcSerial       => adc,                                      -- [in]
          adcStreamClk    => timingRxClk125,                           -- [in]
          adcStreamRst    => timingRxRst125,                           -- [in]
