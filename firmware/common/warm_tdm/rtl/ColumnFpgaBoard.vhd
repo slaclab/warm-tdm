@@ -53,7 +53,7 @@ entity ColumnFpgaBoard is
       DHCP_G                  : boolean              := false;
       IP_ADDR_G               : slv(31 downto 0)     := x"0B03A8C0";  -- 192.168.3.11
       MAC_ADDR_G              : slv(47 downto 0)     := x"0B_00_16_56_00_08";
-      GEN_ADC_FILTER_G        : boolean              := true;
+      GEN_ADC_FILTER_G        : boolean              := false;
       ROW_ADDR_BITS_G         : integer range 3 to 8 := 8);
    port (
       -- Clocks
@@ -320,6 +320,7 @@ architecture rtl of ColumnFpgaBoard is
    signal timingRxClk125 : sl;
    signal timingRxRst125 : sl;
    signal timingRxData   : LocalTimingType;
+   signal idelayCtrlRdy  : sl;
    signal sq1FbDacs      : Slv14Array(7 downto 0);
 
    signal adc : Ad9681SerialType;
@@ -416,6 +417,7 @@ begin
          dataRxAxisSlave  => dataRxAxisSlave,     -- [in]
          timingRxClk125   => timingRxClk125,      -- [out]
          timingRxRst125   => timingRxRst125,      -- [out]
+         idelayCtrlRdy    => idelayCtrlRdy,       -- [out]
          timingRxData     => timingRxData);       -- [out]
 
 
@@ -592,6 +594,7 @@ begin
          timingRxClk125   => timingRxClk125,                         -- [in]
          timingRxRst125   => timingRxRst125,                         -- [in]
          timingRxData     => timingRxData,                           -- [in]
+         idelayCtrlRdy    => idelayCtrlRdy,                          -- [in]
          sq1FbDacs        => sq1FbDacs,                              --[in]
          axisClk          => axisClk,                                -- [in]
          axisRst          => axisRst,                                -- [in]
