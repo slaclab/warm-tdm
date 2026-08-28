@@ -131,8 +131,8 @@ class Session:
         # (SaveConfig, DataWriter, ...) go through self.root.
         self.root = group.root
         self.hwg = group.HardwareGroup
-        self.cbs = self._discover(self.hwg.ColumnBoard)
-        self.rbs = self._discover(self.hwg.RowBoard)
+        self.cbs = self._discover(getattr(self.hwg, 'ColumnBoard', None))
+        self.rbs = self._discover(getattr(self.hwg, 'RowBoard', None))
         self.rdds = {k: rb.RowDacDriver for k, rb in self.rbs.items()}
         self.chans_per_board = self._derive_chans_per_board()
         self.output = output
@@ -164,8 +164,14 @@ class Session:
         Uses the tree node directly (``.values()``) and recovers the index from
         each board's ``name`` (e.g. 'ColumnBoard[3]' -> 3), which is sparse-safe
         and does not depend on scanning ``dir()`` of the parent.
+
+        ``board_node`` may be ``None`` when the tree was built without that board
+        type (e.g. a column-only bench with ``rowBoards=0`` has no ``RowBoard``
+        container); returns an empty dict in that case.
         """
         boards = {}
+        if board_node is None:
+            return boards
         for board in board_node.values():
             m = _BOARD_INDEX_RE.search(board.name)
             if m:
