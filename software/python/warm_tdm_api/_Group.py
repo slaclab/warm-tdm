@@ -227,6 +227,10 @@ class Group(pr.Device):
             description='Array of booleans which enable the tuning of each column.'
                         'Total length = ColumnBoards * 8.',
             value=_value,
+            # Seeded with an ndarray, but the documented workflow and scripts set
+            # it from a plain Python bool list (group.ColTuneEnable.set([True]*8));
+            # allow both rather than forcing callers to wrap in np.array.
+            typeCheck=False,
             groups='TopApi',
             mode='RW'))
 
