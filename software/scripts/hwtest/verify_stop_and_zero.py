@@ -30,7 +30,7 @@ timing, so it cannot exercise the race this test exists to catch.
 import argparse
 import sys
 
-from _hwtest_common import add_conn_args, connect, Checklist
+from _hwtest_common import add_conn_args, connect, Checklist, finish
 
 # The three fast-DAC drivers on each column board and their live readback var.
 _DRIVERS = ['SQ1Fb', 'SAFb', 'SQ1Bias']
@@ -96,7 +96,7 @@ def main():
 
     if not _read_now(sess):
         chk.item(False, 'Fast-DAC readback (DacCurrentNow) available', 'none found')
-        return chk.report()
+        return finish(chk.report())
 
     all_cycles_ok = True
     for cyc in range(1, args.cycles + 1):
@@ -135,7 +135,7 @@ def main():
     chk.note('MANUAL: confirm differential zero on a load board with a DMM '
              '(readback==0 is necessary, not sufficient — see wiki Part 2).')
 
-    return chk.report()
+    return finish(chk.report())
 
 
 if __name__ == '__main__':
