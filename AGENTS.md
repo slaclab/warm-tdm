@@ -272,6 +272,18 @@ bring an upstream branch (e.g. `pre-release`) into a feature branch, `git merge`
 it and resolve conflicts in the merge commit — never `git rebase`. Rebase is not
 the workflow we use, even for a local-only branch that has never been pushed.
 
+**Base every PR on `pre-release`, never `main`.** When opening a PR (`gh pr
+create`), the base branch is `pre-release` — this is a hard default, not a
+preference. Feature work, bug fixes, roadmap tracks, submodule bumps: all target
+`pre-release`. `main` receives changes *only* through the periodic
+`pre-release` → `main` promotion PR, which is the sole PR whose base is `main`.
+`gh pr create` guesses a base from the repository default branch (`main` here),
+so pass `--base pre-release` explicitly and confirm it before merging — a PR
+merged into `main` by mistake bypasses the whole feature → `pre-release` →
+`main` flow and forces a recovery merge back into `pre-release` (as happened with
+PR #93). If a change ever genuinely needs to reach `main` ahead of a promotion,
+raise it with a maintainer rather than retargeting the PR.
+
 For the full workflow, versioning scheme, and release steps, see
 [`docs/RELEASE.md`](docs/RELEASE.md). Release packaging config is in
 [`firmware/releases.yaml`](firmware/releases.yaml).

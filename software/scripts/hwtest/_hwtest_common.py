@@ -99,3 +99,17 @@ class Checklist:
               f'{"PASS" if allok else "FAIL"}')
         print('=' * 72)
         return 0 if allok else 1
+
+
+def finish(code):
+    """Terminate a hwtest script immediately with ``code``.
+
+    The rogue ``VirtualClient`` (ZMQ) spins up non-daemon background threads that
+    are never joined, so a normal ``return``/``sys.exit`` leaves the interpreter
+    hanging after the report prints. These scripts are one-shot diagnostics whose
+    last action is always the checklist report, so a hard exit (after flushing
+    output) is the pragmatic clean end. Use as ``return finish(chk.report())``.
+    """
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(code)

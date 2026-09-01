@@ -29,7 +29,7 @@ hardware for a meaningful verdict.
 import argparse
 import sys
 
-from _hwtest_common import add_conn_args, connect, Checklist
+from _hwtest_common import add_conn_args, connect, Checklist, finish
 
 from warm_tdm_api.operations import make_dead_masks, expand_channels
 
@@ -122,7 +122,7 @@ def main():
               'what pins the bit-order / index bug. Re-run with a single --cols '
               'entry to isolate the offset (see the wiki page, Part 3).')
 
-    return chk.report()
+    return finish(chk.report())
 
 
 if __name__ == '__main__':
