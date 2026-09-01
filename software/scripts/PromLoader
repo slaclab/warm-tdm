@@ -40,11 +40,23 @@ import warm_tdm_api
 parser = warm_tdm_api.WarmTdmArgparse()
 
 parser.add_argument(
-    "--path", '-p', 
+    "--path", '-p',
     type     = str,
     required = False,
     default = None,
     help     = "path to image",
+)
+
+parser.add_argument(
+    "--reload", '-r',
+    action   = 'store_true',
+    help     = "after programming the PROM, reload (reboot) that board's FPGA from PROM",
+)
+
+parser.add_argument(
+    "--reload-only", '-R',
+    action   = 'store_true',
+    help     = "skip programming; only reload (reboot) a board's FPGA from PROM",
 )
 
 args = parser.parse_known_args()[0]
@@ -63,15 +75,34 @@ with warm_tdm_api.GroupRoot(**arg_dict) as root:
     print('Finding and reading group')
 
     avs = root.find(name='AxiVersion')
-    print(avs)
 
     print('Found the following boards')
     for i, av in enumerate(avs):
-        print(f'Board {i}')
+        print(f'Board {i} - {av.path}')
         av.readBlocks()
-        av.checkBlocks()
+        av.waitBlocks()
         av.printStatus()
         print()
+
+    def reload_fpga(av):
+        # FpgaReload is a posted write (no response is expected): the FPGA
+        # reboots from the PROM and the SRP link drops, so this is necessarily
+        # the last transaction we issue on that board.
+        print(f'Reloading FPGA from PROM via {av.path} '
+              '(the FPGA will reboot and the link will drop)...')
+        av.FpgaReload()
+
+    # Stand-alone reload: skip programming entirely, just reboot a board (or all
+    # boards) from whatever image is already in its PROM.
+    if args.reload_only:
+        sel = input("Select which board's FPGA to reload [index or 'all']: ").strip()
+        targets = avs if sel == 'all' else [avs[int(sel)]]
+        x = input(f'Reload {len(targets)} FPGA(s) from PROM [y]/n: ')
+        if x == 'n':
+            exit()
+        for av in targets:
+            reload_fpga(av)
+        exit()
 
     proms = root.find(name='AxiMicronN25Q')
 
@@ -110,7 +141,20 @@ with warm_tdm_api.GroupRoot(**arg_dict) as root:
         
     print(f'Loading MCS file: {image}')
     prom.LoadMcsFile(image)
-       
+
+    # Optionally reboot the just-programmed board from its new PROM image. The
+    # PROM and the AxiVersion are siblings on the same board (WarmTdmCommon), so
+    # the board to reload is simply the flashed PROM's sibling AxiVersion.
+    if args.reload:
+        av = getattr(prom.parent, 'AxiVersion', None)
+        if av is None:
+            found = prom.parent.find(name='AxiVersion')
+            av = found[0] if found else None
+        if av is None:
+            print(f'WARNING: no AxiVersion found alongside {prom.path}; cannot '
+                  'reload. Power-cycle the board or rerun with --reload-only.')
+        else:
+            reload_fpga(av)
 
 exit()
 
