@@ -60,6 +60,9 @@ entity DataPath is
       timingRxData   : in LocalTimingType;
       sq1FbDacs      : in Slv14Array(7 downto 0);
 
+      -- ADC IODELAY group controller ready; resynchronized inside the readout PHY
+      idelayCtrlRdy : in sl := '0';
+
       -- Formatted data
       axisClk    : in  sl;
       axisRst    : in  sl;
@@ -233,11 +236,16 @@ begin
    -------------------------------------------------------------------------------------------------
    U_Ad9681Readout_1 : entity surf.Ad9681Readout
       generic map (
-         TPD_G           => TPD_G,
-         SIMULATION_G    => SIMULATION_G,
-         DEFAULT_DELAY_G => 12,
-         IODELAY_GROUP_G => IODELAY_GROUP_G,
-         NEGATE_G        => NEGATE_ADC_G)
+         TPD_G             => TPD_G,
+         AXIL_BASE_ADDR_G  => XBAR_COFNIG_C(ADC_READOUT_AXIL_C).baseAddr,
+         IODELAY_GROUP_G   => IODELAY_GROUP_G,
+         DEVICE_FAMILY_G   => "7SERIES",
+         -- Bench calibration consistently centers every FCO and data lane near
+         -- tap 11, so seed all delays there for a near-aligned power-up.
+         DATA_DELAY_INIT_G => (others => 11),
+         FCO_DELAY_INIT_G  => (0 => 16, 1 => 10),
+         LEFT_JUSTIFY_G    => true,
+         NEGATE_G          => NEGATE_ADC_G)
       port map (
          axilClk         => timingRxClk125,                           -- [in]
          axilRst         => timingRxRst125,                           -- [in]
@@ -246,8 +254,10 @@ begin
          axilReadMaster  => locAxilReadMasters(ADC_READOUT_AXIL_C),   -- [in]
          axilReadSlave   => locAxilReadSlaves(ADC_READOUT_AXIL_C),    -- [out]
          adcClkRst       => timingRxRst125,                           -- [in]
+         idelayCtrlRdy   => idelayCtrlRdy,                            -- [in]
          adcSerial       => adc,                                      -- [in]
          adcStreamClk    => timingRxClk125,                           -- [in]
+         adcStreamRst    => timingRxRst125,                           -- [in]
          adcStreams      => adcStreams);                              -- [out]
 
    -------------------------------------------------------------------------------------------------

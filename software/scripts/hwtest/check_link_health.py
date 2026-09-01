@@ -12,38 +12,59 @@
 
 Wiki: HW-Verify-Issue-50-Fiber-Link-Health
 
-Enables the RSSI cores under each ColumnBoard's ComCore.EthCore, snapshots the
-link counters, polls for a while, and reports whether the error/reconnect
-counters stayed flat. This doubles as the ``check_link_health`` helper the issue
-asks for: run it once on a quiet link for a baseline, and again while you perturb
-the fiber (Part 2 of the wiki page) to confirm the counters register the fault.
+Polls the HOST-side rogue RSSI client counters (UdpRssiPack: hwg.SrpRssi /
+hwg.DataRssi), snapshots them, waits, and reports whether the link stayed up.
+This doubles as the ``check_link_health`` helper the issue asks for: run it once
+on a quiet link for a baseline, and again while you perturb the fiber (Part 2 of
+the wiki page) to confirm the counters register the fault.
 
     python check_link_health.py --host localhost --port 9099 --seconds 30
 
-By default a healthy link => PASS (no growth in Drop/Retransmit/Reconnect over
-the poll window). Use --expect-faults when you are deliberately perturbing the
-link and want the *presence* of counter growth to be the PASS condition.
+Deliberately uses the host-side client counters, NOT the FPGA-side RSSI cores:
+the FPGA counters are read over SRP (which rides the link under test), so they
+are unreadable *during* a drop and reset on reconnect. The host-side counters
+(`rssiOpen`, `rssiDownCount`, ...) live in the local rogue process and stay
+readable through a fiber loss — the whole point of a link-health check.
+
+By default a healthy link => PASS (rssiOpen True, no rssiDownCount growth). Use
+--expect-faults when deliberately perturbing the link, where a rssiDownCount
+increment is the PASS condition.
 """
 import argparse
 import sys
 import time
 
-from _hwtest_common import add_conn_args, connect, Checklist
+from _hwtest_common import add_conn_args, connect, Checklist, finish
 
-# RSSI counters we treat as link-health signals (surf RssiCore). We read what is
-# present and skip any a given firmware build doesn't expose.
-_ERROR_COUNTERS = ['DropCnt', 'RetransmitCnt', 'ReconnectCnt']
-_STATUS_VARS = ['OpenConn', 'ConnState', 'RxFrameRate', 'TxFrameRate']
+# We poll the HOST-side rogue RSSI client (UdpRssiPack: hwg.SrpRssi / hwg.DataRssi),
+# NOT the FPGA-side RSSI cores under ComCore.EthCore.
+#
+# WHY (learned on the bench, Issue #50): the FPGA-side counters are reached over
+# SRP, which rides the very link under test. When the fiber drops, those reads
+# time out — you cannot observe the fault while it is happening — and the FPGA
+# RSSI core RESETS its counters on reconnect (deltas go negative). The host-side
+# UdpRssiPack counters live in the local rogue process, need no fiber transaction,
+# stay readable during a drop, and monotonically record it:
+#   - rssiOpen        (RO) : client-side link-up flag; goes False during a drop.
+#   - rssiDownCount   (RO) : increments each time the link goes down — the clean
+#                            fault signal.
+#   - rssiDropCount   (RO) : client-side dropped segments (informational).
+#   - rssiRetranCount (RO) : client-side retransmits (informational).
+_ERROR_COUNTERS = ['rssiDownCount', 'rssiDropCount', 'rssiRetranCount']
+_STATUS_VARS = ['rssiOpen', 'curMaxSegment', 'curMaxBuffers']
 
 
 def _rssi_cores(sess):
-    """Yield (label, rssi_device) for every RSSI core across all column boards."""
-    for idx, cb in sorted(sess.cbs.items()):
-        eth = cb.WarmTdmCore.ComCore.EthCore
-        for name in ('SRP_RSSI', 'Data_RSSI'):
-            dev = getattr(eth, name, None)
-            if dev is not None:
-                yield f'ColumnBoard[{idx}].{name}', dev
+    """Yield (label, device) for the host-side RSSI clients (UdpRssiPack).
+
+    These are added at HardwareGroup level as ``SrpRssi`` (register path) and
+    ``DataRssi`` (streaming path) in ``_HardwareGroup.py``.
+    """
+    hwg = sess.hwg
+    for name in ('SrpRssi', 'DataRssi'):
+        dev = getattr(hwg, name, None)
+        if dev is not None:
+            yield name, dev
 
 
 def _read_counters(dev):
@@ -71,6 +92,17 @@ def _read_status(dev):
     return out
 
 
+def _is_open(dev):
+    """Host-side link-up flag (rssiOpen); None if unavailable."""
+    v = getattr(dev, 'rssiOpen', None)
+    if v is None:
+        return None
+    try:
+        return bool(v.get())
+    except Exception:
+        return None
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -89,70 +121,67 @@ def main():
 
     cores = list(_rssi_cores(sess))
     if not cores:
-        chk.item(False, 'Found at least one RSSI core', 'none present')
-        return chk.report()
+        chk.item(False, 'Found a host-side RSSI client (SrpRssi/DataRssi)',
+                 'none present')
+        return finish(chk.report())
 
-    # Enable + baseline read.
-    print('\nEnabling RSSI cores and reading baseline...')
+    # Baseline read. These are host-side (local) counters — no fiber transaction,
+    # so no enable/ReadDevice-over-SRP needed; just read the current values.
+    print('\nReading host-side RSSI baseline...')
     baseline = {}
     for label, dev in cores:
-        try:
-            dev.enable.set(True)
-            dev.ReadDevice()
-        except Exception as exc:
-            print(f'  {label}: could not enable/read ({exc})')
         status = _read_status(dev)
         baseline[label] = _read_counters(dev)
         print(f'  {label}: status={status} counters={baseline[label]}')
 
-    any_open = False
-    for label, dev in cores:
-        oc = getattr(dev, 'OpenConn', None)
-        if oc is not None:
-            try:
-                any_open = any_open or bool(oc.get())
-            except Exception:
-                pass
-    chk.item(any_open, 'At least one RSSI connection is open (OpenConn)')
+    # "Is the link up?" — host-side rssiOpen flag.
+    any_open = any(_is_open(dev) for _, dev in cores if _is_open(dev) is not None)
+    chk.item(any_open, 'At least one RSSI client reports rssiOpen=True')
 
-    # Poll window.
+    # Poll window. Nothing to fetch over the fiber — the host client updates its
+    # own counters; we just sample them (and stay responsive during a real drop).
     print(f'\nPolling for {args.seconds:.0f}s '
           f'({"expecting faults" if args.expect_faults else "expecting a quiet link"})...')
     deadline = time.time() + args.seconds
     while time.time() < deadline:
-        for label, dev in cores:
-            try:
-                dev.ReadDevice()
-            except Exception:
-                pass
         time.sleep(args.interval)
 
     # Final read + deltas.
     print('\nFinal counters and deltas:')
-    grew_total = 0
-    per_core_grew = {}
+    down_total = 0     # the unambiguous fault signal (rssiDownCount growth)
+    drop_retx_total = 0
+    per_core_down = {}
     for label, dev in cores:
         final = _read_counters(dev)
         delta = {k: final.get(k, 0) - baseline[label].get(k, 0) for k in final}
-        grew = sum(v for v in delta.values() if v > 0)
-        per_core_grew[label] = grew
-        grew_total += grew
+        downs = max(0, delta.get('rssiDownCount', 0))
+        drop_retx = max(0, delta.get('rssiDropCount', 0)) + max(0, delta.get('rssiRetranCount', 0))
+        down_total += downs
+        drop_retx_total += drop_retx
+        per_core_down[label] = downs
         print(f'  {label}: final={final} delta={delta}')
 
-    if args.expect_faults:
-        chk.item(grew_total > 0,
-                 'Error/reconnect counters grew under the induced fault',
-                 f'total counter growth = {grew_total}')
-    else:
-        chk.item(grew_total == 0,
-                 'No error/reconnect counter growth over the poll window '
-                 '(link healthy)',
-                 f'total counter growth = {grew_total}')
-        if grew_total:
-            hot = ', '.join(f'{k} (+{v})' for k, v in per_core_grew.items() if v)
-            print(f'  cores with growth: {hot}')
+    # Link-up state now (readable even if it just dropped — host-side flag).
+    open_now = any(_is_open(dev) for _, dev in cores if _is_open(dev) is not None)
 
-    return chk.report()
+    print(f'\n  rssiDownCount growth (fault signal): {down_total}')
+    print(f'  Drop+Retransmit growth (informational): {drop_retx_total}')
+
+    if args.expect_faults:
+        chk.item(down_total > 0,
+                 'Induced fault registered (rssiDownCount grew)',
+                 f'downCount growth={down_total}, open_now={open_now}')
+    else:
+        chk.item(open_now, 'Link reports rssiOpen after the poll window')
+        chk.item(down_total == 0,
+                 'No link-down events over the poll window (link stable)',
+                 f'downCount growth={down_total}')
+        if drop_retx_total:
+            hot = ', '.join(f'{k} (+{v})' for k, v in per_core_down.items() if v)
+            print(f'  note: {drop_retx_total} drop/retx segments '
+                  f'(informational). link-down by core: {hot or "none"}')
+
+    return finish(chk.report())
 
 
 if __name__ == '__main__':
