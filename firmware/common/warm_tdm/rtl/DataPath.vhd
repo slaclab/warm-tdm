@@ -235,7 +235,7 @@ begin
    -------------------------------------------------------------------------------------------------
    -- ADC Deserializers
    -------------------------------------------------------------------------------------------------
-   U_Ad9681Readout_1 : entity surf.Ad9681Readout2
+   U_Ad9681Readout_1 : entity surf.Ad9681Readout
       generic map (
          TPD_G             => TPD_G,
          AXIL_BASE_ADDR_G  => XBAR_COFNIG_C(ADC_READOUT_AXIL_C).baseAddr,
