@@ -158,7 +158,10 @@ entity WarmTdmCore2 is
       -- Timing Rx
       timingRxClk125 : out sl;
       timingRxRst125 : out sl;
-      timingRxData   : out LocalTimingType);
+      timingRxData   : out LocalTimingType;
+
+      -- ADC IODELAY group controller ready (raw idelayClk-domain status)
+      idelayCtrlRdy : out sl := '0');
 
 
 
@@ -348,6 +351,7 @@ begin
          timingRxDataN     => timingRxDataN,  -- [in]
          timingRxClkOut    => locTimingRxClk125,                   -- [out]
          timingRxRstOut    => timingRxRst125,                      -- [out]
+         idelayCtrlRdy     => idelayCtrlRdy,                       -- [out]
          timingRxClkLocked => timingRxClkLocked,                   -- [out]
          timingRxDataOut   => timingRxData,   -- [out]
          timingRxLocked    => timingRxLocked,                      -- [out]

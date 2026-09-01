@@ -114,20 +114,9 @@ class HardwareGroup(pyrogue.Device):
             packetizer = rogue.protocols.packetizer.CoreV2(False, False, False);
             fifoA = rogue.interfaces.stream.Fifo(0, 0, False)
             fifoB = rogue.interfaces.stream.Fifo(0, 0, False)            
-            unbatcher = rogue.protocols.batcher.SplitterV1()
+            unbatcher = rogue.protocols.batcher.SplitterV2()
 
-            
             dataStream >> fifoA >> unbatcher >> fifoB >> packetizer.transport()
-
-#             dataStreamDebug = rogue.interfaces.stream.Slave()
-#             dataStreamDebug.setDebug(100, 'DataStreamDebug')
-#             dataStream >> dataStreamDebug
-
-#             unbatcherDebug = rogue.interfaces.stream.Slave()
-#             unbatcherDebug.setDebug(100, 'UnbatcherDebug')
-#             unbatcher >> unbatcherDebug
-
-#             self.addInterface(dataStreamDebug, unbatcherDebug)            
 
             self.addInterface(unbatcher, packetizer, fifoA, fifoB)
 
