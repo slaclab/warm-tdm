@@ -53,6 +53,7 @@ done and where the forward-looking pieces went, so the reasoning isn't re-derive
 
 ## Canonical docs
 
+- `docs/operations-api.md` — the `operations` API how-to-use reference.
 - `firmware/common/DataChannelization.md` — end-to-end data path / channel scheme.
 - `docs/design/muxed-run-bringup.md` — muxed-run config layers, ordering,
   tune-point restore.
