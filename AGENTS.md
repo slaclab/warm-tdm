@@ -69,6 +69,7 @@ A dedicated serialized link distributes synchronization across all boards:
 - `LocalTimingType` record decodes timing into: runTime, rowStrobe, sample, rowSeq, daqReadout signals
 - Coordinator board (RING_ADDR_0) generates timing; other boards receive and decode
 - See `firmware/common/warm_tdm/rtl/TimingPkg.vhd` for all protocol constants
+- For the full protocol specification (control characters, row-boundary sequences, pwrSync behavior), see [`firmware/common/TimingProtocol.md`](firmware/common/TimingProtocol.md)
 
 ### Communication
 
@@ -201,6 +202,28 @@ cd firmware/targets && make ColumnAu25p
 cd firmware/targets/ColumnFpgaBoard && make gui
 ```
 
+### Build Output Location
+
+Vivado project and run outputs are at:
+```
+firmware/build/<TargetName>/
+├── <TargetName>_project.xpr         # Vivado project file
+├── <TargetName>_project.runs/
+│   ├── synth_1/runme.log            # Synthesis log (check for ERRORs here)
+│   ├── impl_1/runme.log             # Implementation log
+│   └── <IpName>_synth_1/runme.log   # Per-IP synthesis logs
+```
+
+Final images (`.bit`, `.mcs`) go to:
+```
+firmware/targets/<TargetName>/images/
+```
+
+To diagnose a failed build, check:
+```bash
+grep "ERROR" firmware/build/<TargetName>/<TargetName>_project.runs/synth_1/runme.log
+```
+
 ## Running the Software
 
 ```bash
@@ -313,7 +336,7 @@ the wiki holds the *how-to-verify* the board can't.
 
 | Task Area | Start With These Files |
 |-----------|----------------------|
-| Timing protocol | `TimingPkg.vhd`, `TimingTx.vhd`, `TimingRx.vhd`, `TimingSerializer*.vhd`, `TimingDeserializer*.vhd` |
+| Timing protocol | [`TimingProtocol.md`](firmware/common/TimingProtocol.md), `TimingPkg.vhd`, `TimingTx.vhd`, `TimingRx.vhd`, `TimingSerializer*.vhd`, `TimingDeserializer*.vhd` |
 | DSP / data path | `DataPath.vhd`, `AdcDsp.vhd`, `BiquadFilter.vhd`, `EventBuilder.vhd` |
 | Communication / PGP | `PgpEthCore.vhd`, `RingRouter.vhd`, `PgpRingRouter.vhd`, `EthCore.vhd` |
 | Row board firmware | `RowDacDriver2.vhd`, `RowModuleDacs.vhd`, `RowModuleTimingRx.vhd` |

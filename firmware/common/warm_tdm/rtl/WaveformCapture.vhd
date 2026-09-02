@@ -165,7 +165,7 @@ begin
    -- Main Logic
    -------------------------------------------------------------------------------------------------
    comb : process (adcStreams, axilReadMaster, axilWriteMaster, bufferCtrl, r, resizedStream,
-                   timingRxRst125) is
+                   timingRxData, timingRxRst125) is
       variable v               : RegType;
       variable selectedChannel : integer;
       variable axilEp          : AxiLiteEndpointType;
@@ -248,15 +248,14 @@ begin
             if (adcStreams(i).tValid = '1' and (unsigned(r.decCnt) = unsigned(r.decimation)-1 or unsigned(r.decimation) = 0)) then
                v.decimatedStreams(i).tValid             := '1';
                v.decimatedStreams(i).tData(15 downto 0) := adcStreams(i).tData(15 downto 0);
-               -- Hack - Use unused bits to encode timing flags
-               if (adcStreams(i).tUser(0) = '1') then
+               if (timingRxData.firstSample = '1') then
                   v.decimatedStreams(i).tData(1 downto 0) := "01";  -- first sample
-               elsif (adcStreams(i).tUser(1) = '1') then
+               elsif (timingRxData.lastSample = '1') then
                   v.decimatedStreams(i).tData(1 downto 0) := "10";  -- last sample
-               elsif (adcStreams(i).tUser(2) = '1') then
+               elsif (timingRxData.rowStrobe = '1') then
                   v.decimatedStreams(i).tData(1 downto 0) := "11";  -- row strobe
                end if;
-               v.decimatedStreams(i).tUser(0) := adcStreams(i).tUser(4);  -- sampling
+               v.decimatedStreams(i).tUser(0) := timingRxData.sample;
                v.decCnt                       := (others => '0');
             end if;
          end loop;
@@ -293,7 +292,7 @@ begin
       -- Dump data info FIFO when triggered
       -- Multiplex combined or resized channel streams
       ----------------------------------------------------------------------------------------------
-      if ((adcStreams(0).tValid = '1' and adcStreams(0).tUser(3) = '1') or r.waveformTrigger = '1') then
+      if ((adcStreams(0).tValid = '1' and timingRxData.waveformCapture = '1') or r.waveformTrigger = '1') then
          v.doWaveform                       := '1';
          v.bufferStream.tValid              := '1';
          v.bufferStream.tData(2 downto 0)   := r.selectedChannel;

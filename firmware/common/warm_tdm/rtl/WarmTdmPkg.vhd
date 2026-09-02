@@ -17,8 +17,7 @@
 -------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.std_logic_arith.all;
-use ieee.std_logic_unsigned.all;
+use ieee.numeric_std.all;
 
 
 library surf;
@@ -39,15 +38,25 @@ package WarmTdmPkg is
 
    --constant SQ1FB_DATA_AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 2, tDestBits => 8);
 
-   -- Data from AdcDsp to filter and downsampler
+   -- Data from AdcDsp to filter and downsampler (fixed-point integer, 24-bit)
    constant PID_DATA_AXIS_CFG_C : AxiStreamConfigType := (
-      TSTRB_EN_C => true,
+      TSTRB_EN_C    => true,
       TDATA_BYTES_C => 3,
-      TDEST_BITS_C => 8,
-      TID_BITS_C => 8,
-      TKEEP_MODE_C => TKEEP_NORMAL_C,
-      TUSER_BITS_C => 8,
-      TUSER_MODE_C => TUSER_NORMAL_C);
+      TDEST_BITS_C  => 8,
+      TID_BITS_C    => 8,
+      TKEEP_MODE_C  => TKEEP_NORMAL_C,
+      TUSER_BITS_C  => 8,
+      TUSER_MODE_C  => TUSER_NORMAL_C);
+
+   -- Data from AdcDspFp to filter (IEEE 754 float32, 32-bit)
+   constant PID_DATA_FP_AXIS_CFG_C : AxiStreamConfigType := (
+      TSTRB_EN_C    => true,
+      TDATA_BYTES_C => 4,
+      TDEST_BITS_C  => 8,
+      TID_BITS_C    => 8,
+      TKEEP_MODE_C  => TKEEP_NORMAL_C,
+      TUSER_BITS_C  => 8,
+      TUSER_MODE_C  => TUSER_NORMAL_C);
 
    constant DOWNSAMPLE_DATA_AXIS_CFG_C : AxiStreamConfigType := (
       TSTRB_EN_C => true,
@@ -57,6 +66,23 @@ package WarmTdmPkg is
       TKEEP_MODE_C => TKEEP_NORMAL_C,
       TUSER_BITS_C => 8,
       TUSER_MODE_C => TUSER_NORMAL_C);
+
+   type AdcAccumResultType is record
+      accumError      : signed(31 downto 0);
+      numSamples      : unsigned(7 downto 0);
+      rowIndex        : slv(7 downto 0);
+      sq1FbDac        : slv(13 downto 0);
+      seqStart        : sl;
+      daqReadoutStart : sl;
+   end record AdcAccumResultType;
+
+   constant ADC_ACCUM_RESULT_INIT_C : AdcAccumResultType := (
+      accumError      => (others => '0'),
+      numSamples      => (others => '0'),
+      rowIndex        => (others => '0'),
+      sq1FbDac        => (others => '0'),
+      seqStart        => '0',
+      daqReadoutStart => '0');
 
 end package;
 

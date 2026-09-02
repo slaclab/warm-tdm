@@ -1,17 +1,12 @@
 import pyrogue as pr
 
-import surf.dsp.fixed
-
-import scipy.signal
-import numpy as np
-
 import warm_tdm
+
 
 class IndexedLinkVariable(pr.LinkVariable):
     def __init__(self, dep, index, **kwargs):
         super().__init__(
             linkedGet=self._get,
-#            linkedSet=self._set,
             **kwargs)
 
         self.dep = dep
@@ -20,10 +15,8 @@ class IndexedLinkVariable(pr.LinkVariable):
     def _get(self, *, read):
         return self.dep.get(read=read, index=self.index)
 
-    def _set(self, *, value, write):
-        self.dep.set(value=value, index=self.index, write=write)
 
-class RowPidStatus(pr.Device):
+class RowPidStatusFp(pr.Device):
     def __init__(self, dsp, rowNum, **kwargs):
         super().__init__(**kwargs)
 
@@ -38,35 +31,28 @@ class RowPidStatus(pr.Device):
             index = rowNum))
 
         self.add(IndexedLinkVariable(
-            name = 'PidResults',
-            dep = dsp.PidResults,
+            name = 'Sq1FbFull',
+            dep = dsp.Sq1FbFull,
             index = rowNum))
-
-#         self.add(IndexedLinkVariable(
-#             name = 'FilterResults',
-#             dep = dsp.FilterResults,
-#             index = rowNum))
 
         self.add(IndexedLinkVariable(
             name = 'FluxJumps',
             dep = dsp.FluxJumps,
             index = rowNum))
 
-class RowPidStatusArray(pr.Device):
+
+class RowPidStatusFpArray(pr.Device):
     def __init__(self, dsp, rows, **kwargs):
         super().__init__(**kwargs)
 
         for row in range(rows):
-            self.add(RowPidStatus(
+            self.add(RowPidStatusFp(
                 name = f'Row[{row}]',
                 dsp = dsp,
                 rowNum = row))
 
-class AdcDsp(pr.Device):
 
-    COEF_BASE = pr.Fixed(24, 23)
-    ACCUM_BASE = pr.Fixed(18, 0)
-    RESULT_BASE = pr.Fixed(48, 23)
+class AdcDspFp(pr.Device):
 
     def __init__(self, frontEnd, column, rows=256, **kwargs):
         super().__init__(**kwargs)
@@ -78,7 +64,7 @@ class AdcDsp(pr.Device):
             name = 'PidEnableRaw',
             offset = 0x00,
             base = pr.Bool,
-            hidden = False,
+            hidden = True,
             groups = ['NoConfig'],
             mode = 'RW',
             bitSize = 1,
@@ -86,7 +72,6 @@ class AdcDsp(pr.Device):
 
         self.add(pr.RemoteCommand(
             name = 'ClearPidState',
-            description = 'Request a hardware scrub of the per-row PID state RAMs.',
             offset = 0x30,
             bitSize = 1,
             bitOffset = 0,
@@ -116,7 +101,7 @@ class AdcDsp(pr.Device):
             mode = 'RW',
             bitSize = 256,
             bitOffset = 0))
-        
+
         self.add(pr.RemoteVariable(
             name = 'OutputMode',
             offset = 0x00,
@@ -126,34 +111,29 @@ class AdcDsp(pr.Device):
             bitSize = 2,
             bitOffset = 8,
             enum = {
-                0: 'Sq1Fb',
+                0: 'Sq1FbFull',
                 1: 'AccumError',
-                2: 'RowSeqCount'}))
-        
+                2: 'RowSeqCount',
+                3: 'NewSumAccum'}))
 
+        # PID Coefficients - IEEE 754 float32
         self.add(pr.RemoteVariable(
             name = 'P_CoefRaw',
             offset = 0x04,
-            base = AdcDsp.COEF_BASE,
+            base = pr.Float,
+            bitSize = 32,
+            bitOffset = 0,
             hidden = True,
-            bitSize = AdcDsp.COEF_BASE.bitSize,
-            bitOffset = 0))
+            mode = 'RW'))
 
         self.add(pr.RemoteVariable(
             name = 'I_CoefRaw',
             offset = 0x08,
-            base = AdcDsp.COEF_BASE,
+            base = pr.Float,
+            bitSize = 32,
+            bitOffset = 0,
             hidden = True,
-            bitSize = AdcDsp.COEF_BASE.bitSize,
-            bitOffset = 0))
-
-        self.add(pr.RemoteVariable(
-            name = 'D_CoefRaw',
-            offset = 0x0C,
-            base = AdcDsp.COEF_BASE,
-            hidden = True,
-            bitSize = AdcDsp.COEF_BASE.bitSize,
-            bitOffset = 0))
+            mode = 'RW'))
 
         def _setCoef(dep, value, write, *, clearState=False):
             dep.set(value, write=write)
@@ -162,55 +142,121 @@ class AdcDsp(pr.Device):
 
         self.add(pr.LinkVariable(
             name = 'P_Coef',
-            base = AdcDsp.COEF_BASE,
             dependencies = [self.P_CoefRaw],
             linkedSet = lambda value, write: _setCoef(self.P_CoefRaw, value, write),
             linkedGet = self.P_CoefRaw.get))
 
         self.add(pr.LinkVariable(
             name = 'I_Coef',
-            base = AdcDsp.COEF_BASE,
             dependencies = [self.I_CoefRaw],
             linkedSet = lambda value, write: _setCoef(self.I_CoefRaw, value, write, clearState=True),
             linkedGet = self.I_CoefRaw.get))
 
-        self.add(pr.LinkVariable(
-            name = 'D_Coef',
-            base = AdcDsp.COEF_BASE,
-            dependencies = [self.D_CoefRaw],
-            linkedSet = lambda value, write: _setCoef(self.D_CoefRaw, value, write),
-            linkedGet = self.D_CoefRaw.get))
+        # Flux quantum raw registers (hidden)
+        self.add(pr.RemoteVariable(
+            name = 'FluxQuantumFpRaw',
+            offset = 0x40,
+            base = pr.Float,
+            bitSize = 32,
+            bitOffset = 0,
+            hidden = True,
+            mode = 'RW'))
 
         self.add(pr.RemoteVariable(
-            name = 'FluxQuantumRaw',
-            groups = ['NoConfig'],            
-            offset = 0x40,
-            base = pr.UInt,
-            bitSize = 14,
-            bitOffset = 0))
+            name = 'InvFluxQuantumFpRaw',
+            offset = 0x44,
+            base = pr.Float,
+            bitSize = 32,
+            bitOffset = 0,
+            hidden = True,
+            mode = 'RW'))
 
-        def _set(value, write):
+        self.add(pr.LocalVariable(
+            name = 'WrapMultiplier',
+            value = 1,
+            mode = 'RW',
+            minimum = 1,
+            description = 'Number of physical flux quanta per wrap period. '
+                          'Higher values reduce flux jump frequency. '
+                          'DAC range must accommodate WrapMultiplier * FluxQuantum.'))
+
+        self.add(pr.LocalVariable(
+            name = 'PhysicalFluxQuantumDac',
+            value = 0.0,
+            mode = 'RO',
+            hidden = True))
+
+        def _setFluxQuantum(value, write):
             dac = self.amp.outCurrentToDac(value)
-            # Convert offset binary to 2s complement
-            if self.amp.Invert.value() == True:
+            if self.amp.Invert.value():
                 dac = dac ^ 0x3fff
             dac = dac ^ 0x2000
-            self.FluxQuantumRaw.set(dac, write=write)
+            self.PhysicalFluxQuantumDac.set(float(dac))
+            N = self.WrapMultiplier.value()
+            wrapPeriod = float(dac) * N
+            self.FluxQuantumFpRaw.set(wrapPeriod, write=write)
+            if wrapPeriod != 0:
+                self.InvFluxQuantumFpRaw.set(1.0 / wrapPeriod, write=write)
 
-        def _get(read):
-            dac = self.FluxQuantumRaw.get(read=read)
-            if self.amp.Invert.value() == True:
+        def _getFluxQuantum(read):
+            fq = self.FluxQuantumFpRaw.get(read=read)
+            N = self.WrapMultiplier.value()
+            if N > 0:
+                dac = int(fq / N)
+            else:
+                dac = int(fq)
+            if self.amp.Invert.value():
                 dac = dac ^ 0x3fff
             dac = dac ^ 0x2000
-            current = self.amp.dacToOutCurrent(dac)
-            return current
+            return self.amp.dacToOutCurrent(dac)
 
         self.add(pr.LinkVariable(
             name = 'FluxQuantum',
-            dependencies = [self.FluxQuantumRaw],
-            units = u'\u03bcA',
-            linkedSet = _set,
-            linkedGet = _get))
+            dependencies = [self.FluxQuantumFpRaw, self.WrapMultiplier],
+            units = u'μA',
+            linkedSet = _setFluxQuantum,
+            linkedGet = _getFluxQuantum))
+
+        # Debug readbacks (all float except accumError which is integer)
+        self.add(pr.RemoteVariable(
+            name = 'AccumErrorInt_DBG',
+            mode = 'RO',
+            offset = 0x10,
+            base = pr.Int,
+            bitSize = 22,
+            bitOffset = 0))
+
+        self.add(pr.RemoteVariable(
+            name = 'SumAccumFp_DBG',
+            mode = 'RO',
+            offset = 0x18,
+            base = pr.Float,
+            bitSize = 32,
+            bitOffset = 0))
+
+        self.add(pr.RemoteVariable(
+            name = 'Sq1FbNewFp_DBG',
+            mode = 'RO',
+            offset = 0x20,
+            base = pr.Float,
+            bitSize = 32,
+            bitOffset = 0))
+
+        self.add(pr.RemoteVariable(
+            name = 'Sq1FbFullFp_DBG',
+            mode = 'RO',
+            offset = 0x28,
+            base = pr.Float,
+            bitSize = 32,
+            bitOffset = 0))
+
+        self.add(pr.RemoteVariable(
+            name = 'Sq1FbInt_DBG',
+            mode = 'RO',
+            offset = 0x2C,
+            base = pr.Int,
+            bitSize = 32,
+            bitOffset = 0))
 
         self.add(pr.RemoteVariable(
             name = 'PidDebugEnable',
@@ -220,98 +266,46 @@ class AdcDsp(pr.Device):
             bitSize = 1,
             bitOffset = 0))
 
-        self.add(pr.RemoteVariable(
-            name = 'FluxJumps_DBG',
-            offset = 0x44,
-            mode = 'RO',
-            base = pr.Int,
-            bitSize = 8,
-            bitOffset = 0,
-            disp = '{:d}'))
-
-        self.add(pr.RemoteVariable(
-            name = 'AccumError_DBG',
-            mode = 'RO',
-            offset = 0x10,
-            base = AdcDsp.ACCUM_BASE,
-            bitSize = AdcDsp.ACCUM_BASE.bitSize,
-            bitOffset = 0))
-
-        self.add(pr.RemoteVariable(
-            name = 'LastAccum_DBG',
-            mode = 'RO',
-            offset = 0x14,
-            base = AdcDsp.ACCUM_BASE,
-            bitSize = AdcDsp.ACCUM_BASE.bitSize,
-            bitOffset = 0))
-
-        self.add(pr.RemoteVariable(
-            name = 'SumAccum_DBG',
-            mode = 'RO',
-            offset = 0x18,
-            base = AdcDsp.ACCUM_BASE,
-            bitSize = AdcDsp.ACCUM_BASE.bitSize,
-            bitOffset = 0))
-
-        self.add(pr.RemoteVariable(
-            name = 'PidResult_DBG',
-            mode = 'RO',
-            offset = 0x20,
-            base = AdcDsp.RESULT_BASE,
-            bitSize = AdcDsp.RESULT_BASE.bitSize,
-            bitOffset = 0))
-
-        self.add(pr.RemoteVariable(
-            name = 'Sq1Fb_DBG',
-            mode = 'RO',
-            offset = 0x28,
-            base = pr.Int,
-            bitSize = 14,
-            bitOffset = 0))
-
-
+        # Per-row RAM arrays
         self.add(pr.RemoteVariable(
             name = 'AccumError',
             offset = 0x1000,
-            base = AdcDsp.ACCUM_BASE,
+            base = pr.Float,
             mode = 'RO',
             numValues = rows,
-            valueBits = AdcDsp.ACCUM_BASE.bitSize,
+            valueBits = 32,
             valueStride = 32))
-
 
         self.add(pr.RemoteVariable(
             name = 'SumAccum',
             offset = 0x2000,
-            base = AdcDsp.ACCUM_BASE,
+            base = pr.Float,
             mode = 'RW',
             numValues = rows,
-            valueBits = AdcDsp.ACCUM_BASE.bitSize,
+            valueBits = 32,
             valueStride = 32))
 
-
         self.add(pr.RemoteVariable(
-            name = 'PidResults',
+            name = 'Sq1FbFull',
             offset = 0x3000,
+            base = pr.Float,
             mode = 'RW',
-            base = AdcDsp.RESULT_BASE,
             numValues = rows,
-            valueBits = AdcDsp.RESULT_BASE.bitSize,
-            valueStride = 64))
-
+            valueBits = 32,
+            valueStride = 32))
 
         self.add(pr.RemoteVariable(
             name = 'FluxJumps',
-            offset = 0x6000,
+            offset = 0x4000,
             base = pr.Int,
             mode = 'RW',
             numValues = rows,
-            valueBits = 8,
+            valueBits = 32,
             valueStride = 32))
 
-        self.add(RowPidStatusArray(
+        self.add(RowPidStatusFpArray(
             name = 'RowPidStatus',
-            groups = ['NoConfig'],            
+            groups = ['NoConfig'],
             dsp = self,
             rows = rows))
 
@@ -319,24 +313,3 @@ class AdcDsp(pr.Device):
         def ClearPids():
             self.ClearPidState()
 
-#         self.add(surf.dsp.fixed.FirFilterMultiChannel(
-#             name = 'FirFilter',
-#             offset = 0x6000,
-#             numberTaps = 11,
-#             coeffWordBitSize = 16))
-
-#         self.filterFreq = 1000.0
-
-#         def setFirTaps(value, write):
-#             self.filterFreq = value
-#             taps = scipy.signal.firwin(11, value, fs=7812.5, window='hamming')
-#             #print(f'Applying filter at {value} with taps {taps}')
-#             ftaps = np.array([int(np.round(x * 2**15)) for x in taps], dtype=np.uint16)
-#             #print([f'{t:04x}' for t in ftaps])
-#             self.FirFilter.Taps.set(taps, write=write)
-
-#         self.add(pr.LinkVariable(
-#             name = 'FilterCuttoffFreq',
-#             linkedSet = setFirTaps,
-#             linkedGet = lambda: self.filterFreq,
-#             value = self.filterFreq))

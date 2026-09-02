@@ -13,6 +13,7 @@ class ColumnFpgaBoard(pr.Device):
                  frontEndClass,
 #                 loading={},
                  rows=256,
+                 useFloatPid=False,
                  **kwargs):
         super().__init__(**kwargs)
 
@@ -20,7 +21,7 @@ class ColumnFpgaBoard(pr.Device):
 
         self.add(frontEndClass(
             name='AnalogFrontEnd'))
- 
+
         self.add(warm_tdm.WarmTdmCore2(
             name = 'WarmTdmCore',
             offset = 0x00000000,
@@ -39,7 +40,8 @@ class ColumnFpgaBoard(pr.Device):
             expand = True,
             timingTx = self.WarmTdmCore.Timing.TimingTx,
             rows=rows,
-            frontEnd=self.AnalogFrontEnd))
+            frontEnd=self.AnalogFrontEnd,
+            useFloatPid=useFloatPid))
 
         # Software-driven FCO and per-lane IDELAY alignment. Drives the AD9681
         # test-pattern output via the SPI config while scanning input delays on

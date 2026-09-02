@@ -4,7 +4,7 @@ Supplementary reference for AI agents working on warm-tdm firmware. For the proj
 
 ## Timing Protocol
 
-The timing system distributes synchronization across all boards via a dedicated SelectIO LVDS link (not MGT). The protocol is defined in `common/warm_tdm/rtl/TimingPkg.vhd`.
+The timing system distributes synchronization across all boards via a dedicated SelectIO LVDS link (not MGT). The protocol is defined in `common/warm_tdm/rtl/TimingPkg.vhd`. For the full protocol specification — control character semantics, row-boundary sequencing, `pwrSync` hold/release behavior, and the `LocalTimingType` record contract — see [`common/TimingProtocol.md`](common/TimingProtocol.md).
 
 ### Frame Structure
 

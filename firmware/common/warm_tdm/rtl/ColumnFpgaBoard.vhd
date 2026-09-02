@@ -54,7 +54,8 @@ entity ColumnFpgaBoard is
       IP_ADDR_G               : slv(31 downto 0)     := x"0B03A8C0";  -- 192.168.3.11
       MAC_ADDR_G              : slv(47 downto 0)     := x"0B_00_16_56_00_08";
       GEN_ADC_FILTER_G        : boolean              := false;
-      ROW_ADDR_BITS_G         : integer range 3 to 8 := 8);
+      USE_FLOAT_PID_G         : boolean              := false;
+      ROW_ADDR_BITS_G         : integer range 3 to 8 := 7);
    port (
       -- Clocks
       gtRefClk0P : in sl;
@@ -583,6 +584,7 @@ begin
          TPD_G            => TPD_G,
          SIMULATION_G     => SIMULATION_G,
          GEN_ADC_FILTER_G => GEN_ADC_FILTER_G,
+         USE_FLOAT_PID_G  => USE_FLOAT_PID_G,
          ROW_ADDR_BITS_G  => ROW_ADDR_BITS_G,
          NEGATE_ADC_G     => false,
          INVERT_SQ1FB_G   => false,

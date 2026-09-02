@@ -30,9 +30,10 @@ use warm_tdm.TimingPkg.all;
 entity RowDacDriver2 is
 
    generic (
-      TPD_G            : time             := 1 ns;
-      SIMULATION_G     : boolean          := false;
-      AXIL_BASE_ADDR_G : slv(31 downto 0) := (others => '0'));
+      TPD_G            : time                  := 1 ns;
+      SIMULATION_G     : boolean               := false;
+      ROW_ADDR_BITS_G  : integer range 3 to 8  := 7;
+      AXIL_BASE_ADDR_G : slv(31 downto 0)      := (others => '0'));
 
    port (
       timingRxClk125 : in sl;
@@ -265,7 +266,7 @@ begin
          SYS_WR_EN_G      => false,
          SYS_BYTE_WR_EN_G => false,
          COMMON_CLK_G     => false,
-         ADDR_WIDTH_G     => 8,
+         ADDR_WIDTH_G     => ROW_ADDR_BITS_G,
          DATA_WIDTH_G     => 16,
          INIT_G           => X"8080")                            -- init to midscale for DAC
       port map (
@@ -277,7 +278,7 @@ begin
          axiWriteSlave  => locAxilWriteSlaves(MAP_RAM_AXIL_C),   -- [out]
          clk            => timingRxClk125,                       -- [in]
          rst            => timingRxRst125,                       -- [in]
-         addr           => r.mapRamAddr,                         -- [in]
+         addr           => r.mapRamAddr(ROW_ADDR_BITS_G-1 downto 0),  -- [in]
          dout           => mapRamOut);                           -- [out]
 
 
