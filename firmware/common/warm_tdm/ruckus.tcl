@@ -21,4 +21,4 @@ loadIpCore -doUpgrade -path $::DIR_PATH/ip/FpMac/FpMac.xci
 
 
 # Load Simulation
-loadSource -lib warm_tdm -sim_only -dir "$::DIR_PATH/sim"
+loadSource -lib warm_tdm -sim_only -dir "$::DIR_PATH/sim" -fileType "VHDL 2008"

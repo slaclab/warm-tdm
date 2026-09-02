@@ -3,7 +3,22 @@
 ## Status
 
 - Investigation and architecture contract reviewed as of 2026-09-02.
-- No RTL implementation has started.
+- The first implementation slice is present on `sensor-wafer-sim`: typed and
+  independent SSA/SQ1/row-FAS/chip-FAS parameters, ideal low-`L` transfer
+  functions, exact and reduced nested MUX solvers, configurable detector
+  modules, and an eight-channel `WaferSim` compatibility wrapper.
+- `GroupTb` selects complete `WAFER`/BICEP3/NIST-50-row/BA4 or load-board
+  presets with its single `LOAD_G` generic. Lower-level model interfaces retain
+  custom topology, device parameters, and deterministic per-pixel TES input.
+- Focused GHDL tests pass for the primitive curves, two-level selection,
+  selected-pixel isolation, the compatibility wrapper, an 8-column `6x10`
+  slice, full 12-column BICEP3/NIST/BA4 profile elaboration, a one-detector
+  `8+4` warm harness, and the dual-BA4 `8+8+(4+4)` maps.
+- Full VCS `GroupTb` elaboration and the open-loop/fixed-PID co-simulation have
+  not been run because Vivado/VCS are unavailable on the development machine.
+- Multi-board integration into `GroupTb`, model dynamics, a static electrical
+  TES solution, per-device variation, and measured calibration remain future
+  work.
 - The supplied circuit diagrams are sufficient to begin a behavioral model.
 - Legacy SQUID and FAS equations have been checked against the published RCSJ,
   SQUID-array, and NIST switch-MUX literature; the accepted limits and required

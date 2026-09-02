@@ -1,7 +1,7 @@
 # GroupTb PyRogue ↔ VCS co-simulation
 
-`GroupTb` simulates a full Warm-TDM **Group** (1 column board + 1 row board, 32
-rows, a WAFER/SQUID device model — see the constants at the top of
+`GroupTb` simulates a full Warm-TDM **Group** (1 column board + 1 row board, a
+configurable WAFER/SQUID device model — see the generics at the top of
 `tb/GroupTb.vhd`) in VCS, with the **real RTL**, and bridges it to a PyRogue
 server over TCP sockets. Because it clocks the real FSMs at real timing, it can
 exercise things `--emulate` cannot (e.g. the FastDacDriver override/`IDLE`
@@ -9,6 +9,24 @@ timing behind Issue #86/#32).
 
 The RTL under test is **whatever is checked out** in the working tree, so
 `git checkout <branch>` before building to test a specific RTL.
+
+`LOAD_G` selects the complete cold-load preset. The available values are:
+
+```text
+LOAD_BOARD  # simple resistive electronics load
+WAFER       # legacy alias for the synthetic 32-row, one-level wafer
+WAFER_32    # explicit spelling of the synthetic 32-row wafer
+BICEP3      # 22-row, 12-column physical profile; eight columns instantiated here
+NIST_50R    # 50-row, 12-column physical profile; provisional 5x10 banks
+BA4         # 60-row, 12-column physical profile; 6x10 banks
+```
+
+Each named profile owns separate SSA, SQ1, row-FAS, and chip-FAS parameter
+records. The checked-in values are explicitly synthetic until measured values
+are available. Custom parameters and direct per-pixel TES stimulus remain
+available on the lower-level `DetectorModuleSim`, `GroupDetectorHarnessSim`,
+and `WaferSim` interfaces without expanding the top-level `GroupTb` generic
+list.
 
 ## Toolchain (important version split)
 
@@ -71,4 +89,5 @@ simulation branch:
   RAM overwrites the fast-DAC output every row, so a force set *while running*
   reads back 0 regardless. Test override/zeroing with the run stopped.
 - Match `warmTdmServer.py --sim` board counts / `--rowAddrBits` / `--maxRows` to
-  the GroupTb constants (1 col, 1 row, 5-bit row addr, 32 rows).
+  the GroupTb topology. A 60-row profile needs at least six row-address bits;
+  the eventual dual-BA4 120-slot schedule needs seven.

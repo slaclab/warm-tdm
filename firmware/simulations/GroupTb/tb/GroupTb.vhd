@@ -26,13 +26,15 @@ use surf.StdRtlPkg.all;
 
 library warm_tdm;
 use warm_tdm.SimPkg.all;
+use warm_tdm.WaferSimPkg.all;
 
 entity GroupTb is
+   generic (
+      LOAD_G : string := "WAFER");
 end GroupTb;
 
 architecture sim of GroupTb is
 
-   constant LOAD_C : string := "WAFER";
    constant SIM_PGP_GT_C : boolean := true;
 
    constant COLUMN_BOARDS_C : integer := 1;
@@ -40,12 +42,19 @@ architecture sim of GroupTb is
 
    constant AWAXE_G : boolean := false;
 
+   constant WAFER_PROFILE_C : WaferProfileType := waferProfile(LOAD_G);
+
    constant NUM_WAFERS_G       : integer range 1 to 2  := 1;
-   constant NUM_ROW_SELECTS_G  : integer range 1 to 32 := 32;
-   constant NUM_CHIP_SELECTS_G : integer range 0 to 8  := 0;
+   constant NUM_ROW_SELECTS_G  : integer range 1 to 32 :=
+      WAFER_PROFILE_C.topology.rowsPerBank;
+   constant NUM_CHIP_SELECTS_G : integer range 0 to 8  :=
+      ite(WAFER_PROFILE_C.topology.twoLevel,
+          WAFER_PROFILE_C.topology.numBanks, 0);
 
    constant GROUP_SIZE_C : integer := COLUMN_BOARDS_C + ROW_BOARDS_C;
    constant TPD_G        : time    := 1 ns;
+   constant WAFER_NUM_ROWS_C : positive :=
+      topologyRows(WAFER_PROFILE_C.topology);
 
    -------------------------------------------------------------------------------------------------
    -- Ring network
@@ -78,6 +87,14 @@ architecture sim of GroupTb is
 
 
 begin
+
+   assert validLoadName(LOAD_G)
+      report "GroupTb: LOAD_G must be LOAD_BOARD, WAFER, WAFER_32, " &
+             "BICEP3, NIST_50R, or BA4"
+      severity failure;
+   assert topologySelectLines(WAFER_PROFILE_C.topology) <= 32
+      report "GroupTb: selected wafer needs more than 32 physical select lines"
+      severity failure;
 
    GEN_COL_BOARDS : for i in 0 to COLUMN_BOARDS_C-1 generate
       U_ColumnFpgaBoardSim : entity warm_tdm.ColumnFpgaBoardSim
@@ -157,7 +174,7 @@ begin
 
    end generate GEN_ROW_BOARDS;
 
-   LOAD_BOARD : if (LOAD_C = "LOAD_BOARD") generate
+   LOAD_BOARD : if (LOAD_G = "LOAD_BOARD") generate
       U_ColumnLoadBoard_1 : entity warm_tdm.ColumnLoadBoard
 --         generic map (
 --             SA_BIAS_LOADS_G  => SA_BIAS_LOADS_G,
@@ -190,7 +207,7 @@ begin
 
    end generate;
 
-   WAFTER_GEN: if (LOAD_C = "WAFER") generate
+   WAFER_GEN : if (LOAD_G /= "LOAD_BOARD") generate
       U_WaferSim_1: entity warm_tdm.WaferSim
          generic map (
 --             SA_BIAS_LOADS_G  => SA_BIAS_LOADS_G,
@@ -198,7 +215,17 @@ begin
 --             SQ1_BIAS_LOADS_G => SQ1_BIAS_LOADS_G,
 --             SQ1_FB_LOADS_G   => SQ1_FB_LOADS_G,
 --             RS_LOADS_G       => RS_LOADS_G,
-            NUM_ROWS_G       => 32)
+            NUM_ROWS_G       => WAFER_NUM_ROWS_C,
+            NUM_BANKS_G      => WAFER_PROFILE_C.topology.numBanks,
+            ROWS_PER_BANK_G  => WAFER_PROFILE_C.topology.rowsPerBank,
+            TWO_LEVEL_G      => WAFER_PROFILE_C.topology.twoLevel,
+            RS_LINE_OFFSET_G => 0,
+            CS_LINE_OFFSET_G => WAFER_PROFILE_C.topology.rowsPerBank,
+            SSA_MODEL_PARAMS_G     => WAFER_PROFILE_C.ssa,
+            SQ1_MODEL_PARAMS_G     => WAFER_PROFILE_C.sq1,
+            ROW_FAS_MODEL_PARAMS_G => WAFER_PROFILE_C.rowFas,
+            CHIP_FAS_MODEL_PARAMS_G => WAFER_PROFILE_C.chipFas,
+            MUX_COLUMN_MODEL_PARAMS_G => WAFER_PROFILE_C.muxColumn)
 --             R_SHUNT_G        => R_SHUNT_G,
 --             SSA_RN_G         => SSA_RN_G,
 --             SSA_IC0_G        => SSA_IC0_G,
@@ -224,7 +251,7 @@ begin
             sq1FbN     => sq1FbN,       -- [in]
             rsP        => rsP,          -- [in]
             rsN        => rsN);         -- [in]
-   end generate WAFTER_GEN;
+   end generate WAFER_GEN;
 
 
 
