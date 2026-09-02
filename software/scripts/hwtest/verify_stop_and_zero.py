@@ -62,6 +62,11 @@ def _read_now(sess, nchan=8):
     (``DacCurrentNow[0..7]``), not a single vectored variable, so read each
     channel node individually.
 
+    ``DacCurrentNow``'s ``linkedGet`` reads the *cached* ``DacRawNow.value()``,
+    so with polling off (simulation sets ``pollEn=False``) or between poll ticks
+    it returns a stale value -- which silently makes this whole test read old
+    data. Force a fresh ``DacRawNow`` read first so the current is live.
+
     Returns {(board_idx, driver): [per-channel currents]}.
     """
     out = {}
@@ -71,9 +76,12 @@ def _read_now(sess, nchan=8):
             if dev is None or not hasattr(dev, 'DacCurrentNow'):
                 continue
             arr = dev.DacCurrentNow
+            raw = getattr(dev, 'DacRawNow', None)
             vals = []
             for ch in range(nchan):
                 try:
+                    if raw is not None:
+                        raw[ch].get()   # refresh the cached dependency (live read)
                     vals.append(float(arr[ch].get()))
                 except Exception:
                     break
