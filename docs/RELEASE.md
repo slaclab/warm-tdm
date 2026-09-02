@@ -23,6 +23,12 @@ feature-branch ──PR──▶ pre-release ──PR──▶ main ──tag vX
 3. Once `pre-release` is stable, open a PR merging `pre-release` into `main`.
 4. Tag `main` with a version (see below) to trigger the release.
 
+**Merge, do not rebase.** WarmTDM's workflow is merge-based throughout. When a
+feature branch has fallen behind, bring the upstream branch in with `git merge`
+(e.g. `git merge origin/pre-release`) and resolve any conflicts in the resulting
+merge commit — do **not** `git rebase`. This holds even for a local-only branch
+that has never been pushed: rebase is simply not the workflow we use.
+
 ## Versioning
 
 Releases are tagged `vX.Y.Z` (semantic versioning):

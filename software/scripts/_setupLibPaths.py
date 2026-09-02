@@ -17,14 +17,19 @@ PyRogue.
 
 Paths are resolved relative to this file, so scripts work regardless of the
 current working directory (the previous per-script ``../python`` relative paths
-only worked when run from ``software/scripts/``).
+only worked when run from ``software/scripts/``). The ``WARM_TDM_PATH``
+environment variable (set by the repo-root ``install.sh``) overrides the repo
+root, so an installed/relocated checkout can point the scripts at the right
+tree.
 """
 import os
 
 import pyrogue
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_TOP = os.path.realpath(os.path.join(_HERE, '..', '..'))
+# WARM_TDM_PATH (set by install.sh) wins; otherwise the repo root two levels up.
+_TOP = os.path.realpath(
+    os.path.expanduser(os.environ.get('WARM_TDM_PATH', os.path.join(_HERE, '..', '..'))))
 
 pyrogue.addLibraryPath(os.path.join(_TOP, 'software', 'python'))
 pyrogue.addLibraryPath(os.path.join(_TOP, 'firmware', 'python'))
