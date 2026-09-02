@@ -15,6 +15,7 @@ Boards communicate via a **PGP ring topology** with Ethernet bridge for host acc
 ```
 warm-tdm/
 ├── firmware/
+│   ├── build/ -> (symlink)     # Vivado build outputs (symlink to local scratch)
 │   ├── targets/                # 14 FPGA build targets (Row/Column variants)
 │   │   ├── ColumnFpgaBoard/    #   Kintex-7, prom output
 │   │   ├── ColumnAu25p/        #   Artix UltraScale+, bit output, 10G Ethernet
@@ -204,14 +205,22 @@ cd firmware/targets/ColumnFpgaBoard && make gui
 
 ### Build Output Location
 
-Vivado project and run outputs are at:
-```
+**IMPORTANT**: `firmware/build/` is a symlink (typically to a local scratch disk). It will NOT appear in `find` searches unless you follow symlinks. Always check this path directly — do not search the filesystem for build outputs.
+
+```bash
+# List available build targets
+ls firmware/build/
+
+# Typical structure for a target
 firmware/build/<TargetName>/
 ├── <TargetName>_project.xpr         # Vivado project file
 ├── <TargetName>_project.runs/
 │   ├── synth_1/runme.log            # Synthesis log (check for ERRORs here)
 │   ├── impl_1/runme.log             # Implementation log
 │   └── <IpName>_synth_1/runme.log   # Per-IP synthesis logs
+├── <TargetName>_project.cache/
+├── <TargetName>_project.gen/
+└── <TargetName>_project.srcs/
 ```
 
 Final images (`.bit`, `.mcs`) go to:
@@ -219,9 +228,16 @@ Final images (`.bit`, `.mcs`) go to:
 firmware/targets/<TargetName>/images/
 ```
 
-To diagnose a failed build, check:
+To diagnose a failed build:
 ```bash
+# Check synthesis log for errors
 grep "ERROR" firmware/build/<TargetName>/<TargetName>_project.runs/synth_1/runme.log
+
+# Check implementation log
+grep "ERROR" firmware/build/<TargetName>/<TargetName>_project.runs/impl_1/runme.log
+
+# List all available build outputs
+ls firmware/build/
 ```
 
 ## Running the Software
@@ -230,11 +246,11 @@ grep "ERROR" firmware/build/<TargetName>/<TargetName>_project.runs/synth_1/runme
 # Create conda environment
 conda env create -f conda.yml
 
-# Start hardware server
+# Start hardware server (headless)
 cd software/scripts && python warmTdmServer.py --ip <board-ip>
 
-# Start GUI
-python warmTdmGui.py
+# Start with GUI
+python warmTdmServer.py --gui --ip <board-ip>
 
 # Command-line client
 python warmTdmClientCmd.py
@@ -346,6 +362,17 @@ the wiki holds the *how-to-verify* the board can't.
 | Tuning algorithms | `software/python/warm_tdm_api/_SaTune.py`, `_Sq1Tune.py`, `_FasTune.py` |
 | Simulation | `firmware/simulations/StackTb/` (full system), `firmware/common/warm_tdm/sim/` (device models) |
 | Constraints / timing closure | `common/warm_tdm/xdc/WarmTdmCore2.xdc` (shared), target-specific `xdc/` dirs |
+
+## Task Plans
+
+For substantial feature work, debug efforts, refactors, or multi-step investigations, keep planning, progress, and handoff Markdown under `docs/plans/<task-name>/`. Use a short kebab-case task name, keep notes factual, and update the plan as the work changes.
+
+Each task directory should include enough context for another contributor (or a future agent session) to resume without reconstructing the work from chat history. Capture the goal, current status, decisions made, files or modules involved, validation run, open risks, and next steps. Keep large logs, generated output, and build artifacts out of `docs/plans`; summarize them and link to durable locations instead.
+
+Current plans:
+- [`docs/plans/fp-dsp-pid/`](docs/plans/fp-dsp-pid/) — Floating-point PID servo (AdcDspFp)
+- [`docs/plans/pipelined-dsp-accumulator/`](docs/plans/pipelined-dsp-accumulator/) — Pipelined DSP accumulator
+- [`docs/plans/sw-cleanup/`](docs/plans/sw-cleanup/) — Python legacy removal and API simplification
 
 ## Submodules
 

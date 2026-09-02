@@ -452,11 +452,11 @@ begin
             PIPE_STAGES_G       => 0,
             VALID_THOLD_G       => PACKET_SIZE_BYTES_C/8,
             VALID_BURST_MODE_G  => true,
-            SYNTH_MODE_G        => "inferred",
+            SYNTH_MODE_G        => "xpm",
             MEMORY_TYPE_G       => "block",
             GEN_SYNC_FIFO_G     => false,
-            FIFO_ADDR_WIDTH_G   => 10,
-            FIFO_PAUSE_THRESH_G => PACKET_SIZE_BYTES_C/4,
+            FIFO_ADDR_WIDTH_G   => 8,
+            FIFO_PAUSE_THRESH_G => 192,
             PHY_AXI_CONFIG_G    => SSI_PGP2B_CONFIG_C,
             APP_AXI_CONFIG_G    => AXIS_CONFIG_C)
          port map (
@@ -514,10 +514,10 @@ begin
             PIPE_STAGES_G      => 0,
 --            VALID_THOLD_G      => 500,
             VALID_BURST_MODE_G => true,
-            SYNTH_MODE_G       => "inferred",
+            SYNTH_MODE_G       => "xpm",
             MEMORY_TYPE_G      => "block",
             GEN_SYNC_FIFO_G    => false,
-            FIFO_ADDR_WIDTH_G  => 10,
+            FIFO_ADDR_WIDTH_G  => 8,
             APP_AXI_CONFIG_G   => AXIS_CONFIG_C,
             PHY_AXI_CONFIG_G   => SSI_PGP2B_CONFIG_C)
          port map (

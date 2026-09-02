@@ -35,18 +35,19 @@ use warm_tdm.TimingPkg.all;
 entity WarmTdmCore2 is
 
    generic (
-      TPD_G                   : time             := 1 ns;
-      SIMULATION_G            : boolean          := false;
-      SIMULATE_PGP_G          : boolean          := true;
-      SIM_PGP_PORT_NUM_G      : integer          := 7000;
-      SIM_ETH_SRP_PORT_NUM_G  : integer          := 8000;
-      SIM_ETH_DATA_PORT_NUM_G : integer          := 9000;
-      BUILD_INFO_G            : BuildInfoType;
-      RING_ADDR_0_G           : boolean          := false;
-      ETH_10G_G               : boolean          := false;
-      DHCP_G                  : boolean          := false;
-      IP_ADDR_G               : slv(31 downto 0) := x"0B03A8C0";  -- 192.168.3.11
-      MAC_ADDR_G              : slv(47 downto 0) := x"0B_00_16_56_00_08");
+      TPD_G                    : time             := 1 ns;
+      SIMULATION_G             : boolean          := false;
+      SIMULATE_PGP_G           : boolean          := true;
+      SIM_PGP_PORT_NUM_G       : integer          := 7000;
+      SIM_ETH_SRP_PORT_NUM_G   : integer          := 8000;
+      SIM_ETH_DATA_PORT_NUM_G  : integer          := 9000;
+      BUILD_INFO_G             : BuildInfoType;
+      RING_ADDR_0_G            : boolean          := false;
+      ETH_10G_G                : boolean          := false;
+      RSSI_WINDOW_ADDR_SIZE_G  : positive         := 3;
+      DHCP_G                   : boolean          := false;
+      IP_ADDR_G                : slv(31 downto 0) := x"0B03A8C0";  -- 192.168.3.11
+      MAC_ADDR_G               : slv(47 downto 0) := x"0B_00_16_56_00_08");
    port (
       ----------------
       -- IO Interfaces
@@ -387,6 +388,7 @@ begin
          RING_ADDR_0_G           => RING_ADDR_0_G,
          AXIL_BASE_ADDR_G        => AXIL_XBAR_CFG_C(AXIL_COM_C).baseAddr,
          ETH_10G_G               => ETH_10G_G,
+         RSSI_WINDOW_ADDR_SIZE_G => RSSI_WINDOW_ADDR_SIZE_G,
          DHCP_G                  => DHCP_G,
          IP_ADDR_G               => IP_ADDR_G,
          MAC_ADDR_G              => MAC_ADDR_G)

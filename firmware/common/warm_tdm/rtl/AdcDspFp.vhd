@@ -43,6 +43,7 @@ entity AdcDspFp is
       INVERT_SQ1FB_G   : boolean              := true;
       COLUMN_NUM_G     : integer range 0 to 7 := 0;
       ROW_ADDR_BITS_G  : integer range 3 to 8 := 7;
+      GEN_PID_DEBUG_G  : boolean              := true;
       AXIL_BASE_ADDR_G : slv(31 downto 0)     := (others => '0');
       SQ1FB_RAM_ADDR_G : slv(31 downto 0)     := (others => '0'));
 
@@ -249,7 +250,7 @@ architecture rtl of AdcDspFp is
    signal fp2IntOutValid : sl;
    signal fp2IntOutData  : slv(31 downto 0);
 
-   signal pidDebugCtrl : AxiStreamCtrlType;
+   signal pidDebugCtrl : AxiStreamCtrlType := AXI_STREAM_CTRL_UNUSED_C;
 
    -------------------------------------------------------------------------------------------------
    -- AXIL Signals for SQ1FB DAC writes
@@ -355,7 +356,7 @@ begin
    U_AxiDualPortRam_ACCUM_ERROR : entity surf.AxiDualPortRam
       generic map (
          TPD_G            => TPD_G,
-         SYNTH_MODE_G     => "inferred",
+         SYNTH_MODE_G     => "xpm",
          MEMORY_TYPE_G    => "block",
          READ_LATENCY_G   => 3,
          AXI_WR_EN_G      => true,
@@ -382,7 +383,7 @@ begin
    U_AxiDualPortRam_SUM_ACCUM : entity surf.AxiDualPortRam
       generic map (
          TPD_G            => TPD_G,
-         SYNTH_MODE_G     => "inferred",
+         SYNTH_MODE_G     => "xpm",
          MEMORY_TYPE_G    => "block",
          READ_LATENCY_G   => 3,
          AXI_WR_EN_G      => true,
@@ -409,7 +410,7 @@ begin
    U_AxiDualPortRam_SQ1FB_FULL : entity surf.AxiDualPortRam
       generic map (
          TPD_G            => TPD_G,
-         SYNTH_MODE_G     => "inferred",
+         SYNTH_MODE_G     => "xpm",
          MEMORY_TYPE_G    => "block",
          READ_LATENCY_G   => 3,
          AXI_WR_EN_G      => true,
@@ -436,7 +437,7 @@ begin
    U_AxiDualPortRam_FLUX_JUMP : entity surf.AxiDualPortRam
       generic map (
          TPD_G            => TPD_G,
-         SYNTH_MODE_G     => "inferred",
+         SYNTH_MODE_G     => "xpm",
          MEMORY_TYPE_G    => "block",
          READ_LATENCY_G   => 3,
          AXI_WR_EN_G      => true,
@@ -954,32 +955,38 @@ begin
    -------------------------------------------------------------------------------------------------
    -- Debug stream to axisClk domain
    -------------------------------------------------------------------------------------------------
-   U_AxiStreamFifoV2_PID_DEBUG : entity surf.AxiStreamFifoV2
-      generic map (
-         TPD_G               => TPD_G,
-         INT_PIPE_STAGES_G   => 1,
-         PIPE_STAGES_G       => 1,
-         SLAVE_READY_EN_G    => false,
-         VALID_THOLD_G       => 0,
-         VALID_BURST_MODE_G  => true,
-         FIFO_PAUSE_THRESH_G => 15,
-         GEN_SYNC_FIFO_G     => false,
-         FIFO_ADDR_WIDTH_G   => 9,
-         SYNTH_MODE_G        => "xpm",
-         MEMORY_TYPE_G       => "bram",
-         INT_WIDTH_SELECT_G  => "WIDE",
-         SLAVE_AXI_CONFIG_G  => AXIS_DEBUG_CFG_C,
-         MASTER_AXI_CONFIG_G => DATA_AXIS_CONFIG_C)
-      port map (
-         sAxisClk    => timingRxClk125,
-         sAxisRst    => timingRxRst125,
-         sAxisMaster => r.pidDebugMaster,
-         sAxisSlave  => open,
-         sAxisCtrl   => pidDebugCtrl,
-         mAxisClk    => axisClk,
-         mAxisRst    => axisRst,
-         mAxisMaster => pidDebugMaster,
-         mAxisSlave  => pidDebugSlave);
+   GEN_PID_DEBUG : if (GEN_PID_DEBUG_G) generate
+      U_AxiStreamFifoV2_PID_DEBUG : entity surf.AxiStreamFifoV2
+         generic map (
+            TPD_G               => TPD_G,
+            INT_PIPE_STAGES_G   => 1,
+            PIPE_STAGES_G       => 1,
+            SLAVE_READY_EN_G    => false,
+            VALID_THOLD_G       => 0,
+            VALID_BURST_MODE_G  => true,
+            FIFO_PAUSE_THRESH_G => 15,
+            GEN_SYNC_FIFO_G     => false,
+            FIFO_ADDR_WIDTH_G   => 9,
+            SYNTH_MODE_G        => "xpm",
+            MEMORY_TYPE_G       => "bram",
+            INT_WIDTH_SELECT_G  => "WIDE",
+            SLAVE_AXI_CONFIG_G  => AXIS_DEBUG_CFG_C,
+            MASTER_AXI_CONFIG_G => DATA_AXIS_CONFIG_C)
+         port map (
+            sAxisClk    => timingRxClk125,
+            sAxisRst    => timingRxRst125,
+            sAxisMaster => r.pidDebugMaster,
+            sAxisSlave  => open,
+            sAxisCtrl   => pidDebugCtrl,
+            mAxisClk    => axisClk,
+            mAxisRst    => axisRst,
+            mAxisMaster => pidDebugMaster,
+            mAxisSlave  => pidDebugSlave);
+   end generate GEN_PID_DEBUG;
+
+   NO_GEN_PID_DEBUG : if (not GEN_PID_DEBUG_G) generate
+      pidDebugMaster <= AXI_STREAM_MASTER_INIT_C;
+   end generate NO_GEN_PID_DEBUG;
 
    U_AxiStreamFifoV2_DATA : entity surf.AxiStreamFifoV2
       generic map (
