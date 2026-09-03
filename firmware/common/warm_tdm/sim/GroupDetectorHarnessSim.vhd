@@ -8,7 +8,11 @@
 -- Description:
 -- Maps flattened warm column and row endpoints onto one or more identical
 -- detector modules.  A negative detector-map entry explicitly terminates an
--- unused warm column with zero differential input voltage.
+-- unused warm column with zero differential input voltage.  Warm source ports
+-- retain their differential Thevenin representation.  Feedback and select
+-- coils use a fixed cable/coil load; SSA and SQ1 bias sources pass their
+-- Norton current and source resistance into the nonlinear cold load-line
+-- solver.
 -------------------------------------------------------------------------------
 -- This file is part of Warm TDM. It is subject to
 -- the license terms in the LICENSE.txt file found in the top-level directory
@@ -49,14 +53,21 @@ entity GroupDetectorHarnessSim is
          0 to NUM_DETECTORS_G*NUM_BANKS_G-1) :=
          contiguousCsLineMap(
             NUM_DETECTORS_G, ROWS_PER_BANK_G, NUM_BANKS_G, TWO_LEVEL_G);
+      -- Additional differential cable/wiring resistance.  These values do
+      -- not replace the source impedance already carried by columnDrive.
       SA_BIAS_LOADS_G        : RealArray(0 to NUM_WARM_COLUMNS_G-1) :=
          (others => 200.0);
+      -- Fixed cable plus coupling-coil resistance.
       SA_FB_LOADS_G          : RealArray(0 to NUM_WARM_COLUMNS_G-1) :=
          (others => 200.0);
+      -- Additional SQ1-bias wiring resistance; the MUX impedance is solved
+      -- separately and must not be included here.
       SQ1_BIAS_LOADS_G       : RealArray(0 to NUM_WARM_COLUMNS_G-1) :=
          (others => 200.0);
+      -- Fixed cable plus coupling-coil resistance.
       SQ1_FB_LOADS_G         : RealArray(0 to NUM_WARM_COLUMNS_G-1) :=
          (others => 200.0);
+      -- Fixed cable plus row/chip-select coupling-coil resistance.
       RS_LOADS_G             : RealArray(0 to NUM_WARM_ROW_LINES_G-1) :=
          (others => 200.0);
       TES_CURRENT_SCALE_G    : real := 1.0;
@@ -66,20 +77,10 @@ entity GroupDetectorHarnessSim is
       CHIP_FAS_PARAMS_G      : ChipFasParamsType := CHIP_FAS_SYNTHETIC_C;
       COLUMN_PARAMS_G        : MuxColumnParamsType := MUX_COLUMN_SYNTHETIC_C);
    port (
-      tesBiasP   : in  RealArray(0 to NUM_WARM_COLUMNS_G-1);
-      tesBiasN   : in  RealArray(0 to NUM_WARM_COLUMNS_G-1);
-      saBiasOutP : in  CurrentArray(0 to NUM_WARM_COLUMNS_G-1);
-      saBiasOutN : in  CurrentArray(0 to NUM_WARM_COLUMNS_G-1);
-      saBiasInP  : out RealArray(0 to NUM_WARM_COLUMNS_G-1);
-      saBiasInN  : out RealArray(0 to NUM_WARM_COLUMNS_G-1);
-      saFbP      : in  CurrentArray(0 to NUM_WARM_COLUMNS_G-1);
-      saFbN      : in  CurrentArray(0 to NUM_WARM_COLUMNS_G-1);
-      sq1BiasP   : in  CurrentArray(0 to NUM_WARM_COLUMNS_G-1);
-      sq1BiasN   : in  CurrentArray(0 to NUM_WARM_COLUMNS_G-1);
-      sq1FbP     : in  CurrentArray(0 to NUM_WARM_COLUMNS_G-1);
-      sq1FbN     : in  CurrentArray(0 to NUM_WARM_COLUMNS_G-1);
-      rsP        : in  CurrentArray(0 to NUM_WARM_ROW_LINES_G-1);
-      rsN        : in  CurrentArray(0 to NUM_WARM_ROW_LINES_G-1);
+      columnDrive : in  ColumnCryoDriveArray(0 to NUM_WARM_COLUMNS_G-1);
+      columnSense : out ColumnCryoSenseArray(0 to NUM_WARM_COLUMNS_G-1);
+      rowSelectDrive : in DifferentialSourceArray(
+         0 to NUM_WARM_ROW_LINES_G-1);
       tesStimulusAmp : in RealVector(
          0 to NUM_DETECTORS_G*COLUMNS_PER_DETECTOR_G*
               NUM_BANKS_G*ROWS_PER_BANK_G-1) := (others => 0.0));
@@ -93,10 +94,14 @@ architecture sim of GroupDetectorHarnessSim is
 
    signal ssaBiasCurrent : RealVector(0 to NUM_DETECTOR_COLUMNS_C-1) :=
       (others => 0.0);
+   signal ssaBiasSourceResistance : RealVector(
+      0 to NUM_DETECTOR_COLUMNS_C-1) := (others => 0.0);
    signal ssaFbCurrent : RealVector(0 to NUM_DETECTOR_COLUMNS_C-1) :=
       (others => 0.0);
    signal sq1BiasCurrent : RealVector(0 to NUM_DETECTOR_COLUMNS_C-1) :=
       (others => 0.0);
+   signal sq1BiasSourceResistance : RealVector(
+      0 to NUM_DETECTOR_COLUMNS_C-1) := (others => 0.0);
    signal sq1FbCurrent : RealVector(0 to NUM_DETECTOR_COLUMNS_C-1) :=
       (others => 0.0);
    signal rowLineCurrent : RealVector(0 to NUM_WARM_ROW_LINES_G-1) :=
@@ -158,6 +163,11 @@ begin
                 RS_LINE_MAP_G(index) < NUM_WARM_ROW_LINES_G
             report "GroupDetectorHarnessSim: row-select map entry is out of range"
             severity failure;
+         for otherIndex in index+1 to RS_LINE_MAP_G'high loop
+            assert RS_LINE_MAP_G(index) /= RS_LINE_MAP_G(otherIndex)
+               report "GroupDetectorHarnessSim: warm row line drives more than one detector row terminal"
+               severity failure;
+         end loop;
       end loop;
       if TWO_LEVEL_G then
          for index in CS_LINE_MAP_G'range loop
@@ -165,13 +175,24 @@ begin
                    CS_LINE_MAP_G(index) < NUM_WARM_ROW_LINES_G
                report "GroupDetectorHarnessSim: chip-select map entry is out of range"
                severity failure;
+            for otherIndex in index+1 to CS_LINE_MAP_G'high loop
+               assert CS_LINE_MAP_G(index) /= CS_LINE_MAP_G(otherIndex)
+                  report "GroupDetectorHarnessSim: warm row line drives more than one detector chip terminal"
+                  severity failure;
+            end loop;
+            for rowIndex in RS_LINE_MAP_G'range loop
+               assert CS_LINE_MAP_G(index) /= RS_LINE_MAP_G(rowIndex)
+                  report "GroupDetectorHarnessSim: warm row line is shared by row and chip terminals"
+                  severity failure;
+            end loop;
          end loop;
       end if;
       wait;
    end process VALIDATE;
 
    GEN_ROW_LINES : for line in 0 to NUM_WARM_ROW_LINES_G-1 generate
-      rowLineCurrent(line) <= currentDiff(rsP(line), rsN(line), RS_LOADS_G(line));
+      rowLineCurrent(line) <= currentDiff(
+         rowSelectDrive(line), RS_LOADS_G(line));
    end generate GEN_ROW_LINES;
 
    ROUTE_ROWS : process (all) is
@@ -199,12 +220,13 @@ begin
       variable pixel          : natural;
    begin
       ssaBiasCurrent <= (others => 0.0);
+      ssaBiasSourceResistance <= (others => 0.0);
       ssaFbCurrent   <= (others => 0.0);
       sq1BiasCurrent <= (others => 0.0);
+      sq1BiasSourceResistance <= (others => 0.0);
       sq1FbCurrent   <= (others => 0.0);
       detectorTesCurrent <= tesStimulusAmp;
-      saBiasInP <= (others => 0.0);
-      saBiasInN <= (others => 0.0);
+      columnSense <= (others => (ssaVoltage => (p => 0.0, n => 0.0)));
 
       for warmColumn in 0 to NUM_WARM_COLUMNS_G-1 loop
          if WARM_DETECTOR_MAP_G(warmColumn) >= 0 and
@@ -215,23 +237,34 @@ begin
                WARM_DETECTOR_MAP_G(warmColumn)*COLUMNS_PER_DETECTOR_G +
                WARM_COLUMN_MAP_G(warmColumn);
             ssaBiasCurrent(detectorColumn) <= currentDiff(
-               saBiasOutP(warmColumn), saBiasOutN(warmColumn),
+               columnDrive(warmColumn).ssaBias,
                SA_BIAS_LOADS_G(warmColumn));
+            ssaBiasSourceResistance(detectorColumn) <=
+               differentialImpedance(
+                  columnDrive(warmColumn).ssaBias,
+                  SA_BIAS_LOADS_G(warmColumn));
             ssaFbCurrent(detectorColumn) <= currentDiff(
-               saFbP(warmColumn), saFbN(warmColumn),
+               columnDrive(warmColumn).ssaFeedback,
                SA_FB_LOADS_G(warmColumn));
             sq1BiasCurrent(detectorColumn) <= currentDiff(
-               sq1BiasP(warmColumn), sq1BiasN(warmColumn),
+               columnDrive(warmColumn).sq1Bias,
                SQ1_BIAS_LOADS_G(warmColumn));
+            sq1BiasSourceResistance(detectorColumn) <=
+               differentialImpedance(
+                  columnDrive(warmColumn).sq1Bias,
+                  SQ1_BIAS_LOADS_G(warmColumn));
             sq1FbCurrent(detectorColumn) <= currentDiff(
-               sq1FbP(warmColumn), sq1FbN(warmColumn),
+               columnDrive(warmColumn).sq1Feedback,
                SQ1_FB_LOADS_G(warmColumn));
-            saBiasInP(warmColumn) <= 0.5*ssaVoltage(detectorColumn);
-            saBiasInN(warmColumn) <= -0.5*ssaVoltage(detectorColumn);
+            columnSense(warmColumn).ssaVoltage.p <=
+               0.5*ssaVoltage(detectorColumn);
+            columnSense(warmColumn).ssaVoltage.n <=
+               -0.5*ssaVoltage(detectorColumn);
             for row in 0 to NUM_ROWS_C-1 loop
                pixel := detectorColumn*NUM_ROWS_C + row;
                detectorTesCurrent(pixel) <= tesStimulusAmp(pixel) +
-                  0.5*(tesBiasP(warmColumn) - tesBiasN(warmColumn))*
+                  0.5*(columnDrive(warmColumn).tesBias.p -
+                       columnDrive(warmColumn).tesBias.n)*
                   TES_CURRENT_SCALE_G;
             end loop;
          end if;
@@ -264,8 +297,12 @@ begin
             COLUMN_PARAMS_G   => COLUMN_PARAMS_G)
          port map (
             ssaBiasCurrentAmp     => ssaBiasCurrent(COLUMN_LOW_C to COLUMN_HIGH_C),
+            ssaBiasSourceResistanceOhm =>
+               ssaBiasSourceResistance(COLUMN_LOW_C to COLUMN_HIGH_C),
             ssaFeedbackCurrentAmp => ssaFbCurrent(COLUMN_LOW_C to COLUMN_HIGH_C),
             sq1BiasCurrentAmp     => sq1BiasCurrent(COLUMN_LOW_C to COLUMN_HIGH_C),
+            sq1BiasSourceResistanceOhm =>
+               sq1BiasSourceResistance(COLUMN_LOW_C to COLUMN_HIGH_C),
             sq1FeedbackCurrentAmp => sq1FbCurrent(COLUMN_LOW_C to COLUMN_HIGH_C),
             rowSelectCurrentAmp   => detectorRsCurrent(RS_LOW_C to RS_HIGH_C),
             chipSelectCurrentAmp  => detectorCsCurrent(CS_LOW_C to CS_HIGH_C),

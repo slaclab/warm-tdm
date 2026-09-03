@@ -126,8 +126,10 @@ architecture sim of WaferModelTb is
    signal chipFasOut    : real;
 
    signal detectorSsaBias     : RealVector(0 to 1) := (others => 60.0E-6);
+   signal detectorSsaSourceR  : RealVector(0 to 1) := (others => 0.0);
    signal detectorSsaFb       : RealVector(0 to 1) := (others => 0.0);
    signal detectorSq1Bias     : RealVector(0 to 1) := (others => 10.0E-6);
+   signal detectorSq1SourceR  : RealVector(0 to 1) := (others => 0.0);
    signal detectorSq1Fb       : RealVector(0 to 1) := (others => 0.0);
    signal detectorRowSelect   : RealVector(0 to 1) := (others => 0.0);
    signal detectorChipSelect  : RealVector(0 to 1) := (others => 0.0);
@@ -217,8 +219,10 @@ begin
          COLUMN_PARAMS_G   => COLUMN_PARAMS_C)
       port map (
          ssaBiasCurrentAmp     => detectorSsaBias,
+         ssaBiasSourceResistanceOhm => detectorSsaSourceR,
          ssaFeedbackCurrentAmp => detectorSsaFb,
          sq1BiasCurrentAmp     => detectorSq1Bias,
+         sq1BiasSourceResistanceOhm => detectorSq1SourceR,
          sq1FeedbackCurrentAmp => detectorSq1Fb,
          rowSelectCurrentAmp   => detectorRowSelect,
          chipSelectCurrentAmp  => detectorChipSelect,
@@ -257,6 +261,8 @@ begin
       variable muxRowOnly   : real;
       variable muxSelected  : real;
       variable muxTesStep   : real;
+      variable idealSourceMux : real;
+      variable idealSourceSsa : real;
       variable optimumSpan  : real;
       variable highBiasSpan : real;
    begin
@@ -373,6 +379,20 @@ begin
       assert detectorSsaVoltage(0) = detectorSsaVoltage(0) and
              detectorSsaVoltage(1) = detectorSsaVoltage(1)
          report "non-finite SSA output"
+         severity failure;
+
+      -- A finite Norton resistance diverts some commanded bias through the
+      -- source impedance.  Zero retains the ideal-current compatibility mode.
+      idealSourceMux := detectorMuxCurrent(0);
+      idealSourceSsa := detectorSsaVoltage(0);
+      detectorSq1SourceR(0) <= 1.0;
+      detectorSsaSourceR(0) <= 1.0;
+      wait for 1 ns;
+      assert abs(detectorMuxCurrent(0)) < abs(idealSourceMux)
+         report "finite SQ1-bias source resistance did not alter the load line"
+         severity failure;
+      assert abs(detectorSsaVoltage(0)) < abs(idealSourceSsa)
+         report "finite SSA-bias source resistance did not alter the load line"
          severity failure;
 
       report "WaferModelTb PASSED" severity note;

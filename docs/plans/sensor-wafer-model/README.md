@@ -8,8 +8,16 @@
   functions, exact and reduced nested MUX solvers, configurable detector
   modules, and an eight-channel `WaferSim` compatibility wrapper.
 - `GroupTb` selects complete `WAFER`/BICEP3/NIST-50-row/BA4 or load-board
-  presets with its single `LOAD_G` generic. Lower-level model interfaces retain
-  custom topology, device parameters, and deterministic per-pixel TES input.
+  presets with `LOAD_G`; `COLUMN_BOARDS_G` and `NUM_DETECTORS_G` select an
+  eight-column slice, a 12-column `8+4` connection, or the dual-BA4
+  `8+8+(4+4)` assembly without changing the cold model.
+- The warm/cold boundary now uses typed differential Thevenin drive records
+  and differential SSA-voltage sense records. `GroupTb` explicitly flattens
+  each board as `board*8 + channel`, and `GroupDetectorHarnessSim` is the active
+  wafer integration rather than the old fixed-width `WaferSim` wrapper.
+- SQ1 and SSA bias paths now include FEB/cable source resistance in bounded
+  nonlinear load-line solves. Feedback and select coils retain the faster
+  fixed cable/coil-load current conversion.
 - Focused GHDL tests pass for the primitive curves, two-level selection,
   selected-pixel isolation, the compatibility wrapper, an 8-column `6x10`
   slice, full 12-column BICEP3/NIST/BA4 profile elaboration, a one-detector
@@ -20,9 +28,9 @@
   normalized Python control interface are documented in
   [`PID_COEFFICIENTS.md`](PID_COEFFICIENTS.md). Closed-loop VCS verification is
   still pending.
-- Multi-board integration into `GroupTb`, model dynamics, a static electrical
-  TES solution, per-device variation, and measured calibration remain future
-  work.
+- VCS validation of the multi-board `GroupTb` integration, model dynamics, a
+  static electrical TES solution, per-device variation, and measured
+  calibration remain future work.
 - The supplied circuit diagrams are sufficient to begin a behavioral model.
 - Legacy SQUID and FAS equations have been checked against the published RCSJ,
   SQUID-array, and NIST switch-MUX literature; the accepted limits and required
@@ -747,6 +755,21 @@ Structural checks at elaboration must prove:
 
 ### Analog interface contract
 
+The implemented boundary uses `TheveninSourceType`,
+`DifferentialSourceType`, `ColumnCryoDriveType`, and `ColumnCryoSenseType` in
+`SimPkg`. The historical `CurrentType` and `CurrentArray` names remain as
+subtypes so the board and load-board models do not need an all-at-once API
+change. `WaferSim` likewise remains the legacy eight-channel adapter; new
+group-level integration goes through `GroupDetectorHarnessSim`.
+
+For SSA and SQ1 bias, the harness converts the differential source to its
+Norton-equivalent short-circuit current and passes the total FEB plus cable
+source resistance into `DetectorModuleSim`. `TdmMuxColumnModel` folds this
+resistance into its bounded load-line bisection. A zero source resistance is
+the explicit ideal-current compatibility mode used by focused unit tests. For
+SA/SQ1 feedback and row/chip select, the cold electrical load is the cable and
+coupling coil, so one `currentDiff` calculation remains the intended model.
+
 The model boundary must preserve the electrical meaning of the existing FEB
 models. `SimPkg.CurrentType` is a Thevenin source represented by open-circuit
 voltage and series impedance; it is not a measured current. SA bias, SA
@@ -773,6 +796,11 @@ saBiasInN = commonMode - polarity * Vssa / 2
 Common mode, polarity, and output clamps are parameters. Symmetric drive is a
 functional assumption suitable for ADC-path testing; it must be updated if the
 real SSA termination establishes a different common mode.
+
+`ColumnFebSaBiasAmp` intentionally derives both output polarities and the
+offset pair from the P DAC leg. This represents a known circuit modification;
+the otherwise-unused N inputs are retained only for compatibility with older
+FEB model interfaces.
 
 Each physical row-select line has one source/load calculation, even when its
 flux couples to FAS devices in every detector column. The resulting current is

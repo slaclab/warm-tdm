@@ -34,9 +34,16 @@ entity DetectorModuleSim is
       CHIP_FAS_PARAMS_G : ChipFasParamsType := CHIP_FAS_SYNTHETIC_C;
       COLUMN_PARAMS_G   : MuxColumnParamsType := MUX_COLUMN_SYNTHETIC_C);
    port (
+      -- Bias currents are Norton-equivalent short-circuit currents when the
+      -- corresponding source resistance is nonzero.  A zero resistance keeps
+      -- the ideal-current behavior used by focused compatibility tests.
       ssaBiasCurrentAmp     : in  RealVector(0 to NUM_COLUMNS_G-1);
+      ssaBiasSourceResistanceOhm : in RealVector(0 to NUM_COLUMNS_G-1) :=
+         (others => 0.0);
       ssaFeedbackCurrentAmp : in  RealVector(0 to NUM_COLUMNS_G-1);
       sq1BiasCurrentAmp     : in  RealVector(0 to NUM_COLUMNS_G-1);
+      sq1BiasSourceResistanceOhm : in RealVector(0 to NUM_COLUMNS_G-1) :=
+         (others => 0.0);
       sq1FeedbackCurrentAmp : in  RealVector(0 to NUM_COLUMNS_G-1);
       rowSelectCurrentAmp   : in  RealVector(0 to ROWS_PER_BANK_G-1);
       chipSelectCurrentAmp  : in  RealVector(0 to NUM_BANKS_G-1);
@@ -65,8 +72,12 @@ begin
             COLUMN_PARAMS_G   => COLUMN_PARAMS_G)
          port map (
             ssaBiasCurrentAmp     => ssaBiasCurrentAmp(column),
+            ssaBiasSourceResistanceOhm =>
+               ssaBiasSourceResistanceOhm(column),
             ssaFeedbackCurrentAmp => ssaFeedbackCurrentAmp(column),
             sq1BiasCurrentAmp     => sq1BiasCurrentAmp(column),
+            sq1BiasSourceResistanceOhm =>
+               sq1BiasSourceResistanceOhm(column),
             sq1FeedbackCurrentAmp => sq1FeedbackCurrentAmp(column),
             rowSelectCurrentAmp   => rowSelectCurrentAmp,
             chipSelectCurrentAmp  => chipSelectCurrentAmp,

@@ -265,6 +265,32 @@ package WaferSimPkg is
       numBanks     : positive;
       twoLevel     : boolean)
       return IntegerVector;
+   function presetWarmDetectorMap (
+      loadName          : string;
+      numWarmColumns    : positive;
+      numDetectors      : positive;
+      columnsPerDetector : positive)
+      return IntegerVector;
+   function presetWarmColumnMap (
+      loadName          : string;
+      numWarmColumns    : positive;
+      numDetectors      : positive;
+      columnsPerDetector : positive)
+      return IntegerVector;
+   function presetRsLineMap (
+      loadName     : string;
+      numDetectors : positive;
+      rowsPerBank  : positive;
+      numBanks     : positive;
+      twoLevel     : boolean)
+      return IntegerVector;
+   function presetCsLineMap (
+      loadName     : string;
+      numDetectors : positive;
+      rowsPerBank  : positive;
+      numBanks     : positive;
+      twoLevel     : boolean)
+      return IntegerVector;
 
    function validSquidParams (params : SquidParamsType) return boolean;
    function clampReal (value : real; lower : real; upper : real) return real;
@@ -469,6 +495,72 @@ package body WaferSimPkg is
       end if;
       return result;
    end function contiguousCsLineMap;
+
+   function presetWarmDetectorMap (
+      loadName           : string;
+      numWarmColumns     : positive;
+      numDetectors       : positive;
+      columnsPerDetector : positive)
+      return IntegerVector is
+   begin
+      if loadName = "BA4" and numWarmColumns = 24 and
+         numDetectors = 2 and columnsPerDetector = 12 then
+         return DUAL_BA4_WARM_DETECTOR_MAP_C;
+      else
+         return sequentialWarmDetectorMap(
+            numWarmColumns, numDetectors, columnsPerDetector);
+      end if;
+   end function presetWarmDetectorMap;
+
+   function presetWarmColumnMap (
+      loadName           : string;
+      numWarmColumns     : positive;
+      numDetectors       : positive;
+      columnsPerDetector : positive)
+      return IntegerVector is
+   begin
+      if loadName = "BA4" and numWarmColumns = 24 and
+         numDetectors = 2 and columnsPerDetector = 12 then
+         return DUAL_BA4_WARM_COLUMN_MAP_C;
+      else
+         return sequentialWarmColumnMap(
+            numWarmColumns, numDetectors, columnsPerDetector);
+      end if;
+   end function presetWarmColumnMap;
+
+   function presetRsLineMap (
+      loadName     : string;
+      numDetectors : positive;
+      rowsPerBank  : positive;
+      numBanks     : positive;
+      twoLevel     : boolean)
+      return IntegerVector is
+   begin
+      if loadName = "BA4" and numDetectors = 2 and rowsPerBank = 10 and
+         numBanks = 6 and twoLevel then
+         return DUAL_BA4_RS_LINE_MAP_C;
+      else
+         return contiguousRsLineMap(
+            numDetectors, rowsPerBank, numBanks, twoLevel);
+      end if;
+   end function presetRsLineMap;
+
+   function presetCsLineMap (
+      loadName     : string;
+      numDetectors : positive;
+      rowsPerBank  : positive;
+      numBanks     : positive;
+      twoLevel     : boolean)
+      return IntegerVector is
+   begin
+      if loadName = "BA4" and numDetectors = 2 and rowsPerBank = 10 and
+         numBanks = 6 and twoLevel then
+         return DUAL_BA4_CS_LINE_MAP_C;
+      else
+         return contiguousCsLineMap(
+            numDetectors, rowsPerBank, numBanks, twoLevel);
+      end if;
+   end function presetCsLineMap;
 
    function validSquidParams (params : SquidParamsType) return boolean is
    begin

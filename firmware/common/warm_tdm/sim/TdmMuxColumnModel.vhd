@@ -36,8 +36,10 @@ entity TdmMuxColumnModel is
       COLUMN_PARAMS_G   : MuxColumnParamsType := MUX_COLUMN_SYNTHETIC_C);
    port (
       ssaBiasCurrentAmp     : in  real;
+      ssaBiasSourceResistanceOhm : in real := 0.0;
       ssaFeedbackCurrentAmp : in  real;
       sq1BiasCurrentAmp     : in  real;
+      sq1BiasSourceResistanceOhm : in real := 0.0;
       sq1FeedbackCurrentAmp : in  real;
       rowSelectCurrentAmp   : in  RealVector(0 to ROWS_PER_BANK_G-1);
       chipSelectCurrentAmp  : in  RealVector(0 to NUM_BANKS_G-1);
@@ -509,6 +511,137 @@ architecture sim of TdmMuxColumnModel is
       return direction * 0.5 * (lower + upper);
    end function solveMuxCurrent;
 
+   function muxCurrentForSource (
+      sourceCurrent      : real;
+      numBanks           : positive;
+      rowsPerBank        : positive;
+      twoLevel           : boolean;
+      tesCurrent         : RealVector;
+      rowSelectCurrent   : RealVector;
+      chipSelectCurrent  : RealVector;
+      sq1FeedbackCurrent : real;
+      sq1Params          : Sq1ParamsType;
+      rowFasParams       : RowFasParamsType;
+      chipFasParams      : ChipFasParamsType;
+      columnParams       : MuxColumnParamsType)
+      return real is
+   begin
+      if columnParams.useExactNetworkSolver then
+         return solveMuxCurrent(
+            sourceCurrent, numBanks, rowsPerBank, twoLevel, tesCurrent,
+            rowSelectCurrent, chipSelectCurrent, sq1FeedbackCurrent,
+            sq1Params, rowFasParams, chipFasParams, columnParams);
+      else
+         return fastMuxCurrent(
+            sourceCurrent, numBanks, rowsPerBank, twoLevel, tesCurrent,
+            rowSelectCurrent, chipSelectCurrent, sq1FeedbackCurrent,
+            sq1Params, rowFasParams, chipFasParams, columnParams);
+      end if;
+   end function muxCurrentForSource;
+
+   -- Solve a Norton-equivalent source, source resistance, column shunt, and
+   -- nonlinear MUX in one bisection.  Folding the source term into the
+   -- existing load-line equation avoids an expensive nested outer solve.
+   function solveSourceAwareMuxCurrent (
+      nortonCurrent      : real;
+      sourceResistance   : real;
+      numBanks           : positive;
+      rowsPerBank        : positive;
+      twoLevel           : boolean;
+      tesCurrent         : RealVector;
+      rowSelectCurrent   : RealVector;
+      chipSelectCurrent  : RealVector;
+      sq1FeedbackCurrent : real;
+      sq1Params          : Sq1ParamsType;
+      rowFasParams       : RowFasParamsType;
+      chipFasParams      : ChipFasParamsType;
+      columnParams       : MuxColumnParamsType)
+      return real is
+      variable direction       : real;
+      variable magnitude       : real;
+      variable lower           : real;
+      variable upper           : real;
+      variable deviceCurrent   : real;
+      variable deviceVoltage   : real;
+      variable residual        : real;
+   begin
+      if nortonCurrent = 0.0 or sourceResistance <= 0.0 then
+         return muxCurrentForSource(
+            nortonCurrent, numBanks, rowsPerBank, twoLevel, tesCurrent,
+            rowSelectCurrent, chipSelectCurrent, sq1FeedbackCurrent,
+            sq1Params, rowFasParams, chipFasParams, columnParams);
+      end if;
+
+      direction := currentSign(nortonCurrent);
+      magnitude := abs(nortonCurrent);
+      lower := 0.0;
+      upper := magnitude;
+      for i in 1 to columnParams.solverIterations loop
+         deviceCurrent := direction*0.5*(lower + upper);
+         if columnParams.useExactNetworkSolver then
+            deviceVoltage := columnDeviceVoltage(
+               deviceCurrent, numBanks, rowsPerBank, twoLevel, tesCurrent,
+               rowSelectCurrent, chipSelectCurrent, sq1FeedbackCurrent,
+               sq1Params, rowFasParams, chipFasParams, columnParams);
+         else
+            deviceVoltage := deviceCurrent*fastColumnResistance(
+               deviceCurrent, numBanks, rowsPerBank, twoLevel, tesCurrent,
+               rowSelectCurrent, chipSelectCurrent, sq1FeedbackCurrent,
+               sq1Params, rowFasParams, chipFasParams, columnParams);
+         end if;
+         residual := direction*(
+            deviceCurrent + deviceVoltage/
+               columnParams.shuntResistanceOhm +
+            deviceVoltage/sourceResistance - nortonCurrent);
+         if residual > 0.0 then
+            upper := abs(deviceCurrent);
+         else
+            lower := abs(deviceCurrent);
+         end if;
+      end loop;
+      return direction*0.5*(lower + upper);
+   end function solveSourceAwareMuxCurrent;
+
+   function solveSsaBiasCurrent (
+      nortonCurrent    : real;
+      sourceResistance : real;
+      inputCurrent     : real;
+      feedbackCurrent  : real;
+      params           : SsaParamsType;
+      iterations       : positive)
+      return real is
+      variable direction : real;
+      variable magnitude : real;
+      variable lower     : real;
+      variable upper     : real;
+      variable biasMag   : real;
+      variable bias      : real;
+      variable voltage   : real;
+      variable residual  : real;
+   begin
+      if nortonCurrent = 0.0 or sourceResistance <= 0.0 then
+         return nortonCurrent;
+      end if;
+
+      direction := currentSign(nortonCurrent);
+      magnitude := abs(nortonCurrent);
+      lower := 0.0;
+      upper := magnitude;
+      for i in 1 to iterations loop
+         biasMag := 0.5*(lower + upper);
+         bias := direction*biasMag;
+         voltage := ssaVoltage(params, bias, inputCurrent, feedbackCurrent);
+         residual := direction*(
+            bias + voltage/sourceResistance - nortonCurrent);
+         if residual > 0.0 then
+            upper := biasMag;
+         else
+            lower := biasMag;
+         end if;
+      end loop;
+      return direction*0.5*(lower + upper);
+   end function solveSsaBiasCurrent;
+
 begin
 
    assert validSquidParams(SSA_PARAMS_G.squid)
@@ -548,6 +681,10 @@ begin
    assert COLUMN_PARAMS_G.seriesResistanceOhm >= 0.0
       report "TdmMuxColumnModel: series resistance must be nonnegative"
       severity failure;
+   assert ssaBiasSourceResistanceOhm >= 0.0 and
+          sq1BiasSourceResistanceOhm >= 0.0
+      report "TdmMuxColumnModel: bias source resistance must be nonnegative"
+      severity failure;
    assert SQ1_PARAMS_G.seriesResistanceOhm > 0.0
       report "TdmMuxColumnModel: SQ1 branch needs positive series resistance"
       severity failure;
@@ -559,45 +696,40 @@ begin
       severity failure;
 
    comb : process (all) is
-      variable current : real;
+      variable current        : real;
+      variable muxVoltage     : real;
+      variable ssaBiasCurrent : real;
    begin
+      current := solveSourceAwareMuxCurrent(
+         sq1BiasCurrentAmp, sq1BiasSourceResistanceOhm,
+         NUM_BANKS_G, ROWS_PER_BANK_G, TWO_LEVEL_G, tesCurrentAmp,
+         rowSelectCurrentAmp, chipSelectCurrentAmp, sq1FeedbackCurrentAmp,
+         SQ1_PARAMS_G, ROW_FAS_PARAMS_G, CHIP_FAS_PARAMS_G,
+         COLUMN_PARAMS_G);
       if COLUMN_PARAMS_G.useExactNetworkSolver then
-         current := solveMuxCurrent(
-            sq1BiasCurrentAmp,
-            NUM_BANKS_G,
-            ROWS_PER_BANK_G,
-            TWO_LEVEL_G,
-            tesCurrentAmp,
-            rowSelectCurrentAmp,
-            chipSelectCurrentAmp,
-            sq1FeedbackCurrentAmp,
-            SQ1_PARAMS_G,
-            ROW_FAS_PARAMS_G,
-            CHIP_FAS_PARAMS_G,
-            COLUMN_PARAMS_G);
+         muxVoltage := columnDeviceVoltage(
+            current, NUM_BANKS_G, ROWS_PER_BANK_G, TWO_LEVEL_G,
+            tesCurrentAmp, rowSelectCurrentAmp, chipSelectCurrentAmp,
+            sq1FeedbackCurrentAmp, SQ1_PARAMS_G, ROW_FAS_PARAMS_G,
+            CHIP_FAS_PARAMS_G, COLUMN_PARAMS_G);
       else
-         current := fastMuxCurrent(
-            sq1BiasCurrentAmp,
-            NUM_BANKS_G,
-            ROWS_PER_BANK_G,
-            TWO_LEVEL_G,
-            tesCurrentAmp,
-            rowSelectCurrentAmp,
-            chipSelectCurrentAmp,
-            sq1FeedbackCurrentAmp,
-            SQ1_PARAMS_G,
-            ROW_FAS_PARAMS_G,
-            CHIP_FAS_PARAMS_G,
-            COLUMN_PARAMS_G);
+         muxVoltage := current*fastColumnResistance(
+            current, NUM_BANKS_G, ROWS_PER_BANK_G, TWO_LEVEL_G,
+            tesCurrentAmp, rowSelectCurrentAmp, chipSelectCurrentAmp,
+            sq1FeedbackCurrentAmp, SQ1_PARAMS_G, ROW_FAS_PARAMS_G,
+            CHIP_FAS_PARAMS_G, COLUMN_PARAMS_G);
       end if;
+      ssaBiasCurrent := solveSsaBiasCurrent(
+         ssaBiasCurrentAmp, ssaBiasSourceResistanceOhm, current,
+         ssaFeedbackCurrentAmp, SSA_PARAMS_G,
+         COLUMN_PARAMS_G.solverIterations);
 
       muxCurrentAmp  <= current;
-      muxVoltageVolt <= (sq1BiasCurrentAmp - current) *
-                        COLUMN_PARAMS_G.shuntResistanceOhm;
+      muxVoltageVolt <= muxVoltage;
       ssaPhaseCycles <= warm_tdm.WaferSimPkg.ssaPhaseCycles(
          SSA_PARAMS_G, current, ssaFeedbackCurrentAmp);
       ssaVoltageVolt <= ssaVoltage(
-         SSA_PARAMS_G, ssaBiasCurrentAmp, current, ssaFeedbackCurrentAmp);
+         SSA_PARAMS_G, ssaBiasCurrent, current, ssaFeedbackCurrentAmp);
    end process comb;
 
 end architecture sim;

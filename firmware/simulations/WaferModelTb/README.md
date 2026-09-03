@@ -20,6 +20,9 @@ network, the fast 8-column `6x10` model, the old eight-channel `WaferSim`
 interface, and elaboration of the physical BICEP3, NIST-50-row, and BA4
 detector dimensions. It also checks a 12-column detector's `8+4` warm-board
 mapping, unused-channel termination, and the dual-BA4 `8+8+(4+4)` mapping.
+The harness checks use the typed differential warm/cold interface, and the
+column test verifies that finite SQ1- and SSA-bias source impedances affect the
+nonlinear operating point while zero impedance retains ideal-current mode.
 The NIST `5x10` bank factorization remains provisional until it is checked
 against the mask schematic.
 
