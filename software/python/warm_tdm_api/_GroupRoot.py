@@ -25,6 +25,9 @@ class GroupRoot(pyrogue.Root):
                                        "This interface supports configuration load and save as well as the top level reset control.",
                          **kwargs)
 
+        # Remembered for start(): SaTune debug logging is enabled post-attach.
+        self._simMode = simulation
+
         self.zmqServer = pyrogue.interfaces.ZmqServer(root=self, addr='127.0.0.1', port=0)
         self.addInterface(self.zmqServer)
         
@@ -66,4 +69,24 @@ class GroupRoot(pyrogue.Root):
             dataWriter=self.DataWriter,
             simulation=simulation,
             emulate=emulate))
+
+    def start(self, *args, **kwargs):
+        """Start the tree, then (in simulation) enable SaTune debug logging.
+
+        This must run after start(): a node's logger is only rebuilt with its
+        full tree path in _rootAttached (during start), so lowering the level
+        earlier would target the pre-attach logger name and have no effect.
+
+        The tuning helpers log via the Group node's logger (group._log, where
+        group == process.parent), so the Group logger is the one that must be
+        lowered; SaTuneProcess is also set for its own messages. Doing this in
+        GroupRoot.start() covers every --sim entry point (server, GUI, Jupyter,
+        callSubroutines) that starts the tree.
+        """
+        super().start(*args, **kwargs)
+
+        if self._simMode:
+            for node in (self.find(typ=warm_tdm_api.Group) +
+                         self.find(typ=warm_tdm_api.SaTuneProcess)):
+                node.setLogLevel('DEBUG', includeRogue=False)
 

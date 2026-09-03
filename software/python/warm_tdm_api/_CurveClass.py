@@ -38,8 +38,10 @@ def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title)
             # collide into identical legend labels (issue #35).
             label = f'[{biasIndex}] {value:1.3f} - P-P: {peak:1.3f} - $\\phi_o$: {phinot:.2f}'
             color = ax._get_lines.get_next_color()
-            # Plot the curve
-            ax.plot(xValues, curveDataDict['curves'][biasIndex], label=label, linewidth=linewidth, color=color)
+            # Plot the curve. A curve may be shorter than xValues if the process
+            # was stopped mid-sweep; plot against as many x points as collected.
+            yCurve = curveDataDict['curves'][biasIndex]
+            ax.plot(xValues[:len(yCurve)], yCurve, label=label, linewidth=linewidth, color=color)
             # Mark the max point
             ax.plot(*curveDataDict['highPoints'][biasIndex], '^', color=color)
             # Mark the min point
@@ -127,6 +129,22 @@ class Curve():
     def updatePeak(self, xValues):
         #print(f'bias curve {self.bias} - updatePeak()')
         np_points = np.array(self.points)
+
+        # Support partial curves (e.g. the process was stopped mid-sweep): align
+        # the x axis to however many points were actually collected so the FFT
+        # and slope slices below stay consistent. With too few points to analyze,
+        # set safe marker/peak values (so asDict and plotting don't hit undefined
+        # attributes) and let the raw points still be plotted.
+        xValues = xValues[:np_points.size]
+        if np_points.size < 2:
+            pt = (xValues[0], np_points[0]) if np_points.size == 1 else (0.0, 0.0)
+            self.phinot = 0.0
+            self.peakheight = 0.0
+            self.min_slope_point = pt
+            self.max_slope_point = pt
+            self.lowpoint = pt
+            self.highpoint = pt
+            return
 
         # Use FFT to find phy_not
         ff = np.fft.fftfreq(xValues.size, xValues[1]-xValues[0])
