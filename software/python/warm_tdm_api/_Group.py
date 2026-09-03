@@ -3,7 +3,9 @@ import warm_tdm
 import warm_tdm_api
 import numpy as np
 
-from ._GroupVariables import GroupLinkVariable, GroupArrayLinkVariable, FastDacVariable, GroupBroadcastVariable
+from ._GroupVariables import (GroupLinkVariable, GroupArrayLinkVariable,
+                              FastDacVariable, GroupBroadcastVariable,
+                              PidGainVariable)
 
 
 class Group(pr.Device):
@@ -378,6 +380,39 @@ class Group(pr.Device):
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SQ1Fb.Column[chan].Voltage
                                 for board, chan in self.col_iter()]))
 
+            # AdcDsp coefficients multiply the sum of the ADC errors in the row
+            # sample window.  Present window-independent gains on the mean error
+            # at Group scope, where the effective coordinator TimingTx is known.
+            # A low-level AdcDsp on a non-coordinator board cannot reliably infer
+            # that timing configuration from its own dormant TimingTx registers.
+            _pid_timing_tx = self.HardwareGroup.ColumnBoard[0].WarmTdmCore.Timing.TimingTx
+            _pid_dsps = [self.HardwareGroup.ColumnBoard[board].DataPath.AdcDsp[chan]
+                         for board, chan in self.col_iter()]
+
+            self.add(pr.LinkVariable(
+                name = 'PidSampleCount',
+                description = 'ADC samples accumulated per row visit by the '
+                              'coordinator timing window.',
+                mode = 'RO',
+                groups = ['TopApi', 'NoConfig'],
+                dependencies = [_pid_timing_tx.SampleCount],
+                disp = '{:d}',
+                linkedGet = _pid_timing_tx.SampleCount.get))
+
+            for name, field, description in (
+                    ('PidP_Gain', 'P_Coef',
+                     'Window-normalized proportional gain on mean ADC error.'),
+                    ('PidI_Gain', 'I_Coef',
+                     'Window-normalized integral gain on accumulated mean ADC error.'),
+                    ('PidD_Gain', 'D_Coef',
+                     'Window-normalized derivative gain on mean ADC-error differences.')):
+                self.add(PidGainVariable(
+                    name = name,
+                    description = description,
+                    coefficient_dependencies = [getattr(dsp, field) for dsp in _pid_dsps],
+                    sample_count = _pid_timing_tx.SampleCount,
+                    disp = '{:0.8f}'))
+
             self.add(GroupLinkVariable(
                 name = 'TesBias',
                 description='TesBias value for each column. 1D array with total length ColumnBoards * 8.',
@@ -423,7 +458,10 @@ class Group(pr.Device):
                 self.SaFbForceCurrent,
                 self.Sq1BiasForceCurrent,
                 self.Sq1FbForceCurrent,
-                self.TesBias
+                self.TesBias,
+                self.PidP_Gain,
+                self.PidI_Gain,
+                self.PidD_Gain
             ]
 
             for var in self.columnSelectedVars:

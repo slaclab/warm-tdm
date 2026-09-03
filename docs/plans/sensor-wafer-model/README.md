@@ -16,6 +16,10 @@
   `8+4` warm harness, and the dual-BA4 `8+8+(4+4)` maps.
 - Full VCS `GroupTb` elaboration and the open-loop/fixed-PID co-simulation have
   not been run because Vivado/VCS are unavailable on the development machine.
+- The static end-to-end fixed-point P/PI derivation, sample-window scaling, and
+  normalized Python control interface are documented in
+  [`PID_COEFFICIENTS.md`](PID_COEFFICIENTS.md). Closed-loop VCS verification is
+  still pending.
 - Multi-board integration into `GroupTb`, model dynamics, a static electrical
   TES solution, per-device variation, and measured calibration remain future
   work.

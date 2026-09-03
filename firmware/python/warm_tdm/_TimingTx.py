@@ -201,6 +201,24 @@ class TimingTx(pr.Device):
             bitSize = 32,
             disp = '{:d}'))
 
+        def _getSampleCount(read):
+            # AdcDsp changes to ACCUMULATE on the SAMPLE_START marker without
+            # consuming that sample, then consumes samples through and including
+            # SAMPLE_END.  The resulting count is therefore end - start.
+            start = int(self.SampleStartTime.get(read=read))
+            end = int(self.SampleEndTime.get(read=False))
+            return max(0, end - start)
+
+        self.add(pr.LinkVariable(
+            name = 'SampleCount',
+            description = 'Number of ADC samples accumulated by AdcDsp during '
+                          'each row visit (SampleEndTime - SampleStartTime).',
+            mode = 'RO',
+            groups = ['NoConfig'],
+            dependencies = [self.SampleStartTime, self.SampleEndTime],
+            disp = '{:d}',
+            linkedGet = _getSampleCount))
+
         self.add(pr.RemoteVariable(
             name = 'StageNextRowLead',
             description = 'Timing clocks before the next row boundary to stage the pending row',
