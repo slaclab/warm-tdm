@@ -95,6 +95,12 @@ def saFbSweep(*, group, bias, saFbRange, process):
     # Iterate through the steps
     for idx in range(numSteps):
 
+        # Bail promptly on Stop(): this inner sweep is long in cosim, so without
+        # a per-step check a Stop() would wait for the whole sweep to finish.
+        if process is not None and process._runEn is False:
+            group._log.info('Process stopped, exiting saFbSweep')
+            break
+
         # Setup data
         group.SaFbForceCurrent.set(saFbRange[:, idx])
 
@@ -111,7 +117,7 @@ def saFbSweep(*, group, bias, saFbRange, process):
         adcs = group.SaOutAdc.get()
         if np.any(np.abs(adcs) > 0.8):
             group._log.warning(f'High ADC value seen: SaBias={bias}, SaFb={saFbRange[:, idx]}, ADCs={adcs}')
-            saOffset(group=group)
+            saOffset(group=group, process=process)
             group._log.debug('After re-offset: SaOffset=%s, ADC=%s, SaOut=%s', group.SaOffset.get(), group.SaOutAdc.get(), group.SaOut.get())
 
     # Reset FB to zero after sweep
@@ -174,7 +180,7 @@ def saBiasSweep(*, group, process, doBiasRamp=True):
         group.SaOffset.set(value=np.zeros(colCount, np.float64))
         adcs = group.SaOutAdc.get()
         group._log.info(f'SA Bias step {idx+1}/{numBiasSteps} - ADC before offset = {adcs}')
-        saOffset(group=group)        
+        saOffset(group=group, process=process)
 
         curves = saFbSweep(group=group,bias=saBiasRange[:, idx], saFbRange=saFbRange, process=process)
 
