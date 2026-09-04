@@ -1,75 +1,49 @@
-
-import pyrogue as pr
-import warm_tdm_api
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import pyrogue as pr
+
+import warm_tdm_api
+
 
 class RowFasSweepPlot(pr.LinkVariable):
 
     def __init__(self, **kwargs):
         super().__init__(linkedGet=self.linkedGet, **kwargs)
-
-        self._fig = plt.Figure(tight_layout=True, figsize=(20,20))
+        self._fig = plt.Figure(tight_layout=True, figsize=(20, 20))
         self._ax = self._fig.add_subplot()
-        self._fig.suptitle('FAS Flux Row')
-
-    def _plot_ax(self, ax, row, curves):
-        ax.clear()
-        ax.set_ylabel('SA FB Servo')
-        ax.set_xlabel(u'FAS Flux (\u03bcA)')
-        ax.grid(True)
-
-        if curves is None:
-            ax.set_title(f'Row {row} FAS Sweep')
-            ax.text(.5, .5, 'Not Tuned', ha='center', va='center', fontsize=28)
-            return
-
-        valid_columns = [col for col, curve in enumerate(curves['curves'])
-                         if len(curve) != 0]
-        if not valid_columns:
-            ax.set_title(f'Row {row} FAS Sweep')
-            ax.text(.5, .5, 'Not Tuned', ha='center', va='center', fontsize=28)
-            return
-
-        low_points = np.asarray(curves['lowPoints'])
-        low_fluxes = low_points[valid_columns, 0]
-
-        # Plot the curve for each column
-        for col in valid_columns:
-            min_x, min_y = low_points[col]
-            label = f'{col}: {min_x:0.3f}'
-            y_curve = curves['curves'][col]
-            ax.plot(curves['xValues'][:len(y_curve)], y_curve, '-', label=label)
-            ax.plot(min_x, min_y, '*')
-
-        # Plot a vertical line at the median FAS flux minimum across all columns.
-        median = np.median(low_fluxes)
-        label = f'Median: {median:0.3f}'
-        ax.axvline(median, label=label)
-
-        ax.set_title(f'Row {row} FAS Sweep')
-        ax.legend(title='Column: Minimum FAS')
 
     def linkedGet(self, index=-1, read=False):
         tune = self.parent.FasTuneOutput.value()
+        result_index = self.parent.PlotRow.value() if index == -1 else index
+
         self._ax.clear()
+        self._ax.set_xlabel('FAS current (uA)')
+        self._ax.set_ylabel('SA feedback servo (uA)')
+        self._ax.grid(True)
 
-        if tune == []:
-            self._ax.set_title('FAS Flux Row')
-            self._ax.text(.5, .5, 'Not Tuned', ha='center', va='center', fontsize=28)
+        if result_index < 0 or result_index >= len(tune):
+            self._ax.set_title('FAS sweep')
+            self._ax.text(.5, .5, 'Not tuned', ha='center', va='center',
+                          transform=self._ax.transAxes)
             return self._fig
 
-        row = index
-        if row == -1:
-            row = self.parent.PlotRow.value()
+        result = tune[result_index]
+        logical_row = result['logicalRow']
+        self._ax.set_title(
+            f'Logical row {logical_row}: row board {result["board"]}, '
+            f'address {result["address"]}')
+        x_values = result['xValues']
+        for column, curve in enumerate(result['curves']):
+            if len(curve) != 0:
+                self._ax.plot(
+                    x_values[:len(curve)], curve, label=f'Column {column}')
 
-        if row >= len(tune):
-            self._ax.set_title(f'Row {row} FAS Sweep')
-            self._ax.text(.5, .5, 'Not Tuned', ha='center', va='center', fontsize=28)
-            return self._fig
-
-        self._plot_ax(self._ax, row, tune[row])
-
+        if result['fasOn'] is not None:
+            self._ax.axvline(
+                result['fasOn'], linestyle='--',
+                label=f'FasOn {result["fasOn"]:.3f} uA')
+        if any(len(curve) != 0 for curve in result['curves']):
+            self._ax.legend()
         return self._fig
 
 
@@ -77,87 +51,86 @@ class FasTunePlot(pr.LinkVariable):
 
     def __init__(self, **kwargs):
         super().__init__(linkedGet=self.linkedGet, **kwargs)
-
-        self._fig = plt.Figure(tight_layout=True, figsize=(20,20))
+        self._fig = plt.Figure(tight_layout=True, figsize=(20, 20))
         self._ax = self._fig.add_subplot()
-        self._fig.suptitle('FAS Flux Tune')
 
     def linkedGet(self, index=-1, read=False):
         tune = self.parent.FasTuneOutput.value()
-
         self._ax.clear()
-        self._ax.set_title('FAS Flux Tune')
-        self._ax.set_xlabel('Row')
-        self._ax.set_ylabel(u'Median FAS Flux Minimum (\u03bcA)')
+        self._ax.set_title('FAS tune')
+        self._ax.set_xlabel('Logical row')
+        self._ax.set_ylabel('FasOn current (uA)')
         self._ax.grid(True)
 
-        if tune == []:
-            self._ax.text(.5, .5, 'Not Tuned', ha='center', va='center', fontsize=28)
+        if not tune:
+            self._ax.text(.5, .5, 'Not tuned', ha='center', va='center',
+                          transform=self._ax.transAxes)
             return self._fig
 
-        medians = []
-        for row_curves in tune:
-            low_points = np.asarray(row_curves['lowPoints'])
-            valid_columns = [col for col, curve in enumerate(row_curves['curves'])
-                             if len(curve) != 0]
-            if not valid_columns:
-                medians.append(np.nan)
-            else:
-                medians.append(np.median(low_points[valid_columns, 0]))
-
-        rows = np.arange(len(medians))
-        self._ax.plot(rows, medians, marker='o')
-
+        rows = [result['logicalRow'] for result in tune]
+        currents = [
+            np.nan if result['fasOn'] is None else result['fasOn']
+            for result in tune
+        ]
+        self._ax.plot(rows, currents, marker='o')
         return self._fig
 
 
 class FasTuneProcess(pr.Process):
 
     def __init__(self, **kwargs):
-
-        # Init master class
-        pr.Process.__init__(self, function=self._fasTuneWrap, **kwargs)
-
-        # Low offset for Fas FLux Tuning
-        self.add(pr.LocalVariable(name='FasFluxLowOffset',
-                                  value=0.0,
-                                  mode='RW',
-                                  description="Starting point offset for Fas Flux Tuning"))
-
-        # High offset for Fas Flux Tuning
-        self.add(pr.LocalVariable(name='FasFluxHighOffset',
-                                  value=1.0,
-                                  mode='RW',
-                                  description="Ending point offset for Fas Flux Tuning"))
-
-        # Step size for Fas Flux Tuning
-        self.add(pr.LocalVariable(name='FasFluxNumSteps',
-                                  value=10,
-                                  mode='RW',
-                                  description="Number of steps for Fas Flux Tuning"))
-
-        # FAS Tuning Results
-        self.add(pr.LocalVariable(name='FasTuneOutput',
-                                  hidden=True,
-                                  value=[],
-                                  mode='RO',
-                                  description="Results Data From FAS Tuning"))
+        super().__init__(function=self._fasTuneWrap, **kwargs)
 
         self.add(pr.LocalVariable(
-            name = 'PlotRow',
-            value = 0))
+            name='FasFluxLowOffset', value=0.0, mode='RW', units='uA',
+            description='First FAS current in the sweep.'))
+        self.add(pr.LocalVariable(
+            name='FasFluxHighOffset', value=1.0, mode='RW', units='uA',
+            description='Last FAS current in the sweep.'))
+        self.add(pr.LocalVariable(
+            name='FasFluxNumSteps', value=10, minimum=2, mode='RW',
+            description='Number of FAS sweep points.'))
+        self.add(pr.LocalVariable(
+            name='FasFluxSampleDelay', value=0.001, mode='RW', units='s',
+            description='Delay after each ManualSet write.'))
+
+        # saFbServo() reads these parameters from its calling Process.
+        self.add(pr.LocalVariable(
+            name='ServoKp', value=-0.8, mode='RW'))
+        self.add(pr.LocalVariable(
+            name='ServoKi', value=0.0, mode='RW'))
+        self.add(pr.LocalVariable(
+            name='ServoKd', value=0.0, mode='RW'))
+        self.add(pr.LocalVariable(
+            name='ServoPrecision', value=0.01, mode='RW'))
+        self.add(pr.LocalVariable(
+            name='ServoMaxLoops', value=500, minimum=1, mode='RW'))
+
+        self.add(pr.LocalVariable(
+            name='FasTuneOutput', hidden=True, value=[], mode='RO',
+            description='FAS sweep results in active row order.'))
+        self.add(pr.LocalVariable(
+            name='PlotRow', value=0, minimum=0, mode='RW',
+            description='Index into the active-row sweep results.'))
 
         self.add(RowFasSweepPlot(
-            name = 'SweepPlot',
-            hidden = True,
-            dependencies = [self.PlotRow, self.FasTuneOutput]))
-
+            name='SweepPlot', hidden=True, mode='RO',
+            dependencies=[self.PlotRow, self.FasTuneOutput]))
         self.add(FasTunePlot(
-            name = 'TunePlot',
-            hidden = True,
-            dependencies = [self.FasTuneOutput]))
+            name='TunePlot', hidden=True, mode='RO',
+            dependencies=[self.FasTuneOutput]))
 
     def _fasTuneWrap(self):
         with self.root.updateGroup(0.25):
-            ret = warm_tdm_api.fasTune(group=self.parent, process=self)
-            self.FasTuneOutput.set(value=[r.asDict() for r in ret])
+            curves = warm_tdm_api.fasTune(group=self.parent, process=self)
+            output = []
+            for curve in curves:
+                result = curve.asDict()
+                result.update({
+                    'logicalRow': curve.logicalRow,
+                    'board': curve.board,
+                    'address': curve.address,
+                    'fasOn': curve.fasOn,
+                })
+                output.append(result)
+            self.FasTuneOutput.set(output)

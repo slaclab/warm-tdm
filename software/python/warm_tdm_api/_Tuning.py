@@ -299,101 +299,180 @@ def saFbServo(*, group, process):
     return control
 
 def fasSweep(*, group, row, process):
-    """Returns a 2D numpy array with indecies [col, fasFluxPoint]
-    Iterates through FasFluxOn values determined by
-    lowoffset,highoffset,step,calling saFb to generate points. 
-    Adds this curve to the numpy array
-    """
+    """Sweep the physical one-level FAS line mapped from ``row``."""
+    row_map = group.RowMap.get()
+    mapping = row_map[row]
+    if 'csAddr' in mapping or 'csBoard' in mapping:
+        raise RuntimeError(
+            'The simple FAS tune supports one-level RowMap entries only')
 
-    colCount = group.NumColumns.get()
-    numSteps = group.FasTuneProcess.FasFluxNumSteps.get()
-    low =  group.FasTuneProcess.FasFluxLowOffset.get()
-    high = group.FasTuneProcess.FasFluxHighOffset.get()
-    fasFluxRange = np.linspace(low, high, numSteps, endpoint=True)
+    board = int(mapping['rsBoard'])
+    address = int(mapping['rsAddr'])
+    driver = group.HardwareGroup.RowBoard[board].RowDacDriver
+    if not callable(getattr(driver, 'manual_set', None)):
+        raise RuntimeError(
+            f'RowBoard[{board}] firmware/software does not provide ManualSet')
 
-    # Create the CurveData structure
-    data = warm_tdm_api.CurveData(xValues=fasFluxRange)
-    #data = np.zeros((colCount, fasFluxRange.size, 2), dtype=float)
+    low = process.FasFluxLowOffset.get()
+    high = process.FasFluxHighOffset.get()
+    steps = process.FasFluxNumSteps.get()
+    delay = process.FasFluxSampleDelay.get()
+    currents = np.linspace(low, high, steps, endpoint=True)
+    data = warm_tdm_api.CurveData(xValues=currents)
+    for column in range(group.NumColumns.get()):
+        data.addCurve(warm_tdm_api.Curve(column))
 
-    # Add a Curve for each column
-    for col in range(colCount):
-        data.addCurve(warm_tdm_api.Curve(col))
-
-    # Sweep the flux range
-    for step in range(numSteps):
-        if process is not None and process._runEn is False:
-            group._log.info('Process stopped, exiting fasSweep')
-            break
-
-        # Set a the fasFlux value for the row 
-        # Below is wrong. Need to drive FAS Flux value       
-        group.FasFluxOn.set(index=row, value=fasFluxRange[step])
-
-        # Servo the saFb
-        points = saFbServo(group=group, process=process)
-
-        for col in range(colCount):
-            data.curveList[col].addPoint(points[col])
-
-        if process is not None:
+    off_current = driver.FasOff.Current.get(index=address, read=True)
+    try:
+        for current in currents:
+            if process._runEn is False:
+                break
+            driver.manual_set(address=address, current=current)
+            time.sleep(delay)
+            points = saFbServo(group=group, process=process)
+            if process._runEn is False:
+                break
+            for column, point in enumerate(points):
+                data.curveList[column].addPoint(point)
             process._incrementSteps(1)
+    finally:
+        driver.manual_set(address=address, current=off_current)
 
+    data.logicalRow = row
+    data.board = board
+    data.address = address
+    data.fasOn = None
     return data
 
 def fasTune(*,group,process=None):
+    """Run the original one-level FAS-minimum algorithm on working hardware paths.
+
+    Active logical rows come from ``RowIndexOrderList`` and are resolved through
+    ``RowMap``. Sweep points use ``RowDacDriver2.manual_set()``; persistent
+    ``FasOn`` entries are written only after every row sweep completes.
+    ``FasOff`` is never modified.
     """
-    Iterate through all rows, measuring results from
-    fasSweep subroutine, and setting FasFluxOn and FasFluxOff
-    accordingly.
+    if process is None:
+        raise ValueError('fasTune requires its FasTuneProcess')
 
-    Args
-    ----
-    group : group
+    tx = group.HardwareGroup.ColumnBoard[0].WarmTdmCore.Timing.TimingTx
+    if tx.Running.get(read=True):
+        raise RuntimeError('FAS tuning requires timing to be stopped')
 
-    pctVar : pr.Variable
-        Variable to set current percentage complete
+    row_map = group.RowMap.get()
+    active_rows = [int(row) for row in group.RowIndexOrderList.get(read=True)]
+    enabled_columns = [
+        column for column, enabled in enumerate(group.ColTuneEnable.get())
+        if enabled
+    ]
+    if not active_rows:
+        raise RuntimeError('FAS tuning requires at least one active row')
+    if not enabled_columns:
+        raise RuntimeError('FAS tuning requires at least one enabled column')
 
-    Returns
-    ----
-    list
-        list of CurveData objects where result of saFb
-        subroutine is plotted against fasSweep
-    """
+    targets = []
+    drivers = {}
+    for row in active_rows:
+        if row < 0 or row >= len(row_map):
+            raise RuntimeError(
+                f'Active logical row {row} is outside RowMap length '
+                f'{len(row_map)}')
+        mapping = row_map[row]
+        if 'csAddr' in mapping or 'csBoard' in mapping:
+            raise RuntimeError(
+                'The simple FAS tune supports one-level RowMap entries only')
+        board = int(mapping['rsBoard'])
+        address = int(mapping['rsAddr'])
+        if address < 0 or address >= 32:
+            raise RuntimeError(
+                f'RowMap[{row}] rsAddr={address} is outside 0..31')
+        try:
+            driver = group.HardwareGroup.RowBoard[board].RowDacDriver
+        except (KeyError, IndexError, AttributeError, TypeError) as exc:
+            raise RuntimeError(
+                f'RowMap[{row}] references unavailable row board {board}') from exc
+        drivers[board] = driver
+        targets.append((row, board, address, driver))
+
+    unique_targets = {}
+    for _, board, address, driver in targets:
+        unique_targets[(board, address)] = driver
+
+    mode_snapshot = {
+        board: driver.Mode.get(read=True)
+        for board, driver in drivers.items()
+    }
+    sa_fb_snapshot = np.array(
+        group.SaFbForceCurrent.get(read=True), copy=True)
+    fas_on_snapshot = {
+        key: driver.FasOn.Current.get(index=key[1], read=True)
+        for key, driver in unique_targets.items()
+    }
+
     curves = []
-    numRows = group.MaxRows.get()
+    candidates = {}
+    programming_started = False
+    process.TotalSteps.set(
+        len(active_rows) * process.FasFluxNumSteps.get())
 
-    group._log.info(f'fasTune starting: {numRows} rows')
-    process.TotalSteps.set(numRows * process.FasFluxNumSteps.get())
+    try:
+        for driver in drivers.values():
+            driver.Mode.set(1, write=True)
 
-    #group.RowForceEn.set(True)
+        for index, (row, board, address, _) in enumerate(targets):
+            process.Message.set(
+                f'FAS row {row} ({index + 1}/{len(targets)})')
+            curve = fasSweep(group=group, row=row, process=process)
+            curves.append(curve)
+            if process._runEn is False:
+                process.Message.set('Stopped by user; FasOn unchanged')
+                return curves
 
-    # Generate FAS Flux curves for each row
-    for row in range(numRows):
-        #group.RowForceIndex.set(row)
-        if process is not None:
-            process.Message.set(f'Row {row} out of {numRows}')
-            #process.Process.set(row/numRows)
+            minima = []
+            for column in enabled_columns:
+                points = curve.curveList[column].points
+                if points:
+                    minima.append(curve.xValues[int(np.argmin(points))])
+            if not minima:
+                raise RuntimeError(
+                    f'No FAS samples were collected for logical row {row}')
+            candidates.setdefault((board, address), []).append(
+                float(np.median(minima)))
 
-        # Generate and save the curves
-        curve = fasSweep(group=group, row=row, process=process)
-        curves.append(curve)
+        selected = {
+            key: float(np.median(values))
+            for key, values in candidates.items()
+        }
+        programming_started = True
+        for key, current in selected.items():
+            unique_targets[key].FasOn.Current.set(
+                index=key[1], value=current, write=True)
+        for curve in curves:
+            curve.fasOn = selected[(curve.board, curve.address)]
+        process.Message.set('FAS tune complete')
+        return curves
 
-        # Preserve the partial row for plotting, but do not apply a tune point
-        # derived from incomplete data.
-        if process is not None and process._runEn is False:
-            group._log.info('Process stopped, exiting fasTune')
-            break
-
-        # Minumum index of the curve is FasFluxOn
-        # Use median across all columns as FasFlowOn for that row
-        minima = [curve.xValues[np.argmin(col_curve.points)]
-                  for col_curve in curve.curveList if col_curve.points]
-        if minima:
-            group.FasFluxOn.set(index=row, value=np.median(minima))
-        
-        
-    #group.RowForceEn.set(False)
-    return curves
+    except Exception:
+        if programming_started:
+            for key, current in fas_on_snapshot.items():
+                unique_targets[key].FasOn.Current.set(
+                    index=key[1], value=current, write=True)
+        raise
+    finally:
+        for key, driver in unique_targets.items():
+            try:
+                off_current = driver.FasOff.Current.get(
+                    index=key[1], read=True)
+                driver.manual_set(address=key[1], current=off_current)
+            except Exception as exc:
+                group._log.error(
+                    'Failed to return row board %s address %s to FasOff: %s',
+                    key[0], key[1], exc)
+        try:
+            group.SaFbForceCurrent.set(sa_fb_snapshot)
+        finally:
+            for board, mode in mode_snapshot.items():
+                drivers[board].Mode.set(mode, write=True)
 
 #SQ1 TUNING - output vs sq1fb for various values of sq1 bias for every row for every column
 def sq1FbSweep(*, group, bias, fbRange, process):

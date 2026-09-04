@@ -98,3 +98,7 @@ class TuningMixin:
     def sq1_tune(self, block=True, **params):
         """Run Sq1TuneProcess (first-stage SQUID tuning). See run_process."""
         return self.run_process('Sq1TuneProcess', block=block, **params)
+
+    def fas_tune(self, block=True, **params):
+        """Run physical-line FasTuneProcess. See run_process."""
+        return self.run_process('FasTuneProcess', block=block, **params)

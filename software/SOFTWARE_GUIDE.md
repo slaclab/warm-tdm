@@ -128,6 +128,27 @@ Process lifecycle:
 - Progress tracked via status variables
 - Can be stopped mid-execution
 
+### FAS commissioning
+
+The initial repaired `FasTuneProcess` supports stopped, one-level row maps. It
+uses `RowIndexOrderList` and `RowMap` to sweep each physical row-select output
+through `RowDacDriver2.manual_set()`, runs the existing SA feedback servo, and
+programs the median response minimum into the physical `FasOn.Current` entry.
+`FasOff` is not changed. Two-level maps are rejected explicitly.
+
+Run it through the operations API after SA tuning:
+
+```python
+import warm_tdm_api.operations as ops
+
+session = ops.use(client)
+session.sa_tune()
+fas_result = session.fas_tune()
+```
+
+Timing must already be stopped. Sweep bounds, settling delay, and servo values
+must be established on the applicable cryogenic hardware.
+
 ## Data Streaming
 
 Data flows from FPGA → host via:
