@@ -452,6 +452,9 @@ class Group(pr.Device):
                         self.SaBiasCurrent.set(index=col, value=55.0)
                         for row in tuneRows:
                             self.SaFbCurrent.set(index=(col, row), value=41.0)
+                # Run the SA offset PID loop to null SaOut at the seeded SaBias,
+                # matching what saTune() does after setting the bias point.
+                warm_tdm_api.saOffset(group=self)
 
             @self.command()
             def ZeroSq1Bias():
@@ -480,12 +483,14 @@ class Group(pr.Device):
                 # readout (NumRows/row order) and the rows sq1Tune iterates, so
                 # this is the single knob for "rows in the mux" and "rows tuned".
                 self.RowIndexOrderList.set(list(range(8)))
-                # Seed the known SA tune point. Runs after the row list is set so
-                # it writes SaFb for exactly the enabled rows.
+                # Drive every FAS on-current to 163 uA on all row boards.
+                for rowBoard in self.HardwareGroup.RowBoard.values():
+                    fasOn = rowBoard.RowDacDriver.FasOn
+                    fasOn.Current.set(value=[163.0] * len(fasOn.amps), index=-1, write=True)
+                # Seed the known SA tune point (also runs the SA offset PID loop).
+                # Runs after the row list is set so it writes SaFb for exactly the
+                # enabled rows.
                 self.TmpSetSaTunePoint()
-                # Run the SA offset PID loop to null SaOut at the seeded SaBias,
-                # matching what saTune() does after setting the bias point.
-                warm_tdm_api.saOffset(group=self)
 
             self.columnSelectedVars = [
                 self.ColTuneEnable,
