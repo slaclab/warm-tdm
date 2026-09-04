@@ -121,11 +121,13 @@ class Sq1TuneProcess(pr.Process):
             mode='RW',
             description="Number of steps for SQ1 FB Tuning"))
 
-        # The synthetic SQ1 critical current is 20 uA. These five points
-        # sample below, at, and above the transition through 40 uA.
+        # The synthetic SQ1's 20 uA critical current is its branch current,
+        # not the commanded column bias.  With the simulated shunt and series
+        # network, the useful response is centered near 100 uA.  Six points
+        # bracket that peak while keeping co-simulation reasonably short.
         self.add(pr.LocalVariable(
             name='Sq1BiasLowOffset',
-            value=0.0,
+            value=40.0,
             mode='RW',
             units=u'\u03bcA',
             description="Starting point offset for SQ1 Bias Tuning"))
@@ -133,7 +135,7 @@ class Sq1TuneProcess(pr.Process):
         # High offset for SQ1 Bias Tuning
         self.add(pr.LocalVariable(
             name='Sq1BiasHighOffset',
-            value=40.0,
+            value=140.0,
             mode='RW',
             units=u'\u03bcA',
             description="Ending point offset for SQ1 Bias Tuning"))
@@ -141,7 +143,7 @@ class Sq1TuneProcess(pr.Process):
         # Number of steps for SQ1 Bias Tuning
         self.add(pr.LocalVariable(
             name='Sq1BiasNumSteps',
-            value=5,
+            value=6,
             mode='RW',
             description="Number of steps for SQ1 Bias Tuning"))
 

@@ -483,10 +483,19 @@ class Group(pr.Device):
                 # readout (NumRows/row order) and the rows sq1Tune iterates, so
                 # this is the single knob for "rows in the mux" and "rows tuned".
                 self.RowIndexOrderList.set(list(range(8)))
+                rowBoards = list(self.HardwareGroup.RowBoard.values())
                 # Drive every FAS on-current to 163 uA on all row boards.
-                for rowBoard in self.HardwareGroup.RowBoard.values():
-                    fasOn = rowBoard.RowDacDriver.FasOn
+                for rowBoard in rowBoards:
+                    driver = rowBoard.RowDacDriver
+                    driver.Mode.set(1, write=True)
+                    fasOn = driver.FasOn
                     fasOn.Current.set(value=[163.0] * len(fasOn.amps), index=-1, write=True)
+                # In MANUAL mode, table writes also drive their addressed
+                # physical output. Write every FasOff entry only after every
+                # FasOn entry so setup leaves all FAS rows physically off.
+                for rowBoard in rowBoards:
+                    fasOff = rowBoard.RowDacDriver.FasOff
+                    fasOff.Current.set(value=[0.0] * len(fasOff.amps), index=-1, write=True)
                 # Seed the known SA tune point (also runs the SA offset PID loop).
                 # Runs after the row list is set so it writes SaFb for exactly the
                 # enabled rows.
