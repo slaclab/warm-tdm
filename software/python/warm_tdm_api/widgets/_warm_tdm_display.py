@@ -7,6 +7,7 @@ from warm_tdm_api.widgets._control_tab import ControlTab
 from warm_tdm_api.widgets._tuning_tab import TuningTab
 from warm_tdm_api.widgets._sa_tuning_tab import SaTuningTab
 from warm_tdm_api.widgets._fas_tuning_tab import FasTuningTab
+from warm_tdm_api.widgets._sq1_tuning_tab import Sq1TuningTab
 from warm_tdm_api.widgets._waveform_tab import WaveformTab
 
 ROOT = 'rogue://0/GroupRoot'
@@ -37,7 +38,7 @@ class WarmTdmDisplay(Display):
             ('System', SystemWindow(init_channel=ROOT)),
             ('SA Tuning', SaTuningTab(init_channel=group + '.SaTuneProcess')),
             ('FAS Tuning', FasTuningTab(init_channel=group + '.FasTuneProcess')),
-            ('SQ1 Tuning', TuningTab(init_channel=group + '.Sq1TuneProcess')),
+            ('SQ1 Tuning', Sq1TuningTab(init_channel=group + '.Sq1TuneProcess')),
             ('Waveforms', WaveformTab(init_channel=group)),
             ('SA Offset', TuningTab(init_channel=group + '.SaOffsetSweepProcess')),
         ]
