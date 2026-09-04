@@ -28,11 +28,14 @@ class TuningTab(PyDMFrame):
     def _info_fields(self):
         return []
 
+    def _process_widget(self):
+        return Process(init_channel=self._process_channel())
+
     def _setup_ui(self):
         vb = QVBoxLayout()
         self.setLayout(vb)
 
-        proc = Process(init_channel=self._process_channel())
+        proc = self._process_widget()
         vb.addWidget(proc)
 
         for ch in self._plot_channels():
