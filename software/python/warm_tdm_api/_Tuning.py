@@ -222,6 +222,7 @@ def saTune(*, group, process=None, doSet=True, doBiasRamp=True):
     """
     group._log.info(f'saTune starting: doBiasRamp={doBiasRamp}, doSet={doSet}')
 
+    colTuneEnable = np.asarray(group.ColTuneEnable.value(), dtype=bool)
     saBiasResults = saBiasSweep(group=group, process=process, doBiasRamp=doBiasRamp)
 
     stopped = process is not None and process._runEn is False
@@ -231,11 +232,22 @@ def saTune(*, group, process=None, doSet=True, doBiasRamp=True):
         # depend on the row map — broadcast across the full maxRows address space
         # rather than the readout list (which may not be set yet when saTune runs).
         for col in range(group.NumColumns.get()):
+            if not colTuneEnable[col]:
+                group._log.debug(
+                    'SA tune leaving disabled column %d unchanged', col)
+                continue
+
+            result = saBiasResults[col]
+            if result.xOut is None or result.biasOut is None:
+                raise RuntimeError(
+                    f'SA tune produced no fitted result for enabled column {col}')
+
             # xOut represents the tuned saFB. Set it for every row.
             for row in range(group.MaxRows.get()):
-                group.SaFbCurrent.set(index=(col,row), value=saBiasResults[col].xOut)
+                group.SaFbCurrent.set(
+                    index=(col, row), value=result.xOut)
             # biasOut represents the tuned SA Bias point
-            group.SaBiasCurrent.set(index=col, value=saBiasResults[col].biasOut)
+            group.SaBiasCurrent.set(index=col, value=result.biasOut)
 
         # Run saOffset to zero out the ADC value at the tuned SaBias,SaFb point
         saOffset(group=group, process=process)
