@@ -223,7 +223,14 @@ class Group(pr.Device):
         # Tuning enables
         ##################################
 
-        _value = np.ones(8, bool) if self.config.columnBoards == 0 else np.ones(self.config.numColumns, bool)
+        _numCols = 8 if self.config.columnBoards == 0 else self.config.numColumns
+        if simulation:
+            # The RTL sim model only exercises a single column; enabling the
+            # rest would tune against columns that produce no meaningful data.
+            _value = np.zeros(_numCols, bool)
+            _value[0] = True
+        else:
+            _value = np.ones(_numCols, bool)
         self.add(pr.LocalVariable(
             name='ColTuneEnable',
             description='Array of booleans which enable the tuning of each column.'
