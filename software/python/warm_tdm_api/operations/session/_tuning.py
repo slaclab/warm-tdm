@@ -105,8 +105,9 @@ class TuningMixin:
         ``Sq1BiasCurrent`` selects the temporary bootstrap SQ1 bias applied to
         enabled columns during acquisition (40 uA by default). The previous
         SQ1 bias and feedback force currents are restored afterward.
-        ``ServoSampleDelay`` controls the wait between an SA-feedback write and
-        the next averaged-ADC sample.
+        ``FasFluxSampleReads`` and ``ServoSampleReads`` control how many ADC
+        reads are discarded after row-FAS and SA-feedback writes so cosim time
+        advances before the measurement is used.
         Pass ``SetAfterFinish=True`` to program the fitted ``FasOn`` currents;
         the default only returns the candidates.
         """

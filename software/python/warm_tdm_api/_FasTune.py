@@ -92,7 +92,12 @@ class FasTuneProcess(pr.Process):
             description='Number of FAS sweep points.'))
         self.add(pr.LocalVariable(
             name='FasFluxSampleDelay', value=0.001, mode='RW', units='s',
-            description='Delay after each ManualSet write.'))
+            description='Wall-clock delay after each ManualSet write.'))
+        self.add(pr.LocalVariable(
+            name='FasFluxSampleReads', value=3, minimum=0, mode='RW',
+            description='Number of averaged-ADC reads discarded after each '
+                        'ManualSet write. These transactions advance cosim '
+                        'before the SA feedback servo tests convergence.'))
         self.add(pr.LocalVariable(
             name='Sq1BiasCurrent', value=40.0, mode='RW', units='uA',
             description='Temporary SQ1 bias applied to enabled columns while '
@@ -115,9 +120,10 @@ class FasTuneProcess(pr.Process):
         self.add(pr.LocalVariable(
             name='ServoMaxLoops', value=500, minimum=1, mode='RW'))
         self.add(pr.LocalVariable(
-            name='ServoSampleDelay', value=0.001, mode='RW', units='s',
-            description='Delay after each SA feedback write before sampling '
-                        'the averaged ADC value.'))
+            name='ServoSampleReads', value=3, minimum=0, mode='RW',
+            description='Number of averaged-ADC reads discarded after each SA '
+                        'feedback write so the new value can propagate in '
+                        'cosim.'))
 
         self.add(pr.LocalVariable(
             name='FasTuneOutput', hidden=True, value=[], mode='RO',

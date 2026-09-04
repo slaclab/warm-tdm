@@ -270,12 +270,12 @@ def saFbServo(*, group, process):
     kd = process.ServoKd.get()
     precision = process.ServoPrecision.get()
     maxLoops = process.ServoMaxLoops.get()
-    sampleDelay = process.ServoSampleDelay.get()
+    sampleReads = process.ServoSampleReads.get()
     log = process._log
     log.debug(
         'SA FB servo start: kp=%s ki=%s kd=%s precision=%s maxLoops=%s '
-        'sampleDelay=%s',
-        kp, ki, kd, precision, maxLoops, sampleDelay)
+        'sampleReads=%s',
+        kp, ki, kd, precision, maxLoops, sampleReads)
     
     pid = [PID(kp, ki, kd) for _ in range(group.NumColumns.get())]
 
@@ -324,21 +324,22 @@ def saFbServo(*, group, process):
             'SA FB servo loop %d wrote control=%s',
             count + 1, np.asarray(control).tolist())
 
-        # In cosim, back-to-back register transactions can outrun the ADC
-        # capture update. The same delay also gives real hardware time to settle
-        # before using the new sample in the next controller iteration.
-        deadline = time.monotonic() + max(0.0, sampleDelay)
-        while process._runEn and time.monotonic() < deadline:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0.0:
-                break
-            time.sleep(min(0.05, remaining))
-        if not process._runEn:
+        # A wall-clock sleep does not guarantee VCS time advances. Force a
+        # configurable number of AXI reads instead; those transactions advance
+        # cosim and let the DAC/ADC pipeline propagate before convergence is
+        # tested again.
+        for settleRead in range(sampleReads):
+            if not process._runEn:
+                log.debug(
+                    'SA FB servo stopped while settling loop %d; returning '
+                    'control=%s',
+                    count + 1, np.asarray(control).tolist())
+                return control
+            settledCurrent = group.SaOutAdc.get()
             log.debug(
-                'SA FB servo stopped while settling loop %d; returning '
-                'control=%s',
-                count + 1, np.asarray(control).tolist())
-            return control
+                'SA FB servo loop %d settling read %d/%d: adc=%s',
+                count + 1, settleRead + 1, sampleReads,
+                np.asarray(settledCurrent).tolist())
 
     else:
         log.warning(
@@ -377,11 +378,13 @@ def fasSweep(*, group, row, process):
     high = process.FasFluxHighOffset.get()
     steps = process.FasFluxNumSteps.get()
     delay = process.FasFluxSampleDelay.get()
+    sampleReads = process.FasFluxSampleReads.get()
     currents = np.linspace(low, high, steps, endpoint=True)
     log.debug(
         'FAS sweep row %s start: board=%d address=%d low=%s high=%s '
-        'steps=%d delay=%s currents=%s',
-        row, board, address, low, high, steps, delay, currents.tolist())
+        'steps=%d delay=%s sampleReads=%s currents=%s',
+        row, board, address, low, high, steps, delay, sampleReads,
+        currents.tolist())
     data = warm_tdm_api.CurveData(xValues=currents)
     for column in range(group.NumColumns.get()):
         data.addCurve(warm_tdm_api.Curve(column))
@@ -415,6 +418,21 @@ def fasSweep(*, group, row, process):
                 log.debug(
                     'FAS sweep row %s stopped while settling step %d/%d',
                     row, step + 1, len(currents))
+                break
+
+            for settleRead in range(sampleReads):
+                if not process._runEn:
+                    break
+                settledCurrent = group.SaOutAdc.get()
+                log.debug(
+                    'FAS sweep row %s step %d/%d settling read %d/%d: '
+                    'adc=%s',
+                    row, step + 1, len(currents), settleRead + 1,
+                    sampleReads, np.asarray(settledCurrent).tolist())
+            if not process._runEn:
+                log.debug(
+                    'FAS sweep row %s stopped during settling reads at '
+                    'step %d/%d', row, step + 1, len(currents))
                 break
 
             log.debug(

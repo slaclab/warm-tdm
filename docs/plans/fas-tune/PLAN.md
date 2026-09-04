@@ -86,7 +86,7 @@ write-through behavior remain unchanged.
 
 - [x] Add the missing servo controls to `FasTuneProcess`.
 - [x] Add a configurable current range, point count, FAS settling delay, and
-  SA-feedback servo sample delay.
+  post-write ADC discard-read counts that advance cosim before sampling.
 - [x] Apply a configurable bootstrap SQ1 bias to enabled columns and restore
   the previous SQ1 bias/feedback force currents on exit.
 - [x] Replace the missing logical `FasFluxOn` access with physical
