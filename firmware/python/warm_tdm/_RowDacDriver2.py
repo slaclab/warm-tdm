@@ -49,7 +49,16 @@ class RowDacDriver2(pr.Device):
             bitSize = 8,
             base = pr.UInt,
             disp = '{:d}'))
-        
+
+        self.add(pr.RemoteVariable(
+            name = 'ManualSetRaw',
+            offset = 0x18,
+            bitSize = 22,
+            mode = 'WO',
+            base = pr.UInt,
+            hidden = True,
+            description = ('Temporary physical-line actuation: address in bits '
+                           '4:0 and raw DAC code in bits 21:8.')))
 
         self.add(pr.RemoteVariable(
             name = 'RowMap',
@@ -71,4 +80,28 @@ class RowDacDriver2(pr.Device):
             size = 32,
             amp = self.amps[0:32]))
 
+    def manual_set(self, *, address, current):
+        """Temporarily drive one physical FAS line.
 
+        Args:
+            address: Board-local physical line index from ``RowMap`` (0..31).
+            current: Requested physical output current in uA.
+
+        This operation does not modify ``FasOn`` or ``FasOff`` memory. The
+        returned values describe the quantized request; the interface has no
+        completion readback.
+        """
+        address = int(address)
+        if not 0 <= address < len(self.amps):
+            raise ValueError(f'ManualSet address must be in 0..31, got {address}')
+        if int(self.Mode.get(read=True)) != 1:
+            raise RuntimeError('ManualSet requires RowDacDriver2 Mode=MANUAL')
+
+        code = int(self.amps[address].outCurrentToDac(float(current))) & 0x3FFF
+        self.ManualSetRaw.set(value=(code << 8) | address, write=True)
+
+        return {
+            'address': address,
+            'code': code,
+            'current': float(self.amps[address].dacToOutCurrent(code)),
+        }

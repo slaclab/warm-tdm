@@ -1,6 +1,6 @@
 # FAS Tune Recovery Plan
 
-**Status:** Proposed
+**Status:** In progress
 
 **Branch:** `fix-fas-tune`
 
@@ -181,155 +181,83 @@ Before any sweep, a state guard must:
 
 The first implementation should explicitly reject live tuning. A future
 live-tuning design would need additional arbitration with row timing. The
-acknowledged manual interface below remains restricted to stopped runs: its
-purpose is reliable actuation and independent two-level control, not live
-updates.
+`ManualSet` interface below remains restricted to stopped runs: its purpose is
+temporary physical-line actuation, not live updates.
 
-## Recommended `RowDacDriver2` firmware support
+## Minimal `RowDacDriver2` firmware support
 
-The current firmware is adequate for normal timed row switching but is a poor
-control surface for tuning. In manual mode:
+The existing firmware is adequate for normal timed row switching. Its table
+write-through behavior can also drive individual physical RS and CS lines in
+manual mode, including the incomplete two-level combinations. The missing
+capability needed by production tuning is narrower: a sweep should be able to
+apply a temporary physical current without rewriting persistent `FasOn` or
+`FasOff` memory.
 
-- `ActivateRowIndex` applies the ON table to both mapped bytes;
-- `DeactivateRowIndex` applies the OFF table to both mapped bytes;
-- there is no command for RS-ON/CS-OFF or RS-OFF/CS-ON;
-- writes to either `FasOn` or `FasOff` RAM also drive that new value directly to
-  the physical DAC, conflating persistent table configuration with temporary
-  output control;
-- the one-cycle RAM-write and activate/deactivate request pulses are only
-  inspected in `IDLE_S`, so a request arriving while the FSM is busy can be
-  dropped; and
-- software can read the RAM contents but cannot determine whether a value was
-  actually applied to the DAC. There is no busy, completion, sequence, or error
-  status.
+Add a board-local `ManualSet` command. It addresses one physical line (0 through
+31) and applies one temporary raw DAC code. It deliberately has no logical-row
+input, `RowMap` decoding, RS/CS distinction, pair operation, source enum,
+active-row tracking, firmware-managed clear, status, or acknowledgement.
+Python already resolves physical ownership and sequences quasi-static tuning
+operations.
 
-Two-level tuning can technically be forced through the current design by
-rewriting ON/OFF RAM entries as scratch values. That is unsafe and makes
-rollback needlessly complex. The preferred fix is an acknowledged **manual pair
-transaction** that is independent of the persistent ON/OFF tables.
+Keep the existing `ActivateRowIndex`, `DeactivateRowIndex`, timing-mode FSM, and
+`FasOn`/`FasOff` write-through behavior unchanged for compatibility.
 
-Treat this firmware interface as a prerequisite for production two-level FAS
-tuning. Do not ship the RAM-rewrite technique as its compatibility path. Add a
-read-only interface version/capability register so software can fail with a
-clear “firmware does not support independent RS/CS tuning” error on older
-bitfiles. A legacy one-level diagnostic path may remain available only if it is
-explicitly selected and tested.
+### `ManualSet` write
 
-### Manual pair transaction
+Use one packed register at local offset `0x18`:
 
-Use shadow registers and hold one complete request pending until the FSM
-consumes it. `RowDacDriver2` already decodes these local registers in
-`timingRxClk125` after the existing `AxiLiteAsync`, so the command latch, FSM,
-completion counter, and status can remain in one clock domain. A transaction
-identifies a logical row (resolved through the existing `RowMap`) and
-independently selects the source for its RS and CS output:
+| Bits | Purpose |
+|---|---|
+| `4:0` | Board-local physical line address |
+| `21:8` | Temporary raw DAC code |
 
-```text
-RS source = HOLD | OFF_TABLE | ON_TABLE | OVERRIDE_CODE
-CS source = HOLD | OFF_TABLE | ON_TABLE | OVERRIDE_CODE
+The write captures both fields into a one-entry pending latch in
+`timingRxClk125`, after the existing `AxiLiteAsync`. The pending bit stays
+asserted until `IDLE_S` consumes it, so a request accepted while the existing
+FSM finishes another operation cannot disappear. Reuse the existing
+`MANUAL_RS_DATA_S`, `MANUAL_RS_WRITE_S`, and DAC update-clock states. There are
+no commit, busy, done, error, applied-value, or version registers.
+
+Ignore a write while another `ManualSet` is already pending, while
+`Mode=TIMING`, or while `timingRxData.running=1`. Cancel a queued request if the
+mode changes or timing starts before it is consumed. Tuning software serializes
+writes and enforces stopped manual operation, so these cases are defensive and
+do not require a firmware diagnostic interface.
+
+The PyRogue helper exposes current rather than raw codes:
+
+```python
+driver.manual_set(address=physical_address, current=current_uA)
 ```
 
-The transaction includes an RS override code and CS override code. For a
-single-level map, the invalid-CS marker in `RowMap` makes the CS operation a
-no-op. The minimum operations needed by tuning are then explicit:
+It uses the same per-line amplifier model as `FastDacMem.Current`, packs one
+write, and returns the quantized request values for result recording. Raw codes
+remain below this API. It does not claim completion or applied-value readback.
+Older bitfiles have no register at `0x18`, so the first attempted `ManualSet`
+fails as an AXI write error instead of silently rewriting a table.
 
-| Operation | RS source | CS source |
-|---|---|---|
-| Single-level RS sweep | `OVERRIDE_CODE` | `HOLD` |
-| Two-level coarse 2-D seed | `OVERRIDE_CODE` | `OVERRIDE_CODE` |
-| Refine RS with provisional CS open | swept `OVERRIDE_CODE` | fixed `OVERRIDE_CODE` |
-| Refine CS with provisional RS open | fixed `OVERRIDE_CODE` | swept `OVERRIDE_CODE` |
-| Validate CLOSED/CLOSED | `OFF_TABLE` | `OFF_TABLE` |
-| Validate OPEN/CLOSED | `ON_TABLE` | `OFF_TABLE` |
-| Validate CLOSED/OPEN | `OFF_TABLE` | `ON_TABLE` |
-| Validate OPEN/OPEN | `ON_TABLE` | `ON_TABLE` |
+### Multi-board and cleanup behavior
 
-The FSM should stage both mapped DAC input registers and issue the DAC update
-clock only after every valid member of the pair is written. When changing
-logical rows, use a two-phase break-before-make sequence: commit the previously
-active pair to OFF, then stage and commit the requested pair. Track
-`manualActiveValid` and `manualActiveRow` in firmware so clearing or changing a
-selection does not depend on software remembering the prior row. `HOLD` is
-valid only for the currently active row (or an invalid CS field); reject an
-ambiguous HOLD while changing rows.
+`RowMap` may place RS and CS on different row boards. Python calls `manual_set()`
+only on each physical line's owning board. After issuing every required write,
+it waits for the configured electrical/servo settling interval before
+acquisition. That millisecond-scale delay is deliberately much longer than the
+short firmware transaction. Nanosecond-level simultaneous updates are
+unnecessary for quasi-static characterization.
 
-Suggested logical register interface (exact offsets can be chosen during
-implementation):
-
-| Register | Purpose |
-|---|---|
-| `ManualInterfaceVersion`, `ManualCapabilities` | Allow software to require acknowledged independent RS/CS support |
-| `ManualRowIndex` | Logical row whose `RowMap` entry supplies RS/CS addresses |
-| `ManualRsSource`, `ManualCsSource` | Independent source selections above |
-| `ManualRsCode`, `ManualCsCode` | Temporary raw DAC codes used only for override sources |
-| `ManualCommit` | Submit the complete shadowed transaction |
-| `ManualClear` | Drive the tracked active pair to OFF and clear active-valid |
-| `ManualBusy` | A request is queued or executing |
-| `ManualDoneCount` | Monotonic completion counter, incremented after the DAC update clock |
-| `ManualError` | Sticky rejected/invalid/busy/timing-mode error bits |
-| `ManualApplied*` | Last completed row, source selections, and applied RS/CS codes |
-
-`ManualCommit` must not remain a disposable `axiWrDetect` pulse. Capture it into
-a persistent `manualPending` register in the timing clock domain and clear it
-only when the FSM accepts the command. Reject a new commit while pending/busy,
-or backpressure its AXI response. Software writes all shadow registers, captures
-`ManualDoneCount`, commits, then waits for the count to advance and checks
-`ManualError` and `ManualApplied*`.
-
-Reject manual transactions while `Mode=TIMING` or `timingRxData.running=1`.
-This makes the safe operating rule enforceable in hardware instead of relying
-only on Python timing.
-
-### Separate table programming from DAC actuation
-
-`FasOn`/`FasOff` RAM writes should normally update memory only. The manual pair
-transaction should be the only tuning-time actuation path. If compatibility
-requires the existing write-through behavior, gate it with a clearly named
-`LegacyTableWriteApply` control:
-
-- preserve the current default for one compatibility release if required;
-- force it off in the new tuning state guard; and
-- use the same pending/acknowledged machinery when it is enabled so table writes
-  cannot be silently lost.
-
-This separation lets discovery sweeps use temporary override codes without
-corrupting candidate or previously validated ON/OFF settings. Final accepted
-currents can be written to the persistent tables once, read back, and exercised
-through `ON_TABLE`/`OFF_TABLE` transactions.
-
-### Multi-board behavior
-
-`RowMap` can place RS and CS on different row boards. The Group-level Python
-command must therefore program and commit the same logical transaction to every
-participating board, using the owning board/line amplifier model for each
-override-code conversion, then wait for every board's completion counter. Each
-board acts only on mapped addresses matching its `RowBoardId`.
-
-Nanosecond-level simultaneous commits across boards are unnecessary for the
-quasi-static tune: acquisition begins only after all boards acknowledge. Normal
-multiplexed switching remains driven by the serialized timing link and is not
-changed by this manual interface.
+There is no firmware clear command. Before changing contexts and during cleanup,
+Python explicitly drives every touched physical line to its snapshotted or
+candidate `FasOff` current with serialized `manual_set()` calls. The tuning state
+guard remains responsible for the ordering and rollback policy.
 
 ### Firmware verification
 
-Add a focused self-checking `RowDacDriver2` testbench that:
-
-- submits commands while the FSM is in every state and proves each is either
-  completed once or explicitly rejected, never silently dropped;
-- covers all four RS/CS ON/OFF combinations and both-override sweeps;
-- covers single-level invalid-CS entries and RS/CS residing on different boards;
-- verifies break-before-make behavior when changing logical rows;
-- verifies that the completion counter advances only after the DAC update
-  clock;
-- verifies table-only writes do not change DAC output when write-through is
-  disabled;
-- verifies reset, mode change, run-start, busy collision, clear, and error
-  behavior; and
-- proves normal timing-mode row transitions retain their existing sequencing
-  and row-strobe behavior.
-
-The PyRogue `RowDacDriver2` model must expose the new controls/status and provide
-a helper that performs one transaction with a bounded completion timeout.
+Compile the modified RTL and exercise `ManualSet` during bench commissioning.
+Confirm that a stopped manual-mode write actuates the requested physical line,
+does not change either persistent FAS table, and that normal timing-mode and
+activate/deactivate behavior remain unchanged. The existing state guard and
+millisecond-scale settling interval provide the software-side safety checks.
 
 ## Proposed algorithm
 
@@ -368,10 +296,9 @@ HardwareGroup.RowBoard[board].RowDacDriver.FasOff.Current[address]
 
 All public sweep limits and outputs are physical current values with explicit
 units. DAC conversion remains in `FastDacMem.Current`; tuning code must not use
-raw DAC codes. The low-level manual-transaction helper may write
-`ManualRsCode`/`ManualCsCode`, but it must derive them with the same physical
-line amplifier model used by `FastDacMem.Current` and expose a current-valued
-API to the tuner.
+raw DAC codes. The low-level `manual_set()` helper packs the code into
+`ManualSetRaw`, but derives it with the same physical-line amplifier model used
+by `FastDacMem.Current` and exposes only a current-valued API to the tuner.
 
 ### 2. Bootstrap two-level selection
 
@@ -404,25 +331,23 @@ measured period or report the target as unstable.
 
 For each physical line and each selected context:
 
-1. Issue `ManualClear` and wait for every row board to acknowledge that the
-   previously active pair is OFF.
+1. Use serialized `manual_set()` calls to drive every physical line touched by
+   the previous context to its snapshotted or candidate OFF current.
 2. Set each enabled column's SQ1 probe bias below expected `Icmin` for
    discovery.
 3. Sweep the target select current over at least two expected flux periods.
-4. At each point, issue an acknowledged manual pair transaction:
-   - RS discovery uses `RS=OVERRIDE_CODE`; single-level CS is a no-op;
-   - two-level RS discovery/refinement sweeps the RS override while holding the
-     CS override at its provisional/tuned candidate;
-   - two-level CS discovery/refinement holds the RS override at its candidate
-     while sweeping the CS override; and
-   - the two-level bootstrap raster uses override codes for both.
-5. After every participating row board reports completion:
-   - wait for the configured electrical/servo settling interval;
+4. At each point, call `manual_set()` on the physical target. For two-level
+   discovery, first set the partner line to its provisional/tuned OPEN current;
+   the bootstrap raster sets the physical RS and CS lines independently.
+5. After issuing every required board-local `manual_set()`, wait for the
+   configured electrical/servo settling interval, which also covers the short
+   unacknowledged firmware transaction, then:
    - close/iterate the SA feedback servo toward zero SA output;
    - record the required SA feedback for every enabled column;
    - record servo convergence, loop count, SA residual, rail/clipping flags, and
-     the acknowledged applied row, sources, and physical currents.
-6. Issue and acknowledge `ManualClear` before switching target/context.
+     the requested physical line, packed raw code, and quantized current.
+6. Explicitly drive all touched lines to OFF with serialized `manual_set()`
+   calls before switching target/context.
 
 Columns that are disabled, fail to converge, rail, or lack sufficient response
 remain in the result but do not vote on the line setting.
@@ -490,21 +415,22 @@ program `FasOn.Current` and `FasOff.Current`. Batch writes per board, read them
 back, and retain the original snapshot until validation completes. Persistent
 table programming must not be used to actuate sweep points.
 
-Validate every active logical row:
+Validate every active logical row at least in its normal OFF and ON states:
 
 - **Single level:** OFF suppresses the SQ1 response; ON exposes a response with
   the required contrast and margin.
-- **Two level:** measure the four-state truth table. Only `(row ON, chip ON)` may
-  expose the SQ1 path; `(OFF, OFF)`, `(ON, OFF)`, and `(OFF, ON)` must remain
-  isolated.
+- **Two level:** require OFF/OFF suppression and ON/ON response. Provide the
+  four-state `(OFF, OFF)`, `(ON, OFF)`, `(OFF, ON)`, `(ON, ON)` isolation test as
+  an optional commissioning check; it is not required to calculate the RS/CS
+  operating points.
 - Check all enabled columns, report per-column failures, and require a
   configurable minimum valid-column fraction.
 - Optionally perform a short SQ1-feedback modulation scan to prove that the
   selected path is not merely a DC artifact and is usable by `Sq1Tune`.
 
-Any required-line or truth-table failure rolls all FAS settings back by default.
-Provide an explicit diagnostic-only mode and an explicit expert override for
-keeping partial settings; never keep partial values implicitly.
+Any required-line or enabled validation failure rolls all FAS settings back by
+default. Provide an explicit diagnostic-only mode and an explicit expert
+override for keeping partial settings; never keep partial values implicitly.
 
 ## Result and API shape
 
@@ -577,8 +503,6 @@ The tab should present, before Start:
 
 - detected topology (`single-level` or `two-level`), active logical-row count,
   physical RS/CS line counts, and connected-component count;
-- row-board manual-interface version/capabilities, with an obvious unsupported
-  state for old two-level firmware;
 - run/row-driver state and whether tuning can start safely;
 - run mode: full discovery/program, diagnostic dry run, or post-SQ1 operational
   validation;
@@ -619,12 +543,12 @@ The tab should contain:
 3. **Physical-line summary:** ON current, OFF current, measured period, margin,
    voter count/spread, and pass/fail for every RS and CS line. Never plot these
    values against logical row number.
-4. **Isolation/truth-table view:** per logical context and enabled column,
-   display CLOSED/CLOSED, OPEN/CLOSED, CLOSED/OPEN, and OPEN/OPEN response plus
-   the isolation verdict.
+4. **Validation view:** per logical context and enabled column, display the
+   required OFF/OFF and ON/ON result and, when optional isolation validation is
+   enabled, the ON/OFF and OFF/ON responses and verdict.
 5. **Failure/detail panel:** stable reason text for nonconvergence, rail,
    insufficient contrast, narrow/boundary margin, context disagreement,
-   unsupported firmware, timeout, rollback, and user Stop.
+   register-write failure, rollback, and user Stop.
 
 Plots must tolerate empty, partial, stopped, and failed results without raising
 exceptions. A stopped tune should retain completed diagnostic samples, label
@@ -670,36 +594,30 @@ Add tests for the widget independently of hardware:
 **Done when:** topology construction is pure, deterministic, and fully tested;
 the old runtime failure is reproduced before replacement and absent afterward.
 
-### Task 2 — Add the acknowledged `RowDacDriver2` manual pair transaction
+### Task 2 — Add minimal board-local `RowDacDriver2.ManualSet`
 
 **Files:**
 
 - Modify `firmware/common/warm_tdm/rtl/RowDacDriver2.vhd`
 - Modify `firmware/python/warm_tdm/_RowDacDriver2.py`
-- Add `firmware/simulations/RowDacDriver2Tb/` with a focused self-checking VHDL
-  testbench and Makefile
 - Update `docs/design/fastdac-override-race.md`
 
-- [ ] Define the register map and source enum for independent RS/CS selection.
-- [ ] Implement shadowed parameters and a persistent post-`AxiLiteAsync`
-  pending request with completion count and sticky errors.
-- [ ] Implement `HOLD`, `OFF_TABLE`, `ON_TABLE`, and `OVERRIDE_CODE` independently
-  for each switching layer.
-- [ ] Track the active manual logical row and implement acknowledged clear plus
-  documented break-before-make behavior.
-- [ ] Reject commands in timing/running mode and reject or backpressure collisions.
-- [ ] Separate table storage from immediate DAC actuation, with an explicit
-  compatibility control if legacy write-through must temporarily remain.
-- [ ] Expose current-valued PyRogue helpers using the physical line amplifier
-  models; keep raw override codes hidden below that API.
-- [ ] Test all four RS/CS states, both-override 2-D sweeps, single-level CS no-op,
-  split-board maps, command delivery from every FSM state, errors, and reset.
-- [ ] Regression-test the original timing-mode path and build an affected row
-  target with Vivado 2024.1 before hardware deployment.
+- [x] Define the single packed address/code write at local offset `0x18`.
+- [x] Implement a one-entry pending request after `AxiLiteAsync`; consume it only
+  from `IDLE_S` and reuse the existing manual DAC write/update states.
+- [x] Ignore timing/running-mode writes and a second write while one request is
+  pending; cancel a pending request if timing starts.
+- [x] Preserve existing timing, activate/deactivate, and table write-through
+  behavior unchanged.
+- [x] Expose `manual_set(address, current)` using the physical-line amplifier
+  model; keep raw codes below that API.
+- [ ] Build an affected row target with Vivado 2024.1 and bench-test temporary
+  actuation, table preservation, and the unchanged legacy paths before
+  deployment.
 
-**Done when:** every accepted manual command completes exactly once and can be
-verified after the DAC update clock; software can independently control RS and
-CS without rewriting `FasOn`/`FasOff` memory.
+**Done when:** a `ManualSet` accepted while the FSM is busy is retained and
+eventually actuates the requested physical line without changing either FAS
+table, while the established row-control paths remain unchanged.
 
 ### Task 3 — Add explicit physical-line access and transactional state guard
 
@@ -713,13 +631,13 @@ CS without rewriting `FasOn`/`FasOff` memory.
 
 - [ ] Implement a small physical FAS accessor keyed by `(kind, board, address)`;
   do not add a logical-row alias.
-- [ ] Require the acknowledged-manual-pair capability for two-level operation
-  and aggregate commit/completion/errors across every participating row board.
+- [ ] Route each physical-line command only to its owning row board and surface
+  an AXI write error clearly when firmware lacks `ManualSet`.
 - [ ] Implement snapshot/restore, stopped-run/manual-mode entry, readback, and
   guaranteed cleanup with a context manager.
 - [ ] Make Stop and every exception path restore state.
-- [ ] Unit-test successful apply, dry run, Stop, timeout, write failure,
-  validation failure, and partial-board failure.
+- [ ] Unit-test successful apply, dry run, Stop, write failure, validation
+  failure, and partial-board failure.
 
 **Done when:** no failed or interrupted operation can leave a mixed set of FAS
 values or an unexpected timing/row-driver mode.
@@ -755,8 +673,8 @@ closed rather than returning a plausible-looking setting.
 - Add `tests/warm_tdm/fas_tune/test_acquisition.py`
 
 - [ ] Implement low-SQ1-bias select-current sweep with SA feedback closed.
-- [ ] Drive each point through the acknowledged override transaction rather
-  than changing persistent `FasOn`/`FasOff` entries.
+- [ ] Drive each point through serialized `manual_set()` rather than changing
+  persistent `FasOn`/`FasOff` entries.
 - [ ] Record convergence and actual current at every sample.
 - [ ] Tune unique physical lines and combine enabled column results.
 - [ ] Derive both ON and OFF candidates and support diagnostic-only execution.
@@ -766,7 +684,7 @@ closed rather than returning a plausible-looking setting.
 settings, never touches unused lines, honors Stop promptly, and preserves full
 diagnostic data.
 
-### Task 6 — Add two-level bootstrap, refinement, and truth-table validation
+### Task 6 — Add two-level bootstrap, refinement, and optional isolation validation
 
 **Files:**
 
@@ -777,8 +695,8 @@ diagnostic data.
 - [ ] Bootstrap every unseeded connected component, traverse known partners to
   every RS/CS vertex, then alternate row and chip sweeps and test convergence.
 - [ ] Aggregate shared line results over multiple partner contexts.
-- [ ] Implement all four truth-table measurements and rollback on isolation
-  failure.
+- [ ] Implement normal OFF/OFF and ON/ON validation plus an optional four-state
+  isolation test; roll back when any enabled validation fails.
 - [ ] Cover RS and CS with different periods, polarities, physical addresses,
   and row boards; never derive CS settings from RS results.
 
@@ -827,12 +745,12 @@ return the same structured result without stale node paths.
 
 - [ ] Build the preflight, run-mode, scan, servo, quality, and apply/rollback
   control groups described in “PyDM FAS tuning workflow.”
-- [ ] Bind topology and firmware-capability status, and prevent an unsupported
-  two-level run from appearing ready.
+- [ ] Bind topology and run/manual state; surface a missing `ManualSet` register
+  as a clear firmware-compatibility failure.
 - [ ] Add process-backed physical RS/CS line, context, column/aggregate, and
   connected-component selectors.
 - [ ] Replace the old logical-row/minimum plots with selected-line response,
-  two-level seed heatmap, physical-line summary, and four-state isolation views.
+  two-level seed heatmap, physical-line summary, and validation views.
 - [ ] Show per-line quality/failure reasons, process phase, partial-result state,
   applied/rolled-back state, and manual-command errors.
 - [ ] Hide/disable two-level-only controls and plots for single-level topology.
@@ -861,8 +779,8 @@ process data.
 - [ ] Drive production Python against the GroupTb tree with a reduced number of
   sweep points.
 - [ ] Verify recovered settings against the known synthetic parameters.
-- [ ] Cover both one-level and two-level maps, including the four-state truth
-  table and a failed/degraded column.
+- [ ] Cover both one-level and two-level maps, including optional four-state
+  isolation validation and a failed/degraded column.
 
 **Done when:** the production process, not a test-only reimplementation, tunes
 the simulated physical FAS lines to known tolerances and survives Stop/rollback.
@@ -890,13 +808,12 @@ verification record is complete.
 ## Acceptance criteria
 
 - `FasTuneProcess` runs without missing-variable errors.
-- New firmware advertises an acknowledged manual-pair capability; older
-  firmware is detected before any hardware state changes.
-- Every accepted manual command is completed exactly once or returns an
-  explicit error—no activate, clear, or override request can disappear while
-  the row FSM is busy.
-- Manual control independently supports RS and CS OFF-table, ON-table, and
-  temporary override sources without rewriting persistent tune tables.
+- New firmware accepts the packed `ManualSet` write; an older bitfile produces a
+  clear AXI write failure on first use.
+- A `ManualSet` accepted while the existing row FSM is busy remains pending and
+  is actuated when the FSM returns to idle.
+- `ManualSet` can temporarily actuate any board-local physical RS or CS line
+  without rewriting persistent tune tables.
 - It tunes only active, mapped, unique physical select lines.
 - It supports one- and two-level topologies across multiple row boards.
 - It measures and programs both `FasOn` and `FasOff` in physical current units.
@@ -906,16 +823,17 @@ verification record is complete.
   explicit failure reasons per physical line.
 - Stop, exceptions, write failures, and validation failures restore the original
   hardware state.
-- Two-level validation proves that only row-ON plus chip-ON activates the path.
+- Required two-level validation proves OFF/OFF suppression and ON/ON response;
+  optional isolation validation checks both incomplete select combinations.
 - Two-level bootstrap and refinement recover deliberately different RS and CS
   periods/polarities, including when the pair spans two row boards.
 - The normal PyDM FAS tab can configure and run discovery or validation, Stop
   safely, navigate physical RS/CS results and logical contexts, display the 2-D
-  seed and four-state isolation data, and explain failures/rollback without the
+  seed and enabled validation data, and explain failures/rollback without the
   Debug Tree.
 - The PyDM tab handles empty, partial, stopped, failed, one-level, and two-level
   result objects without plot or channel-binding errors.
-- Pure unit tests, emulation-tree tests, direct GHDL model checks, and GroupTb
+- Pure unit tests, emulation-tree tests, firmware compilation, and GroupTb
   production-code cosimulation pass.
 - A bench procedure verifies safe bounds, repeatability, isolation, and normal
   operation before the feature is called complete.
@@ -931,10 +849,8 @@ defaults only after bench measurements:
 - OPEN/CLOSED normalized-response thresholds and minimum interval width;
 - minimum number/fraction of agreeing columns and partner contexts;
 - preferred nominal lobe when several equivalent half-flux peaks are present;
-- whether legacy table-write-through must remain enabled for one compatibility
-  release, and the manual-interface version/capability value used to detect it;
-- whether manual row changes should always use two-phase break-before-make or
-  offer an explicitly selected simultaneous handoff; and
+- whether the optional four-state two-level isolation check should be enabled by
+  default after commissioning experience; and
 - whether an operational-margin validation should be part of `fas_tune()` or an
   explicit post-`sq1_tune()` operation in the normal commissioning UI.
 
@@ -949,9 +865,12 @@ hardware defaults.
 - Do not infer row/chip topology from arithmetic when `RowMap` is authoritative.
 - Do not implement production two-level tuning by temporarily overwriting
   `FasOn`/`FasOff` RAM entries.
+- Do not add a firmware logical-row pair transaction, RS/CS source matrix,
+  active-row tracker, or firmware-managed clear; `ManualSet` remains a minimal
+  board-local physical-line primitive.
 - Do not put curve analysis, peak finding, or the complete sweep engine in
-  firmware; firmware provides reliable physical actuation and acknowledgement,
-  while Python owns the adaptable characterization algorithm.
+  firmware; firmware provides minimal physical actuation while Python owns the
+  adaptable characterization algorithm.
 - Do not add live-tuning behavior as part of this manual interface; live tuning
   would require explicit arbitration with the normal timing path.
 - Do not declare success based only on PyRogue emulation; it validates the tree
