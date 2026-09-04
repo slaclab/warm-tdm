@@ -37,7 +37,8 @@ use warm_tdm.WarmTdmPkg.all;
 entity WaveformCapture is
 
    generic (
-      TPD_G : time := 1 ns);
+      TPD_G        : time    := 1 ns;
+      SIMULATION_G : boolean := false);
    port (
       -- Timing interface
       timingRxClk125 : in sl;
@@ -117,7 +118,7 @@ architecture rtl of WaveformCapture is
       reset            => '0',
       average          => (others => (others => '0')),
       sample           => (others => (others => '0')),
-      alpha            => toSlv(15, 4),
+      alpha            => toSlv(ite(SIMULATION_G, 1, 15), 4),
       pauseThresh      => toSlv(2**14-8, 14),
       sampleFilterEn   => '0',
       waveformTrigger  => '0',
@@ -372,5 +373,4 @@ begin
          mAxisMaster     => axisMaster,      -- [out]
          mAxisSlave      => axisSlave);      -- [in]
 end architecture rtl;
-
 

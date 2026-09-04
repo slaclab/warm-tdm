@@ -402,7 +402,8 @@ begin
 
    U_WaveformCapture_1 : entity warm_tdm.WaveformCapture
       generic map (
-         TPD_G => TPD_G)
+         TPD_G        => TPD_G,
+         SIMULATION_G => SIMULATION_G)
       port map (
          timingRxClk125  => timingRxClk125,                        -- [in]
          timingRxRst125  => timingRxRst125,                        -- [in]
