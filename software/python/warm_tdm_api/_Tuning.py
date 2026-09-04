@@ -325,12 +325,23 @@ def fasSweep(*, group, row, process):
     off_current = driver.FasOff.Current.get(index=address, read=True)
     try:
         for current in currents:
-            if process._runEn is False:
+            if not process._runEn:
                 break
             driver.manual_set(address=address, current=current)
-            time.sleep(delay)
+
+            # Stop() waits for the worker thread, so keep a user-configured
+            # settling delay interruptible rather than sleeping in one block.
+            deadline = time.monotonic() + max(0.0, delay)
+            while process._runEn and time.monotonic() < deadline:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0.0:
+                    break
+                time.sleep(min(0.05, remaining))
+            if not process._runEn:
+                break
+
             points = saFbServo(group=group, process=process)
-            if process._runEn is False:
+            if not process._runEn:
                 break
             for column, point in enumerate(points):
                 data.curveList[column].addPoint(point)
@@ -424,7 +435,7 @@ def fasTune(*,group,process=None):
                 f'FAS row {row} ({index + 1}/{len(targets)})')
             curve = fasSweep(group=group, row=row, process=process)
             curves.append(curve)
-            if process._runEn is False:
+            if not process._runEn:
                 process.Message.set('Stopped by user; FasOn unchanged')
                 return curves
 
@@ -443,10 +454,27 @@ def fasTune(*,group,process=None):
             key: float(np.median(values))
             for key, values in candidates.items()
         }
+
+        if not process._runEn:
+            process.Message.set('Stopped by user; FasOn unchanged')
+            return curves
+
         programming_started = True
         for key, current in selected.items():
+            if not process._runEn:
+                break
             unique_targets[key].FasOn.Current.set(
                 index=key[1], value=current, write=True)
+
+        # Also catches Stop arriving during the last register write.
+        if not process._runEn:
+            for key, original in fas_on_snapshot.items():
+                unique_targets[key].FasOn.Current.set(
+                    index=key[1], value=original, write=True)
+            programming_started = False
+            process.Message.set('Stopped by user; FasOn unchanged')
+            return curves
+
         for curve in curves:
             curve.fasOn = selected[(curve.board, curve.address)]
         process.Message.set('FAS tune complete')

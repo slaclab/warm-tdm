@@ -79,7 +79,7 @@ class FasTunePlot(pr.LinkVariable):
 class FasTuneProcess(pr.Process):
 
     def __init__(self, **kwargs):
-        super().__init__(function=self._fasTuneWrap, **kwargs)
+        super().__init__(**kwargs)
 
         self.add(pr.LocalVariable(
             name='FasFluxLowOffset', value=0.0, mode='RW', units='uA',
@@ -119,6 +119,20 @@ class FasTuneProcess(pr.Process):
         self.add(FasTunePlot(
             name='TunePlot', hidden=True, mode='RO',
             dependencies=[self.FasTuneOutput]))
+
+    def _process(self):
+        """Run without reporting a user-stopped tune as successfully done."""
+        self.Message.setDisp('Running')
+        self.setStep(0)
+        self.setProgress(0.0)
+
+        self._fasTuneWrap()
+
+        if self._runEn:
+            self.Message.setDisp('Done')
+            self.setProgress(1.0)
+        else:
+            self.Message.setDisp('Stopped')
 
     def _fasTuneWrap(self):
         with self.root.updateGroup(0.25):

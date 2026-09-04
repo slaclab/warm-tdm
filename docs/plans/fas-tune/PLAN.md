@@ -35,6 +35,12 @@ parameters required by `saFbServo()`.
 - Program `FasOn.Current` only after all active-row sweeps complete.
 - Leave `FasOff.Current` unchanged.
 - On Stop, publish collected curves and leave `FasOn` unchanged.
+- Make settling waits interruptible so `Stop()` does not wait for a complete
+  user-configured sample delay.
+- Report a stopped process as `Stopped`, not `Done`, and do not force progress
+  to 100 percent.
+- Recheck Stop before and during final `FasOn` programming; roll back any
+  entries already written if Stop arrives in that interval.
 - Restore SA feedback, row-driver modes, and temporarily driven row outputs on
   every exit path. SQ1 bias and feedback are not changed by this process.
 - If a batched `FasOn` programming operation fails, restore the original values.
@@ -81,6 +87,9 @@ write-through behavior remain unchanged.
 - [x] Preserve the existing curve/minimum/median algorithm.
 - [x] Program physical `FasOn.Current` entries only after complete acquisition.
 - [x] Preserve partial plots on Stop without applying settings.
+- [x] Make `Stop()` responsive during settling and SA-servo loops.
+- [x] Prevent the PyRogue process wrapper from relabeling Stop as `Done`.
+- [x] Close the Stop-versus-final-programming race with rollback.
 - [x] Restore temporary modes and SA feedback force current on exit.
 - [x] Keep `Session.fas_tune()` as the operations-layer convenience wrapper.
 - [ ] Run the process against GroupTb or hardware with a one-level map.
@@ -92,6 +101,13 @@ write-through behavior remain unchanged.
 - [x] Exercise one-level sweep/programming, shared-line handling, disabled
   columns, Stop behavior, state restoration, and two-level rejection with a
   focused fake-hardware smoke test.
+- [x] Verify a real PyRogue `Process.Stop()` joins the worker, leaves
+  `Running=False`, reports `Stopped`, and does not force progress to completion.
+- [x] Construct the PyDM FAS tab headlessly and verify that its Process widget
+  exposes every sweep/servo control, drives the standard `Start`/`Stop`
+  channels, and connects both result plots.
+- [x] Verify the legacy client `.ui` uses the same process and plot paths and
+  that partial results published by Stop remain valid plot inputs.
 - [ ] Build an affected target with Vivado 2024.1; Vivado is not available in
   the current environment.
 
@@ -103,6 +119,8 @@ write-through behavior remain unchanged.
 - Disabled columns do not influence the median.
 - Shared physical lines are programmed once with their combined median.
 - Stop before acquisition completes leaves every `FasOn` entry unchanged.
+- `Stop()` waits for cleanup, returns with `Running=False`, and leaves the
+  process message as `Stopped` rather than `Done`.
 - `FasOff` is never written.
 - A two-level map fails before any manual DAC write.
 - Row-driver modes and SA feedback force current are restored after success,
