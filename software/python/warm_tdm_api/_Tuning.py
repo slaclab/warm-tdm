@@ -5,6 +5,43 @@ from simple_pid import PID
 import warm_tdm_api
 
 
+def _fas_minimum_center(x_values, points, tolerance):
+    """Return the center of the contiguous near-minimum region.
+
+    Start at the global minimum and expand in both directions while adjacent
+    samples remain within ``tolerance`` of it. This avoids the low-current bias
+    of ``argmin()`` when the servo response has a flat, quantized bottom.
+    """
+    x_values = np.asarray(x_values, dtype=np.float64)
+    points = np.asarray(points, dtype=np.float64)
+    count = min(x_values.size, points.size)
+    if count == 0:
+        raise ValueError('Cannot select a FAS minimum from an empty curve')
+
+    x_values = x_values[:count]
+    points = points[:count]
+    finite = np.isfinite(points)
+    if not np.any(finite):
+        raise ValueError('Cannot select a FAS minimum from non-finite samples')
+
+    finite_indices = np.flatnonzero(finite)
+    minimum_index = int(
+        finite_indices[np.argmin(points[finite_indices])])
+    minimum_value = points[minimum_index]
+    threshold = minimum_value + max(0.0, float(tolerance))
+
+    low = minimum_index
+    while low > 0 and finite[low - 1] and points[low - 1] <= threshold:
+        low -= 1
+    high = minimum_index
+    while (high + 1 < count and finite[high + 1]
+           and points[high + 1] <= threshold):
+        high += 1
+
+    center = 0.5 * (x_values[low] + x_values[high])
+    return float(center), low, high, float(minimum_value)
+
+
 def saOffset(*, group, process=None):
     """Returns float.
     Run PID loops to determine saOffset that properly offsets saBias
@@ -392,6 +429,7 @@ def fasSweep(*, group, row, process):
     steps = process.FasFluxNumSteps.get()
     delay = process.FasFluxSampleDelay.get()
     sampleReads = process.FasFluxSampleReads.get()
+    enabled_columns = np.asarray(group.ColTuneEnable.get(), dtype=bool)
     currents = np.linspace(low, high, steps, endpoint=True)
     log.debug(
         'FAS sweep row %s start: board=%d address=%d low=%s high=%s '
@@ -461,7 +499,8 @@ def fasSweep(*, group, row, process):
                 'FAS sweep row %s step %d/%d response=%s',
                 row, step + 1, len(currents), np.asarray(points).tolist())
             for column, point in enumerate(points):
-                data.curveList[column].addPoint(point)
+                if enabled_columns[column]:
+                    data.curveList[column].addPoint(point)
             process._incrementSteps(1)
             log.debug(
                 'FAS sweep row %s step %d/%d recorded',
@@ -631,15 +670,20 @@ def fasTune(*, group, process=None, doSet=True):
                 return curves
 
             minima = []
+            minimum_tolerance = process.FasMinimumTolerance.get()
             for column in enabled_columns:
                 points = curve.curveList[column].points
                 if points:
-                    minimum = curve.xValues[int(np.argmin(points))]
+                    minimum, low, high, minimum_value = _fas_minimum_center(
+                        curve.xValues, points, minimum_tolerance)
                     minima.append(minimum)
                     log.debug(
-                        'FAS tune row %d column %d minimum=%s uA '
-                        'from %d point(s)',
-                        row, column, minimum, len(points))
+                        'FAS tune row %d column %d minimum-region center=%s '
+                        'uA indices=%d..%d x=%s..%s uA minimum=%s uA '
+                        'tolerance=%s uA from %d point(s)',
+                        row, column, minimum, low, high,
+                        curve.xValues[low], curve.xValues[high],
+                        minimum_value, minimum_tolerance, len(points))
             if not minima:
                 log.error(
                     'FAS tune logical row %d produced no enabled-column '
