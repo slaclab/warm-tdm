@@ -320,12 +320,10 @@ def saFbServo(*, group, process):
     kd = process.ServoKd.get()
     precision = process.ServoPrecision.get()
     maxLoops = process.ServoMaxLoops.get()
-    sampleReads = process.ServoSampleReads.get()
     log = process._log
     log.debug(
-        'SA FB servo start: kp=%s ki=%s kd=%s precision=%s maxLoops=%s '
-        'sampleReads=%s',
-        kp, ki, kd, precision, maxLoops, sampleReads)
+        'SA FB servo start: kp=%s ki=%s kd=%s precision=%s maxLoops=%s',
+        kp, ki, kd, precision, maxLoops)
     
     pid = [PID(kp, ki, kd) for _ in range(group.NumColumns.get())]
 
@@ -374,23 +372,6 @@ def saFbServo(*, group, process):
             'SA FB servo loop %d wrote control=%s',
             count + 1, np.asarray(control).tolist())
 
-        # A wall-clock sleep does not guarantee VCS time advances. Force a
-        # configurable number of AXI reads instead; those transactions advance
-        # cosim and let the DAC/ADC pipeline propagate before convergence is
-        # tested again.
-        for settleRead in range(sampleReads):
-            if not process._runEn:
-                log.debug(
-                    'SA FB servo stopped while settling loop %d; returning '
-                    'control=%s',
-                    count + 1, np.asarray(control).tolist())
-                return control
-            settledCurrent = group.SaOutAdc.get()
-            log.debug(
-                'SA FB servo loop %d settling read %d/%d: adc=%s',
-                count + 1, settleRead + 1, sampleReads,
-                np.asarray(settledCurrent).tolist())
-
     else:
         log.warning(
             'SA FB servo failed to converge after %d loop(s): '
@@ -428,14 +409,12 @@ def fasSweep(*, group, row, process):
     high = process.FasFluxHighOffset.get()
     steps = process.FasFluxNumSteps.get()
     delay = process.FasFluxSampleDelay.get()
-    sampleReads = process.FasFluxSampleReads.get()
     enabled_columns = np.asarray(group.ColTuneEnable.get(), dtype=bool)
     currents = np.linspace(low, high, steps, endpoint=True)
     log.debug(
         'FAS sweep row %s start: board=%d address=%d low=%s high=%s '
-        'steps=%d delay=%s sampleReads=%s currents=%s',
-        row, board, address, low, high, steps, delay, sampleReads,
-        currents.tolist())
+        'steps=%d delay=%s currents=%s',
+        row, board, address, low, high, steps, delay, currents.tolist())
     data = warm_tdm_api.CurveData(xValues=currents)
     for column in range(group.NumColumns.get()):
         data.addCurve(warm_tdm_api.Curve(column))
@@ -469,21 +448,6 @@ def fasSweep(*, group, row, process):
                 log.debug(
                     'FAS sweep row %s stopped while settling step %d/%d',
                     row, step + 1, len(currents))
-                break
-
-            for settleRead in range(sampleReads):
-                if not process._runEn:
-                    break
-                settledCurrent = group.SaOutAdc.get()
-                log.debug(
-                    'FAS sweep row %s step %d/%d settling read %d/%d: '
-                    'adc=%s',
-                    row, step + 1, len(currents), settleRead + 1,
-                    sampleReads, np.asarray(settledCurrent).tolist())
-            if not process._runEn:
-                log.debug(
-                    'FAS sweep row %s stopped during settling reads at '
-                    'step %d/%d', row, step + 1, len(currents))
                 break
 
             log.debug(
@@ -815,32 +779,61 @@ def sq1FbSweep(*, group, bias, fbRange, process):
     colCount = group.NumColumns.get()
     curves = [warm_tdm_api.Curve(bias[i]) for i in range(colCount)]
     numSteps = len(fbRange[0])
-
+    log = process._log
     servoDisable = process.ServoDisable.get()
+    log.debug(
+        'SQ1 FB sweep start: bias=%s steps=%d servoDisable=%s '
+        'feedbackLow=%s feedbackHigh=%s',
+        np.asarray(bias).tolist(), numSteps, servoDisable,
+        np.asarray(fbRange[:, 0]).tolist(),
+        np.asarray(fbRange[:, -1]).tolist())
 
     for fbStep in range(numSteps):
+        if process._runEn is False:
+            log.debug(
+                'SQ1 FB sweep stopped before step %d/%d',
+                fbStep + 1, numSteps)
+            break
+
         # Set SQ1 FB
-        group.Sq1FbForceCurrent.set(fbRange[:, fbStep])
+        feedback = fbRange[:, fbStep]
+        log.debug(
+            'SQ1 FB sweep step %d/%d writing feedback=%s',
+            fbStep + 1, numSteps, np.asarray(feedback).tolist())
+        group.Sq1FbForceCurrent.set(feedback)
 
 
         if servoDisable is False:
-            # Servo saFB            
+            # Servo saFB
+            log.debug(
+                'SQ1 FB sweep step %d/%d starting SA FB servo',
+                fbStep + 1, numSteps)
             points = saFbServo(group=group, process=process)
         else:
             # Open Loop mode - temporary for testing
             points = group.SaOut.get()
+
+        log.debug(
+            'SQ1 FB sweep step %d/%d response=%s',
+            fbStep + 1, numSteps, np.asarray(points).tolist())
 
         # Add points to curves
         for col in range(colCount):
             curves[col].addPoint(points[col])
 
         process._incrementSteps(1)
+        log.debug(
+            'SQ1 FB sweep step %d/%d recorded', fbStep + 1, numSteps)
 
         # check for stopped process
         if process is not None and process._runEn == False:
-            group._log.info('Process stopped, exiting sq1FbSweep')
+            log.debug('SQ1 FB sweep stopped after step %d/%d',
+                      fbStep + 1, numSteps)
             break
 
+    log.debug(
+        'SQ1 FB sweep complete: collectedPoints=%s',
+        [len(curve.points) for curve in curves])
     return curves
 
 
@@ -853,13 +846,15 @@ def sq1BiasSweep(group, process, rowIndex, doBiasRamp=True):
     # Extract iteration steps from Rogue variables
     # Create CurveData obects for storing output data
     colCount = group.NumColumns.get()
+    log = process._log
     numBiasSteps = process.Sq1BiasNumSteps.get() if doBiasRamp else 1
     numFbSteps = process.Sq1FbNumSteps.get()
     biasRange = np.zeros((colCount, numBiasSteps), np.float64)
     fbRange = np.zeros((colCount, numFbSteps), np.float64)
     loadedBiases = None if doBiasRamp else np.asarray(group.Sq1BiasCurrent.get(), dtype=np.float64)[:, rowIndex]
 
-    datalist = []    
+    colTuneEnable = np.asarray(group.ColTuneEnable.get(), dtype=bool)
+    datalist = []
     for col in range(colCount):
         if doBiasRamp:
             low = process.Sq1BiasLowOffset.get()
@@ -875,27 +870,59 @@ def sq1BiasSweep(group, process, rowIndex, doBiasRamp=True):
 
         datalist.append(warm_tdm_api.CurveData(xValues=fbRange[col]))
 
+    log.debug(
+        'SQ1 bias sweep row=%s start: doBiasRamp=%s enabledMask=%s '
+        'biasSteps=%d feedbackSteps=%d biasLow=%s biasHigh=%s '
+        'feedbackLow=%s feedbackHigh=%s',
+        rowIndex, doBiasRamp, colTuneEnable.tolist(), numBiasSteps, numFbSteps,
+        np.asarray(biasRange[:, 0]).tolist(),
+        np.asarray(biasRange[:, -1]).tolist(),
+        np.asarray(fbRange[:, 0]).tolist(),
+        np.asarray(fbRange[:, -1]).tolist())
 
     # Iterate over each bias point
     for biasStep in range(numBiasSteps):
+        if process._runEn is False:
+            log.debug(
+                'SQ1 bias sweep row=%s stopped before bias step %d/%d',
+                rowIndex, biasStep + 1, numBiasSteps)
+            break
+
         # Reset FB to zero
         # This is probably unnecessary
+        log.debug(
+            'SQ1 bias sweep row=%s step %d/%d resetting feedback to zero',
+            rowIndex, biasStep + 1, numBiasSteps)
         group.Sq1FbForceCurrent.set(np.zeros(colCount, np.float64))
 
         # Set SQ1 Bias
-        group.Sq1BiasForceCurrent.set(biasRange[:, biasStep])
+        bias = biasRange[:, biasStep]
+        log.debug(
+            'SQ1 bias sweep row=%s step %d/%d writing bias=%s',
+            rowIndex, biasStep + 1, numBiasSteps,
+            np.asarray(bias).tolist())
+        group.Sq1BiasForceCurrent.set(bias)
 
         # Sweep SQ1 FB at the bias
-        curves = sq1FbSweep(group=group, bias=biasRange[:, biasStep], fbRange=fbRange, process=process)
+        curves = sq1FbSweep(
+            group=group, bias=bias, fbRange=fbRange, process=process)
 
         # Assign curves by column (if enabled for tuning)
         for col in range(colCount):
-            if group.ColTuneEnable.get()[col]:
+            if colTuneEnable[col]:
                 datalist[col].addCurve(curves[col])
+
+        log.debug(
+            'SQ1 bias sweep row=%s step %d/%d complete: '
+            'collectedPoints=%s',
+            rowIndex, biasStep + 1, numBiasSteps,
+            [len(curve.points) for curve in curves])
 
         # check for stopped process
         if process is not None and process._runEn == False:
-            group._log.info('Process stopped, exiting sq1BiasSweep')
+            log.debug(
+                'SQ1 bias sweep row=%s stopped after bias step %d/%d',
+                rowIndex, biasStep + 1, numBiasSteps)
             break
 
 
@@ -903,6 +930,19 @@ def sq1BiasSweep(group, process, rowIndex, doBiasRamp=True):
     for d in datalist:
         d.update()
 
+    log.debug(
+        'SQ1 bias sweep row=%s complete: results=%s',
+        rowIndex,
+        [
+            {
+                'column': col,
+                'enabled': bool(colTuneEnable[col]),
+                'biasOut': data.biasOut,
+                'xOut': data.xOut,
+                'yOut': data.yOut,
+            }
+            for col, data in enumerate(datalist)
+        ])
     return datalist
 
 def sq1Tune(group, process, doBiasRamp=True):
@@ -919,7 +959,6 @@ def sq1Tune(group, process, doBiasRamp=True):
         list of list of CurveData objects 
     """
     outputs = []
-    numRows = group.MaxRows.get()
     rowTuneList = group.RowIndexOrderList.value()
     colTuneEnable = group.ColTuneEnable.value()
     numEnabledRows = len(rowTuneList)
@@ -928,29 +967,58 @@ def sq1Tune(group, process, doBiasRamp=True):
     numBiasSteps = process.Sq1BiasNumSteps.get() if doBiasRamp else 1
     totalSteps = numEnabledRows * numBiasSteps * process.Sq1FbNumSteps.get()
     process.TotalSteps.set(totalSteps)
-    group._log.info(f'sq1Tune starting: {numEnabledRows} rows, {totalSteps} total steps')
+    log = process._log
+    log.info(
+        'SQ1 tune starting: rows=%s enabledColumns=%s doBiasRamp=%s '
+        'totalSteps=%d',
+        list(rowTuneList),
+        [col for col, enabled in enumerate(colTuneEnable) if enabled],
+        doBiasRamp, totalSteps)
+    log.debug(
+        'SQ1 tune servo configuration: kp=%s ki=%s kd=%s precision=%s '
+        'maxLoops=%s disable=%s',
+        process.ServoKp.get(), process.ServoKi.get(), process.ServoKd.get(),
+        process.ServoPrecision.get(), process.ServoMaxLoops.get(),
+        process.ServoDisable.get())
 
     #group.RowForceEn.set(True)
+    log.debug('SQ1 tune starting initial SA offset adjustment')
     saOffset(group=group, process=process)
+    log.debug('SQ1 tune initial SA offset adjustment complete')
     
-    for rowIndex in rowTuneList:
+    for rowNumber, rowIndex in enumerate(rowTuneList):
         if process._runEn is False:
-            group._log.info('Process stopped, exiting sq1Tune')
+            log.info('SQ1 tune stopped before row %s', rowIndex)
             break
 
         #Activate the row
+        log.debug(
+            'SQ1 tune activating row %s (%d/%d)',
+            rowIndex, rowNumber + 1, numEnabledRows)
         group.ActivateRowIndex(rowIndex)
+        try:
+            # Run the sq1 bias sweep
+            log.info(
+                'SQ1 tune starting bias sweep for row %s (%d/%d)',
+                rowIndex, rowNumber + 1, numEnabledRows)
+            results = sq1BiasSweep(
+                group, process, rowIndex=rowIndex,
+                doBiasRamp=doBiasRamp)
+            for i, result in enumerate(results):
+                log.debug(
+                    'SQ1 tune row=%s column=%s result: '
+                    'bias=%s xOut=%s yOut=%s',
+                    rowIndex, i, result.biasOut,
+                    result.xOut, result.yOut)
 
-        # Run the sq1 bias sweep
-        group._log.info(f'sq1BiasSweep row={rowIndex}')
-        results = sq1BiasSweep(group, process, rowIndex=rowIndex, doBiasRamp=doBiasRamp)
-        for i, r in enumerate(results):
-            group._log.debug('Results col %s: bias=%s, xOut=%s, yOut=%s', i, r.biasOut, r.xOut, r.yOut)
-            
-        outputs.append(results)
+            outputs.append(results)
+        finally:
+            log.debug('SQ1 tune deactivating row %s', rowIndex)
+            group.DeactivateRowIndex(rowIndex)
 
-        group.DeactivateRowIndex(rowIndex)
-
+    log.info(
+        'SQ1 tune complete: collected %d/%d row result(s)',
+        len(outputs), numEnabledRows)
     return outputs
 
 

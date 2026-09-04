@@ -286,13 +286,18 @@ class Sq1TuneProcess(pr.Process):
         return self._getHelper('yOut')
 
     def _sq1TuneWrap(self):
+        # Enable the acquisition trace after attachment, when this node has its
+        # full PyRogue logger path.
+        self.setLogLevel('DEBUG', includeRogue=False)
+        self._log.debug('SQ1 tune process starting with debug logging enabled')
         with self.root.updateGroup(0.25):
             ret = warm_tdm_api.sq1Tune(
                 group=self.parent,
                 process=self,
                 doBiasRamp=self.DoBiasRamp.value())
+        self._log.debug('Serializing %d SQ1 row result(s)', len(ret))
         self.Sq1TuneOutput.set(value = [[col.asDict() for col in row] for row in ret])
-        self._log.debug('SQ1Tune Output: %s', self.Sq1TuneOutput.value())
+        self._log.debug('Published %d SQ1 row result(s)', len(ret))
 
     def _saveData(self,arg):
         self._log.info(f"Sq1Tune - Save data called with {arg=}")
