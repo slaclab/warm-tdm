@@ -262,9 +262,9 @@ class PidGainVariable(pr.LinkVariable):
             linkedGet=self._get,
             **kwargs)
 
-    def _samples(self, *, read: bool) -> int:
+    def _samples(self, *, read: bool, require_configured: bool = True) -> int:
         samples = int(self._sample_count.get(read=read))
-        if samples <= 0:
+        if samples <= 0 and require_configured:
             raise ValueError(
                 'PID coefficient normalization requires SampleEndTime > '
                 'SampleStartTime.')
@@ -289,7 +289,18 @@ class PidGainVariable(pr.LinkVariable):
                 coefficient.set(value=float(gain) / samples, write=write)
 
     def _get(self, *, index: int, read: bool):
-        samples = self._samples(read=read)
+        # PyRogue evaluates LinkVariables during Root._finishInit(), before the
+        # timing registers have necessarily been read or configured. A zero
+        # sample count makes normalization undefined, but it must not prevent
+        # the tree from starting. Report zero until a window exists; writes
+        # remain strict through _set() so a gain can never be applied using an
+        # invalid normalization.
+        samples = self._samples(read=read, require_configured=False)
+        if samples <= 0:
+            if index != -1:
+                return 0.0
+            return np.zeros(len(self._coefficients), np.float64)
+
         with self.parent.root.updateGroup():
             if index != -1:
                 return self._coefficients[index].get(read=read) * samples

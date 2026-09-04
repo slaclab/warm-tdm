@@ -341,6 +341,13 @@ variable setter to run and therefore cannot rewrite coefficients automatically.
 After changing those registers directly, reapply `PidP_Gain`, `PidI_Gain`, and
 `PidD_Gain`, or use `Session.setup_mux()`.
 
+During PyRogue tree construction, `SampleStartTime` and `SampleEndTime` may
+both still be zero when `_finishInit()` first evaluates these linked variables.
+Their getters report zero normalized gain until a valid sample window exists,
+so an unconfigured timing block cannot prevent the server or GUI from starting.
+Setters remain strict and reject gain writes while the sample count is zero;
+configure the timing window before applying normalized gains.
+
 ## Required end-to-end verification
 
 The next VCS GroupTb regression should:
