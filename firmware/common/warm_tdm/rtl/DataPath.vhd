@@ -103,6 +103,17 @@ architecture rtl of DataPath is
 
    constant ADC_FILTER_XBAR_CFG_C : AxiLiteCrossbarMasterConfigArray(7 downto 0) := genAxiLiteConfig(8, XBAR_COFNIG_C(ADC_FILTER_AXIL_C).baseAddr, 16, 12);
    constant PID_FILTER_XBAR_CFG_C : AxiLiteCrossbarMasterConfigArray(7 downto 0) := genAxiLiteConfig(8, XBAR_COFNIG_C(PID_FILTER_AXIL_C).baseAddr, 16, 12);
+
+   -- Power-up ADC IDELAY taps. On hardware, bench calibration consistently
+   -- centers every FCO and data lane near tap 11, so seed all delays there for
+   -- a near-aligned power-up. The RTL sim model produces its serial streams
+   -- with a fixed lane skew, so simulation needs its own known-good taps.
+   constant DATA_DELAY_INIT_C : NaturalArray(15 downto 0) := (
+      15 downto 8 => ite(SIMULATION_G, 14, 11),
+      7 downto 0  => ite(SIMULATION_G, 5, 11));
+   constant FCO_DELAY_INIT_C : NaturalArray(1 downto 0) := (
+      0 => ite(SIMULATION_G, 5, 16),
+      1 => ite(SIMULATION_G, 14, 10));
    constant ADC_DSP_XBAR_CFG_C    : AxiLiteCrossbarMasterConfigArray(7 downto 0) := genAxiLiteConfig(8, XBAR_COFNIG_C(ADC_DSP_AXIL_C).baseAddr, 20, 16);
 
    signal syncAxilReadMaster  : AxiLiteReadMasterType;
@@ -223,10 +234,8 @@ begin
          AXIL_BASE_ADDR_G  => XBAR_COFNIG_C(ADC_READOUT_AXIL_C).baseAddr,
          IODELAY_GROUP_G   => IODELAY_GROUP_G,
          DEVICE_FAMILY_G   => "7SERIES",
-         -- Bench calibration consistently centers every FCO and data lane near
-         -- tap 11, so seed all delays there for a near-aligned power-up.
-         DATA_DELAY_INIT_G => (others => 11),
-         FCO_DELAY_INIT_G  => (0 => 16, 1 => 10),
+         DATA_DELAY_INIT_G => DATA_DELAY_INIT_C,
+         FCO_DELAY_INIT_G  => FCO_DELAY_INIT_C,
          LEFT_JUSTIFY_G    => true,
          NEGATE_G          => NEGATE_ADC_G)
       port map (
