@@ -46,6 +46,9 @@ parameters required by `saFbServo()`.
   entries already written if Stop arrives in that interval.
 - Apply a configurable provisional SQ1 bias to enabled columns and zero their
   SQ1 feedback so the FAS state is observable before the final SQ1 tune.
+- Seed the SA feedback force-current path from the tuned per-row SA feedback
+  table before each FAS row sweep; timing is stopped, so the table does not
+  drive the DAC directly.
 - Restore SA feedback, SQ1 bias/feedback, row-driver modes, and temporarily
   driven row outputs on every exit path.
 - If a batched `FasOn` programming operation fails, restore the original values.

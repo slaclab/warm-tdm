@@ -104,7 +104,9 @@ class TuningMixin:
 
         ``Sq1BiasCurrent`` selects the temporary bootstrap SQ1 bias applied to
         enabled columns during acquisition (40 uA by default). The previous
-        SQ1 bias and feedback force currents are restored afterward.
+        SQ1 bias and feedback force currents are restored afterward. Before
+        each logical-row sweep, its SA-tuned ``SaFbCurrent`` values are copied
+        into the ``SaFbForceCurrent`` path used while timing is stopped.
         ``FasFluxSampleReads`` and ``ServoSampleReads`` control how many ADC
         reads are discarded after row-FAS and SA-feedback writes so cosim time
         advances before the measurement is used.

@@ -227,6 +227,13 @@ def saTune(*, group, process=None, doSet=True, doBiasRamp=True):
 
     stopped = process is not None and process._runEn is False
     if doSet and not stopped:
+        # Tuning sweeps use the force-current path while timing is stopped.
+        # Preserve disabled columns and replace enabled columns with the fitted
+        # operating point so the final offset tune observes the same SA
+        # feedback that is stored in the per-row readout table below.
+        tunedSaFb = np.array(
+            group.SaFbForceCurrent.get(read=True), copy=True)
+
         # SA tune is per-column: saBiasSweep returns one tuned SaFb (xOut) per
         # column. The same value is written to every row slot, so this does not
         # depend on the row map — broadcast across the full maxRows address space
@@ -246,10 +253,16 @@ def saTune(*, group, process=None, doSet=True, doBiasRamp=True):
             for row in range(group.MaxRows.get()):
                 group.SaFbCurrent.set(
                     index=(col, row), value=result.xOut)
+            tunedSaFb[col] = result.xOut
             # biasOut represents the tuned SA Bias point
             group.SaBiasCurrent.set(index=col, value=result.biasOut)
 
-        # Run saOffset to zero out the ADC value at the tuned SaBias,SaFb point
+        group._log.debug(
+            'SA tune applying fitted SaFb to force-current path before '
+            'offset tune: %s', tunedSaFb.tolist())
+        group.SaFbForceCurrent.set(tunedSaFb)
+
+        # Run saOffset to zero out the ADC value at the tuned SaBias,SaFb point.
         saOffset(group=group, process=process)
     elif doSet:
         group._log.info('Process stopped; leaving partial SA tune results unapplied')
@@ -592,6 +605,22 @@ def fasTune(*, group, process=None, doSet=True):
                 row, index + 1, len(targets), board, address)
             process.Message.set(
                 f'FAS row {row} ({index + 1}/{len(targets)})')
+
+            # Timing is stopped during FAS tuning, so the per-row SAFb RAM is
+            # not driving the DAC. Explicitly copy this row's SA-tuned values
+            # into the force-current path before starting the software servo.
+            # Starting on the fitted SA branch avoids inheriting a stale or
+            # railed override value from an earlier operation.
+            row_sa_fb = np.array(
+                group.SaFbForceCurrent.get(read=True), copy=True)
+            for column in enabled_columns:
+                row_sa_fb[column] = group.SaFbCurrent.get(
+                    index=(column, row), read=True)
+            log.debug(
+                'FAS tune logical row %d applying SA-tuned feedback to '
+                'force-current path: %s', row, row_sa_fb.tolist())
+            group.SaFbForceCurrent.set(row_sa_fb)
+
             curve = fasSweep(group=group, row=row, process=process)
             curves.append(curve)
             if not process._runEn:
