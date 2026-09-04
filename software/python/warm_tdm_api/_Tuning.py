@@ -258,6 +258,10 @@ def saFbServo(*, group, process):
     kd = process.ServoKd.get()
     precision = process.ServoPrecision.get()
     maxLoops = process.ServoMaxLoops.get()
+    log = process._log
+    log.debug(
+        'SA FB servo start: kp=%s ki=%s kd=%s precision=%s maxLoops=%s',
+        kp, ki, kd, precision, maxLoops)
     
     pid = [PID(kp, ki, kd) for _ in range(group.NumColumns.get())]
 
@@ -271,19 +275,30 @@ def saFbServo(*, group, process):
     current = group.SaOutAdc.get()
     masked = current
     mult = np.array([1 if en else 0 for en in group.ColTuneEnable.value()], np.float64)    
+    log.debug(
+        'SA FB servo initial state: enabledMask=%s control=%s adc=%s',
+        mult.tolist(), np.asarray(control).tolist(), np.asarray(current).tolist())
     count = 0
 
     for count in range(maxLoops):
         if process._runEn is False:
-            group._log.info('Process stopped, exiting saFbServo')
+            log.debug(
+                'SA FB servo stopped before loop %d; returning control=%s',
+                count + 1, np.asarray(control).tolist())
             return control
 
         current = group.SaOutAdc.get()
         masked = current * mult
+        log.debug(
+            'SA FB servo loop %d/%d: adc=%s masked=%s control=%s',
+            count + 1, maxLoops, np.asarray(current).tolist(),
+            np.asarray(masked).tolist(), np.asarray(control).tolist())
 
         # All channels have converged
         if (max(masked) < precision) and (min(masked) > (-1.0*precision)):
-            group._log.debug('saFbServo converged after %s loops', count+1)
+            log.debug(
+                'SA FB servo converged after %d loop(s): control=%s',
+                count + 1, np.asarray(control).tolist())
             break
 
         for i, p in enumerate(pid):
@@ -291,18 +306,30 @@ def saFbServo(*, group, process):
             control[i] = control[i] + change
 
         group.SaFbForceCurrent.set(control)
+        log.debug(
+            'SA FB servo loop %d wrote control=%s',
+            count + 1, np.asarray(control).tolist())
 
     else:
-        group._log.warning(f'saFb PID loop failed to converge after {maxLoops} loops')
+        log.warning(
+            'SA FB servo failed to converge after %d loop(s): '
+            'masked=%s control=%s',
+            maxLoops, np.asarray(masked).tolist(),
+            np.asarray(control).tolist())
         return control
 
+    log.debug('SA FB servo return: control=%s', np.asarray(control).tolist())
     return control
 
 def fasSweep(*, group, row, process):
     """Sweep the physical one-level FAS line mapped from ``row``."""
+    log = process._log
     row_map = group.RowMap.get()
     mapping = row_map[row]
+    log.debug('FAS sweep row %s mapping: %s', row, mapping)
     if 'csAddr' in mapping or 'csBoard' in mapping:
+        log.error('FAS sweep row %s has unsupported two-level mapping: %s',
+                  row, mapping)
         raise RuntimeError(
             'The simple FAS tune supports one-level RowMap entries only')
 
@@ -310,6 +337,9 @@ def fasSweep(*, group, row, process):
     address = int(mapping['rsAddr'])
     driver = group.HardwareGroup.RowBoard[board].RowDacDriver
     if not callable(getattr(driver, 'manual_set', None)):
+        log.error(
+            'FAS sweep row %s cannot find manual_set on RowBoard[%s]',
+            row, board)
         raise RuntimeError(
             f'RowBoard[{board}] firmware/software does not provide ManualSet')
 
@@ -318,16 +348,30 @@ def fasSweep(*, group, row, process):
     steps = process.FasFluxNumSteps.get()
     delay = process.FasFluxSampleDelay.get()
     currents = np.linspace(low, high, steps, endpoint=True)
+    log.debug(
+        'FAS sweep row %s start: board=%d address=%d low=%s high=%s '
+        'steps=%d delay=%s currents=%s',
+        row, board, address, low, high, steps, delay, currents.tolist())
     data = warm_tdm_api.CurveData(xValues=currents)
     for column in range(group.NumColumns.get()):
         data.addCurve(warm_tdm_api.Curve(column))
 
     off_current = driver.FasOff.Current.get(index=address, read=True)
+    log.debug(
+        'FAS sweep row %s captured FasOff[%d]=%s uA',
+        row, address, off_current)
     try:
-        for current in currents:
+        for step, current in enumerate(currents):
             if not process._runEn:
+                log.debug(
+                    'FAS sweep row %s stopped before step %d/%d',
+                    row, step + 1, len(currents))
                 break
-            driver.manual_set(address=address, current=current)
+            request = driver.manual_set(address=address, current=current)
+            log.debug(
+                'FAS sweep row %s step %d/%d ManualSet: requested=%s uA '
+                'result=%s',
+                row, step + 1, len(currents), current, request)
 
             # Stop() waits for the worker thread, so keep a user-configured
             # settling delay interruptible rather than sleeping in one block.
@@ -338,21 +382,43 @@ def fasSweep(*, group, row, process):
                     break
                 time.sleep(min(0.05, remaining))
             if not process._runEn:
+                log.debug(
+                    'FAS sweep row %s stopped while settling step %d/%d',
+                    row, step + 1, len(currents))
                 break
 
+            log.debug(
+                'FAS sweep row %s step %d/%d starting SA FB servo',
+                row, step + 1, len(currents))
             points = saFbServo(group=group, process=process)
             if not process._runEn:
+                log.debug(
+                    'FAS sweep row %s stopped during SA FB servo at '
+                    'step %d/%d', row, step + 1, len(currents))
                 break
+            log.debug(
+                'FAS sweep row %s step %d/%d response=%s',
+                row, step + 1, len(currents), np.asarray(points).tolist())
             for column, point in enumerate(points):
                 data.curveList[column].addPoint(point)
             process._incrementSteps(1)
+            log.debug(
+                'FAS sweep row %s step %d/%d recorded',
+                row, step + 1, len(currents))
     finally:
-        driver.manual_set(address=address, current=off_current)
+        log.debug(
+            'FAS sweep row %s restoring board=%d address=%d to FasOff=%s uA',
+            row, board, address, off_current)
+        request = driver.manual_set(address=address, current=off_current)
+        log.debug('FAS sweep row %s FasOff restore result=%s', row, request)
 
     data.logicalRow = row
     data.board = board
     data.address = address
     data.fasOn = None
+    log.debug(
+        'FAS sweep row %s complete: collectedPoints=%s',
+        row, [len(curve.points) for curve in data.curveList])
     return data
 
 def fasTune(*,group,process=None):
@@ -366,8 +432,13 @@ def fasTune(*,group,process=None):
     if process is None:
         raise ValueError('fasTune requires its FasTuneProcess')
 
+    log = process._log
+    log.debug('FAS tune entry')
     tx = group.HardwareGroup.ColumnBoard[0].WarmTdmCore.Timing.TimingTx
-    if tx.Running.get(read=True):
+    timing_running = tx.Running.get(read=True)
+    log.debug('FAS tune timing Running=%s', timing_running)
+    if timing_running:
+        log.error('FAS tune rejected because timing is running')
         raise RuntimeError('FAS tuning requires timing to be stopped')
 
     row_map = group.RowMap.get()
@@ -376,9 +447,14 @@ def fasTune(*,group,process=None):
         column for column, enabled in enumerate(group.ColTuneEnable.get())
         if enabled
     ]
+    log.debug(
+        'FAS tune configuration: activeRows=%s enabledColumns=%s '
+        'rowMapLength=%d', active_rows, enabled_columns, len(row_map))
     if not active_rows:
+        log.error('FAS tune rejected because the active row list is empty')
         raise RuntimeError('FAS tuning requires at least one active row')
     if not enabled_columns:
+        log.error('FAS tune rejected because no columns are enabled')
         raise RuntimeError('FAS tuning requires at least one enabled column')
 
     targets = []
@@ -389,7 +465,11 @@ def fasTune(*,group,process=None):
                 f'Active logical row {row} is outside RowMap length '
                 f'{len(row_map)}')
         mapping = row_map[row]
+        log.debug('FAS tune resolving logical row %d: %s', row, mapping)
         if 'csAddr' in mapping or 'csBoard' in mapping:
+            log.error(
+                'FAS tune rejected logical row %d two-level mapping: %s',
+                row, mapping)
             raise RuntimeError(
                 'The simple FAS tune supports one-level RowMap entries only')
         board = int(mapping['rsBoard'])
@@ -404,6 +484,9 @@ def fasTune(*,group,process=None):
                 f'RowMap[{row}] references unavailable row board {board}') from exc
         drivers[board] = driver
         targets.append((row, board, address, driver))
+        log.debug(
+            'FAS tune logical row %d resolved to board=%d address=%d',
+            row, board, address)
 
     unique_targets = {}
     for _, board, address, driver in targets:
@@ -419,23 +502,35 @@ def fasTune(*,group,process=None):
         key: driver.FasOn.Current.get(index=key[1], read=True)
         for key, driver in unique_targets.items()
     }
+    log.debug(
+        'FAS tune snapshots: modes=%s SaFbForceCurrent=%s FasOn=%s',
+        mode_snapshot, sa_fb_snapshot.tolist(), fas_on_snapshot)
 
     curves = []
     candidates = {}
     programming_started = False
     process.TotalSteps.set(
         len(active_rows) * process.FasFluxNumSteps.get())
+    log.debug('FAS tune TotalSteps=%s', process.TotalSteps.value())
 
     try:
-        for driver in drivers.values():
+        for board, driver in drivers.items():
+            log.debug('FAS tune setting RowBoard[%d] Mode=MANUAL', board)
             driver.Mode.set(1, write=True)
 
         for index, (row, board, address, _) in enumerate(targets):
+            log.debug(
+                'FAS tune starting logical row %d (%d/%d), board=%d '
+                'address=%d',
+                row, index + 1, len(targets), board, address)
             process.Message.set(
                 f'FAS row {row} ({index + 1}/{len(targets)})')
             curve = fasSweep(group=group, row=row, process=process)
             curves.append(curve)
             if not process._runEn:
+                log.debug(
+                    'FAS tune stopped after logical row %d; '
+                    'leaving FasOn unchanged', row)
                 process.Message.set('Stopped by user; FasOn unchanged')
                 return curves
 
@@ -443,32 +538,58 @@ def fasTune(*,group,process=None):
             for column in enabled_columns:
                 points = curve.curveList[column].points
                 if points:
-                    minima.append(curve.xValues[int(np.argmin(points))])
+                    minimum = curve.xValues[int(np.argmin(points))]
+                    minima.append(minimum)
+                    log.debug(
+                        'FAS tune row %d column %d minimum=%s uA '
+                        'from %d point(s)',
+                        row, column, minimum, len(points))
             if not minima:
+                log.error(
+                    'FAS tune logical row %d produced no enabled-column '
+                    'samples', row)
                 raise RuntimeError(
                     f'No FAS samples were collected for logical row {row}')
-            candidates.setdefault((board, address), []).append(
-                float(np.median(minima)))
+            row_candidate = float(np.median(minima))
+            candidates.setdefault((board, address), []).append(row_candidate)
+            log.debug(
+                'FAS tune row %d candidate=%s uA from minima=%s',
+                row, row_candidate, np.asarray(minima).tolist())
 
         selected = {
             key: float(np.median(values))
             for key, values in candidates.items()
         }
+        log.debug(
+            'FAS tune physical-line candidates=%s selected=%s',
+            candidates, selected)
 
         if not process._runEn:
+            log.debug('FAS tune stopped before FasOn programming')
             process.Message.set('Stopped by user; FasOn unchanged')
             return curves
 
         programming_started = True
         for key, current in selected.items():
             if not process._runEn:
+                log.debug(
+                    'FAS tune stopped between FasOn writes; rollback required')
                 break
+            log.debug(
+                'FAS tune programming RowBoard[%d] FasOn[%d]=%s uA',
+                key[0], key[1], current)
             unique_targets[key].FasOn.Current.set(
                 index=key[1], value=current, write=True)
 
         # Also catches Stop arriving during the last register write.
         if not process._runEn:
+            log.debug(
+                'FAS tune rolling back FasOn after Stop: snapshot=%s',
+                fas_on_snapshot)
             for key, original in fas_on_snapshot.items():
+                log.debug(
+                    'FAS tune rollback RowBoard[%d] FasOn[%d]=%s uA',
+                    key[0], key[1], original)
                 unique_targets[key].FasOn.Current.set(
                     index=key[1], value=original, write=True)
             programming_started = False
@@ -477,30 +598,53 @@ def fasTune(*,group,process=None):
 
         for curve in curves:
             curve.fasOn = selected[(curve.board, curve.address)]
+        log.debug('FAS tune programming complete: selected=%s', selected)
         process.Message.set('FAS tune complete')
         return curves
 
     except Exception:
+        log.exception('FAS tune failed')
         if programming_started:
+            log.debug(
+                'FAS tune rolling back FasOn after failure: snapshot=%s',
+                fas_on_snapshot)
             for key, current in fas_on_snapshot.items():
+                log.debug(
+                    'FAS tune rollback RowBoard[%d] FasOn[%d]=%s uA',
+                    key[0], key[1], current)
                 unique_targets[key].FasOn.Current.set(
                     index=key[1], value=current, write=True)
         raise
     finally:
+        log.debug('FAS tune cleanup starting')
         for key, driver in unique_targets.items():
             try:
                 off_current = driver.FasOff.Current.get(
                     index=key[1], read=True)
-                driver.manual_set(address=key[1], current=off_current)
+                log.debug(
+                    'FAS tune cleanup RowBoard[%d] address=%d '
+                    'ManualSet FasOff=%s uA',
+                    key[0], key[1], off_current)
+                request = driver.manual_set(
+                    address=key[1], current=off_current)
+                log.debug(
+                    'FAS tune cleanup RowBoard[%d] address=%d result=%s',
+                    key[0], key[1], request)
             except Exception as exc:
-                group._log.error(
+                log.error(
                     'Failed to return row board %s address %s to FasOff: %s',
                     key[0], key[1], exc)
         try:
+            log.debug(
+                'FAS tune restoring SaFbForceCurrent=%s',
+                sa_fb_snapshot.tolist())
             group.SaFbForceCurrent.set(sa_fb_snapshot)
         finally:
             for board, mode in mode_snapshot.items():
+                log.debug(
+                    'FAS tune restoring RowBoard[%d] Mode=%s', board, mode)
                 drivers[board].Mode.set(mode, write=True)
+        log.debug('FAS tune cleanup complete')
 
 #SQ1 TUNING - output vs sq1fb for various values of sq1 bias for every row for every column
 def sq1FbSweep(*, group, bias, fbRange, process):

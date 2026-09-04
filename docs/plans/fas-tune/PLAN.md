@@ -92,6 +92,10 @@ write-through behavior remain unchanged.
 - [x] Close the Stop-versus-final-programming race with rollback.
 - [x] Restore temporary modes and SA feedback force current on exit.
 - [x] Keep `Session.fas_tune()` as the operations-layer convenience wrapper.
+- [x] Enable the `FasTuneProcess` logger at DEBUG for every run and trace
+  configuration, topology resolution, raw/quantized manual requests, every
+  servo iteration, acquired responses, selection, programming, Stop/rollback,
+  result publication, and cleanup.
 - [ ] Run the process against GroupTb or hardware with a one-level map.
 
 ### Local verification

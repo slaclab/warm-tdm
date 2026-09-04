@@ -122,6 +122,10 @@ class FasTuneProcess(pr.Process):
 
     def _process(self):
         """Run without reporting a user-stopped tune as successfully done."""
+        # Enable the detailed acquisition/programming trace for every FAS run.
+        # Do this after attachment so the full-path PyRogue logger is active.
+        self.setLogLevel('DEBUG', includeRogue=False)
+        self._log.debug('FAS tune process starting with debug logging enabled')
         self.Message.setDisp('Running')
         self.setStep(0)
         self.setProgress(0.0)
@@ -129,14 +133,20 @@ class FasTuneProcess(pr.Process):
         self._fasTuneWrap()
 
         if self._runEn:
+            self._log.debug('FAS tune process completed normally')
             self.Message.setDisp('Done')
             self.setProgress(1.0)
         else:
+            self._log.debug(
+                'FAS tune process stopped at step %s of %s',
+                self.Step.value(), self.TotalSteps.value())
             self.Message.setDisp('Stopped')
 
     def _fasTuneWrap(self):
+        self._log.debug('Entering FAS tune update group')
         with self.root.updateGroup(0.25):
             curves = warm_tdm_api.fasTune(group=self.parent, process=self)
+            self._log.debug('Serializing %d FAS sweep result(s)', len(curves))
             output = []
             for curve in curves:
                 result = curve.asDict()
@@ -148,3 +158,4 @@ class FasTuneProcess(pr.Process):
                 })
                 output.append(result)
             self.FasTuneOutput.set(output)
+        self._log.debug('Published %d FAS sweep result(s)', len(output))
