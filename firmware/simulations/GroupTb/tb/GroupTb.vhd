@@ -207,9 +207,9 @@ begin
             columnDrive(WARM_COLUMN_C).sq1Feedback.p <= localSq1FbP(channel);
             columnDrive(WARM_COLUMN_C).sq1Feedback.n <= localSq1FbN(channel);
             localSaBiasInP(channel) <=
-               columnSense(WARM_COLUMN_C).ssaVoltage.p;
+               columnSense(WARM_COLUMN_C).saSenseVoltage.p;
             localSaBiasInN(channel) <=
-               columnSense(WARM_COLUMN_C).ssaVoltage.n;
+               columnSense(WARM_COLUMN_C).saSenseVoltage.n;
          end generate GEN_CHANNELS;
       end generate WAFER_CONNECTION;
 

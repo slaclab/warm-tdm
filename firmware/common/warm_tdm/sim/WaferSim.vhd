@@ -127,8 +127,12 @@ end entity WaferSim;
 architecture sim of WaferSim is
 
    signal saBiasCurrent   : RealVector(0 to 7) := (others => 0.0);
+   signal saBiasSourceR   : RealVector(0 to 7) := (others => 0.0);
+   signal saBiasLoadCurrent : RealVector(0 to 7) := (others => 0.0);
+   signal saSenseVoltage  : RealVector(0 to 7) := (others => 0.0);
    signal saFbCurrent     : RealVector(0 to 7) := (others => 0.0);
    signal sq1BiasCurrent  : RealVector(0 to 7) := (others => 0.0);
+   signal sq1BiasSourceR  : RealVector(0 to 7) := (others => 0.0);
    signal sq1FbCurrent    : RealVector(0 to 7) := (others => 0.0);
    signal rsCurrent       : RealVector(0 to ROWS_PER_BANK_G-1) := (others => 0.0);
    signal chipSelect      : RealVector(0 to NUM_BANKS_G-1) := (others => 0.0);
@@ -171,8 +175,12 @@ begin
 
    GEN_COLUMNS : for i in 0 to 7 generate
       saBiasCurrent(i)  <= currentDiff(saBiasOutP(i), saBiasOutN(i), SA_BIAS_LOADS_G(i));
+      saBiasSourceR(i)  <= saBiasOutP(i).impedance +
+         saBiasOutN(i).impedance + SA_BIAS_LOADS_G(i);
       saFbCurrent(i)    <= currentDiff(saFbP(i), saFbN(i), SA_FB_LOADS_G(i));
       sq1BiasCurrent(i) <= currentDiff(sq1BiasP(i), sq1BiasN(i), SQ1_BIAS_LOADS_G(i));
+      sq1BiasSourceR(i) <= sq1BiasP(i).impedance +
+         sq1BiasN(i).impedance + SQ1_BIAS_LOADS_G(i);
       sq1FbCurrent(i)   <= currentDiff(sq1FbP(i), sq1FbN(i), SQ1_FB_LOADS_G(i));
 
       GEN_TES_ROWS : for row in 0 to NUM_ROWS_G-1 generate
@@ -185,8 +193,10 @@ begin
             tesStimulusAmp(i*NUM_ROWS_G + row);
       end generate GEN_TES_ROWS;
 
-      saBiasInP(i) <= 0.5 * ssaVoltage(i);
-      saBiasInN(i) <= -0.5 * ssaVoltage(i);
+      saSenseVoltage(i) <= ssaVoltage(i) +
+         saBiasLoadCurrent(i)*SA_BIAS_LOADS_G(i);
+      saBiasInP(i) <= 0.5 * saSenseVoltage(i);
+      saBiasInN(i) <= -0.5 * saSenseVoltage(i);
    end generate GEN_COLUMNS;
 
    U_Detector : entity warm_tdm.DetectorModuleSim
@@ -202,14 +212,17 @@ begin
          COLUMN_PARAMS_G   => MUX_COLUMN_MODEL_PARAMS_G)
       port map (
          ssaBiasCurrentAmp     => saBiasCurrent,
+         ssaBiasSourceResistanceOhm => saBiasSourceR,
          ssaFeedbackCurrentAmp => saFbCurrent,
          sq1BiasCurrentAmp     => sq1BiasCurrent,
+         sq1BiasSourceResistanceOhm => sq1BiasSourceR,
          sq1FeedbackCurrentAmp => sq1FbCurrent,
          rowSelectCurrentAmp   => rsCurrent,
          chipSelectCurrentAmp  => chipSelect,
          tesCurrentAmp         => tesCurrent,
          muxCurrentAmp         => muxCurrent,
          muxVoltageVolt        => muxVoltage,
+         ssaBiasLoadCurrentAmp => saBiasLoadCurrent,
          ssaPhaseCycles        => ssaPhase,
          ssaVoltageVolt        => ssaVoltage);
 

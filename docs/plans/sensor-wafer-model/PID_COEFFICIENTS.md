@@ -119,13 +119,27 @@ Gfeb  = Gfeb1 * Gfeb2                = 35.914447.
 ```
 
 The ADA4932 model then contributes `3660/1000 = 3.66`. The AD9681 model spans
-16384 codes over 2 V, or 8192 codes/V. Thus
+16384 codes over 2 V, or 8192 codes/V. Thus, for the voltage returned to the
+ADC amplifier,
 
 ```text
-d(ADC code)/d(Vssa)
+d(ADC code)/d(Vsense)
   = 35.914447 * 3.66 * 8192
   = 1.076813e6 codes/V.
 ```
+
+The sensed voltage contains both SSA and cable drops:
+
+```text
+Issa   = Inorton - Vssa/Rsource_total
+Vsense = Vssa + Issa*Rcable.
+```
+
+For small changes at fixed bias command,
+`dVsense/dVssa = 1 - Rcable/Rsource_total`. The default 200 Ohm cable and
+30.18 kOhm total source resistance therefore retain 99.34% of the intrinsic
+SSA modulation. The cable also adds an approximately 11 mV DC baseline at a
+55 uA bias command; SA offset removes that baseline before normal acquisition.
 
 The SA offset DAC changes the DC operating point but not this small-signal gain.
 The ADC FIR is bypassed at reset. None of the present FEB models includes a
@@ -140,10 +154,10 @@ output range. With `IC0 = 55 uA`, the ideal model's onset-bias sweep is
 Vssa,p-p = RN * Ibias = 120 Ohm * 55 uA = 6.6 mV.
 ```
 
-After the modeled warm gain, that is approximately 0.87 V peak-to-peak at the
-ADC input, or 7100 ADC codes. The earlier 14 Ohm placeholder produced only
-0.77 mV before warm amplification and understated the entire downstream plant
-gain by `120/14 = 8.57`.
+After the bias load line and cable attenuation, that is approximately 0.86 V
+peak-to-peak at the ADC input, or 7000 ADC codes. The earlier 14 Ohm
+placeholder produced only 0.77 mV before warm amplification and understated
+the entire downstream plant gain by approximately `120/14 = 8.57`.
 
 ## Nominal nonlinear plant slope
 

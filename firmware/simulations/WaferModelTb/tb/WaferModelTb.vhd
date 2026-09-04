@@ -244,6 +244,7 @@ begin
          tesCurrentAmp         => detectorTes,
          muxCurrentAmp         => detectorMuxCurrent,
          muxVoltageVolt        => detectorMuxVoltage,
+         ssaBiasLoadCurrentAmp => open,
          ssaPhaseCycles        => detectorSsaPhase,
          ssaVoltageVolt        => detectorSsaVoltage);
 
@@ -268,6 +269,7 @@ begin
          tesCurrentAmp         => detectorTes,
          muxCurrentAmp         => fastMuxCurrent,
          muxVoltageVolt        => fastMuxVoltage,
+         ssaBiasLoadCurrentAmp => open,
          ssaPhaseCycles        => fastSsaPhase,
          ssaVoltageVolt        => fastSsaVoltage);
 

@@ -38,6 +38,14 @@ architecture sim of GroupDetectorHarnessTb is
       ssaFeedback => ZERO_DIFF_SOURCE_C,
       sq1Bias     => ZERO_DIFF_SOURCE_C,
       sq1Feedback => ZERO_DIFF_SOURCE_C);
+   constant CABLE_COLUMN_DRIVE_C : ColumnCryoDriveType := (
+      tesBias     => ZERO_DIFF_REAL_C,
+      ssaBias     => (
+         p => (voltage => 0.7524, impedance => 14.99E3),
+         n => (voltage => -0.7524, impedance => 14.99E3)),
+      ssaFeedback => ZERO_DIFF_SOURCE_C,
+      sq1Bias     => ZERO_DIFF_SOURCE_C,
+      sq1Feedback => ZERO_DIFF_SOURCE_C);
    constant DUAL_PRESET_DETECTOR_MAP_C : IntegerVector(0 to 23) :=
       presetWarmDetectorMap("BA4", 24, 2, 12);
    constant DUAL_PRESET_COLUMN_MAP_C : IntegerVector(0 to 23) :=
@@ -60,7 +68,30 @@ architecture sim of GroupDetectorHarnessTb is
    signal dualRowDrive : DifferentialSourceArray(0 to 31) :=
       (others => ZERO_DIFF_SOURCE_C);
    signal dualStimulus : RealVector(0 to 2*12*60-1) := (others => 0.0);
+
+   signal cableColumnDrive : ColumnCryoDriveArray(0 to 0) :=
+      (others => CABLE_COLUMN_DRIVE_C);
+   signal cableColumnSense : ColumnCryoSenseArray(0 to 0);
+   signal cableRowDrive : DifferentialSourceArray(0 to 0) :=
+      (others => ZERO_DIFF_SOURCE_C);
+   signal cableStimulus : RealVector(0 to 0) := (others => 0.0);
 begin
+
+   U_CableSense : entity warm_tdm.GroupDetectorHarnessSim
+      generic map (
+         NUM_WARM_COLUMNS_G     => 1,
+         NUM_WARM_ROW_LINES_G   => 1,
+         NUM_DETECTORS_G        => 1,
+         COLUMNS_PER_DETECTOR_G => 1,
+         NUM_BANKS_G            => 1,
+         ROWS_PER_BANK_G        => 1,
+         TWO_LEVEL_G            => false,
+         SA_BIAS_LOADS_G        => (others => 200.0))
+      port map (
+         columnDrive    => cableColumnDrive,
+         columnSense    => cableColumnSense,
+         rowSelectDrive => cableRowDrive,
+         tesStimulusAmp => cableStimulus);
 
    U_OneDetector : entity warm_tdm.GroupDetectorHarnessSim
       generic map (
@@ -109,7 +140,44 @@ begin
    test : process is
       constant PIXEL_C : natural := 11*60 + 2*10 + 3;
       variable selectedVoltage : real;
+      variable expectedCableVoltage : real;
+      variable cableBaseline : real;
+      variable expectedHalfFluxVoltage : real;
    begin
+      -- With Ibias below IC0 and zero applied flux the intrinsic SSA voltage
+      -- is zero, but the FEB still senses the series cable/wiring drop.
+      wait for 1 ns;
+      expectedCableVoltage :=
+         (0.7524 - (-0.7524))/(2.0*14.99E3 + 200.0)*200.0;
+      assert abs((cableColumnSense(0).saSenseVoltage.p -
+                 cableColumnSense(0).saSenseVoltage.n) -
+                 expectedCableVoltage) < 1.0E-9
+         report "SSA bias cable drop is missing from the sensed voltage: actual=" &
+                real'image(cableColumnSense(0).saSenseVoltage.p -
+                           cableColumnSense(0).saSenseVoltage.n) &
+                ", expected=" & real'image(expectedCableVoltage)
+         severity failure;
+      cableBaseline := cableColumnSense(0).saSenseVoltage.p -
+                       cableColumnSense(0).saSenseVoltage.n;
+
+      -- Move the SSA to half flux. The sensed voltage must contain both the
+      -- intrinsic SSA voltage and the cable drop at the load-line current.
+      cableColumnDrive(0).ssaFeedback.p.voltage <= 1.75875E-3;
+      cableColumnDrive(0).ssaFeedback.n.voltage <= -1.75875E-3;
+      wait for 1 ns;
+      expectedHalfFluxVoltage :=
+         ((0.7524 - (-0.7524))/(2.0*14.99E3 + 200.0)) /
+         (1.0 + 120.0/(2.0*14.99E3 + 200.0)) * (120.0 + 200.0);
+      assert abs((cableColumnSense(0).saSenseVoltage.p -
+                  cableColumnSense(0).saSenseVoltage.n) -
+                 expectedHalfFluxVoltage) < 1.0E-9
+         report "sensed voltage does not combine SSA and cable drops"
+         severity failure;
+      assert (cableColumnSense(0).saSenseVoltage.p -
+              cableColumnSense(0).saSenseVoltage.n) - cableBaseline > 5.0E-3
+         report "SSA modulation is missing above the cable baseline"
+         severity failure;
+
       -- The physical 12-column detector occupies board 0 plus channels 0..3
       -- of board 1.  Channels 4..7 of board 1 are explicit zero terminations.
       oneColumnDrive(11).ssaBias.p.voltage <= 80.0E-6;
@@ -118,17 +186,17 @@ begin
       oneRowDrive(3).p.voltage             <= 150.0E-6;
       oneRowDrive(12).p.voltage            <= 125.0E-6;
       wait for 1 ns;
-      assert oneColumnSense(15).ssaVoltage.p = 0.0 and
-             oneColumnSense(15).ssaVoltage.n = 0.0
+      assert oneColumnSense(15).saSenseVoltage.p = 0.0 and
+             oneColumnSense(15).saSenseVoltage.n = 0.0
          report "unused 8+4 warm endpoint was not explicitly terminated"
          severity failure;
-      selectedVoltage := oneColumnSense(11).ssaVoltage.p -
-                         oneColumnSense(11).ssaVoltage.n;
+      selectedVoltage := oneColumnSense(11).saSenseVoltage.p -
+                         oneColumnSense(11).saSenseVoltage.n;
 
       oneStimulus(PIXEL_C) <= 5.0E-6;
       wait for 1 ns;
-      assert abs((oneColumnSense(11).ssaVoltage.p -
-                  oneColumnSense(11).ssaVoltage.n) - selectedVoltage) > 1.0E-9
+      assert abs((oneColumnSense(11).saSenseVoltage.p -
+                  oneColumnSense(11).saSenseVoltage.n) - selectedVoltage) > 1.0E-9
          report "8+4 harness did not route the selected detector pixel"
          severity failure;
 
@@ -143,8 +211,8 @@ begin
              DUAL_PRESET_CS_MAP_C(6) = 26
          report "dual-BA4 second-detector row map is incorrect"
          severity failure;
-      assert dualColumnSense(23).ssaVoltage.p =
-             dualColumnSense(23).ssaVoltage.p
+      assert dualColumnSense(23).saSenseVoltage.p =
+             dualColumnSense(23).saSenseVoltage.p
          report "dual-BA4 harness produced a non-finite output"
          severity failure;
 

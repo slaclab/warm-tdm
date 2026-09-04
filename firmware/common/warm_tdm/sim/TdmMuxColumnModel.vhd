@@ -44,10 +44,12 @@ entity TdmMuxColumnModel is
       rowSelectCurrentAmp   : in  RealVector(0 to ROWS_PER_BANK_G-1);
       chipSelectCurrentAmp  : in  RealVector(0 to NUM_BANKS_G-1);
       tesCurrentAmp         : in  RealVector(0 to NUM_BANKS_G*ROWS_PER_BANK_G-1);
-      muxCurrentAmp         : out real;
-      muxVoltageVolt        : out real;
-      ssaPhaseCycles        : out real;
-      ssaVoltageVolt        : out real);
+      muxCurrentAmp         : out real := 0.0;
+      muxVoltageVolt        : out real := 0.0;
+      -- Actual current after the nonlinear SSA/source load-line solution.
+      ssaBiasLoadCurrentAmp : out real := 0.0;
+      ssaPhaseCycles        : out real := 0.0;
+      ssaVoltageVolt        : out real := 0.0);
 end entity TdmMuxColumnModel;
 
 architecture sim of TdmMuxColumnModel is
@@ -726,6 +728,7 @@ begin
 
       muxCurrentAmp  <= current;
       muxVoltageVolt <= muxVoltage;
+      ssaBiasLoadCurrentAmp <= ssaBiasCurrent;
       ssaPhaseCycles <= warm_tdm.WaferSimPkg.ssaPhaseCycles(
          SSA_PARAMS_G, current, ssaFeedbackCurrentAmp);
       ssaVoltageVolt <= ssaVoltage(

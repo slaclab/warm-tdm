@@ -66,7 +66,9 @@ package SimPkg is
       ColumnCryoDriveType;
 
    type ColumnCryoSenseType is record
-      ssaVoltage : DifferentialRealType;
+      -- Voltage presented to the warm SA preamplifier: intrinsic SSA voltage
+      -- plus the bias-current drop through the differential cable/wiring.
+      saSenseVoltage : DifferentialRealType;
    end record ColumnCryoSenseType;
 
    type ColumnCryoSenseArray is array (natural range <>) of
@@ -85,7 +87,7 @@ package SimPkg is
       sq1Bias     => ZERO_DIFFERENTIAL_SOURCE_C,
       sq1Feedback => ZERO_DIFFERENTIAL_SOURCE_C);
    constant ZERO_COLUMN_CRYO_SENSE_C : ColumnCryoSenseType := (
-      ssaVoltage => ZERO_DIFFERENTIAL_REAL_C);
+      saSenseVoltage => ZERO_DIFFERENTIAL_REAL_C);
 
    function current (
       c    : CurrentType;

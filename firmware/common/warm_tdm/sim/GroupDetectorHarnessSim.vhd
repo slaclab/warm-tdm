@@ -54,7 +54,8 @@ entity GroupDetectorHarnessSim is
          contiguousCsLineMap(
             NUM_DETECTORS_G, ROWS_PER_BANK_G, NUM_BANKS_G, TWO_LEVEL_G);
       -- Additional differential cable/wiring resistance.  These values do
-      -- not replace the source impedance already carried by columnDrive.
+      -- not replace the source impedance already carried by columnDrive; the
+      -- resulting I*R drop is included in the voltage returned to the FEB.
       SA_BIAS_LOADS_G        : RealArray(0 to NUM_WARM_COLUMNS_G-1) :=
          (others => 200.0);
       -- Fixed cable plus coupling-coil resistance.
@@ -112,10 +113,16 @@ architecture sim of GroupDetectorHarnessSim is
       0 to NUM_DETECTORS_G*NUM_BANKS_G-1) := (others => 0.0);
    signal detectorTesCurrent : RealVector(0 to NUM_PIXELS_C-1) :=
       (others => 0.0);
-   signal muxCurrent : RealVector(0 to NUM_DETECTOR_COLUMNS_C-1);
-   signal muxVoltage : RealVector(0 to NUM_DETECTOR_COLUMNS_C-1);
-   signal ssaPhase   : RealVector(0 to NUM_DETECTOR_COLUMNS_C-1);
-   signal ssaVoltage : RealVector(0 to NUM_DETECTOR_COLUMNS_C-1);
+   signal muxCurrent : RealVector(0 to NUM_DETECTOR_COLUMNS_C-1) :=
+      (others => 0.0);
+   signal muxVoltage : RealVector(0 to NUM_DETECTOR_COLUMNS_C-1) :=
+      (others => 0.0);
+   signal ssaBiasLoadCurrent : RealVector(0 to NUM_DETECTOR_COLUMNS_C-1) :=
+      (others => 0.0);
+   signal ssaPhase : RealVector(0 to NUM_DETECTOR_COLUMNS_C-1) :=
+      (others => 0.0);
+   signal ssaVoltage : RealVector(0 to NUM_DETECTOR_COLUMNS_C-1) :=
+      (others => 0.0);
 begin
 
    VALIDATE : process is
@@ -218,6 +225,9 @@ begin
    ROUTE_COLUMNS : process (all) is
       variable detectorColumn : integer;
       variable pixel          : natural;
+      variable ssaNortonCurrent  : real;
+      variable ssaSourceResistance : real;
+      variable ssaSenseVoltage   : real;
    begin
       ssaBiasCurrent <= (others => 0.0);
       ssaBiasSourceResistance <= (others => 0.0);
@@ -226,7 +236,7 @@ begin
       sq1BiasSourceResistance <= (others => 0.0);
       sq1FbCurrent   <= (others => 0.0);
       detectorTesCurrent <= tesStimulusAmp;
-      columnSense <= (others => (ssaVoltage => (p => 0.0, n => 0.0)));
+      columnSense <= (others => (saSenseVoltage => (p => 0.0, n => 0.0)));
 
       for warmColumn in 0 to NUM_WARM_COLUMNS_G-1 loop
          if WARM_DETECTOR_MAP_G(warmColumn) >= 0 and
@@ -236,13 +246,14 @@ begin
             detectorColumn :=
                WARM_DETECTOR_MAP_G(warmColumn)*COLUMNS_PER_DETECTOR_G +
                WARM_COLUMN_MAP_G(warmColumn);
-            ssaBiasCurrent(detectorColumn) <= currentDiff(
+            ssaNortonCurrent := currentDiff(
                columnDrive(warmColumn).ssaBias,
                SA_BIAS_LOADS_G(warmColumn));
-            ssaBiasSourceResistance(detectorColumn) <=
-               differentialImpedance(
-                  columnDrive(warmColumn).ssaBias,
-                  SA_BIAS_LOADS_G(warmColumn));
+            ssaSourceResistance := differentialImpedance(
+               columnDrive(warmColumn).ssaBias,
+               SA_BIAS_LOADS_G(warmColumn));
+            ssaBiasCurrent(detectorColumn) <= ssaNortonCurrent;
+            ssaBiasSourceResistance(detectorColumn) <= ssaSourceResistance;
             ssaFbCurrent(detectorColumn) <= currentDiff(
                columnDrive(warmColumn).ssaFeedback,
                SA_FB_LOADS_G(warmColumn));
@@ -256,10 +267,14 @@ begin
             sq1FbCurrent(detectorColumn) <= currentDiff(
                columnDrive(warmColumn).sq1Feedback,
                SQ1_FB_LOADS_G(warmColumn));
-            columnSense(warmColumn).ssaVoltage.p <=
-               0.5*ssaVoltage(detectorColumn);
-            columnSense(warmColumn).ssaVoltage.n <=
-               -0.5*ssaVoltage(detectorColumn);
+            -- The FEB senses the complete cold-loop voltage, not only the
+            -- intrinsic SSA voltage. Add the cable/wiring drop using the
+            -- actual current returned by the nonlinear load-line solver.
+            ssaSenseVoltage := ssaVoltage(detectorColumn) +
+               ssaBiasLoadCurrent(detectorColumn)*
+               SA_BIAS_LOADS_G(warmColumn);
+            columnSense(warmColumn).saSenseVoltage.p <= 0.5*ssaSenseVoltage;
+            columnSense(warmColumn).saSenseVoltage.n <= -0.5*ssaSenseVoltage;
             for row in 0 to NUM_ROWS_C-1 loop
                pixel := detectorColumn*NUM_ROWS_C + row;
                detectorTesCurrent(pixel) <= tesStimulusAmp(pixel) +
@@ -309,6 +324,8 @@ begin
             tesCurrentAmp         => detectorTesCurrent(PIXEL_LOW_C to PIXEL_HIGH_C),
             muxCurrentAmp         => muxCurrent(COLUMN_LOW_C to COLUMN_HIGH_C),
             muxVoltageVolt        => muxVoltage(COLUMN_LOW_C to COLUMN_HIGH_C),
+            ssaBiasLoadCurrentAmp =>
+               ssaBiasLoadCurrent(COLUMN_LOW_C to COLUMN_HIGH_C),
             ssaPhaseCycles        => ssaPhase(COLUMN_LOW_C to COLUMN_HIGH_C),
             ssaVoltageVolt        => ssaVoltage(COLUMN_LOW_C to COLUMN_HIGH_C));
    end generate GEN_DETECTORS;

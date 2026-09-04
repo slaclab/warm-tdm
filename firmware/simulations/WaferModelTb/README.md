@@ -26,6 +26,9 @@ nonlinear operating point while zero impedance retains ideal-current mode.
 The default lumped SSA profile is checked for a 6.6 mV peak-to-peak
 SA-feedback sweep at its 55 uA bias point, within the 5--8 mV range observed on
 hardware before warm amplification.
+The group harness also checks that its differential SA-bias cable resistance
+contributes `I*R` to the FEB's sensed voltage even when the intrinsic SSA is in
+its zero-voltage state.
 The NIST `5x10` bank factorization remains provisional until it is checked
 against the mask schematic.
 

@@ -96,6 +96,7 @@ begin
          tesCurrentAmp         => b3Tes,
          muxCurrentAmp         => b3MuxCurrent,
          muxVoltageVolt        => b3MuxVoltage,
+         ssaBiasLoadCurrentAmp => open,
          ssaPhaseCycles        => b3SsaPhase,
          ssaVoltageVolt        => b3SsaVoltage);
 
@@ -115,6 +116,7 @@ begin
          tesCurrentAmp         => nistTes,
          muxCurrentAmp         => nistMuxCurrent,
          muxVoltageVolt        => nistMuxVoltage,
+         ssaBiasLoadCurrentAmp => open,
          ssaPhaseCycles        => nistSsaPhase,
          ssaVoltageVolt        => nistSsaVoltage);
 
@@ -134,6 +136,7 @@ begin
          tesCurrentAmp         => ba4Tes,
          muxCurrentAmp         => ba4MuxCurrent,
          muxVoltageVolt        => ba4MuxVoltage,
+         ssaBiasLoadCurrentAmp => open,
          ssaPhaseCycles        => ba4SsaPhase,
          ssaVoltageVolt        => ba4SsaVoltage);
 

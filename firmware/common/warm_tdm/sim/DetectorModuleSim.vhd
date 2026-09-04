@@ -49,10 +49,17 @@ entity DetectorModuleSim is
       chipSelectCurrentAmp  : in  RealVector(0 to NUM_BANKS_G-1);
       tesCurrentAmp         : in  RealVector(
          0 to NUM_COLUMNS_G*NUM_BANKS_G*ROWS_PER_BANK_G-1);
-      muxCurrentAmp         : out RealVector(0 to NUM_COLUMNS_G-1);
-      muxVoltageVolt        : out RealVector(0 to NUM_COLUMNS_G-1);
-      ssaPhaseCycles        : out RealVector(0 to NUM_COLUMNS_G-1);
-      ssaVoltageVolt        : out RealVector(0 to NUM_COLUMNS_G-1));
+      muxCurrentAmp         : out RealVector(0 to NUM_COLUMNS_G-1) :=
+         (others => 0.0);
+      muxVoltageVolt        : out RealVector(0 to NUM_COLUMNS_G-1) :=
+         (others => 0.0);
+      -- Actual current after the nonlinear SSA/source load-line solution.
+      ssaBiasLoadCurrentAmp : out RealVector(0 to NUM_COLUMNS_G-1) :=
+         (others => 0.0);
+      ssaPhaseCycles        : out RealVector(0 to NUM_COLUMNS_G-1) :=
+         (others => 0.0);
+      ssaVoltageVolt        : out RealVector(0 to NUM_COLUMNS_G-1) :=
+         (others => 0.0));
 end entity DetectorModuleSim;
 
 architecture sim of DetectorModuleSim is
@@ -85,6 +92,7 @@ begin
                column*NUM_ROWS_C to (column+1)*NUM_ROWS_C-1),
             muxCurrentAmp         => muxCurrentAmp(column),
             muxVoltageVolt        => muxVoltageVolt(column),
+            ssaBiasLoadCurrentAmp => ssaBiasLoadCurrentAmp(column),
             ssaPhaseCycles        => ssaPhaseCycles(column),
             ssaVoltageVolt        => ssaVoltageVolt(column));
    end generate GEN_COLUMNS;

@@ -58,6 +58,7 @@ begin
          tesCurrentAmp         => tesCurrent,
          muxCurrentAmp         => muxCurrent,
          muxVoltageVolt        => muxVoltage,
+         ssaBiasLoadCurrentAmp => open,
          ssaPhaseCycles        => ssaPhase,
          ssaVoltageVolt        => ssaVoltage);
 

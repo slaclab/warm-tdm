@@ -18,6 +18,10 @@
 - SQ1 and SSA bias paths now include FEB/cable source resistance in bounded
   nonlinear load-line solves. Feedback and select coils retain the faster
   fixed cable/coil-load current conversion.
+- The SSA sense path returns the complete cold-loop voltage: intrinsic SSA
+  voltage plus the SA-bias current's differential cable/wiring drop. A focused
+  regression covers the nonzero cable voltage while the SSA itself is in its
+  zero-voltage state.
 - Focused GHDL tests pass for the primitive curves, two-level selection,
   selected-pixel isolation, the compatibility wrapper, an 8-column `6x10`
   slice, full 12-column BICEP3/NIST/BA4 profile elaboration, a one-detector
@@ -771,6 +775,8 @@ The implemented boundary uses `TheveninSourceType`,
 subtypes so the board and load-board models do not need an all-at-once API
 change. `WaferSim` likewise remains the legacy eight-channel adapter; new
 group-level integration goes through `GroupDetectorHarnessSim`.
+`ColumnCryoSenseType.saSenseVoltage` is deliberately named for the voltage
+seen by the warm preamplifier, rather than the intrinsic SSA-only voltage.
 
 For SSA and SQ1 bias, the harness converts the differential source to its
 Norton-equivalent short-circuit current and passes the total FEB plus cable
@@ -794,18 +800,23 @@ reduce this pair to one documented positive detector-current direction and
 warn if the two terminals cease to be equal and opposite within tolerance.
 The sign must be checked against the column FEB schematic before calibration.
 
-`saBiasInP/N` are voltage-sense inputs to the warm differential preamplifier,
-not the voltage developed by a fictitious SA-bias load. The initial model will
-return the modeled SSA output symmetrically:
+`saBiasInP/N` are voltage-sense inputs to the warm differential preamplifier.
+They see the complete cold-loop voltage, including the differential cable and
+wiring resistance as well as the intrinsic SSA terminal voltage. With the
+cable resistance folded into the Norton source used by the load-line solver:
 
 ```text
-saBiasInP = commonMode + polarity * Vssa / 2
-saBiasInN = commonMode - polarity * Vssa / 2
+Issa       = Inorton - Vssa/Rsource_total
+Vsense     = Vssa + Issa*Rcable
+saBiasInP  = commonMode + polarity * Vsense/2
+saBiasInN  = commonMode - polarity * Vsense/2
 ```
 
 Common mode, polarity, and output clamps are parameters. Symmetric drive is a
 functional assumption suitable for ADC-path testing; it must be updated if the
-real SSA termination establishes a different common mode.
+real SSA termination establishes a different common mode. For the default 200
+Ohm differential cable resistance, 49.8 uA develops a 9.96 mV baseline even
+when the ideal SSA is in its zero-voltage state.
 
 `ColumnFebSaBiasAmp` intentionally derives both output polarities and the
 offset pair from the P DAC leg. This represents a known circuit modification;
@@ -848,7 +859,8 @@ owns its TES, MUX, and SSA device instances. Its responsibilities are:
 - instantiating one column model for each detector column;
 - exposing one complete warm-interface bundle per detector column;
 - accepting per-pixel runtime TES stimuli; and
-- returning modeled SSA terminal voltages.
+- returning the solved SSA bias current and intrinsic SSA terminal voltage so
+  the external harness can add its own cable drop.
 
 `COLUMN_ID_MAP_G` identifies which physical detector columns a reduced instance
 represents, defaulting to `0 .. NUM_COLUMNS_G-1`. This permits per-physical-
@@ -873,8 +885,9 @@ Add a group-level adapter between board-indexed warm signals and one or more
   connection map;
 - route row-board output currents to the configured detector RS/CS lines;
 - support unused warm channels explicitly; and
-- return each SSA voltage to the correct warm channel, initially symmetrically
-  as `saBiasInP = +Vssa/2` and `saBiasInN = -Vssa/2`.
+- return each complete SSA-plus-cable loop voltage to the correct warm channel,
+  initially symmetrically as `saBiasInP = +Vsense/2` and
+  `saBiasInN = -Vsense/2`.
 
 The final voltage polarity is an assumption until checked against the column
 FEB schematic or a known bench response.
