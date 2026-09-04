@@ -137,7 +137,7 @@ result `Message`, and returns the process's output variable.
 | `sess.sa_offset(**params)` | SA offset determination (`SaOffsetProcess`). |
 | `sess.sa_tune(**params)` | SA amplifier tuning (`SaTuneProcess`), e.g. `sa_tune(SaBiasNumSteps=5)`. |
 | `sess.sq1_tune(**params)` | First-stage SQUID tuning (`Sq1TuneProcess`). |
-| `sess.fas_tune(**params)` | Physical-line FAS tuning (`FasTuneProcess`); pass `SetAfterFinish=True` to program the fitted `FasOn` currents. |
+| `sess.fas_tune(**params)` | Physical-line FAS tuning (`FasTuneProcess`); temporarily applies `Sq1BiasCurrent` (40 uA by default) to enabled columns. `ServoSampleDelay` controls the post-feedback settling wait; pass `SetAfterFinish=True` to program the fitted `FasOn` currents. |
 
 Interrupting a blocking wait (`KeyboardInterrupt`) stops the process rather than
 orphaning it.

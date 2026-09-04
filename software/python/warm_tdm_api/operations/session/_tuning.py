@@ -102,6 +102,11 @@ class TuningMixin:
     def fas_tune(self, block=True, **params):
         """Run physical-line FasTuneProcess. See run_process.
 
+        ``Sq1BiasCurrent`` selects the temporary bootstrap SQ1 bias applied to
+        enabled columns during acquisition (40 uA by default). The previous
+        SQ1 bias and feedback force currents are restored afterward.
+        ``ServoSampleDelay`` controls the wait between an SA-feedback write and
+        the next averaged-ADC sample.
         Pass ``SetAfterFinish=True`` to program the fitted ``FasOn`` currents;
         the default only returns the candidates.
         """

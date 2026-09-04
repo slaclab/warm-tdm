@@ -270,10 +270,12 @@ def saFbServo(*, group, process):
     kd = process.ServoKd.get()
     precision = process.ServoPrecision.get()
     maxLoops = process.ServoMaxLoops.get()
+    sampleDelay = process.ServoSampleDelay.get()
     log = process._log
     log.debug(
-        'SA FB servo start: kp=%s ki=%s kd=%s precision=%s maxLoops=%s',
-        kp, ki, kd, precision, maxLoops)
+        'SA FB servo start: kp=%s ki=%s kd=%s precision=%s maxLoops=%s '
+        'sampleDelay=%s',
+        kp, ki, kd, precision, maxLoops, sampleDelay)
     
     pid = [PID(kp, ki, kd) for _ in range(group.NumColumns.get())]
 
@@ -321,6 +323,22 @@ def saFbServo(*, group, process):
         log.debug(
             'SA FB servo loop %d wrote control=%s',
             count + 1, np.asarray(control).tolist())
+
+        # In cosim, back-to-back register transactions can outrun the ADC
+        # capture update. The same delay also gives real hardware time to settle
+        # before using the new sample in the next controller iteration.
+        deadline = time.monotonic() + max(0.0, sampleDelay)
+        while process._runEn and time.monotonic() < deadline:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0.0:
+                break
+            time.sleep(min(0.05, remaining))
+        if not process._runEn:
+            log.debug(
+                'SA FB servo stopped while settling loop %d; returning '
+                'control=%s',
+                count + 1, np.asarray(control).tolist())
+            return control
 
     else:
         log.warning(
@@ -439,7 +457,9 @@ def fasTune(*, group, process=None, doSet=True):
     Active logical rows come from ``RowIndexOrderList`` and are resolved through
     ``RowMap``. Sweep points use ``RowDacDriver2.manual_set()``; persistent
     ``FasOn`` entries are optionally written only after every row sweep
-    completes. ``FasOff`` is never modified.
+    completes. A provisional SQ1 bias makes the FAS state observable before SQ1
+    tuning; the original SQ1 force-current values are restored on exit.
+    ``FasOff`` is never modified.
     """
     if process is None:
         raise ValueError('fasTune requires its FasTuneProcess')
@@ -510,13 +530,19 @@ def fasTune(*, group, process=None, doSet=True):
     }
     sa_fb_snapshot = np.array(
         group.SaFbForceCurrent.get(read=True), copy=True)
+    sq1_bias_snapshot = np.array(
+        group.Sq1BiasForceCurrent.get(read=True), copy=True)
+    sq1_fb_snapshot = np.array(
+        group.Sq1FbForceCurrent.get(read=True), copy=True)
     fas_on_snapshot = {
         key: driver.FasOn.Current.get(index=key[1], read=True)
         for key, driver in unique_targets.items()
     }
     log.debug(
-        'FAS tune snapshots: modes=%s SaFbForceCurrent=%s FasOn=%s',
-        mode_snapshot, sa_fb_snapshot.tolist(), fas_on_snapshot)
+        'FAS tune snapshots: modes=%s SaFbForceCurrent=%s '
+        'Sq1BiasForceCurrent=%s Sq1FbForceCurrent=%s FasOn=%s',
+        mode_snapshot, sa_fb_snapshot.tolist(), sq1_bias_snapshot.tolist(),
+        sq1_fb_snapshot.tolist(), fas_on_snapshot)
 
     curves = []
     candidates = {}
@@ -526,6 +552,17 @@ def fasTune(*, group, process=None, doSet=True):
     log.debug('FAS tune TotalSteps=%s', process.TotalSteps.value())
 
     try:
+        bootstrap_bias = np.array(sq1_bias_snapshot, copy=True)
+        bootstrap_fb = np.array(sq1_fb_snapshot, copy=True)
+        bootstrap_bias[enabled_columns] = process.Sq1BiasCurrent.get()
+        bootstrap_fb[enabled_columns] = 0.0
+        log.debug(
+            'FAS tune applying bootstrap SQ1 state to enabled columns: '
+            'bias=%s feedback=%s',
+            bootstrap_bias.tolist(), bootstrap_fb.tolist())
+        group.Sq1FbForceCurrent.set(bootstrap_fb)
+        group.Sq1BiasForceCurrent.set(bootstrap_bias)
+
         for board, driver in drivers.items():
             log.debug('FAS tune setting RowBoard[%d] Mode=MANUAL', board)
             driver.Mode.set(1, write=True)
@@ -659,10 +696,23 @@ def fasTune(*, group, process=None, doSet=True):
                 sa_fb_snapshot.tolist())
             group.SaFbForceCurrent.set(sa_fb_snapshot)
         finally:
-            for board, mode in mode_snapshot.items():
+            try:
                 log.debug(
-                    'FAS tune restoring RowBoard[%d] Mode=%s', board, mode)
-                drivers[board].Mode.set(mode, write=True)
+                    'FAS tune restoring Sq1BiasForceCurrent=%s',
+                    sq1_bias_snapshot.tolist())
+                group.Sq1BiasForceCurrent.set(sq1_bias_snapshot)
+            finally:
+                try:
+                    log.debug(
+                        'FAS tune restoring Sq1FbForceCurrent=%s',
+                        sq1_fb_snapshot.tolist())
+                    group.Sq1FbForceCurrent.set(sq1_fb_snapshot)
+                finally:
+                    for board, mode in mode_snapshot.items():
+                        log.debug(
+                            'FAS tune restoring RowBoard[%d] Mode=%s',
+                            board, mode)
+                        drivers[board].Mode.set(mode, write=True)
         log.debug('FAS tune cleanup complete')
 
 #SQ1 TUNING - output vs sq1fb for various values of sq1 bias for every row for every column

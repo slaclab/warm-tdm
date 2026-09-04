@@ -44,8 +44,10 @@ parameters required by `saFbServo()`.
   to 100 percent.
 - Recheck Stop before and during final `FasOn` programming; roll back any
   entries already written if Stop arrives in that interval.
-- Restore SA feedback, row-driver modes, and temporarily driven row outputs on
-  every exit path. SQ1 bias and feedback are not changed by this process.
+- Apply a configurable provisional SQ1 bias to enabled columns and zero their
+  SQ1 feedback so the FAS state is observable before the final SQ1 tune.
+- Restore SA feedback, SQ1 bias/feedback, row-driver modes, and temporarily
+  driven row outputs on every exit path.
 - If a batched `FasOn` programming operation fails, restore the original values.
 
 ## Minimal firmware support
@@ -83,7 +85,10 @@ write-through behavior remain unchanged.
 ### Software
 
 - [x] Add the missing servo controls to `FasTuneProcess`.
-- [x] Add a configurable current range, point count, and sample delay.
+- [x] Add a configurable current range, point count, FAS settling delay, and
+  SA-feedback servo sample delay.
+- [x] Apply a configurable bootstrap SQ1 bias to enabled columns and restore
+  the previous SQ1 bias/feedback force currents on exit.
 - [x] Replace the missing logical `FasFluxOn` access with physical
   `RowDacDriver2.manual_set()` calls.
 - [x] Iterate active rows and validate their one-level `RowMap` entries.
@@ -95,7 +100,7 @@ write-through behavior remain unchanged.
 - [x] Make `Stop()` responsive during settling and SA-servo loops.
 - [x] Prevent the PyRogue process wrapper from relabeling Stop as `Done`.
 - [x] Close the Stop-versus-final-programming race with rollback.
-- [x] Restore temporary modes and SA feedback force current on exit.
+- [x] Restore temporary modes and SA/SQ1 force currents on exit.
 - [x] Keep `Session.fas_tune()` as the operations-layer convenience wrapper.
 - [x] Enable the `FasTuneProcess` logger at DEBUG for every run and trace
   configuration, topology resolution, raw/quantized manual requests, every
@@ -134,8 +139,8 @@ write-through behavior remain unchanged.
   process message as `Stopped` rather than `Done`.
 - `FasOff` is never written.
 - A two-level map fails before any manual DAC write.
-- Row-driver modes and SA feedback force current are restored after success,
-  Stop, or exception.
+- Row-driver modes and SA feedback, SQ1 bias, and SQ1 feedback force currents
+  are restored after success, Stop, or exception.
 
 ## Deferred work
 

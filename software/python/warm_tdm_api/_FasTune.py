@@ -94,13 +94,18 @@ class FasTuneProcess(pr.Process):
             name='FasFluxSampleDelay', value=0.001, mode='RW', units='s',
             description='Delay after each ManualSet write.'))
         self.add(pr.LocalVariable(
+            name='Sq1BiasCurrent', value=40.0, mode='RW', units='uA',
+            description='Temporary SQ1 bias applied to enabled columns while '
+                        'measuring the FAS response. The original force-current '
+                        'values are restored when the process exits.'))
+        self.add(pr.LocalVariable(
             name='SetAfterFinish', value=False, mode='RW',
             description='Program the fitted FasOn currents after a successful '
                         'sweep. When false, only publish the tuning results.'))
 
         # saFbServo() reads these parameters from its calling Process.
         self.add(pr.LocalVariable(
-            name='ServoKp', value=-0.8, mode='RW'))
+            name='ServoKp', value=0.8, mode='RW'))
         self.add(pr.LocalVariable(
             name='ServoKi', value=0.0, mode='RW'))
         self.add(pr.LocalVariable(
@@ -109,6 +114,10 @@ class FasTuneProcess(pr.Process):
             name='ServoPrecision', value=0.01, mode='RW'))
         self.add(pr.LocalVariable(
             name='ServoMaxLoops', value=500, minimum=1, mode='RW'))
+        self.add(pr.LocalVariable(
+            name='ServoSampleDelay', value=0.001, mode='RW', units='s',
+            description='Delay after each SA feedback write before sampling '
+                        'the averaged ADC value.'))
 
         self.add(pr.LocalVariable(
             name='FasTuneOutput', hidden=True, value=[], mode='RO',
