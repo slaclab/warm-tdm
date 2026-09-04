@@ -29,6 +29,11 @@
 - The default lumped SSA now uses an effective 120 Ohm `RN`, giving a tested
   6.6 mV peak-to-peak sweep at 55 uA. This anchors the synthetic profile to the
   5--8 mV preamplifier SA-output range observed on hardware.
+- `WaveformCapture.Alpha` now resets to 1 in simulation builds so its ADC
+  pedestal estimate converges promptly; hardware builds retain the existing
+  reset value of 15.
+- `SaOffsetSweepProcess.Stop()` now propagates cancellation into its inner
+  offset PID loop and restores the pre-sweep SA bias and offset on every exit.
 - Full VCS `GroupTb` elaboration and the open-loop/fixed-PID co-simulation have
   not been run because Vivado/VCS are unavailable on the development machine.
 - The static end-to-end fixed-point P/PI derivation, sample-window scaling, and
