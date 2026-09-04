@@ -109,7 +109,10 @@ class TuningMixin:
         into the ``SaFbForceCurrent`` path used while timing is stopped.
         ``FasFluxSampleReads`` and ``ServoSampleReads`` control how many ADC
         reads are discarded after row-FAS and SA-feedback writes so cosim time
-        advances before the measurement is used.
+        advances before the measurement is used. ``FasMinimumTolerance`` is
+        the SA-feedback band above the sampled minimum whose contiguous region
+        is centered to select the FAS-on candidate; disabled columns are not
+        included in the acquired curves.
         Pass ``SetAfterFinish=True`` to program the fitted ``FasOn`` currents;
         the default only returns the candidates.
         """

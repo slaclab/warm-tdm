@@ -49,6 +49,9 @@ parameters required by `saFbServo()`.
 - Seed the SA feedback force-current path from the tuned per-row SA feedback
   table before each FAS row sweep; timing is stopped, so the table does not
   drive the DAC directly.
+- Leave disabled-column curves empty, and select each enabled column's FAS
+  candidate at the center of its contiguous near-minimum region rather than
+  the first sample at the minimum.
 - Restore SA feedback, SQ1 bias/feedback, row-driver modes, and temporarily
   driven row outputs on every exit path.
 - If a batched `FasOn` programming operation fails, restore the original values.

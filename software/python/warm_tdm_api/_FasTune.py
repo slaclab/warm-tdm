@@ -15,6 +15,7 @@ class RowFasSweepPlot(pr.LinkVariable):
     def linkedGet(self, index=-1, read=False):
         tune = self.parent.FasTuneOutput.value()
         result_index = self.parent.PlotRow.value() if index == -1 else index
+        column = self.parent.PlotColumn.value()
 
         self._ax.clear()
         self._ax.set_xlabel('FAS current (uA)')
@@ -22,7 +23,9 @@ class RowFasSweepPlot(pr.LinkVariable):
         self._ax.grid(True)
 
         if result_index < 0 or result_index >= len(tune):
-            self._ax.set_title('FAS sweep')
+            self._ax.set_title(
+                'SA Feedback Required to Null SA Output vs FAS Current\n'
+                f'Selected Row, Column {column}')
             self._ax.text(.5, .5, 'Not tuned', ha='center', va='center',
                           transform=self._ax.transAxes)
             return self._fig
@@ -30,20 +33,32 @@ class RowFasSweepPlot(pr.LinkVariable):
         result = tune[result_index]
         logical_row = result['logicalRow']
         self._ax.set_title(
-            f'Logical row {logical_row}: row board {result["board"]}, '
-            f'address {result["address"]}')
+            'SA Feedback Required to Null SA Output vs FAS Current\n'
+            f'Logical Row {logical_row}, Column {column}; '
+            f'Row Board {result["board"]}, Address {result["address"]}')
         x_values = result['xValues']
-        for column, curve in enumerate(result['curves']):
-            if len(curve) != 0:
-                self._ax.plot(
-                    x_values[:len(curve)], curve, label=f'Column {column}')
+        curves = result['curves']
+        if column < 0 or column >= len(curves):
+            self._ax.text(
+                .5, .5, f'Column {column} is unavailable',
+                ha='center', va='center', transform=self._ax.transAxes)
+            return self._fig
+
+        curve = curves[column]
+        if len(curve) == 0:
+            self._ax.text(
+                .5, .5, f'No tuning data for Column {column}',
+                ha='center', va='center', transform=self._ax.transAxes)
+            return self._fig
+
+        self._ax.plot(
+            x_values[:len(curve)], curve, label=f'Column {column}')
 
         if result['fasOn'] is not None:
             self._ax.axvline(
                 result['fasOn'], linestyle='--',
-                label=f'FasOn {result["fasOn"]:.3f} uA')
-        if any(len(curve) != 0 for curve in result['curves']):
-            self._ax.legend()
+                label=f'Selected FAS-on {result["fasOn"]:.3f} uA')
+        self._ax.legend()
         return self._fig
 
 
@@ -57,9 +72,9 @@ class FasTunePlot(pr.LinkVariable):
     def linkedGet(self, index=-1, read=False):
         tune = self.parent.FasTuneOutput.value()
         self._ax.clear()
-        self._ax.set_title('FAS tune')
+        self._ax.set_title('Selected FAS-On Current vs Logical Row')
         self._ax.set_xlabel('Logical row')
-        self._ax.set_ylabel('FasOn current (uA)')
+        self._ax.set_ylabel('Selected FAS-on current (uA)')
         self._ax.grid(True)
 
         if not tune:
@@ -78,7 +93,7 @@ class FasTunePlot(pr.LinkVariable):
 
 class FasTuneProcess(pr.Process):
 
-    def __init__(self, **kwargs):
+    def __init__(self, *, config, **kwargs):
         super().__init__(**kwargs)
 
         self.add(pr.LocalVariable(
@@ -90,6 +105,12 @@ class FasTuneProcess(pr.Process):
         self.add(pr.LocalVariable(
             name='FasFluxNumSteps', value=21, minimum=2, mode='RW',
             description='Number of FAS sweep points.'))
+        self.add(pr.LocalVariable(
+            name='FasMinimumTolerance', value=0.1, minimum=0.0,
+            mode='RW', units='uA',
+            description='SA-feedback tolerance above the sampled minimum '
+                        'used to identify a contiguous flat-bottom region. '
+                        'FasOn is selected at the region midpoint.'))
         self.add(pr.LocalVariable(
             name='FasFluxSampleDelay', value=0.001, mode='RW', units='s',
             description='Wall-clock delay after each ManualSet write.'))
@@ -129,12 +150,19 @@ class FasTuneProcess(pr.Process):
             name='FasTuneOutput', hidden=True, value=[], mode='RO',
             description='FAS sweep results in active row order.'))
         self.add(pr.LocalVariable(
-            name='PlotRow', value=0, minimum=0, mode='RW',
+            name='PlotRow', value=0, minimum=0,
+            maximum=max(config.maxRows-1, 0), mode='RW',
             description='Index into the active-row sweep results.'))
+        self.add(pr.LocalVariable(
+            name='PlotColumn', value=0, minimum=0,
+            maximum=max(config.numColumns-1, 0), mode='RW',
+            description='Column displayed in the selected-row FAS sweep '
+                        'response plot.'))
 
         self.add(RowFasSweepPlot(
             name='SweepPlot', hidden=True, mode='RO',
-            dependencies=[self.PlotRow, self.FasTuneOutput]))
+            dependencies=[
+                self.PlotRow, self.PlotColumn, self.FasTuneOutput]))
         self.add(FasTunePlot(
             name='TunePlot', hidden=True, mode='RO',
             dependencies=[self.FasTuneOutput]))
