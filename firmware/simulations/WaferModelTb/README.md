@@ -23,6 +23,9 @@ mapping, unused-channel termination, and the dual-BA4 `8+8+(4+4)` mapping.
 The harness checks use the typed differential warm/cold interface, and the
 column test verifies that finite SQ1- and SSA-bias source impedances affect the
 nonlinear operating point while zero impedance retains ideal-current mode.
+The default lumped SSA profile is checked for a 6.6 mV peak-to-peak
+SA-feedback sweep at its 55 uA bias point, within the 5--8 mV range observed on
+hardware before warm amplification.
 The NIST `5x10` bank factorization remains provisional until it is checked
 against the mask schematic.
 

@@ -107,6 +107,11 @@ architecture sim of WaferModelTb is
    signal ssaPhase      : real;
    signal ssaOut        : real;
 
+   signal syntheticSsaBias     : real := 55.0E-6;
+   signal syntheticSsaFeedback : real := 0.0;
+   signal syntheticSsaPhase    : real;
+   signal syntheticSsaOut      : real;
+
    signal sq1Bias       : real := 0.0;
    signal tesInput      : real := 0.0;
    signal sq1Feedback   : real := 0.0;
@@ -178,6 +183,16 @@ begin
          feedbackCurrentAmp => ssaFeedback,
          phaseCycles        => ssaPhase,
          voltageVolt        => ssaOut);
+
+   -- Exercise the profile used by GroupTb, not only the deliberately distinct
+   -- primitive-test parameters above.
+   U_SyntheticSsa : entity warm_tdm.SsaModel
+      port map (
+         biasCurrentAmp     => syntheticSsaBias,
+         inputCurrentAmp    => 0.0,
+         feedbackCurrentAmp => syntheticSsaFeedback,
+         phaseCycles        => syntheticSsaPhase,
+         voltageVolt        => syntheticSsaOut);
 
    U_Sq1 : entity warm_tdm.Sq1Model
       generic map (PARAMS_G => SQ1_PARAMS_C)
@@ -265,6 +280,8 @@ begin
       variable idealSourceSsa : real;
       variable optimumSpan  : real;
       variable highBiasSpan : real;
+      variable syntheticSsaLow  : real;
+      variable syntheticSsaSpan : real;
    begin
       -- Published ideal low-L, overdamped SQUID limits.
       squidBias     <= 5.0E-6;
@@ -323,6 +340,25 @@ begin
       assertClose(rowFasResistance, 6.1, 1.0E-9, "row-FAS periodicity");
       assertClose(chipFasResistance, 10.2, 1.0E-9,
                   "chip-FAS periodicity");
+
+      -- The default SSA is a lumped whole-array model calibrated to the
+      -- observed 5--8 mV preamplifier SA-feedback sweep.  At Ibias=IC0 the
+      -- ideal model spans zero to RN*Ibias over half a feedback period.
+      syntheticSsaFeedback <= 0.0;
+      wait for 1 ns;
+      syntheticSsaLow := syntheticSsaOut;
+      syntheticSsaFeedback <=
+         0.5*SSA_SQUID_SYNTHETIC_C.currentPerPhi0Amp;
+      wait for 1 ns;
+      syntheticSsaSpan := abs(syntheticSsaOut - syntheticSsaLow);
+      assertClose(syntheticSsaPhase, -0.5, 1.0E-12,
+                  "synthetic SSA feedback phase");
+      assertClose(syntheticSsaSpan, 6.6E-3, 1.0E-12,
+                  "synthetic SSA sweep amplitude");
+      assert syntheticSsaSpan >= 5.0E-3 and syntheticSsaSpan <= 8.0E-3
+         report "synthetic SSA sweep is outside the measured 5--8 mV range: " &
+                real'image(syntheticSsaSpan)
+         severity failure;
 
       -- The ideal family has a repeatable bias-tuning optimum at the onset of
       -- its voltage state: the half-flux/integer-flux span falls at high bias.

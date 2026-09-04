@@ -47,7 +47,7 @@ entity WaferSim is
       CS_LINE_OFFSET_G : integer range 0 to 32 := ROWS_PER_BANK_G;
       R_SHUNT_G        : real                  := 1.0;
 
-      SSA_RN_G     : real := 14.0;
+      SSA_RN_G     : real := 120.0;
       SSA_IC0_G    : real := 55.0e-6;
       SSA_PHINOT_G : real := 35.0e-6;
 

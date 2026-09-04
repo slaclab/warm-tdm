@@ -23,8 +23,8 @@ trial is:
 
 | Term | Hardware coefficient | Q1.23 register value |
 | --- | ---: | ---: |
-| P | `0.0009765625` (`2^-10`) | 8192 |
-| I | `0.0001220703125` (`2^-13`) | 1024 |
+| P | `0.0001220703125` (`2^-13`) | 1024 |
+| I | `0.0000152587890625` (`2^-16`) | 128 |
 | D | 0 | 0 |
 
 These values assume the tuning procedures put the loop on the expected branch,
@@ -132,13 +132,28 @@ The ADC FIR is bypassed at reset. None of the present FEB models includes a
 frequency response, slew rate, analog noise, or a settling pole; their response
 is instantaneous.
 
-## Nominal nonlinear plant slope
-
-Numerically evaluating the default `WAFER` (`1x32`) MUX model around a selected
-row and a smooth tuned slope gives roughly
+The synthetic SSA is represented as one lumped whole-array device. Its
+effective `RN` is 120 Ohm, selected from the measured 5--8 mV peak-to-peak SA
+output range. With `IC0 = 55 uA`, the ideal model's onset-bias sweep is
 
 ```text
-g = d(ADC code)/d(SQ1FB DAC code) = -4 to -5.
+Vssa,p-p = RN * Ibias = 120 Ohm * 55 uA = 6.6 mV.
+```
+
+After the modeled warm gain, that is approximately 0.87 V peak-to-peak at the
+ADC input, or 7100 ADC codes. The earlier 14 Ohm placeholder produced only
+0.77 mV before warm amplification and understated the entire downstream plant
+gain by `120/14 = 8.57`.
+
+## Nominal nonlinear plant slope
+
+The earlier numerical evaluation of the default `WAFER` (`1x32`) MUX model
+gave `g = -4 to -5` with the 14 Ohm SSA placeholder. Since `RN` multiplies the
+SSA voltage directly in this model, rescaling that result by `120/14` gives
+roughly
+
+```text
+g = d(ADC code)/d(SQ1FB DAC code) = -34 to -43.
 ```
 
 The range covers representative SQ1 biases from about 20 to 75 uA with an SSA
@@ -174,8 +189,10 @@ For negative `g`, P must be positive. A desired pole `r` gives
 P = (r - 1)/(N*g).
 ```
 
-For `N = 128`, `g = -4`, and `r = 0.5`, this gives
-`P = 0.0009765625`, exactly `2^-10` and exactly representable in Q1.23.
+For `N = 128`, a round-number design value `g = -32`, and `r = 0.5`, this gives
+`P = 0.0001220703125`, exactly `2^-13` and exactly representable in Q1.23.
+Across the estimated `g = -34 to -43` range, the corresponding P-only pole is
+approximately 0.47 to 0.33.
 
 ## PI derivation
 
@@ -210,15 +227,16 @@ P = 2*(1-r)/(-N*g)
 I = (1-r)^2/(-N*g).
 ```
 
-Choosing `r = 0.75`, `N = 128`, and `g = -4` produces the recommended pair:
+Choosing `r = 0.75`, `N = 128`, and the same design value `g = -32` produces
+the recommended pair:
 
 ```text
-P = 0.0009765625
-I = 0.0001220703125 = P/8.
+P = 0.0001220703125
+I = 0.0000152587890625 = P/8.
 ```
 
-Across the estimated `g = -4 to -5` range, these coefficients give real poles
-from approximately `0.75/0.75` to `0.55/0.83`. This is conservative enough for
+Across the estimated `g = -34 to -43` range, these coefficients give real poles
+from approximately `0.67/0.80` to `0.49/0.83`. This is conservative enough for
 a first simulation while still converging over a modest number of row visits.
 
 The integral state is only 18 bits wide. A large sustained initial error can
@@ -242,18 +260,18 @@ D(Nnew) = D(Nref) * Nref/Nnew.
 For the recommended normalized gains
 
 ```text
-Pmean = N*P = 0.125
-Imean = N*I = 0.015625,
+Pmean = N*P = 0.015625
+Imean = N*I = 0.001953125,
 ```
 
 the corresponding hardware values are:
 
 | Samples N | P coefficient | P raw | I coefficient | I raw |
 | ---: | ---: | ---: | ---: | ---: |
-| 64 | 0.001953125 | 16384 | 0.000244140625 | 2048 |
-| 128 | 0.0009765625 | 8192 | 0.0001220703125 | 1024 |
-| 250 | 0.0005000000 | 4194 | 0.0000625000 | 524 |
-| 256 | 0.00048828125 | 4096 | 0.00006103515625 | 512 |
+| 64 | 0.000244140625 | 2048 | 0.000030517578125 | 256 |
+| 128 | 0.0001220703125 | 1024 | 0.0000152587890625 | 128 |
+| 250 | 0.0000625000 | 524 | 0.0000078125 | 66 |
+| 256 | 0.00006103515625 | 512 | 0.00000762939453125 | 64 |
 
 This scaling preserves poles per visit to a row. It does not preserve a fixed
 wall-clock bandwidth if the row period or number of active rows also changes.
@@ -288,8 +306,8 @@ For example, the recommended starting values are set with:
 
 ```python
 columns = group.NumColumns.get()
-group.PidP_Gain.set([0.125] * columns)
-group.PidI_Gain.set([0.015625] * columns)
+group.PidP_Gain.set([0.015625] * columns)
+group.PidI_Gain.set([0.001953125] * columns)
 group.PidD_Gain.set([0.0] * columns)
 ```
 

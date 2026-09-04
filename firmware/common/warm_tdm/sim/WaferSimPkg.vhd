@@ -142,7 +142,10 @@ package WaferSimPkg is
 
    constant SSA_SQUID_SYNTHETIC_C : SquidParamsType := (
       criticalCurrentAmp  => 55.0E-6,
-      normalResistanceOhm => 14.0,
+      -- Lumped whole-array value chosen to reproduce the measured 5--8 mV
+      -- SA-feedback sweep; at the 55 uA onset bias it gives 6.6 mV peak to
+      -- peak in the ideal low-inductance model.
+      normalResistanceOhm => 120.0,
       currentPerPhi0Amp   => 35.0E-6,
       phaseOffsetCycles   => 0.0);
 

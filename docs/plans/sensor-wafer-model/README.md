@@ -22,6 +22,9 @@
   selected-pixel isolation, the compatibility wrapper, an 8-column `6x10`
   slice, full 12-column BICEP3/NIST/BA4 profile elaboration, a one-detector
   `8+4` warm harness, and the dual-BA4 `8+8+(4+4)` maps.
+- The default lumped SSA now uses an effective 120 Ohm `RN`, giving a tested
+  6.6 mV peak-to-peak sweep at 55 uA. This anchors the synthetic profile to the
+  5--8 mV preamplifier SA-output range observed on hardware.
 - Full VCS `GroupTb` elaboration and the open-loop/fixed-PID co-simulation have
   not been run because Vivado/VCS are unavailable on the development machine.
 - The static end-to-end fixed-point P/PI derivation, sample-window scaling, and
@@ -30,7 +33,7 @@
   still pending.
 - VCS validation of the multi-board `GroupTb` integration, model dynamics, a
   static electrical TES solution, per-device variation, and measured
-  calibration remain future work.
+  calibration beyond the SSA sweep amplitude remain future work.
 - The supplied circuit diagrams are sufficient to begin a behavioral model.
 - Legacy SQUID and FAS equations have been checked against the published RCSJ,
   SQUID-array, and NIST switch-MUX literature; the accepted limits and required
@@ -652,6 +655,13 @@ quantities. When only an effective measured SSA or SQ1 curve is available, set
 `elementCount > 1` only when the curve parameters genuinely describe an
 individual repeated element or deterministic element variation is being
 tested.
+
+The current synthetic SSA follows that lumped convention. Its 120 Ohm `RN` is
+an effective fit coefficient, not a claim that the physical array has a 120
+Ohm normal-state resistance. With `IC0 = 55 uA`, it makes the ideal onset-bias
+curve span 6.6 mV peak-to-peak, centered in the 5--8 mV range observed before
+warm amplification. A measured bias-dependent SA curve should eventually
+replace this single-point amplitude calibration.
 
 The optional fit family uses a periodic surface such as
 
