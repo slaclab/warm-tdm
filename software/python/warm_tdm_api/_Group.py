@@ -437,6 +437,22 @@ class Group(pr.Device):
             def ZeroSaFb():
                 self.SaFbForceCurrent.set(np.zeros(self.config.numColumns, np.float64))
 
+            # TMP: seed the known SA tune point (SaBias=55, SaFb=41) so sim/bench
+            # runs can jump straight to a locked bias without a full SaTune.
+            # Per tuning-enabled column, set the per-column SaBias and write SaFb
+            # only for the rows enabled for tuning/readout (RowIndexOrderList).
+            @self.command()
+            def TmpSetSaTunePoint():
+                colTuneEnable = np.asarray(self.ColTuneEnable.value(), dtype=bool)
+                tuneRows = [int(r) for r in self.RowIndexOrderList.value()]
+                with self.root.updateGroup():
+                    for col in range(self.config.numColumns):
+                        if not colTuneEnable[col]:
+                            continue
+                        self.SaBiasCurrent.set(index=col, value=55.0)
+                        for row in tuneRows:
+                            self.SaFbCurrent.set(index=(col, row), value=41.0)
+
             @self.command()
             def ZeroSq1Bias():
                 self.Sq1BiasForceCurrent.set(np.zeros(self.config.numColumns, np.float64))
@@ -453,6 +469,23 @@ class Group(pr.Device):
                 self.SaFbForceCurrent.set(zero_cols)
                 self.SaBiasCurrent.set(zero_cols)
                 self.SaOffset.set(zero_cols)
+
+            # Accumulator for the settings a simulation cosim run needs before
+            # tuning. Add further sim-only setup here as the cosim grows.
+            @self.command()
+            def SimCosimSetup():
+                # 1x32 logical row map.
+                self.RowMap1x32()
+                # Enable 8 rows (0-7). RowIndexOrderList drives both the muxed
+                # readout (NumRows/row order) and the rows sq1Tune iterates, so
+                # this is the single knob for "rows in the mux" and "rows tuned".
+                self.RowIndexOrderList.set(list(range(8)))
+                # Seed the known SA tune point. Runs after the row list is set so
+                # it writes SaFb for exactly the enabled rows.
+                self.TmpSetSaTunePoint()
+                # Run the SA offset PID loop to null SaOut at the seeded SaBias,
+                # matching what saTune() does after setting the bias point.
+                warm_tdm_api.saOffset(group=self)
 
             self.columnSelectedVars = [
                 self.ColTuneEnable,
