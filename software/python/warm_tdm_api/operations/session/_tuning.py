@@ -100,5 +100,9 @@ class TuningMixin:
         return self.run_process('Sq1TuneProcess', block=block, **params)
 
     def fas_tune(self, block=True, **params):
-        """Run physical-line FasTuneProcess. See run_process."""
+        """Run physical-line FasTuneProcess. See run_process.
+
+        Pass ``SetAfterFinish=True`` to program the fitted ``FasOn`` currents;
+        the default only returns the candidates.
+        """
         return self.run_process('FasTuneProcess', block=block, **params)

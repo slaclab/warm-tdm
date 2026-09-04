@@ -8,7 +8,8 @@
 
 Restore the original one-level FAS tune with the smallest practical changes.
 The process sweeps FAS current, closes the SA feedback servo, finds the response
-minimum for each enabled column, takes the median, and programs `FasOn`.
+minimum for each enabled column, takes the median, and optionally programs
+`FasOn`.
 
 The old implementation failed because it wrote the removed logical
 `group.FasFluxOn` variable and because `FasTuneProcess` did not define the servo
@@ -32,7 +33,9 @@ parameters required by `saFbServo()`.
   matching the original algorithm.
 - If logical rows share a physical line, combine their row candidates with a
   second median and program that physical line once.
-- Program `FasOn.Current` only after all active-row sweeps complete.
+- When `SetAfterFinish` is enabled, program `FasOn.Current` only after all
+  active-row sweeps complete. Otherwise publish the candidates without changing
+  the table.
 - Leave `FasOff.Current` unchanged.
 - On Stop, publish collected curves and leave `FasOn` unchanged.
 - Make settling waits interruptible so `Stop()` does not wait for a complete
@@ -86,6 +89,8 @@ write-through behavior remain unchanged.
 - [x] Iterate active rows and validate their one-level `RowMap` entries.
 - [x] Preserve the existing curve/minimum/median algorithm.
 - [x] Program physical `FasOn.Current` entries only after complete acquisition.
+- [x] Add `SetAfterFinish` so acquisition can publish candidates without
+  programming `FasOn`.
 - [x] Preserve partial plots on Stop without applying settings.
 - [x] Make `Stop()` responsive during settling and SA-servo loops.
 - [x] Prevent the PyRogue process wrapper from relabeling Stop as `Done`.
@@ -122,6 +127,8 @@ write-through behavior remain unchanged.
 - Each sweep addresses the `rsBoard` and `rsAddr` from `RowMap`.
 - Disabled columns do not influence the median.
 - Shared physical lines are programmed once with their combined median.
+- With `SetAfterFinish` disabled, fitted candidates are published and every
+  `FasOn` entry remains unchanged.
 - Stop before acquisition completes leaves every `FasOn` entry unchanged.
 - `Stop()` waits for cleanup, returns with `Running=False`, and leaves the
   process message as `Stopped` rather than `Done`.

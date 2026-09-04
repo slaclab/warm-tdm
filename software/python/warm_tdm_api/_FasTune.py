@@ -93,6 +93,10 @@ class FasTuneProcess(pr.Process):
         self.add(pr.LocalVariable(
             name='FasFluxSampleDelay', value=0.001, mode='RW', units='s',
             description='Delay after each ManualSet write.'))
+        self.add(pr.LocalVariable(
+            name='SetAfterFinish', value=False, mode='RW',
+            description='Program the fitted FasOn currents after a successful '
+                        'sweep. When false, only publish the tuning results.'))
 
         # saFbServo() reads these parameters from its calling Process.
         self.add(pr.LocalVariable(
@@ -145,7 +149,10 @@ class FasTuneProcess(pr.Process):
     def _fasTuneWrap(self):
         self._log.debug('Entering FAS tune update group')
         with self.root.updateGroup(0.25):
-            curves = warm_tdm_api.fasTune(group=self.parent, process=self)
+            curves = warm_tdm_api.fasTune(
+                group=self.parent,
+                process=self,
+                doSet=self.SetAfterFinish.value())
             self._log.debug('Serializing %d FAS sweep result(s)', len(curves))
             output = []
             for curve in curves:

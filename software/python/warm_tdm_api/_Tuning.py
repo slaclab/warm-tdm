@@ -433,19 +433,19 @@ def fasSweep(*, group, row, process):
         row, [len(curve.points) for curve in data.curveList])
     return data
 
-def fasTune(*,group,process=None):
+def fasTune(*, group, process=None, doSet=True):
     """Run the original one-level FAS-minimum algorithm on working hardware paths.
 
     Active logical rows come from ``RowIndexOrderList`` and are resolved through
     ``RowMap``. Sweep points use ``RowDacDriver2.manual_set()``; persistent
-    ``FasOn`` entries are written only after every row sweep completes.
-    ``FasOff`` is never modified.
+    ``FasOn`` entries are optionally written only after every row sweep
+    completes. ``FasOff`` is never modified.
     """
     if process is None:
         raise ValueError('fasTune requires its FasTuneProcess')
 
     log = process._log
-    log.debug('FAS tune entry')
+    log.debug('FAS tune entry: doSet=%s', doSet)
     tx = group.HardwareGroup.ColumnBoard[0].WarmTdmCore.Timing.TimingTx
     timing_running = tx.Running.get(read=True)
     log.debug('FAS tune timing Running=%s', timing_running)
@@ -581,6 +581,15 @@ def fasTune(*,group,process=None):
             process.Message.set('Stopped by user; FasOn unchanged')
             return curves
 
+        for curve in curves:
+            curve.fasOn = selected[(curve.board, curve.address)]
+
+        if not doSet:
+            log.debug(
+                'FAS tune SetAfterFinish is disabled; leaving FasOn unchanged '
+                'and publishing candidates=%s', selected)
+            return curves
+
         programming_started = True
         for key, current in selected.items():
             if not process._runEn:
@@ -608,8 +617,6 @@ def fasTune(*,group,process=None):
             process.Message.set('Stopped by user; FasOn unchanged')
             return curves
 
-        for curve in curves:
-            curve.fasOn = selected[(curve.board, curve.address)]
         log.debug('FAS tune programming complete: selected=%s', selected)
         process.Message.set('FAS tune complete')
         return curves
