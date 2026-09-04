@@ -813,6 +813,13 @@ def sq1FbSweep(*, group, bias, fbRange, process):
             # Open Loop mode - temporary for testing
             points = group.SaOut.get()
 
+        if process._runEn is False:
+            log.debug(
+                'SQ1 FB sweep stopped during step %d/%d; '
+                'discarding incomplete point',
+                fbStep + 1, numSteps)
+            break
+
         log.debug(
             'SQ1 FB sweep step %d/%d response=%s',
             fbStep + 1, numSteps, np.asarray(points).tolist())
@@ -959,10 +966,12 @@ def sq1Tune(group, process, doBiasRamp=True):
         list of list of CurveData objects 
     """
     outputs = []
-    rowTuneList = group.RowIndexOrderList.value()
-    colTuneEnable = group.ColTuneEnable.value()
+    rowTuneList = [
+        int(row) for row in group.RowIndexOrderList.get(read=True)]
+    colTuneEnable = np.asarray(group.ColTuneEnable.get(), dtype=bool)
+    enabledColumns = [
+        col for col, enabled in enumerate(colTuneEnable) if enabled]
     numEnabledRows = len(rowTuneList)
-    numColumns = group.NumColumns.get()
 
     numBiasSteps = process.Sq1BiasNumSteps.get() if doBiasRamp else 1
     totalSteps = numEnabledRows * numBiasSteps * process.Sq1FbNumSteps.get()
@@ -972,7 +981,7 @@ def sq1Tune(group, process, doBiasRamp=True):
         'SQ1 tune starting: rows=%s enabledColumns=%s doBiasRamp=%s '
         'totalSteps=%d',
         list(rowTuneList),
-        [col for col, enabled in enumerate(colTuneEnable) if enabled],
+        enabledColumns,
         doBiasRamp, totalSteps)
     log.debug(
         'SQ1 tune servo configuration: kp=%s ki=%s kd=%s precision=%s '
@@ -981,7 +990,31 @@ def sq1Tune(group, process, doBiasRamp=True):
         process.ServoPrecision.get(), process.ServoMaxLoops.get(),
         process.ServoDisable.get())
 
-    #group.RowForceEn.set(True)
+    if not rowTuneList:
+        log.error('SQ1 tune rejected because the active row list is empty')
+        raise RuntimeError('SQ1 tuning requires at least one active row')
+    if not enabledColumns:
+        log.error('SQ1 tune rejected because no columns are enabled')
+        raise RuntimeError('SQ1 tuning requires at least one enabled column')
+
+    def loadSaFbSetpoints(rowIndex):
+        # Timing is stopped during SQ1 tuning, so the per-row SaFb RAM does
+        # not drive the DAC. Copy the SA-tuned values for this row into the
+        # force-current path before the software servo starts. Preserve the
+        # force values of columns that are not enabled for tuning.
+        rowSaFb = np.array(
+            group.SaFbForceCurrent.get(read=True), copy=True)
+        for column in enabledColumns:
+            rowSaFb[column] = group.SaFbCurrent.get(
+                index=(column, rowIndex), read=True)
+        log.debug(
+            'SQ1 tune row=%s applying per-row SA feedback setpoints to '
+            'force-current path: %s', rowIndex, rowSaFb.tolist())
+        group.SaFbForceCurrent.set(rowSaFb)
+
+    # Establish the SA offset from a valid SA-tuned feedback point instead of
+    # a stale force-current value left by an earlier operation.
+    loadSaFbSetpoints(rowTuneList[0])
     log.debug('SQ1 tune starting initial SA offset adjustment')
     saOffset(group=group, process=process)
     log.debug('SQ1 tune initial SA offset adjustment complete')
@@ -990,6 +1023,11 @@ def sq1Tune(group, process, doBiasRamp=True):
         if process._runEn is False:
             log.info('SQ1 tune stopped before row %s', rowIndex)
             break
+
+        # Each row can have a different SA feedback operating point. Reset the
+        # force-current path before activating and sweeping this row so the
+        # servo starts on the intended SA branch.
+        loadSaFbSetpoints(rowIndex)
 
         #Activate the row
         log.debug(
