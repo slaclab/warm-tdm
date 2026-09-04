@@ -161,7 +161,9 @@ class SaOffsetSweepProcess(pr.Process):
 
             fbPoints = self.SaFbPoints.get()
 
-            curves = np.zeros((biasSteps, len(fbPoints), colCount))
+            # Keep uncollected points distinguishable from real zero-valued
+            # measurements when Stop() ends the sweep early.
+            curves = np.full((biasSteps, len(fbPoints), colCount), np.nan)
 
             saBias = np.full(colCount, low)
             mask = np.array([1.0 if en else 0 for en in group.ColTuneEnable.value()])
@@ -199,10 +201,12 @@ class SaOffsetSweepProcess(pr.Process):
                         #print('Incremented Progress')
                         #print(self.Progress.get())
 
+            finally:
+                # Publish a complete or partial sweep before returning so the
+                # plot remains useful after Stop() or an acquisition error.
                 self.PlotXData.set(biasRange)
                 self.PlotYData.set(curves)
 
-            finally:
                 # Restore these even when Stop() interrupts the inner offset
                 # PID loop or an access raises during the sweep.
                 group.SaBiasCurrent.set(startBias)

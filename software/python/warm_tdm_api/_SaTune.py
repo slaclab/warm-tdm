@@ -91,7 +91,6 @@ class SaTuneProcess(pr.Process):
         # Low offset for SA FB Tuning
         self.add(pr.LocalVariable(name='SaFbLowOffset',
                                   value=0.0,
-                                  typeCheck=False,  # accept int input (e.g. 100) as float
                                   mode='RW',
                                   units = 'uA',
                                   description='Starting point offset for SA FB Tuning. This value is an offset from the currently configured '
@@ -100,7 +99,6 @@ class SaTuneProcess(pr.Process):
         # High offset for SA FB Tuning
         self.add(pr.LocalVariable(name='SaFbHighOffset',
                                   value=300.0,
-                                  typeCheck=False,  # accept int input (e.g. 100) as float
                                   units='uA',
                                   mode='RW',
                                   description='Ending point offset for SA FB Tuning. This value is an offset from the currently configured '
@@ -117,7 +115,6 @@ class SaTuneProcess(pr.Process):
         # Wait time between FB set and output sampling
         self.add(pr.LocalVariable(name='SaFbSampleDelay',
                                   value=.001,
-                                  typeCheck=False,  # accept int input as float
                                   mode='RW',
                                   description="Wait time between FB set and SA Out sampling in seconds"))
 
@@ -125,7 +122,6 @@ class SaTuneProcess(pr.Process):
         # Low offset for SA Bias Tuning
         self.add(pr.LocalVariable(name='SaBiasLowOffset',
                                   value=20.0,
-                                  typeCheck=False,  # accept int input (e.g. 100) as float
                                   mode='RW',
                                   units = 'uA',
                                   description='Starting point offset for SA Bias Tuning. This value is an offset from the currently configured '
@@ -134,7 +130,6 @@ class SaTuneProcess(pr.Process):
         # High offset for SA Bias Tuning
         self.add(pr.LocalVariable(name='SaBiasHighOffset',
                                   value=60.0,
-                                  typeCheck=False,  # accept int input (e.g. 100) as float
                                   mode='RW',
                                   units = 'uA',
                                   description='Ending point offset for SA Bias Tuning. This value is an offset from the currently configured '

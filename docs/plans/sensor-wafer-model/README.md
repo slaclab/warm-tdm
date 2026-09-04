@@ -34,6 +34,13 @@
   reset value of 15.
 - `SaOffsetSweepProcess.Stop()` now propagates cancellation into its inner
   offset PID loop and restores the pre-sweep SA bias and offset on every exit.
+- SA-offset, SA, SQ1, and FAS tuning now publish and render the samples already
+  collected when stopped; unmeasured points are omitted rather than plotted as
+  zero, and incomplete tune results are not applied to the controls.
+- Whole-number text entered for float-valued process controls exposed a Rogue
+  `setDisp()` conversion bug. The proposed Rogue fix converts display input to
+  the variable's native `float` type before strict type validation; the older
+  SaTune-only `typeCheck=False` workaround is removed from this branch.
 - Full VCS `GroupTb` elaboration and the open-loop/fixed-PID co-simulation have
   not been run because Vivado/VCS are unavailable on the development machine.
 - The static end-to-end fixed-point P/PI derivation, sample-window scaling, and

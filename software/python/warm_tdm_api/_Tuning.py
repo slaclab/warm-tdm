@@ -224,7 +224,8 @@ def saTune(*, group, process=None, doSet=True, doBiasRamp=True):
 
     saBiasResults = saBiasSweep(group=group, process=process, doBiasRamp=doBiasRamp)
 
-    if doSet:
+    stopped = process is not None and process._runEn is False
+    if doSet and not stopped:
         # SA tune is per-column: saBiasSweep returns one tuned SaFb (xOut) per
         # column. The same value is written to every row slot, so this does not
         # depend on the row map — broadcast across the full maxRows address space
@@ -237,7 +238,9 @@ def saTune(*, group, process=None, doSet=True, doBiasRamp=True):
             group.SaBiasCurrent.set(index=col, value=saBiasResults[col].biasOut)
 
         # Run saOffset to zero out the ADC value at the tuned SaBias,SaFb point
-        saOffset(group=group)
+        saOffset(group=group, process=process)
+    elif doSet:
+        group._log.info('Process stopped; leaving partial SA tune results unapplied')
 
     group._log.info('saTune complete')
     return saBiasResults
@@ -271,6 +274,9 @@ def saFbServo(*, group, process):
     count = 0
 
     for count in range(maxLoops):
+        if process._runEn is False:
+            group._log.info('Process stopped, exiting saFbServo')
+            return control
 
         current = group.SaOutAdc.get()
         masked = current * mult
@@ -315,22 +321,22 @@ def fasSweep(*, group, row, process):
 
     # Sweep the flux range
     for step in range(numSteps):
+        if process is not None and process._runEn is False:
+            group._log.info('Process stopped, exiting fasSweep')
+            break
+
         # Set a the fasFlux value for the row 
         # Below is wrong. Need to drive FAS Flux value       
         group.FasFluxOn.set(index=row, value=fasFluxRange[step])
 
         # Servo the saFb
-        points = saFbServo(group=group)
+        points = saFbServo(group=group, process=process)
 
         for col in range(colCount):
             data.curveList[col].addPoint(points[col])
 
-        # check for stopped process
         if process is not None:
             process._incrementSteps(1)
-            if process._runEn == False:
-                group._log.info('Process stopped, exiting fasSweep')
-                break
 
     return data
 
@@ -372,14 +378,18 @@ def fasTune(*,group,process=None):
         curve = fasSweep(group=group, row=row, process=process)
         curves.append(curve)
 
-        # Minumum index of the curve is FasFluxOn
-        # Use median across all columns as FasFlowOn for that row
-        group.FasFluxOn.set(index=row, value=np.median(curve.argmin(1)))
-
-        # check for stopped process
-        if process is not None and process._runEn == False:
+        # Preserve the partial row for plotting, but do not apply a tune point
+        # derived from incomplete data.
+        if process is not None and process._runEn is False:
             group._log.info('Process stopped, exiting fasTune')
             break
+
+        # Minumum index of the curve is FasFluxOn
+        # Use median across all columns as FasFlowOn for that row
+        minima = [curve.xValues[np.argmin(col_curve.points)]
+                  for col_curve in curve.curveList if col_curve.points]
+        if minima:
+            group.FasFluxOn.set(index=row, value=np.median(minima))
         
         
     #group.RowForceEn.set(False)
@@ -510,9 +520,13 @@ def sq1Tune(group, process, doBiasRamp=True):
     group._log.info(f'sq1Tune starting: {numEnabledRows} rows, {totalSteps} total steps')
 
     #group.RowForceEn.set(True)
-    saOffset(group=group)
+    saOffset(group=group, process=process)
     
     for rowIndex in rowTuneList:
+        if process._runEn is False:
+            group._log.info('Process stopped, exiting sq1Tune')
+            break
+
         #Activate the row
         group.ActivateRowIndex(rowIndex)
 

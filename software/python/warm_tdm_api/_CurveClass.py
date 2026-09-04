@@ -18,15 +18,20 @@ def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title)
             ax.text(.5, .5, 'Not Tuned', ha='center', va='center', fontsize=28)
             return
 
-        # Special case for CurveData with no curves
-        if len(curveDataDict['biasValues']) == 0:
+        valid_indices = [i for i, curve in enumerate(curveDataDict['curves'])
+                         if len(curve) != 0]
+
+        # Special case for CurveData with no collected points. A stopped
+        # process can leave allocated Curve objects with empty point arrays.
+        if not valid_indices:
             ax.text(.5, .5, 'Not Tuned', ha='center', va='center', fontsize=28)
             return
 
         xValues = curveDataDict['xValues']
 
         # Plot each curve with heavier line for curve with highest amplitude
-        for biasIndex, value in enumerate(curveDataDict['biasValues']):
+        for biasIndex in valid_indices:
+            value = curveDataDict['biasValues'][biasIndex]
                 
             linewidth = 1.0
             if biasIndex == curveDataDict['bestIndex']:
@@ -52,7 +57,7 @@ def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title)
         ax.axhline(y=curveDataDict['yOut'], linestyle='--')
         ax.axvline(x=curveDataDict['xOut'], linestyle='--')
 
-        n = len(curveDataDict['biasValues'])
+        n = len(valid_indices)
         ax.legend(title=legend_title, ncol=math.ceil(n/10))
     
 
@@ -71,8 +76,16 @@ class CurveData():
 
     def update(self):
         # Find the best curve
+        self.bestCurve = None
+        self.bestIndex = None
+        self.biasOut = None
+        self.yOut = None
+        self.xOut = None
+
         for i, curve in enumerate(self.curveList):
             curve.updatePeak(self.xValues)
+            if not curve.points:
+                continue
             if self.bestCurve is None or curve.peakheight > self.bestCurve.peakheight:
                 self.bestCurve = curve
                 self.bestIndex = i
@@ -135,7 +148,7 @@ class Curve():
         # and slope slices below stay consistent. With too few points to analyze,
         # set safe marker/peak values (so asDict and plotting don't hit undefined
         # attributes) and let the raw points still be plotted.
-        xValues = xValues[:np_points.size]
+        xValues = np.asarray(xValues)[:np_points.size]
         if np_points.size < 2:
             pt = (xValues[0], np_points[0]) if np_points.size == 1 else (0.0, 0.0)
             self.phinot = 0.0
@@ -157,6 +170,14 @@ class Curve():
         slice_high = xValues.searchsorted(self.phinot*1.25)
         x_sliced = xValues[slice_low:slice_high]
         y_sliced = np_points[slice_low:slice_high]
+
+        # A stopped bipolar sweep may not have reached x=0 yet, leaving the
+        # normal positive-flux analysis slice empty. Use all collected points
+        # for provisional markers so the partial curve can still be plotted.
+        if x_sliced.size < 2:
+            x_sliced = xValues
+            y_sliced = np_points
+
         y_prime = np.gradient(y_sliced, x_sliced)
         self.min_slope_point = (x_sliced[y_prime.argmin()], y_sliced[y_prime.argmin()])
         self.max_slope_point = (x_sliced[y_prime.argmax()], y_sliced[y_prime.argmax()])
