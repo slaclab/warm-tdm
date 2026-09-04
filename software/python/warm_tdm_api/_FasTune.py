@@ -85,10 +85,10 @@ class FasTuneProcess(pr.Process):
             name='FasFluxLowOffset', value=0.0, mode='RW', units='uA',
             description='First FAS current in the sweep.'))
         self.add(pr.LocalVariable(
-            name='FasFluxHighOffset', value=1.0, mode='RW', units='uA',
+            name='FasFluxHighOffset', value=310.0, mode='RW', units='uA',
             description='Last FAS current in the sweep.'))
         self.add(pr.LocalVariable(
-            name='FasFluxNumSteps', value=10, minimum=2, mode='RW',
+            name='FasFluxNumSteps', value=21, minimum=2, mode='RW',
             description='Number of FAS sweep points.'))
         self.add(pr.LocalVariable(
             name='FasFluxSampleDelay', value=0.001, mode='RW', units='s',
