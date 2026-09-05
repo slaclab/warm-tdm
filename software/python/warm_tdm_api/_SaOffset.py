@@ -7,7 +7,7 @@ import warm_tdm_api
 
 
 
-class SaOffsetProcess(pr.Process):
+class SaOffsetProcess(warm_tdm_api.PausableProcess):
     """ Use a PID loop to determine the SaOffset values that null out the SaBias contribution to the input chain. """
 
     def __init__(self, config, **kwargs):
@@ -17,7 +17,7 @@ class SaOffsetProcess(pr.Process):
         A timeout value will terminate the process if it fails to converge witing a set period of time."""
 
         # Init master class
-        pr.Process.__init__(
+        warm_tdm_api.PausableProcess.__init__(
             self,
             description=description,
             function=self._saOffsetWrap,
@@ -77,7 +77,7 @@ class SaOffsetProcess(pr.Process):
 
             self.SaOffsetOutput.set(ret)
 
-class SaOffsetSweepProcess(pr.Process):
+class SaOffsetSweepProcess(warm_tdm_api.PausableProcess):
 
     def __init__(self, config, group, **kwargs):
 
@@ -85,7 +85,9 @@ class SaOffsetSweepProcess(pr.Process):
         The SaOffset PID parameters are taken from the SaOffsetProcess Device."""
 
         # Init master class
-        pr.Process.__init__(self, description=description, function=self._saOffsetSweep, **kwargs)
+        warm_tdm_api.PausableProcess.__init__(
+            self, description=description, function=self._saOffsetSweep,
+            **kwargs)
 
         self.columns = config.numColumns
 
@@ -149,8 +151,8 @@ class SaOffsetSweepProcess(pr.Process):
         with self.root.updateGroup(.25):
             group = self.parent
 
-            startBias = group.SaBiasCurrent.get()
-            startOffset = group.SaOffset.get()            
+            startBias, startOffset = warm_tdm_api.readAndCheck(
+                group.SaBiasCurrent, group.SaOffset)
 
             low = self.SaBiasLow.get()
             high = self.SaBiasHigh.get()
@@ -175,19 +177,26 @@ class SaOffsetSweepProcess(pr.Process):
 
             try:
                 for i, bias in enumerate(biasRange):
-                    if self._runEn is False:
+                    if not self.pausePoint(
+                            lambda: self._publishSweep(biasRange, curves)):
                         self.Message.set('Stopped by user')
                         return
 
                     saBias = mask * bias
                     group.SaBiasCurrent.set(saBias)
                     try:
-                        warm_tdm_api.saOffset(group=group, process=self)
+                        warm_tdm_api.saOffset(
+                            group=group,
+                            process=self,
+                            publish=lambda: self._publishSweep(
+                                biasRange, curves))
                     except Exception:
                         self._log.warning('saOffset timed out')
 
                     for j, fb in enumerate(fbPoints):
-                        if self._runEn is False:
+                        if not self.pausePoint(
+                                lambda: self._publishSweep(
+                                    biasRange, curves)):
                             self.Message.set('Stopped by user')
                             return
 
@@ -198,6 +207,10 @@ class SaOffsetSweepProcess(pr.Process):
                         #curves[i, j] = group.SaOffset.get()
 
                         self.incrementSteps(1) #Progress.set((i*biasSteps + j) / totalSteps)
+                        if not self.pausePoint(
+                                lambda: self._publishSweep(biasRange, curves)):
+                            self.Message.set('Stopped by user')
+                            return
                         #print('Incremented Progress')
                         #print(self.Progress.get())
 
@@ -209,8 +222,13 @@ class SaOffsetSweepProcess(pr.Process):
 
                 # Restore these even when Stop() interrupts the inner offset
                 # PID loop or an access raises during the sweep.
-                group.SaBiasCurrent.set(startBias)
-                group.SaOffset.set(startOffset)
+                warm_tdm_api.stageAndCommit(
+                    (group.SaBiasCurrent, startBias),
+                    (group.SaOffset, startOffset))
+
+    def _publishSweep(self, biasRange, curves):
+        self.PlotXData.set(np.asarray(biasRange).copy())
+        self.PlotYData.set(np.asarray(curves).copy())
 
     def _plot(self):
 

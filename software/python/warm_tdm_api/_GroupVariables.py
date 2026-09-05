@@ -27,6 +27,64 @@ import pyrogue as pr
 import numpy as np
 
 
+def _variableBlocks(variable):
+    if hasattr(variable, 'depBlocks'):
+        return variable.depBlocks
+    block = getattr(variable, '_block', None)
+    return [] if block is None else [block]
+
+
+def _uniqueBlocks(variables):
+    blocks = []
+    seen = set()
+    for variable in variables:
+        for block in _variableBlocks(variable):
+            identity = id(block)
+            if identity not in seen:
+                seen.add(identity)
+                blocks.append(block)
+    return blocks
+
+
+def readAndCheck(*variables):
+    """Read several variables' backing blocks as one grouped operation.
+
+    The returned tuple contains each variable's value reconstructed from the
+    newly refreshed shadows. This is especially useful for taking a consistent
+    snapshot of several Group arrays without blocking once per array.
+    """
+    if not variables:
+        return ()
+
+    with variables[0].root.updateGroup():
+        blocks = _uniqueBlocks(variables)
+        if blocks:
+            pr.readAndCheckBlocks(blocks)
+        return tuple(variable.get(read=False) for variable in variables)
+
+
+def stageAndCommit(*updates):
+    """Stage Remote-/LinkVariable shadows and commit their blocks together.
+
+    Each update is ``(variable, value)`` or ``(variable, value, index)``.
+    Duplicate backing blocks are removed while preserving their first-seen
+    order. Unchanged and tune-disabled blocks remain clean and are therefore
+    skipped by PyRogue's non-forced grouped write.
+    """
+    if not updates:
+        return
+
+    variables = [update[0] for update in updates]
+    with variables[0].root.updateGroup():
+        for update in updates:
+            variable, value = update[:2]
+            index = -1 if len(update) == 2 else update[2]
+            variable.set(value=value, index=index, write=False)
+        blocks = _uniqueBlocks(variables)
+        if blocks:
+            pr.writeAndVerifyBlocks(blocks)
+
+
 class GroupBroadcastVariable(pr.LinkVariable):
     """One scalar value fanned out to many identical dependency Variables.
 
@@ -140,15 +198,21 @@ class GroupLinkVariable(pr.LinkVariable):
             return
 
         with self.parent.root.updateGroup():
+            staged = False
             if index != -1:
-                if self.tuneEnVar.get(index=index):
+                if (self.tuneEnVar is None
+                        or self.tuneEnVar.get(index=index)):
                     self.dependencies[index].set(value=value, write=write)
+                    staged = True
             else:
                 for idx, (var, val) in enumerate(zip(self.dependencies, value)):
-                    if self.tuneEnVar is not None and self.tuneEnVar.get(index=idx):
+                    if (self.tuneEnVar is None
+                            or self.tuneEnVar.get(index=idx)):
                         var.set(value=val, write=False)
+                        staged = True
 
-                pr.writeAndVerifyBlocks(self.depBlocks)
+                if write and staged:
+                    pr.writeAndVerifyBlocks(self.depBlocks)
 
     def _get(self, *, index: int, read: bool):
         """Read one column (``index >= 0``) or the whole array (``index == -1``)."""
@@ -161,12 +225,13 @@ class GroupLinkVariable(pr.LinkVariable):
                 ret = np.zeros(len(self.dependencies), np.float64)
 
                 if read is True:
-                    for idx, var in enumerate(self.dependencies):
-                        if self.tuneEnVar.get(index=idx):
-                            var.get(read=True, check=False)
-
-                    for b in self.depBlocks:
-                        pr.checkTransaction(b)
+                    enabled_dependencies = [
+                        var for idx, var in enumerate(self.dependencies)
+                        if (self.tuneEnVar is None
+                            or self.tuneEnVar.get(index=idx))]
+                    blocks = _uniqueBlocks(enabled_dependencies)
+                    if blocks:
+                        pr.readAndCheckBlocks(blocks)
 
                 for idx, var in enumerate(self.dependencies):
                     ret[idx] = var.get(read=False)
@@ -203,11 +268,20 @@ class GroupArrayLinkVariable(GroupLinkVariable):
                 chan = index % 8
                 ret = self.dependencies[board].get(index=chan, read=read)
             else:
-                for dep in self.dependencies:
-                    dep.get(read=read, check=False)
+                if self.tuneEnVar is None:
+                    read_boards = range(len(self.dependencies))
+                else:
+                    read_boards = sorted({
+                        col // 8
+                        for col in range(self._config.numColumns)
+                        if self.tuneEnVar.get(index=col)
+                    })
 
-                for dep in self.dependencies:
-                    dep.parent.checkBlocks()
+                if read:
+                    blocks = _uniqueBlocks(
+                        self.dependencies[board] for board in read_boards)
+                    if blocks:
+                        pr.readAndCheckBlocks(blocks)
 
                 ret = np.zeros(self._config.numColumns, np.float64)
                 for i in range(self._config.numColumns):
@@ -221,19 +295,25 @@ class GroupArrayLinkVariable(GroupLinkVariable):
         """Write one column (``index >= 0``) or all ``numColumns`` (``index == -1``),
         skipping tune-disabled columns."""
         with self.parent.root.updateGroup():
+            staged = False
             if index != -1:
-                if self.tuneEnVar is not None and self.tuneEnVar.get(index=index):
+                if (self.tuneEnVar is None
+                        or self.tuneEnVar.get(index=index)):
                     board = index // 8
                     chan = index % 8
                     self.dependencies[board].set(value=value, index=chan, write=False)
+                    staged = True
             else:
                 for idx in range(self._config.numColumns):
-                    if self.tuneEnVar is not None and self.tuneEnVar.get(index=idx):
+                    if (self.tuneEnVar is None
+                            or self.tuneEnVar.get(index=idx)):
                         board = idx // 8
                         chan = idx % 8
                         self.dependencies[board].set(value=value[idx], index=chan, write=False)
+                        staged = True
 
-            pr.writeAndVerifyBlocks(self.depBlocks)
+            if write and staged:
+                pr.writeAndVerifyBlocks(self.depBlocks)
 
 
 class PidGainVariable(pr.LinkVariable):
@@ -341,13 +421,26 @@ class FastDacVariable(GroupLinkVariable):
         """Write one ``(col, row)`` element (``index`` is a pair) or the whole
         2-D array (``index == -1``)."""
         with self.parent.root.updateGroup():
+            staged = False
             if index != -1:
                 colIndex = index[0]
                 rowIndex = index[1]
-                self.dependencies[colIndex].set(value=value, index=rowIndex, write=write)
+                if (self.tuneEnVar is None
+                        or self.tuneEnVar.get(index=colIndex)):
+                    self.dependencies[colIndex].set(
+                        value=value, index=rowIndex, write=write)
+                    staged = True
             else:
                 for colIndex in range(self._config.numColumns):
-                    self.dependencies[colIndex].set(value=value[colIndex], index=-1, write=write)
+                    if (self.tuneEnVar is not None
+                            and not self.tuneEnVar.get(index=colIndex)):
+                        continue
+                    self.dependencies[colIndex].set(
+                        value=value[colIndex], index=-1, write=False)
+                    staged = True
+
+                if write and staged:
+                    pr.writeAndVerifyBlocks(self.depBlocks)
 
     def _get(self, index, read: bool):
         """Read one ``(col, row)`` element (``index`` is a pair) or the whole
@@ -359,5 +452,18 @@ class FastDacVariable(GroupLinkVariable):
                 return self.dependencies[colIndex].get(index=rowIndex, read=read)
             else:
                 cols = self._config.numColumns
-                ret = [self.dependencies[colIndex].get(index=-1, read=read) for colIndex in range(cols)]
+                if read:
+                    enabled_dependencies = [
+                        self.dependencies[colIndex]
+                        for colIndex in range(cols)
+                        if (self.tuneEnVar is None
+                            or self.tuneEnVar.get(index=colIndex))]
+                    blocks = _uniqueBlocks(enabled_dependencies)
+                    if blocks:
+                        pr.readAndCheckBlocks(blocks)
+
+                ret = []
+                for colIndex in range(cols):
+                    ret.append(self.dependencies[colIndex].get(
+                        index=-1, read=False))
                 return np.array(ret, dtype=np.float64)

@@ -1,9 +1,10 @@
-from pyrogue.pydm.widgets import Process
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QFormLayout, QHBoxLayout, QGroupBox
 
+from ._tuning_process import TuningProcess
 
-class TwoColumnProcess(Process):
+
+class TwoColumnProcess(TuningProcess):
     """Process widget with its automatically generated fields in two columns."""
 
     _STATUS_ROWS = 2  # Progress and Message remain full-width.

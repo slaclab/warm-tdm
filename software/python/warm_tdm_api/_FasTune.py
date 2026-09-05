@@ -91,10 +91,15 @@ class FasTunePlot(pr.LinkVariable):
         return self._fig
 
 
-class FasTuneProcess(pr.Process):
+class FasTuneProcess(warm_tdm_api.PausableProcess):
 
     def __init__(self, *, config, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__(
+            function=self._fasTuneWrap,
+            description=(
+                'Sweep each enabled FAS line, select its on-current, and '
+                'optionally program the fitted values.'),
+            **kwargs)
 
         self.add(pr.LocalVariable(
             name='FasFluxLowOffset', value=0.0, mode='RW', units='uA',
@@ -156,29 +161,11 @@ class FasTuneProcess(pr.Process):
             name='TunePlot', hidden=True, mode='RO',
             dependencies=[self.FasTuneOutput]))
 
-    def _process(self):
-        """Run without reporting a user-stopped tune as successfully done."""
+    def _fasTuneWrap(self):
         # Enable the detailed acquisition/programming trace for every FAS run.
         # Do this after attachment so the full-path PyRogue logger is active.
         self.setLogLevel('DEBUG', includeRogue=False)
         self._log.debug('FAS tune process starting with debug logging enabled')
-        self.Message.setDisp('Running')
-        self.setStep(0)
-        self.setProgress(0.0)
-
-        self._fasTuneWrap()
-
-        if self._runEn:
-            self._log.debug('FAS tune process completed normally')
-            self.Message.setDisp('Done')
-            self.setProgress(1.0)
-        else:
-            self._log.debug(
-                'FAS tune process stopped at step %s of %s',
-                self.Step.value(), self.TotalSteps.value())
-            self.Message.setDisp('Stopped')
-
-    def _fasTuneWrap(self):
         self._log.debug('Entering FAS tune update group')
         with self.root.updateGroup(0.25):
             curves = warm_tdm_api.fasTune(
@@ -186,15 +173,20 @@ class FasTuneProcess(pr.Process):
                 process=self,
                 doSet=self.SetAfterFinish.value())
             self._log.debug('Serializing %d FAS sweep result(s)', len(curves))
-            output = []
-            for curve in curves:
-                result = curve.asDict()
-                result.update({
-                    'logicalRow': curve.logicalRow,
-                    'board': curve.board,
-                    'address': curve.address,
-                    'fasOn': curve.fasOn,
-                })
-                output.append(result)
-            self.FasTuneOutput.set(output)
+            output = self._publishResults(curves)
         self._log.debug('Published %d FAS sweep result(s)', len(output))
+        self._log.debug('FAS tune process callback finished')
+
+    def _publishResults(self, curves):
+        output = []
+        for curve in curves:
+            result = curve.asDict()
+            result.update({
+                'logicalRow': curve.logicalRow,
+                'board': curve.board,
+                'address': curve.address,
+                'fasOn': curve.fasOn,
+            })
+            output.append(result)
+        self.FasTuneOutput.set(output)
+        return output

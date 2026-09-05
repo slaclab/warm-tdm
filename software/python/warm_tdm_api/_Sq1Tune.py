@@ -89,12 +89,13 @@ class MultiPlot(SinglePlot):
 
         return self._fig
 
-class Sq1TuneProcess(pr.Process):
+class Sq1TuneProcess(warm_tdm_api.PausableProcess):
 
     def __init__(self, *, config, **kwargs):
 
         # Init master class
-        pr.Process.__init__(self, function=self._sq1TuneWrap, **kwargs)
+        warm_tdm_api.PausableProcess.__init__(
+            self, function=self._sq1TuneWrap, **kwargs)
 
         # The synthetic SQ1 has a 10 uA feedback period. This default range
         # covers three full periods with 1 uA spacing, which is enough for the
@@ -301,8 +302,12 @@ class Sq1TuneProcess(pr.Process):
                 process=self,
                 doBiasRamp=self.DoBiasRamp.value())
         self._log.debug('Serializing %d SQ1 row result(s)', len(ret))
-        self.Sq1TuneOutput.set(value = [[col.asDict() for col in row] for row in ret])
+        self._publishResults(ret)
         self._log.debug('Published %d SQ1 row result(s)', len(ret))
+
+    def _publishResults(self, results):
+        self.Sq1TuneOutput.set(
+            value=[[column.asDict() for column in row] for row in results])
 
     def _saveData(self,arg):
         self._log.info(f"Sq1Tune - Save data called with {arg=}")

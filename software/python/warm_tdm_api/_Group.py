@@ -249,15 +249,20 @@ class Group(pr.Device):
 
         # Hidden: driven only by the tuning algorithms (_Tuning.py), never
         # invoked manually from the GUI.
+        def _setRowIndex(name, value):
+            variables = [
+                getattr(board.RowDacDriver, name)
+                for board in self.HardwareGroup.RowBoard.values()]
+            warm_tdm_api.stageAndCommit(
+                *[(variable, value) for variable in variables])
+
         @self.command(hidden=True)
         def ActivateRowIndex(arg):
-            for board in self.HardwareGroup.RowBoard.values():
-                board.RowDacDriver.ActivateRowIndex.set(arg, write=True)
+            _setRowIndex('ActivateRowIndex', arg)
 
         @self.command(hidden=True)
         def DeactivateRowIndex(arg):
-            for board in self.HardwareGroup.RowBoard.values():
-                board.RowDacDriver.DeactivateRowIndex.set(arg, write=True)
+            _setRowIndex('DeactivateRowIndex', arg)
 
         self.rowSelectedVars = []
 
@@ -304,7 +309,8 @@ class Group(pr.Device):
                                 for board in range(self.config.columnBoards)],
                 config = self.config,
                 mode = 'RO',
-                disp = '{:0.03f}'))
+                disp = '{:0.03f}',
+                tuneEnVar = self.ColTuneEnable))
 
             self.add(GroupArrayLinkVariable(
                 name='SaOutNorm',
@@ -313,7 +319,8 @@ class Group(pr.Device):
                                 for board in range(self.config.columnBoards)],
                 config = self.config,
                 mode = 'RO',
-                disp = '{:0.03f}'))
+                disp = '{:0.03f}',
+                tuneEnVar = self.ColTuneEnable))
 
             self.add(FastDacVariable(
                 name='SaFbCurrent',
@@ -321,7 +328,8 @@ class Group(pr.Device):
                 config = self.config,
                 hidden = False,
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SAFb.Column[chan].Current
-                                for board, chan in self.col_iter()]))
+                                for board, chan in self.col_iter()],
+                tuneEnVar = self.ColTuneEnable))
 
             self.add(GroupArrayLinkVariable(
                 name='SaFbForceCurrent',
@@ -337,7 +345,8 @@ class Group(pr.Device):
                 config = self.config,
                 hidden = True,
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SAFb.Column[chan].Voltage
-                                for board, chan in self.col_iter()]))
+                                for board, chan in self.col_iter()],
+                tuneEnVar = self.ColTuneEnable))
 
             self.add(FastDacVariable(
                 name='Sq1BiasCurrent',
@@ -345,7 +354,8 @@ class Group(pr.Device):
                 config = self.config,
                 hidden = False,
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SQ1Bias.Column[chan].Current
-                                for board, chan in self.col_iter()]))
+                                for board, chan in self.col_iter()],
+                tuneEnVar = self.ColTuneEnable))
 
             self.add(GroupArrayLinkVariable(
                 name='Sq1BiasForceCurrent',
@@ -361,7 +371,8 @@ class Group(pr.Device):
                 config = self.config,
                 hidden = True,
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SQ1Bias.Column[chan].Voltage
-                                for board, chan in self.col_iter()]))
+                                for board, chan in self.col_iter()],
+                tuneEnVar = self.ColTuneEnable))
 
             self.add(FastDacVariable(
                 name='Sq1FbCurrent',
@@ -369,7 +380,8 @@ class Group(pr.Device):
                 config = self.config,
                 hidden = False,
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SQ1Fb.Column[chan].Current
-                                for board, chan in self.col_iter()]))
+                                for board, chan in self.col_iter()],
+                tuneEnVar = self.ColTuneEnable))
 
             self.add(GroupArrayLinkVariable(
                 name='Sq1FbForceCurrent',
@@ -385,7 +397,8 @@ class Group(pr.Device):
                 config = self.config,
                 hidden = True,
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SQ1Fb.Column[chan].Voltage
-                                for board, chan in self.col_iter()]))
+                                for board, chan in self.col_iter()],
+                tuneEnVar = self.ColTuneEnable))
 
             # AdcDsp coefficients multiply the sum of the ADC errors in the row
             # sample window.  Present window-independent gains on the mean error

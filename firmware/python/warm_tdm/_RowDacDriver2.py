@@ -80,12 +80,15 @@ class RowDacDriver2(pr.Device):
             size = 32,
             amp = self.amps[0:32]))
 
-    def manual_set(self, *, address, current):
+    def manual_set(self, *, address, current, check_mode=True):
         """Temporarily drive one physical FAS line.
 
         Args:
             address: Board-local physical line index from ``RowMap`` (0..31).
             current: Requested physical output current in uA.
+            check_mode: Read and verify MANUAL mode before writing. Callers
+                which have already established and verified the mode may set
+                this false to avoid a redundant register read per sample.
 
         This operation does not modify ``FasOn`` or ``FasOff`` memory. The
         returned values describe the quantized request; the interface has no
@@ -94,7 +97,7 @@ class RowDacDriver2(pr.Device):
         address = int(address)
         if not 0 <= address < len(self.amps):
             raise ValueError(f'ManualSet address must be in 0..31, got {address}')
-        if int(self.Mode.get(read=True)) != 1:
+        if check_mode and int(self.Mode.get(read=True)) != 1:
             raise RuntimeError('ManualSet requires RowDacDriver2 Mode=MANUAL')
 
         code = int(self.amps[address].outCurrentToDac(float(current))) & 0x3FFF
