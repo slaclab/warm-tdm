@@ -21,3 +21,5 @@ To activate the environment:
 conda activate warm-tdm-env
 \```
 
+Project procedures: [Development and work tracking](docs/WORKFLOW.md) ·
+[Releases](docs/RELEASE.md).
