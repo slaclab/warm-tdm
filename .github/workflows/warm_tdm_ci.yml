@@ -36,6 +36,7 @@ jobs:
           sudo apt-get update
           python -m pip install --upgrade pip
           pip install -r pip_requirements.txt
+          pip install numpy
 
       - name: Python Syntax Check
         run: |
@@ -43,6 +44,9 @@ jobs:
           python -m compileall -f firmware/python/
           #flake8 --count software/python/
           #flake8 --count firmware/python/
+
+      - name: Software regression tests
+        run: python -m unittest discover -s software/tests -v
 
       - name: Generate Documentation
         if: github.ref == 'refs/heads/doc_test'
@@ -70,4 +74,3 @@ jobs:
       version: '1.0.0'
     secrets:
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
-

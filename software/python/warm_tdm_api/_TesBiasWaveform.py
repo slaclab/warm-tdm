@@ -1,3 +1,10 @@
+# This file is part of the WarmTDM software package. It is subject to
+# the license terms in the LICENSE.txt file found in the top-level directory
+# of this distribution and at:
+# https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part of the WarmTDM software package may be copied, modified, propagated,
+# or distributed except according to the terms contained in LICENSE.txt.
+
 """
 TES Bias Waveform Generator
 
@@ -15,6 +22,10 @@ import pyrogue as pr
 import numpy as np
 import time
 from functools import partial
+
+# Bound Stop latency while waiting for the next software update. This cannot
+# interrupt an in-flight hardware transaction; its normal timeout still applies.
+_STOP_POLL_SEC = 0.05
 
 def wfsin(t, f, low, high):
     """
@@ -103,34 +114,34 @@ class TesBiasWaveformProcess(pr.Process):
         tesBiasWaveform(group=self.parent, process=self)
 
 def tesBiasWaveform(*, group, process):
-    """
-    Generate TES bias waveforms and update the TES bias values.
+    """Play a snapshot of the settings; restore biases on Stop or playback error.
 
-    Args:
-        group (pr.Device): The parent device group.
-        process (TesBiasWaveformProcess): The TES bias waveform process instance.
+    Validate before writing, and attempt restoration even if a waveform write
+    fails partway through. A restoration failure is reported, never a successful
+    cleanup. Stop is checked while waiting and immediately before each update.
     """
     process._log.info("TesBiasWaveformProcess Running.")
 
-    # Remember initial biases
-    orig_tes_bias = group.TesBias.get()
-
-    # Prepare waveforms
-    wfs = []
-
-    # One generator per TES bias entry, sized from config at construction.
+    # Take an independent copy: a device getter may return its mutable cache.
+    orig_tes_bias = np.asarray(group.TesBias.get(), dtype=float).copy()
     num_generators = process._waveformGeneratorCount
-    if len(orig_tes_bias) != num_generators:
+    if orig_tes_bias.shape != (num_generators,):
         raise ValueError(
-            f"TES bias vector length ({len(orig_tes_bias)}) does not match "
+            f"TES bias vector shape {orig_tes_bias.shape} does not match "
             f"the number of waveform generators ({num_generators}).")
+    if not np.all(np.isfinite(orig_tes_bias)):
+        raise ValueError("Initial TES biases must all be finite before playback.")
+    if num_generators == 0:
+        process._log.warning("No TES bias lines configured; nothing to play.")
+        return
 
-    enum0 = process.TesBiasWaveformGenerator[0].Mode.enum
+    wfs = []
     valid_modes = {'None', 'Sine', 'Square'}
     modes = []
     for ii in range(num_generators):
-        mode_value = process.TesBiasWaveformGenerator[ii].Mode.get()
-        mode = enum0.get(mode_value)
+        gen = process.TesBiasWaveformGenerator[ii]
+        mode_value = gen.Mode.get()
+        mode = gen.Mode.enum.get(mode_value)
         if mode is None or mode not in valid_modes:
             raise ValueError(
                 f"Unsupported TES bias waveform mode for generator {ii}: "
@@ -141,71 +152,80 @@ def tesBiasWaveform(*, group, process):
         if mode == 'None':
             const = orig_tes_bias[ii]
             wfs.append(partial(wfconst, const=const))
-        elif mode == 'Sine':
-            f_hz = process.TesBiasWaveformGenerator[ii].Frequency.get()
-            low_ua = process.TesBiasWaveformGenerator[ii].TESBiasLow.get()
-            high_ua = process.TesBiasWaveformGenerator[ii].TESBiasHigh.get()
-            wfs.append(partial(wfsin, f=f_hz, low=low_ua, high=high_ua))
-        elif mode == 'Square':
-            f_hz = process.TesBiasWaveformGenerator[ii].Frequency.get()
-            low_ua = process.TesBiasWaveformGenerator[ii].TESBiasLow.get()
-            high_ua = process.TesBiasWaveformGenerator[ii].TESBiasHigh.get()
-            wfs.append(partial(wfsquare, f=f_hz, low=low_ua, high=high_ua))
         else:
-            raise ValueError(
-                f"Unhandled TES bias waveform mode for generator {ii}: {mode!r}")
+            f_hz = float(gen.Frequency.get())
+            low_ua = float(gen.TESBiasLow.get())
+            high_ua = float(gen.TESBiasHigh.get())
+            if not np.all(np.isfinite([f_hz, low_ua, high_ua])) or f_hz < 0:
+                raise ValueError(
+                    f"Generator {ii}: frequency must be finite and nonnegative; "
+                    "TES bias levels must be finite.")
+            waveform = wfsin if mode == 'Sine' else wfsquare
+            wfs.append(partial(waveform, f=f_hz, low=low_ua, high=high_ua))
 
-    if len(wfs) != len(orig_tes_bias):
-        raise ValueError(
-            f"Generated {len(wfs)} waveform functions for "
-            f"{len(orig_tes_bias)} TES bias entries.")
-    # If none of the generators are configured, print error and stop
     if all(mode == 'None' for mode in modes):
         process._log.warning("All generators configured for 'None', nothing to do. Stopping TesBiasWaveformProcess.")
         return
 
-    # Play waveforms
-    new_tes_bias = orig_tes_bias.copy()
-    last_tes_bias = orig_tes_bias.copy()
-    clk_hz = process.UpdateRate.get()
-    if clk_hz <= 0:
+    clk_hz = float(process.UpdateRate.get())
+    if not np.isfinite(clk_hz) or clk_hz <= 0:
         raise ValueError(
-            f"UpdateRate must be > 0 Hz (got {clk_hz}).")
+            f"UpdateRate must be finite and > 0 Hz (got {clk_hz}).")
     dt = 1. / clk_hz
-    t0 = time.time()
+    if not np.isfinite(dt):
+        raise ValueError("UpdateRate is too small for a finite update interval.")
+
+    last_tes_bias = orig_tes_bias.copy()
+    t0 = time.monotonic()
     counter = 0
     lag_warned = False
-    while True:
-        step_t = counter * dt
-        # Sleep until the next tick rather than busy-polling, so a high
-        # UpdateRate doesn't spin the server CPU (remaining may be <= 0 if
-        # we're already behind, in which case we proceed immediately).
-        remaining = step_t - (time.time() - t0)
-        if remaining > 0:
-            time.sleep(remaining)
-        t = time.time()
+    write_attempted = False
+    playback_failed = False
+    try:
+        while process._runEn:
+            deadline = t0 + counter * dt
+            remaining = deadline - time.monotonic()
+            while process._runEn and remaining > 0:
+                time.sleep(min(remaining, _STOP_POLL_SEC))
+                remaining = deadline - time.monotonic()
+            if not process._runEn:
+                break
 
-        new_tes_bias = np.array([wf(t - t0) for wf in wfs])
-        if not np.allclose(new_tes_bias, last_tes_bias):
-            group.TesBias.set(new_tes_bias)
-            last_tes_bias = new_tes_bias.copy()
+            elapsed = time.monotonic() - t0
+            new_tes_bias = np.array([wf(elapsed) for wf in wfs])
+            if not np.all(np.isfinite(new_tes_bias)):
+                raise ValueError("Waveform generated a non-finite TES bias.")
+            if not process._runEn:
+                break
+            if not np.allclose(new_tes_bias, last_tes_bias):
+                # A set can fail after writing only some of the channels.
+                write_attempted = True
+                group.TesBias.set(new_tes_bias)
+                last_tes_bias = new_tes_bias.copy()
 
-        # Warn (once) if the host can't sustain the requested UpdateRate:
-        # if we've fallen a full sample behind schedule after the set, the
-        # host/link latency exceeds the requested update period (see #55).
-        if not lag_warned and (time.time() - t0) - step_t > dt:
-            process._log.warning(
-                f"UpdateRate ({clk_hz} Hz) exceeds the achievable host "
-                f"update rate; waveform timing is lagging. Lower UpdateRate.")
-            lag_warned = True
-
-        # Check for stopped process
-        if process._runEn is False:
-            process._log.info('TesBiasWaveformProcess stopped, returning TES biases to original values')
-            group.TesBias.set(orig_tes_bias)
-            break
-
-        counter += 1
+            if not lag_warned and time.monotonic() - deadline > dt:
+                process._log.warning(
+                    f"UpdateRate ({clk_hz} Hz) exceeds the achievable host "
+                    "update rate; waveform timing is lagging. Lower UpdateRate.")
+                lag_warned = True
+            counter += 1
+    except BaseException:
+        playback_failed = True
+        raise
+    finally:
+        if write_attempted:
+            try:
+                group.TesBias.set(orig_tes_bias)
+            except Exception:
+                process._log.exception(
+                    "Failed to restore original TES biases; outputs may remain "
+                    "at waveform or partially written values.")
+                # Preserve the playback exception when both operations failed.
+                # On a normal Stop, surface the restoration failure itself.
+                if not playback_failed:
+                    raise
+            else:
+                process._log.info("Original TES biases restored.")
 
 class TesBiasWaveformGenerator(pr.Device):
     """
@@ -228,8 +248,8 @@ class TesBiasWaveformGenerator(pr.Device):
             mode='RW',
             enum={
                 0: 'None',
-                1: 'Sine',
-                2: 'Square'}))
+                1: 'Square',
+                2: 'Sine'}))
 
         self.add(pr.LocalVariable(name='Frequency',
                                   value=1.0,
@@ -238,13 +258,13 @@ class TesBiasWaveformGenerator(pr.Device):
                                   description='Frequency of waveform generated on TES bias line.'))
 
         self.add(pr.LocalVariable(name='TESBiasLow',
-                                  value=0,
+                                  value=0.0,
                                   units='uA',
                                   mode='RW',
                                   description='Low-level value of waveform generated on TES bias line.'))
 
         self.add(pr.LocalVariable(name='TESBiasHigh',
-                                  value=1,
+                                  value=1.0,
                                   units='uA',
                                   mode='RW',
                                   description='High-level value of waveform generated on TES bias line.'))
