@@ -128,6 +128,9 @@ Process lifecycle:
 - Progress tracked via status variables
 - Can be stopped mid-execution
 
+For software-clocked TES bias sine/square generation, configuration migration,
+and Stop/error behavior, see [Software TES bias waveforms](../docs/tes-bias-waveform.md).
+
 ## Data Streaming
 
 Data flows from FPGA → host via:
