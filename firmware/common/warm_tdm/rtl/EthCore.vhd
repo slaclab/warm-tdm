@@ -825,6 +825,7 @@ begin
       generic map (
          TPD_G                        => TPD_G,
          COMMON_CLOCK_G               => false,
+         VERSION_G                    => 2,   -- Batcher V2 (paired with client SplitterV2)
          MAX_NUMBER_SUB_FRAMES_G      => 150,
          SUPER_FRAME_BYTE_THRESHOLD_G => 8192,
          MAX_CLK_GAP_G                => 10000,

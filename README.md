@@ -4,3 +4,5 @@
 
    https://slaclab.github.io/warm-tdm/
 
+Project procedures: [Development and work tracking](docs/WORKFLOW.md) ·
+[Releases](docs/RELEASE.md).

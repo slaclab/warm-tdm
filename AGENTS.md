@@ -206,17 +206,23 @@ python warmTdmGui.py
 # Command-line client
 python warmTdmClientCmd.py
 
-# Emulation mode (no hardware)
-python warmTdmEmulate.py
+# Emulation mode (no hardware — fakes register memory via MemEmulate)
+python warmTdmGui.py --emulate       # or warmTdmServer.py --emulate (headless)
 ```
 
 ## Releases
 
-WarmTDM uses a surf-style branch model: feature branches merge into
-`pre-release`, which is promoted to `main`, and releases are cut by tagging
-`main` with `vX.Y.Z`. Pushing a version tag triggers the `gen_release` CI job,
-and firmware `.mcs` images are attached to the GitHub Release via
-`ruckus/scripts/firmwareRelease.py`.
+Feature and ordinary fix PRs target **`pre-release`**, explicitly using
+`gh pr create --base pre-release`. Reviewed work may integrate before hardware
+acceptance, provided the appropriate checks pass and remaining acceptance is
+recorded on an open issue. **Merge, do not rebase** when updating branches.
+
+Only release promotion PRs target **`main`**. Promote a verified candidate from
+`pre-release` or a temporary `release/<version>` branch; temporary release
+branches accept stabilization-fix PRs as the documented exception. Fixes must
+also reach `pre-release`. Releases are cut by tagging `main` with `vX.Y.Z`.
+Pushing a version tag triggers the `gen_release` CI job, and firmware `.mcs`
+images are attached via `ruckus/scripts/firmwareRelease.py`.
 
 For the full workflow, versioning scheme, and release steps, see
 [`docs/RELEASE.md`](docs/RELEASE.md). Release packaging config is in
@@ -224,35 +230,34 @@ For the full workflow, versioning scheme, and release steps, see
 
 ## Project Board & Issue Tracking
 
-Cross-branch planning and PR sequencing live on the GitHub Project board
-**["Warm-TDM Roadmap"](https://github.com/orgs/slaclab/projects/43)** (org-owned,
-linked to this repo — Projects v2 cannot be repo-owned). The board is the single
-source of prioritization; the detailed merge analysis lives in
-[`docs/plans/merge-roadmap/`](docs/plans/merge-roadmap/).
+The canonical policy is [Development and work tracking](docs/WORKFLOW.md).
+Use it when creating/updating issues, PRs, project items or verification docs.
 
-**Issue vs PR (the model this repo follows):**
-- An **Issue** is the durable *what/why* — a goal, feature, or track. It is what
-  gets prioritized on the board and can outlive several PRs.
-- A **PR** is the *how* — one concrete attempt. It is a review artifact, not a
-  planning card. A PR closes its issue with `Closes #<n>` in the body; on merge
-  GitHub auto-closes the issue and its board card moves to Done.
-- Do **not** add PRs to the board as separate cards when they close a tracked
-  issue — the linked issue already tracks the work. (PR #67 is a legacy
-  exception, added before this convention.)
+- **Issues own unfinished work.** Keep the original feature issue open through
+  hardware acceptance. Store acceptance checklists in its body and candidate-
+  specific test results in comments. A merged PR does not complete acceptance.
+- **PRs own implementation review.** Record validation at that revision and
+  link to the issue for remaining work. Use `Refs #<n>` while acceptance
+  remains; avoid premature closing keywords in descriptions and commits.
+- **The [Warm-TDM Roadmap board](https://github.com/orgs/slaclab/projects/43)
+  organizes those issues.** Set Priority, Track and Status in project fields.
+  Do not duplicate statuses in bodies or add PRs as duplicate planning cards.
+  Needs HW Test means ready for bench checks; In Progress includes active
+  testing and fixes. Close accepted issues and let the board reflect closure.
+- **`hw-verification` identifies the issue owning hardware checks.** The full
+  queue is `repo:slaclab/warm-tdm is:issue is:open label:hw-verification`.
+  Retain the label after closure. Separate verification sub-issues are reserved
+  for independently managed checks; do not duplicate a parent's checklist.
+- **Wiki/docs own reusable guidance.** The Hardware Verification wiki links
+  to the live queue and procedures. Keep per-feature outcomes on issues and
+  preserve old wiki links/history during migration. The Branch Merge Roadmap
+  wiki explains sequencing decisions, linking to live work records.
+- **`roadmap` marks epic/planning issues.** Link their actionable work rather
+  than copying child progress. Do not mark deferred or canceled tests as passed.
 
-**Conventions:**
-- **`roadmap` label** — marks epic/planning issues (merge sequencing, multi-PR
-  tracks) so they stay out of the normal bug/feature stream. Filter the Issues
-  tab with `label:roadmap` (epics only) or `-label:roadmap` (real work only).
-- **Board fields:** `Track` (PR sequencing / Software / Firmware / DDR readout /
-  Other), `Priority` (P0-now / P1-next / P2-later), `Status` (Todo / In Progress
-  / Blocked / Done). Set these on each item, not on the issue body.
-- **Branch flow still applies:** roadmap PRs target `pre-release` (see Releases).
-
-**Tooling note:** Projects v2 is GraphQL-only and needs a token with the
-`project` (+ `read:org`) scope; the `gh project` subcommand requires gh ≳ 2.20.
-Board views (kanban, table) are created in the web UI — the API cannot create
-them.
+The workflow document includes the migration sequence for existing issues,
+wiki pages and board configuration. Updating repository docs alone does not
+perform that migration.
 
 ## Essential Reading by Task
 

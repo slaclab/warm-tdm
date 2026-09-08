@@ -189,6 +189,37 @@ architecture sim of ColumnFpgaBoardModel is
    signal adcVinN : RealArray(7 downto 0);
    signal adcVin  : RealArray(7 downto 0);
 
+   ---------------------------------------------------------------------------
+   -- Ad9681Sim DATA_SKEW_G mapping:
+   --
+   --   0..7  = dP(0)(channel 0..7), lower serialized byte
+   --   8..15 = dP(1)(channel 0..7), upper serialized byte
+   --
+   -- Each value is the data-trace delay minus its DCO reference-trace delay.
+   ---------------------------------------------------------------------------
+   constant ADC_DATA_SKEW_C : TimeArray(15 downto 0) := (
+      0      => -17 ps,                 -- Group 0, channel 0: -0.10 inch
+      1      =>   9 ps,                 -- Group 0, channel 1: +0.05 inch
+      2      =>  20 ps,                 -- Group 0, channel 2: +0.12 inch
+      3      => -14 ps,                 -- Group 0, channel 3: -0.08 inch
+      4      =>  31 ps,                 -- Group 0, channel 4: +0.18 inch
+      5      =>   0 ps,                 -- Group 0, channel 5: matched
+      6      => -26 ps,                 -- Group 0, channel 6: -0.15 inch
+      7      =>  17 ps,                 -- Group 0, channel 7: +0.10 inch
+
+      8      =>  10 ps,                 -- Group 1, channel 0: +0.06 inch
+      9      => -20 ps,                 -- Group 1, channel 1: -0.12 inch
+      10     =>  34 ps,                 -- Group 1, channel 2: +0.20 inch
+      11     =>  -9 ps,                 -- Group 1, channel 3: -0.05 inch
+      12     =>  24 ps,                 -- Group 1, channel 4: +0.14 inch
+      13     => -31 ps,                 -- Group 1, channel 5: -0.18 inch
+      14     =>   5 ps,                 -- Group 1, channel 6: +0.03 inch
+      15     =>  15 ps);                -- Group 1, channel 7: +0.09 inch
+
+   constant ADC_FCO_SKEW_C : TimeArray(1 downto 0) := (
+      0 => -17 ps,
+      1 =>  17 ps);
+
 --    signal localTemperatureC    : RealArray(5 downto 0);
 --    signal localTemperatureK    : RealArray(5 downto 0);
 --    signal thermistorResistance : RealArray(5 downto 0);
@@ -484,9 +515,28 @@ begin
    ---------------------------------------
    -- AD9681 ADC
    ---------------------------------------
-   U_Ad9681_1 : entity surf.Ad9681
+   U_Ad9681_1 : entity surf.Ad9681Sim
       generic map (
-         TPD_G => TPD_G)
+         TPD_G         => TPD_G,
+
+         -- 125 MHz encode/sample clock (timingRxClk125)
+         CLK_PERIOD_G  => 8 ns,
+
+         -- Nominal centered DCO timing. Sweep these for static PVT corners.
+         DATA_PHASE_G  => 0 ps,
+         FCO_PHASE_G   => 0 ps,
+
+         -- Board routing mismatch relative to the DCO reference path.
+         DATA_SKEW_G   => ADC_DATA_SKEW_C,
+         FCO_SKEW_G    => ADC_FCO_SKEW_C,
+
+         -- Alternating deterministic edge displacement: ±50 ps.
+         JITTER_G      => 50 ps,
+
+         -- Simulation-only scheduling allowance.
+         -- Required minimum here is:
+         -- 50 ps - (-31 ps) = 81 ps, so use a rounded 100 ps.
+         TIMING_BIAS_G => 100 ps)
       port map (
          clkP => adcClkP,               -- [in]
          clkN => adcClkN,               -- [in]
