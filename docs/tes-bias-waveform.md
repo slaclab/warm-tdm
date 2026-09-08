@@ -90,7 +90,22 @@ multiple waveform modes, configuration sizing, timing-lag warnings and restart.
 They do not exercise Rogue's process threads, transport, or physical outputs.
 The same command runs in CI.
 
-[Issue #55](https://github.com/slaclab/warm-tdm/issues/55) owns the remaining
-acceptance, including Rogue runtime checks and physical waveform shape,
-restoration and sustainable update rate. Record candidate-specific results
-there; merging PR #79 does not complete hardware acceptance.
+For the process/thread and client checks, activate a real Rogue environment and
+run:
+
+```bash
+python software/tests/rogue_tes_bias_waveform_smoke.py
+```
+
+This test starts a localhost ZMQ server and client with 16 generators and a
+simulated bias vector. It exercises Start/Stop/restart, partial-write and
+restoration errors, client discovery, and YAML configuration migration. It
+does not connect to boards or validate the full hardware Group tree. Allow
+localhost sockets when running it in a sandbox. It runs separately from CI,
+which does not install Rogue.
+
+[Issue #55](https://github.com/slaclab/warm-tdm/issues/55) owns the acceptance
+criteria, outstanding checks and candidate-specific test results. This includes
+physical waveform shape, restoration and sustainable update rate. Consult the
+issue for current verification status; merging PR #79 does not complete hardware
+acceptance.
