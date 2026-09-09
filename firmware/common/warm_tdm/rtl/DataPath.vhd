@@ -43,6 +43,7 @@ entity DataPath is
       SIMULATION_G     : boolean              := false;
       GEN_ADC_FILTER_G : boolean              := true;
       USE_FLOAT_PID_G  : boolean              := false;
+      GEN_PID_DEBUG_G  : boolean              := true;
       ROW_ADDR_BITS_G  : integer range 3 to 8 := 7;
       NEGATE_ADC_G     : boolean              := true;
       INVERT_SQ1FB_G   : boolean              := true;
@@ -514,6 +515,7 @@ begin
                COLUMN_NUM_G     => i,
                INVERT_SQ1FB_G   => INVERT_SQ1FB_G,
                ROW_ADDR_BITS_G  => ROW_ADDR_BITS_G,
+               GEN_PID_DEBUG_G  => GEN_PID_DEBUG_G,
                AXIL_BASE_ADDR_G => ADC_DSP_XBAR_CFG_C(i).baseAddr,
                SQ1FB_RAM_ADDR_G => SQ1FB_RAM_ADDR_G(31 downto 16) & toslv(i, 4) & X"000")
             port map (
@@ -545,6 +547,7 @@ begin
                COLUMN_NUM_G     => i,
                INVERT_SQ1FB_G   => INVERT_SQ1FB_G,
                ROW_ADDR_BITS_G  => ROW_ADDR_BITS_G,
+               GEN_PID_DEBUG_G  => GEN_PID_DEBUG_G,
                AXIL_BASE_ADDR_G => ADC_DSP_XBAR_CFG_C(i).baseAddr,
                SQ1FB_RAM_ADDR_G => SQ1FB_RAM_ADDR_G(31 downto 16) & toslv(i, 4) & X"000")
             port map (
@@ -573,7 +576,7 @@ begin
          generic map (
             TPD_G                => TPD_G,
             CASCADE_SIZE_G       => 2,
-            CHANNEL_ADDR_WIDTH_G => 8,
+            CHANNEL_ADDR_WIDTH_G => ROW_ADDR_BITS_G,
             INPUT_IS_FLOAT_G     => USE_FLOAT_PID_G)
          port map (
             axisClk         => timingRxClk125,

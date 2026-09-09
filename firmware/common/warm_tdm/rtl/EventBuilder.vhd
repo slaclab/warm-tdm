@@ -118,8 +118,8 @@ begin
          TPD_G           => TPD_G,
          GEN_SYNC_FIFO_G => true,
          FWFT_EN_G       => true,
-         SYNTH_MODE_G    => "inferred",
-         MEMORY_TYPE_G   => "distributed",
+         SYNTH_MODE_G    => "xpm",
+         MEMORY_TYPE_G   => "bram",
          DATA_WIDTH_G    => 64*3+1,
          ADDR_WIDTH_G    => 4)
       port map (

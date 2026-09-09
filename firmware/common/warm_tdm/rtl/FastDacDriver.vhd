@@ -30,9 +30,11 @@ use warm_tdm.TimingPkg.all;
 entity FastDacDriver is
 
    generic (
-      TPD_G            : time             := 1 ns;
-      SIMULATION_G     : boolean          := false;
-      AXIL_BASE_ADDR_G : slv(31 downto 0) := (others => '0'));
+      TPD_G            : time                 := 1 ns;
+      SIMULATION_G     : boolean              := false;
+      USE_BRAM_G       : boolean              := false;
+      ROW_ADDR_BITS_G  : integer range 3 to 8 := 8;
+      AXIL_BASE_ADDR_G : slv(31 downto 0)     := (others => '0'));
 
    port (
       timingRxClk125 : in sl;
@@ -75,8 +77,12 @@ architecture rtl of FastDacDriver is
    signal locAxilReadMasters  : AxiLiteReadMasterArray(NUM_AXIL_C-1 downto 0);
    signal locAxilReadSlaves   : AxiLiteReadSlaveArray(NUM_AXIL_C-1 downto 0);
 
+   constant RAM_READ_LATENCY_C  : integer := ite(USE_BRAM_G, 3, 0);
+   constant RAM_WAIT_INIT_C     : integer := maximum(RAM_READ_LATENCY_C - 2, 0);
+
    type StateType is (
       WAIT_LOAD_DACS_S,
+      WAIT_RAM_S,
       DATA_S,
       WRITE_S,
       WRITE_FALL_S,
@@ -93,6 +99,7 @@ architecture rtl of FastDacDriver is
       startup        : sl;
       rowIndex       : slv(7 downto 0);
       state          : StateType;
+      ramWaitCnt     : integer range 0 to 3;
       dacOutNext     : slv14array(7 downto 0);
       dacOut         : Slv14Array(7 downto 0);
       dacNum         : slv(2 downto 0);
@@ -108,6 +115,7 @@ architecture rtl of FastDacDriver is
       startup        => '1',
       rowIndex       => (others => '0'),
       state          => IDLE_S,
+      ramWaitCnt     => 0,
       dacOutNext     => (others => (others => '0')),
       dacOut         => (others => (others => '0')),
       dacNum         => (others => '0'),
@@ -158,14 +166,14 @@ begin
       U_AxiDualPortRam_1 : entity surf.AxiDualPortRam
          generic map (
             TPD_G            => TPD_G,
-            SYNTH_MODE_G     => "inferred",
-            MEMORY_TYPE_G    => "distributed",
-            READ_LATENCY_G   => 0,
+            SYNTH_MODE_G     => "xpm",
+            MEMORY_TYPE_G    => ite(USE_BRAM_G, "block", "distributed"),
+            READ_LATENCY_G   => ite(USE_BRAM_G, 3, 0),
             AXI_WR_EN_G      => true,
             SYS_WR_EN_G      => false,
             SYS_BYTE_WR_EN_G => false,
             COMMON_CLK_G     => false,
-            ADDR_WIDTH_G     => 8,
+            ADDR_WIDTH_G     => ROW_ADDR_BITS_G,
             DATA_WIDTH_G     => 16,
             INIT_G           => X"2000")               -- init to midscale for DAC
          port map (
@@ -175,18 +183,18 @@ begin
             axiReadSlave   => locAxilReadSlaves(i),    -- [out]
             axiWriteMaster => locAxilWriteMasters(i),  -- [in]
             axiWriteSlave  => locAxilWriteSlaves(i),   -- [out]
-            clk            => timingRxClk125,          -- [in]
---            we             => r.ramWrite,              -- [in]
-            rst            => timingRxRst125,          -- [in]
-            addr           => r.rowIndex,              -- [in]
---            din            => r.ramDin,                -- [in]
-            dout           => ramDout(i));             -- [out]
+            clk            => timingRxClk125,                          -- [in]
+--            we             => r.ramWrite,                              -- [in]
+            rst            => timingRxRst125,                          -- [in]
+            addr           => r.rowIndex(ROW_ADDR_BITS_G-1 downto 0), -- [in]
+--            din            => r.ramDin,                                -- [in]
+            dout           => ramDout(i));                             -- [out]
    end generate GEN_AXIL_RAM;
 
    U_AxiDualPortRam_OVERRIDE : entity surf.AxiDualPortRam
       generic map (
          TPD_G            => TPD_G,
-         SYNTH_MODE_G     => "inferred",
+         SYNTH_MODE_G     => "xpm",
          MEMORY_TYPE_G    => "distributed",
          READ_LATENCY_G   => 0,
          AXI_WR_EN_G      => true,
@@ -267,11 +275,21 @@ begin
             if (r.startup = '1' and pwrUpWaitDone = '0') then
 --               v.startup  := '0';
                v.rowIndex := (others => '0');
-               v.state    := DATA_S;
+               if (RAM_READ_LATENCY_C > 0) then
+                  v.ramWaitCnt := RAM_WAIT_INIT_C;
+                  v.state      := WAIT_RAM_S;
+               else
+                  v.state := DATA_S;
+               end if;
 
             elsif (timingRxData.stageNextRow = '1') then
                v.rowIndex := timingRxData.rowIndexNext;
-               v.state    := DATA_S;
+               if (RAM_READ_LATENCY_C > 0) then
+                  v.ramWaitCnt := RAM_WAIT_INIT_C;
+                  v.state      := WAIT_RAM_S;
+               else
+                  v.state := DATA_S;
+               end if;
             end if;
 
             if (overrideWrValid = '1') then
@@ -279,6 +297,13 @@ begin
 
                v.dacNum := overrideWrAddr;
                v.state  := OVER_SEL_S;
+            end if;
+
+         when WAIT_RAM_S =>
+            if (r.ramWaitCnt = 0) then
+               v.state := DATA_S;
+            else
+               v.ramWaitCnt := r.ramWaitCnt - 1;
             end if;
 
          when DATA_S =>

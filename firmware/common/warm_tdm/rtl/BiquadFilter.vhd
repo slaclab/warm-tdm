@@ -518,7 +518,7 @@ begin
 --          VALID_BURST_MODE_G  => true,
 --          FIFO_PAUSE_THRESH_G => 15,
          GEN_SYNC_FIFO_G     => true,
-         FIFO_ADDR_WIDTH_G   => 8,
+         FIFO_ADDR_WIDTH_G   => CHANNEL_ADDR_WIDTH_G,
          SYNTH_MODE_G        => "xpm",
          MEMORY_TYPE_G       => "bram",
          INT_WIDTH_SELECT_G  => "WIDE",

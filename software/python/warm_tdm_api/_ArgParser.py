@@ -94,19 +94,19 @@ class WarmTdmArgparse(argparse.ArgumentParser):
 
         self.add_argument(
             "--columnBoardType",
-            choices= ['Legacy', 'FPGA', 'AwaXe'],
+            choices= ['FPGA', 'AwaXe'],
             default= 'FPGA',
             help = "Column board hardware type")
 
         self.add_argument(
             "--rowBoardType",
-            choices= ['Legacy', 'FPGA'],
+            choices= ['FPGA'],
             default= 'FPGA',
             help = "Row board hardware type")
 
         self.add_argument(
             "--columnFrontEnd",
-            choices= ['Legacy', 'LegacyCh0Feb', 'FpgaColFeb', 'FpgaColAwaXeFeb', 'FpgaColFebLnTes'],
+            choices= ['FpgaColFeb', 'FpgaColAwaXeFeb', 'FpgaColFebLnTes'],
             default= 'FpgaColFeb',
             help = "Column front-end board type")
 
@@ -118,30 +118,25 @@ class WarmTdmArgparse(argparse.ArgumentParser):
 
         self.add_argument(
             "--rowFrontEnd",
-            choices= ['Legacy', 'FpgaRowFeb'],
+            choices= ['FpgaRowFeb'],
             default= 'FpgaRowFeb',
             help = "Row front-end board type")
 
 
 colBoardDict = {
-    'Legacy': warm_tdm.ColumnModule,
     'FPGA': warm_tdm.ColumnFpgaBoard,
     'AwaXe': warm_tdm.ColumnAwaXeFpgaBoard}
 
 
 colFeDict = {
-    'Legacy': warm_tdm.ColumnBoardC00StandardFrontEnd,
-    'LegacyCh0Feb': warm_tdm.ColumnBoardC00FebBypassCh0,
     'FpgaColFeb': warm_tdm.FpgaBoardColumnFeb,
     'FpgaColAwaXeFeb': warm_tdm.FpgaBoardColumnAwaXeFeb,
     'FpgaColFebLnTes': warm_tdm.FpgaBoardColumnFebLnTes}
 
 rowBoardDict = {
-    'Legacy': warm_tdm.RowModule,
     'FPGA': warm_tdm.RowFpgaBoard}
 
 rowFeDict = {
-    'Legacy': warm_tdm.RowBoardC01StandardFrontEnd,
     'FpgaRowFeb': warm_tdm.FpgaBoardRowFeb}
 
 
