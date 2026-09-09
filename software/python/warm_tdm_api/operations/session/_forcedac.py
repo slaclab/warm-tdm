@@ -132,9 +132,12 @@ class ForceDacMixin:
         FastDacDriver override RAM) is only serviced while the driver FSM sits in
         its IDLE state, i.e. when the run has stopped -- and the override write is
         a single-cycle event. So this method:
-          1. ends any active run and switches the coordinator to manual timing;
-          2. waits for TimingTx.Running to drop (bounded by ``settle_sec``) so the
-             stopped-state override writes can settle;
+          1. ends any active run (EndRun);
+          2. waits for TimingTx.Running to drop (bounded by ``settle_sec``), still
+             in the current free-running mode so EndRun's row-boundary can occur,
+             then switches the coordinator to manual timing (Mode 0). Switching to
+             manual before the run stops would halt the row boundaries EndRun is
+             waiting for and strand it with Running asserted;
           3. THEN zeros the fast-DAC force outputs with **read-back verification
              and bounded retry** (``_apply_force_verified``), so a write dropped
              at the stop boundary is re-issued until DacCurrentNow confirms ~0;
@@ -169,19 +172,23 @@ class ForceDacMixin:
         cb0 = self.coordinator_cb
         tx = cb0.WarmTdmCore.Timing.TimingTx
 
-        # 1. Stop the run and leave MUX mode. EndRun completes on the next
-        #    row-boundary timeslot, so Running does not drop instantly.
+        # 1. End any active run. EndRun completes on the next row-boundary
+        #    timeslot, so Running does not drop instantly. Do NOT switch to
+        #    manual timing (Mode 0) yet: Mode 0 halts row-boundary generation, so
+        #    switching before EndRun completes strands the pending end-of-run and
+        #    leaves Running asserted (the row boundary EndRun waits for never
+        #    arrives). Switch to manual mode only after the run has stopped.
         all_ok = True
         try:
             if tx.Running.get():
                 tx.EndRun()
-            tx.Mode.set(0)
         except Exception:
             all_ok = False
-            log.exception("stop_and_zero: could not stop timing/set manual mode")
+            log.exception("stop_and_zero: could not end run")
 
-        # 2. Wait for the run to actually stop, so the FastDacDriver FSM is idle
-        #    and will service the override writes below.
+        # 2. Wait for the run to actually stop -- still in the current
+        #    (free-running) mode so EndRun's row-boundary can occur -- so the
+        #    FastDacDriver FSM is idle and will service the override writes below.
         deadline = time.monotonic() + settle_sec
         try:
             while tx.Running.get():
@@ -194,6 +201,14 @@ class ForceDacMixin:
         except Exception:
             all_ok = False
             log.exception("stop_and_zero: could not verify timing stopped")
+
+        # 3. Now that the run has stopped, switch the coordinator to manual
+        #    timing so no further MUX row-boundaries are generated before zeroing.
+        try:
+            tx.Mode.set(0)
+        except Exception:
+            all_ok = False
+            log.exception("stop_and_zero: could not set manual timing mode")
 
         # 3a. Zero the fast-DAC force outputs WITH read-back verification + retry.
         #     These ride the FastDacDriver override one-shot (Issue #86): a single
