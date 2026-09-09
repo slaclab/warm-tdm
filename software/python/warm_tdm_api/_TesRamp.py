@@ -38,4 +38,3 @@ class TesRampProcess(pr.Process):
         #self.SaTuneOutput.set(value=ret)
         pass
 
-

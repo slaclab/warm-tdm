@@ -19,20 +19,27 @@ class RowFasSweepPlot(pr.LinkVariable):
         ax.set_xlabel(u'FAS Flux (\u03bcA)')
         ax.grid(True)
 
-        if curves is None or len(curves['biasValues']) == 0:
+        if curves is None:
             ax.set_title(f'Row {row} FAS Sweep')
             ax.text(.5, .5, 'Not Tuned', ha='center', va='center', fontsize=28)
             return
 
-        numColumns = len(curves['biasValues'])
+        valid_columns = [col for col, curve in enumerate(curves['curves'])
+                         if len(curve) != 0]
+        if not valid_columns:
+            ax.set_title(f'Row {row} FAS Sweep')
+            ax.text(.5, .5, 'Not Tuned', ha='center', va='center', fontsize=28)
+            return
+
         low_points = np.asarray(curves['lowPoints'])
-        low_fluxes = low_points[:, 0]
+        low_fluxes = low_points[valid_columns, 0]
 
         # Plot the curve for each column
-        for col in range(numColumns):
+        for col in valid_columns:
             min_x, min_y = low_points[col]
             label = f'{col}: {min_x:0.3f}'
-            ax.plot(curves['xValues'], curves['curves'][col], '-', label=label)
+            y_curve = curves['curves'][col]
+            ax.plot(curves['xValues'][:len(y_curve)], y_curve, '-', label=label)
             ax.plot(min_x, min_y, '*')
 
         # Plot a vertical line at the median FAS flux minimum across all columns.
@@ -91,10 +98,12 @@ class FasTunePlot(pr.LinkVariable):
         medians = []
         for row_curves in tune:
             low_points = np.asarray(row_curves['lowPoints'])
-            if len(low_points) == 0:
+            valid_columns = [col for col, curve in enumerate(row_curves['curves'])
+                             if len(curve) != 0]
+            if not valid_columns:
                 medians.append(np.nan)
             else:
-                medians.append(np.median(low_points[:, 0]))
+                medians.append(np.median(low_points[valid_columns, 0]))
 
         rows = np.arange(len(medians))
         self._ax.plot(rows, medians, marker='o')

@@ -239,13 +239,21 @@ class ColumnFpgaBoard(pr.Device):
             # Qualify centered taps with the deep hardware pattern tester (and
             # PN23) rather than snapshot-only checks.
             align.UsePatternTester.set(True)
+            # _runCalibration is invoked directly (rather than via Start()) so
+            # init blocks on the result. The Process.Start() path is what would
+            # normally set _runEn=True, so set it here too; otherwise the first
+            # cooperative _checkRun() aborts the scan with Outcome=STOPPED before
+            # any tap is tested.
             try:
+                align._runEn = True
                 align._runCalibration(dev=align)
             except Exception as e:
                 self._log.warning(
                     f'Ad9681 alignment did not pass: '
                     f'Outcome={align.Outcome.getDisp()}, '
                     f'Message={align.Message.get()} ({e})')
+            finally:
+                align._runEn = False
 
             self.SaBiasDac.ZeroVoltages()
             for i in range(8):
