@@ -35,7 +35,9 @@ warm-tdm/
 │   └── releases.yaml           # Release and packaging config
 ├── software/
 │   ├── python/warm_tdm_api/    # High-level API (tuning, data, GUI logic)
-│   │   └── widgets/            #   PyDM UI components
+│   │   ├── widgets/            #   PyDM UI components
+│   │   └── operations/         #   Client-side operational layer (acquisition,
+│   │                           #   setup, analysis); import explicitly
 │   ├── scripts/                # Executable entry points (server, GUI, client)
 │   ├── cfg/                    # YAML hardware configuration files
 │   ├── lib/                    # C/C++ shared library
@@ -70,9 +72,10 @@ A dedicated serialized link distributes synchronization across all boards:
 
 ### Communication
 
-- **PGP ring**: Boards connected in a ring via MGT links; `RingRouter` routes frames by address
+- **PGP ring**: Boards connected in a ring via MGT links; `RingRouter` routes frames by address and tags each board's data with its ring address in `tDest[6:4]` (stream type in `tDest[3:0]`)
 - **Ethernet bridge**: Coordinator board bridges Ethernet↔PGP ring for host access
 - **Host protocol**: RSSI/SRP over UDP (register access on port 8192, data on port 8193)
+- **Data channelization**: the full TDEST scheme — per-board stream tags, the ring board tag, host demux, file-channel layout (readout=9, PID-debug=0–7, config=255), the multi-board caveat, and the migration plan — is documented in [`firmware/common/DataChannelization.md`](firmware/common/DataChannelization.md)
 
 ### Platform Support
 
@@ -129,6 +132,13 @@ For detailed firmware conventions, see [`firmware/FIRMWARE_GUIDE.md`](firmware/F
 - **Two Python packages**:
   - `warm_tdm` (in `firmware/python/`) — Low-level PyRogue device drivers mapping FPGA registers
   - `warm_tdm_api` (in `software/python/`) — High-level control, tuning algorithms, GUI logic
+- **`warm_tdm_api.operations` subpackage**: client-side operational layer
+  (acquisition, hardware setup, analysis/plotting) driving the rogue tree
+  remotely; kept distinct from the tree device modules. Not auto-imported — use
+  `import warm_tdm_api.operations`. Hardware-coupled ops are methods on a
+  `Session` object (`ops.connect()`/`ops.use()` establish a cached default for
+  the notebook shims; tests/scripts construct their own `Session`). Pure helpers
+  live in `formats.py`. (Formerly the `warm_tdm_jupyter` package.)
 - **Device file naming**: Underscore prefix (`_AdcDsp.py`), exported via `__init__.py`
 - **Device pattern**: Classes inherit `pr.Device`, registers defined as `pr.RemoteVariable(offset=..., bitSize=..., bitOffset=...)`
 - **Commands**: `pr.RemoteCommand` with function callbacks

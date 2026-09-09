@@ -193,14 +193,17 @@ class ColumnModule(pr.Device):
 
         @self.command()
         def AllFastDacs(arg):
-            for v in self.SAFb.Override.values():
-                v.set(value=arg, write=True)
-
-            for v in self.SQ1Fb.Override.values():
-                v.set(value=arg, write=True)
-
-            for v in self.SQ1Bias.Override.values():
-                v.set(value=arg, write=True)
+            # Broadcast a raw DAC code to every SAFb/SQ1Fb/SQ1Bias override
+            # channel. Stage all writes (write=False) inside one updateGroup(),
+            # then flush each driver once, so this is a handful of batched
+            # transactions instead of 24 individual write+publish cycles.
+            # (The nodes are OverrideRaw[*], not a nonexistent 'Override'.)
+            with self.root.updateGroup():
+                for drv in (self.SAFb, self.SQ1Fb, self.SQ1Bias):
+                    for v in drv.OverrideRaw.values():
+                        v.set(value=arg, write=False)
+                for drv in (self.SAFb, self.SQ1Fb, self.SQ1Bias):
+                    drv.writeAndVerifyBlocks()
 
 
         @self.command()

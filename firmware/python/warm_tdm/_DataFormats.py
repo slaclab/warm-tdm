@@ -35,14 +35,97 @@ class DataReadout:
 
     @classmethod
     def from_numpy(cls, arr):
-        print(arr)
+        #print(arr)
         words = arr[:-8].reshape(-1, 8)
-        print(words)
+        #print(words)
         return cls(
             readoutCount = unsigned_int(words[0]),
             rowSeqCount = unsigned_int(words[1]),
             runTime = unsigned_int(words[2]),
             samples = [DataSample.from_numpy(w) for w in words[3:]])
+
+
+# PID-debug frame: one 80-byte record per (col, row) servo visit, streamed on
+# DataWriter channels 0-7 (one channel per column) when AdcDsp[col].PidDebugEnable
+# is set. This is the canonical binary layout -- it mirrors the AdcDsp PID debug
+# word packing (see firmware AdcDsp.vhd and _PidDebugger.py). Decode a frame's raw
+# uint8 array with ``arr.view(PID_DEBUG_TYPE)``; fields:
+#   accumError     P-term (proportional accumulated error)
+#   sumAccumError  I-term (integral)
+#   diffAccumError D-term (derivative)
+#   pidResult      combined PID output (int64)
+#   sq1FbStart/End SQ1FB DAC code before/after this visit's PID update
+#   numFluxJumps   flux-jump count applied this visit
+#   baseline       tracked baseline
+#   dropCount      dropped-frame counter
+#   numSamples     samples averaged this readout
+#   readoutCount   monotonic readout index (time axis)
+PID_DEBUG_FRAME_BYTES = 80
+
+PID_DEBUG_TYPE = np.dtype([
+    # Word 0
+    ('col', np.uint8),
+    ('row', np.uint8),
+    ('runTimeLow', np.uint16),
+    ('runTimeHigh', np.uint32),
+    # Word 1
+    ('baseline', np.uint32),
+    ('dummy1', np.uint32),
+    # Word 2
+    ('accumError', np.int32),       # P-term
+    ('dummy2', np.uint32),
+    # Word 3
+    ('sq1FbStart', np.uint16),
+    ('dummy3_0', np.uint16),
+    ('dummy3_1', np.uint32),
+    # Word 4
+    ('sumAccumError', np.int32),    # I-term
+    ('dummy4', np.uint32),
+    # Word 5
+    ('diffAccumError', np.int32),   # D-term
+    ('dummy5', np.uint32),
+    # Word 6
+    ('pidResult', np.int64),
+    # Word 7
+    ('numFluxJumps', np.int8),
+    ('dummy7_0', np.uint8),
+    ('dummy7_1', np.uint16),
+    ('dummy7_2', np.uint32),
+    # Word 8
+    ('sq1FbEnd', np.uint16),
+    ('dummy8_0', np.uint16),
+    ('dropCount', np.uint32),
+    # Word 9
+    ('numSamples', np.uint32),
+    ('readoutCount', np.uint32),
+])
+
+# The per-(col,row) timeseries fields worth keeping from each PID-debug frame.
+# (Excludes the dummy padding and the split runTime words.)
+PID_DEBUG_FIELDS = (
+    'accumError', 'sumAccumError', 'diffAccumError', 'pidResult',
+    'sq1FbStart', 'sq1FbEnd', 'numFluxJumps', 'baseline',
+    'dropCount', 'numSamples', 'readoutCount',
+)
+
+
+@dataclass
+class PidDebug:
+    """One decoded PID-debug frame (80 bytes, channels 0-7). See PID_DEBUG_TYPE."""
+
+    col: int
+    row: int
+    fields: dict
+
+    @classmethod
+    def from_numpy(cls, arr):
+        # view() yields a shape-(1,) structured array; take element 0 to get the
+        # record scalar whose fields are numpy scalars (.item() -> python int).
+        rec = arr.view(PID_DEBUG_TYPE)[0]
+        return cls(
+            col = int(rec['col']) & 0b111,
+            row = int(rec['row']) & 0xFF,
+            fields = {k: rec[k].item() for k in PID_DEBUG_FIELDS})
         
 
 
