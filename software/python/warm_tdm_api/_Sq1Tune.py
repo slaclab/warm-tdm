@@ -292,10 +292,8 @@ class Sq1TuneProcess(warm_tdm_api.PausableProcess):
         return self._getHelper('yOut')
 
     def _sq1TuneWrap(self):
-        # Enable the acquisition trace after attachment, when this node has its
-        # full PyRogue logger path.
-        self.setLogLevel('DEBUG', includeRogue=False)
-        self._log.debug('SQ1 tune process starting with debug logging enabled')
+        # Acquisition trace is emitted at DEBUG; raise this node's log level to
+        # DEBUG to see it when diagnosing a run.
         with self.root.updateGroup(0.25):
             ret = warm_tdm_api.sq1Tune(
                 group=self.parent,

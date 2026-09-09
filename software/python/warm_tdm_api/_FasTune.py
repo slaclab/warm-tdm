@@ -15,7 +15,6 @@ class RowFasSweepPlot(pr.LinkVariable):
     def linkedGet(self, index=-1, read=False):
         tune = self.parent.FasTuneOutput.value()
         result_index = self.parent.PlotRow.value() if index == -1 else index
-        column = self.parent.PlotColumn.value()
 
         self._ax.clear()
         self._ax.set_xlabel('FAS current (uA)')
@@ -25,7 +24,7 @@ class RowFasSweepPlot(pr.LinkVariable):
         if result_index < 0 or result_index >= len(tune):
             self._ax.set_title(
                 'SA Feedback Required to Null SA Output vs FAS Current\n'
-                f'Selected Row, Column {column}')
+                'Selected Row')
             self._ax.text(.5, .5, 'Not tuned', ha='center', va='center',
                           transform=self._ax.transAxes)
             return self._fig
@@ -34,30 +33,39 @@ class RowFasSweepPlot(pr.LinkVariable):
         logical_row = result['logicalRow']
         self._ax.set_title(
             'SA Feedback Required to Null SA Output vs FAS Current\n'
-            f'Logical Row {logical_row}, Column {column}; '
+            f'Logical Row {logical_row}; '
             f'Row Board {result["board"]}, Address {result["address"]}')
+
         x_values = result['xValues']
         curves = result['curves']
-        if column < 0 or column >= len(curves):
-            self._ax.text(
-                .5, .5, f'Column {column} is unavailable',
-                ha='center', va='center', transform=self._ax.transAxes)
+        # Plot every column that produced data. Disabled columns -- and, on a
+        # stopped/paused sweep, not-yet-swept columns -- have empty curves and
+        # are skipped, so partial results stay plottable.
+        tuned_columns = [col for col, curve in enumerate(curves)
+                         if len(curve) > 0]
+        if not tuned_columns:
+            self._ax.text(.5, .5, 'No tuning data', ha='center', va='center',
+                          transform=self._ax.transAxes)
             return self._fig
 
-        curve = curves[column]
-        if len(curve) == 0:
-            self._ax.text(
-                .5, .5, f'No tuning data for Column {column}',
-                ha='center', va='center', transform=self._ax.transAxes)
-            return self._fig
+        for col in tuned_columns:
+            curve = curves[col]
+            # A curve may be shorter than x_values if the sweep was stopped
+            # mid-acquisition; plot against as many x points as were collected.
+            x = x_values[:len(curve)]
+            line, = self._ax.plot(x, curve, label=f'Column {col}')
+            # Mark this column's sampled response minimum.
+            min_idx = int(np.argmin(curve))
+            self._ax.plot(x[min_idx], curve[min_idx], '*',
+                          color=line.get_color())
 
-        self._ax.plot(
-            x_values[:len(curve)], curve, label=f'Column {column}')
-
-        if result['fasOn'] is not None:
+        # One physical FAS-on current is selected across the tuned columns
+        # (median of per-column minima) and shared by every column on this line.
+        fas_on = result['fasOn']
+        if fas_on is not None:
             self._ax.axvline(
-                result['fasOn'], linestyle='--',
-                label=f'Selected FAS-on {result["fasOn"]:.3f} uA')
+                fas_on, linestyle='--',
+                label=f'Selected FAS-on {fas_on:.3f} uA')
         self._ax.legend()
         return self._fig
 
@@ -102,70 +110,104 @@ class FasTuneProcess(warm_tdm_api.PausableProcess):
             **kwargs)
 
         self.add(pr.LocalVariable(
-            name='FasFluxLowOffset', value=0.0, mode='RW', units='uA',
+            name='FasFluxLowOffset',
+            value=0.0,
+            mode='RW',
+            units='uA',
             description='First FAS current in the sweep.'))
         self.add(pr.LocalVariable(
-            name='FasFluxHighOffset', value=310.0, mode='RW', units='uA',
+            name='FasFluxHighOffset',
+            value=310.0,
+            mode='RW',
+            units='uA',
             description='Last FAS current in the sweep.'))
         self.add(pr.LocalVariable(
-            name='FasFluxNumSteps', value=21, minimum=2, mode='RW',
+            name='FasFluxNumSteps',
+            value=21,
+            minimum=2,
+            mode='RW',
             description='Number of FAS sweep points.'))
         self.add(pr.LocalVariable(
-            name='FasMinimumTolerance', value=0.1, minimum=0.0,
-            mode='RW', units='uA',
+            name='FasMinimumTolerance',
+            value=0.1,
+            minimum=0.0,
+            mode='RW',
+            units='uA',
             description='SA-feedback tolerance above the sampled minimum '
                         'used to identify a contiguous flat-bottom region. '
                         'FasOn is selected at the region midpoint.'))
         self.add(pr.LocalVariable(
-            name='FasFluxSampleDelay', value=0.001, mode='RW', units='s',
+            name='FasFluxSampleDelay',
+            value=0.001,
+            mode='RW',
+            units='s',
             description='Wall-clock delay after each ManualSet write.'))
         self.add(pr.LocalVariable(
-            name='Sq1BiasCurrent', value=40.0, mode='RW', units='uA',
+            name='Sq1BiasCurrent',
+            value=40.0,
+            mode='RW',
+            units='uA',
             description='Temporary SQ1 bias applied to enabled columns while '
                         'measuring the FAS response. The original force-current '
                         'values are restored when the process exits.'))
         self.add(pr.LocalVariable(
-            name='SetAfterFinish', value=False, mode='RW',
+            name='SetAfterFinish',
+            value=False,
+            mode='RW',
             description='Program the fitted FasOn currents after a successful '
                         'sweep. When false, only publish the tuning results.'))
 
         # saFbServo() reads these parameters from its calling Process.
         self.add(pr.LocalVariable(
-            name='ServoKp', value=0.8, mode='RW'))
+            name='ServoKp',
+            value=0.8,
+            mode='RW'))
         self.add(pr.LocalVariable(
-            name='ServoKi', value=0.0, mode='RW'))
+            name='ServoKi',
+            value=0.0,
+            mode='RW'))
         self.add(pr.LocalVariable(
-            name='ServoKd', value=0.0, mode='RW'))
+            name='ServoKd',
+            value=0.0,
+            mode='RW'))
         self.add(pr.LocalVariable(
-            name='ServoPrecision', value=0.01, mode='RW'))
+            name='ServoPrecision',
+            value=0.01,
+            mode='RW'))
         self.add(pr.LocalVariable(
-            name='ServoMaxLoops', value=500, minimum=1, mode='RW'))
+            name='ServoMaxLoops',
+            value=500,
+            minimum=1,
+            mode='RW'))
         self.add(pr.LocalVariable(
-            name='FasTuneOutput', hidden=True, value=[], mode='RO',
+            name='FasTuneOutput',
+            hidden=True,
+            value=[],
+            mode='RO',
             description='FAS sweep results in active row order.'))
         self.add(pr.LocalVariable(
-            name='PlotRow', value=0, minimum=0,
-            maximum=max(config.maxRows-1, 0), mode='RW',
-            description='Index into the active-row sweep results.'))
-        self.add(pr.LocalVariable(
-            name='PlotColumn', value=0, minimum=0,
-            maximum=max(config.numColumns-1, 0), mode='RW',
-            description='Column displayed in the selected-row FAS sweep '
-                        'response plot.'))
+            name='PlotRow',
+            value=0,
+            minimum=0,
+            maximum=max(config.maxRows-1, 0),
+            mode='RW',
+            description='Index into the active-row sweep results. The sweep '
+                        'plot shows every tuned column for the selected row.'))
 
         self.add(RowFasSweepPlot(
-            name='SweepPlot', hidden=True, mode='RO',
-            dependencies=[
-                self.PlotRow, self.PlotColumn, self.FasTuneOutput]))
+            name='SweepPlot',
+            hidden=True,
+            mode='RO',
+            dependencies=[self.PlotRow, self.FasTuneOutput]))
         self.add(FasTunePlot(
-            name='TunePlot', hidden=True, mode='RO',
+            name='TunePlot',
+            hidden=True,
+            mode='RO',
             dependencies=[self.FasTuneOutput]))
 
     def _fasTuneWrap(self):
-        # Enable the detailed acquisition/programming trace for every FAS run.
-        # Do this after attachment so the full-path PyRogue logger is active.
-        self.setLogLevel('DEBUG', includeRogue=False)
-        self._log.debug('FAS tune process starting with debug logging enabled')
+        # Detailed acquisition/programming trace is emitted at DEBUG; raise this
+        # node's log level to DEBUG to see it when diagnosing a run.
         self._log.debug('Entering FAS tune update group')
         with self.root.updateGroup(0.25):
             curves = warm_tdm_api.fasTune(

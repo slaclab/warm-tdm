@@ -450,12 +450,12 @@ class Group(pr.Device):
             def ZeroSaFb():
                 self.SaFbForceCurrent.set(np.zeros(self.config.numColumns, np.float64))
 
-            # TMP: seed the known SA tune point (SaBias=55, SaFb=41) so sim/bench
+            # Seed the known SA tune point (SaBias=55, SaFb=41) so sim/bench
             # runs can jump straight to a locked bias without a full SaTune.
             # Per tuning-enabled column, set the per-column SaBias and write SaFb
             # only for the rows enabled for tuning/readout (RowIndexOrderList).
             @self.command()
-            def TmpSetSaTunePoint():
+            def SetSimSaTunePoint():
                 colTuneEnable = np.asarray(self.ColTuneEnable.value(), dtype=bool)
                 tuneRows = [int(r) for r in self.RowIndexOrderList.value()]
                 with self.root.updateGroup():
@@ -469,14 +469,14 @@ class Group(pr.Device):
                 # matching what saTune() does after setting the bias point.
                 warm_tdm_api.saOffset(group=self)
 
-            # TMP: seed the known SQ1 tune point (the fitted SQ1 tune outputs:
+            # Seed the known SQ1 tune point (the fitted SQ1 tune outputs:
             # Sq1Fb=7.37, Sq1Bias=100, SaFb=64.8 uA) so sim/bench runs can skip a
             # full sq1Tune. Written per tuning-enabled column into the per-row
             # readout RAMs for exactly the enabled rows (RowIndexOrderList). The
             # refined SaFb here supersedes the SA-tune SaFb, matching the real
             # SA-tune -> sq1-tune ordering.
             @self.command()
-            def TmpSetSq1TunePoint():
+            def SetSimSq1TunePoint():
                 colTuneEnable = np.asarray(self.ColTuneEnable.value(), dtype=bool)
                 tuneRows = [int(r) for r in self.RowIndexOrderList.value()]
                 with self.root.updateGroup():
@@ -508,7 +508,7 @@ class Group(pr.Device):
             # Accumulator for the settings a simulation cosim run needs before
             # tuning. Add further sim-only setup here as the cosim grows.
             @self.command()
-            def SimCosimSetup():
+            def SetCosimTunePoints():
                 # 1x32 logical row map.
                 self.RowMap1x32()
                 # Enable 8 rows (0-7). RowIndexOrderList drives both the muxed
@@ -531,10 +531,10 @@ class Group(pr.Device):
                 # Seed the known SA tune point (also runs the SA offset PID loop).
                 # Runs after the row list is set so it writes SaFb for exactly the
                 # enabled rows.
-                self.TmpSetSaTunePoint()
+                self.SetSimSaTunePoint()
                 # Seed the known SQ1 tune point (fitted Sq1Fb/Sq1Bias/SaFb),
                 # mirroring the SA-tune -> sq1-tune ordering.
-                self.TmpSetSq1TunePoint()
+                self.SetSimSq1TunePoint()
 
             self.columnSelectedVars = [
                 self.ColTuneEnable,

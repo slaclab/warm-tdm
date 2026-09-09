@@ -27,7 +27,20 @@ import pyrogue as pr
 import numpy as np
 
 
+# NOTE: readAndCheck/stageAndCommit and the two block resolvers below are
+# generic PyRogue block bookkeeping, not WarmTDM-specific. PyRogue exposes
+# block-level grouped ops (pr.readAndCheckBlocks / pr.writeAndVerifyBlocks) but
+# no public way to resolve Variables -> their backing Blocks, so we do it here.
+# Proposed for upstream in slaclab/rogue#1290; drop these if that lands.
+
+
 def _variableBlocks(variable):
+    """Return the backing block(s) for one variable.
+
+    A LinkVariable aggregates several dependency variables and exposes their
+    blocks as ``depBlocks``; a RemoteVariable maps to a single ``_block``. A
+    LocalVariable with no memory block yields an empty list.
+    """
     if hasattr(variable, 'depBlocks'):
         return variable.depBlocks
     block = getattr(variable, '_block', None)
@@ -35,6 +48,12 @@ def _variableBlocks(variable):
 
 
 def _uniqueBlocks(variables):
+    """Collect the distinct backing blocks across several variables.
+
+    Blocks are deduplicated by identity (variables that share a block, e.g.
+    neighboring columns on one board, resolve to one block) while preserving
+    first-seen order so the grouped transaction stays deterministic.
+    """
     blocks = []
     seen = set()
     for variable in variables:
@@ -211,6 +230,9 @@ class GroupLinkVariable(pr.LinkVariable):
                         var.set(value=val, write=False)
                         staged = True
 
+                # Only issue the grouped write if at least one column was
+                # actually staged; skip it entirely when every column is
+                # tune-disabled rather than forcing an empty transaction.
                 if write and staged:
                     pr.writeAndVerifyBlocks(self.depBlocks)
 
@@ -225,6 +247,8 @@ class GroupLinkVariable(pr.LinkVariable):
                 ret = np.zeros(len(self.dependencies), np.float64)
 
                 if read is True:
+                    # Refresh only tune-enabled columns' blocks in one grouped
+                    # read; disabled columns keep their last shadow value.
                     enabled_dependencies = [
                         var for idx, var in enumerate(self.dependencies)
                         if (self.tuneEnVar is None
@@ -268,6 +292,9 @@ class GroupArrayLinkVariable(GroupLinkVariable):
                 chan = index % 8
                 ret = self.dependencies[board].get(index=chan, read=read)
             else:
+                # A single per-board block covers 8 channels, so read a board
+                # if any of its columns is tune-enabled; collapse the enabled
+                # columns to their distinct boards.
                 if self.tuneEnVar is None:
                     read_boards = range(len(self.dependencies))
                 else:

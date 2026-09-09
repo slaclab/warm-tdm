@@ -15,5 +15,4 @@ class FasTuningTab(TuningTab):
         path = self.channel
         return [
             (path + '.PlotRow/name', path + '.PlotRow', PyDMSpinbox),
-            (path + '.PlotColumn/name', path + '.PlotColumn', PyDMSpinbox),
         ]
