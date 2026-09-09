@@ -1,8 +1,18 @@
+# This file is part of the WarmTDM software package. It is subject to
+# the license terms in LICENSE.txt in the top-level directory and at:
+# https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part may be copied, modified, propagated or distributed except under
+# those license terms.
+
 ## Tuning: start-and-block wrappers over the Group pr.Process nodes (SaOffset,
 ## SaTune, Sq1Tune, FasTune, ...). Relies on TopologyCore state (self.group).
 ## Mounted on Session.
 
+import logging
+import math
 import time
+
+log = logging.getLogger(__name__)
 
 
 class TuningMixin:
@@ -34,7 +44,9 @@ class TuningMixin:
                 (or ``timeout_sec`` elapses) before returning; if False, Start
                 and return immediately.
             poll_sec (float): poll interval while blocking.
-            timeout_sec (float | None): max wall time to block; None = no limit.
+            timeout_sec (float | None): execution wait limit; None = no limit.
+                Timeout requests Stop before raising. Cooperative Stop/transport
+                cleanup may take longer than this limit. Ignored if not blocking.
             **params: process variable settings applied before Start, e.g.
                 ``SaBiasNumSteps=5``. Unknown names raise AttributeError.
 
@@ -45,7 +57,8 @@ class TuningMixin:
 
         Raises:
             AttributeError: no such process node, or an unknown param name.
-            TimeoutError: the process was still running at ``timeout_sec``.
+            TimeoutError: the process exceeded ``timeout_sec``; Stop attempted.
+            RuntimeError: process already running, or reports a process error.
         """
         try:
             proc = getattr(self.group, name)
@@ -54,29 +67,41 @@ class TuningMixin:
                 f"No process '{name}' on Group. Known tuning processes: "
                 f"{sorted(self._PROCESS_OUTPUT)}.")
 
+        if not math.isfinite(poll_sec) or poll_sec <= 0:
+            raise ValueError("poll_sec must be finite and positive")
+        if timeout_sec is not None and (not math.isfinite(timeout_sec) or timeout_sec < 0):
+            raise ValueError("timeout_sec must be finite and nonnegative")
+        if proc.Running.get():
+            raise RuntimeError(f"{name} is already running; refusing to reconfigure it")
+
         for k, v in params.items():
             getattr(proc, k).set(v)  # AttributeError here = bad param name
 
-        proc.Start()
-        if not block:
-            return None
-
-        deadline = None if timeout_sec is None else time.time() + timeout_sec
         try:
+            proc.Start()
+            if not block:
+                return None
+
+            deadline = None if timeout_sec is None else time.monotonic() + timeout_sec
             while proc.Running.get():
-                if deadline is not None and time.time() > deadline:
-                    raise TimeoutError(
-                        f"{name} still running after {timeout_sec} s "
-                        f"(last message: {proc.Message.get()!r}).")
-                time.sleep(poll_sec)
-        except KeyboardInterrupt:
-            # Interrupting the wait should stop the process, not orphan it.
-            proc.Stop()
+                remaining = None if deadline is None else deadline - time.monotonic()
+                if remaining is not None and remaining <= 0:
+                    raise TimeoutError(f"{name} exceeded {timeout_sec} s; requesting Stop")
+                time.sleep(poll_sec if remaining is None else min(poll_sec, remaining))
+        except BaseException:
+            # Includes partial Start failures, transport errors and interrupts.
+            # Never replace the original failure if Stop itself fails.
+            try:
+                proc.Stop()
+            except BaseException:
+                log.exception("%s: Stop failed during process cleanup", name)
             raise
 
         msg = proc.Message.get()
         if msg:
             print(f"{name}: {msg}")
+            if msg.lower().startswith('error') or msg == 'Stopped after error!':
+                raise RuntimeError(f"{name}: {msg}")
 
         out_var = self._PROCESS_OUTPUT.get(name)
         if out_var is not None:

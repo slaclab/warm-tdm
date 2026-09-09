@@ -11,10 +11,11 @@
 """Hardware test for Issue #86 (FastDacDriver override-write race) — confirm the
 committed ``stop_and_zero`` reorder actually zeros the fast DACs after a run.
 
-Wiki: HW-Verify-Issue-86-FastDac-Override-Race
+Acceptance and results: https://github.com/slaclab/warm-tdm/issues/86
 
 Software-observable half of the procedure: for N cycles, drive the column
-force/bias DACs to a clearly nonzero value during a live muxed run, call
+force/bias DACs to a verified nonzero value at idle and during a PID-disabled
+muxed run using nonzero per-row currents, call
 ``stop_and_zero``, and confirm the fast-DAC readbacks (``DacCurrentNow`` on the
 SQ1Fb / SAFb / SQ1Bias drivers) return to ~0. A dropped override write shows up
 as a channel that holds its previous value.
@@ -31,16 +32,22 @@ bad columns out (default: none):
     python verify_stop_and_zero.py --diagnose --skip-cols 3
 
 NOTE: this checks the register READBACK only. The definitive analog confirmation
-(a load board + DMM reading differential zero) stays a manual step on the wiki
-page — a readback of 0 is necessary but the load-board measurement is what closes
-Issue #32. Run on real hardware: emulate does not clock the DAC FSM against live
+(a load board + DMM reading differential zero) stays a manual step on Issue #86.
+Per-row current settings are restored afterward; timing is left stopped and PID
+disabled. The normal test requires one column board and one row board. Run on real hardware: emulate does not clock the DAC FSM against live
 timing, so it cannot exercise the race this test exists to catch.
 """
 import argparse
+import logging
+import math
+
+import numpy as np
 import sys
 import time
 
 from _hwtest_common import add_conn_args, connect, Checklist, finish
+
+log = logging.getLogger(__name__)
 
 # The three fast-DAC drivers on each column board and their live readback var.
 _DRIVERS = ['SQ1Fb', 'SAFb', 'SQ1Bias']
@@ -55,39 +62,27 @@ def _force_setters(sess):
     }
 
 
-def _read_now(sess, nchan=8):
-    """Read DacCurrentNow (uA) for every driver on every column board.
-
-    ``DacCurrentNow`` is an indexed array of LinkVariables
-    (``DacCurrentNow[0..7]``), not a single vectored variable, so read each
-    channel node individually.
-
-    ``DacCurrentNow``'s ``linkedGet`` reads the *cached* ``DacRawNow.value()``,
-    so with polling off (simulation sets ``pollEn=False``) or between poll ticks
-    it returns a stale value -- which silently makes this whole test read old
-    data. Force a fresh ``DacRawNow`` read first so the current is live.
-
-    Returns {(board_idx, driver): [per-channel currents]}.
-    """
+def _read_array(sess, field):
+    """Complete finite readbacks, or an exception that prevents a PASS."""
+    if not sess.cbs or sess.chans_per_board <= 0:
+        raise RuntimeError("No expected fast-DAC channels")
     out = {}
     for idx, cb in sorted(sess.cbs.items()):
         for drv in _DRIVERS:
-            dev = getattr(cb, drv, None)
-            if dev is None or not hasattr(dev, 'DacCurrentNow'):
-                continue
-            arr = dev.DacCurrentNow
-            raw = getattr(dev, 'DacRawNow', None)
+            dev = getattr(cb, drv)
             vals = []
-            for ch in range(nchan):
-                try:
-                    if raw is not None:
-                        raw[ch].get()   # refresh the cached dependency (live read)
-                    vals.append(float(arr[ch].get()))
-                except Exception:
-                    break
-            if vals:
-                out[(idx, drv)] = vals
+            for ch in range(sess.chans_per_board):
+                value = float(getattr(dev, field)[ch].get())
+                if not math.isfinite(value):
+                    raise ValueError(f"Non-finite {field}: board {idx}, {drv}, channel {ch}")
+                vals.append(value)
+            out[(idx, drv)] = vals
     return out
+
+
+def _read_now(sess):
+    """Read every current through its LinkVariable getter."""
+    return _read_array(sess, 'DacCurrentNow')
 
 
 def _moved_channels(readings, tol, skip_cols):
@@ -111,29 +106,8 @@ def _set_pid(cb, ncol, on):
         cb.DataPath.AdcDsp[c].PidEnable.set(bool(on))
 
 
-def _read_cmd(sess, nchan=8):
-    """Commanded override current (OverrideCurrent, uA) per driver/board.
-
-    This is what ``ForceCurrent`` writes -- the OverrideRaw register, read back
-    through OverrideCurrent. Comparing it to DacCurrentNow (the actual DAC
-    output) shows whether the write reached the register but never the DAC.
-    """
-    out = {}
-    for idx, cb in sorted(sess.cbs.items()):
-        for drv in _DRIVERS:
-            dev = getattr(cb, drv, None)
-            if dev is None or not hasattr(dev, 'OverrideCurrent'):
-                continue
-            oc = dev.OverrideCurrent
-            vals = []
-            for ch in range(nchan):
-                try:
-                    vals.append(float(oc[ch].get()))
-                except Exception:
-                    break
-            if vals:
-                out[(idx, drv)] = vals
-    return out
+def _read_cmd(sess):
+    return _read_array(sess, 'OverrideCurrent')
 
 
 def _cmd_landed(cmd, tol, skip_cols):
@@ -155,8 +129,6 @@ def diagnose(sess, args):
     Each block prints commanded->actual so a write that lands in the register but
     not on the DAC is obvious.
     """
-    import warm_tdm_api.operations as ops
-
     chk = Checklist('Issue #86 force-write race diagnosis')
     setters = _force_setters(sess)
     ncol = len(sess.group.ColTuneEnable.get())
@@ -195,20 +167,20 @@ def diagnose(sess, args):
     _set_force(setters, ncol, 0.0, skip)
 
     print('\n[B] running (free-run MUX), PID off  -> dropped by the run (one-shot race)?')
-    ops.setup_mux(num_pts=args.num_pts, enable_pid=False)
+    sess.setup_mux(num_pts=args.num_pts, enable_pid=False)
     tx.StartRun()
     _set_force(setters, ncol, f, skip)
     time.sleep(args.settle_sec)
     b_moved, _ = report('B')
 
     print('\n[C] running, PID on  -> what the PASS/FAIL test does')
-    ops.setup_mux(num_pts=args.num_pts, enable_pid=True)
+    sess.setup_mux(num_pts=args.num_pts, enable_pid=True)
     _set_force(setters, ncol, f, skip)
     time.sleep(args.settle_sec)
     c_moved, _ = report('C')
 
     print('\n[D] stop_and_zero  -> back to ~0?')
-    ops.stop_and_zero()
+    sess.stop_and_zero()
     d_moved, _ = report('D')
 
     # Leave the rig quiet: PID off, forces 0, run stopped, original mode restored.
@@ -248,6 +220,105 @@ def diagnose(sess, args):
     return finish(chk.report())
 
 
+def _wait_running(tx, expected, timeout=2.0):
+    deadline = time.monotonic() + timeout
+    while bool(tx.Running.get()) != expected:
+        if time.monotonic() >= deadline:
+            raise TimeoutError(f"Timing Running did not become {expected}")
+        time.sleep(0.01)
+
+
+def _require_nonzero(readings, tol):
+    bad = [(board, driver, ch) for (board, driver), values in readings.items()
+           for ch, value in enumerate(values) if abs(value) <= tol]
+    if not readings or bad:
+        raise RuntimeError(f"Nonzero baseline not established on every output: {bad}")
+
+
+def run_cycles(sess, args):
+    """Test nonzero idle -> nonzero mux -> stop/zero; restore per-row settings.
+
+    Uses one column + one row board, matching the supported setup_mux path.
+    PID is disabled so its servo cannot erase the nonzero test stimulus.
+    """
+    timing_timeout = getattr(args, 'timing_timeout', 2.0)
+    if not math.isfinite(timing_timeout) or timing_timeout <= 0:
+        raise ValueError('timing-timeout must be finite and positive')
+    if args.cycles < 1:
+        raise ValueError("cycles must be positive")
+    if not math.isfinite(args.tol_uA) or args.tol_uA < 0:
+        raise ValueError("tol-uA must be finite and nonnegative")
+    if not math.isfinite(args.force_uA) or abs(args.force_uA) <= args.tol_uA:
+        raise ValueError("force-uA must be finite and exceed the zero tolerance")
+    if not math.isfinite(args.settle_sec) or args.settle_sec < 0:
+        raise ValueError("settle-sec must be finite and nonnegative")
+    if args.num_pts <= 350:
+        raise ValueError("num-pts must exceed the 350-cycle setup sample window")
+    if len(sess.cbs) != 1 or len(sess.rbs) != 1:
+        raise ValueError("This test requires one column board and one row board")
+    if args.skip_cols:
+        raise ValueError("skip-cols applies only to --diagnose; acceptance tests every output")
+
+    tx = sess.coordinator_cb.WarmTdmCore.Timing.TimingTx
+    _read_now(sess)  # Fail on absent/incomplete/non-finite readbacks before writing.
+    names = ['Sq1FbCurrent', 'SaFbCurrent', 'Sq1BiasCurrent']
+    saved = {name: np.asarray(getattr(sess.group, name).get()).copy() for name in names}
+    ncol = len(sess.group.ColTuneEnable.get())
+    for name, values in saved.items():
+        if values.ndim != 2 or values.shape[0] != ncol or values.shape[1] == 0:
+            raise ValueError(f"Unexpected per-row current shape for {name}: {values.shape}")
+        if not np.all(np.isfinite(values)):
+            raise ValueError(f"Non-finite original per-row currents: {name}")
+    failed = False
+    try:
+        for cyc in range(1, args.cycles + 1):
+            if not sess.stop_and_zero(settle_sec=timing_timeout):
+                raise RuntimeError("Could not establish the initial stopped/zero state")
+            sess.setup_mux(num_pts=args.num_pts, enable_pid=False)
+            # Disable every PID explicitly, including tune-disabled columns.
+            _set_pid(sess.coordinator_cb, sess.chans_per_board, False)
+            for name, values in saved.items():
+                getattr(sess.group, name).set(np.full(values.shape, args.force_uA))
+            for kind in ['Sq1Fb', 'SaFb', 'Sq1Bias']:
+                ok, residual = sess.set_force(kind, args.force_uA,
+                    tol_uA=args.tol_uA, settle_sec=args.settle_sec)
+                if not ok:
+                    raise RuntimeError(f"{kind} nonzero force did not verify: {residual}")
+            _require_nonzero(_read_now(sess), args.tol_uA)
+            tx.StartRun()
+            _wait_running(tx, True, timeout=timing_timeout)
+            time.sleep(args.settle_sec)
+            _require_nonzero(_read_now(sess), args.tol_uA)
+            if not sess.stop_and_zero(settle_sec=timing_timeout):
+                raise RuntimeError("stop_and_zero reported incomplete cleanup")
+            _wait_running(tx, False, timeout=timing_timeout)
+            readings = _read_now(sess)
+            residual = _moved_channels(readings, args.tol_uA, set())
+            if residual:
+                raise RuntimeError(f"Nonzero outputs after stop/zero: {residual}")
+            print(f'  cycle {cyc}: complete nonzero -> running -> zero readback PASS')
+    except BaseException:
+        failed = True
+        raise
+    finally:
+        errors = []
+        try:
+            if not sess.stop_and_zero(settle_sec=timing_timeout):
+                raise RuntimeError("Final stop/zero cleanup did not verify")
+        except BaseException as exc:
+            errors.append(exc)
+            log.exception("Final stop/zero cleanup failed")
+        for name, values in saved.items():
+            try:
+                getattr(sess.group, name).set(values)
+            except BaseException as exc:
+                errors.append(exc)
+                log.exception("Failed restoring per-row settings for %s", name)
+        if errors and not failed:
+            raise errors[0]
+    return True
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -267,61 +338,30 @@ def main():
                    help="comma-separated columns to leave at 0 / ignore, e.g. '3'")
     p.add_argument('--settle-sec', type=float, default=0.5,
                    help='pause after setting force before readback (default: 0.5)')
+    p.add_argument('--timing-timeout', type=float, default=2.0,
+                   help='wall seconds for run/stop transitions; increase for VCS')
     args = p.parse_args()
 
-    import warm_tdm_api.operations as ops
-
     sess = connect(args)
-
-    if args.diagnose:
-        return diagnose(sess, args)
-
     chk = Checklist('Issue #86 stop_and_zero fast-DAC zeroing')
-
-    setters = _force_setters(sess)
-    ncol = len(sess.group.ColTuneEnable.get())
-
-    if not _read_now(sess):
-        chk.item(False, 'Fast-DAC readback (DacCurrentNow) available', 'none found')
-        return finish(chk.report())
-
-    all_cycles_ok = True
-    for cyc in range(1, args.cycles + 1):
-        print(f'\n--- cycle {cyc}/{args.cycles} ---')
-
-        # 1. Start a muxed run so the DAC FSM is actively cycling.
-        ops.setup_mux(num_pts=args.num_pts, enable_pid=True)
-
-        # 2. Drive all three force currents clearly nonzero.
-        for name, var in setters.items():
-            var.set([args.force_uA] * ncol)
-        after_set = _read_now(sess)
-        moved = any(abs(v) > args.tol_uA for vals in after_set.values() for v in vals)
-        print(f'  set force = {args.force_uA} uA; readback moved: {moved}')
-
-        # 3. The fix under test: stop MUX, wait for idle, then zero.
-        ops.stop_and_zero()
-
-        # 4. Confirm every fast-DAC channel came back to ~0.
-        after_zero = _read_now(sess)
-        residual = {}
-        for key, vals in after_zero.items():
-            bad = [i for i, v in enumerate(vals) if abs(v) > args.tol_uA]
-            if bad:
-                residual[key] = {i: vals[i] for i in bad}
-        ok = not residual
-        all_cycles_ok = all_cycles_ok and ok
-        if ok:
-            print(f'  cycle {cyc}: all fast-DAC channels within +/-{args.tol_uA} uA of 0')
-        else:
-            print(f'  cycle {cyc}: RESIDUAL nonzero channels (dropped writes?): {residual}')
-
-    chk.item(all_cycles_ok,
-             f'stop_and_zero zeroed all fast DACs across {args.cycles} cycles',
-             'all within tolerance' if all_cycles_ok else 'see residuals above')
-    chk.note('MANUAL: confirm differential zero on a load board with a DMM '
-             '(readback==0 is necessary, not sufficient — see wiki Part 2).')
-
+    try:
+        if args.diagnose:
+            if len(sess.cbs) != 1 or len(sess.rbs) != 1:
+                raise ValueError("Diagnosis requires one column board and one row board")
+            # finish() hard-exits, so diagnosis must clean up before returning.
+            return diagnose(sess, args)
+        run_cycles(sess, args)
+    except (Exception, KeyboardInterrupt) as exc:
+        if args.diagnose:
+            try:
+                sess.stop_and_zero()
+            except Exception:
+                log.exception("Diagnostic cleanup failed")
+        chk.item(False, 'Complete nonzero -> running -> stopped/zero sequence', str(exc))
+    else:
+        chk.item(True, f'Complete sequence across {args.cycles} cycles')
+    chk.note('MANUAL: confirm physical outputs with a load-board DMM/scope; '
+             'record evidence on Issue #86.')
     return finish(chk.report())
 
 

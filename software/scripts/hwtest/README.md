@@ -1,22 +1,18 @@
 # Hardware-test helper scripts
 
-Runnable bench scripts that automate the *software-observable* parts of the
-[Hardware Verification](https://github.com/slaclab/warm-tdm/wiki/Hardware-Verification)
-wiki procedures. Each script maps 1:1 to a wiki subpage, runs the steps that a
-host can judge on its own (register reads, file comparisons), and prints a
-`PASS`/`FAIL` checklist against that page's pass criteria.
-
-These do **not** replace the wiki pages — anything needing an instrument (a DMM
-on a load board, a scope trace) stays a manual step on the page. The scripts
-cover the parts where the verdict is a number the software already has.
+Runnable bench scripts automate the software-observable portions of issue
+acceptance: register reads, file comparisons and explicit pass/fail checks.
+The owning issue holds the remaining checklist and test results. Reusable setup
+instructions live on the [Hardware Verification wiki](https://github.com/slaclab/warm-tdm/wiki/Hardware-Verification).
+Physical measurements and real-link tests remain manual acceptance steps.
 
 ## Scripts
 
-| Script | Wiki page | What it checks automatically | Still manual |
+| Script | Owning issue | What it checks automatically | Still manual |
 |---|---|---|---|
-| `verify_dead_masks.py` | HW-Verify-Issue-60 | Masked channels are exactly the channels that drop out of the stream file | — (fully software) |
-| `check_link_health.py` | HW-Verify-Issue-50 | RSSI (and PGP) link counters; baseline + poll-for-deltas | inducing a real fiber fault |
-| `verify_stop_and_zero.py` | HW-Verify-Issue-86 | `stop_and_zero` drives fast-DAC readbacks to ~0 across N run/stop cycles | load-board DMM confirmation |
+| `verify_dead_masks.py` | [#60](https://github.com/slaclab/warm-tdm/issues/60) | Masked channels are exactly the channels that drop out of the stream file | — (fully software) |
+| `check_link_health.py` | [#50](https://github.com/slaclab/warm-tdm/issues/50) | RSSI (and PGP) link counters; baseline + poll-for-deltas | inducing a real fiber fault |
+| `verify_stop_and_zero.py` | [#86](https://github.com/slaclab/warm-tdm/issues/86) | Complete finite nonzero → confirmed mux run → stopped/zero fast-DAC readbacks across N cycles | load-board DMM confirmation |
 
 ## Running
 
@@ -38,4 +34,16 @@ non-zero on `FAIL` so they can be chained or run under CI against a live rig.
 
 Every run prints the firmware build stamps + git hashes (via
 `ops.print_hardware()`) so a result is pinned to a specific firmware/software
-version — paste that block into the wiki page's **Record** section and the issue.
+version. Add the software commit, tool versions, configuration and outcome to a
+result comment on the owning issue; do not duplicate a status record on the wiki.
+
+`verify_stop_and_zero.py` requires one column board and one row board for its
+normal acceptance path. It programs nonzero per-row currents with PID disabled,
+verifies every output at idle and during a confirmed run, then requires complete
+zero readbacks after timing stops. It restores saved per-row current settings
+and attempts stop/zero on failure; timing is left stopped and PID disabled.
+`--skip-cols` is diagnostic-only. A missing/non-finite readback or zero-only
+baseline fails the test. MemEmulate does not run the DAC FSM and is not expected
+to pass this sequence; use GroupTb cosimulation or hardware and record which.
+The `--diagnose` matrix explains override behavior; it is not the full acceptance
+sequence. Scope/DMM measurements remain on #86.

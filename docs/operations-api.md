@@ -139,8 +139,13 @@ result `Message`, and returns the process's output variable.
 | `sess.sq1_tune(**params)` | First-stage SQUID tuning (`Sq1TuneProcess`); enables a detailed DEBUG trace for every run. |
 | `sess.fas_tune(**params)` | Physical-line FAS tuning (`FasTuneProcess`); seeds the stopped-timing force-current path from each row's SA-tuned `SaFbCurrent`, then temporarily applies `Sq1BiasCurrent` (40 uA by default) to enabled columns. Disabled columns are omitted from the curves. `FasMinimumTolerance` selects the center of a contiguous flat minimum; pass `SetAfterFinish=True` to program the fitted `FasOn` currents. |
 
-Interrupting a blocking wait (`KeyboardInterrupt`) stops the process rather than
-orphaning it.
+A blocking timeout or Ctrl-C requests `Stop()` before raising `TimeoutError` or
+`KeyboardInterrupt`. Cleanup also attempts Stop after a Start/transport failure;
+a failed Stop is logged without masking the original exception. The timeout
+uses monotonic time and bounds the wait, not the cooperative Stop/transport
+cleanup duration. `block=False` starts without waiting or applying the timeout.
+An already-running process is rejected before settings are changed. A process
+that reports an error raises `RuntimeError` instead of returning stale output.
 
 ### Data acquisition
 
@@ -148,7 +153,13 @@ orphaning it.
 |---|---|
 | `sess.take_raw(col, …, timeout_sec=30.0)` | Capture one raw waveform for a single column; returns the saved path. Raises `TimeoutError` if no file appears. |
 | `sess.multi_raw(col, nraw, …)` | Capture `nraw` waveforms into a `raw_<ctime>/` dir; returns a text index file. |
-| `sess.take_data(acq_time_sec, start_delay_sec=1.0)` | Open the `DataWriter`, acquire for `acq_time_sec`, then close. Starts the run if stopped and restores the run state afterward — always closes the file, even on interrupt. |
+| `sess.take_data(acq_time_sec, start_delay_sec=1.0)` | Open the `DataWriter`, acquire for `acq_time_sec`, then close. Starts the run if stopped; attempts writer close and owned-run stop independently, including startup/file errors and interrupts. |
+
+`take_data` refuses to take over an already-open writer. It closes a writer
+once Open has been attempted (including a partial Open failure), and stops only
+a run it attempted to start. A close failure cannot skip timing cleanup. Cleanup
+failures are logged and raised; an original acquisition/interrupt exception is
+preserved when cleanup also fails. A pre-existing run is left running.
 
 ### Offline analysis & plotting
 
@@ -185,12 +196,50 @@ column outputs — the fast-DAC force outputs with **read-back verification and
 bounded retry** (via `DacCurrentNow`), the slow bias/offset outputs with a single
 write. Row DACs are currently left untouched.
 
+`DacCurrentNow.get()` refreshes the underlying raw register in the driver;
+callers do not need a separate `DacRawNow.get()`. Use `.value()` or
+`.get(read=False)` when a cached current is wanted.
+
 It is **not** a hardware safety interlock. It works around the FastDacDriver
 override one-shot race (**Issue #86**) in software, and gives real confirmation the
-fast DACs reached zero — but if a channel cannot be driven to ~0 within the retry
-budget it logs a warning rather than guaranteeing the state. The underlying
+fast DAC readbacks reached zero. Every expected board/channel must provide a
+fresh finite reading; missing, failed or NaN reads cannot verify. `set_force`
+returns `(converged, residual)`; NaN residuals identify unreadable channels.
+Targets must be finite and cover the full vector before any writes occur.
+
+`stop_and_zero` attempts the remaining outputs even if one fails. It returns
+`True` only when timing stop, fast-DAC verification and slow-output writes all
+succeed; otherwise it logs failures and returns `False`. It does not independently
+measure physical outputs or verify slow-output readback. The underlying
 firmware fix (a pending-latch in `FastDacDriver`) is written up in
 [`docs/design/fastdac-override-race.md`](design/fastdac-override-race.md).
+
+## Local regression checks
+
+With NumPy installed, run the focused failure-path and helper checks:
+
+```bash
+python -m unittest discover -s software/tests -v
+```
+
+For actual Rogue process threads, client calls and stream-file I/O, activate a
+Rogue/Warm-TDM environment with the software, firmware and SURF Python paths:
+
+```bash
+python software/tests/rogue_operations_smoke.py
+```
+
+The latter uses a synthetic instrument, real localhost ZMQ and real file I/O.
+It covers direct/client Session calls, timeouts/interrupts, acquisition ownership,
+force-readback failures and file-derived readout/PID-debug/calibration decoding.
+It does not run the FPGA state machines or measure physical DAC outputs. Record
+candidate results and the outstanding GroupTb/bench checks on #68 and #86.
+
+`PromLoader --reload` programs the selected PROM and then reloads its sibling
+FPGA; `--reload-only` skips programming. The flags are mutually exclusive,
+unknown flags and out-of-range selections fail, and reloading all boards keeps
+the coordinator until last. Fake-board command tests check selection and order;
+actual image/reconnection acceptance remains on #68.
 
 ## See also
 
