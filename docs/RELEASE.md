@@ -101,6 +101,12 @@ After promotion, verify that release fixes are present on `pre-release` and
 remove the temporary release branch when no maintenance work depends on it.
 Release tags and preserved artifacts retain the verified baseline.
 
+**Merge, do not rebase.** WarmTDM's workflow is merge-based throughout. When a
+feature branch has fallen behind, bring the upstream branch in with `git merge`
+(e.g. `git merge origin/pre-release`) and resolve any conflicts in the resulting
+merge commit — do **not** `git rebase`. This holds even for a local-only branch
+that has never been pushed: rebase is simply not the workflow we use.
+
 ## Versioning
 
 Releases are tagged `vX.Y.Z` (semantic versioning):

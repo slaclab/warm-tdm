@@ -15,6 +15,7 @@ dependencies:
   - parse
   - click
   - numpy
+  - scipy
   - pyqt
   - boost
   - bzip2

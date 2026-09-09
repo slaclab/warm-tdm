@@ -64,7 +64,7 @@ class TesBiasAd5542(pr.Device):
         def _setChannel(value, write, tesAmp=self._frontEnd.Channel[channel].TesBiasAmp):
             # Calculate the DAC voltages to drive
             vp, vn = tesAmp.outCurrentToDac(value, self.Delatch[channel].value())
-            print(vp, vn)
+            #print(vp, vn)
             # Really should build a different amp model for this instead of this quick and dirty fix
             dacVoltage = (vn-vp)
             # Set the DAC voltages
