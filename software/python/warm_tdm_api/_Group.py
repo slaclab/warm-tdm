@@ -76,20 +76,14 @@ class Group(pr.Device):
 
         self.config = groupConfig
 
-        # NOTE (wtj-cleanup-sw): useFloatPid and the RTL row-sizing *generics*
-        # (ROW_ADDR_BITS_G) are NOT wired on this branch. The floating-point PID
-        # path (_AdcDspFp) and coherent RTL row-sizing live on the deferred
-        # firmware track and are not present in this firmware/python tree, so we
-        # drop useFloatPid from this call. config.maxRows IS threaded into the
-        # HardwareGroup as the single source of truth: it caps both the RowMap
-        # RAM sizing below and the number of firmware row indices mapped into
-        # Rogue variables (AdcDsp/SAFb arrays), which map the first maxRows
-        # strided entries of the 256-deep firmware address space.
-        if useFloatPid:
-            self._log.warning("useFloatPid=True requested, but the floating-point "
-                              "PID firmware is not available on this branch. Ignoring; "
-                              "using fixed-point firmware.")
-
+        # useFloatPid selects the floating-point PID firmware (_AdcDspFp) over the
+        # fixed-point AdcDsp; it is threaded through to HardwareGroup -> the column
+        # boards, and gated in RTL by the USE_FLOAT_PID_G generic (set on the
+        # ColumnFpgaBoard325Coord10G target). config.maxRows is the single source
+        # of truth for row-sizing: it caps both the RowMap RAM sizing below and the
+        # number of firmware row indices mapped into Rogue variables (AdcDsp/SAFb
+        # arrays), which map the first maxRows strided entries of the firmware's
+        # 2**rowAddrBits-deep address space.
         self.add(warm_tdm.HardwareGroup(
             groupId=groupId,
             dataWriter=dataWriter,
@@ -104,6 +98,7 @@ class Group(pr.Device):
             rowFeClass=rowFeClass,
             num_row_selects=num_row_selects,
             num_chip_selects=num_chip_selects,
+            useFloatPid=useFloatPid,
             rowAddrBits=groupConfig.rowAddrBits,
             maxRows=groupConfig.maxRows,
             groups=['Hardware'],

@@ -34,7 +34,8 @@ entity BiquadFilter is
    generic (
       TPD_G                : time                 := 1 ns;
       CASCADE_SIZE_G       : positive             := 2;
-      CHANNEL_ADDR_WIDTH_G : integer range 1 to 8 := 8);
+      CHANNEL_ADDR_WIDTH_G : integer range 1 to 8 := 8;
+      INPUT_IS_FLOAT_G     : boolean              := false);
 
    port (
       axisClk         : in  sl;
@@ -52,6 +53,17 @@ entity BiquadFilter is
 end entity BiquadFilter;
 
 architecture rtl of BiquadFilter is
+
+   -- Select input stream config based on whether input is already float
+   function selectInputCfg return AxiStreamConfigType is
+   begin
+      if INPUT_IS_FLOAT_G then
+         return PID_DATA_FP_AXIS_CFG_C;
+      else
+         return PID_DATA_AXIS_CFG_C;
+      end if;
+   end function;
+   constant INPUT_AXIS_CFG_C : AxiStreamConfigType := selectInputCfg;
 
    constant DATA_MATH_WIDTH_C : integer := 32;
 --   constant DATA_FRACT_BITS_C : integer := DATA_MATH_WIDTH_C - DATA_WIDTH_G;
@@ -216,8 +228,8 @@ begin
          SYNTH_MODE_G        => "xpm",
          MEMORY_TYPE_G       => "distributed",
          INT_WIDTH_SELECT_G  => "WIDE",
-         SLAVE_AXI_CONFIG_G  => PID_DATA_AXIS_CFG_C,
-         MASTER_AXI_CONFIG_G => PID_DATA_AXIS_CFG_C)
+         SLAVE_AXI_CONFIG_G  => INPUT_AXIS_CFG_C,
+         MASTER_AXI_CONFIG_G => INPUT_AXIS_CFG_C)
       port map (
          sAxisClk    => axisClk,             -- [in]
          sAxisRst    => axisRst,             -- [in]
@@ -338,8 +350,13 @@ begin
                      -- Skip straight to output
                      v.int2FpInValid := '0';
                      v.state         := OUTPUT_S;
+                  elsif (INPUT_IS_FLOAT_G) then
+                     -- Input is already IEEE 754 float, skip Int2Fp
+                     v.int2FpInValid := '0';
+                     v.x0_active     := fifoAxisMaster.tData(31 downto 0);
+                     v.state         := COEFFS_S;
                   else
-                     -- Allow tdest to address state ram               
+                     -- Allow tdest to address state ram
                      v.state := WAIT_FP_CONV_S;
                   end if;
                end if;

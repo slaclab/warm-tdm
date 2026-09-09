@@ -122,7 +122,7 @@ class FastDacMem(pr.Device):
 
 class FastDacDriver(pr.Device):
 
-    def __init__(self, frontEnd, rows, **kwargs):
+    def __init__(self, frontEnd, rows=256, **kwargs):
         super().__init__(**kwargs)
 
         self.rows = rows

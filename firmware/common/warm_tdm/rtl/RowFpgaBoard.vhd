@@ -50,6 +50,7 @@ entity RowFpgaBoard is
       BUILD_INFO_G            : BuildInfoType;
       RING_ADDR_0_G           : boolean               := false;
       NUM_WAFERS_G            : integer range 1 to 2  := 1;
+      ROW_ADDR_BITS_G         : integer range 3 to 8  := 7;
       NUM_ROW_SELECTS_G       : integer range 1 to 32 := 32;
       NUM_CHIP_SELECTS_G      : integer range 0 to 12 := 0;
       ETH_10G_G               : boolean               := false;
@@ -391,6 +392,7 @@ begin
       generic map (
          TPD_G            => TPD_G,
          SIMULATION_G     => SIMULATION_G,
+         ROW_ADDR_BITS_G  => ROW_ADDR_BITS_G,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_DACS_C).baseAddr)
       port map (
          timingRxClk125  => timingRxClk125,                    -- [in]
