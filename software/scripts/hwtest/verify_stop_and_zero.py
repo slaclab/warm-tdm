@@ -241,6 +241,9 @@ def run_cycles(sess, args):
     Uses one column + one row board, matching the supported setup_mux path.
     PID is disabled so its servo cannot erase the nonzero test stimulus.
     """
+    timing_timeout = getattr(args, 'timing_timeout', 2.0)
+    if not math.isfinite(timing_timeout) or timing_timeout <= 0:
+        raise ValueError('timing-timeout must be finite and positive')
     if args.cycles < 1:
         raise ValueError("cycles must be positive")
     if not math.isfinite(args.tol_uA) or args.tol_uA < 0:
@@ -269,7 +272,7 @@ def run_cycles(sess, args):
     failed = False
     try:
         for cyc in range(1, args.cycles + 1):
-            if not sess.stop_and_zero():
+            if not sess.stop_and_zero(settle_sec=timing_timeout):
                 raise RuntimeError("Could not establish the initial stopped/zero state")
             sess.setup_mux(num_pts=args.num_pts, enable_pid=False)
             # Disable every PID explicitly, including tune-disabled columns.
@@ -283,12 +286,12 @@ def run_cycles(sess, args):
                     raise RuntimeError(f"{kind} nonzero force did not verify: {residual}")
             _require_nonzero(_read_now(sess), args.tol_uA)
             tx.StartRun()
-            _wait_running(tx, True)
+            _wait_running(tx, True, timeout=timing_timeout)
             time.sleep(args.settle_sec)
             _require_nonzero(_read_now(sess), args.tol_uA)
-            if not sess.stop_and_zero():
+            if not sess.stop_and_zero(settle_sec=timing_timeout):
                 raise RuntimeError("stop_and_zero reported incomplete cleanup")
-            _wait_running(tx, False)
+            _wait_running(tx, False, timeout=timing_timeout)
             readings = _read_now(sess)
             residual = _moved_channels(readings, args.tol_uA, set())
             if residual:
@@ -300,7 +303,7 @@ def run_cycles(sess, args):
     finally:
         errors = []
         try:
-            if not sess.stop_and_zero():
+            if not sess.stop_and_zero(settle_sec=timing_timeout):
                 raise RuntimeError("Final stop/zero cleanup did not verify")
         except BaseException as exc:
             errors.append(exc)
@@ -335,6 +338,8 @@ def main():
                    help="comma-separated columns to leave at 0 / ignore, e.g. '3'")
     p.add_argument('--settle-sec', type=float, default=0.5,
                    help='pause after setting force before readback (default: 0.5)')
+    p.add_argument('--timing-timeout', type=float, default=2.0,
+                   help='wall seconds for run/stop transitions; increase for VCS')
     args = p.parse_args()
 
     sess = connect(args)

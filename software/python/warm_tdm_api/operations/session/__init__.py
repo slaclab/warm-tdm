@@ -16,7 +16,7 @@
 ## client) is what makes the layer multi-Group-ready: a future `Instrument`
 ## holds one Session per Group -- N Sessions over one client (non-federated root
 ## with several Groups) or N clients (federated, a server per Group). See
-## docs/plans/wtj-refactor/PLAN.md "Operations API review -> Scaling".
+## https://github.com/slaclab/warm-tdm/issues/80 (multi-Group scaling).
 ##
 ## Topology is derived from the bound Group (channels-per-board, board maps),
 ## never hardcoded, so a differently-shaped Group works without code changes.
@@ -57,7 +57,7 @@ class Session(TopologyCore, AcquisitionMixin, TuningMixin, ForceDacMixin,
     per-Group state (board maps, channel count) is derived from the bound Group,
     not hardcoded, so a differently-shaped Group (more/fewer column boards, a
     different channels-per-board) works without code changes. See
-    ``docs/plans/wtj-refactor/PLAN.md`` "Operations API review -> Scaling".
+    https://github.com/slaclab/warm-tdm/issues/80 (multi-Group scaling).
 
     Topology is read from the Group, never assumed:
       - ``chans_per_board`` = ``NumColumns // NumColumnBoards``;

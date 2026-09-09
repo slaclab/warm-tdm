@@ -43,9 +43,17 @@ Session per Group). Per-Group topology (channels-per-board, board maps) is
 **derived from the bound Group**, not hardcoded; the timing coordinator is always
 `ColumnBoard[0]`. The client/server seam is unchanged: `warmTdmServer` owns the
 real `GroupRoot`+ZmqServer, and `Session` drives the `VirtualClient` mirror over
-ZMQ. Reusable hardware capabilities here are candidates to graduate into `Group`
-as they mature (see `docs/plans/wtj-refactor`). This subpackage was formerly the
-standalone `warm_tdm_jupyter` package.
+ZMQ. This subpackage was formerly the standalone `warm_tdm_jupyter` package.
+
+Keep operations client-side while runtime editability matters: changing a
+server-owned method requires restarting the server and rebuilding its state.
+Move a capability onto `Group` when it needs server-side execution or state,
+such as a continuous process, GUI control, or serialized configuration. Retain
+a thin operations delegator when making that move. Both `warm_tdm_api` and
+`warm_tdm` contribute nodes to the same tree; choose placement by which node
+owns the capability. [Issue #83](https://github.com/slaclab/warm-tdm/issues/83)
+tracks future graduations; [#80](https://github.com/slaclab/warm-tdm/issues/80)
+owns the future multi-Group `Instrument` design.
 
 Both are loaded via `pyrogue.addLibraryPath()` in scripts:
 ```python

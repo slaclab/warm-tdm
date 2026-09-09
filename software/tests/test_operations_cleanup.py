@@ -320,7 +320,7 @@ class HarnessTests(unittest.TestCase):
         self.events.append('start')
         self.running = True
 
-    def zero(self):
+    def zero(self, **kwargs):
         self.events.append('zero')
         self.running = False
         self.current = 0.0
@@ -367,7 +367,7 @@ class HarnessTests(unittest.TestCase):
 
     def test_zeroing_failure_is_not_a_pass(self):
         count = 0
-        def zero():
+        def zero(**kwargs):
             nonlocal count
             count += 1
             self.zero()
@@ -398,6 +398,14 @@ class HarnessTests(unittest.TestCase):
     def test_nonzero_baseline_requires_every_channel(self):
         with self.assertRaisesRegex(RuntimeError, 'Nonzero baseline'):
             hwtest._require_nonzero({(0, 'SQ1Fb'): [50.0, 0.0]}, 0.5)
+
+    def test_cosim_timing_timeout_reaches_start_stop_waits_and_cleanup(self):
+        self.args.timing_timeout = 120.0
+        with patch.object(hwtest, '_wait_running') as wait:
+            hwtest.run_cycles(self.sess, self.args)
+        self.assertTrue(all(c.kwargs['timeout'] == 120.0 for c in wait.call_args_list))
+        self.assertTrue(all(c.kwargs['settle_sec'] == 120.0
+                            for c in self.sess.stop_and_zero.call_args_list))
 
     def test_invalid_cycles_rejected_without_writes(self):
         self.args.cycles = 0
