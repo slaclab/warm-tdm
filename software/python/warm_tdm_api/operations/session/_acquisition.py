@@ -1,10 +1,21 @@
+# This file is part of the WarmTDM software package. It is subject to
+# the license terms in LICENSE.txt in the top-level directory and at:
+# https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part may be copied, modified, propagated or distributed except under
+# those license terms.
+
 ## Data acquisition: raw single-column captures, multi-capture, and timed runs
 ## through the DataWriter. Relies on TopologyCore state (self.hwg, self.cbs,
 ## self.root, self.coordinator_cb, self.col_to_board_chan, self._require_output).
 ## Mounted on Session.
 
+import logging
+import math
 import os
 import time
+
+
+log = logging.getLogger(__name__)
 
 
 class AcquisitionMixin:
@@ -102,35 +113,61 @@ class AcquisitionMixin:
         """Open the DataWriter, acquire for acq_time_sec, then close.
 
         Starts the run if not already running (and stops it again afterward,
-        leaving the system in the state it was found). The DataWriter is always
-        closed and the run state restored, even if acquisition is interrupted.
+        leaving a pre-existing run running). Cleanup attempts both writer close
+        and EndRun even on startup, file or interrupt errors. Cleanup failures
+        are reported; an already-open writer is never taken over.
         """
         cb0 = self.coordinator_cb
         tx = cb0.WarmTdmCore.Timing.TimingTx
 
+        for name, value in [('acq_time_sec', acq_time_sec),
+                            ('start_delay_sec', start_delay_sec)]:
+            if not math.isfinite(value) or value < 0:
+                raise ValueError(f"{name} must be finite and nonnegative")
+
+        writer = self.root.DataWriter
+        if writer.IsOpen.get():
+            raise RuntimeError("DataWriter is already open; refusing to replace its file")
         was_running = tx.Running.get()
-        if not was_running:
-            tx.StartRun()
-            time.sleep(start_delay_sec)
-
-        r = self.root
-        r.DataWriter.AutoName()
-        r.DataWriter.DataFile.set(
-            os.path.join(os.path.abspath(self._require_output()),
-                         r.DataWriter.DataFile.get()))
-        data_filename = r.DataWriter.DataFile.get()
-
+        start_attempted = False
+        open_attempted = False
+        failed = False
         try:
+            if not was_running:
+                # A command may take effect before reporting a transport error.
+                start_attempted = True
+                tx.StartRun()
+                time.sleep(start_delay_sec)
+
+            writer.AutoName()
+            writer.DataFile.set(os.path.join(
+                os.path.abspath(self._require_output()), writer.DataFile.get()))
+            data_filename = writer.DataFile.get()
             print(f'Open file {data_filename}')
-            r.DataWriter.Open()
+            open_attempted = True
+            writer.Open()
             print(f'Acquire data for {acq_time_sec} sec ...')
             time.sleep(acq_time_sec)
+        except BaseException:
+            failed = True
+            raise
         finally:
-            # Always close the file and restore run state, even on interrupt.
-            print(f'Close file {data_filename}')
-            r.DataWriter.Close()
-            if not was_running:
-                # The user had the run stopped; return the system to that state.
-                tx.EndRun()
+            # Both cleanup actions must run, even when one fails. Preserve the
+            # original acquisition/interrupt error and log cleanup failures.
+            cleanup_errors = []
+            if open_attempted:
+                try:
+                    writer.Close()
+                except BaseException as exc:
+                    cleanup_errors.append(exc)
+                    log.exception("take_data: failed to close DataWriter")
+            if start_attempted:
+                try:
+                    tx.EndRun()
+                except BaseException as exc:
+                    cleanup_errors.append(exc)
+                    log.exception("take_data: failed to stop the run it started")
+            if cleanup_errors and not failed:
+                raise cleanup_errors[0]
 
         return data_filename

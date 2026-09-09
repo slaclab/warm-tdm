@@ -1,12 +1,12 @@
 # warm_tdm_jupyter → warm_tdm_api.operations refactor (historical)
 
-This refactor is **complete and shipped in [PR #78](https://github.com/slaclab/warm-tdm/pull/78)**
-(closes #68, supersedes #61). The detailed plan/progress/spec docs that once
-lived here were pruned once the work landed — the code, the PR description, and
-the design docs below are now the sources of truth. This stub records what was
-done and where the forward-looking pieces went, so the reasoning isn't re-derived.
+[PR #78](https://github.com/slaclab/warm-tdm/pull/78) implements this refactor
+and supersedes PR #61. [Issue #68](https://github.com/slaclab/warm-tdm/issues/68)
+owns acceptance, outstanding checks and candidate-specific results; integration
+does not close hardware acceptance. The detailed plan/progress/spec files were
+pruned; this note retains design rationale and links to follow-up work.
 
-## What shipped (PR #78)
+## Implementation scope
 
 `warm_tdm_api.operations` — the client-side operational layer for running a Group:
 - **Injectable per-Group `Session`** (replaced the `Client` global singleton);
