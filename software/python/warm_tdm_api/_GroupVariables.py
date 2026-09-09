@@ -11,6 +11,8 @@ one Group variable instead of walking the tree per board/channel:
 * :class:`GroupArrayLinkVariable` -- like ``GroupLinkVariable`` but each
   dependency is itself a per-board array of 8 channels; presents a flat
   ``numColumns``-long array (``col -> board*8 + chan``).
+* :class:`PidGainVariable` -- per-column fixed-point PID coefficients presented
+  as window-independent gains on the mean row-window ADC error.
 * :class:`FastDacVariable` -- a 2-D ``(column, row)`` array over the per-column
   fast-DAC drivers.
 
@@ -232,6 +234,81 @@ class GroupArrayLinkVariable(GroupLinkVariable):
                         self.dependencies[board].set(value=value[idx], index=chan, write=False)
 
             pr.writeAndVerifyBlocks(self.depBlocks)
+
+
+class PidGainVariable(pr.LinkVariable):
+    """Per-column PID gain normalized to the mean error in a row window.
+
+    The fixed-point firmware multiplies its coefficient by the *sum* of the ADC
+    errors in a row window.  This variable instead presents the coefficient on
+    the mean error, so its value is independent of the number of samples::
+
+        normalized_gain = hardware_coefficient * sample_count
+
+    Setting the normalized gain divides by the coordinator's current sample
+    count before writing each per-column AdcDsp coefficient.  Changing the
+    timing registers directly cannot trigger a hardware write; callers that
+    change the sample window must reapply this variable.  Session.setup_mux()
+    does that automatically.
+    """
+
+    def __init__(self, *, coefficient_dependencies, sample_count, **kwargs):
+        self._coefficients = list(coefficient_dependencies)
+        self._sample_count = sample_count
+        super().__init__(
+            dependencies=self._coefficients + [sample_count],
+            groups=['TopApi', 'NoConfig'],
+            linkedSet=self._set,
+            linkedGet=self._get,
+            **kwargs)
+
+    def _samples(self, *, read: bool, require_configured: bool = True) -> int:
+        samples = int(self._sample_count.get(read=read))
+        if samples <= 0 and require_configured:
+            raise ValueError(
+                'PID coefficient normalization requires SampleEndTime > '
+                'SampleStartTime.')
+        return samples
+
+    def _set(self, *, value, index: int, write: bool) -> None:
+        samples = self._samples(read=False)
+        with self.parent.root.updateGroup():
+            if index != -1:
+                self._coefficients[index].set(
+                    value=float(value) / samples, write=write)
+                return
+
+            if len(value) != len(self._coefficients):
+                raise ValueError(
+                    f'Expected {len(self._coefficients)} PID gains, got '
+                    f'{len(value)}.')
+            for coefficient, gain in zip(self._coefficients, value):
+                # Use the coefficient's public LinkVariable rather than its raw
+                # register.  In particular, I_Coef clears the per-row integral
+                # state when it is written.
+                coefficient.set(value=float(gain) / samples, write=write)
+
+    def _get(self, *, index: int, read: bool):
+        # PyRogue evaluates LinkVariables during Root._finishInit(), before the
+        # timing registers have necessarily been read or configured. A zero
+        # sample count makes normalization undefined, but it must not prevent
+        # the tree from starting. Report zero until a window exists; writes
+        # remain strict through _set() so a gain can never be applied using an
+        # invalid normalization.
+        samples = self._samples(read=read, require_configured=False)
+        if samples <= 0:
+            if index != -1:
+                return 0.0
+            return np.zeros(len(self._coefficients), np.float64)
+
+        with self.parent.root.updateGroup():
+            if index != -1:
+                return self._coefficients[index].get(read=read) * samples
+
+            result = np.zeros(len(self._coefficients), np.float64)
+            for i, coefficient in enumerate(self._coefficients):
+                result[i] = coefficient.get(read=read) * samples
+            return result
 
 
 class FastDacVariable(GroupLinkVariable):

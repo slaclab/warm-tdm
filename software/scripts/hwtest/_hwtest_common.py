@@ -20,8 +20,8 @@ Provides:
   * ``connect(args)``          — open an operations ``Session`` and print the
                                  firmware build stamps (pin the result to a
                                  firmware/software version).
-  * ``Checklist``              — accumulate PASS/FAIL lines mirroring a wiki
-                                 page's pass criteria; ``.report()`` prints them
+  * ``Checklist``              — accumulate PASS/FAIL lines matching an issue's
+                                 pass criteria; ``.report()`` prints them
                                  and returns a process exit code.
 """
 import os
@@ -51,7 +51,7 @@ def connect(args):
 
     Returns the Session. The build-stamp print is deliberately unconditional:
     every hwtest result must be pinned to a specific firmware + software version,
-    so the output is meant to be pasted into the wiki Record block / the issue.
+    so the output is meant to be pasted into the owning issue's result comment.
     """
     sess = ops.connect(host=args.host, port=args.port)
     print('=' * 72)
@@ -66,7 +66,7 @@ def connect(args):
 
 
 class Checklist:
-    """Collect pass/fail items that mirror a wiki page's 'Pass criteria'.
+    """Collect pass/fail items that match the owning issue's pass criteria.
 
     Each ``item(ok, label, detail)`` records one check; ``report()`` prints the
     block and returns 0 if every item passed, 1 otherwise (so a script can
@@ -99,3 +99,17 @@ class Checklist:
               f'{"PASS" if allok else "FAIL"}')
         print('=' * 72)
         return 0 if allok else 1
+
+
+def finish(code):
+    """Terminate a hwtest script immediately with ``code``.
+
+    The rogue ``VirtualClient`` (ZMQ) spins up non-daemon background threads that
+    are never joined, so a normal ``return``/``sys.exit`` leaves the interpreter
+    hanging after the report prints. These scripts are one-shot diagnostics whose
+    last action is always the checklist report, so a hard exit (after flushing
+    output) is the pragmatic clean end. Use as ``return finish(chk.report())``.
+    """
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(code)

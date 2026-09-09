@@ -3,14 +3,14 @@
 System-level model of what has to be configured to bring a Group into a
 multiplexed (servoed) readout run, how those settings depend on each other, and
 how we intend to save/restore them — in particular the "tune point." Written to
-inform the `operations` bring-up + config/tune-point helpers (see
-`docs/plans/wtj-refactor/PLAN.md`); reconstructed by reading the bench notebooks
+inform the `operations` bring-up + config/tune-point helpers (tracked in
+[Issue #81](https://github.com/slaclab/warm-tdm/issues/81)); reconstructed by reading the bench notebooks
 (`software/scripts/2026*/`), `setup_mux`/the predecessor `lock_and_stream`, the
 tuning `pr.Process`es, and `_Group.py` together.
 
-> Status (2026-08-12): **design discussion, agreed to settle before building.**
-> Two open questions are called out below (artifact slicing; the `Tuned` validity
-> flags). No helper is implemented yet.
+This document preserves the proposed configuration model and design questions
+about artifact slicing and `Tuned` validity flags. Issue #81 owns implementation
+decisions, progress and acceptance.
 
 ## The three configuration layers
 

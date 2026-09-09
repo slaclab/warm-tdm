@@ -51,9 +51,10 @@ class DataPath(pr.Device):
             offset = 2 << 20))
 
         self.add(surf.devices.analog_devices.Ad9681Readout(
-            enabled = True,
-            name = 'Ad9681Readout',
-            offset = 0x00000000))
+            enabled      = True,
+            name         = 'Ad9681Readout',
+            offset       = 0x00000000,
+            deviceFamily = '7SERIES'))
 
         self.add(pr.RemoteVariable(
             name = 'AdcLatency',

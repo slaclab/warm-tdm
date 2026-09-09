@@ -310,6 +310,7 @@ architecture rtl of ColumnFpgaBoardAwaXe is
    signal timingRxClk125 : sl;
    signal timingRxRst125 : sl;
    signal timingRxData   : LocalTimingType;
+   signal idelayCtrlRdy  : sl;
    signal sq1FbDacs      : Slv14Array(7 downto 0);
 
    signal adc : Ad9681SerialType;
@@ -401,6 +402,7 @@ begin
          dataRxAxisSlave  => dataRxAxisSlave,     -- [in]
          timingRxClk125   => timingRxClk125,      -- [out]
          timingRxRst125   => timingRxRst125,      -- [out]
+         idelayCtrlRdy    => idelayCtrlRdy,       -- [out]
          timingRxData     => timingRxData);       -- [out]
 
 
@@ -621,6 +623,7 @@ begin
          timingRxRst125   => timingRxRst125,                         -- [in]
          timingRxData     => timingRxData,                           -- [in]
          config           => config,                                 -- [in]
+         idelayCtrlRdy    => idelayCtrlRdy,                          -- [in]
          sq1FbDacs        => sq1FbDacs,                              --[in]
          axisClk          => axisClk,                                -- [in]
          axisRst          => axisRst,                                -- [in]

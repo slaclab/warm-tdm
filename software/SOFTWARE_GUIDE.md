@@ -15,12 +15,13 @@ Two Python packages work together:
 (`software/python/warm_tdm_api/operations/`): the **client-side operational
 layer** for running the system from a notebook, script, or production tooling —
 session/board management (`Session`), data acquisition (`take_raw`, `take_data`),
-hardware setup helpers (`setup_mux`, `all_off`, `set_cryo_resistance`), stream
+hardware setup helpers (`setup_mux`, `stop_and_zero`, `set_cryo_resistance`), stream
 reading (`StreamReader`), pure channel helpers (`channels.py` — addressing,
 identifiers, dead masks), raw→physical unit conversions (`unit_conversions.py`),
 and offline analysis/plotting (`plot_stream_data`, `analyze_pair`). It drives the rogue tree
 remotely and is deliberately kept distinct from the pyrogue-tree device modules
-(`_Group`, `_SaTune`, …). It is **not** auto-imported by `warm_tdm_api` (so the
+(`_Group`, `_SaTune`, …). See [`docs/operations-api.md`](../docs/operations-api.md)
+for the how-to-use reference. It is **not** auto-imported by `warm_tdm_api` (so the
 server import path stays free of matplotlib/scipy); import it explicitly:
 ```python
 import warm_tdm_api.operations as ops
@@ -42,9 +43,17 @@ Session per Group). Per-Group topology (channels-per-board, board maps) is
 **derived from the bound Group**, not hardcoded; the timing coordinator is always
 `ColumnBoard[0]`. The client/server seam is unchanged: `warmTdmServer` owns the
 real `GroupRoot`+ZmqServer, and `Session` drives the `VirtualClient` mirror over
-ZMQ. Reusable hardware capabilities here are candidates to graduate into `Group`
-as they mature (see `docs/plans/wtj-refactor`). This subpackage was formerly the
-standalone `warm_tdm_jupyter` package.
+ZMQ. This subpackage was formerly the standalone `warm_tdm_jupyter` package.
+
+Keep operations client-side while runtime editability matters: changing a
+server-owned method requires restarting the server and rebuilding its state.
+Move a capability onto `Group` when it needs server-side execution or state,
+such as a continuous process, GUI control, or serialized configuration. Retain
+a thin operations delegator when making that move. Both `warm_tdm_api` and
+`warm_tdm` contribute nodes to the same tree; choose placement by which node
+owns the capability. [Issue #83](https://github.com/slaclab/warm-tdm/issues/83)
+tracks future graduations; [#80](https://github.com/slaclab/warm-tdm/issues/80)
+owns the future multi-Group `Instrument` design.
 
 Both are loaded via `pyrogue.addLibraryPath()` in scripts:
 ```python
@@ -126,6 +135,9 @@ Process lifecycle:
 - Started via command (e.g., `Group.SaTuneProcess.Start()`)
 - Progress tracked via status variables
 - Can be stopped mid-execution
+
+For software-clocked TES bias sine/square generation, configuration migration,
+and Stop/error behavior, see [Software TES bias waveforms](../docs/tes-bias-waveform.md).
 
 ## Data Streaming
 

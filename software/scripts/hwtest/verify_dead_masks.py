@@ -19,17 +19,23 @@ present. A mismatch prints the requested vs. actually-dropped sets so the
 mapping bug can be pinned.
 
     python verify_dead_masks.py --host localhost --port 9099 \
-        --cols c4r3,c4r19,c5r58 --acq 10
+        --setup-mux --nrow 32 --cols c0r5,c1r10,c2r20 --acq 10
 
 Run against a configuration that actually produces per-(col,row) data on the
-channels you intend to mask (choose the enabled set / row map on the server or
-with --setup-mux). Emulate will not produce real analog data, so use real
-hardware for a meaningful verdict.
+channels you intend to mask. The channel (col,row) tags come from the MUX
+timing, not from any analog signal, so a bare load board (no row-board drive) is
+enough -- but the MUX must be free-running and cycling rows: pass --setup-mux
+AND set a readout row list on the server (e.g. ``hwg.Readout(32)``), and choose
+--cols whose rows fall within that readout range. An empty baseline hard-fails.
+Emulate will not produce data at all, so use real hardware for a verdict.
+
+Mask hygiene: this test clears RowEnableMask to all-rows-live before the
+baseline and again on exit, so a run neither inherits nor leaks dead masks.
 """
 import argparse
 import sys
 
-from _hwtest_common import add_conn_args, connect, Checklist
+from _hwtest_common import add_conn_args, connect, Checklist, finish
 
 from warm_tdm_api.operations import make_dead_masks, expand_channels
 
@@ -66,63 +72,89 @@ def main():
     if args.setup_mux:
         ops.setup_mux(enable_pid=True)
 
-    # --- baseline (no masks) ------------------------------------------------
-    print('\nAcquiring BASELINE (no masks)...')
-    baseline_path = ops.take_data(acq_time_sec=args.acq)
-    baseline = ops.StreamData(baseline_path)
-    base_chans = present_channels(baseline)
-    print(f'  baseline file: {baseline_path}')
-    print(f'  baseline channels ({len(base_chans)}): {sorted(base_chans)}')
+    # This test owns the RowEnableMask registers while it runs. Clear them to
+    # "all rows live" (full 256-bit width, regardless of --nrow) before the
+    # baseline so a mask left over from an earlier run can't skew it, and again
+    # on exit so this run never leaves masks applied -- the state leak that
+    # otherwise makes the *next* baseline wrong.
+    all_live = make_dead_masks([], ncol=args.ncol, nrow=256)
 
-    chk.item(len(base_chans) > 0,
-             'Baseline file contains channel data',
-             f'{len(base_chans)} channels')
+    def clear_masks(when):
+        print(f'Clearing dead masks ({when}: all rows live)...')
+        sess.apply_dead_masks(all_live)
 
-    # The masked set must actually be present in the baseline, or "it dropped"
-    # is meaningless. Warn on any requested channel absent from the baseline.
-    not_in_base = dead_set - base_chans
-    chk.item(not not_in_base,
-             'All requested dead channels are present in the baseline',
-             'missing from baseline: ' + (', '.join(sorted(not_in_base)) or 'none'))
+    clear_masks('start')
+    try:
+        # --- baseline (no masks) --------------------------------------------
+        print('\nAcquiring BASELINE (no masks)...')
+        baseline_path = ops.take_data(acq_time_sec=args.acq)
+        baseline = ops.StreamData(baseline_path)
+        base_chans = present_channels(baseline)
+        print(f'  baseline file: {baseline_path}')
+        print(f'  baseline channels ({len(base_chans)}): {sorted(base_chans)}')
 
-    # --- apply masks --------------------------------------------------------
-    masks = make_dead_masks(dead, ncol=args.ncol, nrow=args.nrow)
-    print(f'\nApplying dead masks for {dead}...')
-    sess.apply_dead_masks(masks)
+        # An empty baseline makes every downstream check vacuous (empty set ==
+        # empty set "passes"), so hard-fail here instead of reporting a
+        # meaningless PASS. Almost always means no MUX readout is streaming:
+        # pass --setup-mux and set a readout row list (e.g. hwg.Readout(N)).
+        if not base_chans:
+            chk.item(False, 'Baseline file contains channel data',
+                     '0 channels -- no readout streaming? pass --setup-mux and '
+                     'set a readout row list (hwg.Readout(N))')
+        else:
+            chk.item(True, 'Baseline file contains channel data',
+                     f'{len(base_chans)} channels')
 
-    # --- masked acquisition -------------------------------------------------
-    print('\nAcquiring MASKED...')
-    masked_path = ops.take_data(acq_time_sec=args.acq)
-    masked = ops.StreamData(masked_path)
-    masked_chans = present_channels(masked)
-    print(f'  masked file: {masked_path}')
-    print(f'  masked channels ({len(masked_chans)}): {sorted(masked_chans)}')
+            # The masked set must actually be present in the baseline, or "it
+            # dropped" is meaningless. Warn on any requested channel absent.
+            not_in_base = dead_set - base_chans
+            chk.item(not not_in_base,
+                     'All requested dead channels are present in the baseline',
+                     'missing from baseline: ' + (', '.join(sorted(not_in_base)) or 'none'))
 
-    # --- the verdict --------------------------------------------------------
-    dropped = base_chans - masked_chans          # disappeared after masking
-    still_present = dead_set & masked_chans       # masked but still there (bug)
-    extra_dropped = dropped - dead_set            # dropped but not masked (bug)
+            # --- apply masks ------------------------------------------------
+            masks = make_dead_masks(dead, ncol=args.ncol, nrow=args.nrow)
+            print(f'\nApplying dead masks for {dead}...')
+            sess.apply_dead_masks(masks)
 
-    print('\nComparison:')
-    print(f'  requested dead : {sorted(dead_set)}')
-    print(f'  actually dropped: {sorted(dropped)}')
+            # --- masked acquisition -----------------------------------------
+            print('\nAcquiring MASKED...')
+            masked_path = ops.take_data(acq_time_sec=args.acq)
+            masked = ops.StreamData(masked_path)
+            masked_chans = present_channels(masked)
+            print(f'  masked file: {masked_path}')
+            print(f'  masked channels ({len(masked_chans)}): {sorted(masked_chans)}')
 
-    chk.item(not still_present,
-             'No masked channel remained in the stream',
-             'still present: ' + (', '.join(sorted(still_present)) or 'none'))
-    chk.item(not extra_dropped,
-             'No unmasked channel was dropped',
-             'unexpectedly dropped: ' + (', '.join(sorted(extra_dropped)) or 'none'))
-    chk.item(dropped == (dead_set & base_chans),
-             'Dropped set equals the requested dead set (restricted to baseline)',
-             'exact match' if dropped == (dead_set & base_chans) else 'MISMATCH')
+            # --- the verdict ------------------------------------------------
+            dropped = base_chans - masked_chans          # disappeared after masking
+            still_present = dead_set & masked_chans       # masked but still there (bug)
+            extra_dropped = dropped - dead_set            # dropped but not masked (bug)
 
-    if extra_dropped or still_present:
-        print('\n  Mapping hint: the (requested -> dropped) discrepancy above is '
-              'what pins the bit-order / index bug. Re-run with a single --cols '
-              'entry to isolate the offset (see the wiki page, Part 3).')
+            print('\nComparison:')
+            print(f'  requested dead : {sorted(dead_set)}')
+            print(f'  actually dropped: {sorted(dropped)}')
 
-    return chk.report()
+            chk.item(not still_present,
+                     'No masked channel remained in the stream',
+                     'still present: ' + (', '.join(sorted(still_present)) or 'none'))
+            chk.item(not extra_dropped,
+                     'No unmasked channel was dropped',
+                     'unexpectedly dropped: ' + (', '.join(sorted(extra_dropped)) or 'none'))
+            chk.item(dropped == (dead_set & base_chans),
+                     'Dropped set equals the requested dead set (restricted to baseline)',
+                     'exact match' if dropped == (dead_set & base_chans) else 'MISMATCH')
+
+            if extra_dropped or still_present:
+                print('\n  Mapping hint: the (requested -> dropped) discrepancy above is '
+                      'what pins the bit-order / index bug. Re-run with a single --cols '
+                      'entry to isolate the offset (see the wiki page, Part 3).')
+    finally:
+        # Always leave the rig with all rows live, even on failure/interrupt,
+        # so a run never leaks masks into the next one. (finish() below is
+        # outside the try, so this runs before the hard exit.)
+        clear_masks('exit')
+
+    return finish(chk.report())
 
 
 if __name__ == '__main__':

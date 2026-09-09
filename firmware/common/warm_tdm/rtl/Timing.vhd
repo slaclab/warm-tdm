@@ -60,6 +60,10 @@ entity Timing is
       timingRxRstOut  : out sl;
       timingRxDataOut : out LocalTimingType;
 
+      -- IDELAYCTRL ready for the IODELAY_GROUP_G delay group. Raw idelayClk-domain
+      -- status; consumers resynchronize to their own capture clock.
+      idelayCtrlRdy : out sl := '0';
+
       -- Debug for LED
       timingRxClkLocked : out sl;
       timingRxLocked    : out sl;
@@ -162,7 +166,7 @@ begin
    -------------
    IDELAYCTRL_0 : IDELAYCTRL
       port map (
-         RDY    => open,
+         RDY    => idelayCtrlRdy,
          REFCLK => idelayClk,
          RST    => idelayRst);
 
