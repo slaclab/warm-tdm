@@ -1,0 +1,27 @@
+{
+  "columns": [0],
+  "rows": [0],
+  "sa_offset": {"Precision": 0.01, "MaxLoops": 40},
+  "sa_tune": {
+    "SaBiasLowOffset": 0.0,
+    "SaBiasHighOffset": 50.0,
+    "SaBiasNumSteps": 2,
+    "SaFbLowOffset": 0.0,
+    "SaFbHighOffset": 300.0,
+    "SaFbNumSteps": 32,
+    "SaFbSampleDelay": 1.0,
+    "SetAfterFinish": true
+  },
+  "sq1_tune": {
+    "Sq1BiasLowOffset": 0.0,
+    "Sq1BiasHighOffset": 100.0,
+    "Sq1BiasNumSteps": 2,
+    "Sq1FbLowOffset": -77.0,
+    "Sq1FbHighOffset": 77.0,
+    "Sq1FbNumSteps": 32,
+    "ServoPrecision": 0.01,
+    "ServoMaxLoops": 40,
+    "ServoDisable": false
+  },
+  "minimum_curve_span": {"sa": 0.001, "sq1": 0.001}
+}

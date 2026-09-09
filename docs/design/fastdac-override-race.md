@@ -7,9 +7,10 @@ graduating `operations.stop_and_zero` (Issue #83, G2); reconstructed from
 `firmware/common/warm_tdm/rtl/FastDacDriver.vhd` and the surf
 `AxiDualPortRam`/`SynchronizerFifo` it uses.
 
-> Status (2026-08-14): **analysis + agreed interim fix.** The software reorder
-> (below) is committed and is expected to resolve the practical case; it needs
-> bench confirmation. The firmware hardening is proposed, not yet implemented.
+[Issue #86](https://github.com/slaclab/warm-tdm/issues/86) owns acceptance,
+candidate-specific simulation and bench results, and any decision to implement
+the optional RTL hardening. This document records the mechanism and design
+alternatives; it does not maintain a second verification checklist.
 
 ## The two DAC-value paths
 
@@ -54,20 +55,24 @@ Note `running=0` handling (`CLK_0_RISE_S`) returns the FSM to `IDLE_S` but does
 **not** re-latch or re-apply the override value, so leaving MUX does not by
 itself repair a dropped force write.
 
-## Interim fix (software, committed)
+## Software mitigation
 
 `operations.stop_and_zero` was reordered: end the run and switch to manual timing
 **first**, poll `TimingTx.Running` until it drops (bounded), and only **then**
-write the force/bias zeros. Once `Running=0` the FSM parks in `IDLE_S` between
-override writes, so each write finds the FSM idle and is serviced. This removes
-the practical failure without a firmware rebuild.
+write the force/bias zeros. `IDLE_S` is the stopped-state resting state, but an
+override can still arrive while another DAC write is being serviced. The helper
+therefore checks every fast-DAC output and retries writes within a bounded
+budget. `DacCurrentNow.get()` refreshes its raw register in the driver; callers
+do not perform a separate raw read. An unreadable or non-finite current cannot
+count as verification.
 
-Residual risk: it relies on the FSM being idle "long enough" between/after
-writes. In practice, once stopped, `IDLE_S` is the resting state and each AXI
-write is a separate FIFO entry seen on its own idle cycle, so back-to-back writes
-are fine. Still, this is timing-by-construction, not timing-by-guarantee — hence
-the firmware hardening below. **Needs bench confirmation** (emulate does not
-clock the DAC FSM against live timing).
+`stop_and_zero()` reports success only when timing has stopped, fast-DAC
+readbacks have verified zero and the slow-output writes have completed. It
+attempts other outputs after a failure and reports an unsuccessful result.
+Register verification does not independently measure physical outputs;
+MemEmulate does not clock the DAC FSM. The required GroupTb sequence and bench
+measurements are tracked on #86. Raw override writes during active timing are
+not made reliable by this software mitigation.
 
 ## Proposed firmware hardening (not yet implemented)
 
@@ -97,11 +102,6 @@ pattern applies to `RowDacDriver2`'s manual row activate/deactivate override
 (`MANUAL_RS_*`), which has the analogous "serviced only from a specific state"
 shape and is why row-DAC zeroing in `stop_and_zero` stays commented for now.
 
-## Status / next steps
-
-- [x] Software reorder in `stop_and_zero` (committed, Issue #83 G2).
-- [ ] Bench: confirm the reorder reliably zeros column force/bias DACs after a
-      real muxed run (swh76's Issue #32 repro is the test).
-- [ ] Decide whether to also do the firmware pending-latch (option 1). If yes,
-      open a firmware issue and extend the same fix to `RowDacDriver2`, then
-      un-comment the row-DAC zeroing in `stop_and_zero`.
+Row-DAC zeroing would require its own implementation and acceptance scope;
+the current software mitigation covers the column outputs. Record any expansion
+of scope and its owning issue on #86 before treating it as part of this fix.

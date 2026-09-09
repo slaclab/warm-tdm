@@ -3,17 +3,16 @@
 ## Every method here is a thin client-side delegate to a Group broadcast variable
 ## whose *real* home is an owning tree node (issue #83: G3 CableResistance, G4
 ## PowerSupplySynchronized, G6 LedEnable). They are grouped in this one small
-## mixin precisely because they are slated for deletion: as each capability
-## graduates onto the tree, drop the method here (and its shim/`__all__` entry)
-## -- a clean file-scoped operation, not surgery on a shared module. Do NOT grow
-## a path-resolution layer around them; push each to its node instead. See
-## docs/plans/wtj-refactor/PLAN.md.
+## mixin to preserve existing operations call sites after the capabilities move
+## onto Group. Keep the wrappers thin; the owning tree node implements the
+## behavior. Future graduations follow the same compatibility convention. See
+## https://github.com/slaclab/warm-tdm/issues/83.
 ##
 ## Relies on TopologyCore state (self.group). Mounted on Session.
 
 
 class HwSetupMixin:
-    """Transitional Group-broadcast convenience shims (pending graduation)."""
+    """Compatibility shims for the Group-owned broadcast controls."""
 
     def disable_leds(self):
         """Disable status-blinking LEDs on all boards.
