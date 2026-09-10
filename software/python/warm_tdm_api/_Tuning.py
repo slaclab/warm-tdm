@@ -350,13 +350,11 @@ def saBiasSweep(*, group, process, doBiasRamp=True):
         process.TotalSteps.set(numBiasSteps * numFbSteps)
 
 
-    # These paths are not swept during SA tune. Clear them once, staging all
-    # three force-current arrays before one grouped hardware commit.
+    # These paths are not swept during SA tune. Clear them once.
     zero_columns = np.zeros(colCount, np.float64)
-    warm_tdm_api.stageAndCommit(
-        (group.SaFbForceCurrent, zero_columns),
-        (group.Sq1BiasForceCurrent, zero_columns),
-        (group.Sq1FbForceCurrent, zero_columns))
+    group.SaFbForceCurrent.set(zero_columns)
+    group.Sq1BiasForceCurrent.set(zero_columns)
+    group.Sq1FbForceCurrent.set(zero_columns)
 
     # Each outer-loop point establishes SA bias and recenters the offset before
     # acquiring its complete SA-feedback response curve.
@@ -409,9 +407,9 @@ def saTune(*, group, process=None, doSet=True, doBiasRamp=True):
 
     The acquisition phase calls :func:`saBiasSweep`, whose ``CurveData`` fit
     selects the bias curve with the largest usable response and an operating
-    feedback point on that curve. When requested, fitted values are staged into
-    the per-row SA-feedback RAM, SA-bias DACs, and feedback force path in one
-    grouped commit, followed by a final offset servo.
+    feedback point on that curve. When requested, fitted values are applied to
+    the per-row SA-feedback RAM, SA-bias DACs, and feedback force path through
+    their Group setters, followed by a final offset servo.
 
     Parameters
     ----------
@@ -471,20 +469,19 @@ def saTune(*, group, process=None, doSet=True, doBiasRamp=True):
                 raise RuntimeError(
                     f'SA tune produced no fitted result for enabled column {col}')
 
-            # Fill the complete column shadow table now; the grouped commit
-            # writes one array block instead of one transaction per row.
+            # Fill the complete column table so the Group setter can write
+            # each array block instead of one transaction per row.
             saFbTable[col, :] = result.xOut
             tunedSaFb[col] = result.xOut
             tunedSaBias[col] = result.biasOut
 
         group._log.debug(
-            'SA tune staging fitted SaFb table, SA bias, and force-current '
+            'SA tune applying fitted SaFb table, SA bias, and force-current '
             'operating point: SaFb=%s SaBias=%s',
             tunedSaFb.tolist(), tunedSaBias.tolist())
-        warm_tdm_api.stageAndCommit(
-            (group.SaFbCurrent, saFbTable),
-            (group.SaBiasCurrent, tunedSaBias),
-            (group.SaFbForceCurrent, tunedSaFb))
+        group.SaFbCurrent.set(saFbTable)
+        group.SaBiasCurrent.set(tunedSaBias)
+        group.SaFbForceCurrent.set(tunedSaFb)
 
         # Recenter the output at the operating point that readout will use.
         saOffset(group=group, process=process, publish=publish)
@@ -859,31 +856,18 @@ def fasTune(*, group, process=None, doSet=True):
     sweep_delay = process.FasFluxSampleDelay.get()
     minimum_tolerance = process.FasMinimumTolerance.get()
 
-    # Launch all initial hardware reads together, then reconstruct the converted
-    # currents from the refreshed shadows. These snapshots also drive cleanup.
-    driver_items = list(drivers.items())
-    board_count = len(driver_items)
-    snapshots = warm_tdm_api.readAndCheck(
-        group.SaFbForceCurrent,
-        group.Sq1BiasForceCurrent,
-        group.Sq1FbForceCurrent,
-        group.SaFbCurrent,
-        *(driver.Mode for _, driver in driver_items),
-        *(driver.FasOn.Current for _, driver in driver_items),
-        *(driver.FasOff.Current for _, driver in driver_items))
-    (sa_fb_snapshot,
-     sq1_bias_snapshot,
-     sq1_fb_snapshot,
-     sa_fb_table) = snapshots[:4]
-    # Split the grouped result back into per-board lookup tables. Complete FAS
-    # arrays replace repeated per-address reads inside the row loop.
-    row_snapshots = snapshots[4:]
-    mode_snapshot = dict(zip(
-        drivers, row_snapshots[:board_count]))
-    fas_on_tables = dict(zip(
-        drivers, row_snapshots[board_count:2 * board_count]))
-    fas_off_tables = dict(zip(
-        drivers, row_snapshots[2 * board_count:]))
+    # Save the initial settings for the sweep and cleanup.
+    sa_fb_snapshot = group.SaFbForceCurrent.get()
+    sq1_bias_snapshot = group.Sq1BiasForceCurrent.get()
+    sq1_fb_snapshot = group.Sq1FbForceCurrent.get()
+    sa_fb_table = group.SaFbCurrent.get()
+    mode_snapshot = {board: driver.Mode.get()
+                     for board, driver in drivers.items()}
+    # Complete FAS arrays avoid per-address reads inside the row loop.
+    fas_on_tables = {board: driver.FasOn.Current.get()
+                     for board, driver in drivers.items()}
+    fas_off_tables = {board: driver.FasOff.Current.get()
+                      for board, driver in drivers.items()}
     fas_on_snapshot = {
         key: fas_on_tables[key[0]][key[1]]
         for key in unique_targets
@@ -912,16 +896,14 @@ def fasTune(*, group, process=None, doSet=True):
             'FAS tune applying bootstrap SQ1 state to enabled columns: '
             'bias=%s feedback=%s',
             bootstrap_bias.tolist(), bootstrap_fb.tolist())
-        warm_tdm_api.stageAndCommit(
-            (group.Sq1FbForceCurrent, bootstrap_fb),
-            (group.Sq1BiasForceCurrent, bootstrap_bias))
+        group.Sq1FbForceCurrent.set(bootstrap_fb)
+        group.Sq1BiasForceCurrent.set(bootstrap_bias)
 
-        # Every subsequent ManualSet assumes MANUAL mode. Stage all row-board
-        # mode changes first and verify them in one grouped commit.
+        # Every subsequent ManualSet assumes MANUAL mode. Set and verify each
+        # row board's mode before starting the sweep.
         for board, driver in drivers.items():
             log.debug('FAS tune setting RowBoard[%d] Mode=MANUAL', board)
-        warm_tdm_api.stageAndCommit(*[
-            (driver.Mode, 1) for driver in drivers.values()])
+            driver.Mode.setDisp('MANUAL')
 
         for index, (row, board, address, _) in enumerate(targets):
             if not _pause_point(
@@ -1024,19 +1006,15 @@ def fasTune(*, group, process=None, doSet=True):
                 'and publishing candidates=%s', selected)
             return curves
 
-        # Defer all persistent writes until acquisition and fitting succeed,
-        # then stage every selected FasOn entry before one grouped commit.
+        # Defer all persistent writes until acquisition and fitting succeed.
         programming_started = True
         for key, current in selected.items():
             log.debug(
-                'FAS tune staging RowBoard[%d] FasOn[%d]=%s uA',
+                'FAS tune writing RowBoard[%d] FasOn[%d]=%s uA',
                 key[0], key[1], current)
-        warm_tdm_api.stageAndCommit(*[
-            (unique_targets[key].FasOn.Current, current, key[1])
-            for key, current in selected.items()
-        ])
+            unique_targets[key].FasOn.Current.set(current, index=key[1])
 
-        # Catch Stop arriving during the grouped register transaction. A Pause
+        # Catch Stop arriving during programming. A Pause
         # waits here and resumes without rolling back the completed write.
         if not _pause_point(
                 process, lambda: process._publishResults(curves)):
@@ -1045,12 +1023,9 @@ def fasTune(*, group, process=None, doSet=True):
                 fas_on_snapshot)
             for key, original in fas_on_snapshot.items():
                 log.debug(
-                    'FAS tune staging rollback RowBoard[%d] FasOn[%d]=%s uA',
+                    'FAS tune restoring RowBoard[%d] FasOn[%d]=%s uA',
                     key[0], key[1], original)
-            warm_tdm_api.stageAndCommit(*[
-                (unique_targets[key].FasOn.Current, original, key[1])
-                for key, original in fas_on_snapshot.items()
-            ])
+                unique_targets[key].FasOn.Current.set(original, index=key[1])
             programming_started = False
             process.Message.set('Stopped by user; FasOn unchanged')
             return curves
@@ -1067,12 +1042,9 @@ def fasTune(*, group, process=None, doSet=True):
                 fas_on_snapshot)
             for key, current in fas_on_snapshot.items():
                 log.debug(
-                    'FAS tune staging rollback RowBoard[%d] FasOn[%d]=%s uA',
+                    'FAS tune restoring RowBoard[%d] FasOn[%d]=%s uA',
                     key[0], key[1], current)
-            warm_tdm_api.stageAndCommit(*[
-                (unique_targets[key].FasOn.Current, current, key[1])
-                for key, current in fas_on_snapshot.items()
-            ])
+                unique_targets[key].FasOn.Current.set(current, index=key[1])
         raise
     finally:
         # Manual outputs and force-current overrides are temporary measurement
@@ -1095,19 +1067,16 @@ def fasTune(*, group, process=None, doSet=True):
                     'Failed to return row board %s address %s to FasOff: %s',
                     key[0], key[1], exc)
         log.debug(
-            'FAS tune restoring force currents as one transaction group: '
+            'FAS tune restoring force currents: '
             'SaFb=%s Sq1Bias=%s Sq1Fb=%s',
             sa_fb_snapshot.tolist(), sq1_bias_snapshot.tolist(),
             sq1_fb_snapshot.tolist())
+        group.SaFbForceCurrent.set(sa_fb_snapshot)
+        group.Sq1BiasForceCurrent.set(sq1_bias_snapshot)
+        group.Sq1FbForceCurrent.set(sq1_fb_snapshot)
         for board, mode in mode_snapshot.items():
-            log.debug(
-                'FAS tune staging RowBoard[%d] Mode=%s', board, mode)
-        warm_tdm_api.stageAndCommit(
-            (group.SaFbForceCurrent, sa_fb_snapshot),
-            (group.Sq1BiasForceCurrent, sq1_bias_snapshot),
-            (group.Sq1FbForceCurrent, sq1_fb_snapshot),
-            *[(drivers[board].Mode, mode)
-              for board, mode in mode_snapshot.items()])
+            log.debug('FAS tune restoring RowBoard[%d] Mode=%s', board, mode)
+            drivers[board].Mode.set(mode)
         log.debug('FAS tune cleanup complete')
 
 # SQ1 tuning
@@ -1429,10 +1398,9 @@ def sq1Tune(group, process, doBiasRamp=True):
         log.error('SQ1 tune rejected because no columns are enabled')
         raise RuntimeError('SQ1 tuning requires at least one enabled column')
 
-    # Fetch the force-current baseline and every enabled column's SA row table
-    # together. Subsequent row changes use only these cached arrays.
-    sa_fb_force_base, sa_fb_table = warm_tdm_api.readAndCheck(
-        group.SaFbForceCurrent, group.SaFbCurrent)
+    # Cache the force-current baseline and SA row tables for subsequent rows.
+    sa_fb_force_base = group.SaFbForceCurrent.get()
+    sa_fb_table = group.SaFbCurrent.get()
 
     def loadSaFbSetpoints(rowIndex):
         """Apply one row's SA-tuned feedback through the force-current path."""

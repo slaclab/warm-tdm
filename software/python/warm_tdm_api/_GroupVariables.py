@@ -16,8 +16,9 @@ one Group variable instead of walking the tree per board/channel:
 * :class:`FastDacVariable` -- a 2-D ``(column, row)`` array over the per-column
   fast-DAC drivers.
 
-All of them run their get/set inside ``root.updateGroup()`` so the batched
-dependency writes/reads coalesce into as few hardware transactions as possible.
+All of them run their get/set inside ``root.updateGroup()`` to group client
+updates. Scalar and default board-array getters retain their issue/wait/evaluate
+sequence. Only ADC/SA-output arrays opt into refreshing blocks directly.
 The ``linkedSet``/``linkedGet`` callback parameter names (``value``, ``index``,
 ``write``, ``read``) are part of pyrogue's callback ABI -- pyrogue matches them
 by name -- so keep them as-is.
@@ -25,83 +26,6 @@ by name -- so keep them as-is.
 
 import pyrogue as pr
 import numpy as np
-
-
-# NOTE: readAndCheck/stageAndCommit and the two block resolvers below are
-# generic PyRogue block bookkeeping, not WarmTDM-specific. PyRogue exposes
-# block-level grouped ops (pr.readAndCheckBlocks / pr.writeAndVerifyBlocks) but
-# no public way to resolve Variables -> their backing Blocks, so we do it here.
-# Proposed for upstream in slaclab/rogue#1290; drop these if that lands.
-
-
-def _variableBlocks(variable):
-    """Return the backing block(s) for one variable.
-
-    A LinkVariable aggregates several dependency variables and exposes their
-    blocks as ``depBlocks``; a RemoteVariable maps to a single ``_block``. A
-    LocalVariable with no memory block yields an empty list.
-    """
-    if hasattr(variable, 'depBlocks'):
-        return variable.depBlocks
-    block = getattr(variable, '_block', None)
-    return [] if block is None else [block]
-
-
-def _uniqueBlocks(variables):
-    """Collect the distinct backing blocks across several variables.
-
-    Blocks are deduplicated by identity (variables that share a block, e.g.
-    neighboring columns on one board, resolve to one block) while preserving
-    first-seen order so the grouped transaction stays deterministic.
-    """
-    blocks = []
-    seen = set()
-    for variable in variables:
-        for block in _variableBlocks(variable):
-            identity = id(block)
-            if identity not in seen:
-                seen.add(identity)
-                blocks.append(block)
-    return blocks
-
-
-def readAndCheck(*variables):
-    """Read several variables' backing blocks as one grouped operation.
-
-    The returned tuple contains each variable's value reconstructed from the
-    newly refreshed shadows. This is especially useful for taking a consistent
-    snapshot of several Group arrays without blocking once per array.
-    """
-    if not variables:
-        return ()
-
-    with variables[0].root.updateGroup():
-        blocks = _uniqueBlocks(variables)
-        if blocks:
-            pr.readAndCheckBlocks(blocks)
-        return tuple(variable.get(read=False) for variable in variables)
-
-
-def stageAndCommit(*updates):
-    """Stage Remote-/LinkVariable shadows and commit their blocks together.
-
-    Each update is ``(variable, value)`` or ``(variable, value, index)``.
-    Duplicate backing blocks are removed while preserving their first-seen
-    order. Unchanged and tune-disabled blocks remain clean and are therefore
-    skipped by PyRogue's non-forced grouped write.
-    """
-    if not updates:
-        return
-
-    variables = [update[0] for update in updates]
-    with variables[0].root.updateGroup():
-        for update in updates:
-            variable, value = update[:2]
-            index = -1 if len(update) == 2 else update[2]
-            variable.set(value=value, index=index, write=False)
-        blocks = _uniqueBlocks(variables)
-        if blocks:
-            pr.writeAndVerifyBlocks(blocks)
 
 
 class GroupBroadcastVariable(pr.LinkVariable):
@@ -247,15 +171,12 @@ class GroupLinkVariable(pr.LinkVariable):
                 ret = np.zeros(len(self.dependencies), np.float64)
 
                 if read is True:
-                    # Refresh only tune-enabled columns' blocks in one grouped
-                    # read; disabled columns keep their last shadow value.
-                    enabled_dependencies = [
-                        var for idx, var in enumerate(self.dependencies)
-                        if (self.tuneEnVar is None
-                            or self.tuneEnVar.get(index=idx))]
-                    blocks = _uniqueBlocks(enabled_dependencies)
-                    if blocks:
-                        pr.readAndCheckBlocks(blocks)
+                    for idx, var in enumerate(self.dependencies):
+                        if self.tuneEnVar is None or self.tuneEnVar.get(index=idx):
+                            var.get(read=True, check=False)
+
+                    for b in self.depBlocks:
+                        pr.checkTransaction(b)
 
                 for idx, var in enumerate(self.dependencies):
                     ret[idx] = var.get(read=False)
@@ -271,17 +192,26 @@ class GroupArrayLinkVariable(GroupLinkVariable):
     ``board = col // 8``, ``chan = col % 8``. Used where the hardware exposes one
     array node per column board rather than one scalar per column.
 
+    Whole-array reads retain the issue/wait/evaluate sequence for enabled
+    boards. The ADC/SA-output arrays explicitly opt into block reads: their
+    declared dependencies cover the hardware inputs and their getters only
+    convert the refreshed values.
+
     Parameters
     ----------
     config : GroupConfig
         Supplies ``numColumns`` (the flat array length).
+    readBlocks : bool
+        Opt into reading dependency blocks before conversion. Defaults to False
+        to preserve custom and cached getter behavior.
     **kwargs
         Forwarded to :class:`GroupLinkVariable` (``tuneEnVar``, ``dependencies``,
         one per board, ...).
     """
 
-    def __init__(self, config, **kwargs):
+    def __init__(self, config, readBlocks=False, **kwargs):
         self._config = config
+        self._readBlocks = readBlocks
         super().__init__(**kwargs)
 
     def _get(self, *, index: int = -1, read: bool = True):
@@ -292,9 +222,9 @@ class GroupArrayLinkVariable(GroupLinkVariable):
                 chan = index % 8
                 ret = self.dependencies[board].get(index=chan, read=read)
             else:
-                # A single per-board block covers 8 channels, so read a board
-                # if any of its columns is tune-enabled; collapse the enabled
-                # columns to their distinct boards.
+                # Refresh a board if any of its columns is tune-enabled.
+                # Its array may depend on several blocks (ADC plus offsets,
+                # for example), including shared blocks reached by many links.
                 if self.tuneEnVar is None:
                     read_boards = range(len(self.dependencies))
                 else:
@@ -304,11 +234,21 @@ class GroupArrayLinkVariable(GroupLinkVariable):
                         if self.tuneEnVar.get(index=col)
                     })
 
-                if read:
-                    blocks = _uniqueBlocks(
-                        self.dependencies[board] for board in read_boards)
-                    if blocks:
-                        pr.readAndCheckBlocks(blocks)
+                if read and self._readBlocks:
+                    blocks = []
+                    for board in read_boards:
+                        dep = self.dependencies[board]
+                        if isinstance(dep, pr.LinkVariable):
+                            blocks.extend(dep.depBlocks)
+                        elif isinstance(dep, pr.RemoteVariable):
+                            blocks.append(dep._block)
+                    pr.readAndWaitBlocks(dict.fromkeys(blocks))
+                elif not self._readBlocks:
+                    for board, dep in enumerate(self.dependencies):
+                        dep.get(read=read and board in read_boards, check=False)
+
+                    for dep in self.dependencies:
+                        dep.parent.checkBlocks()
 
                 ret = np.zeros(self._config.numColumns, np.float64)
                 for i in range(self._config.numColumns):
@@ -479,18 +419,10 @@ class FastDacVariable(GroupLinkVariable):
                 return self.dependencies[colIndex].get(index=rowIndex, read=read)
             else:
                 cols = self._config.numColumns
-                if read:
-                    enabled_dependencies = [
-                        self.dependencies[colIndex]
-                        for colIndex in range(cols)
-                        if (self.tuneEnVar is None
-                            or self.tuneEnVar.get(index=colIndex))]
-                    blocks = _uniqueBlocks(enabled_dependencies)
-                    if blocks:
-                        pr.readAndCheckBlocks(blocks)
-
                 ret = []
                 for colIndex in range(cols):
+                    read_column = read and (self.tuneEnVar is None
+                                            or self.tuneEnVar.get(index=colIndex))
                     ret.append(self.dependencies[colIndex].get(
-                        index=-1, read=False))
+                        index=-1, read=read_column))
                 return np.array(ret, dtype=np.float64)

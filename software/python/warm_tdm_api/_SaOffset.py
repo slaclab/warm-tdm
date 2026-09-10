@@ -151,8 +151,8 @@ class SaOffsetSweepProcess(warm_tdm_api.PausableProcess):
         with self.root.updateGroup(.25):
             group = self.parent
 
-            startBias, startOffset = warm_tdm_api.readAndCheck(
-                group.SaBiasCurrent, group.SaOffset)
+            startBias = group.SaBiasCurrent.get()
+            startOffset = group.SaOffset.get()
 
             low = self.SaBiasLow.get()
             high = self.SaBiasHigh.get()
@@ -222,9 +222,8 @@ class SaOffsetSweepProcess(warm_tdm_api.PausableProcess):
 
                 # Restore these even when Stop() interrupts the inner offset
                 # PID loop or an access raises during the sweep.
-                warm_tdm_api.stageAndCommit(
-                    (group.SaBiasCurrent, startBias),
-                    (group.SaOffset, startOffset))
+                group.SaBiasCurrent.set(startBias)
+                group.SaOffset.set(startOffset)
 
     def _publishSweep(self, biasRange, curves):
         self.PlotXData.set(np.asarray(biasRange).copy())
