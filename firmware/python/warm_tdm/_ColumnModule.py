@@ -129,11 +129,10 @@ class ColumnModule(pr.Device):
 
         saOutAmps = [self.AnalogFrontEnd.Channel[x].SAAmp for x in range(8)]
 
-        def _saOutGet(*, read=True, index=-1, check=True):
-            #print(f'ColumnModule._saOutGet({read=}, {index=}, {check=})')
+        def _saOutGet(*, read=True, index=-1):
             with self.root.updateGroup():
-                adcs = self.SaOutAdc.get(read=read, index=index, check=check)
-                offsets = self.SaBiasOffset.OffsetVoltageArray.get(read=read, index=index, check=check)
+                adcs = self.SaOutAdc.get(read=read, index=index)
+                offsets = self.SaBiasOffset.OffsetVoltageArray.get(read=read, index=index)
                 if index == -1:
                     ret = np.array([saOutAmps[i].ampVin(adcs[i], offsets[i]) * 1e3 for i in range(8)])
                     return ret
@@ -141,10 +140,9 @@ class ColumnModule(pr.Device):
                     ret = saOutAmps[index].ampVin(adcs, offsets) * 1e3
                     return ret
 
-        def _saOutNormGet(*, read=True, index=-1, check=True):
-            #print(f'ColumnModule._saOutNormGet({read=}, {index=}, {check=})')
+        def _saOutNormGet(*, read=True, index=-1):
             with self.root.updateGroup():
-                adcs = self.SaOutAdc.get(read=read, index=index, check=check)
+                adcs = self.SaOutAdc.get(read=read, index=index)
                 offset = 0.0
                 if index == -1:
                     ret = np.array([saOutAmps[i].ampVin(adcs[i], offset) * 1e3 for i in range(8)])

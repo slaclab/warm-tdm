@@ -167,13 +167,11 @@ def saBiasSweep(*, group, process, doBiasRamp=True):
     if process is not None:
         process.TotalSteps.set(numBiasSteps * numFbSteps)
 
-    # These paths are not swept during SA tune. Clear them once, staging all
-    # three force-current arrays before one grouped hardware commit.
+    # These paths are not swept during SA tune. Clear them once.
     zero_columns = np.zeros(colCount, np.float64)
-    warm_tdm_api.stageAndCommit(
-        (group.SaFbForceCurrent, zero_columns),
-        (group.Sq1BiasForceCurrent, zero_columns),
-        (group.Sq1FbForceCurrent, zero_columns))
+    group.SaFbForceCurrent.set(zero_columns)
+    group.Sq1BiasForceCurrent.set(zero_columns)
+    group.Sq1FbForceCurrent.set(zero_columns)
 
     # Each outer-loop point establishes SA bias and recenters the offset before
     # acquiring its complete SA-feedback response curve.
@@ -226,9 +224,9 @@ def saTune(*, group, process=None, doSet=True, doBiasRamp=True):
 
     The acquisition phase calls :func:`saBiasSweep`, whose ``CurveData`` fit
     selects the bias curve with the largest usable response and an operating
-    feedback point on that curve. When requested, fitted values are staged into
-    the per-row SA-feedback RAM, SA-bias DACs, and feedback force path in one
-    grouped commit, followed by a final offset servo.
+    feedback point on that curve. When requested, fitted values are applied to
+    the per-row SA-feedback RAM, SA-bias DACs, and feedback force path through
+    their Group setters, followed by a final offset servo.
 
     Parameters
     ----------
@@ -288,20 +286,19 @@ def saTune(*, group, process=None, doSet=True, doBiasRamp=True):
                 raise RuntimeError(
                     f'SA tune produced no fitted result for enabled column {col}')
 
-            # Fill the complete column shadow table now; the grouped commit
-            # writes one array block instead of one transaction per row.
+            # Fill the complete column table so the Group setter can write
+            # each array block instead of one transaction per row.
             saFbTable[col, :] = result.xOut
             tunedSaFb[col] = result.xOut
             tunedSaBias[col] = result.biasOut
 
         group._log.debug(
-            'SA tune staging fitted SaFb table, SA bias, and force-current '
+            'SA tune applying fitted SaFb table, SA bias, and force-current '
             'operating point: SaFb=%s SaBias=%s',
             tunedSaFb.tolist(), tunedSaBias.tolist())
-        warm_tdm_api.stageAndCommit(
-            (group.SaFbCurrent, saFbTable),
-            (group.SaBiasCurrent, tunedSaBias),
-            (group.SaFbForceCurrent, tunedSaFb))
+        group.SaFbCurrent.set(saFbTable)
+        group.SaBiasCurrent.set(tunedSaBias)
+        group.SaFbForceCurrent.set(tunedSaFb)
 
         # Recenter the output at the operating point that readout will use.
         saOffset(group=group, process=process, publish=publish)

@@ -330,10 +330,9 @@ def sq1Tune(group, process, doBiasRamp=True):
         log.error('SQ1 tune rejected because no columns are enabled')
         raise RuntimeError('SQ1 tuning requires at least one enabled column')
 
-    # Fetch the force-current baseline and every enabled column's SA row table
-    # together. Subsequent row changes use only these cached arrays.
-    sa_fb_force_base, sa_fb_table = warm_tdm_api.readAndCheck(
-        group.SaFbForceCurrent, group.SaFbCurrent)
+    # Cache the force-current baseline and SA row tables for subsequent rows.
+    sa_fb_force_base = group.SaFbForceCurrent.get()
+    sa_fb_table = group.SaFbCurrent.get()
 
     def loadSaFbSetpoints(rowIndex):
         """Apply one row's SA-tuned feedback through the force-current path."""

@@ -250,11 +250,9 @@ class Group(pr.Device):
         # Hidden: driven only by the tuning algorithms (_Tuning.py), never
         # invoked manually from the GUI.
         def _setRowIndex(name, value):
-            variables = [
-                getattr(board.RowDacDriver, name)
-                for board in self.HardwareGroup.RowBoard.values()]
-            warm_tdm_api.stageAndCommit(
-                *[(variable, value) for variable in variables])
+            with self.root.updateGroup():
+                for board in self.HardwareGroup.RowBoard.values():
+                    getattr(board.RowDacDriver, name).set(value)
 
         @self.command(hidden=True)
         def ActivateRowIndex(arg):
@@ -295,6 +293,7 @@ class Group(pr.Device):
 
             self.add(GroupArrayLinkVariable(
                 name='SaOutAdc',
+                readBlocks=True,
                 description='Current ADC value in Volts for each column. Total length = ColumnBoards * 8.',
                 mode = 'RO',
                 config=self.config,
@@ -304,6 +303,7 @@ class Group(pr.Device):
 
             self.add(GroupArrayLinkVariable(
                 name='SaOut',
+                readBlocks=True,
                 description='Current SA_OUT value in mV for each column before amplifier gain, adjusted for current offset value.',
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SaOut
                                 for board in range(self.config.columnBoards)],
@@ -314,6 +314,7 @@ class Group(pr.Device):
 
             self.add(GroupArrayLinkVariable(
                 name='SaOutNorm',
+                readBlocks=True,
                 description='Current SA_OUT value in mV for each column before amplifier gain, not adjusted for current offset value.',
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SaOutNorm
                                 for board in range(self.config.columnBoards)],

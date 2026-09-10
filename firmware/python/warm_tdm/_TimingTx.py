@@ -206,7 +206,7 @@ class TimingTx(pr.Device):
             # consuming that sample, then consumes samples through and including
             # SAMPLE_END.  The resulting count is therefore end - start.
             start = int(self.SampleStartTime.get(read=read))
-            end = int(self.SampleEndTime.get(read=False))
+            end = int(self.SampleEndTime.get(read=read))
             return max(0, end - start)
 
         self.add(pr.LinkVariable(
