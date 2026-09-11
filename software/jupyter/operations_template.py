@@ -96,10 +96,31 @@ sa_out = ops.sa_tune(                               # sweep SA bias/fb, pick loc
 # process node's plots if desired, e.g. group.SaTuneProcess.PlotMulti.get().
 
 # %% [markdown]
-# ### B.2 SQ1 tune
+# ### B.2 FAS tune
 #
-# (Set the row-select FAS currents on the row DAC driver as your array requires
-# before this — see your hardware notes.)
+# `fas_tune` sweeps each active logical row's physical FAS line (via the row DAC
+# driver's `ManualSet`, timing stopped) and servos SA feedback to pick that row's
+# FAS-on current. It reuses the SA-tuned `SaFbCurrent` and applies a temporary
+# bootstrap SQ1 bias so the FAS response is observable before SQ1 is tuned,
+# restoring the prior SQ1 bias/fb afterward. Run it after SA tune and before SQ1
+# tune. `SetAfterFinish=True` programs the fitted `FasOn` currents onto the row
+# DAC; the default only returns the candidates.
+
+# %%
+fas_out = ops.fas_tune(
+    FasFluxHighOffset=310.0,   # <-- span >= one row-select flux period for your array
+    FasFluxNumSteps=21,
+    Sq1BiasCurrent=40.0,       # temporary bootstrap SQ1 bias during the sweep
+    SetAfterFinish=True,       # program the fitted FasOn currents onto the row DAC
+)
+# Each entry in fas_out carries its selected `fasOn` and swept response curve;
+# inspect group.FasTuneProcess.SweepPlot / .TunePlot for the per-row sweeps.
+
+# %% [markdown]
+# ### B.3 SQ1 tune
+#
+# Run after FAS tune, which has set the row-select FAS-on currents that select
+# each row for the SQ1 sweep.
 
 # %%
 sq1_out = ops.sq1_tune(
