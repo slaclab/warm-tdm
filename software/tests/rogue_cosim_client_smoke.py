@@ -44,15 +44,15 @@ class ClientSmoke(unittest.TestCase):
                     root.sources[9].send(struct.pack('<QQQfBBHQ', 2, 3, 4, -12.5, 3, 1, 0, 0))
                     pid = bytearray(80)
                     struct.pack_into('<BB', pid, 0, 1, 3)
-                    root.sources[1].send(pid[:72] if malformed else pid)
+                    root.sources[1].send(pid[:70] if malformed else pid)
                 finally:
                     root.DataWriter.Close()
                 if malformed:
-                    with self.assertRaisesRegex(AssertionError, 'Malformed PID'):
+                    with self.assertRaisesRegex(AssertionError, 'Misaligned PID-debug frame'):
                         inspect_file(path, {(1, 3)}, {(1, 3)}, 123.5, {1: 2000.})
                 else:
                     self.assertEqual(inspect_file(path, {(1, 3)}, {(1, 3)}, 123.5, {1: 2000.}),
-                                     dict(readout=1, pid=1, config=1))
+                                     dict(readout=1, readout_populated=1, pid=1, config=1))
                     with self.assertRaisesRegex(AssertionError, 'Channel mismatch'):
                         inspect_file(path, {(1, 3), (1, 4)}, {(1, 3)}, 123.5, {1: 2000.})
 
