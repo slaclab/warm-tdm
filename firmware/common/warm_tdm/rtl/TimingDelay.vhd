@@ -36,6 +36,7 @@ entity TimingDelay is
       rst             : in  sl;
       timingIn        : in  LocalTimingType;
       timingOut       : out LocalTimingType;
+      delayOut        : out slv(6 downto 0);
       axilWriteMaster : in  AxiLiteWriteMasterType;
       axilWriteSlave  : out AxiLiteWriteSlaveType := AXI_LITE_WRITE_SLAVE_EMPTY_DECERR_C;
       axilReadMaster  : in  AxiLiteReadMasterType;
@@ -99,7 +100,8 @@ begin
       end if;
    end process;
 
-   slvIn <= toSlv(timingIn);
+   delayOut <= r.delay;
+   slvIn   <= toSlv(timingIn);
 
    U_SlvDelay_1 : entity surf.SlvDelay
       generic map (

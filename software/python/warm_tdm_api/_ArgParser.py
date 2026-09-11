@@ -111,22 +111,16 @@ class WarmTdmArgparse(argparse.ArgumentParser):
             help = "Column front-end board type")
 
         self.add_argument(
+            "--floatPid",
+            action = 'store_true',
+            default = False,
+            help = 'Use floating-point PID (AdcDspFp) instead of fixed-point')
+
+        self.add_argument(
             "--rowFrontEnd",
             choices= ['Legacy', 'FpgaRowFeb'],
             default= 'FpgaRowFeb',
             help = "Row front-end board type")
-
-        # NOTE (wtj-cleanup-sw): --floatPid is accepted but currently IGNORED.
-        # The floating-point PID firmware (_AdcDspFp) is on the deferred firmware
-        # track and is not present in this firmware/python tree. The flag is kept
-        # so command lines and the future FP path do not need to change; Group
-        # emits a warning if it is set. Wire it up when the FP firmware lands.
-        self.add_argument(
-            "--floatPid",
-            action = 'store_true',
-            default = False,
-            help = '(IGNORED on this branch) Use floating-point PID (AdcDspFp) '
-                   'instead of fixed-point. Reserved for the FP firmware.')
 
 
 colBoardDict = {
