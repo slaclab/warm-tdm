@@ -25,7 +25,8 @@ class GroupLinkVariable(pr.LinkVariable):
                 for idx, (var, val) in enumerate(zip(self.dependencies, value)):
                     var.set(value=val, write=False)
 
-                pr.writeAndVerifyBlocks(self.depBlocks)
+                if write:
+                    pr.writeAndVerifyBlocks(self.depBlocks)
 
     # Get group values, index is column or row
     def _get(self, *, index, read):

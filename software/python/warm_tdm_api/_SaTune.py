@@ -72,14 +72,14 @@ class MultiPlot(SinglePlot):
         return self._fig
 
 
-class SaTuneProcess(pr.Process):
+class SaTuneProcess(warm_tdm_api.PausableProcess):
 
     def __init__(self, *, config, **kwargs):
         
         self._columns = config.numColumns
 
         # Init master class
-        pr.Process.__init__(self, function=self._saTuneWrap,
+        warm_tdm_api.PausableProcess.__init__(self, function=self._saTuneWrap,
                             description='Process which performs an SA tuning step.'
                                         'This tuning process sweeps the SaFb value records SaOut at each step.'
                                         'This sweep is repeated for a series of SaBias values. Once the sweep is completed the process will '
@@ -254,7 +254,10 @@ class SaTuneProcess(pr.Process):
                 process=self,
                 doSet=self.SetAfterFinish.value(),
                 doBiasRamp=self.DoBiasRamp.value())
-            self.SaTuneOutput.set(value=[r.asDict() for r in ret])
+            self._publishResults(ret)
+
+    def _publishResults(self, results):
+        self.SaTuneOutput.set(value=[result.asDict() for result in results])
 
     def _saveData(self,arg):
         self._log.info(f"SaTune - Save data called with {arg=}")

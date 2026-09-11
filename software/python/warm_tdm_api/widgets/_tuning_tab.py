@@ -1,8 +1,10 @@
 from pydm.widgets.frame import PyDMFrame
 from pyrogue.pydm.data_plugins.rogue_plugin import nodeFromAddress
-from pyrogue.pydm.widgets import Process, Plotter, PyRogueLineEdit
+from pyrogue.pydm.widgets import Plotter, PyRogueLineEdit
 from pydm.widgets import PyDMLabel, PyDMSpinbox
 from qtpy.QtWidgets import QVBoxLayout, QFormLayout, QWidget, QSizePolicy
+
+from ._tuning_process import TuningProcess
 
 
 class TuningTab(PyDMFrame):
@@ -28,11 +30,14 @@ class TuningTab(PyDMFrame):
     def _info_fields(self):
         return []
 
+    def _process_widget(self):
+        return TuningProcess(init_channel=self._process_channel())
+
     def _setup_ui(self):
         vb = QVBoxLayout()
         self.setLayout(vb)
 
-        proc = Process(init_channel=self._process_channel())
+        proc = self._process_widget()
         vb.addWidget(proc)
 
         for ch in self._plot_channels():

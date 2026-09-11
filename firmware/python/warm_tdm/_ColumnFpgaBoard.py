@@ -136,12 +136,11 @@ class ColumnFpgaBoard(pr.Device):
 
         cols = list(range(8))
 
-        def _saOutGet(*, read=True, index=-1, check=True):
-            #print(f'ColumnModule._saOutGet({read=}, {index=}, {check=})')
+        def _saOutGet(*, read=True, index=-1):
             with self.root.updateGroup():
-                adcs = self.SaOutAdc.get(read=read, index=index, check=check)
-                offsetsP = self.SaBiasOffset.OffsetVoltagePArray.get(read=read, index=index, check=check)
-                offsetsN = self.SaBiasOffset.OffsetVoltageNArray.get(read=read, index=index, check=check)                
+                adcs = self.SaOutAdc.get(read=read, index=index)
+                offsetsP = self.SaBiasOffset.OffsetVoltagePArray.get(read=read, index=index)
+                offsetsN = self.SaBiasOffset.OffsetVoltageNArray.get(read=read, index=index)
                 if index == -1:
                     ret = np.array([self.AnalogFrontEnd.Channel[i].SAAmp.ampVin(adcs[i], offsetsP[i], offsetsN[i]) * 1e3 for i in range(8)])
                     return ret
@@ -149,10 +148,9 @@ class ColumnFpgaBoard(pr.Device):
                     ret = self.AnalogFrontEnd.Channel[index].SAAmp.ampVin(adcs, offsetsP, offsetsN) * 1e3
                     return ret
 
-        def _saOutNormGet(*, read=True, index=-1, check=True):
-            #print(f'ColumnModule._saOutNormGet({read=}, {index=}, {check=})')
+        def _saOutNormGet(*, read=True, index=-1):
             with self.root.updateGroup():
-                adcs = self.SaOutAdc.get(read=read, index=index, check=check)
+                adcs = self.SaOutAdc.get(read=read, index=index)
                 offset = 0.0
                 if index == -1:
                     ret = np.array([self.AnalogFrontEnd.Channel[i].SAAmp.ampVin(adcs[i], offset) * 1e3 for i in range(8)])

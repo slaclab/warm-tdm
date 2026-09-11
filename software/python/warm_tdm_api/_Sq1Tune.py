@@ -89,17 +89,20 @@ class MultiPlot(SinglePlot):
 
         return self._fig
 
-class Sq1TuneProcess(pr.Process):
+class Sq1TuneProcess(warm_tdm_api.PausableProcess):
 
     def __init__(self, *, config, **kwargs):
 
         # Init master class
-        pr.Process.__init__(self, function=self._sq1TuneWrap, **kwargs)
+        warm_tdm_api.PausableProcess.__init__(
+            self, function=self._sq1TuneWrap, **kwargs)
 
-        # Low offset for SQ1 FB Tuning
+        # The synthetic SQ1 has a 10 uA feedback period. This default range
+        # covers three full periods with 1 uA spacing, which is enough for the
+        # FFT/slope analysis without making co-simulation unnecessarily slow.
         self.add(pr.LocalVariable(
             name='Sq1FbLowOffset',
-            value=-77.0,
+            value=-15.0,
             mode='RW',
             units=u'\u03bcA',
             description="Starting point offset for SQ1 FB Tuning"))
@@ -107,22 +110,25 @@ class Sq1TuneProcess(pr.Process):
         # High offset for SQ1 FB Tuning
         self.add(pr.LocalVariable(
             name='Sq1FbHighOffset',
-            value=77.0,
+            value=15.0,
             mode='RW',
             units=u'\u03bcA',
             description="Ending point offset for SQ1 FB Tuning"))
 
-        # Step size for SQ1 FB Tuning
+        # Number of steps for SQ1 FB Tuning
         self.add(pr.LocalVariable(
             name='Sq1FbNumSteps',
-            value=300,
+            value=31,
             mode='RW',
             description="Number of steps for SQ1 FB Tuning"))
 
-        # Low offset for SQ1 Bias Tuning
+        # The synthetic SQ1's 20 uA critical current is its branch current,
+        # not the commanded column bias.  With the simulated shunt and series
+        # network, the useful response is centered near 100 uA.  Six points
+        # bracket that peak while keeping co-simulation reasonably short.
         self.add(pr.LocalVariable(
             name='Sq1BiasLowOffset',
-            value=0.0,
+            value=40.0,
             mode='RW',
             units=u'\u03bcA',
             description="Starting point offset for SQ1 Bias Tuning"))
@@ -130,15 +136,15 @@ class Sq1TuneProcess(pr.Process):
         # High offset for SQ1 Bias Tuning
         self.add(pr.LocalVariable(
             name='Sq1BiasHighOffset',
-            value=75.0,
+            value=140.0,
             mode='RW',
             units=u'\u03bcA',
             description="Ending point offset for SQ1 Bias Tuning"))
 
-        # Step size for SQ1 Bias Tuning
+        # Number of steps for SQ1 Bias Tuning
         self.add(pr.LocalVariable(
             name='Sq1BiasNumSteps',
-            value=10,
+            value=6,
             mode='RW',
             description="Number of steps for SQ1 Bias Tuning"))
 
@@ -286,13 +292,20 @@ class Sq1TuneProcess(pr.Process):
         return self._getHelper('yOut')
 
     def _sq1TuneWrap(self):
+        # Acquisition trace is emitted at DEBUG; raise this node's log level to
+        # DEBUG to see it when diagnosing a run.
         with self.root.updateGroup(0.25):
             ret = warm_tdm_api.sq1Tune(
                 group=self.parent,
                 process=self,
                 doBiasRamp=self.DoBiasRamp.value())
-        self.Sq1TuneOutput.set(value = [[col.asDict() for col in row] for row in ret])
-        self._log.debug('SQ1Tune Output: %s', self.Sq1TuneOutput.value())
+        self._log.debug('Serializing %d SQ1 row result(s)', len(ret))
+        self._publishResults(ret)
+        self._log.debug('Published %d SQ1 row result(s)', len(ret))
+
+    def _publishResults(self, results):
+        self.Sq1TuneOutput.set(
+            value=[[column.asDict() for column in row] for row in results])
 
     def _saveData(self,arg):
         self._log.info(f"Sq1Tune - Save data called with {arg=}")

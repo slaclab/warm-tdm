@@ -1,4 +1,6 @@
 from ._CurveClass import *
+from ._PausableProcess import *
+from ._GroupVariables import *
 from ._FasTune import *
 from ._Group import *
 from ._GroupRoot import *

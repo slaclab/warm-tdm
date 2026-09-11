@@ -121,5 +121,24 @@ class TuningMixin:
         return self.run_process('SaTuneProcess', block=block, **params)
 
     def sq1_tune(self, block=True, **params):
-        """Run Sq1TuneProcess (first-stage SQUID tuning). See run_process."""
+        """Run Sq1TuneProcess (first-stage SQUID tuning). See run_process.
+
+        The process enables its DEBUG acquisition trace for every run.
+        """
         return self.run_process('Sq1TuneProcess', block=block, **params)
+
+    def fas_tune(self, block=True, **params):
+        """Run physical-line FasTuneProcess. See run_process.
+
+        ``Sq1BiasCurrent`` selects the temporary bootstrap SQ1 bias applied to
+        enabled columns during acquisition (40 uA by default). The previous
+        SQ1 bias and feedback force currents are restored afterward. Before
+        each logical-row sweep, its SA-tuned ``SaFbCurrent`` values are copied
+        into the ``SaFbForceCurrent`` path used while timing is stopped.
+        ``FasMinimumTolerance`` is the SA-feedback band above the sampled
+        minimum whose contiguous region is centered to select the FAS-on
+        candidate; disabled columns are not included in the acquired curves.
+        Pass ``SetAfterFinish=True`` to program the fitted ``FasOn`` currents;
+        the default only returns the candidates.
+        """
+        return self.run_process('FasTuneProcess', block=block, **params)

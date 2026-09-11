@@ -136,7 +136,8 @@ result `Message`, and returns the process's output variable.
 | `sess.run_process(name, block=True, timeout_sec=None, **params)` | Configure, start, and optionally block on any Group `pr.Process` by node name. |
 | `sess.sa_offset(**params)` | SA offset determination (`SaOffsetProcess`). |
 | `sess.sa_tune(**params)` | SA amplifier tuning (`SaTuneProcess`), e.g. `sa_tune(SaBiasNumSteps=5)`. |
-| `sess.sq1_tune(**params)` | First-stage SQUID tuning (`Sq1TuneProcess`). |
+| `sess.sq1_tune(**params)` | First-stage SQUID tuning (`Sq1TuneProcess`); enables a detailed DEBUG trace for every run. |
+| `sess.fas_tune(**params)` | Physical-line FAS tuning (`FasTuneProcess`); seeds the stopped-timing force-current path from each row's SA-tuned `SaFbCurrent`, then temporarily applies `Sq1BiasCurrent` (40 uA by default) to enabled columns. Disabled columns are omitted from the curves. `FasMinimumTolerance` selects the center of a contiguous flat minimum; pass `SetAfterFinish=True` to program the fitted `FasOn` currents. |
 
 A blocking timeout or Ctrl-C requests `Stop()` before raising `TimeoutError` or
 `KeyboardInterrupt`. Cleanup also attempts Stop after a Start/transport failure;

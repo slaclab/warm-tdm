@@ -108,6 +108,10 @@ architecture rtl of RowDacDriver2 is
       setManualRowon  : sl;
       manualRowOff    : slv(7 downto 0);
       setManualRowOff : sl;
+      manualSetWrite      : sl;
+      manualSetPending    : sl;
+      manualSetReqAddress : slv(4 downto 0);
+      manualSetReqCode    : slv(13 downto 0);
       offIndex        : slv(7 downto 0);
       onIndex         : slv(7 downto 0);
       mapRamAddr      : slv(7 downto 0);
@@ -133,6 +137,10 @@ architecture rtl of RowDacDriver2 is
       setManualRowOn  => '0',
       manualRowOff    => (others => '0'),
       setManualRowOff => '0',
+      manualSetWrite      => '0',
+      manualSetPending    => '0',
+      manualSetReqAddress => (others => '0'),
+      manualSetReqCode    => (others => '0'),
       offIndex        => (others => '0'),
       onIndex         => (others => '0'),
       mapRamAddr      => (others => '0'),
@@ -369,6 +377,7 @@ begin
 
       v.setManualRowOn  := '0';
       v.setManualRowOff := '0';
+      v.manualSetWrite  := '0';
 
       ----------------------------------------------------------------------------------------------
       -- Configuration Registers
@@ -383,11 +392,26 @@ begin
       axiWrDetect(axilEp, X"10", v.setManualRowOn);
       axiSlaveRegister(axilEp, X"14", 0, v.manualRowOff);
       axiWrDetect(axilEp, X"14", v.setManualRowOff);
---       axiSlaveRegister(axilEp, X"18", 0, v.manualDacCs);
 
+      -- Temporarily actuate one board-local physical line without changing the
+      -- persistent FasOn/FasOff tables.  Accepted writes remain pending until
+      -- the existing manual DAC state machine returns to IDLE_S.
+      axiWrDetect(axilEp, X"18", v.manualSetWrite);
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
 
+      if (v.manualSetWrite = '1') then
+         if (r.manualSetPending = '0' and r.mode = MANUAL_MODE_C and timingRxData.running = '0') then
+            v.manualSetReqAddress := axilEp.axiWriteMaster.wdata(4 downto 0);
+            v.manualSetReqCode    := axilEp.axiWriteMaster.wdata(21 downto 8);
+            v.manualSetPending    := '1';
+         end if;
+      end if;
+
+      -- Do not carry a queued characterization write into a timing run.
+      if (r.manualSetPending = '1' and (r.mode /= MANUAL_MODE_C or timingRxData.running = '1')) then
+         v.manualSetPending := '0';
+      end if;
 
       ----------------------------------------------------------------------------------------------
       -- Convert row and chip registers to Integers
@@ -457,28 +481,35 @@ begin
                   v.onIndex  := timingRxData.rowIndexNext;
                end if;
             elsif (r.mode = MANUAL_MODE_C) then
-               if (rsOnWrValid = '1') then
-                  v.rowAddr := '0' & r.cfgBoardId & rsOnWrAddr;
-                  v.dacDb   := rsOnWrData(13 downto 0);
+               if (r.manualSetPending = '1' and v.manualSetPending = '1') then
+                  v.manualSetPending := '0';
+                  v.rowAddr := '0' & r.cfgBoardId & r.manualSetReqAddress;
+                  v.dacDb   := r.manualSetReqCode;
                   v.state   := MANUAL_RS_DATA_S;
-               elsif (rsOffWrValid = '1') then
-                  v.rowAddr := '0' & r.cfgBoardId & rsOffWrAddr;
-                  v.dacDb   := rsOffWrData(13 downto 0);
-                  v.state   := MANUAL_RS_DATA_S;
-               end if;
+               else
+                  if (rsOnWrValid = '1') then
+                     v.rowAddr := '0' & r.cfgBoardId & rsOnWrAddr;
+                     v.dacDb   := rsOnWrData(13 downto 0);
+                     v.state   := MANUAL_RS_DATA_S;
+                  elsif (rsOffWrValid = '1') then
+                     v.rowAddr := '0' & r.cfgBoardId & rsOffWrAddr;
+                     v.dacDb   := rsOffWrData(13 downto 0);
+                     v.state   := MANUAL_RS_DATA_S;
+                  end if;
 
-               if (r.setManualRowOn = '1') then
-                  v.onIndex  := r.manualRowOn;
-                  v.rowOnOff := '1';
-                  v.rowAB    := '0';
-                  v.state    := MAP_1_S;
-               end if;
+                  if (r.setManualRowOn = '1') then
+                     v.onIndex  := r.manualRowOn;
+                     v.rowOnOff := '1';
+                     v.rowAB    := '0';
+                     v.state    := MAP_1_S;
+                  end if;
 
-               if (r.setManualRowOff = '1') then
-                  v.offIndex := r.manualRowOff;
-                  v.rowOnOff := '0';
-                  v.rowAB    := '0';
-                  v.state    := MAP_1_S;
+                  if (r.setManualRowOff = '1') then
+                     v.offIndex := r.manualRowOff;
+                     v.rowOnOff := '0';
+                     v.rowAB    := '0';
+                     v.state    := MAP_1_S;
+                  end if;
                end if;
             end if;
 
