@@ -32,7 +32,11 @@ entity GroupTb is
    generic (
       LOAD_G          : string               := "WAFER";
       COLUMN_BOARDS_G : integer range 1 to 3 := 1;
-      NUM_DETECTORS_G : integer range 1 to 2 := 1);
+      NUM_DETECTORS_G : integer range 1 to 2 := 1;
+      -- Seed for per-device wafer variation (SSA/SQ1/FAS/TES-baseline spread).
+      -- Nonzero (the default) makes tunings differ channel-to-channel and muxed
+      -- row levels differ pixel-to-pixel; 0 restores identical devices.
+      VARIATION_SEED_G : natural             := WAFER_VARIATION_SEED_C);
 end GroupTb;
 
 architecture sim of GroupTb is
@@ -306,7 +310,8 @@ begin
             SQ1_PARAMS_G           => WAFER_PROFILE_C.sq1,
             ROW_FAS_PARAMS_G       => WAFER_PROFILE_C.rowFas,
             CHIP_FAS_PARAMS_G      => WAFER_PROFILE_C.chipFas,
-            COLUMN_PARAMS_G        => WAFER_PROFILE_C.muxColumn)
+            COLUMN_PARAMS_G        => WAFER_PROFILE_C.muxColumn,
+            VARIATION_SEED_G       => VARIATION_SEED_G)
          port map (
             columnDrive    => columnDrive,
             columnSense    => columnSense,

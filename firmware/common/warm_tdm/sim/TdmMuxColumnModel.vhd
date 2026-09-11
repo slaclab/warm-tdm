@@ -30,9 +30,14 @@ entity TdmMuxColumnModel is
       ROWS_PER_BANK_G   : positive := 4;
       TWO_LEVEL_G       : boolean  := false;
       SSA_PARAMS_G      : SsaParamsType := SSA_SYNTHETIC_C;
-      SQ1_PARAMS_G      : Sq1ParamsType := SQ1_SYNTHETIC_C;
-      ROW_FAS_PARAMS_G  : RowFasParamsType := ROW_FAS_SYNTHETIC_C;
-      CHIP_FAS_PARAMS_G : ChipFasParamsType := CHIP_FAS_SYNTHETIC_C;
+      -- One SQ1 and one row FAS per physical row; one chip FAS per bank.  The
+      -- uniform-array defaults reproduce the old identical-device behavior.
+      SQ1_PARAMS_G      : Sq1ParamsArray(0 to NUM_BANKS_G*ROWS_PER_BANK_G-1) :=
+         uniformSq1Array(SQ1_SYNTHETIC_C, NUM_BANKS_G*ROWS_PER_BANK_G);
+      ROW_FAS_PARAMS_G  : RowFasParamsArray(0 to NUM_BANKS_G*ROWS_PER_BANK_G-1) :=
+         uniformRowFasArray(ROW_FAS_SYNTHETIC_C, NUM_BANKS_G*ROWS_PER_BANK_G);
+      CHIP_FAS_PARAMS_G : ChipFasParamsArray(0 to NUM_BANKS_G-1) :=
+         uniformChipFasArray(CHIP_FAS_SYNTHETIC_C, NUM_BANKS_G);
       COLUMN_PARAMS_G   : MuxColumnParamsType := MUX_COLUMN_SYNTHETIC_C);
    port (
       ssaBiasCurrentAmp     : in  real;
@@ -107,8 +112,8 @@ architecture sim of TdmMuxColumnModel is
       tesCurrent         : RealVector;
       rowSelectCurrent   : RealVector;
       sq1FeedbackCurrent : real;
-      sq1Params          : Sq1ParamsType;
-      rowFasParams       : RowFasParamsType)
+      sq1Params          : Sq1ParamsArray;
+      rowFasParams       : RowFasParamsArray)
       return real is
       variable resistance : real := 0.0;
       variable row        : natural;
@@ -120,8 +125,8 @@ architecture sim of TdmMuxColumnModel is
             tesCurrent(tesCurrent'low + row),
             sq1FeedbackCurrent,
             rowSelectCurrent(rowSelectCurrent'low + localRow),
-            sq1Params,
-            rowFasParams);
+            sq1Params(sq1Params'low + row),
+            rowFasParams(rowFasParams'low + row));
       end loop;
       return resistance;
    end function fastRowNetworkResistance;
@@ -135,14 +140,15 @@ architecture sim of TdmMuxColumnModel is
       rowSelectCurrent   : RealVector;
       chipSelectCurrent  : RealVector;
       sq1FeedbackCurrent : real;
-      sq1Params          : Sq1ParamsType;
-      rowFasParams       : RowFasParamsType;
-      chipFasParams      : ChipFasParamsType;
+      sq1Params          : Sq1ParamsArray;
+      rowFasParams       : RowFasParamsArray;
+      chipFasParams      : ChipFasParamsArray;
       columnParams       : MuxColumnParamsType)
       return real is
       variable resistance    : real := columnParams.seriesResistanceOhm;
       variable rowResistance : real;
       variable chipResistance : real;
+      variable chipFas        : ChipFasParamsType;
    begin
       for bank in 0 to numBanks-1 loop
          rowResistance := fastRowNetworkResistance(
@@ -156,13 +162,14 @@ architecture sim of TdmMuxColumnModel is
             rowFasParams);
 
          if twoLevel then
-            chipResistance := chipFasParams.seriesResistanceOhm +
-               real(chipFasParams.elementCount) *
+            chipFas := chipFasParams(chipFasParams'low + bank);
+            chipResistance := chipFas.seriesResistanceOhm +
+               real(chipFas.elementCount) *
                idealSquidStaticResistance(
-                  chipFasParams.squid,
+                  chipFas.squid,
                   probeCurrent,
                   chipFasPhaseCycles(
-                     chipFasParams,
+                     chipFas,
                      chipSelectCurrent(chipSelectCurrent'low + bank)));
             resistance := resistance + parallelResistance(
                rowResistance, chipResistance);
@@ -182,9 +189,9 @@ architecture sim of TdmMuxColumnModel is
       rowSelectCurrent   : RealVector;
       chipSelectCurrent  : RealVector;
       sq1FeedbackCurrent : real;
-      sq1Params          : Sq1ParamsType;
-      rowFasParams       : RowFasParamsType;
-      chipFasParams      : ChipFasParamsType;
+      sq1Params          : Sq1ParamsArray;
+      rowFasParams       : RowFasParamsArray;
+      chipFasParams      : ChipFasParamsArray;
       columnParams       : MuxColumnParamsType)
       return real is
       variable direction        : real;
@@ -301,8 +308,8 @@ architecture sim of TdmMuxColumnModel is
       tesCurrent         : RealVector;
       rowSelectCurrent   : RealVector;
       sq1FeedbackCurrent : real;
-      sq1Params          : Sq1ParamsType;
-      rowFasParams       : RowFasParamsType;
+      sq1Params          : Sq1ParamsArray;
+      rowFasParams       : RowFasParamsArray;
       iterations         : positive)
       return real is
       variable voltage : real := 0.0;
@@ -315,8 +322,8 @@ architecture sim of TdmMuxColumnModel is
             tesCurrent(tesCurrent'low + row),
             sq1FeedbackCurrent,
             rowSelectCurrent(rowSelectCurrent'low + localRow),
-            sq1Params,
-            rowFasParams,
+            sq1Params(sq1Params'low + row),
+            rowFasParams(rowFasParams'low + row),
             iterations);
       end loop;
       return voltage;
@@ -331,9 +338,9 @@ architecture sim of TdmMuxColumnModel is
       rowSelectCurrent   : RealVector;
       chipSelectCurrent  : RealVector;
       sq1FeedbackCurrent : real;
-      sq1Params          : Sq1ParamsType;
-      rowFasParams       : RowFasParamsType;
-      chipFasParams      : ChipFasParamsType;
+      sq1Params          : Sq1ParamsArray;
+      rowFasParams       : RowFasParamsArray;
+      chipFasParams      : ChipFasParamsArray;
       iterations         : positive)
       return real is
       variable direction   : real;
@@ -384,7 +391,7 @@ architecture sim of TdmMuxColumnModel is
             rowFasParams,
             iterations);
          chipVoltage := chipFasBranchVoltage(
-            chipFasParams,
+            chipFasParams(chipFasParams'low + bankIndex),
             chipCurrent,
             chipSelectCurrent(chipSelectCurrent'low + bankIndex));
          delta := direction * (rowsVoltage - chipVoltage);
@@ -410,7 +417,7 @@ architecture sim of TdmMuxColumnModel is
          rowFasParams,
          iterations);
       chipVoltage := chipFasBranchVoltage(
-         chipFasParams,
+         chipFasParams(chipFasParams'low + bankIndex),
          chipCurrent,
          chipSelectCurrent(chipSelectCurrent'low + bankIndex));
       return 0.5 * (rowsVoltage + chipVoltage);
@@ -425,9 +432,9 @@ architecture sim of TdmMuxColumnModel is
       rowSelectCurrent   : RealVector;
       chipSelectCurrent  : RealVector;
       sq1FeedbackCurrent : real;
-      sq1Params          : Sq1ParamsType;
-      rowFasParams       : RowFasParamsType;
-      chipFasParams      : ChipFasParamsType;
+      sq1Params          : Sq1ParamsArray;
+      rowFasParams       : RowFasParamsArray;
+      chipFasParams      : ChipFasParamsArray;
       columnParams       : MuxColumnParamsType)
       return real is
       variable voltage : real := deviceCurrent * columnParams.seriesResistanceOhm;
@@ -459,9 +466,9 @@ architecture sim of TdmMuxColumnModel is
       rowSelectCurrent   : RealVector;
       chipSelectCurrent  : RealVector;
       sq1FeedbackCurrent : real;
-      sq1Params          : Sq1ParamsType;
-      rowFasParams       : RowFasParamsType;
-      chipFasParams      : ChipFasParamsType;
+      sq1Params          : Sq1ParamsArray;
+      rowFasParams       : RowFasParamsArray;
+      chipFasParams      : ChipFasParamsArray;
       columnParams       : MuxColumnParamsType)
       return real is
       variable direction    : real;
@@ -522,9 +529,9 @@ architecture sim of TdmMuxColumnModel is
       rowSelectCurrent   : RealVector;
       chipSelectCurrent  : RealVector;
       sq1FeedbackCurrent : real;
-      sq1Params          : Sq1ParamsType;
-      rowFasParams       : RowFasParamsType;
-      chipFasParams      : ChipFasParamsType;
+      sq1Params          : Sq1ParamsArray;
+      rowFasParams       : RowFasParamsArray;
+      chipFasParams      : ChipFasParamsArray;
       columnParams       : MuxColumnParamsType)
       return real is
    begin
@@ -554,9 +561,9 @@ architecture sim of TdmMuxColumnModel is
       rowSelectCurrent   : RealVector;
       chipSelectCurrent  : RealVector;
       sq1FeedbackCurrent : real;
-      sq1Params          : Sq1ParamsType;
-      rowFasParams       : RowFasParamsType;
-      chipFasParams      : ChipFasParamsType;
+      sq1Params          : Sq1ParamsArray;
+      rowFasParams       : RowFasParamsArray;
+      chipFasParams      : ChipFasParamsArray;
       columnParams       : MuxColumnParamsType)
       return real is
       variable direction       : real;
@@ -649,33 +656,12 @@ begin
    assert validSquidParams(SSA_PARAMS_G.squid)
       report "TdmMuxColumnModel: invalid SSA parameters"
       severity failure;
-   assert validSquidParams(SQ1_PARAMS_G.squid)
-      report "TdmMuxColumnModel: invalid SQ1 parameters"
-      severity failure;
-   assert validSquidParams(ROW_FAS_PARAMS_G.squid)
-      report "TdmMuxColumnModel: invalid row-FAS parameters"
-      severity failure;
-   assert validSquidParams(CHIP_FAS_PARAMS_G.squid)
-      report "TdmMuxColumnModel: invalid chip-FAS parameters"
-      severity failure;
    assert SSA_PARAMS_G.inputPolarity /= 0 and
           SSA_PARAMS_G.feedbackPolarity /= 0 and
           SSA_PARAMS_G.inputCouplingScale > 0.0 and
           SSA_PARAMS_G.feedbackCouplingScale > 0.0 and
           SSA_PARAMS_G.outputClampVolt > 0.0
       report "TdmMuxColumnModel: invalid SSA coupling or output parameters"
-      severity failure;
-   assert SQ1_PARAMS_G.tesPolarity /= 0 and
-          SQ1_PARAMS_G.feedbackPolarity /= 0 and
-          SQ1_PARAMS_G.tesCouplingScale > 0.0 and
-          SQ1_PARAMS_G.feedbackCouplingScale > 0.0
-      report "TdmMuxColumnModel: invalid SQ1 coupling parameters"
-      severity failure;
-   assert ROW_FAS_PARAMS_G.selectPolarity /= 0
-      report "TdmMuxColumnModel: invalid row-FAS select polarity"
-      severity failure;
-   assert CHIP_FAS_PARAMS_G.selectPolarity /= 0
-      report "TdmMuxColumnModel: invalid chip-FAS select polarity"
       severity failure;
    assert COLUMN_PARAMS_G.shuntResistanceOhm > 0.0
       report "TdmMuxColumnModel: shunt resistance must be positive"
@@ -687,15 +673,50 @@ begin
           sq1BiasSourceResistanceOhm >= 0.0
       report "TdmMuxColumnModel: bias source resistance must be nonnegative"
       severity failure;
-   assert SQ1_PARAMS_G.seriesResistanceOhm > 0.0
-      report "TdmMuxColumnModel: SQ1 branch needs positive series resistance"
-      severity failure;
-   assert ROW_FAS_PARAMS_G.seriesResistanceOhm > 0.0
-      report "TdmMuxColumnModel: row-FAS branch needs positive series resistance"
-      severity failure;
-   assert (not TWO_LEVEL_G) or CHIP_FAS_PARAMS_G.seriesResistanceOhm > 0.0
-      report "TdmMuxColumnModel: chip-FAS branch needs positive series resistance"
-      severity failure;
+
+   -- Per-instance parameter arrays are validated element by element so a wafer
+   -- with device-to-device variation still fails fast on any bad entry.
+   VALIDATE : process is
+   begin
+      for row in SQ1_PARAMS_G'range loop
+         assert validSquidParams(SQ1_PARAMS_G(row).squid)
+            report "TdmMuxColumnModel: invalid SQ1 parameters"
+            severity failure;
+         assert SQ1_PARAMS_G(row).tesPolarity /= 0 and
+                SQ1_PARAMS_G(row).feedbackPolarity /= 0 and
+                SQ1_PARAMS_G(row).tesCouplingScale > 0.0 and
+                SQ1_PARAMS_G(row).feedbackCouplingScale > 0.0
+            report "TdmMuxColumnModel: invalid SQ1 coupling parameters"
+            severity failure;
+         assert SQ1_PARAMS_G(row).seriesResistanceOhm > 0.0
+            report "TdmMuxColumnModel: SQ1 branch needs positive series resistance"
+            severity failure;
+      end loop;
+      for row in ROW_FAS_PARAMS_G'range loop
+         assert validSquidParams(ROW_FAS_PARAMS_G(row).squid)
+            report "TdmMuxColumnModel: invalid row-FAS parameters"
+            severity failure;
+         assert ROW_FAS_PARAMS_G(row).selectPolarity /= 0
+            report "TdmMuxColumnModel: invalid row-FAS select polarity"
+            severity failure;
+         assert ROW_FAS_PARAMS_G(row).seriesResistanceOhm > 0.0
+            report "TdmMuxColumnModel: row-FAS branch needs positive series resistance"
+            severity failure;
+      end loop;
+      for bank in CHIP_FAS_PARAMS_G'range loop
+         assert validSquidParams(CHIP_FAS_PARAMS_G(bank).squid)
+            report "TdmMuxColumnModel: invalid chip-FAS parameters"
+            severity failure;
+         assert CHIP_FAS_PARAMS_G(bank).selectPolarity /= 0
+            report "TdmMuxColumnModel: invalid chip-FAS select polarity"
+            severity failure;
+         assert (not TWO_LEVEL_G) or
+                CHIP_FAS_PARAMS_G(bank).seriesResistanceOhm > 0.0
+            report "TdmMuxColumnModel: chip-FAS branch needs positive series resistance"
+            severity failure;
+      end loop;
+      wait;
+   end process VALIDATE;
 
    comb : process (all) is
       variable current        : real;
