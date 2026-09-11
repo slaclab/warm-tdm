@@ -7,7 +7,7 @@ import warm_tdm_api
 
 
 
-class SaOffsetProcess(pr.Process):
+class SaOffsetProcess(warm_tdm_api.PausableProcess):
     """ Use a PID loop to determine the SaOffset values that null out the SaBias contribution to the input chain. """
 
     def __init__(self, config, **kwargs):
@@ -17,7 +17,7 @@ class SaOffsetProcess(pr.Process):
         A timeout value will terminate the process if it fails to converge witing a set period of time."""
 
         # Init master class
-        pr.Process.__init__(
+        warm_tdm_api.PausableProcess.__init__(
             self,
             description=description,
             function=self._saOffsetWrap,
@@ -77,7 +77,7 @@ class SaOffsetProcess(pr.Process):
 
             self.SaOffsetOutput.set(ret)
 
-class SaOffsetSweepProcess(pr.Process):
+class SaOffsetSweepProcess(warm_tdm_api.PausableProcess):
 
     def __init__(self, config, group, **kwargs):
 
@@ -85,7 +85,9 @@ class SaOffsetSweepProcess(pr.Process):
         The SaOffset PID parameters are taken from the SaOffsetProcess Device."""
 
         # Init master class
-        pr.Process.__init__(self, description=description, function=self._saOffsetSweep, **kwargs)
+        warm_tdm_api.PausableProcess.__init__(
+            self, description=description, function=self._saOffsetSweep,
+            **kwargs)
 
         self.columns = config.numColumns
 
@@ -150,7 +152,7 @@ class SaOffsetSweepProcess(pr.Process):
             group = self.parent
 
             startBias = group.SaBiasCurrent.get()
-            startOffset = group.SaOffset.get()            
+            startOffset = group.SaOffset.get()
 
             low = self.SaBiasLow.get()
             high = self.SaBiasHigh.get()
@@ -161,7 +163,9 @@ class SaOffsetSweepProcess(pr.Process):
 
             fbPoints = self.SaFbPoints.get()
 
-            curves = np.zeros((biasSteps, len(fbPoints), colCount))
+            # Keep uncollected points distinguishable from real zero-valued
+            # measurements when Stop() ends the sweep early.
+            curves = np.full((biasSteps, len(fbPoints), colCount), np.nan)
 
             saBias = np.full(colCount, low)
             mask = np.array([1.0 if en else 0 for en in group.ColTuneEnable.value()])
@@ -171,35 +175,59 @@ class SaOffsetSweepProcess(pr.Process):
             self.setStep(0)
             self.setProgress(0.0)
 
-            for i, bias in enumerate(biasRange):
-                saBias = mask * bias
-                group.SaBiasCurrent.set(saBias)
-                try:
-                    warm_tdm_api.saOffset(group=group)
-                except Exception:
-                    self._log.warning('saOffset timed out')
-                
-                for j, fb in enumerate(fbPoints):
-                    saFb = mask * fb
-                    group.SaFbForceCurrent.set(saFb)
-
-                    
-                    curves[i, j] = group.SaOut.get() #group.SaOffset.get()
-                    #curves[i, j] = group.SaOffset.get()                    
-
-                    self.incrementSteps(1) #Progress.set((i*biasSteps + j) / totalSteps)
-                    #print('Incremented Progress')
-                    #print(self.Progress.get())
-                    if self._runEn is False:
+            try:
+                for i, bias in enumerate(biasRange):
+                    if not self.pausePoint(
+                            lambda: self._publishSweep(biasRange, curves)):
                         self.Message.set('Stopped by user')
                         return
 
-            self.PlotXData.set(biasRange)
-            self.PlotYData.set(curves)
+                    saBias = mask * bias
+                    group.SaBiasCurrent.set(saBias)
+                    try:
+                        warm_tdm_api.saOffset(
+                            group=group,
+                            process=self,
+                            publish=lambda: self._publishSweep(
+                                biasRange, curves))
+                    except Exception:
+                        self._log.warning('saOffset timed out')
 
-            # Set bias and offset back to where they were before the sweep
-            group.SaBiasCurrent.set(startBias)
-            group.SaOffset.set(startOffset)
+                    for j, fb in enumerate(fbPoints):
+                        if not self.pausePoint(
+                                lambda: self._publishSweep(
+                                    biasRange, curves)):
+                            self.Message.set('Stopped by user')
+                            return
+
+                        saFb = mask * fb
+                        group.SaFbForceCurrent.set(saFb)
+
+                        curves[i, j] = group.SaOut.get() #group.SaOffset.get()
+                        #curves[i, j] = group.SaOffset.get()
+
+                        self.incrementSteps(1) #Progress.set((i*biasSteps + j) / totalSteps)
+                        if not self.pausePoint(
+                                lambda: self._publishSweep(biasRange, curves)):
+                            self.Message.set('Stopped by user')
+                            return
+                        #print('Incremented Progress')
+                        #print(self.Progress.get())
+
+            finally:
+                # Publish a complete or partial sweep before returning so the
+                # plot remains useful after Stop() or an acquisition error.
+                self.PlotXData.set(biasRange)
+                self.PlotYData.set(curves)
+
+                # Restore these even when Stop() interrupts the inner offset
+                # PID loop or an access raises during the sweep.
+                group.SaBiasCurrent.set(startBias)
+                group.SaOffset.set(startOffset)
+
+    def _publishSweep(self, biasRange, curves):
+        self.PlotXData.set(np.asarray(biasRange).copy())
+        self.PlotYData.set(np.asarray(curves).copy())
 
     def _plot(self):
 

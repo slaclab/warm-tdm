@@ -245,28 +245,17 @@ python warmTdmGui.py --emulate       # or warmTdmServer.py --emulate (headless)
 
 ## Releases
 
-WarmTDM uses a surf-style branch model: feature branches merge into
-`pre-release`, which is promoted to `main`, and releases are cut by tagging
-`main` with `vX.Y.Z`. Pushing a version tag triggers the `gen_release` CI job,
-and firmware `.mcs` images are attached to the GitHub Release via
-`ruckus/scripts/firmwareRelease.py`.
+Feature and ordinary fix PRs target **`pre-release`**, explicitly using
+`gh pr create --base pre-release`. Reviewed work may integrate before hardware
+acceptance, provided the appropriate checks pass and remaining acceptance is
+recorded on an open issue. **Merge, do not rebase** when updating branches.
 
-**Merge, do not rebase.** This repo's workflow is merge-based throughout. To
-bring an upstream branch (e.g. `pre-release`) into a feature branch, `git merge`
-it and resolve conflicts in the merge commit — never `git rebase`. Rebase is not
-the workflow we use, even for a local-only branch that has never been pushed.
-
-**Base every PR on `pre-release`, never `main`.** When opening a PR (`gh pr
-create`), the base branch is `pre-release` — this is a hard default, not a
-preference. Feature work, bug fixes, roadmap tracks, submodule bumps: all target
-`pre-release`. `main` receives changes *only* through the periodic
-`pre-release` → `main` promotion PR, which is the sole PR whose base is `main`.
-`gh pr create` guesses a base from the repository default branch (`main` here),
-so pass `--base pre-release` explicitly and confirm it before merging — a PR
-merged into `main` by mistake bypasses the whole feature → `pre-release` →
-`main` flow and forces a recovery merge back into `pre-release` (as happened with
-PR #93). If a change ever genuinely needs to reach `main` ahead of a promotion,
-raise it with a maintainer rather than retargeting the PR.
+Only release promotion PRs target **`main`**. Promote a verified candidate from
+`pre-release` or a temporary `release/<version>` branch; temporary release
+branches accept stabilization-fix PRs as the documented exception. Fixes must
+also reach `pre-release`. Releases are cut by tagging `main` with `vX.Y.Z`.
+Pushing a version tag triggers the `gen_release` CI job, and firmware `.mcs`
+images are attached via `ruckus/scripts/firmwareRelease.py`.
 
 For the full workflow, versioning scheme, and release steps, see
 [`docs/RELEASE.md`](docs/RELEASE.md). Release packaging config is in
@@ -274,63 +263,34 @@ For the full workflow, versioning scheme, and release steps, see
 
 ## Project Board & Issue Tracking
 
-Cross-branch planning and PR sequencing live on the GitHub Project board
-**["Warm-TDM Roadmap"](https://github.com/orgs/slaclab/projects/43)** (org-owned,
-linked to this repo — Projects v2 cannot be repo-owned). The board is the single
-source of prioritization; the cross-track merge roadmap (branch topology,
-landing order, sequencing decisions) lives on the
-[wiki](https://github.com/slaclab/warm-tdm/wiki/Branch-Merge-Roadmap) — it
-coordinates work across branches, so it is not tied to any one branch of the
-code tree.
+The canonical policy is [Development and work tracking](docs/WORKFLOW.md).
+Use it when creating/updating issues, PRs, project items or verification docs.
 
-**Issue vs PR (the model this repo follows):**
-- An **Issue** is the durable *what/why* — a goal, feature, or track. It is what
-  gets prioritized on the board and can outlive several PRs.
-- A **PR** is the *how* — one concrete attempt. It is a review artifact, not a
-  planning card. A PR closes its issue with `Closes #<n>` in the body; on merge
-  GitHub auto-closes the issue and its board card moves to Done.
-- Do **not** add PRs to the board as separate cards when they close a tracked
-  issue — the linked issue already tracks the work. (PR #67 is a legacy
-  exception, added before this convention.)
+- **Issues own unfinished work.** Keep the original feature issue open through
+  hardware acceptance. Store acceptance checklists in its body and candidate-
+  specific test results in comments. A merged PR does not complete acceptance.
+- **PRs own implementation review.** Record validation at that revision and
+  link to the issue for remaining work. Use `Refs #<n>` while acceptance
+  remains; avoid premature closing keywords in descriptions and commits.
+- **The [Warm-TDM Roadmap board](https://github.com/orgs/slaclab/projects/43)
+  organizes those issues.** Set Priority, Track and Status in project fields.
+  Do not duplicate statuses in bodies or add PRs as duplicate planning cards.
+  Needs HW Test means ready for bench checks; In Progress includes active
+  testing and fixes. Close accepted issues and let the board reflect closure.
+- **`hw-verification` identifies the issue owning hardware checks.** The full
+  queue is `repo:slaclab/warm-tdm is:issue is:open label:hw-verification`.
+  Retain the label after closure. Separate verification sub-issues are reserved
+  for independently managed checks; do not duplicate a parent's checklist.
+- **Wiki/docs own reusable guidance.** The Hardware Verification wiki links
+  to the live queue and procedures. Keep per-feature outcomes on issues and
+  preserve old wiki links/history during migration. The Branch Merge Roadmap
+  wiki explains sequencing decisions, linking to live work records.
+- **`roadmap` marks epic/planning issues.** Link their actionable work rather
+  than copying child progress. Do not mark deferred or canceled tests as passed.
 
-**Conventions:**
-- **`roadmap` label** — marks epic/planning issues (merge sequencing, multi-PR
-  tracks) so they stay out of the normal bug/feature stream. Filter the Issues
-  tab with `label:roadmap` (epics only) or `-label:roadmap` (real work only).
-- **Board fields:** `Track` (PR sequencing / Software / Firmware / DDR readout /
-  Other), `Priority` (P0-now / P1-next / P2-later), `Status` (Todo / In Progress
-  / Blocked / Done). Set these on each item, not on the issue body.
-- **Branch flow still applies:** roadmap PRs target `pre-release` (see Releases).
-
-**Tooling note:** Projects v2 is GraphQL-only and needs a token with the
-`project` (+ `read:org`) scope; the `gh project` subcommand requires gh ≳ 2.20.
-Board views (kanban, table) are created in the web UI — the API cannot create
-them.
-
-### Hardware Verification wiki (the "hardware test list")
-
-The wiki page
-**[Hardware Verification](https://github.com/slaclab/warm-tdm/wiki/Hardware-Verification)**
-is the hardware test list: an index of every change that is *code-complete but
-still needs a pass on real hardware*, with one subpage per item
-(`HW-Verify-Issue-<n>-<slug>`) giving a step-by-step bench procedure and pass
-criteria. Like the roadmap, it lives on the wiki because it coordinates work
-that spans branches (some items merged, some on feature branches). The
-authoritative *status* is still the board field **`Status = Needs HW Test`**;
-the wiki holds the *how-to-verify* the board can't.
-
-**Keep it in sync (do this as a matter of course, not only when asked):**
-- When an item's board Status moves **to** `Needs HW Test` (a change lands
-  code-complete but unproven on hardware), add a subpage from the template shape
-  of the existing ones and a row to the index table.
-- When an item is verified on the bench and moves **off** `Needs HW Test`
-  (→ Done, or back to In Progress on failure), update its subpage outcome and
-  the index row to match — don't silently leave a stale "pending" page.
-- Keep the links bidirectional: each subpage links its Issue/PR, and each
-  Issue/PR body carries a backlink to its subpage (see the "Hardware
-  verification procedure" footer). Add the footer when you create a subpage.
-- The board is authoritative on *status*; the wiki is authoritative on *how to
-  verify*. When they disagree, fix the wiki to match the board.
+The workflow document includes the migration sequence for existing issues,
+wiki pages and board configuration. Updating repository docs alone does not
+perform that migration.
 
 ## Essential Reading by Task
 

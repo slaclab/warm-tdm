@@ -23,4 +23,4 @@ loadIpCore -doUpgrade -path $::DIR_PATH/ip/Fp2Int/Fp2Int.xci
 
 
 # Load Simulation
-loadSource -lib warm_tdm -sim_only -dir "$::DIR_PATH/sim"
+loadSource -lib warm_tdm -sim_only -dir "$::DIR_PATH/sim" -fileType "VHDL 2008"

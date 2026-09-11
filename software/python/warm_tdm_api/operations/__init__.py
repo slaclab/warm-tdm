@@ -46,6 +46,7 @@ from .session import (
     sa_offset,
     sa_tune,
     sq1_tune,
+    fas_tune,
     new_session,
 )
 
@@ -117,6 +118,7 @@ __all__ = [
     'sa_offset',
     'sa_tune',
     'sq1_tune',
+    'fas_tune',
     # channels (addressing, identifiers, dead masks)
     'get_row_col',
     'make_dead_masks',

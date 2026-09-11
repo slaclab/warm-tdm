@@ -70,6 +70,12 @@ architecture sim of ColumnFebSaBiasAmp is
 
 begin
 
+   -- The present FEB revision intentionally synthesizes both polarities from
+   -- the P DAC leg.  The N DAC ports remain on this compatibility interface
+   -- because older circuit revisions used the pair independently; do not
+   -- substitute saBiasDacN or saOffsetDacN here without revisiting the board
+   -- revision represented by this model.
+
    -- Output SA Bias as current
    saBiasOutP <= (
       voltage   => saBiasDacP,

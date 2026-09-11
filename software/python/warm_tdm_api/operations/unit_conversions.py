@@ -40,10 +40,25 @@ def _col_to_board_chan(col):
 
 
 def _lookup(config, path):
-    """Return the config value at a full dotted tree path, or None if absent."""
+    """Return the config value at a full dotted tree path, or None if absent.
+
+    The captured tree config (pyrogue.yamlToData) is a nested dict, but some
+    leaves are also present as flat dotted keys. RemoteVariable leaves tend to
+    appear as flat keys while computed LinkVariable leaves (e.g.
+    TimingTx.DaqReadoutRate) live only in the nested tree, so try the flat key
+    first and then walk the nested structure splitting on '.'.
+    """
     if not config:
         return None
-    return config.get(path)
+    if path in config:
+        return config[path]
+    cur = config
+    for part in path.split('.'):
+        if isinstance(cur, dict) and part in cur:
+            cur = cur[part]
+        else:
+            return None
+    return cur
 
 
 def derive_fs(config, col=0):

@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 #-----------------------------------------------------------------------------
-# Title      : 
+# Title      :
 #-----------------------------------------------------------------------------
 # Description:
 # Script to quickly test rogue devices
 #-----------------------------------------------------------------------------
-# This file is part of the HPS project. It is subject to 
-# the license terms in the LICENSE.txt file found in the top-level directory 
-# of this distribution and at: 
-#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html. 
-# No part of the HPS project, including this file, may be 
-# copied, modified, propagated, or distributed except according to the terms 
+# This file is part of the WarmTDM software package. It is subject to
+# the license terms in the LICENSE.txt file found in the top-level directory
+# of this distribution and at:
+#    https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part of the WarmTDM software package, including this file, may be
+# copied, modified, propagated, or distributed except according to the terms
 # contained in the LICENSE.txt file.
 #-----------------------------------------------------------------------------
 import time
@@ -27,7 +27,7 @@ import rogue
 if '--local' in sys.argv:
     baseDir = os.path.dirname(os.path.realpath(__file__))
     pyrogue.addLibraryPath(f'{baseDir}/../../firmware/python')
-    pyrogue.addLibraryPath(f'{baseDir}/../python')    
+    pyrogue.addLibraryPath(f'{baseDir}/../python')
     pyrogue.addLibraryPath(f'{baseDir}/../../firmware/submodules/surf/python')
 
 import warm_tdm
@@ -38,6 +38,8 @@ import warm_tdm_api
 
 # Set the argument parser
 parser = warm_tdm_api.WarmTdmArgparse()
+parser.add_argument('--local', action='store_true',
+                    help='use Python packages from this checkout')
 
 parser.add_argument(
     "--path", '-p',
@@ -47,31 +49,39 @@ parser.add_argument(
     help     = "path to image",
 )
 
-parser.add_argument(
+reload_mode = parser.add_mutually_exclusive_group()
+reload_mode.add_argument(
     "--reload", '-r',
     action   = 'store_true',
     help     = "after programming the PROM, reload (reboot) that board's FPGA from PROM",
 )
 
-parser.add_argument(
+reload_mode.add_argument(
     "--reload-only", '-R',
     action   = 'store_true',
     help     = "skip programming; only reload (reboot) a board's FPGA from PROM",
 )
 
-args = parser.parse_known_args()[0]
+args = parser.parse_args()
 print(args)
 
 arg_dict = warm_tdm_api.arg_dict(args)
 arg_dict['pollEn'] = False
 arg_dict['initRead'] = False
 
+def select_index(text, values):
+    index = int(text)
+    if not 0 <= index < len(values):
+        raise ValueError(f"Selection must be in 0..{len(values) - 1}")
+    return values[index]
+
+
 with warm_tdm_api.GroupRoot(**arg_dict) as root:
 
 #     devs = root.find(name='WarmTdmCore')
 #     for d in devs:
 #         d.enable.set(False)
-    
+
     print('Finding and reading group')
 
     avs = root.find(name='AxiVersion')
@@ -96,7 +106,14 @@ with warm_tdm_api.GroupRoot(**arg_dict) as root:
     # boards) from whatever image is already in its PROM.
     if args.reload_only:
         sel = input("Select which board's FPGA to reload [index or 'all']: ").strip()
-        targets = avs if sel == 'all' else [avs[int(sel)]]
+        if sel == 'all':
+            coordinator = root.Group.HardwareGroup.ColumnBoard[0].WarmTdmCore.WarmTdmCommon2.AxiVersion
+            if sum(av.path == coordinator.path for av in avs) != 1:
+                raise RuntimeError("Cannot identify the coordinator in the reload targets")
+            # Reload downstream boards first; the coordinator owns the host link.
+            targets = [av for av in reversed(avs) if av.path != coordinator.path] + [coordinator]
+        else:
+            targets = [select_index(sel, avs)]
         x = input(f'Reload {len(targets)} FPGA(s) from PROM [y]/n: ')
         if x == 'n':
             exit()
@@ -111,15 +128,13 @@ with warm_tdm_api.GroupRoot(**arg_dict) as root:
     for i, prom in enumerate(proms):
         print(f'{i} - {prom.path}')
 
-    idx = int(input('Select which PROM you wish to flash: '))
-   
-    prom = proms[idx]
+    prom = select_index(input('Select which PROM you wish to flash: '), proms)
     prom.enable.set(True)
 
     if args.path is None:
         BasePackage = importlib.import_module('warm_tdm')
         args.path = BasePackage.ImageDir
-    
+
     if os.path.isdir(args.path):
         # Get a list of images
         images = glob.glob('{}/*.mcs*'.format(args.path))
@@ -128,8 +143,7 @@ with warm_tdm_api.GroupRoot(**arg_dict) as root:
         for i, l in enumerate(images):
             print('{} : {}'.format(i, l))
 
-        idx = int(input('Enter image for flash: '))
-        image = images[idx]
+        image = select_index(input('Enter image for flash: '), images)
     else:
         image = args.path
 
@@ -138,7 +152,7 @@ with warm_tdm_api.GroupRoot(**arg_dict) as root:
     x = input('Are you sure you wish to procede [y]/n: ')
     if x == 'n':
         exit()
-        
+
     print(f'Loading MCS file: {image}')
     prom.LoadMcsFile(image)
 

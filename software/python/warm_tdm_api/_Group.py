@@ -3,7 +3,9 @@ import warm_tdm
 import warm_tdm_api
 import numpy as np
 
-from ._GroupVariables import GroupLinkVariable, GroupArrayLinkVariable, FastDacVariable, GroupBroadcastVariable
+from ._GroupVariables import (GroupLinkVariable, GroupArrayLinkVariable,
+                              FastDacVariable, GroupBroadcastVariable,
+                              PidGainVariable)
 
 
 class Group(pr.Device):
@@ -216,7 +218,14 @@ class Group(pr.Device):
         # Tuning enables
         ##################################
 
-        _value = np.ones(8, bool) if self.config.columnBoards == 0 else np.ones(self.config.numColumns, bool)
+        _numCols = 8 if self.config.columnBoards == 0 else self.config.numColumns
+        if simulation:
+            # The RTL sim model only exercises a single column; enabling the
+            # rest would tune against columns that produce no meaningful data.
+            _value = np.zeros(_numCols, bool)
+            _value[0] = True
+        else:
+            _value = np.ones(_numCols, bool)
         self.add(pr.LocalVariable(
             name='ColTuneEnable',
             description='Array of booleans which enable the tuning of each column.'
@@ -235,15 +244,18 @@ class Group(pr.Device):
 
         # Hidden: driven only by the tuning algorithms (_Tuning.py), never
         # invoked manually from the GUI.
+        def _setRowIndex(name, value):
+            with self.root.updateGroup():
+                for board in self.HardwareGroup.RowBoard.values():
+                    getattr(board.RowDacDriver, name).set(value)
+
         @self.command(hidden=True)
         def ActivateRowIndex(arg):
-            for board in self.HardwareGroup.RowBoard.values():
-                board.RowDacDriver.ActivateRowIndex.set(arg, write=True)
+            _setRowIndex('ActivateRowIndex', arg)
 
         @self.command(hidden=True)
         def DeactivateRowIndex(arg):
-            for board in self.HardwareGroup.RowBoard.values():
-                board.RowDacDriver.DeactivateRowIndex.set(arg, write=True)
+            _setRowIndex('DeactivateRowIndex', arg)
 
         self.rowSelectedVars = []
 
@@ -276,6 +288,7 @@ class Group(pr.Device):
 
             self.add(GroupArrayLinkVariable(
                 name='SaOutAdc',
+                readBlocks=True,
                 description='Current ADC value in Volts for each column. Total length = ColumnBoards * 8.',
                 mode = 'RO',
                 config=self.config,
@@ -285,21 +298,25 @@ class Group(pr.Device):
 
             self.add(GroupArrayLinkVariable(
                 name='SaOut',
+                readBlocks=True,
                 description='Current SA_OUT value in mV for each column before amplifier gain, adjusted for current offset value.',
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SaOut
                                 for board in range(self.config.columnBoards)],
                 config = self.config,
                 mode = 'RO',
-                disp = '{:0.03f}'))
+                disp = '{:0.03f}',
+                tuneEnVar = self.ColTuneEnable))
 
             self.add(GroupArrayLinkVariable(
                 name='SaOutNorm',
+                readBlocks=True,
                 description='Current SA_OUT value in mV for each column before amplifier gain, not adjusted for current offset value.',
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SaOutNorm
                                 for board in range(self.config.columnBoards)],
                 config = self.config,
                 mode = 'RO',
-                disp = '{:0.03f}'))
+                disp = '{:0.03f}',
+                tuneEnVar = self.ColTuneEnable))
 
             self.add(FastDacVariable(
                 name='SaFbCurrent',
@@ -307,7 +324,8 @@ class Group(pr.Device):
                 config = self.config,
                 hidden = False,
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SAFb.Column[chan].Current
-                                for board, chan in self.col_iter()]))
+                                for board, chan in self.col_iter()],
+                tuneEnVar = self.ColTuneEnable))
 
             self.add(GroupArrayLinkVariable(
                 name='SaFbForceCurrent',
@@ -323,7 +341,8 @@ class Group(pr.Device):
                 config = self.config,
                 hidden = True,
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SAFb.Column[chan].Voltage
-                                for board, chan in self.col_iter()]))
+                                for board, chan in self.col_iter()],
+                tuneEnVar = self.ColTuneEnable))
 
             self.add(FastDacVariable(
                 name='Sq1BiasCurrent',
@@ -331,7 +350,8 @@ class Group(pr.Device):
                 config = self.config,
                 hidden = False,
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SQ1Bias.Column[chan].Current
-                                for board, chan in self.col_iter()]))
+                                for board, chan in self.col_iter()],
+                tuneEnVar = self.ColTuneEnable))
 
             self.add(GroupArrayLinkVariable(
                 name='Sq1BiasForceCurrent',
@@ -347,7 +367,8 @@ class Group(pr.Device):
                 config = self.config,
                 hidden = True,
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SQ1Bias.Column[chan].Voltage
-                                for board, chan in self.col_iter()]))
+                                for board, chan in self.col_iter()],
+                tuneEnVar = self.ColTuneEnable))
 
             self.add(FastDacVariable(
                 name='Sq1FbCurrent',
@@ -355,7 +376,8 @@ class Group(pr.Device):
                 config = self.config,
                 hidden = False,
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SQ1Fb.Column[chan].Current
-                                for board, chan in self.col_iter()]))
+                                for board, chan in self.col_iter()],
+                tuneEnVar = self.ColTuneEnable))
 
             self.add(GroupArrayLinkVariable(
                 name='Sq1FbForceCurrent',
@@ -371,7 +393,41 @@ class Group(pr.Device):
                 config = self.config,
                 hidden = True,
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SQ1Fb.Column[chan].Voltage
-                                for board, chan in self.col_iter()]))
+                                for board, chan in self.col_iter()],
+                tuneEnVar = self.ColTuneEnable))
+
+            # AdcDsp coefficients multiply the sum of the ADC errors in the row
+            # sample window.  Present window-independent gains on the mean error
+            # at Group scope, where the effective coordinator TimingTx is known.
+            # A low-level AdcDsp on a non-coordinator board cannot reliably infer
+            # that timing configuration from its own dormant TimingTx registers.
+            _pid_timing_tx = self.HardwareGroup.ColumnBoard[0].WarmTdmCore.Timing.TimingTx
+            _pid_dsps = [self.HardwareGroup.ColumnBoard[board].DataPath.AdcDsp[chan]
+                         for board, chan in self.col_iter()]
+
+            self.add(pr.LinkVariable(
+                name = 'PidSampleCount',
+                description = 'ADC samples accumulated per row visit by the '
+                              'coordinator timing window.',
+                mode = 'RO',
+                groups = ['TopApi', 'NoConfig'],
+                dependencies = [_pid_timing_tx.SampleCount],
+                disp = '{:d}',
+                linkedGet = _pid_timing_tx.SampleCount.get))
+
+            for name, field, description in (
+                    ('PidP_Gain', 'P_Coef',
+                     'Window-normalized proportional gain on mean ADC error.'),
+                    ('PidI_Gain', 'I_Coef',
+                     'Window-normalized integral gain on accumulated mean ADC error.'),
+                    ('PidD_Gain', 'D_Coef',
+                     'Window-normalized derivative gain on mean ADC-error differences.')):
+                self.add(PidGainVariable(
+                    name = name,
+                    description = description,
+                    coefficient_dependencies = [getattr(dsp, field) for dsp in _pid_dsps],
+                    sample_count = _pid_timing_tx.SampleCount,
+                    disp = '{:0.8f}'))
 
             self.add(GroupLinkVariable(
                 name = 'TesBias',
@@ -390,6 +446,44 @@ class Group(pr.Device):
             def ZeroSaFb():
                 self.SaFbForceCurrent.set(np.zeros(self.config.numColumns, np.float64))
 
+            # Seed the known SA tune point (SaBias=55, SaFb=41) so sim/bench
+            # runs can jump straight to a locked bias without a full SaTune.
+            # Per tuning-enabled column, set the per-column SaBias and write SaFb
+            # only for the rows enabled for tuning/readout (RowIndexOrderList).
+            @self.command()
+            def SetSimSaTunePoint():
+                colTuneEnable = np.asarray(self.ColTuneEnable.value(), dtype=bool)
+                tuneRows = [int(r) for r in self.RowIndexOrderList.value()]
+                with self.root.updateGroup():
+                    for col in range(self.config.numColumns):
+                        if not colTuneEnable[col]:
+                            continue
+                        self.SaBiasCurrent.set(index=col, value=55.0)
+                        for row in tuneRows:
+                            self.SaFbCurrent.set(index=(col, row), value=41.0)
+                # Run the SA offset PID loop to null SaOut at the seeded SaBias,
+                # matching what saTune() does after setting the bias point.
+                warm_tdm_api.saOffset(group=self)
+
+            # Seed the known SQ1 tune point (the fitted SQ1 tune outputs:
+            # Sq1Fb=7.37, Sq1Bias=100, SaFb=64.8 uA) so sim/bench runs can skip a
+            # full sq1Tune. Written per tuning-enabled column into the per-row
+            # readout RAMs for exactly the enabled rows (RowIndexOrderList). The
+            # refined SaFb here supersedes the SA-tune SaFb, matching the real
+            # SA-tune -> sq1-tune ordering.
+            @self.command()
+            def SetSimSq1TunePoint():
+                colTuneEnable = np.asarray(self.ColTuneEnable.value(), dtype=bool)
+                tuneRows = [int(r) for r in self.RowIndexOrderList.value()]
+                with self.root.updateGroup():
+                    for col in range(self.config.numColumns):
+                        if not colTuneEnable[col]:
+                            continue
+                        for row in tuneRows:
+                            self.Sq1FbCurrent.set(index=(col, row), value=7.37)
+                            self.Sq1BiasCurrent.set(index=(col, row), value=100.0)
+                            self.SaFbCurrent.set(index=(col, row), value=64.8)
+
             @self.command()
             def ZeroSq1Bias():
                 self.Sq1BiasForceCurrent.set(np.zeros(self.config.numColumns, np.float64))
@@ -407,6 +501,37 @@ class Group(pr.Device):
                 self.SaBiasCurrent.set(zero_cols)
                 self.SaOffset.set(zero_cols)
 
+            # Accumulator for the settings a simulation cosim run needs before
+            # tuning. Add further sim-only setup here as the cosim grows.
+            @self.command()
+            def SetCosimTunePoints():
+                # 1x32 logical row map.
+                self.RowMap1x32()
+                # Enable 8 rows (0-7). RowIndexOrderList drives both the muxed
+                # readout (NumRows/row order) and the rows sq1Tune iterates, so
+                # this is the single knob for "rows in the mux" and "rows tuned".
+                self.RowIndexOrderList.set(list(range(8)))
+                rowBoards = list(self.HardwareGroup.RowBoard.values())
+                # Drive every FAS on-current to 163 uA on all row boards.
+                for rowBoard in rowBoards:
+                    driver = rowBoard.RowDacDriver
+                    driver.Mode.set(1, write=True)
+                    fasOn = driver.FasOn
+                    fasOn.Current.set(value=[163.0] * len(fasOn.amps), index=-1, write=True)
+                # In MANUAL mode, table writes also drive their addressed
+                # physical output. Write every FasOff entry only after every
+                # FasOn entry so setup leaves all FAS rows physically off.
+                for rowBoard in rowBoards:
+                    fasOff = rowBoard.RowDacDriver.FasOff
+                    fasOff.Current.set(value=[0.0] * len(fasOff.amps), index=-1, write=True)
+                # Seed the known SA tune point (also runs the SA offset PID loop).
+                # Runs after the row list is set so it writes SaFb for exactly the
+                # enabled rows.
+                self.SetSimSaTunePoint()
+                # Seed the known SQ1 tune point (fitted Sq1Fb/Sq1Bias/SaFb),
+                # mirroring the SA-tune -> sq1-tune ordering.
+                self.SetSimSq1TunePoint()
+
             self.columnSelectedVars = [
                 self.ColTuneEnable,
                 self.SaBiasVoltage,
@@ -418,7 +543,10 @@ class Group(pr.Device):
                 self.SaFbForceCurrent,
                 self.Sq1BiasForceCurrent,
                 self.Sq1FbForceCurrent,
-                self.TesBias
+                self.TesBias,
+                self.PidP_Gain,
+                self.PidI_Gain,
+                self.PidD_Gain
             ]
 
             for var in self.columnSelectedVars:
@@ -438,10 +566,11 @@ class Group(pr.Device):
             self.add(warm_tdm_api.SaOffsetSweepProcess(config=self.config, group=self))
             self.add(warm_tdm_api.SaTuneProcess(config=self.config))
             self.add(warm_tdm_api.Sq1TuneProcess(config=self.config, groups=['NoDoc']))
-            self.add(warm_tdm_api.FasTuneProcess(groups=['NoDoc']))
+            self.add(warm_tdm_api.FasTuneProcess(
+                config=self.config, groups=['NoDoc']))
             self.add(warm_tdm_api.Sq1DiagProcess(groups=['NoDoc']))
             self.add(warm_tdm_api.TesRampProcess(groups=['NoDoc']))
-            self.add(warm_tdm_api.TesBiasWaveformProcess(groups=['NoDoc']))
+            self.add(warm_tdm_api.TesBiasWaveformProcess(config=self.config, groups=['NoDoc']))
             self.add(warm_tdm_api.SaStripChartProcess(groups=['NoDoc']))
 
         #####################################

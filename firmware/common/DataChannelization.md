@@ -138,7 +138,7 @@ So with two column boards, both boards' readout lands on file channel `9` and
 their PID-debug on `0`–`7`, interleaved with no board tag in the file. This is a
 host-side bug, not a firmware one — the wire already distinguishes the boards.
 
-**Migration direction (not yet implemented — see the wtj-refactor plan):**
+**Migration direction (tracked in [Issue #82](https://github.com/slaclab/warm-tdm/issues/82)):**
 
 - **Namespace file channels by board** (host-only fix): e.g.
   `channel = board*16 + stream_type`, mirroring the wire TDEST. The uint8 channel
@@ -207,8 +207,7 @@ instrument), so it does not justify a standalone effort.
 > records the discussion so it does not have to be rehashed. It is a
 > **firmware-track** change (RTL frame builders + `_DataFormats` decoders + host
 > readers land together, since the byte layout is the contract), sequenced with
-> the multi-Group Instrument decision (see `docs/plans/wtj-refactor/PLAN.md`
-> Task 8 / open decision 4).
+> the multi-Group Instrument decision (see [Issue #80](https://github.com/slaclab/warm-tdm/issues/80)).
 
 ### Motivation
 

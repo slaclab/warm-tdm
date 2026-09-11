@@ -23,7 +23,9 @@ class SetupMixin:
         row DAC drivers into timing mode, and enables SQ1 PID for every column
         flagged active in ColTuneEnable. The sample window sits near the end of
         each row period: start = num_pts - sample_end_offset - sample_num,
-        end = num_pts - sample_end_offset.
+        end = num_pts - sample_end_offset. Existing Group-level normalized PID
+        gains are preserved, so the hardware P/I/D coefficients are rescaled
+        inversely with ``sample_num``.
         """
         if not self.cbs:
             log.error("No column boards detected. Cannot setup multiplexing.")
@@ -40,6 +42,16 @@ class SetupMixin:
 
         cb = self.coordinator_cb
 
+        # Preserve the gains on the mean row-window error while changing the
+        # number of accumulated samples.  The underlying fixed-point AdcDsp
+        # coefficients operate on an error sum and must therefore scale as 1/N.
+        normalized_pid_gains = None
+        if all(hasattr(self.group, name)
+               for name in ('PidP_Gain', 'PidI_Gain', 'PidD_Gain')):
+            normalized_pid_gains = {
+                name: list(getattr(self.group, name).get(read=True))
+                for name in ('PidP_Gain', 'PidI_Gain', 'PidD_Gain')}
+
         # Mode 1 = hardware MUX (free-running), Mode 0 = software-stepped
         cb.WarmTdmCore.Timing.TimingTx.Mode.set(0 if strobe else 1)
 
@@ -47,6 +59,10 @@ class SetupMixin:
         cb.WarmTdmCore.Timing.TimingTx.RowPeriodCycles.set(num_pts)
         cb.WarmTdmCore.Timing.TimingTx.SampleStartTime.set(num_pts - sample_end_offset - sample_num)
         cb.WarmTdmCore.Timing.TimingTx.SampleEndTime.set(num_pts - sample_end_offset)
+
+        if normalized_pid_gains is not None:
+            for name, gains in normalized_pid_gains.items():
+                getattr(self.group, name).set(gains)
 
         # Put all row DAC drivers in timing mode so they switch rows during MUX
         for rb_idx, rdd in self.rdds.items():

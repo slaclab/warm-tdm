@@ -1,4 +1,6 @@
 from ._CurveClass import *
+from ._PausableProcess import *
+from ._GroupVariables import *
 from ._FasTune import *
 from ._Group import *
 from ._GroupRoot import *
@@ -9,7 +11,7 @@ from ._Sq1Diag import *
 from ._Sq1Tune import *
 from ._TesRamp import *
 from ._TesBiasWaveform import *
-from ._Tuning import *
+from .tuning import *
 from ._ConfigSelect import *
 from ._SaStripChart import *
 from ._ArgParser import *

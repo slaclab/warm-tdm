@@ -11,11 +11,14 @@ one Group variable instead of walking the tree per board/channel:
 * :class:`GroupArrayLinkVariable` -- like ``GroupLinkVariable`` but each
   dependency is itself a per-board array of 8 channels; presents a flat
   ``numColumns``-long array (``col -> board*8 + chan``).
+* :class:`PidGainVariable` -- per-column fixed-point PID coefficients presented
+  as window-independent gains on the mean row-window ADC error.
 * :class:`FastDacVariable` -- a 2-D ``(column, row)`` array over the per-column
   fast-DAC drivers.
 
-All of them run their get/set inside ``root.updateGroup()`` so the batched
-dependency writes/reads coalesce into as few hardware transactions as possible.
+All of them run their get/set inside ``root.updateGroup()`` to group client
+updates. Scalar and default board-array getters retain their issue/wait/evaluate
+sequence. Only ADC/SA-output arrays opt into refreshing blocks directly.
 The ``linkedSet``/``linkedGet`` callback parameter names (``value``, ``index``,
 ``write``, ``read``) are part of pyrogue's callback ABI -- pyrogue matches them
 by name -- so keep them as-is.
@@ -138,15 +141,24 @@ class GroupLinkVariable(pr.LinkVariable):
             return
 
         with self.parent.root.updateGroup():
+            staged = False
             if index != -1:
-                if self.tuneEnVar.get(index=index):
+                if (self.tuneEnVar is None
+                        or self.tuneEnVar.get(index=index)):
                     self.dependencies[index].set(value=value, write=write)
+                    staged = True
             else:
                 for idx, (var, val) in enumerate(zip(self.dependencies, value)):
-                    if self.tuneEnVar is not None and self.tuneEnVar.get(index=idx):
+                    if (self.tuneEnVar is None
+                            or self.tuneEnVar.get(index=idx)):
                         var.set(value=val, write=False)
+                        staged = True
 
-                pr.writeAndVerifyBlocks(self.depBlocks)
+                # Only issue the grouped write if at least one column was
+                # actually staged; skip it entirely when every column is
+                # tune-disabled rather than forcing an empty transaction.
+                if write and staged:
+                    pr.writeAndVerifyBlocks(self.depBlocks)
 
     def _get(self, *, index: int, read: bool):
         """Read one column (``index >= 0``) or the whole array (``index == -1``)."""
@@ -160,7 +172,7 @@ class GroupLinkVariable(pr.LinkVariable):
 
                 if read is True:
                     for idx, var in enumerate(self.dependencies):
-                        if self.tuneEnVar.get(index=idx):
+                        if self.tuneEnVar is None or self.tuneEnVar.get(index=idx):
                             var.get(read=True, check=False)
 
                     for b in self.depBlocks:
@@ -180,17 +192,26 @@ class GroupArrayLinkVariable(GroupLinkVariable):
     ``board = col // 8``, ``chan = col % 8``. Used where the hardware exposes one
     array node per column board rather than one scalar per column.
 
+    Whole-array reads retain the issue/wait/evaluate sequence for enabled
+    boards. The ADC/SA-output arrays explicitly opt into block reads: their
+    declared dependencies cover the hardware inputs and their getters only
+    convert the refreshed values.
+
     Parameters
     ----------
     config : GroupConfig
         Supplies ``numColumns`` (the flat array length).
+    readBlocks : bool
+        Opt into reading dependency blocks before conversion. Defaults to False
+        to preserve custom and cached getter behavior.
     **kwargs
         Forwarded to :class:`GroupLinkVariable` (``tuneEnVar``, ``dependencies``,
         one per board, ...).
     """
 
-    def __init__(self, config, **kwargs):
+    def __init__(self, config, readBlocks=False, **kwargs):
         self._config = config
+        self._readBlocks = readBlocks
         super().__init__(**kwargs)
 
     def _get(self, *, index: int = -1, read: bool = True):
@@ -201,11 +222,33 @@ class GroupArrayLinkVariable(GroupLinkVariable):
                 chan = index % 8
                 ret = self.dependencies[board].get(index=chan, read=read)
             else:
-                for dep in self.dependencies:
-                    dep.get(read=read, check=False)
+                # Refresh a board if any of its columns is tune-enabled.
+                # Its array may depend on several blocks (ADC plus offsets,
+                # for example), including shared blocks reached by many links.
+                if self.tuneEnVar is None:
+                    read_boards = range(len(self.dependencies))
+                else:
+                    read_boards = sorted({
+                        col // 8
+                        for col in range(self._config.numColumns)
+                        if self.tuneEnVar.get(index=col)
+                    })
 
-                for dep in self.dependencies:
-                    dep.parent.checkBlocks()
+                if read and self._readBlocks:
+                    blocks = []
+                    for board in read_boards:
+                        dep = self.dependencies[board]
+                        if isinstance(dep, pr.LinkVariable):
+                            blocks.extend(dep.depBlocks)
+                        elif isinstance(dep, pr.RemoteVariable):
+                            blocks.append(dep._block)
+                    pr.readAndWaitBlocks(dict.fromkeys(blocks))
+                elif not self._readBlocks:
+                    for board, dep in enumerate(self.dependencies):
+                        dep.get(read=read and board in read_boards, check=False)
+
+                    for dep in self.dependencies:
+                        dep.parent.checkBlocks()
 
                 ret = np.zeros(self._config.numColumns, np.float64)
                 for i in range(self._config.numColumns):
@@ -219,19 +262,100 @@ class GroupArrayLinkVariable(GroupLinkVariable):
         """Write one column (``index >= 0``) or all ``numColumns`` (``index == -1``),
         skipping tune-disabled columns."""
         with self.parent.root.updateGroup():
+            staged = False
             if index != -1:
-                if self.tuneEnVar is not None and self.tuneEnVar.get(index=index):
+                if (self.tuneEnVar is None
+                        or self.tuneEnVar.get(index=index)):
                     board = index // 8
                     chan = index % 8
                     self.dependencies[board].set(value=value, index=chan, write=False)
+                    staged = True
             else:
                 for idx in range(self._config.numColumns):
-                    if self.tuneEnVar is not None and self.tuneEnVar.get(index=idx):
+                    if (self.tuneEnVar is None
+                            or self.tuneEnVar.get(index=idx)):
                         board = idx // 8
                         chan = idx % 8
                         self.dependencies[board].set(value=value[idx], index=chan, write=False)
+                        staged = True
 
-            pr.writeAndVerifyBlocks(self.depBlocks)
+            if write and staged:
+                pr.writeAndVerifyBlocks(self.depBlocks)
+
+
+class PidGainVariable(pr.LinkVariable):
+    """Per-column PID gain normalized to the mean error in a row window.
+
+    The fixed-point firmware multiplies its coefficient by the *sum* of the ADC
+    errors in a row window.  This variable instead presents the coefficient on
+    the mean error, so its value is independent of the number of samples::
+
+        normalized_gain = hardware_coefficient * sample_count
+
+    Setting the normalized gain divides by the coordinator's current sample
+    count before writing each per-column AdcDsp coefficient.  Changing the
+    timing registers directly cannot trigger a hardware write; callers that
+    change the sample window must reapply this variable.  Session.setup_mux()
+    does that automatically.
+    """
+
+    def __init__(self, *, coefficient_dependencies, sample_count, **kwargs):
+        self._coefficients = list(coefficient_dependencies)
+        self._sample_count = sample_count
+        super().__init__(
+            dependencies=self._coefficients + [sample_count],
+            groups=['TopApi', 'NoConfig'],
+            linkedSet=self._set,
+            linkedGet=self._get,
+            **kwargs)
+
+    def _samples(self, *, read: bool, require_configured: bool = True) -> int:
+        samples = int(self._sample_count.get(read=read))
+        if samples <= 0 and require_configured:
+            raise ValueError(
+                'PID coefficient normalization requires SampleEndTime > '
+                'SampleStartTime.')
+        return samples
+
+    def _set(self, *, value, index: int, write: bool) -> None:
+        samples = self._samples(read=False)
+        with self.parent.root.updateGroup():
+            if index != -1:
+                self._coefficients[index].set(
+                    value=float(value) / samples, write=write)
+                return
+
+            if len(value) != len(self._coefficients):
+                raise ValueError(
+                    f'Expected {len(self._coefficients)} PID gains, got '
+                    f'{len(value)}.')
+            for coefficient, gain in zip(self._coefficients, value):
+                # Use the coefficient's public LinkVariable rather than its raw
+                # register.  In particular, I_Coef clears the per-row integral
+                # state when it is written.
+                coefficient.set(value=float(gain) / samples, write=write)
+
+    def _get(self, *, index: int, read: bool):
+        # PyRogue evaluates LinkVariables during Root._finishInit(), before the
+        # timing registers have necessarily been read or configured. A zero
+        # sample count makes normalization undefined, but it must not prevent
+        # the tree from starting. Report zero until a window exists; writes
+        # remain strict through _set() so a gain can never be applied using an
+        # invalid normalization.
+        samples = self._samples(read=read, require_configured=False)
+        if samples <= 0:
+            if index != -1:
+                return 0.0
+            return np.zeros(len(self._coefficients), np.float64)
+
+        with self.parent.root.updateGroup():
+            if index != -1:
+                return self._coefficients[index].get(read=read) * samples
+
+            result = np.zeros(len(self._coefficients), np.float64)
+            for i, coefficient in enumerate(self._coefficients):
+                result[i] = coefficient.get(read=read) * samples
+            return result
 
 
 class FastDacVariable(GroupLinkVariable):
@@ -264,13 +388,26 @@ class FastDacVariable(GroupLinkVariable):
         """Write one ``(col, row)`` element (``index`` is a pair) or the whole
         2-D array (``index == -1``)."""
         with self.parent.root.updateGroup():
+            staged = False
             if index != -1:
                 colIndex = index[0]
                 rowIndex = index[1]
-                self.dependencies[colIndex].set(value=value, index=rowIndex, write=write)
+                if (self.tuneEnVar is None
+                        or self.tuneEnVar.get(index=colIndex)):
+                    self.dependencies[colIndex].set(
+                        value=value, index=rowIndex, write=write)
+                    staged = True
             else:
                 for colIndex in range(self._config.numColumns):
-                    self.dependencies[colIndex].set(value=value[colIndex], index=-1, write=write)
+                    if (self.tuneEnVar is not None
+                            and not self.tuneEnVar.get(index=colIndex)):
+                        continue
+                    self.dependencies[colIndex].set(
+                        value=value[colIndex], index=-1, write=False)
+                    staged = True
+
+                if write and staged:
+                    pr.writeAndVerifyBlocks(self.depBlocks)
 
     def _get(self, index, read: bool):
         """Read one ``(col, row)`` element (``index`` is a pair) or the whole
@@ -282,5 +419,10 @@ class FastDacVariable(GroupLinkVariable):
                 return self.dependencies[colIndex].get(index=rowIndex, read=read)
             else:
                 cols = self._config.numColumns
-                ret = [self.dependencies[colIndex].get(index=-1, read=read) for colIndex in range(cols)]
+                ret = []
+                for colIndex in range(cols):
+                    read_column = read and (self.tuneEnVar is None
+                                            or self.tuneEnVar.get(index=colIndex))
+                    ret.append(self.dependencies[colIndex].get(
+                        index=-1, read=read_column))
                 return np.array(ret, dtype=np.float64)

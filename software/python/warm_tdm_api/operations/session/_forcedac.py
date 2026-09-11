@@ -1,3 +1,9 @@
+# This file is part of the WarmTDM software package. It is subject to
+# the license terms in LICENSE.txt in the top-level directory and at:
+# https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part may be copied, modified, propagated or distributed except under
+# those license terms.
+
 ## Fast-DAC force-current drivers and the stop_and_zero safe-baseline routine.
 ##
 ## The densest, most self-contained Session cluster: the FastDacDriver override
@@ -28,25 +34,23 @@ class ForceDacMixin:
     def _read_dac_now(self, dev_name):
         """{(board_idx, chan): DacCurrentNow (uA)} for one fast-DAC driver.
 
-        ``DacCurrentNow`` is a LinkVariable computed from the *cached* DacRawNow
-        (its ``linkedGet`` reads ``DacRawNow.value()``, not ``.get()``). With
-        polling off (e.g. simulation, where the Root sets ``pollEn=False``) or
-        between poll ticks that cache is stale, so a naive read reports an old
-        value -- which silently defeats the verify loop. Force a fresh read of
-        ``DacRawNow`` first so the returned current reflects the live DAC output.
+        DacCurrentNow handles its own dependency read. Failed reads are retained
+        as NaN so they cannot be mistaken for successfully verified channels.
         """
         out = {}
         for idx, cb in sorted(self.cbs.items()):
-            dev = getattr(cb, dev_name, None)
-            if dev is None or not hasattr(dev, 'DacCurrentNow'):
-                continue
             for ch in range(self.chans_per_board):
+                key = (idx, ch)
                 try:
-                    if hasattr(dev, 'DacRawNow'):
-                        dev.DacRawNow[ch].get()   # refresh dependency (live read)
-                    out[(idx, ch)] = float(dev.DacCurrentNow[ch].get())
-                except Exception:
-                    break
+                    dev = getattr(cb, dev_name)
+                    value = float(dev.DacCurrentNow[ch].get())
+                    if not np.isfinite(value):
+                        raise ValueError(f"non-finite current: {value}")
+                    out[key] = value
+                except Exception as exc:
+                    out[key] = float('nan')
+                    log.warning("Cannot verify %s board %s channel %s: %s",
+                                dev_name, idx, ch, exc)
         return out
 
     def _apply_force_verified(self, kind, target_uA, tol_uA=0.5, tries=5,
@@ -65,7 +69,9 @@ class ForceDacMixin:
 
         ``target_uA`` is a scalar (broadcast to every column) or a per-global-
         column sequence. Returns ``(converged, residual)`` where residual is
-        ``{(board, chan): current}`` for channels still off target.
+        ``{(board, chan): current}`` for channels still off target; NaN marks
+        missing, failed or non-finite readback. Invalid targets/topology raise
+        before any write. All expected channels must verify.
         """
         setter_name, dev_name = self._FAST_DAC_FORCE[kind]
         setter = getattr(self.group, setter_name)
@@ -73,16 +79,29 @@ class ForceDacMixin:
         target = (np.full(ncol, float(target_uA)) if np.isscalar(target_uA)
                   else np.asarray(target_uA, dtype=float))
 
+        expected = {(idx, ch): idx * self.chans_per_board + ch
+                    for idx in self.cbs for ch in range(self.chans_per_board)}
+        if not expected or set(expected.values()) != set(range(ncol)):
+            raise ValueError("Force vector must cover every expected board/channel")
+        if target.shape != (ncol,) or not np.all(np.isfinite(target)):
+            raise ValueError(f"Force target must contain {ncol} finite values")
+        if not np.isfinite(tol_uA) or tol_uA < 0:
+            raise ValueError("tol_uA must be finite and nonnegative")
+        if not isinstance(tries, (int, np.integer)) or tries < 1:
+            raise ValueError("tries must be a positive integer")
+        if not np.isfinite(settle_sec) or settle_sec < 0:
+            raise ValueError("settle_sec must be finite and nonnegative")
+
         residual = {}
-        for _ in range(max(1, tries)):
+        for _ in range(tries):
             setter.set(target.tolist())
             time.sleep(settle_sec)
+            readings = self._read_dac_now(dev_name)
             residual = {}
-            for (idx, ch), val in self._read_dac_now(dev_name).items():
-                col = idx * self.chans_per_board + ch
-                tgt = target[col] if col < len(target) else 0.0
-                if abs(val - tgt) > tol_uA:
-                    residual[(idx, ch)] = val
+            for key, col in expected.items():
+                val = readings.get(key, float('nan'))
+                if not np.isfinite(val) or abs(val - target[col]) > tol_uA:
+                    residual[key] = val
             if not residual:
                 return True, {}
         return False, residual
@@ -113,18 +132,20 @@ class ForceDacMixin:
         FastDacDriver override RAM) is only serviced while the driver FSM sits in
         its IDLE state, i.e. when the run has stopped -- and the override write is
         a single-cycle event. So this method:
-          1. ends any active run and switches the coordinator to manual timing;
-          2. waits for TimingTx.Running to drop (bounded by ``settle_sec``) so the
-             DAC FSM is guaranteed idle;
+          1. ends any active run (EndRun);
+          2. waits for TimingTx.Running to drop (bounded by ``settle_sec``), still
+             in the current free-running mode so EndRun's row-boundary can occur,
+             then switches the coordinator to manual timing (Mode 0). Switching to
+             manual before the run stops would halt the row boundaries EndRun is
+             waiting for and strand it with Running asserted;
           3. THEN zeros the fast-DAC force outputs with **read-back verification
              and bounded retry** (``_apply_force_verified``), so a write dropped
              at the stop boundary is re-issued until DacCurrentNow confirms ~0;
-             the slow bias/offset outputs are zeroed with a single write.
+             slow bias/offset writes are attempted separately.
 
         The verify-and-retry closes the override one-shot race (Issue #86) in
-        software -- no RTL change -- and gives real confirmation the biases
-        zeroed, which is what the "biases don't zero after MUX" report (Issue #32)
-        actually needed. See G2 in docs/plans/wtj-refactor/PLAN.md.
+        software -- no RTL change -- and checks fresh finite DAC readbacks,
+        addressing the "biases don't zero after MUX" report (Issue #32). See docs/design/fastdac-override-race.md.
 
         Not yet a hardware interlock:
           - Verification covers the fast DACs (SQ1Fb/SAFb/SQ1Bias) via their
@@ -133,39 +154,74 @@ class ForceDacMixin:
           - Row DAC zeroing is still left commented (row-select / FAS DAC outputs
             untouched) pending a bench check.
 
+        Returns True only if timing stopped, all expected fast-DAC readbacks
+        verified and slow-output writes completed; otherwise logs and returns
+        False after attempting the remaining outputs. This does not independently
+        measure physical outputs.
+
         Args:
             settle_sec (float): max time to wait for Running to drop after EndRun
                 (EndRun completes on the next row-boundary, so this is not
                 instantaneous).
             poll_sec (float): poll interval while waiting for Running to drop.
         """
+        if not np.isfinite(settle_sec) or settle_sec < 0:
+            raise ValueError("settle_sec must be finite and nonnegative")
+        if not np.isfinite(poll_sec) or poll_sec <= 0:
+            raise ValueError("poll_sec must be finite and positive")
         cb0 = self.coordinator_cb
         tx = cb0.WarmTdmCore.Timing.TimingTx
 
-        # 1. Stop the run and leave MUX mode. EndRun completes on the next
-        #    row-boundary timeslot, so Running does not drop instantly.
-        if tx.Running.get():
-            tx.EndRun()
-        tx.Mode.set(0)
+        # 1. End any active run. EndRun completes on the next row-boundary
+        #    timeslot, so Running does not drop instantly. Do NOT switch to
+        #    manual timing (Mode 0) yet: Mode 0 halts row-boundary generation, so
+        #    switching before EndRun completes strands the pending end-of-run and
+        #    leaves Running asserted (the row boundary EndRun waits for never
+        #    arrives). Switch to manual mode only after the run has stopped.
+        all_ok = True
+        try:
+            if tx.Running.get():
+                tx.EndRun()
+        except Exception:
+            all_ok = False
+            log.exception("stop_and_zero: could not end run")
 
-        # 2. Wait for the run to actually stop, so the FastDacDriver FSM is idle
-        #    and will service the override writes below.
-        deadline = time.time() + settle_sec
-        while tx.Running.get():
-            if time.time() > deadline:
-                log.warning("stop_and_zero: TimingTx.Running did not drop within "
-                            "%.1f s; zeroing anyway (writes may not land).", settle_sec)
-                break
-            time.sleep(poll_sec)
+        # 2. Wait for the run to actually stop -- still in the current
+        #    (free-running) mode so EndRun's row-boundary can occur -- so the
+        #    FastDacDriver FSM is idle and will service the override writes below.
+        deadline = time.monotonic() + settle_sec
+        try:
+            while tx.Running.get():
+                if time.monotonic() >= deadline:
+                    all_ok = False
+                    log.warning("stop_and_zero: timing still running; attempting "
+                                "zeroing without claiming a verified stop")
+                    break
+                time.sleep(min(poll_sec, max(0, deadline - time.monotonic())))
+        except Exception:
+            all_ok = False
+            log.exception("stop_and_zero: could not verify timing stopped")
+
+        # 3. Now that the run has stopped, switch the coordinator to manual
+        #    timing so no further MUX row-boundaries are generated before zeroing.
+        try:
+            tx.Mode.set(0)
+        except Exception:
+            all_ok = False
+            log.exception("stop_and_zero: could not set manual timing mode")
 
         # 3a. Zero the fast-DAC force outputs WITH read-back verification + retry.
         #     These ride the FastDacDriver override one-shot (Issue #86): a single
         #     blind write issued at the stop boundary can be dropped. Re-issuing
         #     until DacCurrentNow confirms ~0 closes that race in software and
-        #     confirms the biases actually zeroed.
-        all_ok = True
+        #     checks the complete finite readback vector.
         for kind in self._FAST_DAC_FORCE:
-            ok, residual = self._apply_force_verified(kind, 0.0)
+            try:
+                ok, residual = self._apply_force_verified(kind, 0.0)
+            except Exception:
+                all_ok = False
+                log.exception("stop_and_zero: %s zeroing failed", kind)
+                continue
             if not ok:
                 all_ok = False
                 log.warning("stop_and_zero: %s did not verify to ~0 after retries; "
@@ -173,20 +229,22 @@ class ForceDacMixin:
 
         # 3b. Zero the remaining (slow) bias/offset outputs. These do not go
         #     through the override FSM, so a single write is sufficient.
-        r = None
-        try:
-            for r in ['SaBiasCurrent', 'SaOffset', 'TesBias']:
-                var = getattr(self.group, r)
+        for name in ['SaBiasCurrent', 'SaOffset', 'TesBias']:
+            try:
+                var = getattr(self.group, name)
                 var.set(np.zeros_like(var.get()))
-        except (AttributeError, TypeError) as e:
-            log.error("Error zeroing %s: %s", r, e)
+            except Exception:
+                all_ok = False
+                log.exception("stop_and_zero: error zeroing %s", name)
 
         # TODO: zero row DACs once the reorder is confirmed on the bench
         # for i, rdd in self.rdds.items():
         #     rdd.FasOn.Current.set(np.zeros_like(rdd.FasOn.Current.get()))
         #     rdd.FasOff.Current.set(np.zeros_like(rdd.FasOn.Current.get()))
 
-        log.info("stop_and_zero: run stopped, manual timing; fast-DAC force "
-                 "outputs zeroed and verified via DacCurrentNow (%s); slow "
-                 "bias/offset outputs zeroed. Row DACs left untouched.",
-                 "all channels ~0" if all_ok else "WITH RESIDUALS -- see warnings")
+        if all_ok:
+            log.info("stop_and_zero: timing stopped, fast-DAC readbacks verified "
+                     "zero, slow-output writes completed. Row DACs untouched.")
+        else:
+            log.error("stop_and_zero: incomplete cleanup/verification; see errors above")
+        return all_ok
