@@ -54,7 +54,7 @@ entity ColumnFpgaBoard is
       DHCP_G                  : boolean              := false;
       IP_ADDR_G               : slv(31 downto 0)     := x"0B03A8C0";  -- 192.168.3.11
       MAC_ADDR_G              : slv(47 downto 0)     := x"0B_00_16_56_00_08";
-      GEN_ADC_FILTER_G        : boolean              := true;
+      GEN_ADC_FILTER_G        : boolean              := false;
       USE_FLOAT_PID_G         : boolean              := true;
       GEN_PID_DEBUG_G         : boolean              := true;
       FAST_DAC_BRAM_G         : boolean              := false;
