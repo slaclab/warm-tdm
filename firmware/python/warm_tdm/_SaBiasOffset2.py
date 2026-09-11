@@ -52,8 +52,8 @@ class SaBiasOffset2(pr.Device):
                 dependencies = [self.BiasVoltageP[i], self.BiasVoltageN[i]],
                 linkedGet = biasVoltageGet,
                 linkedSet = biasVoltageSet,
-                disp = '{:0.01f}',
-                units = u'\u03bcA'))
+                disp = '{:0.03f}',
+                units = 'V'))
 
 
         # Create SA Bias Current LinkVariables that use SA front end amplifier properties
