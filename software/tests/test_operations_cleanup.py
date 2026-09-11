@@ -213,11 +213,16 @@ class ForceTests(unittest.TestCase):
         self.session.group = SimpleNamespace()
         for i in range(2):
             cb = SimpleNamespace()
-            for _, dev_name in self.session._FAST_DAC_FORCE.values():
+            for setter, dev_name in self.session._FAST_DAC_FORCE.values():
                 setattr(cb, dev_name, SimpleNamespace(
                     DacCurrentNow={ch: var(0.0) for ch in range(2)}))
+                # Per-board (unmasked) force setter -- the write path stop_and_zero
+                # and set_force use so disabled columns are still driven/zeroed.
+                setattr(cb, setter, var([0.0] * 2))
             self.session.cbs[i] = cb
         for setter, _ in self.session._FAST_DAC_FORCE.values():
+            # Group-level setter is still read for the column count (get); the
+            # ColTuneEnable mask on its set() is exactly what the fix bypasses.
             setattr(self.session.group, setter, var([0.0] * 4))
         self.tx = SimpleNamespace(Running=var(False), EndRun=Mock(), Mode=var(0))
         self.session.coordinator_cb = board(self.tx)
@@ -266,22 +271,34 @@ class ForceTests(unittest.TestCase):
         self.assertEqual(self.session.set_force('Sq1Fb', 0, tries=2), (True, {}))
 
     def test_invalid_target_shape_values_and_topology_rejected_before_write(self):
+        setter_mock = self.session.cbs[0].Sq1FbForceCurrent.set
         for target in [[0], [0, 0, 0, float('nan')], float('inf'), [[0] * 4]]:
             with self.assertRaises(ValueError):
                 self.session.set_force('Sq1Fb', target)
         self.session.cbs = {}
         with self.assertRaises(ValueError):
             self.session.set_force('Sq1Fb', 0)
-        self.session.group.Sq1FbForceCurrent.set.assert_not_called()
+        setter_mock.assert_not_called()
 
     def test_stop_zero_reports_failure_and_attempts_remaining_outputs(self):
-        self.session.group.Sq1FbForceCurrent.set.side_effect = OSError('fast write')
+        for cb in self.session.cbs.values():
+            cb.Sq1FbForceCurrent.set.side_effect = OSError('fast write')
         self.session.group.SaBiasCurrent.set.side_effect = OSError('slow write')
         self.assertFalse(self.session.stop_and_zero())
-        self.session.group.SaFbForceCurrent.set.assert_called()
-        self.session.group.Sq1BiasForceCurrent.set.assert_called()
+        for cb in self.session.cbs.values():
+            cb.SaFbForceCurrent.set.assert_called()
+            cb.Sq1BiasForceCurrent.set.assert_called()
         self.session.group.SaOffset.set.assert_called()
         self.session.group.TesBias.set.assert_called()
+
+    def test_force_write_uses_unmasked_per_board_setter(self):
+        # Issue #86 regression: the force write must go through the unmasked
+        # per-board setter, never the ColTuneEnable-masked Group setter, so
+        # disabled columns are still driven/zeroed by stop_and_zero.
+        self.session.set_force('SaFb', 0, tries=1)
+        for cb in self.session.cbs.values():
+            cb.SaFbForceCurrent.set.assert_called()
+        self.session.group.SaFbForceCurrent.set.assert_not_called()
 
     def test_stop_zero_does_not_claim_stopped_if_timing_stays_running(self):
         self.tx.Running.get.return_value = True
