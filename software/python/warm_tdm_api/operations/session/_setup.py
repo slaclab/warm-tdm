@@ -16,7 +16,8 @@ class SetupMixin:
     """Configure MUX/PID readout and apply per-column dead-row masks."""
 
     def setup_mux(self, num_pts=2048, sample_end_offset=100, sample_num=250,
-                  strobe=False, enable_pid=True, enable_pid_debug=False):
+                  strobe=False, enable_pid=True, enable_pid_debug=False,
+                  run_now=False):
         """Configure hardware for multiplexed readout and enable PID servos.
 
         Sets the row period + sample window on the coordinator board, puts all
@@ -26,6 +27,10 @@ class SetupMixin:
         end = num_pts - sample_end_offset. Existing Group-level normalized PID
         gains are preserved, so the hardware P/I/D coefficients are rescaled
         inversely with ``sample_num``.
+
+        Configuration and run-start are separate: this only configures. Call
+        ``run_mux()`` to start the free-running readout, or pass
+        ``run_now=True`` to start it here once configuration succeeds.
         """
         if not self.cbs:
             log.error("No column boards detected. Cannot setup multiplexing.")
@@ -79,6 +84,58 @@ class SetupMixin:
                 cb.DataPath.AdcDsp[col].ClearPids()
                 cb.DataPath.AdcDsp[col].PidEnable.set(enable_pid)
                 cb.DataPath.AdcDsp[col].PidDebugEnable.set(enable_pid_debug)
+
+        if run_now:
+            self.run_mux()
+
+    def run_mux(self):
+        """Start the free-running multiplexed readout on the coordinator.
+
+        Setup and run-start are separated: configure with ``setup_mux`` (which
+        does not start a run unless ``run_now=True``), then call this to begin
+        the MUX. ``take_data`` captures within an already-running MUX without
+        stopping it, so setup_mux -> run_mux -> take_data leaves the run going;
+        ``stop_and_zero`` (or ``TimingTx.EndRun``) ends it.
+
+        No-op with a warning if a run is already active, so it is safe to call
+        after ``setup_mux(run_now=True)``.
+        """
+        tx = self.coordinator_cb.WarmTdmCore.Timing.TimingTx
+        if tx.Running.get():
+            log.warning("run_mux: a run is already active; leaving it running.")
+            return
+        tx.StartRun()
+        print("MUX run started.")
+
+    def set_pid(self, p=None, i=None, d=None, cols=None, debug=None):
+        """Set raw per-column ``AdcDsp`` PID coefficients on the coordinator.
+
+        Writes the fixed-point servo coefficients (``P_Coef``/``I_Coef``/
+        ``D_Coef``) directly -- distinct from the Group-level normalized
+        ``PidP_Gain`` that ``setup_mux`` rescales with the sample window. Only the
+        coefficients passed (not ``None``) are written. ``cols`` selects global
+        column indices (default: columns enabled in ``ColTuneEnable``); ``debug``
+        optionally sets each selected column's ``PidDebugEnable``.
+
+        Call after ``setup_mux`` to give these coefficients the final say, since
+        ``setup_mux`` rewrites the normalized gains for the configured window.
+        """
+        cb = self.coordinator_cb
+        if cols is None:
+            cols = [c for c, en in enumerate(self.group.ColTuneEnable.get()) if en]
+        for col in cols:
+            dsp = cb.DataPath.AdcDsp[col]
+            if p is not None:
+                dsp.P_Coef.set(float(p))
+            if i is not None:
+                dsp.I_Coef.set(float(i))
+            if d is not None:
+                dsp.D_Coef.set(float(d))
+            if debug is not None:
+                dsp.PidDebugEnable.set(bool(debug))
+            print(f"Set PID for column {col}: " + ", ".join(
+                f"{k}={v}" for k, v in
+                (('P', p), ('I', i), ('D', d), ('debug', debug)) if v is not None))
 
     def apply_dead_masks(self, dead_masks):
         """Write per-column dead-row masks to the ``AdcDsp[col].RowEnableMask``

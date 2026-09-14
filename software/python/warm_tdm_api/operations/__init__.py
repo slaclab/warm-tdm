@@ -38,6 +38,8 @@ from .session import (
     save_state,
     load_config,
     setup_mux,
+    run_mux,
+    set_pid,
     apply_dead_masks,
     take_raw,
     multi_raw,
@@ -108,6 +110,8 @@ __all__ = [
     'save_state',
     'load_config',
     'setup_mux',
+    'run_mux',
+    'set_pid',
     'apply_dead_masks',
     # session shims (acquisition)
     'take_raw',

@@ -153,8 +153,8 @@ _SHIM_NAMES = (
     # hardware info / setup
     'print_hardware', 'status', 'disable_leds', 'set_cryo_resistance',
     'set_ps_synch', 'check_ps_synch', 'stop_and_zero', 'save_config',
-    'save_state', 'load_config', 'setup_mux', 'apply_dead_masks',
-    'new_session',
+    'save_state', 'load_config', 'setup_mux', 'run_mux', 'set_pid',
+    'apply_dead_masks', 'new_session',
     # acquisition
     'take_raw', 'multi_raw', 'take_data',
     # tuning
