@@ -26,7 +26,9 @@ class SetupMixin:
         each row period: start = num_pts - sample_end_offset - sample_num,
         end = num_pts - sample_end_offset. Existing Group-level normalized PID
         gains are preserved, so the hardware P/I/D coefficients are rescaled
-        inversely with ``sample_num``.
+        inversely with ``sample_num``. ``set_pid`` sets those same normalized
+        gains, so call it after ``setup_mux`` to give a specific gain the final
+        say for the configured window.
 
         Configuration and run-start are separate: this only configures. Call
         ``run_mux()`` to start the free-running readout, or pass
@@ -108,31 +110,41 @@ class SetupMixin:
         print("MUX run started.")
 
     def set_pid(self, p=None, i=None, d=None, cols=None, debug=None):
-        """Set raw per-column ``AdcDsp`` PID coefficients on the coordinator.
+        """Set the sample-count-normalized per-column PID gains.
 
-        Writes the fixed-point servo coefficients (``P_Coef``/``I_Coef``/
-        ``D_Coef``) directly -- distinct from the Group-level normalized
-        ``PidP_Gain`` that ``setup_mux`` rescales with the sample window. Only the
-        coefficients passed (not ``None``) are written. ``cols`` selects global
-        column indices (default: columns enabled in ``ColTuneEnable``); ``debug``
-        optionally sets each selected column's ``PidDebugEnable``.
+        Writes the Group-level normalized gains ``PidP_Gain``/``PidI_Gain``/
+        ``PidD_Gain`` -- the same quantity ``setup_mux`` snapshots and re-applies
+        across a sample-window change. These present the flux-lock-loop gain on
+        the *mean* row-window error, so the value is independent of ``sample_num``:
+        each write divides by the coordinator's current ``TimingTx.SampleCount``
+        before storing the fixed-point ``AdcDsp`` coefficient (see
+        ``PidGainVariable``). Only the gains passed (not ``None``) are written.
+        ``cols`` selects global column indices (default: columns enabled in
+        ``ColTuneEnable``); ``debug`` optionally sets each selected column's
+        ``PidDebugEnable``.
 
-        Call after ``setup_mux`` to give these coefficients the final say, since
-        ``setup_mux`` rewrites the normalized gains for the configured window.
+        Call after ``setup_mux`` to give these gains the final say, since
+        ``setup_mux`` re-applies the pre-existing normalized gains for the
+        configured window.
         """
+        for name in ('PidP_Gain', 'PidI_Gain', 'PidD_Gain'):
+            if not hasattr(self.group, name):
+                log.error("Group is missing %s; cannot set normalized PID gains. "
+                          "This tree predates the sample-count-aware PID API.", name)
+                return
+
         cb = self.coordinator_cb
         if cols is None:
             cols = [c for c, en in enumerate(self.group.ColTuneEnable.get()) if en]
+        gain_vars = (('P', p, self.group.PidP_Gain),
+                     ('I', i, self.group.PidI_Gain),
+                     ('D', d, self.group.PidD_Gain))
         for col in cols:
-            dsp = cb.DataPath.AdcDsp[col]
-            if p is not None:
-                dsp.P_Coef.set(float(p))
-            if i is not None:
-                dsp.I_Coef.set(float(i))
-            if d is not None:
-                dsp.D_Coef.set(float(d))
+            for _label, value, gain_var in gain_vars:
+                if value is not None:
+                    gain_var.set(value=float(value), index=col)
             if debug is not None:
-                dsp.PidDebugEnable.set(bool(debug))
+                cb.DataPath.AdcDsp[col].PidDebugEnable.set(bool(debug))
             print(f"Set PID for column {col}: " + ", ".join(
                 f"{k}={v}" for k, v in
                 (('P', p), ('I', i), ('D', d), ('debug', debug)) if v is not None))
