@@ -43,14 +43,17 @@ class SetupMixin:
         cb = self.coordinator_cb
 
         # Preserve the gains on the mean row-window error while changing the
-        # number of accumulated samples.  The underlying fixed-point AdcDsp
-        # coefficients operate on an error sum and must therefore scale as 1/N.
+        # number of accumulated samples.  The underlying AdcDsp coefficients
+        # operate on an error sum and must therefore scale as 1/N.  The
+        # floating-point PI DSP exposes only P/I gains (no D), so preserve
+        # whichever gains the group actually publishes.
+        _pid_gain_names = [name for name in ('PidP_Gain', 'PidI_Gain', 'PidD_Gain')
+                           if hasattr(self.group, name)]
         normalized_pid_gains = None
-        if all(hasattr(self.group, name)
-               for name in ('PidP_Gain', 'PidI_Gain', 'PidD_Gain')):
+        if _pid_gain_names:
             normalized_pid_gains = {
                 name: list(getattr(self.group, name).get(read=True))
-                for name in ('PidP_Gain', 'PidI_Gain', 'PidD_Gain')}
+                for name in _pid_gain_names}
 
         # Mode 1 = hardware MUX (free-running), Mode 0 = software-stepped
         cb.WarmTdmCore.Timing.TimingTx.Mode.set(0 if strobe else 1)

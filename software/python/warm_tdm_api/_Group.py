@@ -415,6 +415,8 @@ class Group(pr.Device):
                 disp = '{:d}',
                 linkedGet = _pid_timing_tx.SampleCount.get))
 
+            # The floating-point PID (AdcDspFp) is PI-only and exposes no
+            # D_Coef; skip any gain whose coefficient the DSP does not provide.
             for name, field, description in (
                     ('PidP_Gain', 'P_Coef',
                      'Window-normalized proportional gain on mean ADC error.'),
@@ -422,6 +424,8 @@ class Group(pr.Device):
                      'Window-normalized integral gain on accumulated mean ADC error.'),
                     ('PidD_Gain', 'D_Coef',
                      'Window-normalized derivative gain on mean ADC-error differences.')):
+                if not all(hasattr(dsp, field) for dsp in _pid_dsps):
+                    continue
                 self.add(PidGainVariable(
                     name = name,
                     description = description,
@@ -544,10 +548,13 @@ class Group(pr.Device):
                 self.Sq1BiasForceCurrent,
                 self.Sq1FbForceCurrent,
                 self.TesBias,
-                self.PidP_Gain,
-                self.PidI_Gain,
-                self.PidD_Gain
             ]
+            # Only the PID gains that were created above (the FP PI DSP has no
+            # D gain) become column-selected GUI variables.
+            self.columnSelectedVars += [
+                getattr(self, name)
+                for name in ('PidP_Gain', 'PidI_Gain', 'PidD_Gain')
+                if hasattr(self, name)]
 
             for var in self.columnSelectedVars:
                 self.makeGuiGroup(var)
