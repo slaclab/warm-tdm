@@ -155,7 +155,7 @@ begin
 
    accumIn.accumError      <= signed(ACCUM_ERROR);
    accumIn.numSamples      <= unsigned(ACCUM_NUM_SAMPLES);
-   accumIn.rowIndex        <= ACCUM_ROW_INDEX;
+   accumIn.logicalRow      <= ACCUM_ROW_INDEX;
    accumIn.sq1FbDac        <= ACCUM_SQ1FB_DAC;
    accumIn.seqStart        <= ACCUM_SEQ_START;
    accumIn.daqReadoutStart <= ACCUM_DAQ_READOUT_START;
