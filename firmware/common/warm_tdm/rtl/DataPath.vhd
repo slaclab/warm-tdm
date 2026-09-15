@@ -349,7 +349,7 @@ begin
                rst                 => timingRxRst125,                  -- [in]
                ibValid             => adcStreams(i).tvalid,            -- [in]
                din                 => adcStreams(i).tData(15 downto 2),           -- [in]
-               sbIn(7 downto 0)    => timingRxDataDelayed.rowIndex,    -- [in]
+               sbIn(7 downto 0)    => timingRxDataDelayed.logicalRow,    -- [in]
                sbIn(8)             => timingRxDataDelayed.firstSample,            -- [in]
                sbIn(9)             => timingRxDataDelayed.lastSample,  -- [in]
                sbIn(10)            => timingRxDataDelayed.rowStrobe,   -- [in]
@@ -385,7 +385,7 @@ begin
 
       bypassedAdcStreams(i).tValid              <= adcStreams(i).tValid;
       bypassedAdcStreams(i).tData(15 downto 0)  <= adcStreams(i).tData(15 downto 0);
-      bypassedAdcStreams(i).tid(7 downto 0)     <= timingRxDataDelayed.rowIndex;
+      bypassedAdcStreams(i).tid(7 downto 0)     <= timingRxDataDelayed.logicalRow;
       bypassedAdcStreams(i).tuser(0)            <= timingRxDataDelayed.firstSample;
       bypassedAdcStreams(i).tuser(1)            <= timingRxDataDelayed.lastSample;
       bypassedAdcStreams(i).tuser(2)            <= timingRxDataDelayed.rowStrobe;

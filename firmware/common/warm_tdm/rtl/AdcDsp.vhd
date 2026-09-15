@@ -134,7 +134,7 @@ architecture rtl of AdcDsp is
       rowEnabled         : sl;
       outputMode         : slv(1 downto 0);
       state              : StateType;
-      rowIndex           : slv(ROW_ADDR_BITS_G-1 downto 0);
+      logicalRow           : slv(ROW_ADDR_BITS_G-1 downto 0);
       accumSamples       : ufixed(31 downto 0);
       accumError         : sfixed(ACCUM_BITS_C-1 downto 0);
       lastAccumError     : sfixed(ACCUM_BITS_C-1 downto 0);
@@ -177,7 +177,7 @@ architecture rtl of AdcDsp is
       rowEnabled         => '0',
       outputMode         => (others => '0'),
       state              => WAIT_ROW_STROBE_S,
-      rowIndex           => (others => '0'),
+      logicalRow           => (others => '0'),
       accumSamples       => (others => '0'),
       accumError         => (others => '0'),
       lastAccumError     => (others => '0'),
@@ -242,7 +242,7 @@ architecture rtl of AdcDsp is
    signal axilR   : AxilRegType := AXIL_REG_INIT_C;
    signal axilRin : AxilRegType;
 
-   signal rowIndex8 : slv(7 downto 0);
+   signal logicalRow8 : slv(7 downto 0);
    signal fifoDout  : slv(21 downto 0);
    signal fifoValid : sl;
    signal ack       : AxiLiteAckType;
@@ -340,7 +340,7 @@ begin
          axiWriteSlave  => locAxilWriteSlaves(ADC_BASELINE_C),   -- [out]
          clk            => timingRxClk125,                       -- [in]
          rst            => timingRxRst125,                       -- [in]
-         addr           => r.rowIndex,                           -- [in]
+         addr           => r.logicalRow,                           -- [in]
          dout           => adcBaselineRamOut);                   -- [out]
 
    U_AxiDualPortRam_FLUX_JUMP : entity surf.AxiDualPortRam
@@ -511,7 +511,7 @@ begin
       ----------------------------------------------------------------------------------------------
 
       v.sq1FbValid      := '0';
-      v.pidStateRamAddr := r.rowIndex;
+      v.pidStateRamAddr := r.logicalRow;
       v.accumErrorRamWrEn   := '0';
       v.accumErrorRamWrData := to_slv(r.accumError);
       v.sumAccumRamWrEn     := '0';
@@ -624,19 +624,19 @@ begin
                end if;
 
                -- Row strobe comes first (bit 26).
-               -- Register the rowIndex (23:16) and reset accumulated error
+               -- Register the logicalRow (23:16) and reset accumulated error
                if (adcAxisMaster.tUser(2) = '1') then
-                  v.rowIndex   := adcAxisMaster.tId(ROW_ADDR_BITS_G-1 downto 0);
+                  v.logicalRow   := adcAxisMaster.tId(ROW_ADDR_BITS_G-1 downto 0);
                   v.accumError := (others => '0');
                   -- Apply the enable mask to the row that just arrived with this strobe.
-                  -- Using r.rowIndex here shifts the mask to the next row in the sequence.
-                  v.rowEnabled := r.rowEnableMask(to_integer(to_ufixed(v.rowIndex, 7, 0)));
+                  -- Using r.logicalRow here shifts the mask to the next row in the sequence.
+                  v.rowEnabled := r.rowEnableMask(to_integer(to_ufixed(v.logicalRow, 7, 0)));
 
                   -- Word 0 is Column and Row
                   ssiSetUserSof(AXIS_DEBUG_CFG_C, v.pidDebugMaster, '1');
                   v.pidDebugMaster.tValid              := v.pidDebugEnable;
                   v.pidDebugMaster.tData(3 downto 0)   := toSlv(COLUMN_NUM_G, 4);
-                  v.pidDebugMaster.tData(15 downto 8)  := resize(v.rowIndex, 8);
+                  v.pidDebugMaster.tData(15 downto 8)  := resize(v.logicalRow, 8);
                   v.pidDebugMaster.tData(63 downto 16) := timingRxData.runTime(47 downto 0);
 
                   -- Check for rowSeqStart
@@ -803,7 +803,7 @@ begin
                   v.pidStreamMaster.tData(31 downto 0) := timingRxData.rowSeqCount(31 downto 0);
                end if;
 
-               v.pidStreamMaster.tId(ROW_ADDR_BITS_G-1 downto 0) := r.rowIndex;
+               v.pidStreamMaster.tId(ROW_ADDR_BITS_G-1 downto 0) := r.logicalRow;
 
                v.state := FLUX_DEBUG_S;
 
@@ -835,7 +835,7 @@ begin
       end if;
 
       if (v.clearPidStateBusy = '0') then
-         v.pidStateRamAddr := v.rowIndex;
+         v.pidStateRamAddr := v.logicalRow;
       end if;
 
       if (timingRxRst125 = '1') then
@@ -921,7 +921,7 @@ begin
    -- Convert back to inverted offsset binary first
    -------------------------------------------------------------------------------------------------
    sq1fbOffsetBin <= convOffsetBin(to_slv(r.sq1Fb));
-   rowIndex8      <= resize(r.rowIndex, 8);
+   logicalRow8      <= resize(r.logicalRow, 8);
 
    U_Fifo_1 : entity surf.Fifo
       generic map (
@@ -938,7 +938,7 @@ begin
          wr_clk            => timingRxClk125,  -- [in]
          wr_en             => r.sq1FbValid,    -- [in]
          din(13 downto 0)  => sq1fbOffsetBin,  -- [in]
-         din(21 downto 14) => rowIndex8,       -- [in]
+         din(21 downto 14) => logicalRow8,       -- [in]
          overflow          => open,            -- [out]
          rd_clk            => timingRxClk125,  -- [in]
          rd_en             => axilR.fifoRd,    -- [in]
