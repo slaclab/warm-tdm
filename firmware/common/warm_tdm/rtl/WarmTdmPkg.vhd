@@ -70,7 +70,7 @@ package WarmTdmPkg is
    type AdcAccumResultType is record
       accumError      : signed(31 downto 0);
       numSamples      : unsigned(7 downto 0);
-      rowIndex        : slv(7 downto 0);
+      logicalRow        : slv(7 downto 0);
       sq1FbDac        : slv(13 downto 0);
       seqStart        : sl;
       daqReadoutStart : sl;
@@ -79,7 +79,7 @@ package WarmTdmPkg is
    constant ADC_ACCUM_RESULT_INIT_C : AdcAccumResultType := (
       accumError      => (others => '0'),
       numSamples      => (others => '0'),
-      rowIndex        => (others => '0'),
+      logicalRow        => (others => '0'),
       sq1FbDac        => (others => '0'),
       seqStart        => '0',
       daqReadoutStart => '0');

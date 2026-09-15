@@ -140,7 +140,7 @@ begin
             end if;
 
          when OUTPUT_S =>
-            v.accumOut.rowIndex := timingRxData.logicalRow;
+            v.accumOut.logicalRow := timingRxData.logicalRow;
             v.accumValid        := '1';
             v.state             := IDLE_S;
       end case;
