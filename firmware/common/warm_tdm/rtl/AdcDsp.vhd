@@ -123,6 +123,12 @@ architecture rtl of AdcDsp is
       IDLE_S,
       DEBUG_HDR1_S,
       DEBUG_BODY_S,
+      -- Holds pidStateRamAddr on the incoming row long enough for the
+      -- READ_LATENCY_G=3 per-row state RAMs to present that row's stored state
+      -- before PREP_PID_S latches it. Needed post accumulator-split: the row is
+      -- now known only at accumValid (via accumIn.logicalRow), losing the long
+      -- address setup the pre-split core had across its accumulate window.
+      PREP_WAIT_S,
       PREP_PID_S,
       PID_P_S,
       PID_I_S,
@@ -603,6 +609,11 @@ begin
 
                if (accumValid = '1') then
                   v.logicalRow     := accumIn.logicalRow(ROW_ADDR_BITS_G-1 downto 0);
+                  -- Drive the per-row state RAM address from accumIn directly
+                  -- (not the registered r.logicalRow) so it is applied a cycle
+                  -- earlier; combined with PREP_WAIT_S this gives the
+                  -- READ_LATENCY_G=3 RAMs enough setup before PREP_PID_S reads.
+                  v.pidStateRamAddr := accumIn.logicalRow(ROW_ADDR_BITS_G-1 downto 0);
                   v.accumError   := to_sfixed(slv(accumIn.accumError(ACCUM_BITS_C-1 downto 0)), v.accumError);
                   -- accumIn.numSamples is unsigned(7 downto 0); accumSamples is
                   -- ufixed(31 downto 0). Use the numeric unsigned->ufixed
@@ -646,7 +657,13 @@ begin
                v.pidDebugMaster.tValid              := r.pidDebugEnable;
                v.pidDebugMaster.tData(3 downto 0)   := toSlv(COLUMN_NUM_G, 4);
                v.pidDebugMaster.tData(15 downto 8)  := resize(r.logicalRow, 8);
-               v.state                              := PREP_PID_S;
+               v.state                              := PREP_WAIT_S;
+
+            -- One-cycle hold so the per-row state RAMs (READ_LATENCY_G=3),
+            -- addressed by pidStateRamAddr since accumValid, present the current
+            -- row's stored accumError/sumAccum/etc before PREP_PID_S reads them.
+            when PREP_WAIT_S =>
+               v.state := PREP_PID_S;
 
             when PREP_PID_S =>
                -- Write the accumError from last stage into ram
