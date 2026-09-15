@@ -23,12 +23,68 @@
     `FLT_FMA` static-elaboration assertion *warnings* are benign (FP IP compiled in
     but unused on the integer datapath).
 
+### Also done — Layer 1 integer bench restored to green (commit 6728d92)
+Running the integer `AdcDsp` GHDL bench surfaced three surf-update/rename drifts
+that had rotted the Issue #90 framework; all fixed:
+- `tests/common/regression_utils.py` (warm-tdm shim) lacked `sample_after_tpd`,
+  which updated surf `tests/axi/utils.py` now imports via `tests.common.
+  regression_utils` — added the timing-sampling trio mirroring surf.
+- Both DSP cocotb wrappers still assigned `accumIn.rowIndex`; the logical-row
+  rename made it `logicalRow`. Fixed (external `ACCUM_ROW_INDEX` port unchanged).
+- surf RAM refactor: `TrueDualPortRam`/`DualPortRam`/`SimpleDualPortRam` now
+  pull in `TrueDualPortRamInferred`/`SimpleDualPortRamInferred`; added both to
+  the benches' surf allowlists. `make rtl_import` re-run also clears stale
+  `base/ram/inferred -> base/ram/rtl` symlink moves in `build/SRC_VHDL`.
+Result: `pytest tests/warm_tdm/adc_dsp/test_AdcDsp.py` → 1 passed (5 PID
+property checks under GHDL). FP bench collects cleanly (run gated to VCS).
+
 ### Next (unchanged priority)
-- Layer 1: integer `AdcDsp` GHDL **bit-exact** regression vs a captured pre-split
-  reference (the property-check bench `tests/warm_tdm/adc_dsp/test_AdcDsp.py`
-  already covers anti-windup / state-clear / I-disabled; the golden-diff is owed).
+- Layer 1 **bit-exact golden diff** (still owed): drive identical scripted
+  stimulus and compare against a captured pre-split (ops-fixes-era) reference.
+  Design fork to settle first (see below).
 - Layer 2: wire and run the closed-loop cosim step-response, now runnable for
   both PID paths via the new generic (`warmTdmServer --sim`, TesBias step).
+
+### Decision + feasibility (2026-09-15) — whole-path captured golden
+Chosen approach (user): **whole-path, captured golden** — resurrect the
+pre-split `AdcDsp` once, drive scripted raw-ADC stimulus, capture output vectors
+to a checked-in golden; CI drives the new `AdcAccumulator`+`AdcDsp` on identical
+stimulus and asserts bit-exact vs golden. Truly model-free (plan's intent).
+
+**Feasibility PROVEN.** Reference commit `5645f7e` ("Clean up delayed timing
+paths…", the immediate pre-split, post-PID-clear-fixes state). Its `AdcDsp` +
+contemporaneous `TimingPkg`/`WarmTdmPkg`/`FixedPkg` (no `FrameHeaderPkg` yet)
+elaborate clean under GHDL 1.0 + *current* surf via `ghdl -i`/`-m`. Only
+snapshot-local change needed: add `use ieee.std_logic_unsigned.all;` (old file
+left `numeric_std` commented; the original build resolved the `slv`
+`pidStateRamAddr + 1` counter increment via the synopsys package — unsigned
+semantics, faithful). Spike lived in gitignored `build/presplit_spike/`.
+
+**Design for the two benches (to build):**
+- Snapshot the 4 old files into a committed dir (e.g.
+  `tests/warm_tdm/adc_dsp/golden_refs/presplit_rtl/`), compiled into a `warm_tdm`
+  GHDL lib (so old `AdcDsp`'s `library warm_tdm` refs resolve) — separate pytest
+  run / sim_build from the current-RTL bench, so no lib clash.
+- Shared deterministic stimulus (raw ADC AXI stream + `LocalTimingType` +
+  `sq1FbDac` + AXI-Lite coef/baseline config). Both old `AdcDsp` and new
+  `AdcAccumulator` take the SAME raw-ADC+timing interface, so the driver is shared.
+- Observable = the `mAxil` SQ1-FB-DAC RAM write master transactions (addr,data) —
+  the true PID output, present identically on both old and new `AdcDsp`. Capture
+  bench writes golden JSON; compare bench diffs bit-exact.
+- Intricate part = replicating the old sample/row-strobe accumulation protocol
+  exactly; study old `AdcDsp` adcAxisMaster+timing consumption before writing the
+  driver.
+
+### (superseded) Open design question — bit-exact reference capture
+The property bench proves PID *behavior*; the plan's Tier-1 claim is *bit-exact*
+equivalence of the accumulation-numerics move (old `sfixed` accum inside AdcDsp
+-> new `signed(31:0)` accum in AdcAccumulator + PID in AdcDsp). Interfaces differ
+across the split (old AdcDsp consumed the raw ADC stream; new AdcDsp consumes
+`accumIn : AdcAccumResultType`), so the comparison strategy is not yet fixed:
+whole-path (old AdcDsp vs new AdcAccumulator+AdcDsp on identical raw-ADC
+stimulus) vs decomposed (AdcAccumulator accum vs old accum; PID stage golden).
+Also undecided: which pre-split commit is the reference, and whether the golden
+is captured to data files or the old RTL runs live in the bench.
 
 ## 2026-09-15 — plan established; Layer 0 largely done
 
