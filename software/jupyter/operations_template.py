@@ -15,7 +15,7 @@
 # `warm_tdm_api.operations` API. It follows the muxed-run bring-up model
 # (`docs/design/muxed-run-bringup.md`): the three configuration layers are
 #
-# * **A — enabled set**: which columns/rows participate (`ColTuneEnable`, row map)
+# * **A — enabled set**: which columns/rows participate (`ColEnableMask`, row map)
 # * **B — tune point**: the servo setpoints a tune produces (SA/SQ1 bias & fb, ...)
 # * **C — run settings**: how the muxed run is clocked/servoed (`setup_mux`)
 #
@@ -62,16 +62,17 @@ ops.disable_leds()
 # ## A. Enabled set (the anchor)
 #
 # Choose which columns and rows are read out **before** tuning. Everything below
-# is indexed against this. `ColTuneEnable` is a per-column bool list;
-# `RowIndexOrderList` is the logical readout order (see docs/design/row-mapping.md).
+# is indexed against this. `ColEnableMask` is an integer bitmask (bit c set =
+# column c enabled, e.g. 0x0F = columns 0-3); `RowReadoutOrder` is the logical
+# readout order (see docs/design/row-mapping.md).
 
 # %%
-group.ColTuneEnable.set([1, 1, 1, 1, 0, 0, 0, 0])   # <-- which columns participate
+group.ColEnableMask.set(0x0F)                       # <-- which columns participate (bits 0-3)
 group.RowMap6x10()                                  # <-- pick a row map for your array
-group.RowIndexOrderList.set([10, 11, 12, 13])       # <-- logical rows to read out
+group.RowReadoutOrder.set([10, 11, 12, 13])       # <-- logical rows to read out
 
-print("cols enabled:", group.ColTuneEnable.get())
-print("row order    :", group.RowIndexOrderList.get())
+print("cols enabled:", hex(group.ColEnableMask.get()))
+print("row order    :", group.RowReadoutOrder.get())
 
 # %% [markdown]
 # ## B. Tune point
@@ -81,7 +82,7 @@ print("row order    :", group.RowIndexOrderList.get())
 # setpoints first for repeatability across tunes.
 
 # %%
-ncol = len(group.ColTuneEnable.get())
+ncol = int(group.NumColumns.get())
 group.Sq1FbForceCurrent.set([0.0] * ncol)
 group.Sq1BiasForceCurrent.set([0.0] * ncol)
 group.SaFbForceCurrent.set([0.0] * ncol)
@@ -167,13 +168,13 @@ sq1_out = ops.sq1_tune(
 # SaTuneProcess.MultiPlot. Cheaper than plot_sq1curves, which draws one plot per
 # (col, row).
 sq1 = group.Sq1TuneProcess
-for rowpos in range(len(group.RowIndexOrderList.get())):
+for rowpos in range(len(group.RowReadoutOrder.get())):
     sq1.PlotRow.set(rowpos)
     display(sq1.MultiPlot.get())
 
 # Per-(col,row) curves instead (a lot of plots):
-# ops.plot_sq1curves(sq1_out, cols=[c for c, e in enumerate(group.ColTuneEnable.get()) if e],
-#                    rows=range(len(group.RowIndexOrderList.get())))
+# ops.plot_sq1curves(sq1_out, cols=[c for c, e in enumerate(group.colEnableBools) if e],
+#                    rows=range(len(group.RowReadoutOrder.get())))
 
 # %% [markdown]
 # ### (Optional) save / restore the working point

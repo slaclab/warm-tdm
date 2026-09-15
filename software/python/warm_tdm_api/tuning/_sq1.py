@@ -174,7 +174,7 @@ def sq1BiasSweep(*, group, process, rowIndex, doBiasRamp=True,
     fbRange = np.broadcast_to(
         fb_values, (colCount, numFbSteps)).copy()
 
-    colTuneEnable = np.asarray(group.ColTuneEnable.value(), dtype=bool)
+    colTuneEnable = group.colEnableBools
     datalist = [
         warm_tdm_api.CurveData(xValues=fbRange[col])
         for col in range(colCount)]
@@ -301,8 +301,8 @@ def sq1Tune(group, process, doSet=True, doBiasRamp=True):
     # a long-running tune.
     outputs = []
     rowTuneList = [
-        int(row) for row in group.RowIndexOrderList.get(read=True)]
-    colTuneEnable = np.asarray(group.ColTuneEnable.get(), dtype=bool)
+        int(row) for row in group.RowReadoutOrder.get(read=True)]
+    colTuneEnable = group.colEnableBools
     enabledColumns = [
         col for col, enabled in enumerate(colTuneEnable) if enabled]
     numEnabledRows = len(rowTuneList)

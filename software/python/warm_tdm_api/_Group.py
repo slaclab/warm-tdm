@@ -16,6 +16,22 @@ class Group(pr.Device):
             for chan in range(8):
                 yield (board, chan)
 
+    @property
+    def colEnableBools(self):
+        """Per-column enable as a bool ndarray, decoded from ``ColEnableMask``.
+
+        ``ColEnableMask`` is the source of truth (bit c = column c enabled); this
+        is the array-form view for callers that want to iterate columns. The
+        array is cached and only rebuilt when the mask value changes, and it reads
+        the cached local value (``.value()``) -- so it never performs a read nor
+        posts an update/publish. Accessed as an attribute, not a call."""
+        mask = int(self.ColEnableMask.value())
+        if mask != getattr(self, '_colEnableMaskKey', None):
+            self._colEnableMaskKey = mask
+            self._colEnableBools = np.array(
+                [bool((mask >> c) & 1) for c in range(self._numCols)], dtype=bool)
+        return self._colEnableBools
+
     def _cable_r_nodes(self):
         """Find every AFE cable-resistance model node across all boards.
 
@@ -129,7 +145,7 @@ class Group(pr.Device):
             name='MaxRows',
             description='Maximum number of row indices (row address space = '
                         'maxRows = 2**ROW_ADDR_BITS_G). Static; the active row '
-                        'count is len(RowIndexOrderList).',
+                        'count is len(RowReadoutOrder).',
             value=self.config.maxRows,
             mode='RO',
             groups='TopApi'))
@@ -215,31 +231,34 @@ class Group(pr.Device):
 
         if groupConfig.columnBoards > 0:
             self.add(pr.LinkVariable(
-                name = 'RowIndexOrderList',
+                name = 'RowReadoutOrder',
                 groups = ['NoConfig'],
-                variable = self.HardwareGroup.ReadoutList))
+                variable = self.HardwareGroup.RowReadoutOrder))
 
         ##################################
-        # Tuning enables
+        # Column enable
         ##################################
 
-        _numCols = 8 if self.config.columnBoards == 0 else self.config.numColumns
+        # Integer bitmask of enabled columns (bit c set = column c enabled).
+        # Governs BOTH tuning and the muxed run: tuning gates every per-column
+        # Group variable on it (tuneEnVar), and setup_mux drives each
+        # AdcDsp[col].PidEnable from it. A bitmask (e.g. 0x0F = columns 0-3) is
+        # far less cumbersome to set than a per-column bool list.
+        self._numCols = 8 if self.config.columnBoards == 0 else self.config.numColumns
         if simulation:
             # The RTL sim model only exercises a single column; enabling the
             # rest would tune against columns that produce no meaningful data.
-            _value = np.zeros(_numCols, bool)
-            _value[0] = True
+            _mask = 0x1
         else:
-            _value = np.ones(_numCols, bool)
+            _mask = (1 << self._numCols) - 1
         self.add(pr.LocalVariable(
-            name='ColTuneEnable',
-            description='Array of booleans which enable the tuning of each column.'
-                        'Total length = ColumnBoards * 8.',
-            value=_value,
-            # Seeded with an ndarray, but the documented workflow and scripts set
-            # it from a plain Python bool list (group.ColTuneEnable.set([True]*8));
-            # allow both rather than forcing callers to wrap in np.array.
-            typeCheck=False,
+            name='ColEnableMask',
+            description='Integer bitmask of enabled columns (bit c set = column c '
+                        'enabled; e.g. 0x0F = columns 0-3). Governs both tuning and '
+                        'the muxed run. Width = ColumnBoards * 8 bits.',
+            value=_mask,
+            minimum=0,
+            disp='{:#x}',
             groups='TopApi',
             mode='RW'))
 
@@ -275,21 +294,21 @@ class Group(pr.Device):
                 description='SaBias value for each column. 1D array with total length = ColumnBoards * 8.',
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SaBiasOffset.BiasVoltage[chan]
                                 for board, chan in self.col_iter()],
-                tuneEnVar = self.ColTuneEnable))
+                tuneEnVar = self.ColEnableMask))
 
             self.add(GroupLinkVariable(
                 name='SaBiasCurrent',
                 description='SaBias current for each column. 1D array with total length = ColumnBoards * 8.',
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SaBiasOffset.BiasCurrent[chan]
                                 for board, chan in self.col_iter()],
-                tuneEnVar = self.ColTuneEnable))
+                tuneEnVar = self.ColEnableMask))
 
             self.add(GroupLinkVariable(
                 name='SaOffset',
                 description='SaOffset value for each column. 1D array with total length = ColumnBoards * 8.',
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SaBiasOffset.OffsetVoltage[chan]
                                 for board, chan in self.col_iter()],
-                tuneEnVar = self.ColTuneEnable))
+                tuneEnVar = self.ColEnableMask))
 
             self.add(GroupArrayLinkVariable(
                 name='SaOutAdc',
@@ -299,7 +318,7 @@ class Group(pr.Device):
                 config=self.config,
                 dependencies = [self.HardwareGroup.ColumnBoard[board].DataPath.WaveformCapture.AdcAverage
                                 for board in range(self.config.columnBoards)],
-                tuneEnVar = self.ColTuneEnable))
+                tuneEnVar = self.ColEnableMask))
 
             self.add(GroupArrayLinkVariable(
                 name='SaOut',
@@ -310,7 +329,7 @@ class Group(pr.Device):
                 config = self.config,
                 mode = 'RO',
                 disp = '{:0.03f}',
-                tuneEnVar = self.ColTuneEnable))
+                tuneEnVar = self.ColEnableMask))
 
             self.add(GroupArrayLinkVariable(
                 name='SaOutNorm',
@@ -321,7 +340,7 @@ class Group(pr.Device):
                 config = self.config,
                 mode = 'RO',
                 disp = '{:0.03f}',
-                tuneEnVar = self.ColTuneEnable))
+                tuneEnVar = self.ColEnableMask))
 
             self.add(FastDacVariable(
                 name='SaFbCurrent',
@@ -330,7 +349,7 @@ class Group(pr.Device):
                 hidden = False,
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SAFb.Column[chan].Current
                                 for board, chan in self.col_iter()],
-                tuneEnVar = self.ColTuneEnable))
+                tuneEnVar = self.ColEnableMask))
 
             self.add(GroupArrayLinkVariable(
                 name='SaFbForceCurrent',
@@ -338,7 +357,7 @@ class Group(pr.Device):
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SaFbForceCurrent
                                 for board in range(self.config.columnBoards)],
                 config = self.config,
-                tuneEnVar = self.ColTuneEnable))
+                tuneEnVar = self.ColEnableMask))
 
             self.add(FastDacVariable(
                 name='SaFbVoltage',
@@ -347,7 +366,7 @@ class Group(pr.Device):
                 hidden = True,
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SAFb.Column[chan].Voltage
                                 for board, chan in self.col_iter()],
-                tuneEnVar = self.ColTuneEnable))
+                tuneEnVar = self.ColEnableMask))
 
             self.add(FastDacVariable(
                 name='Sq1BiasCurrent',
@@ -356,7 +375,7 @@ class Group(pr.Device):
                 hidden = False,
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SQ1Bias.Column[chan].Current
                                 for board, chan in self.col_iter()],
-                tuneEnVar = self.ColTuneEnable))
+                tuneEnVar = self.ColEnableMask))
 
             self.add(GroupArrayLinkVariable(
                 name='Sq1BiasForceCurrent',
@@ -364,7 +383,7 @@ class Group(pr.Device):
                 dependencies = [self.HardwareGroup.ColumnBoard[board].Sq1BiasForceCurrent
                                 for board in range(self.config.columnBoards)],
                 config = self.config,
-                tuneEnVar = self.ColTuneEnable))
+                tuneEnVar = self.ColEnableMask))
 
             self.add(FastDacVariable(
                 name='Sq1BiasVoltage',
@@ -373,7 +392,7 @@ class Group(pr.Device):
                 hidden = True,
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SQ1Bias.Column[chan].Voltage
                                 for board, chan in self.col_iter()],
-                tuneEnVar = self.ColTuneEnable))
+                tuneEnVar = self.ColEnableMask))
 
             self.add(FastDacVariable(
                 name='Sq1FbCurrent',
@@ -382,7 +401,7 @@ class Group(pr.Device):
                 hidden = False,
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SQ1Fb.Column[chan].Current
                                 for board, chan in self.col_iter()],
-                tuneEnVar = self.ColTuneEnable))
+                tuneEnVar = self.ColEnableMask))
 
             self.add(GroupArrayLinkVariable(
                 name='Sq1FbForceCurrent',
@@ -390,7 +409,7 @@ class Group(pr.Device):
                 dependencies = [self.HardwareGroup.ColumnBoard[board].Sq1FbForceCurrent
                                 for board in range(self.config.columnBoards)],
                 config = self.config,
-                tuneEnVar = self.ColTuneEnable))
+                tuneEnVar = self.ColEnableMask))
 
             self.add(FastDacVariable(
                 name='Sq1FbVoltage',
@@ -399,7 +418,7 @@ class Group(pr.Device):
                 hidden = True,
                 dependencies = [self.HardwareGroup.ColumnBoard[board].SQ1Fb.Column[chan].Voltage
                                 for board, chan in self.col_iter()],
-                tuneEnVar = self.ColTuneEnable))
+                tuneEnVar = self.ColEnableMask))
 
             # AdcDsp coefficients multiply the sum of the ADC errors in the row
             # sample window.  Present window-independent gains on the mean error
@@ -434,12 +453,32 @@ class Group(pr.Device):
                     sample_count = _pid_timing_tx.SampleCount,
                     disp = '{:0.8f}'))
 
+            # Per-column dead-row mask, graduated from the pure make/read_dead_masks
+            # helpers (issue #83). One 256-bit integer per column (bit r = 1 -> row r
+            # active for the servo; 0 -> dead). Client-side desired state, default
+            # all-active; setup_mux applies it to each AdcDsp[col].RowEnableMask, and
+            # apply_dead_masks writes through it. Held as a Python int list (256-bit
+            # values overflow numpy float64/int64), so typeCheck is disabled.
+            # No scalar disp: the value is a list, so a '{:#x}' per-value format
+            # would raise in genDisp. Hidden: a large per-column 256-bit table
+            # driven by apply_dead_masks/make_dead_masks, not hand-entered.
+            self.add(pr.LocalVariable(
+                name = 'RowEnableMasks',
+                description = 'Per-column 256-bit row-enable bitmask (bit r=1 -> row r '
+                              'active). Drives each AdcDsp[col].RowEnableMask; applied '
+                              'by setup_mux. Default all-active.',
+                value = [(1 << 256) - 1] * self._numCols,
+                typeCheck = False,
+                hidden = True,
+                groups = 'TopApi',
+                mode = 'RW'))
+
             self.add(GroupLinkVariable(
                 name = 'TesBias',
                 description='TesBias value for each column. 1D array with total length ColumnBoards * 8.',
                 dependencies = [self.HardwareGroup.ColumnBoard[board].TesBias.BiasCurrent[chan]
                                 for board, chan in self.col_iter()],
-                tuneEnVar = self.ColTuneEnable))
+                tuneEnVar = self.ColEnableMask))
 
             @self.command()
             def ZeroSaBias():
@@ -454,11 +493,11 @@ class Group(pr.Device):
             # Seed the known SA tune point (SaBias=55, SaFb=41) so sim/bench
             # runs can jump straight to a locked bias without a full SaTune.
             # Per tuning-enabled column, set the per-column SaBias and write SaFb
-            # only for the rows enabled for tuning/readout (RowIndexOrderList).
+            # only for the rows enabled for tuning/readout (RowReadoutOrder).
             @self.command()
             def SetSimSaTunePoint():
-                colTuneEnable = np.asarray(self.ColTuneEnable.value(), dtype=bool)
-                tuneRows = [int(r) for r in self.RowIndexOrderList.value()]
+                colTuneEnable = self.colEnableBools
+                tuneRows = [int(r) for r in self.RowReadoutOrder.value()]
                 with self.root.updateGroup():
                     for col in range(self.config.numColumns):
                         if not colTuneEnable[col]:
@@ -473,13 +512,13 @@ class Group(pr.Device):
             # Seed the known SQ1 tune point (the fitted SQ1 tune outputs:
             # Sq1Fb=7.37, Sq1Bias=100, SaFb=64.8 uA) so sim/bench runs can skip a
             # full sq1Tune. Written per tuning-enabled column into the per-row
-            # readout RAMs for exactly the enabled rows (RowIndexOrderList). The
+            # readout RAMs for exactly the enabled rows (RowReadoutOrder). The
             # refined SaFb here supersedes the SA-tune SaFb, matching the real
             # SA-tune -> sq1-tune ordering.
             @self.command()
             def SetSimSq1TunePoint():
-                colTuneEnable = np.asarray(self.ColTuneEnable.value(), dtype=bool)
-                tuneRows = [int(r) for r in self.RowIndexOrderList.value()]
+                colTuneEnable = self.colEnableBools
+                tuneRows = [int(r) for r in self.RowReadoutOrder.value()]
                 with self.root.updateGroup():
                     for col in range(self.config.numColumns):
                         if not colTuneEnable[col]:
@@ -512,10 +551,10 @@ class Group(pr.Device):
             def SetCosimTunePoints():
                 # 1x32 logical row map.
                 self.RowMap1x32()
-                # Enable 8 rows (0-7). RowIndexOrderList drives both the muxed
-                # readout (NumRows/row order) and the rows sq1Tune iterates, so
-                # this is the single knob for "rows in the mux" and "rows tuned".
-                self.RowIndexOrderList.set(list(range(8)))
+                # Enable 8 rows (0-7). RowReadoutOrder drives both the muxed
+                # readout (NumReadoutRows/row order) and the rows sq1Tune iterates,
+                # so this is the single knob for "rows in the mux" and "rows tuned".
+                self.RowReadoutOrder.set(list(range(8)))
                 rowBoards = list(self.HardwareGroup.RowBoard.values())
                 # Drive every FAS on-current to 163 uA on all row boards.
                 for rowBoard in rowBoards:
@@ -538,7 +577,6 @@ class Group(pr.Device):
                 self.SetSimSq1TunePoint()
 
             self.columnSelectedVars = [
-                self.ColTuneEnable,
                 self.SaBiasVoltage,
                 self.SaBiasCurrent,
                 self.SaOffset,

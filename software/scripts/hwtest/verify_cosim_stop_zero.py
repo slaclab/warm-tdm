@@ -16,8 +16,8 @@ def check_stop_zero(sess, args, report, directory):
     # Lazy import so --help and pure validation do not require a Rogue environment.
     from verify_stop_and_zero import run_cycles
     args.skip_cols = ''
-    with restore([sess.group.ColTuneEnable]):
-        sess.group.ColTuneEnable.set([True] * sess.chans_per_board)
+    with restore([sess.group.ColEnableMask]):
+        sess.group.ColEnableMask.set((1 << sess.chans_per_board) - 1)
         run_cycles(sess, args)
     passed(report, 'nonzero -> confirmed mux run -> stopped/zero registers', cycles=args.cycles)
     report['limitations'] = ['Register verification only. Correlate VCS modeled DAC signals and retain the trace on #86.',

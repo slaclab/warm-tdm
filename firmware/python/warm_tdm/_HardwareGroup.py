@@ -191,40 +191,32 @@ class HardwareGroup(pyrogue.Device):
                 expand=True,
                 enabled=True))
 
-        def rl_get(read):
-            #print(f'rl_get({read=})')
-            length = self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.NumRows.get(read=read)
-            #print(f'{length=}')
-            order = self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.RowIndexOrder.get(read=read)
-            #print(f'{order=}')
-            #print(f'ret - {order[0:length]}')
+        def rro_get(read):
+            length = self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.NumReadoutRows.get(read=read)
+            order = self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.RowReadoutOrder.get(read=read)
             return order[0:length]
 
-        def rl_set(value, write):
+        def rro_set(value, write):
             tx = self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx
-            tx.NumRows.set(len(value), write=write)            
-            tx.RowIndexOrder.set(value=value, write=write)
-#             for i,v in enumerate(value):
-#                 tx.RowIndexOrder.set(value=v, index=i, write=False)
-#             if write is True:
-#                 tx.RowIndexOrder.write()
+            tx.NumReadoutRows.set(len(value), write=write)
+            tx.RowReadoutOrder.set(value=value, write=write)
 
 
         if colBoards > 0:
             self.add(pyrogue.LinkVariable(
-                name = 'ReadoutList',
+                name = 'RowReadoutOrder',
                 typeStr = 'int',
                 value = [0] ,
                 groups = ['NoConfig'],
                 dependencies = [
-                    self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.NumRows,
-                    self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.RowIndexOrder],
-                linkedSet = rl_set,
-                linkedGet = rl_get)) #list(range(48))))
+                    self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.NumReadoutRows,
+                    self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.RowReadoutOrder],
+                linkedSet = rro_set,
+                linkedGet = rro_get))
 
         @self.command()
         def Readout(arg):
-            self.ReadoutList.set(list(range(arg)))
+            self.RowReadoutOrder.set(list(range(arg)))
 
         if colBoards > 0:
             self.add(waveGui)

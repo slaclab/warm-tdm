@@ -105,9 +105,10 @@ class GroupLinkVariable(pr.LinkVariable):
 
     ``get(index=-1)`` returns all columns as a float64 array; ``get(index=n)``
     returns column ``n``. ``set`` mirrors that. Writes/reads are gated by
-    ``tuneEnVar`` (a per-column bool array, typically ``Group.ColTuneEnable``):
-    tune-disabled columns are skipped, so tuning a subset of columns does not
-    disturb the rest. Units are inherited from the first dependency.
+    ``tuneEnVar`` (an integer enable bitmask, typically ``Group.ColEnableMask``,
+    with bit ``c`` set = column ``c`` enabled): disabled columns are skipped, so
+    operating on a subset of columns does not disturb the rest. Units are
+    inherited from the first dependency.
 
     Parameters
     ----------
@@ -134,6 +135,20 @@ class GroupLinkVariable(pr.LinkVariable):
         if len(deps) > 0:
             self._units = deps[0].units
 
+    def _colEnabled(self, idx: int) -> bool:
+        """True if column ``idx`` is enabled. ``tuneEnVar`` is an integer enable
+        bitmask (``Group.ColEnableMask``); ``None`` enables every column. The bit
+        must be decoded per column -- a whole-mask truthy test would treat any
+        nonzero mask as "all columns enabled" and silently defeat the gating.
+
+        Uses ``.value()`` (the cached local value) rather than ``.get()``: this
+        runs per column on every whole-array access, and ``.get()`` would post a
+        needless update/publish each time. The mask is a local variable, so its
+        cached value is always current."""
+        if self.tuneEnVar is None:
+            return True
+        return bool((int(self.tuneEnVar.value()) >> idx) & 1)
+
     def _set(self, *, value, index: int, write: bool):
         """Write one column (``index >= 0``) or the whole array (``index == -1``),
         skipping tune-disabled columns."""
@@ -143,14 +158,12 @@ class GroupLinkVariable(pr.LinkVariable):
         with self.parent.root.updateGroup():
             staged = False
             if index != -1:
-                if (self.tuneEnVar is None
-                        or self.tuneEnVar.get(index=index)):
+                if self._colEnabled(index):
                     self.dependencies[index].set(value=value, write=write)
                     staged = True
             else:
                 for idx, (var, val) in enumerate(zip(self.dependencies, value)):
-                    if (self.tuneEnVar is None
-                            or self.tuneEnVar.get(index=idx)):
+                    if self._colEnabled(idx):
                         var.set(value=val, write=False)
                         staged = True
 
@@ -172,7 +185,7 @@ class GroupLinkVariable(pr.LinkVariable):
 
                 if read is True:
                     for idx, var in enumerate(self.dependencies):
-                        if self.tuneEnVar is None or self.tuneEnVar.get(index=idx):
+                        if self._colEnabled(idx):
                             var.get(read=True, check=False)
 
                     for b in self.depBlocks:
@@ -231,7 +244,7 @@ class GroupArrayLinkVariable(GroupLinkVariable):
                     read_boards = sorted({
                         col // 8
                         for col in range(self._config.numColumns)
-                        if self.tuneEnVar.get(index=col)
+                        if self._colEnabled(col)
                     })
 
                 if read and self._readBlocks:
@@ -264,16 +277,14 @@ class GroupArrayLinkVariable(GroupLinkVariable):
         with self.parent.root.updateGroup():
             staged = False
             if index != -1:
-                if (self.tuneEnVar is None
-                        or self.tuneEnVar.get(index=index)):
+                if self._colEnabled(index):
                     board = index // 8
                     chan = index % 8
                     self.dependencies[board].set(value=value, index=chan, write=False)
                     staged = True
             else:
                 for idx in range(self._config.numColumns):
-                    if (self.tuneEnVar is None
-                            or self.tuneEnVar.get(index=idx)):
+                    if self._colEnabled(idx):
                         board = idx // 8
                         chan = idx % 8
                         self.dependencies[board].set(value=value[idx], index=chan, write=False)

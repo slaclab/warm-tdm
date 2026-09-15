@@ -124,14 +124,10 @@ class ControlTab(PyDMFrame):
         fl_right = QFormLayout()
         hb.addLayout(fl_right)
 
-        combo_vars = ('ColTuneEnable', 'RowTuneEnable')
-        for var in combo_vars:
-            ch = cs_path + f'.{var}'
-            if var == 'ColTuneEnable':
-                ch += '/string'
-            fl_right.addRow(
-                PyDMLabel(init_channel=cs_path + f'.{var}/name'),
-                PyDMEnumComboBox(init_channel=ch))
+        # The per-column enable is now the scalar integer Group.ColEnableMask
+        # bitmask (no per-column bool array via ConfigSelect), and RowTuneEnable
+        # was a phantom that never resolved. TODO: add a top-level ColEnableMask
+        # hex field to this tab (GUI polish, tracked separately).
 
         edit_vars = (
             'TesBias', 'SaBiasCurrent', 'SaOffset',

@@ -76,7 +76,7 @@ writes. A per-board array may span several blocks.
    | Whole scalar-column or fast-DAC-table reads | Refresh enabled columns; return every column |
    | Whole board-array reads | Refresh boards with any enabled column; return every column |
    | Explicit indexed reads | Read the requested element regardless of its mask |
-   | Broadcast and PID gain operations | No `ColTuneEnable` gating |
+   | Broadcast and PID gain operations | No `ColEnableMask` gating |
 
    Disabled entries can contain cached values. Reading an enabled board can
    also refresh its disabled channels. The mask is a selection policy, not an

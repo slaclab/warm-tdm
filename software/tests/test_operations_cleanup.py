@@ -222,7 +222,7 @@ class ForceTests(unittest.TestCase):
             self.session.cbs[i] = cb
         for setter, _ in self.session._FAST_DAC_FORCE.values():
             # Group-level setter is still read for the column count (get); the
-            # ColTuneEnable mask on its set() is exactly what the fix bypasses.
+            # ColEnableMask gating on its set() is exactly what the fix bypasses.
             setattr(self.session.group, setter, var([0.0] * 4))
         self.tx = SimpleNamespace(Running=var(False), EndRun=Mock(), Mode=var(0))
         self.session.coordinator_cb = board(self.tx)
@@ -293,7 +293,7 @@ class ForceTests(unittest.TestCase):
 
     def test_force_write_uses_unmasked_per_board_setter(self):
         # Issue #86 regression: the force write must go through the unmasked
-        # per-board setter, never the ColTuneEnable-masked Group setter, so
+        # per-board setter, never the ColEnableMask-gated Group setter, so
         # disabled columns are still driven/zeroed by stop_and_zero.
         self.session.set_force('SaFb', 0, tries=1)
         for cb in self.session.cbs.values():
@@ -322,7 +322,7 @@ class HarnessTests(unittest.TestCase):
         for drv in hwtest._DRIVERS:
             setattr(cb, drv, SimpleNamespace(
                 DacCurrentNow={0: SimpleNamespace(get=Mock(side_effect=lambda: self.current))}))
-        self.group = SimpleNamespace(ColTuneEnable=var([True]))
+        self.group = SimpleNamespace(NumColumns=var(1))
         for name in ['Sq1FbCurrent', 'SaFbCurrent', 'Sq1BiasCurrent']:
             setattr(self.group, name, var(np.array([[7.0, 8.0]])))
         self.sess = SimpleNamespace(cbs={0: cb}, rbs={0: object()}, chans_per_board=1,

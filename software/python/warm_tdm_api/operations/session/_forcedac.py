@@ -95,7 +95,7 @@ class ForceDacMixin:
         residual = {}
         for _ in range(tries):
             # Write per column board (the firmware GroupLinkVariable), not the
-            # Group-level setter: the latter masks by ColTuneEnable and would skip
+            # Group-level setter: the latter masks by ColEnableMask and would skip
             # disabled columns, which the all-channel readback below then flags as
             # unverified. This covers every channel the verify checks (a safety
             # zero must reach disabled columns too).

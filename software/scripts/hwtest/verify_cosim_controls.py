@@ -38,8 +38,8 @@ def check_controls(sess, args, report, directory):
         return
 
     cb = sess.coordinator_cb
-    with restore([sess.group.ColTuneEnable]):
-        sess.group.ColTuneEnable.set([True] * sess.chans_per_board)
+    with restore([sess.group.ColEnableMask]):
+        sess.group.ColEnableMask.set((1 << sess.chans_per_board) - 1)
         try:
             for code in [8192, 9000]:
                 cb.AllFastDacs(code)

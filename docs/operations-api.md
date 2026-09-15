@@ -69,13 +69,13 @@ three configuration layers from
 
 ```
 connect ─► status ─► (A) enabled set ─► (B) tune ─► (C) setup_mux ─► take_data ─► analyze
-                     ColTuneEnable      sa_offset    run settings    acquire      plot_stream_data
+                     ColEnableMask      sa_offset    run settings    acquire      plot_stream_data
                      RowMap/order       sa_tune      + PID enable
                                         sq1_tune
 ```
 
 - **A — enabled set (the anchor):** which columns/rows participate
-  (`group.ColTuneEnable`, the row map/order). Set it first; B and C are meaningful
+  (`group.ColEnableMask`, the row map/order). Set it first; B and C are meaningful
   only relative to it.
 - **B — tune point:** the servo setpoints a tune produces. Driven by the tuning
   wrappers (`sa_offset`, `sa_tune`, `sq1_tune`).
