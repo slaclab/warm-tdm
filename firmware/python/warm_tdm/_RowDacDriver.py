@@ -44,8 +44,14 @@ class RowDacDriver(pr.Device):
                 bitSize = rowBoardIdBits,
                 base = pr.UInt))
 
+        # NOTE: this legacy driver (used by RowModule) treats the index as a
+        # packed PHYSICAL row-select address (decomposed directly into
+        # rowAddr/chipAddr/boardId in RTL) -- unlike RowDacDriver2, which maps a
+        # LOGICAL row through RowMap. Do not assume these two drivers share
+        # index semantics.
         self.add(pr.RemoteVariable(
             name = 'ActivateRowIndex',
+            description = 'Turn ON a PHYSICAL row-select address (packed board/chip/row); legacy RowModule driver.',
             groups = ['NoConfig'],
             offset = 0x10,
             bitSize = 8,
@@ -53,7 +59,8 @@ class RowDacDriver(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'DeactivateRowIndex',
-            groups = ['NoConfig'],            
+            description = 'Turn OFF a PHYSICAL row-select address (packed board/chip/row); legacy RowModule driver.',
+            groups = ['NoConfig'],
             offset = 0x14,
             bitSize = 8,
             base = pr.UInt))
