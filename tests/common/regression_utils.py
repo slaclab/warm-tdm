@@ -58,45 +58,17 @@ COMMON_VHDL_COMPILE_ARGS = [
 ]
 
 
-async def sample_after_delta_cycles(clock) -> None:
-    """Wait for a rising edge and sample after combinational delta settling."""
-    from cocotb.triggers import ReadOnly, RisingEdge
-
-    await RisingEdge(clock)
-    await ReadOnly()
-
-
-async def sample_after_tpd(
-    clock,
-    *,
-    propagation_time: float = 1.0,
-    unit: str = "ns",
-) -> None:
-    """Propagation sampling: wait past a real VHDL ``after TPD_G`` delay.
-
-    Mirrors surf's ``tests/common/regression_utils.sample_after_tpd``. surf's
-    test utilities (e.g. ``tests/axi/utils.py``) import this from
-    ``tests.common.regression_utils``, which resolves to this warm-tdm module
-    when benches run from the repo root, so the two implementations must stay in
-    sync.
-    """
-    from cocotb.triggers import RisingEdge, Timer
-
-    await RisingEdge(clock)
-    await Timer(propagation_time, unit=unit)
-
-
-async def wait_after_edge_offset(
-    clock,
-    *,
-    offset_time: float,
-    unit: str = "ns",
-) -> None:
-    """Real-time timing: move stimulus by a deliberate offset after an edge."""
-    from cocotb.triggers import RisingEdge, Timer
-
-    await RisingEdge(clock)
-    await Timer(offset_time, unit=unit)
+# surf's vendored test utilities (e.g. firmware/submodules/surf/tests/axi/utils.py)
+# import their timing-sampling helpers from `tests.common.regression_utils`. From
+# the warm-tdm repo root that name resolves to THIS module, not surf's own — the
+# top-level `tests` package shadows surf's. surf owns these helpers and documents
+# them in its cocotb regression style guide, so re-export them from surf rather
+# than duplicating the implementations (single source of truth, no drift).
+from firmware.submodules.surf.tests.common.regression_utils import (  # noqa: F401
+    sample_after_delta_cycles,
+    sample_after_tpd,
+    wait_after_edge_offset,
+)
 
 
 def start_lockstep_clocks(*signals, period_ns: float) -> None:
