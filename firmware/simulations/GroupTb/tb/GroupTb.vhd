@@ -36,7 +36,12 @@ entity GroupTb is
       -- Seed for per-device wafer variation (SSA/SQ1/FAS/TES-baseline spread).
       -- Nonzero (the default) makes tunings differ channel-to-channel and muxed
       -- row levels differ pixel-to-pixel; 0 restores identical devices.
-      VARIATION_SEED_G : natural             := WAFER_VARIATION_SEED_C);
+      VARIATION_SEED_G : natural             := WAFER_VARIATION_SEED_C;
+      -- Selects the column-board PID datapath: true = floating-point AdcDspFp,
+      -- false = integer AdcDsp. Default true preserves the historical behavior;
+      -- ruckus.tcl overrides it from the USE_FLOAT_PID env var so `make vcs` can
+      -- elaborate either path without editing this file.
+      USE_FLOAT_PID_G : boolean             := true);
 end GroupTb;
 
 architecture sim of GroupTb is
@@ -64,7 +69,7 @@ architecture sim of GroupTb is
    constant ROW_BOARDS_C    : integer := 1;
 
    constant AWAXE_G         : boolean := false;
-   constant USE_FLOAT_PID_C : boolean := true;
+   constant USE_FLOAT_PID_C : boolean := USE_FLOAT_PID_G;
 
    constant WAFER_PROFILE_C : WaferProfileType := waferProfile(LOAD_G);
 

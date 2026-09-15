@@ -24,3 +24,17 @@ loadSource -lib warm_tdm -sim_only -dir $::env(PROJ_DIR)/tb
 # Set the top level synth_1 and sim_1
 set_property top {ColumnFpgaBoard}       [get_filesets {sources_1}]
 set_property top {GroupTb} [get_filesets {sim_1}]
+
+# Select the column-board PID datapath for the GroupTb top-level. Defaults to the
+# floating-point AdcDspFp (matching the entity default); set USE_FLOAT_PID=0
+# (or =false) in the environment to elaborate the integer AdcDsp path instead,
+# e.g. `USE_FLOAT_PID=0 make vcs`.
+set useFloatPid "true"
+if { [info exists ::env(USE_FLOAT_PID)] } {
+   set req [string tolower $::env(USE_FLOAT_PID)]
+   if { $req eq "0" || $req eq "false" || $req eq "no" } {
+      set useFloatPid "false"
+   }
+}
+set_property generic "[get_property generic [get_filesets {sim_1}]] USE_FLOAT_PID_G=$useFloatPid" [get_filesets {sim_1}]
+puts "GroupTb: USE_FLOAT_PID_G=$useFloatPid"

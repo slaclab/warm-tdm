@@ -1,5 +1,35 @@
 # PID cosim verification — Progress
 
+## 2026-09-15 (later) — GroupTb PID-path parameterized; both paths elaborate (Layer 2 gate)
+
+### Done
+- **`GroupTb` parameterized for both PID datapaths.** Promoted the hardcoded
+  `USE_FLOAT_PID_C := true` to a `USE_FLOAT_PID_G` generic on the `GroupTb`
+  entity (default `true`, preserving prior behavior); `ruckus.tcl` sets it on the
+  `sim_1` fileset from the `USE_FLOAT_PID` env var, so `make vcs` builds the float
+  path and `USE_FLOAT_PID=0 make vcs` builds the integer path — no VHDL edit
+  between runs. Mirrors the target `ruckus.tcl` `set_property generic` convention.
+  Files: `firmware/simulations/GroupTb/tb/GroupTb.vhd`,
+  `firmware/simulations/GroupTb/ruckus.tcl` (uncommitted, pending review).
+- **Elaboration gate: PASS (both paths), Vivado 2025.1 + VCS X-2025.06.**
+  - Float: `make vcs` export OK; VCS elab command carries
+    `-gv USE_FLOAT_PID_G="true"`. Identical to the prior hardcoded default (already
+    known-good in cosim), so covered by equivalence.
+  - Integer: `USE_FLOAT_PID=0 make vcs` export OK (`-gv USE_FLOAT_PID_G="false"`);
+    full `sim_vcs_mx.sh` compile/elaborate/link of `GroupTb` succeeded ("All of 30
+    modules done", "Verdi KDB elaboration done", "Ready to simulate", exit 0).
+    This exercises the `GEN_FIXED_PID` `DataPath` branch through the full `GroupTb`
+    for the first time — the parent-crossbar/port check the plan wanted. The
+    `FLT_FMA` static-elaboration assertion *warnings* are benign (FP IP compiled in
+    but unused on the integer datapath).
+
+### Next (unchanged priority)
+- Layer 1: integer `AdcDsp` GHDL **bit-exact** regression vs a captured pre-split
+  reference (the property-check bench `tests/warm_tdm/adc_dsp/test_AdcDsp.py`
+  already covers anti-windup / state-clear / I-disabled; the golden-diff is owed).
+- Layer 2: wire and run the closed-loop cosim step-response, now runnable for
+  both PID paths via the new generic (`warmTdmServer --sim`, TesBias step).
+
 ## 2026-09-15 — plan established; Layer 0 largely done
 
 ### Done
