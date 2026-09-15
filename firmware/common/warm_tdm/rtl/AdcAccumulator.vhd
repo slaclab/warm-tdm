@@ -33,6 +33,10 @@ use warm_tdm.WarmTdmPkg.all;
 entity AdcAccumulator is
    generic (
       TPD_G           : time    := 1 ns;
+      -- Swaps the baseline RAM from Xilinx XPM to inferred logic so GHDL can
+      -- elaborate the unit stand-alone (the same accommodation AdcDsp makes).
+      -- Default false leaves synthesis/production behavior unchanged.
+      SIMULATION_G    : boolean := false;
       ROW_ADDR_BITS_G : integer := 7);
    port (
       clk             : in  sl;
@@ -75,12 +79,15 @@ architecture rtl of AdcAccumulator is
 
    signal baselineRamOut : slv(15 downto 0);
 
+   -- Inferred RAM under simulation so GHDL can elaborate; XPM in synthesis.
+   constant BASELINE_SYNTH_MODE_C : string := ite(SIMULATION_G, "inferred", "xpm");
+
 begin
 
    U_AxiDualPortRam_Baseline : entity surf.AxiDualPortRam
       generic map (
          TPD_G            => TPD_G,
-         SYNTH_MODE_G     => "xpm",
+         SYNTH_MODE_G     => BASELINE_SYNTH_MODE_C,
          MEMORY_TYPE_G    => "block",
          READ_LATENCY_G   => 1,
          AXI_WR_EN_G      => true,
