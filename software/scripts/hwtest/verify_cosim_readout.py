@@ -94,7 +94,7 @@ def check_readout(sess, args, report, directory):
     require(args.num_pts > 350, 'num-pts must exceed sample window (350)')
     require(args.daq_readout >= 1, 'daq-readout must be >= 1')
     dsp = [cb.DataPath.AdcDsp[ch] for ch in range(sess.chans_per_board)]
-    variables = [sess.group.ColTuneEnable, sess.group.RowIndexOrderList,
+    variables = [sess.group.ColEnableMask, sess.group.RowReadoutOrder,
                  tx.Mode, tx.RowPeriodCycles, tx.SampleStartTime, tx.SampleEndTime,
                  tx.RowSequencesPerDaqReadout]
     variables += [rdd.Mode for rdd in sess.rdds.values()]
@@ -102,8 +102,8 @@ def check_readout(sess, args, report, directory):
                   ['PidEnable', 'PidDebugEnable', 'RowEnableMask', 'P_Coef', 'I_Coef', 'D_Coef']]
     with restore(variables):
         try:
-            sess.group.ColTuneEnable.set([True] * sess.chans_per_board)
-            sess.group.RowIndexOrderList.set(list(range(args.rows)))
+            sess.group.ColEnableMask.set((1 << sess.chans_per_board) - 1)
+            sess.group.RowReadoutOrder.set(list(range(args.rows)))
             sess.setup_mux(num_pts=args.num_pts, enable_pid=True, enable_pid_debug=True)
             # setup_mux leaves RowSequencesPerDaqReadout at the hardware default
             # (40): a DAQ readout then spans 40 row sequences and never completes

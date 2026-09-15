@@ -47,9 +47,23 @@
   normalized Python control interface are documented in
   [`PID_COEFFICIENTS.md`](PID_COEFFICIENTS.md). Closed-loop VCS verification is
   still pending.
+- Deterministic per-device variation is now implemented: `WaferSimPkg` provides
+  seeded builders (`resolveSsaParams`/`resolveSq1Params`/`resolveRowFasParams`/
+  `resolveChipFasParams`/`resolveTesBaseline`) that perturb each device's
+  critical current, normal resistance, current-per-`Phi0`, and phase offset (and
+  add a per-pixel TES baseline current). The resolved arrays thread through
+  `GroupDetectorHarnessSim` → `DetectorModuleSim` → `TdmMuxColumnModel` (one SSA
+  per column, one SQ1/row-FAS per pixel, one chip-FAS per bank). `GroupTb` and
+  the harness enable it by default via `VARIATION_SEED_G` (nonzero); seed 0
+  restores identical devices. Knobs: `DEVICE_SPREAD_C` (fractional Ic/Rn/period
+  spread), `PHASE_SPREAD_CYCLES_C` (per-device flux-offset spread, the knob that
+  gives each muxed row a different baseline level), and `TES_BASELINE_AMP_C`.
+  Covered by `DetectorVariationTb` (seed-0 flatness, determinism, per-column SSA
+  spread, per-pixel SQ1 spread, TES baseline, observable variation).
 - VCS validation of the multi-board `GroupTb` integration, model dynamics, a
-  static electrical TES solution, per-device variation, and measured
-  calibration beyond the SSA sweep amplitude remain future work.
+  static electrical TES solution, closed-loop behavior under per-device
+  variation, and measured calibration beyond the SSA sweep amplitude remain
+  future work.
 - The supplied circuit diagrams are sufficient to begin a behavioral model.
 - Legacy SQUID and FAS equations have been checked against the published RCSJ,
   SQUID-array, and NIST switch-MUX literature; the accepted limits and required
@@ -1154,7 +1168,7 @@ physical row DAC currents
   -> EventBuilder / host readout
 ```
 
-The detector model must not accept the firmware's logical `rowIndex` as an
+The detector model must not accept the firmware's logical row (`logicalRow`) as an
 analog shortcut. Responding to the actual row-line currents is what tests the
 row map, turn-off/turn-on sequence, settling interval, ADC sample window, and
 inactive-module slots.

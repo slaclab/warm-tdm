@@ -471,15 +471,15 @@ begin
             -- In timing mode, wait for row strobe to set next RS DAC
             if (r.mode = TIMING_MODE_C) then
                if (timingRxData.stageNextRow = '1' and r.activeRowValid = '0') then
-                  v.onIndex         := timingRxData.rowIndexNext;
+                  v.onIndex         := timingRxData.nextLogicalRow;
                   v.rowOnOff        := '1';
                   v.rowAB           := '0';
                   v.state           := MAP_1_S;
 
                elsif (timingRxData.stageNextRow = '1') then
                   v.state    := MAP_1_S;
-                  v.offIndex := timingRxData.rowIndex;
-                  v.onIndex  := timingRxData.rowIndexNext;
+                  v.offIndex := timingRxData.logicalRow;
+                  v.onIndex  := timingRxData.nextLogicalRow;
                end if;
             elsif (r.mode = MANUAL_MODE_C) then
                if (r.manualSetPending = '1' and v.manualSetPending = '1') then

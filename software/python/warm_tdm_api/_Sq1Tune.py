@@ -197,6 +197,15 @@ class Sq1TuneProcess(warm_tdm_api.PausableProcess):
             mode='RW',
             description="Disable the servo and grab SaOutAdc directly"))
 
+        self.add(pr.LocalVariable(
+            name='SetAfterFinish',
+            value=False,
+            mode='RW',
+            description="Controls whether the fitted SQ1 lock point (Sq1Fb, "
+                        "Sq1Bias, SaFb) found at the end of the process is "
+                        "programmed into the per-row readout tables. Otherwise "
+                        "the tables are left unchanged."))
+
 
         # SQ1 Tuning Results
         self.add(pr.LocalVariable(
@@ -298,6 +307,7 @@ class Sq1TuneProcess(warm_tdm_api.PausableProcess):
             ret = warm_tdm_api.sq1Tune(
                 group=self.parent,
                 process=self,
+                doSet=self.SetAfterFinish.value(),
                 doBiasRamp=self.DoBiasRamp.value())
         self._log.debug('Serializing %d SQ1 row result(s)', len(ret))
         self._publishResults(ret)

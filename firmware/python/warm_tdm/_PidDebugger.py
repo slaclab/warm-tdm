@@ -94,7 +94,8 @@ class PidDebugger(pr.DataReceiver):
             bitSize = 4))
 
         self.add(pr.RemoteVariable(
-            name = 'RowIndex',
+            name = 'LogicalRow',
+            description = 'Logical row this PID-debug frame belongs to.',
             mode = 'RO',
             offset = 0,
             disp = '{:d}',
@@ -234,6 +235,6 @@ class PidDebugger(pr.DataReceiver):
         self.readBlocks()
         self.checkBlocks()
 
-        row = self.RowIndex.get(read=False)
+        row = self.LogicalRow.get(read=False)
         #print(f'{self.name} Got Frame with row index {row}')
         self.RowPids.PID[row].updateFromParser()

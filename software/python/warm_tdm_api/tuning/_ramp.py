@@ -74,7 +74,7 @@ def sq1RampRow(group, column, **kwargs):
 
     Notes
     -----
-    This diagnostic iterates ``MaxRows``, not ``RowIndexOrderList``.
+    This diagnostic iterates ``MaxRows``, not ``RowReadoutOrder``.
     """
     numRows = group.MaxRows.get()
     group._log.info(f'sq1RampRow col={column}: {numRows} rows')
@@ -146,7 +146,7 @@ def tesRampRow(group, column, **kwargs):
 
     Notes
     -----
-    This diagnostic iterates ``MaxRows``, not ``RowIndexOrderList``.
+    This diagnostic iterates ``MaxRows``, not ``RowReadoutOrder``.
     """
     numRows = group.MaxRows.get()
     group._log.info(f'tesRampRow col={column}: {numRows} rows')

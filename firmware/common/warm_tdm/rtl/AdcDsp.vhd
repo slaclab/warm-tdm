@@ -142,7 +142,7 @@ architecture rtl of AdcDsp is
       rowEnabled         : sl;
       outputMode         : slv(1 downto 0);
       state              : StateType;
-      rowIndex           : slv(ROW_ADDR_BITS_G-1 downto 0);
+      logicalRow           : slv(ROW_ADDR_BITS_G-1 downto 0);
       sq1FbDacIn         : slv(13 downto 0);
       accumSamples       : ufixed(31 downto 0);
       accumError         : sfixed(ACCUM_BITS_C-1 downto 0);
@@ -186,7 +186,7 @@ architecture rtl of AdcDsp is
       rowEnabled         => '0',
       outputMode         => (others => '0'),
       state              => IDLE_S,
-      rowIndex           => (others => '0'),
+      logicalRow           => (others => '0'),
       sq1FbDacIn         => (others => '0'),
       accumSamples       => (others => '0'),
       accumError         => (others => '0'),
@@ -251,7 +251,7 @@ architecture rtl of AdcDsp is
    signal axilR   : AxilRegType := AXIL_REG_INIT_C;
    signal axilRin : AxilRegType;
 
-   signal rowIndex8 : slv(7 downto 0);
+   signal logicalRow8 : slv(7 downto 0);
    signal fifoDout  : slv(21 downto 0);
    signal fifoValid : sl;
    signal ack       : AxiLiteAckType;
@@ -494,7 +494,7 @@ begin
       ----------------------------------------------------------------------------------------------
 
       v.sq1FbValid      := '0';
-      v.pidStateRamAddr := r.rowIndex;
+      v.pidStateRamAddr := r.logicalRow;
       v.accumErrorRamWrEn   := '0';
       v.accumErrorRamWrData := to_slv(r.accumError);
       v.sumAccumRamWrEn     := '0';
@@ -602,7 +602,7 @@ begin
                end if;
 
                if (accumValid = '1') then
-                  v.rowIndex     := accumIn.rowIndex(ROW_ADDR_BITS_G-1 downto 0);
+                  v.logicalRow     := accumIn.logicalRow(ROW_ADDR_BITS_G-1 downto 0);
                   v.accumError   := to_sfixed(slv(accumIn.accumError(ACCUM_BITS_C-1 downto 0)), v.accumError);
                   -- accumIn.numSamples is unsigned(7 downto 0); accumSamples is
                   -- ufixed(31 downto 0). Use the numeric unsigned->ufixed
@@ -611,7 +611,7 @@ begin
                   -- length-mismatch bounds check under fixed_pkg.
                   v.accumSamples := to_ufixed(accumIn.numSamples, v.accumSamples);
                   v.sq1FbDacIn   := accumIn.sq1FbDac;
-                  v.rowEnabled   := r.rowEnableMask(to_integer(unsigned(accumIn.rowIndex)));
+                  v.rowEnabled   := r.rowEnableMask(to_integer(unsigned(accumIn.logicalRow)));
 
                   -- Frame word 0: shared identity header (SOF here). The old
                   -- col/row/runTime word is demoted to a body word (DEBUG_BODY_S).
@@ -645,7 +645,7 @@ begin
             when DEBUG_BODY_S =>
                v.pidDebugMaster.tValid              := r.pidDebugEnable;
                v.pidDebugMaster.tData(3 downto 0)   := toSlv(COLUMN_NUM_G, 4);
-               v.pidDebugMaster.tData(15 downto 8)  := resize(r.rowIndex, 8);
+               v.pidDebugMaster.tData(15 downto 8)  := resize(r.logicalRow, 8);
                v.state                              := PREP_PID_S;
 
             when PREP_PID_S =>
@@ -781,7 +781,7 @@ begin
                   v.pidStreamMaster.tData(31 downto 0) := timingRxData.rowSeqCount(31 downto 0);
                end if;
 
-               v.pidStreamMaster.tId(ROW_ADDR_BITS_G-1 downto 0) := r.rowIndex;
+               v.pidStreamMaster.tId(ROW_ADDR_BITS_G-1 downto 0) := r.logicalRow;
 
                v.state := FLUX_DEBUG_S;
 
@@ -813,7 +813,7 @@ begin
       end if;
 
       if (v.clearPidStateBusy = '0') then
-         v.pidStateRamAddr := v.rowIndex;
+         v.pidStateRamAddr := v.logicalRow;
       end if;
 
       if (timingRxRst125 = '1') then
@@ -905,7 +905,7 @@ begin
    -- Convert back to inverted offsset binary first
    -------------------------------------------------------------------------------------------------
    sq1fbOffsetBin <= convOffsetBin(to_slv(r.sq1Fb));
-   rowIndex8      <= resize(r.rowIndex, 8);
+   logicalRow8      <= resize(r.logicalRow, 8);
 
    U_Fifo_1 : entity surf.Fifo
       generic map (
@@ -922,7 +922,7 @@ begin
          wr_clk            => timingRxClk125,  -- [in]
          wr_en             => r.sq1FbValid,    -- [in]
          din(13 downto 0)  => sq1fbOffsetBin,  -- [in]
-         din(21 downto 14) => rowIndex8,       -- [in]
+         din(21 downto 14) => logicalRow8,       -- [in]
          overflow          => open,            -- [out]
          rd_clk            => timingRxClk125,  -- [in]
          rd_en             => axilR.fifoRd,    -- [in]

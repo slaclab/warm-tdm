@@ -436,7 +436,7 @@ begin
                rst                 => timingRxRst125,                  -- [in]
                ibValid             => adcStreams(i).tvalid,            -- [in]
                din                 => adcStreams(i).tData(15 downto 2),           -- [in]
-               sbIn(7 downto 0)    => timingRxDataDelayed.rowIndex,    -- [in]
+               sbIn(7 downto 0)    => timingRxDataDelayed.logicalRow,    -- [in]
                sbIn(8)             => timingRxDataDelayed.firstSample,            -- [in]
                sbIn(9)             => timingRxDataDelayed.lastSample,  -- [in]
                sbIn(10)            => timingRxDataDelayed.rowStrobe,   -- [in]
@@ -471,11 +471,11 @@ begin
          filteredTimingRxData.runTimeNs       <= timingRxDataDelayed.runTimeNs;
          filteredTimingRxData.stageNextRow    <= timingRxDataDelayed.stageNextRow;
          filteredTimingRxData.rowSeq          <= timingRxDataDelayed.rowSeq;
-         filteredTimingRxData.rowIndexNext    <= timingRxDataDelayed.rowIndexNext;
+         filteredTimingRxData.nextLogicalRow  <= timingRxDataDelayed.nextLogicalRow;
          filteredTimingRxData.rowTime         <= timingRxDataDelayed.rowTime;
          filteredTimingRxData.rowSeqCount     <= timingRxDataDelayed.rowSeqCount;
          filteredTimingRxData.daqReadoutCount <= timingRxDataDelayed.daqReadoutCount;
-         filteredTimingRxData.rowIndex        <= filterTimingSbOut(7 downto 0);
+         filteredTimingRxData.logicalRow      <= filterTimingSbOut(7 downto 0);
          filteredTimingRxData.firstSample     <= filterTimingSbOut(8);
          filteredTimingRxData.lastSample      <= filterTimingSbOut(9);
          filteredTimingRxData.rowStrobe       <= filterTimingSbOut(10);

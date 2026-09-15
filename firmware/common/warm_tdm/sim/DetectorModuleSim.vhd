@@ -28,10 +28,21 @@ entity DetectorModuleSim is
       NUM_BANKS_G       : positive := 1;
       ROWS_PER_BANK_G   : positive := 4;
       TWO_LEVEL_G       : boolean  := false;
-      SSA_PARAMS_G      : SsaParamsType := SSA_SYNTHETIC_C;
-      SQ1_PARAMS_G      : Sq1ParamsType := SQ1_SYNTHETIC_C;
-      ROW_FAS_PARAMS_G  : RowFasParamsType := ROW_FAS_SYNTHETIC_C;
-      CHIP_FAS_PARAMS_G : ChipFasParamsType := CHIP_FAS_SYNTHETIC_C;
+      -- One SSA and one chip-FAS bank set per column; one SQ1 and one row FAS
+      -- per pixel (column-major, NUM_BANKS_G*ROWS_PER_BANK_G rows per column).
+      -- Uniform-array defaults reproduce the old identical-device behavior.
+      SSA_PARAMS_G      : SsaParamsArray(0 to NUM_COLUMNS_G-1) :=
+         uniformSsaArray(SSA_SYNTHETIC_C, NUM_COLUMNS_G);
+      SQ1_PARAMS_G      : Sq1ParamsArray(
+         0 to NUM_COLUMNS_G*NUM_BANKS_G*ROWS_PER_BANK_G-1) :=
+         uniformSq1Array(SQ1_SYNTHETIC_C,
+                         NUM_COLUMNS_G*NUM_BANKS_G*ROWS_PER_BANK_G);
+      ROW_FAS_PARAMS_G  : RowFasParamsArray(
+         0 to NUM_COLUMNS_G*NUM_BANKS_G*ROWS_PER_BANK_G-1) :=
+         uniformRowFasArray(ROW_FAS_SYNTHETIC_C,
+                            NUM_COLUMNS_G*NUM_BANKS_G*ROWS_PER_BANK_G);
+      CHIP_FAS_PARAMS_G : ChipFasParamsArray(0 to NUM_COLUMNS_G*NUM_BANKS_G-1) :=
+         uniformChipFasArray(CHIP_FAS_SYNTHETIC_C, NUM_COLUMNS_G*NUM_BANKS_G);
       COLUMN_PARAMS_G   : MuxColumnParamsType := MUX_COLUMN_SYNTHETIC_C);
    port (
       -- Bias currents are Norton-equivalent short-circuit currents when the
@@ -72,10 +83,13 @@ begin
             NUM_BANKS_G       => NUM_BANKS_G,
             ROWS_PER_BANK_G   => ROWS_PER_BANK_G,
             TWO_LEVEL_G       => TWO_LEVEL_G,
-            SSA_PARAMS_G      => SSA_PARAMS_G,
-            SQ1_PARAMS_G      => SQ1_PARAMS_G,
-            ROW_FAS_PARAMS_G  => ROW_FAS_PARAMS_G,
-            CHIP_FAS_PARAMS_G => CHIP_FAS_PARAMS_G,
+            SSA_PARAMS_G      => SSA_PARAMS_G(column),
+            SQ1_PARAMS_G      => SQ1_PARAMS_G(
+               column*NUM_ROWS_C to (column+1)*NUM_ROWS_C-1),
+            ROW_FAS_PARAMS_G  => ROW_FAS_PARAMS_G(
+               column*NUM_ROWS_C to (column+1)*NUM_ROWS_C-1),
+            CHIP_FAS_PARAMS_G => CHIP_FAS_PARAMS_G(
+               column*NUM_BANKS_G to (column+1)*NUM_BANKS_G-1),
             COLUMN_PARAMS_G   => COLUMN_PARAMS_G)
          port map (
             ssaBiasCurrentAmp     => ssaBiasCurrentAmp(column),

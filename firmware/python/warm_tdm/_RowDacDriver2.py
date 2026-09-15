@@ -38,6 +38,11 @@ class RowDacDriver2(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'ActivateRowIndex',
+            description = ('Manually turn ON one LOGICAL row (mapped to its physical '
+                          'row-select via RowMap, the same path the timing sequencer '
+                          'uses). Honored only in MANUAL mode outside a run; used by '
+                          'the tuning algorithms to select a row. RTL register: '
+                          'manualRowOn (offset 0x10).'),
             offset = 0x10,
             bitSize = 8,
             base = pr.UInt,
@@ -45,6 +50,9 @@ class RowDacDriver2(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'DeactivateRowIndex',
+            description = ('Manually turn OFF one LOGICAL row (mapped via RowMap). '
+                          'Honored only in MANUAL mode outside a run. RTL register: '
+                          'manualRowOff (offset 0x14).'),
             offset = 0x14,
             bitSize = 8,
             base = pr.UInt,

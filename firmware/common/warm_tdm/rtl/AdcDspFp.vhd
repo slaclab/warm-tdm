@@ -141,7 +141,7 @@ architecture rtl of AdcDspFp is
       rowEnabled         : sl;
       outputMode         : slv(1 downto 0);
       state              : StateType;
-      rowIndex           : slv(ROW_ADDR_BITS_G-1 downto 0);
+      logicalRow           : slv(ROW_ADDR_BITS_G-1 downto 0);
       -- Integer accumulation
       accumSamples       : unsigned(7 downto 0);
       accumError         : signed(ACCUM_BITS_C-1 downto 0);
@@ -202,7 +202,7 @@ architecture rtl of AdcDspFp is
       rowEnabled         => '0',
       outputMode         => (others => '0'),
       state              => IDLE_S,
-      rowIndex           => (others => '0'),
+      logicalRow           => (others => '0'),
       accumSamples       => (others => '0'),
       accumError         => (others => '0'),
       accumErrorFp       => (others => '0'),
@@ -279,7 +279,7 @@ architecture rtl of AdcDspFp is
    signal axilR   : AxilRegType := AXIL_REG_INIT_C;
    signal axilRin : AxilRegType;
 
-   signal rowIndex8 : slv(7 downto 0);
+   signal logicalRow8 : slv(7 downto 0);
    signal fifoDout  : slv(21 downto 0);
    signal fifoValid : sl;
    signal ack       : AxiLiteAckType;
@@ -552,7 +552,7 @@ begin
       -- Default assignments
       ----------------------------------------------------------------------------------------------
       v.sq1FbValid         := '0';
-      v.pidStateRamAddr    := r.rowIndex;
+      v.pidStateRamAddr    := r.logicalRow;
       v.accumErrorRamWrEn  := '0';
       v.sumAccumRamWrEn    := '0';
       v.sq1FbFullRamWrEn   := '0';
@@ -635,7 +635,7 @@ begin
             -------------------------------------------------------------------
             -- IDLE_S
             -- Wait for new accumulation result. Capture inputs, launch Int2Fp,
-            -- present rowIndex to RAMs, emit debug SOF header.
+            -- present logicalRow to RAMs, emit debug SOF header.
             -------------------------------------------------------------------
             when IDLE_S =>
                v.pidDebugEnable := not pidDebugCtrl.pause and r.axilPidDebugEnable;
@@ -645,10 +645,10 @@ begin
 
                if (accumValid = '1') then
                   -- Capture accumulation inputs
-                  v.rowIndex     := accumIn.rowIndex(ROW_ADDR_BITS_G-1 downto 0);
+                  v.logicalRow     := accumIn.logicalRow(ROW_ADDR_BITS_G-1 downto 0);
                   v.accumError   := resize(accumIn.accumError, ACCUM_BITS_C);
                   v.accumSamples := accumIn.numSamples;
-                  v.rowEnabled   := r.rowEnableMask(to_integer(unsigned(accumIn.rowIndex)));
+                  v.rowEnabled   := r.rowEnableMask(to_integer(unsigned(accumIn.logicalRow)));
 
                   -- Launch Int2Fp(accumError) -- result ready in 2 cycles
                   v.int2FpInValid := '1';
@@ -688,7 +688,7 @@ begin
             when DEBUG_BODY_S =>
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
                v.pidDebugMaster.tData(3 downto 0)  := toSlv(COLUMN_NUM_G, 4);
-               v.pidDebugMaster.tData(15 downto 8) := resize(r.rowIndex, 8);
+               v.pidDebugMaster.tData(15 downto 8) := resize(r.logicalRow, 8);
                v.state                             := WAIT_INT2FP_S;
 
             -------------------------------------------------------------------
@@ -955,14 +955,14 @@ begin
                   v.pidStreamMaster.tData(31 downto 0) := r.newSumAccum;
                end if;
 
-               v.pidStreamMaster.tId(ROW_ADDR_BITS_G-1 downto 0) := r.rowIndex;
+               v.pidStreamMaster.tId(ROW_ADDR_BITS_G-1 downto 0) := r.logicalRow;
                v.state := IDLE_S;
 
          end case;
       end if;
 
       if (v.clearPidStateBusy = '0') then
-         v.pidStateRamAddr := v.rowIndex;
+         v.pidStateRamAddr := v.logicalRow;
       end if;
 
       if (timingRxRst125 = '1') then
@@ -1050,7 +1050,7 @@ begin
    -- SQ1FB DAC writes via AXIL
    -------------------------------------------------------------------------------------------------
    sq1fbOffsetBin <= convOffsetBin(std_logic_vector(r.sq1FbInt(13 downto 0)));
-   rowIndex8      <= resize(r.rowIndex, 8);
+   logicalRow8      <= resize(r.logicalRow, 8);
 
    U_Fifo_1 : entity surf.Fifo
       generic map (
@@ -1067,7 +1067,7 @@ begin
          wr_clk            => timingRxClk125,
          wr_en             => r.sq1FbValid,
          din(13 downto 0)  => sq1fbOffsetBin,
-         din(21 downto 14) => rowIndex8,
+         din(21 downto 14) => logicalRow8,
          overflow          => open,
          rd_clk            => timingRxClk125,
          rd_en             => axilR.fifoRd,

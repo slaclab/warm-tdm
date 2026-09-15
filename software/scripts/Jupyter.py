@@ -123,8 +123,13 @@ def getSaOut(channel=-1):
 def getSaOutAdc(channel=-1):
     print(group.SaOutAdc.get(index=channel))
 
-def setColTuneEnable(column, enable):
-    group.ColTuneEnable.set(index=columm, value=enable)
+def setColEnable(column, enable):
+    mask = int(group.ColEnableMask.value())
+    if enable:
+        mask |= (1 << column)
+    else:
+        mask &= ~(1 << column)
+    group.ColEnableMask.set(mask)
 
 def Waveforms():
     wc = group.HardwareGroup.ColumnBoard[0].DataPath.WaveformCapture

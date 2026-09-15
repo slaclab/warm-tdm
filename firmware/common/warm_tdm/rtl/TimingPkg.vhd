@@ -58,8 +58,8 @@ package TimingPkg is
       lastSample      : sl;
       stageNextRow    : sl;
       rowSeq          : slv(7 downto 0);   -- Sequence index of the active row in the row-order list
-      rowIndex        : slv(7 downto 0);   -- Active row index currently in effect
-      rowIndexNext    : slv(7 downto 0);   -- Pending row index preloaded for the next row strobe
+      logicalRow        : slv(7 downto 0);   -- Active logical row currently in effect
+      nextLogicalRow    : slv(7 downto 0);   -- Pending logical row preloaded for the next row strobe
       rowTime         : slv(31 downto 0);  -- timingClk counts since last row strobe
       rowSeqCount     : slv(63 downto 0);  -- Number of full loops through all rows
       daqReadoutCount : slv(63 downto 0);  -- Number of DAQ readouts
@@ -79,8 +79,8 @@ package TimingPkg is
       lastSample      => '0',
       stageNextRow    => '0',
       rowSeq          => (others => '0'),
-      rowIndex        => (others => '0'),
-      rowIndexNext    => (others => '0'),
+      logicalRow        => (others => '0'),
+      nextLogicalRow    => (others => '0'),
       rowTime         => (others => '0'),
       rowSeqCount     => (others => '0'),
       daqReadoutCount => (others => '0'),
@@ -117,8 +117,8 @@ package body TimingPkg is
       assignSlv(i, vec, timing.lastSample);
       assignSlv(i, vec, timing.stageNextRow);
       assignSlv(i, vec, timing.rowSeq);
-      assignSlv(i, vec, timing.rowIndex);
-      assignSlv(i, vec, timing.rowIndexNext);
+      assignSlv(i, vec, timing.logicalRow);
+      assignSlv(i, vec, timing.nextLogicalRow);
       assignSlv(i, vec, timing.rowTime);
       assignSlv(i, vec, timing.rowSeqCount);
       assignSlv(i, vec, timing.daqReadoutCount);
@@ -145,8 +145,8 @@ package body TimingPkg is
       assignRecord(i, vec, timing.lastSample);
       assignRecord(i, vec, timing.stageNextRow);
       assignRecord(i, vec, timing.rowSeq);
-      assignRecord(i, vec, timing.rowIndex);
-      assignRecord(i, vec, timing.rowIndexNext);
+      assignRecord(i, vec, timing.logicalRow);
+      assignRecord(i, vec, timing.nextLogicalRow);
       assignRecord(i, vec, timing.rowTime);
       assignRecord(i, vec, timing.rowSeqCount);
       assignRecord(i, vec, timing.daqReadoutCount);

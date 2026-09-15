@@ -212,7 +212,7 @@ def fasSweep(*, group, row, board, address, driver, enabled_mask,
 def fasTune(*, group, process=None, doSet=True):
     """Tune the one-level FAS-on current for every active logical row.
 
-    Active logical rows come from ``RowIndexOrderList`` and are resolved through
+    Active logical rows come from ``RowReadoutOrder`` and are resolved through
     ``RowMap``. Sweep points use ``RowDacDriver2.manual_set()``; persistent
     ``FasOn`` entries are optionally written only after every row sweep
     completes. A provisional SQ1 bias makes the FAS state observable before SQ1
@@ -264,8 +264,8 @@ def fasTune(*, group, process=None, doSet=True):
         raise RuntimeError('FAS tuning requires timing to be stopped')
 
     row_map = group.RowMap.get()
-    active_rows = [int(row) for row in group.RowIndexOrderList.get(read=True)]
-    enabled_mask = np.asarray(group.ColTuneEnable.value(), dtype=bool)
+    active_rows = [int(row) for row in group.RowReadoutOrder.get(read=True)]
+    enabled_mask = group.colEnableBools
     enabled_columns = np.flatnonzero(enabled_mask).tolist()
     log.debug(
         'FAS tune configuration: activeRows=%s enabledColumns=%s '

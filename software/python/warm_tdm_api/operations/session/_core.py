@@ -143,11 +143,12 @@ class TopologyCore:
             log.error("Could not read timing state: %s", e)
             st['running'] = st['mux_mode'] = None
         try:
-            col_en = self.group.ColTuneEnable.get()
-            st['tune_enabled_cols'] = [c for c, en in enumerate(col_en) if en]
+            mask = int(self.group.ColEnableMask.get())
+            st['col_enable_mask'] = mask
+            st['enabled_cols'] = [c for c, en in enumerate(self.group.colEnableBools) if en]
         except (AttributeError, TypeError) as e:
-            log.error("Could not read ColTuneEnable: %s", e)
-            st['tune_enabled_cols'] = None
+            log.error("Could not read ColEnableMask: %s", e)
+            st['col_enable_mask'] = st['enabled_cols'] = None
 
         print("+" * 60)
         print("Session status")
@@ -157,7 +158,11 @@ class TopologyCore:
         print(f"  Channels/board     : {st['chans_per_board']}")
         print(f"  Timing run state   : {'RUNNING' if st['running'] else 'stopped'}")
         print(f"  Timing mode        : {st['mux_mode']}")
-        print(f"  Tune-enabled cols  : {st['tune_enabled_cols']}")
+        if st['col_enable_mask'] is not None:
+            print(f"  Enabled cols       : {st['enabled_cols']} "
+                  f"(mask {st['col_enable_mask']:#x})")
+        else:
+            print(f"  Enabled cols       : {st['enabled_cols']}")
         print(f"  Output dir         : {st['output_dir']}")
         print("+" * 60)
         return st

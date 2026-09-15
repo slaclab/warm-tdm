@@ -725,7 +725,7 @@ def plot_pid_debug(crstring, field='accumError', exclude=None, pid_data_id=-1,
 #    cb = session.cbs[0]
 #    RowPeriodCycles = cb.WarmTdmCore.Timing.TimingTx.RowPeriodCycles.value()
 #    WaveformCaptureTime = cb.WarmTdmCore.Timing.TimingTx.WaveformCaptureTime.value()
-#    NumRows = len(r.Group.RowIndexOrderList.get())
+#    NumRows = len(r.Group.RowReadoutOrder.get())
 #
 #    plt.figure()
 #    vin_uV = waveform.item()[col]['V@AmpIn'][0] * 1.e6

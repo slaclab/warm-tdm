@@ -231,7 +231,7 @@ begin
          mAxiWriteMaster => timingAxilWriteMaster,   -- [out]
          mAxiWriteSlave  => timingAxilWriteSlave);   -- [in]
 
-   -- RAM for Row Index Order
+   -- RAM for Row Readout Order
    U_AxiDualPortRam_ROW_ORDER : entity surf.AxiDualPortRam
       generic map (
          TPD_G            => TPD_G,
@@ -306,8 +306,8 @@ begin
       axiSlaveRegisterR(axilEp, X"30", 0, r.timingData.running);
       axiSlaveRegisterR(axilEp, X"30", 1, r.timingData.sample);
       axiSlaveRegisterR(axilEp, X"34", 0, r.timingData.rowSeq);
-      axiSlaveRegisterR(axilEp, X"34", 16, r.timingData.rowIndex);
-      axiSlaveRegisterR(axilEp, X"34", 24, r.timingData.rowIndexNext);
+      axiSlaveRegisterR(axilEp, X"34", 16, r.timingData.logicalRow);
+      axiSlaveRegisterR(axilEp, X"34", 24, r.timingData.nextLogicalRow);
       axiSlaveRegisterR(axilEp, X"38", 0, r.timingData.rowTime);
       axiSlaveRegisterR(axilEp, X"40", 0, r.timingData.runTimeNs);
       axiSlaveRegisterR(axilEp, X"70", 0, r.timingData.rowSeqCount);
@@ -436,8 +436,8 @@ begin
          v.timingData.rowTime                 := (others => '0');
          v.timingData.rowSeqCount             := (others => '0');
          v.timingData.daqReadoutCount         := (others => '0');
-         v.timingData.rowIndex                := (others => '0');
-         v.timingData.rowIndexNext            := (others => '0');
+         v.timingData.logicalRow                := (others => '0');
+         v.timingData.nextLogicalRow            := (others => '0');
          v.daqReadoutPeriodCounter            := (others => '0');
          v.endRunPending                      := '0';
          -- The byte after START_RUN primes the first pending row to be committed on rowStrobe.
@@ -469,7 +469,7 @@ begin
             v.timingData.runTimeNs    := r.timingData.runTimeNs + 8;  -- 125 MHz -> 8 ns/tick
             v.timingData.rowTime      := (others => '0');
             v.timingData.rowSeq       := nextRowSeq;
-            v.timingData.rowIndex     := r.timingData.rowIndexNext;
+            v.timingData.logicalRow     := r.timingData.nextLogicalRow;
             v.timingData.rowStrobe    := '1';
             v.startupBoundaryPending  := '0';
             v.pwrSyncWait             := '0';
@@ -479,7 +479,7 @@ begin
                -- instead of sending another pending-row byte.
                v.txState := END_RUN_S;
             else
-               -- Prefetch the row index that will be consumed on the following boundary.
+               -- Prefetch the logical row that will be consumed on the following boundary.
                v.rowOrderAddr := prefetchRowSeq;
                v.txState      := ROW_INDEX_S;
             end if;
@@ -507,11 +507,11 @@ begin
             v.timingTx := PWR_SYNC_WAIT_C;
 
          -- START_RUN is followed by one prime byte, and row-boundary control words normally carry
-         -- the pending row index on the next cycle unless END_RUN has been armed.
+         -- the pending logical row on the next cycle unless END_RUN has been armed.
          elsif (r.txState = ROW_INDEX_S) then
             v.timingTxK               := "0";
             v.timingTx                := rowOrderRamOut;
-            v.timingData.rowIndexNext := rowOrderRamOut;
+            v.timingData.nextLogicalRow := rowOrderRamOut;
             v.txState                 := CONTROL_S;
 
          elsif (r.txState = END_RUN_S) then

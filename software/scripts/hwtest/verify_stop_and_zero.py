@@ -131,7 +131,7 @@ def diagnose(sess, args):
     """
     chk = Checklist('Issue #86 force-write race diagnosis')
     setters = _force_setters(sess)
-    ncol = len(sess.group.ColTuneEnable.get())
+    ncol = int(sess.group.NumColumns.get())
     skip = {int(c) for c in args.skip_cols.split(',') if c.strip() != ''}
     cb = sess.coordinator_cb
     tx = cb.WarmTdmCore.Timing.TimingTx
@@ -263,7 +263,7 @@ def run_cycles(sess, args):
     _read_now(sess)  # Fail on absent/incomplete/non-finite readbacks before writing.
     names = ['Sq1FbCurrent', 'SaFbCurrent', 'Sq1BiasCurrent']
     saved = {name: np.asarray(getattr(sess.group, name).get()).copy() for name in names}
-    ncol = len(sess.group.ColTuneEnable.get())
+    ncol = int(sess.group.NumColumns.get())
     for name, values in saved.items():
         if values.ndim != 2 or values.shape[0] != ncol or values.shape[1] == 0:
             raise ValueError(f"Unexpected per-row current shape for {name}: {values.shape}")
