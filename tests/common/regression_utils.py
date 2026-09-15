@@ -67,28 +67,9 @@ COMMON_VHDL_COMPILE_ARGS = [
 from firmware.submodules.surf.tests.common.regression_utils import (  # noqa: F401
     sample_after_delta_cycles,
     sample_after_tpd,
+    start_lockstep_clocks,
     wait_after_edge_offset,
 )
-
-
-def start_lockstep_clocks(*signals, period_ns: float) -> None:
-    import cocotb
-    from cocotb.triggers import Timer
-
-    async def drive() -> None:
-        half_period_ns = period_ns / 2
-        for signal in signals:
-            signal.value = 0
-
-        while True:
-            await Timer(half_period_ns, unit="ns")
-            for signal in signals:
-                signal.value = 1
-            await Timer(half_period_ns, unit="ns")
-            for signal in signals:
-                signal.value = 0
-
-    cocotb.start_soon(drive())
 
 
 def env_int(name: str, *, default: int) -> int:
