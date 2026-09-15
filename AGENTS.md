@@ -334,6 +334,7 @@ Current plans:
 - [`docs/plans/pipelined-dsp-accumulator/`](docs/plans/pipelined-dsp-accumulator/) — Pipelined DSP accumulator
 - [`docs/plans/sw-cleanup/`](docs/plans/sw-cleanup/) — Python legacy removal and API simplification
 - [`docs/plans/channelization/`](docs/plans/channelization/) — Self-describing data frames + channel-layout cleanup (#82)
+- [`docs/plans/pid-cosim-verification/`](docs/plans/pid-cosim-verification/) — Layered verification of the integer + FP PID paths (unit bit-exact → closed-loop cosim → synthesis)
 
 ## Submodules
 
