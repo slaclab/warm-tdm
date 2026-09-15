@@ -161,7 +161,7 @@ begin
          mAxisMaster  => muxAxisMaster,      -- [out]
          mAxisSlave   => rin.muxAxisSlave);  -- [in]
 
-   comb : process (axilReadMaster, axilWriteMaster, fifoAxisCtrl, fifoDaqReadoutCount,
+   comb : process (axilReadMaster, axilWriteMaster, config, fifoAxisCtrl, fifoDaqReadoutCount,
                    fifoDaqReadoutStart, fifoRowSeqCount, fifoRunTimeNs, muxAxisMaster, r,
                    readoutFifoValid, timingRxData, timingRxRst125) is
       variable v      : RegType;

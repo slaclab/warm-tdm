@@ -506,8 +506,7 @@ begin
    -------------------------------------------------------------------------------------------------
    -- Main combinatorial process
    -------------------------------------------------------------------------------------------------
-   comb : process (accumIn, accumValid, fluxJumpRamOut,
-                   fp2IntOutData, fp2IntOutValid,
+   comb : process (accumIn, accumValid, config, fluxJumpRamOut, fp2IntOutData, fp2IntOutValid,
                    fpMacOutData, fpMacOutValid, int2FpOutData, int2FpOutValid, pidDebugCtrl, r,
                    sq1FbFullRamOut, sumAccumRamOut, timingAxilReadMaster, timingAxilWriteMaster,
                    timingRxData, timingRxRst125) is
