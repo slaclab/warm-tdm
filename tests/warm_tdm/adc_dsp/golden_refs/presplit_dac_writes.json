@@ -1,0 +1,41 @@
+{
+  "description": "Pre-split AdcDsp mAxil SQ1-FB-DAC write transactions (addr, data14) captured under the shared bit-exact stimulus.",
+  "writes": [
+    [
+      0,
+      7742
+    ],
+    [
+      1,
+      8492
+    ],
+    [
+      2,
+      8042
+    ],
+    [
+      0,
+      7714
+    ],
+    [
+      1,
+      8511
+    ],
+    [
+      2,
+      8033
+    ],
+    [
+      0,
+      7686
+    ],
+    [
+      1,
+      8529
+    ],
+    [
+      2,
+      8023
+    ]
+  ]
+}
