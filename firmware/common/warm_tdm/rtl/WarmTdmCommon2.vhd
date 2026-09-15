@@ -29,6 +29,7 @@ use surf.AxiLitePkg.all;
 use surf.I2cPkg.all;
 
 library warm_tdm;
+use warm_tdm.WarmTdmPkg.all;
 
 entity WarmTdmCommon2 is
 
