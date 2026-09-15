@@ -153,8 +153,8 @@ class WaveformCapture(pr.Device):
 
         convVector = np.vectorize(conv)
 
-        def _get(*, read, index, check):
-            ret = self.AdcAverageRaw.get(read=read, index=index, check=check)
+        def _get(*, read, index):
+            ret = self.AdcAverageRaw.get(read=read, index=index)
             if index == -1:
                 ret = ret.astype(np.int32)
                 return np.array([conv(v) for v in ret], np.float64)

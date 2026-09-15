@@ -158,7 +158,7 @@ _SHIM_NAMES = (
     # acquisition
     'take_raw', 'multi_raw', 'take_data',
     # tuning
-    'run_process', 'sa_offset', 'sa_tune', 'sq1_tune',
+    'run_process', 'sa_offset', 'sa_tune', 'sq1_tune', 'fas_tune',
 )
 
 for _name in _SHIM_NAMES:
