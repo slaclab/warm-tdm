@@ -25,7 +25,7 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import ReadOnly, RisingEdge
 from cocotbext.axi import AxiLiteBus, AxiLiteMaster
-from firmware.submodules.surf.tests.axi.utils import axil_write_u32
+from firmware.submodules.surf.tests.axi.utils import axil_read_u32, axil_write_u32
 
 
 # AdcDsp local AXI-Lite register map (identical old vs current; see AdcDsp.vhd
@@ -36,6 +36,15 @@ REG_I_COEF        = 0x0008
 REG_D_COEF        = 0x000C
 REG_FLUX_QUANTUM  = 0x0040
 REG_ROW_ENABLE    = 0x0060
+
+# Read-only PID-state registers (same offsets old vs current). These reflect the
+# last-processed row's registered state; read after a visit's drain they expose
+# that visit's accumError / integrator / result / feedback for diagnosis.
+REG_ACCUM_ERROR      = 0x0010
+REG_LAST_ACCUM_ERROR = 0x0014
+REG_SUM_ACCUM        = 0x0018
+REG_PID_RESULT       = 0x0020
+REG_SQ1FB            = 0x0028
 
 FLL_ENABLE_MASK = 0x00000001
 
@@ -200,8 +209,14 @@ class BitExactDriver:
         self.dut.ADC_TDATA.value = tdata
         self.dut.ADC_TVALID.value = 1
 
+        # logicalRow / rowIndex is the "row currently in effect" and must be held
+        # stable for the whole visit: the pre-split AdcDsp latches it at rowStrobe,
+        # but the current AdcAccumulator latches it at OUTPUT (and AdcDsp indexes
+        # its per-row PID-state RAMs by it). Carry it as a persistent field.
+        self._timing["rowIndex"] = visit.row
+
         # Row strobe: register rowIndex, reset the accumulator, latch seqStart.
-        self._apply_timing(rowStrobe=1, rowIndex=visit.row,
+        self._apply_timing(rowStrobe=1,
                            rowSeqStart=1 if visit.seq_start else 0)
         await self._tick()
         self._apply_timing()
@@ -227,11 +242,30 @@ class BitExactDriver:
         for _ in range(40):
             await self._tick()
 
-    async def run(self, stim: Stimulus) -> list[tuple[int, int]]:
+    async def read_state(self) -> dict[str, int]:
+        """Read the last-processed row's PID-state registers (diagnostic hook).
+
+        Dormant by default. To localize a future bit-exact compare failure, run
+        both benches with ``run(stim, collect_diag=True)`` and diff each visit's
+        ``driver.diag`` entries: accumError isolates the accumulation front-end,
+        sumAccum/lastAccumError the per-row integrator/derivative state, etc.
+        """
+        return {
+            "accumError": await axil_read_u32(self.axil, REG_ACCUM_ERROR),
+            "lastAccumError": await axil_read_u32(self.axil, REG_LAST_ACCUM_ERROR),
+            "sumAccum": await axil_read_u32(self.axil, REG_SUM_ACCUM),
+            "pidResult": await axil_read_u32(self.axil, REG_PID_RESULT),
+            "sq1Fb": await axil_read_u32(self.axil, REG_SQ1FB),
+        }
+
+    async def run(self, stim: Stimulus, collect_diag: bool = False) -> list[tuple[int, int]]:
         await self.reset()
         await self.configure(stim)
+        self.diag: list[dict[str, int]] = []
         for v in stim.visits:
             await self.visit(v)
+            if collect_diag:
+                self.diag.append(await self.read_state())
         return self.writes
 
 
