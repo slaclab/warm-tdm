@@ -272,16 +272,21 @@ class Group(pr.Device):
         # ManualRowOff (a LOGICAL row, mapped via RowMap); the legacy RowModule
         # RowDacDriver names them ActivateRowIndex/DeactivateRowIndex (a physical
         # address), so accept either node name per board.
-        def _setManualRow(node_names, value):
+        # ``candidate_names`` lists the register under each driver version, most
+        # preferred first: RowDacDriver2 (active) calls it ManualRowOn/ManualRowOff;
+        # the legacy RowModule RowDacDriver calls it ActivateRowIndex/
+        # DeactivateRowIndex. Drive whichever name a given row board's driver has.
+        def _setManualRow(candidate_names, value):
             with self.root.updateGroup():
                 for board in self.HardwareGroup.RowBoard.values():
                     drv = board.RowDacDriver
-                    node = next((getattr(drv, n) for n in node_names
-                                 if hasattr(drv, n)), None)
-                    if node is None:
+                    for name in candidate_names:
+                        if hasattr(drv, name):
+                            getattr(drv, name).set(value)
+                            break
+                    else:
                         raise AttributeError(
-                            f'{drv.path} exposes none of {node_names}')
-                    node.set(value)
+                            f'{drv.path} has none of {candidate_names}')
 
         @self.command(hidden=True)
         def ManualRowOn(arg):
