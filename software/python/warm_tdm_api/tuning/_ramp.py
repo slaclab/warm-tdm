@@ -80,9 +80,9 @@ def sq1RampRow(group, column, **kwargs):
     group._log.info(f'sq1RampRow col={column}: {numRows} rows')
     results = []
     for row in range(numRows):
-        group.ActivateRowIndex(row)
+        group.ManualRowOn(row)
         results.append(sq1Ramp(group, row, column, **kwargs))
-        group.DeactivateRowIndex(row)
+        group.ManualRowOff(row)
     return results
 
 
@@ -152,7 +152,7 @@ def tesRampRow(group, column, **kwargs):
     group._log.info(f'tesRampRow col={column}: {numRows} rows')
     results = []
     for row in range(numRows):
-        group.ActivateRowIndex(row)
+        group.ManualRowOn(row)
         results.append(tesRamp(group, row, column, **kwargs))
-        group.DeactivateRowIndex(row)
+        group.ManualRowOff(row)
     return results

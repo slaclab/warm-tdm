@@ -267,19 +267,29 @@ class Group(pr.Device):
         ##################################
 
         # Hidden: driven only by the tuning algorithms (_Tuning.py), never
-        # invoked manually from the GUI.
-        def _setRowIndex(name, value):
+        # invoked manually from the GUI. Manually turn a row on/off outside a
+        # timing run. The active RowDacDriver2 names these registers ManualRowOn/
+        # ManualRowOff (a LOGICAL row, mapped via RowMap); the legacy RowModule
+        # RowDacDriver names them ActivateRowIndex/DeactivateRowIndex (a physical
+        # address), so accept either node name per board.
+        def _setManualRow(node_names, value):
             with self.root.updateGroup():
                 for board in self.HardwareGroup.RowBoard.values():
-                    getattr(board.RowDacDriver, name).set(value)
+                    drv = board.RowDacDriver
+                    node = next((getattr(drv, n) for n in node_names
+                                 if hasattr(drv, n)), None)
+                    if node is None:
+                        raise AttributeError(
+                            f'{drv.path} exposes none of {node_names}')
+                    node.set(value)
 
         @self.command(hidden=True)
-        def ActivateRowIndex(arg):
-            _setRowIndex('ActivateRowIndex', arg)
+        def ManualRowOn(arg):
+            _setManualRow(('ManualRowOn', 'ActivateRowIndex'), arg)
 
         @self.command(hidden=True)
-        def DeactivateRowIndex(arg):
-            _setRowIndex('DeactivateRowIndex', arg)
+        def ManualRowOff(arg):
+            _setManualRow(('ManualRowOff', 'DeactivateRowIndex'), arg)
 
         self.rowSelectedVars = []
 

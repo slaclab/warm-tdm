@@ -374,7 +374,7 @@ def sq1Tune(group, process, doSet=True, doBiasRamp=True):
         log.debug(
             'SQ1 tune activating row %s (%d/%d)',
             rowIndex, rowNumber + 1, numEnabledRows)
-        group.ActivateRowIndex(rowIndex)
+        group.ManualRowOn(rowIndex)
         try:
             # Collect one CurveData family per logical column for this row.
             log.info(
@@ -394,7 +394,7 @@ def sq1Tune(group, process, doSet=True, doBiasRamp=True):
             outputs.append(results)
         finally:
             log.debug('SQ1 tune deactivating row %s', rowIndex)
-            group.DeactivateRowIndex(rowIndex)
+            group.ManualRowOff(rowIndex)
 
     log.info(
         'SQ1 tune complete: collected %d/%d row result(s)',
