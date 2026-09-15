@@ -94,7 +94,15 @@ class ForceDacMixin:
 
         residual = {}
         for _ in range(tries):
-            setter.set(target.tolist())
+            # Write per column board (the firmware GroupLinkVariable), not the
+            # Group-level setter: the latter masks by ColEnableMask and would skip
+            # disabled columns, which the all-channel readback below then flags as
+            # unverified. This covers every channel the verify checks (a safety
+            # zero must reach disabled columns too).
+            for idx, cb in sorted(self.cbs.items()):
+                board_target = [target[idx * self.chans_per_board + ch]
+                                for ch in range(self.chans_per_board)]
+                getattr(cb, setter_name).set(board_target)
             time.sleep(settle_sec)
             readings = self._read_dac_now(dev_name)
             residual = {}

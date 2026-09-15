@@ -51,7 +51,7 @@ def saFbSweep(*, group, bias, saFbRange, process, curves=None,
     reset to zero. Disabled columns are preserved by the Group-level tune mask.
     """
     colCount = group.NumColumns.get()
-    enabled_mask = np.asarray(group.ColTuneEnable.value(), dtype=bool)
+    enabled_mask = group.colEnableBools
 
     # Callers that support live plotting create and attach the curves before
     # entering the sweep; standalone callers can let this function create them.
@@ -135,7 +135,7 @@ def saBiasSweep(*, group, process, doBiasRamp=True):
 
     # Resolve all sweep settings once so GUI edits cannot reshape a run midway.
     colCount = group.NumColumns.get()
-    colTuneEnable = np.asarray(group.ColTuneEnable.value(), dtype=bool)
+    colTuneEnable = group.colEnableBools
     numBiasSteps = group.SaTuneProcess.SaBiasNumSteps.get() if doBiasRamp else 1
     numFbSteps = group.SaTuneProcess.SaFbNumSteps.get()
     if doBiasRamp:
@@ -257,7 +257,7 @@ def saTune(*, group, process=None, doSet=True, doBiasRamp=True):
     """
     group._log.info(f'saTune starting: doBiasRamp={doBiasRamp}, doSet={doSet}')
 
-    colTuneEnable = np.asarray(group.ColTuneEnable.value(), dtype=bool)
+    colTuneEnable = group.colEnableBools
     saBiasResults = saBiasSweep(group=group, process=process, doBiasRamp=doBiasRamp)
 
     publish = (

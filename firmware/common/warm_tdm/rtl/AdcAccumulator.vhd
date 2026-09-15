@@ -98,7 +98,7 @@ begin
          axiWriteSlave  => axilWriteSlave,   -- [out]
          clk            => clk,              -- [in]
          rst            => rst,              -- [in]
-         addr           => timingRxData.rowIndex(ROW_ADDR_BITS_G-1 downto 0),  -- [in]
+         addr           => timingRxData.logicalRow(ROW_ADDR_BITS_G-1 downto 0),  -- [in]
          dout           => baselineRamOut);   -- [out]
 
    comb : process (adcData, adcValid, baselineRamOut, r, rst, sq1FbDac, timingRxData) is
@@ -140,7 +140,7 @@ begin
             end if;
 
          when OUTPUT_S =>
-            v.accumOut.rowIndex := timingRxData.rowIndex;
+            v.accumOut.rowIndex := timingRxData.logicalRow;
             v.accumValid        := '1';
             v.state             := IDLE_S;
       end case;

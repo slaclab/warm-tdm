@@ -174,7 +174,7 @@ def sq1BiasSweep(*, group, process, rowIndex, doBiasRamp=True,
     fbRange = np.broadcast_to(
         fb_values, (colCount, numFbSteps)).copy()
 
-    colTuneEnable = np.asarray(group.ColTuneEnable.value(), dtype=bool)
+    colTuneEnable = group.colEnableBools
     datalist = [
         warm_tdm_api.CurveData(xValues=fbRange[col])
         for col in range(colCount)]
@@ -261,7 +261,7 @@ def sq1BiasSweep(*, group, process, rowIndex, doBiasRamp=True,
     return datalist
 
 
-def sq1Tune(group, process, doBiasRamp=True):
+def sq1Tune(group, process, doSet=True, doBiasRamp=True):
     """Run SQ1 bias/feedback acquisition for every active logical row.
 
     Before tuning, this routine reads the complete SA-feedback row table once.
@@ -275,6 +275,11 @@ def sq1Tune(group, process, doBiasRamp=True):
         Group containing active-row order, SA operating points, and SQ1 controls.
     process : Sq1TuneProcess
         Supplies sweep/servo settings, progress, and partial-result publication.
+    doSet : bool, default=True
+        Program the fitted per-(column, row) lock point into the readout tables
+        (``Sq1FbCurrent``/``Sq1BiasCurrent``/``SaFbCurrent``) after a complete
+        sweep. Mirrors :func:`saTune`'s apply; a stopped run leaves the tables
+        unchanged.
     doBiasRamp : bool, default=True
         Sweep SQ1 bias for every row when true; otherwise acquire one curve at
         each row's loaded SQ1-bias values.
@@ -289,19 +294,15 @@ def sq1Tune(group, process, doBiasRamp=True):
     Raises
     ------
     RuntimeError
-        If no active rows or no tuning columns are enabled.
-
-    Notes
-    -----
-    This function measures and fits SQ1 operating points; it does not program
-    the fitted values into the per-row SQ1 bias/feedback readout RAMs.
+        If no active rows or no tuning columns are enabled, or (when ``doSet``)
+        an enabled column/row produced no fitted operating point.
     """
     # Resolve active rows and columns once so the topology cannot change during
     # a long-running tune.
     outputs = []
     rowTuneList = [
-        int(row) for row in group.RowIndexOrderList.get(read=True)]
-    colTuneEnable = np.asarray(group.ColTuneEnable.get(), dtype=bool)
+        int(row) for row in group.RowReadoutOrder.get(read=True)]
+    colTuneEnable = group.colEnableBools
     enabledColumns = [
         col for col, enabled in enumerate(colTuneEnable) if enabled]
     numEnabledRows = len(rowTuneList)
@@ -356,10 +357,12 @@ def sq1Tune(group, process, doBiasRamp=True):
         publish=lambda: process._publishResults(outputs))
     log.debug('SQ1 tune initial SA offset adjustment complete')
 
+    completed = True
     for rowNumber, rowIndex in enumerate(rowTuneList):
         if not _pause_point(
                 process, lambda: process._publishResults(outputs)):
             log.info('SQ1 tune stopped before row %s', rowIndex)
+            completed = False
             break
 
         # Each row can occupy a different SA branch. Row zero is already loaded
@@ -396,4 +399,32 @@ def sq1Tune(group, process, doBiasRamp=True):
     log.info(
         'SQ1 tune complete: collected %d/%d row result(s)',
         len(outputs), numEnabledRows)
+
+    if doSet and completed and outputs:
+        # Program the fitted per-(column, row) lock point into the readout
+        # tables, mirroring saTune's apply. Read the whole tables so untuned
+        # rows/columns are preserved; the Group setters mask disabled columns.
+        sq1FbTable = group.Sq1FbCurrent.get(read=False)
+        sq1BiasTable = group.Sq1BiasCurrent.get(read=False)
+        saFbTable = group.SaFbCurrent.get(read=False)
+        for rowNumber, results in enumerate(outputs):
+            rowIndex = rowTuneList[rowNumber]
+            for col in enabledColumns:
+                result = results[col]
+                if (result.xOut is None or result.biasOut is None
+                        or result.yOut is None):
+                    raise RuntimeError(
+                        f'SQ1 tune produced no fitted operating point for '
+                        f'enabled column {col}, row {rowIndex}')
+                sq1FbTable[col, rowIndex] = result.xOut
+                sq1BiasTable[col, rowIndex] = result.biasOut
+                saFbTable[col, rowIndex] = result.yOut
+        log.debug('SQ1 tune applying fitted lock point to '
+                  'Sq1Fb/Sq1Bias/SaFb readout tables')
+        group.Sq1FbCurrent.set(sq1FbTable)
+        group.Sq1BiasCurrent.set(sq1BiasTable)
+        group.SaFbCurrent.set(saFbTable)
+    elif doSet and not completed:
+        log.info('SQ1 tune stopped; leaving partial results unapplied')
+
     return outputs

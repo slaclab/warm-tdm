@@ -45,7 +45,7 @@ class ConfigSelect(pr.Device):
         for var in group.columnSelectedVars:
             lv = pr.LinkVariable(
                 name = var.name,
-                disp = var.disp if var.name != 'ColTuneEnable' else  {False: 'False', True: 'True'},
+                disp = var.disp,
                 units = var.units,
                 mode = var.mode,
                 dependencies = [var, self.ColumnSelect],
@@ -57,7 +57,7 @@ class ConfigSelect(pr.Device):
         for var in group.rowSelectedVars:
             lv = pr.LinkVariable(
                 name = var.name,
-                disp = var.disp if var.name != 'RowTuneEnable' else  {False: 'False', True: 'True'},
+                disp = var.disp,
                 units = var.units,
                 mode = var.mode,
                 dependencies = [var, self.RowSelect],

@@ -91,7 +91,7 @@ architecture rtl of FastDacDriver is
 
    type RegType is record
       startup        : sl;
-      rowIndex       : slv(7 downto 0);
+      logicalRow       : slv(7 downto 0);
       state          : StateType;
       dacOutNext     : slv14array(7 downto 0);
       dacOut         : Slv14Array(7 downto 0);
@@ -106,7 +106,7 @@ architecture rtl of FastDacDriver is
 
    constant REG_INIT_C : RegType := (
       startup        => '1',
-      rowIndex       => (others => '0'),
+      logicalRow       => (others => '0'),
       state          => IDLE_S,
       dacOutNext     => (others => (others => '0')),
       dacOut         => (others => (others => '0')),
@@ -178,7 +178,7 @@ begin
             clk            => timingRxClk125,          -- [in]
 --            we             => r.ramWrite,              -- [in]
             rst            => timingRxRst125,          -- [in]
-            addr           => r.rowIndex,              -- [in]
+            addr           => r.logicalRow,              -- [in]
 --            din            => r.ramDin,                -- [in]
             dout           => ramDout(i));             -- [out]
    end generate GEN_AXIL_RAM;
@@ -263,14 +263,14 @@ begin
       case r.state is
          when IDLE_S =>
             v.dacNum := (others => '0');
-            -- At startup, load rowIndex[0] ram values into dacs
+            -- At startup, load logicalRow[0] ram values into dacs
             if (r.startup = '1' and pwrUpWaitDone = '0') then
 --               v.startup  := '0';
-               v.rowIndex := (others => '0');
+               v.logicalRow := (others => '0');
                v.state    := DATA_S;
 
             elsif (timingRxData.stageNextRow = '1') then
-               v.rowIndex := timingRxData.rowIndexNext;
+               v.logicalRow := timingRxData.nextLogicalRow;
                v.state    := DATA_S;
             end if;
 

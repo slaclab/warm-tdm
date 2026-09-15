@@ -139,7 +139,7 @@ Process lifecycle:
 ### FAS commissioning
 
 The initial repaired `FasTuneProcess` supports stopped, one-level row maps. It
-uses `RowIndexOrderList` and `RowMap` to sweep each physical row-select output
+uses `RowReadoutOrder` and `RowMap` to sweep each physical row-select output
 through `RowDacDriver2.manual_set()`, runs the existing SA feedback servo, and
 programs the median response minimum into the physical `FasOn.Current` entry.
 `FasOff` is not changed. Two-level maps are rejected explicitly.
