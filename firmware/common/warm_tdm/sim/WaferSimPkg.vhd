@@ -89,6 +89,13 @@ package WaferSimPkg is
       phaseOffsetCycles       : real;
    end record SquidParamsType;
 
+   -- V-Phi shape blend applied in idealSquidVoltage (single global knob, no
+   -- per-squid record field): 0.0 = ideal RSJ curve (steepest at its minima);
+   -- 1.0 = pure fundamental sinusoid with the same min/max envelope (steepest
+   -- at mid-slope, like real thermally/inductively smeared SQUIDs). Intermediate
+   -- values blend the two. See docs/design/squid-vphi-shaping/README.md.
+   constant SQUID_SINUSOID_BLEND_C : real := 1.0;
+
    type SsaParamsType is record
       squid                   : SquidParamsType;
       elementCount            : positive;
@@ -165,8 +172,16 @@ package WaferSimPkg is
       currentPerPhi0Amp   => 10.0E-6,
       phaseOffsetCycles   => 0.0);
 
+   -- Row-FAS Ic RAISED (was 20 uA) so it exceeds the muxed readout current: an
+   -- OFF row (FAS at ic-max, select = integer Phi0) then goes superconducting and
+   -- strongly shunts its SQ1 branch (cell R -> series ~0.1 ohm), while the ON row
+   -- (FAS ic=0 at the 150 uA half-Phi0 select) keeps R=Rn and its SQ1 modulation.
+   -- At the old 20 uA Ic the FAS never superconducted (Ic <= readout current), so
+   -- on/off SQ1 visibility differed only ~1.15x -> the mux blended all rows and
+   -- the per-row PID could not lock. See docs/plans/pid-cosim-verification/
+   -- cosim-tuning-settings.md.
    constant ROW_FAS_SQUID_SYNTHETIC_C : SquidParamsType := (
-      criticalCurrentAmp  => 20.0E-6,
+      criticalCurrentAmp  => 100.0E-6,
       normalResistanceOhm => 14.0,
       currentPerPhi0Amp   => 300.0E-6,
       phaseOffsetCycles   => 0.0);
@@ -691,19 +706,50 @@ package body WaferSimPkg is
       variable criticalCurrent : real;
       variable radicand        : real;
       variable magnitude       : real;
+      variable idealMag        : real;
+      variable vMax            : real;
+      variable vMin            : real;
+      variable sinMag          : real;
+      variable mag             : real;
    begin
       criticalCurrent := idealSquidCriticalCurrent(params, phaseCycles);
       magnitude       := abs(biasCurrent);
 
+      -- Ideal RSJ branch magnitude (unsigned); 0 while superconducting.
       if magnitude <= criticalCurrent then
-         return 0.0;
+         idealMag := 0.0;
+      else
+         radicand := magnitude*magnitude - criticalCurrent*criticalCurrent;
+         idealMag := params.normalResistanceOhm * sqrt(radicand);
       end if;
 
-      radicand := magnitude*magnitude - criticalCurrent*criticalCurrent;
-      if biasCurrent < 0.0 then
-         return -params.normalResistanceOhm * sqrt(radicand);
+      if SQUID_SINUSOID_BLEND_C = 0.0 then
+         mag := idealMag;
       else
-         return params.normalResistanceOhm * sqrt(radicand);
+         -- Fundamental-harmonic V-Phi with the SAME envelope as the ideal curve:
+         -- max at ic->0 (phaseCycles half-integer), min at ic=criticalCurrentAmp
+         -- (phaseCycles integer). Since ic = criticalCurrentAmp*|cos(pi*phase)|,
+         -- -cos(2*pi*phase) tracks that envelope exactly. Blending toward it
+         -- rounds the ideal cusp and moves the steep region to mid-slope, closer
+         -- to a real (smeared) SQUID. See docs/design/squid-vphi-shaping/.
+         vMax := params.normalResistanceOhm * magnitude;                     -- ic -> 0
+         if magnitude <= params.criticalCurrentAmp then
+            vMin := 0.0;
+         else
+            vMin := params.normalResistanceOhm *
+                    sqrt(magnitude*magnitude
+                         - params.criticalCurrentAmp*params.criticalCurrentAmp);
+         end if;
+         sinMag := (vMax + vMin)/2.0
+                   - (vMax - vMin)/2.0 * cos(2.0*MATH_PI*phaseCycles);
+         mag := (1.0 - SQUID_SINUSOID_BLEND_C)*idealMag
+                + SQUID_SINUSOID_BLEND_C*sinMag;
+      end if;
+
+      if biasCurrent < 0.0 then
+         return -mag;
+      else
+         return mag;
       end if;
    end function idealSquidVoltage;
 

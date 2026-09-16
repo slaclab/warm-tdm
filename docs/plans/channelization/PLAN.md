@@ -39,6 +39,23 @@ multiple column boards (and, later, multiple Groups). Concretely:
   `pre-release` until that stack clears. Tops the PR stack above #88. Recorded on
   the [Branch-Merge-Roadmap wiki](https://github.com/slaclab/warm-tdm/wiki/Branch-Merge-Roadmap).
 
+## Related in-flight effort — PID cosim verification (this branch)
+
+The **PID cosim verification** effort is running on this same `channelization`
+branch/worktree and is tracked separately in
+[`docs/plans/pid-cosim-verification/`](../pid-cosim-verification/) (see its
+`PROGRESS.md` for current state). It re-qualifies the accumulator-split integer
+PID path and the new floating-point PI servo via layered simulation. It has
+already landed changes that live on this branch — a real integer-`AdcDsp` RTL
+bug fix (`eb14424`), a model-free bit-exact cocotb bench, the `GroupTb`
+`USE_FLOAT_PID_G` parameterization (`b75e586`), a `VARIATION_SEED` build knob
+(`580165b`), and two operations-software regression fixes carried on `ops-fixes`
+and merged here (`d79792a`, `bae0aa2`) — plus an in-flight (uncommitted) SQUID
+wafer-model refinement (`SQUID_SINUSOID_BLEND_C`, documented in
+[`docs/design/squid-vphi-shaping/`](../../design/squid-vphi-shaping/)). Consult
+that plan before touching `AdcDsp`/`AdcAccumulator`, `GroupTb`, `WaferSimPkg`, or
+the operations `Session`.
+
 ## Scope — four pieces of work
 
 Named by what they are (not by phase numbers or letters). The phases below

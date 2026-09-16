@@ -504,10 +504,14 @@ class Group(pr.Device):
             def ZeroSaFb():
                 self.SaFbForceCurrent.set(np.zeros(self.config.numColumns, np.float64))
 
-            # Seed the known SA tune point (SaBias=55, SaFb=41) so sim/bench
+            # Seed the known SA tune point (SaBias=55 uA, SaFb=9 uA) so sim/bench
             # runs can jump straight to a locked bias without a full SaTune.
-            # Per tuning-enabled column, set the per-column SaBias and write SaFb
-            # only for the rows enabled for tuning/readout (RowReadoutOrder).
+            # SaFb=9 uA is the mid-slope (~Phi0/4, period 35 uA) steep lock point
+            # measured by an actual saTune against the sinusoidal-blend SQUID model
+            # (SQUID_SINUSOID_BLEND_C; see docs/design/squid-vphi-shaping/). The old
+            # 41 uA seed was for the pre-blend ideal curve. Per tuning-enabled
+            # column, set the per-column SaBias and write SaFb only for the rows
+            # enabled for tuning/readout (RowReadoutOrder).
             @self.command()
             def SetSimSaTunePoint():
                 colTuneEnable = self.colEnableBools
@@ -518,7 +522,7 @@ class Group(pr.Device):
                             continue
                         self.SaBiasCurrent.set(index=col, value=55.0)
                         for row in tuneRows:
-                            self.SaFbCurrent.set(index=(col, row), value=41.0)
+                            self.SaFbCurrent.set(index=(col, row), value=9.0)
                 # Run the SA offset PID loop to null SaOut at the seeded SaBias,
                 # matching what saTune() does after setting the bias point.
                 warm_tdm_api.saOffset(group=self)
