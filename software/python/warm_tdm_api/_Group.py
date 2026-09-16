@@ -96,8 +96,8 @@ class Group(pr.Device):
 
         # useFloatPid selects the floating-point PID firmware (_AdcDspFp) over the
         # fixed-point AdcDsp; it is threaded through to HardwareGroup -> the column
-        # boards, and gated in RTL by the USE_FLOAT_PID_G generic (set on the
-        # ColumnFpgaBoard325Coord10G target). config.maxRows is the single source
+        # boards, and gated in RTL by the USE_FLOAT_PID_G generic (set per synthesis
+        # target, e.g. the ColumnFpgaBoard325Fp*/Int* split). config.maxRows is the single source
         # of truth for row-sizing: it caps both the RowMap RAM sizing below and the
         # number of firmware row indices mapped into Rogue variables (AdcDsp/SAFb
         # arrays), which map the first maxRows strided entries of the firmware's

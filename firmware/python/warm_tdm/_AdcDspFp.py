@@ -212,7 +212,8 @@ class AdcDspFp(pr.Device):
         self.add(pr.LinkVariable(
             name = 'WrapMultiplier',
             base = pr.UInt,
-            minimum = 1,
+            # The >=1 bound is enforced by the backing WrapMultiplierRaw
+            # LocalVariable (minimum=1); pyrogue forbids min/max on a LinkVariable.
             dependencies = [self.WrapMultiplierRaw],
             description = 'Physical quanta per centered wrap. Change only with PID '
                           'disabled and both busy indicators clear; then clear/reseed PID.',
