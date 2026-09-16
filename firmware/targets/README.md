@@ -7,19 +7,35 @@ policy are in [`docs/RELEASE.md`](../../docs/RELEASE.md).
 
 ## Naming and source ownership
 
-Names use `Function·FpgaBoard·Part·[FrontEnd]·[Coord]·[10G]`:
+Names use `Function·FpgaBoard·Part·[FrontEnd]·[Pid]·[Coord|Eth]`:
 
 - `160` and `325` identify XC7K160T and XC7K325T parts.
-- `Coord` selects `RING_ADDR_0_G=true`, replacing the old `0`/`Coordinator`
-  suffixes.
-- `AwaXe` identifies the front end; `10G` identifies the Ethernet option.
+- `AwaXe` identifies the front end.
+- For the split `ColumnFpgaBoard325` family, `Fp`/`Int` select the PID datapath
+  (`USE_FLOAT_PID_G` = `true`/`false`), and the Ethernet type doubles as the
+  coordinator marker: a `1G`/`10G` suffix = coordinator (`RING_ADDR_0_G=true`),
+  while a bare name (no Ethernet suffix) = non-coordinator (`RING_ADDR_0_G=false`).
+  Non-coordinators are intended to carry no Ethernet; until `ColumnFpgaBoard` can
+  be built without an Ethernet core they still instantiate a 1G core.
+- Other targets retain the legacy `Coord` suffix for `RING_ADDR_0_G=true`
+  (e.g. `RowFpgaBoard160Coord`, `ColumnFpgaBoard325AwaXeCoord10G`), which replaced
+  the even older `0`/`Coordinator` suffixes.
+
+The three `ColumnFpgaBoard325` families share a build body under
+[`common/`](common) (`ColumnFpgaBoard325.tcl`, `ColumnFpgaBoard3251G.tcl`,
+`ColumnFpgaBoard32510G.tcl`); each target's `ruckus.tcl` only sets `useFloatPid`
+and sources its family body, so the `Fp`/`Int` siblings cannot drift.
 
 | Target | RTL top |
 |---|---|
 | `ColumnFpgaBoard160` | `ColumnFpgaBoard` |
 | `ColumnFpgaBoard160Coord` | `ColumnFpgaBoard` |
-| `ColumnFpgaBoard325Coord` | `ColumnFpgaBoard` |
-| `ColumnFpgaBoard325Coord10G` | `ColumnFpgaBoard` |
+| `ColumnFpgaBoard325Fp` | `ColumnFpgaBoard` |
+| `ColumnFpgaBoard325Int` | `ColumnFpgaBoard` |
+| `ColumnFpgaBoard325Fp1G` | `ColumnFpgaBoard` |
+| `ColumnFpgaBoard325Int1G` | `ColumnFpgaBoard` |
+| `ColumnFpgaBoard325Fp10G` | `ColumnFpgaBoard` |
+| `ColumnFpgaBoard325Int10G` | `ColumnFpgaBoard` |
 | `ColumnFpgaBoard325AwaXeCoord10G` | `ColumnFpgaBoardAwaXe` |
 | `RowFpgaBoard160` | `RowFpgaBoard` |
 | `RowFpgaBoard160Coord` | `RowFpgaBoard` |
@@ -55,7 +71,7 @@ this project. From the repository root:
 ```bash
 source /sdf/group/faders/tools/xilinx/2024.1/Vivado/2024.1/settings64.sh
 make -C firmware/targets list
-make -C firmware/targets ColumnFpgaBoard325Coord
+make -C firmware/targets ColumnFpgaBoard325Fp1G
 ```
 
 The aggregate build defaults to `prom`; `SUBTARGET` selects another supported
@@ -63,8 +79,8 @@ make target. Build products are under the `firmware/build/` symlink, and final
 images under each target's `images/` directory. Inspect that symlink directly
 when locating logs.
 
-The `warmTdm` release selects `ColumnFpgaBoard325Coord`,
-`ColumnFpgaBoard325Coord10G`, `RowFpgaBoard160`, and `RowFpgaBoard325`.
+The `warmTdm` release selects the six split `ColumnFpgaBoard325` targets
+(`Fp`/`Int` × non-coord/`1G`/`10G`), `RowFpgaBoard160`, and `RowFpgaBoard325`.
 `build_release.sh -r warmTdm --list` checks release resolution without building.
 Catalog consistency and source-path checks do not establish synthesis or
 timing closure. Current candidate build/resource obligations are on

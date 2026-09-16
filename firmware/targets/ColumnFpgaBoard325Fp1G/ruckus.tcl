@@ -9,16 +9,6 @@
 ##############################################################################
 source -quiet $::env(RUCKUS_DIR)/vivado_proc.tcl
 
-loadRuckusTcl $::env(TOP_DIR)/submodules/surf
-loadRuckusTcl $::env(TOP_DIR)/common/warm_tdm
-
-loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore2.xdc
-loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/ColumnFpgaBoard.xdc
-
-set_property top {ColumnFpgaBoard} [get_filesets {sources_1}]
-
-set_property generic "[get_property generic [current_fileset]] RING_ADDR_0_G=true ETH_10G_G=false GEN_ADC_FILTER_G=false GEN_PID_DEBUG_G=false RSSI_WINDOW_ADDR_SIZE_G=2 ROW_ADDR_BITS_G=6" [current_fileset]
-
-set_property strategy Power_DefaultOpt [get_runs impl_1]
-
-#puts("TEST!!!")
+# Floating-point (AdcDspFp) PID datapath.
+set useFloatPid true
+source $::env(PROJ_DIR)/../common/ColumnFpgaBoard3251G.tcl
