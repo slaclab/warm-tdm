@@ -416,20 +416,28 @@ async def flux_jump_negative_rail_wraps_and_counts(dut):
 
 @cocotb.test()
 async def flux_jumps_accumulate_over_visits(dut):
-    # numFluxJumps is per-row state held in RAM, so repeated visits that each
-    # cross the rail accumulate the count (a monotonic feedback ramp on hardware).
+    # numFluxJumps is per-row state held in RAM and accumulates across visits.
+    # The DSP now RETAINS fractional feedback per row (seeded from the DAC only on
+    # the first post-clear visit, then held), so re-driving the same near-rail
+    # feedback does NOT re-cross the rail -- the wrapped feedback is retained below
+    # it. To ratchet across the rail on EVERY visit, drive a sustained per-visit
+    # error larger than one FluxQuantum: each visit adds P*error > quantum to the
+    # retained feedback, keeping it above the threshold so it wraps (and counts)
+    # once per visit. One wrap per visit (single comparison in FLUX_JUMP_S).
     bench = await setup_bench(dut)
     flux_quantum = 500
 
     await axil_write_u32(bench.axil, REG_I_COEF, 0)
     await axil_write_u32(bench.axil, REG_FLUX_QUANTUM, flux_quantum)
-    await axil_write_u32(bench.axil, REG_P_COEF, UNIT_COEF)
+    await axil_write_u32(bench.axil, REG_P_COEF, UNIT_COEF)   # P ~= 1.0
     await axil_write_u32(bench.axil, REG_CONTROL, FLL_ENABLE_MASK)
     await bench.wait_for_pid_clear()
 
     visits = 3
+    # First visit seeds the retained feedback near the rail from the DAC; the
+    # per-visit error (> flux_quantum) then keeps it above the threshold each visit.
     for _ in range(visits):
-        await bench.drive_accum(error=50, sq1fb_value=FLUX_JUMP_THRESHOLD - 2)
+        await bench.drive_accum(error=flux_quantum + 100, sq1fb_value=FLUX_JUMP_THRESHOLD - 2)
 
     num_jumps = _signed(await axil_read_u32(bench.axil, REG_NUM_FLUX_JUMPS), 9)
     assert num_jumps == visits, f"expected {visits} accumulated jumps, got {num_jumps}"
