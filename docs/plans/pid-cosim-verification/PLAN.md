@@ -144,6 +144,8 @@ Gotchas (all confirmed):
 4. Synthesis build under 2024.1 for timing closure + utilization.
 
 ## References
+- [Proposed integer fractional SQ1 feedback](INTEGER_FRACTIONAL_FEEDBACK.md) —
+  per-row rounding remainder, lifecycle, saturation/wrapping and verification.
 - Issue #70 — Floating-point PID firmware (AdcDspFp + accumulator split)
 - Issue #82 — Self-describing data frames + channel-layout cleanup
 - Issue #90 — RTL cocotb/GHDL regression framework (AdcDsp + AdcDspFp)
