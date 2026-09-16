@@ -12,13 +12,10 @@
 -- accumValid / timingRxData interface), but instantiates AdcDspFp instead of
 -- AdcDsp.
 --
--- IMPORTANT: AdcDspFp instantiates the Xilinx FpMac, Int2Fp and Fp2Int IEEE-754
--- IP cores. GHDL cannot elaborate those primitives, so this wrapper is NOT
--- runnable under the GHDL cocotb flow -- it is intended for a Vivado XSIM
--- cosim run (XSIM can model the Xilinx FP IP). `ghdl -a` still analyzes this
--- wrapper and AdcDspFp cleanly because the IP cores are referenced through
--- VHDL `component` declarations (bound only at elaboration time). See
--- docs/_meta/rtl_regression_handoff.md for the XSIM-via-surf-cosim path.
+-- Bind generated Xilinx FP IP for vendor qualification, or the explicit
+-- test-only FpPidModels.vhd for GHDL control-logic regressions. The behavioral
+-- models are not vendor-IP qualification. USE_FLOAT_PID_G=false exercises the
+-- integer controller with the same stalled-DAC-write sink.
 -------------------------------------------------------------------------------
 -- This file is part of Warm TDM. It is subject to
 -- the license terms in the LICENSE.txt file found in the top-level directory
@@ -45,6 +42,7 @@ use warm_tdm.WarmTdmPkg.all;
 entity AdcDspFpCocotbWrapper is
    generic (
       TPD_G            : time                 := 1 ns;
+      USE_FLOAT_PID_G  : boolean              := true;
       INVERT_SQ1FB_G   : boolean              := true;
       COLUMN_NUM_G     : integer range 0 to 7 := 0;
       ROW_ADDR_BITS_G  : integer range 3 to 8 := 7;
@@ -65,6 +63,20 @@ entity AdcDspFpCocotbWrapper is
       ACCUM_SQ1FB_DAC         : in slv(13 downto 0)  := (others => '0');
       ACCUM_SEQ_START         : in sl               := '0';
       ACCUM_DAQ_READOUT_START : in sl               := '0';
+
+      -- Observe real debug/readout streams and DAC writes, including stalls.
+      DAC_STALL : in sl := '0';
+      DAC_FAIL : in sl := '0';
+      DAC_WR_VALID : out sl;
+      DAC_WR_ADDR : out slv(7 downto 0);
+      DAC_WR_DATA : out slv(31 downto 0);
+      DEBUG_TDATA : out slv(63 downto 0);
+      DEBUG_TVALID : out sl;
+      DEBUG_TLAST : out sl;
+      PID_TDATA : out slv(31 downto 0);
+      PID_TVALID : out sl;
+      PID_TKEEP : out slv(3 downto 0);
+      PID_TID : out slv(7 downto 0);
 
       -- AXI-Lite register bus (flat, driven by cocotbext-axi AxiLiteMaster)
       S_AXIL_AWADDR  : in  slv(15 downto 0) := (others => '0');
@@ -107,7 +119,40 @@ architecture rtl of AdcDspFpCocotbWrapper is
    signal sq1FbWriteMaster : AxiLiteWriteMasterType := AXI_LITE_WRITE_MASTER_INIT_C;
    signal sq1FbWriteSlave  : AxiLiteWriteSlaveType  := AXI_LITE_WRITE_SLAVE_INIT_C;
 
+   signal sinkWriteMaster : AxiLiteWriteMasterType;
+   signal sinkWriteSlave : AxiLiteWriteSlaveType;
+   signal debugMaster : AxiStreamMasterType;
+   signal pidMaster : AxiStreamMasterType;
 begin
+   DEBUG_TDATA <= debugMaster.tData(63 downto 0);
+   DEBUG_TVALID <= debugMaster.tValid;
+   DEBUG_TLAST <= debugMaster.tLast;
+   PID_TDATA <= pidMaster.tData(31 downto 0);
+   PID_TVALID <= pidMaster.tValid;
+   PID_TKEEP <= pidMaster.tKeep(3 downto 0);
+   PID_TID <= pidMaster.tId(7 downto 0);
+
+   -- Stall all channels without falsely acknowledging an address or data beat.
+   process(all)
+      variable master : AxiLiteWriteMasterType;
+      variable slave : AxiLiteWriteSlaveType;
+   begin
+      master := sq1FbWriteMaster;
+      slave := sinkWriteSlave;
+      if DAC_STALL = '1' then
+         master.awvalid := '0';
+         master.wvalid := '0';
+         master.bready := '0';
+         slave.awready := '0';
+         slave.wready := '0';
+         slave.bvalid := '0';
+      end if;
+      if DAC_FAIL = '1' then
+         slave.bresp := AXI_RESP_SLVERR_C;
+      end if;
+      sinkWriteMaster <= master;
+      sq1FbWriteSlave <= slave;
+   end process;
 
    ----------------------------------------------------------------------------
    -- AXI-Lite shim: flat AXI -> surf record
@@ -178,19 +223,20 @@ begin
          axiRst         => rst,
          axiReadMaster  => sq1FbReadMaster,
          axiReadSlave   => sq1FbReadSlave,
-         axiWriteMaster => sq1FbWriteMaster,
-         axiWriteSlave  => sq1FbWriteSlave,
+         axiWriteMaster => sinkWriteMaster,
+         axiWriteSlave  => sinkWriteSlave,
          clk            => clk,
          rst            => rst,
          dout           => open,
-         axiWrValid     => open,
+         axiWrValid     => DAC_WR_VALID,
          axiWrStrobe    => open,
-         axiWrAddr      => open,
-         axiWrData      => open);
+         axiWrAddr      => DAC_WR_ADDR,
+         axiWrData      => DAC_WR_DATA);
 
    ----------------------------------------------------------------------------
    -- DUT hookup (floating-point PID; requires XSIM for FP IP cores)
    ----------------------------------------------------------------------------
+   GEN_FP : if USE_FLOAT_PID_G generate
    U_DUT : entity warm_tdm.AdcDspFp
       generic map (
          TPD_G            => TPD_G,
@@ -214,11 +260,46 @@ begin
          mAxilReadSlave   => sq1FbReadSlave,
          mAxilWriteMaster => sq1FbWriteMaster,
          mAxilWriteSlave  => sq1FbWriteSlave,
-         pidStreamMaster  => open,
+         pidStreamMaster  => pidMaster,
          pidStreamSlave   => axisReady,
          axisClk          => clk,
          axisRst          => rst,
-         pidDebugMaster   => open,
+         pidDebugMaster   => debugMaster,
          pidDebugSlave    => axisReady);
+
+   end generate;
+
+   GEN_INT : if not USE_FLOAT_PID_G generate
+   U_DUT : entity warm_tdm.AdcDsp
+      generic map (
+         TPD_G            => TPD_G,
+         SIMULATION_G     => true,
+         INVERT_SQ1FB_G   => INVERT_SQ1FB_G,
+         COLUMN_NUM_G     => COLUMN_NUM_G,
+         ROW_ADDR_BITS_G  => ROW_ADDR_BITS_G,
+         AXIL_BASE_ADDR_G => AXIL_BASE_ADDR_G,
+         SQ1FB_RAM_ADDR_G => SQ1FB_RAM_ADDR_G)
+      port map (
+         timingRxClk125   => clk,
+         timingRxRst125   => rst,
+         timingRxData     => timingRxData,
+         accumIn          => accumIn,
+         accumValid       => ACCUM_VALID,
+         sAxilReadMaster  => axilReadMaster,
+         sAxilReadSlave   => axilReadSlave,
+         sAxilWriteMaster => axilWriteMaster,
+         sAxilWriteSlave  => axilWriteSlave,
+         mAxilReadMaster  => sq1FbReadMaster,
+         mAxilReadSlave   => sq1FbReadSlave,
+         mAxilWriteMaster => sq1FbWriteMaster,
+         mAxilWriteSlave  => sq1FbWriteSlave,
+         pidStreamMaster  => pidMaster,
+         pidStreamSlave   => axisReady,
+         axisClk          => clk,
+         axisRst          => rst,
+         pidDebugMaster   => debugMaster,
+         pidDebugSlave    => axisReady);
+
+   end generate;
 
 end architecture rtl;

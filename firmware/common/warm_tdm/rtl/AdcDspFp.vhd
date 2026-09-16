@@ -106,14 +106,15 @@ architecture rtl of AdcDspFp is
    constant FP_ONE_C     : slv(31 downto 0) := X"3F800000";  -- 1.0
    constant FP_NEG_ONE_C : slv(31 downto 0) := X"BF800000";  -- -1.0
    constant FP_ZERO_C    : slv(31 downto 0) := X"00000000";  -- 0.0
+   constant FP_DAC_MAX_C : slv(31 downto 0) := X"45FFF800";  -- +8191.0
+   constant FP_DAC_MIN_C : slv(31 downto 0) := X"C6000000";  -- -8192.0
 
    -- "Unseeded" marker written into the SQ1FB_FULL RAM by the clear, so the first
    -- visit of each row after StartRun/clearPidState initializes sq1FbFull from the
    -- seeded DAC value (accumIn.sq1FbDac) instead of the cleared 0 -- otherwise the
    -- servo starts from feedback 0 (SQ1 V-Phi extremum) and cannot lock at the
-   -- tuned mid-slope operating point. A NaN is used because the FP PI datapath
-   -- never produces NaN from finite inputs, so it can never collide with a real
-   -- stored feedback value.
+   -- tuned mid-slope operating point. This marker is reserved for initialization;
+   -- configured gains and valid operating state must remain finite.
    constant SEED_SENTINEL_C : slv(31 downto 0) := X"7FC00000";  -- NaN = "unseeded"
 
    constant AXIS_DEBUG_CFG_C : AxiStreamConfigType := ssiAxiStreamConfig(
@@ -138,10 +139,11 @@ architecture rtl of AdcDspFp is
       PID_P_S,
       PID_I_S,
       FLUX_DIVIDE_S,
-      FLUX_TRUNCATE_S,
+      FLUX_ROUND_S,
       FLUX_INT2FP_S,
       WRAP_S,
       DAC_CONVERT_S,
+      CLIP_FEEDBACK_S,
       RAM_WRITE_S,
       DATA_STREAM_S);
 
@@ -171,6 +173,21 @@ architecture rtl of AdcDspFp is
       iCoef              : slv(31 downto 0);
       fluxQuantumFp      : slv(31 downto 0);
       invFluxQuantumFp   : slv(31 downto 0);
+      -- Snapshot settings for one complete visit, including a gain write in flight.
+      activePCoef        : slv(31 downto 0);
+      activeICoef        : slv(31 downto 0);
+      activeQuantum      : slv(31 downto 0);
+      activeInvQuantum   : slv(31 downto 0);
+      numFluxJumpsFp     : slv(31 downto 0);
+      -- Integral-only clearing waits for the current visit to finish.
+      clearSumPending    : sl;
+      clearSumBusy       : sl;
+      resetCounters      : sl;
+      missedVisitCount   : unsigned(31 downto 0);
+      discardedVisitCount : unsigned(31 downto 0);
+      dacOverflowCount   : unsigned(31 downto 0);
+      dacErrorCount      : unsigned(31 downto 0);
+      pendingDacWrites   : unsigned(5 downto 0);
       -- Integer DAC output
       sq1FbInt           : signed(31 downto 0);
       sq1FbValid         : sl;
@@ -230,6 +247,19 @@ architecture rtl of AdcDspFp is
       iCoef              => (others => '0'),
       fluxQuantumFp      => (others => '0'),
       invFluxQuantumFp   => (others => '0'),
+      activePCoef        => (others => '0'),
+      activeICoef        => (others => '0'),
+      activeQuantum      => (others => '0'),
+      activeInvQuantum   => (others => '0'),
+      numFluxJumpsFp     => (others => '0'),
+      clearSumPending    => '0',
+      clearSumBusy       => '0',
+      resetCounters      => '0',
+      missedVisitCount   => (others => '0'),
+      discardedVisitCount => (others => '0'),
+      dacOverflowCount   => (others => '0'),
+      dacErrorCount      => (others => '0'),
+      pendingDacWrites   => (others => '0'),
       sq1FbInt           => (others => '0'),
       sq1FbValid         => '0',
       clearPidState      => '0',
@@ -297,6 +327,9 @@ architecture rtl of AdcDspFp is
    signal fifoDout  : slv(21 downto 0);
    signal fifoValid : sl;
    signal ack       : AxiLiteAckType;
+   signal dacOverflow : sl;
+   signal controlBusy : sl;
+   signal dacWriteBusy : sl;
 
    -------------------------------------------------------------------------------------------------
    -- Convert DAC format to 2s complement and back
@@ -517,13 +550,16 @@ begin
          m_axis_result_tvalid => fp2IntOutValid,
          m_axis_result_tdata  => fp2IntOutData);
 
+   controlBusy <= '1' when r.state /= IDLE_S or r.clearPidStateBusy = '1' or
+                           r.clearSumBusy = '1' or r.clearSumPending = '1' else '0';
+   -- Track queued writes across the asynchronous FIFO pointer latency as well.
+   dacWriteBusy <= '1' when r.pendingDacWrites /= 0 or r.sq1FbValid = '1' or
+                            fifoValid = '1' or axilR.req.request = '1' or ack.done = '1' else '0';
+
    -------------------------------------------------------------------------------------------------
    -- Main combinatorial process
    -------------------------------------------------------------------------------------------------
-   comb : process (accumIn, accumValid, config, fluxJumpRamOut, fp2IntOutData, fp2IntOutValid,
-                   fpMacOutData, fpMacOutValid, int2FpOutData, int2FpOutValid, pidDebugCtrl, r,
-                   sq1FbFullRamOut, sumAccumRamOut, timingAxilReadMaster, timingAxilWriteMaster,
-                   timingRxData, timingRxRst125) is
+   comb : process (all) is
       variable v              : RegType;
       variable requestClear   : boolean;
       variable iContribSign   : sl;
@@ -533,6 +569,7 @@ begin
       v := r;
 
       v.clearPidState := '0';
+      v.resetCounters := '0';
 
       ----------------------------------------------------------------------------------------------
       -- AXI Lite Registers
@@ -552,6 +589,13 @@ begin
       axiSlaveRegisterR(axilEp, X"2C", 0, std_logic_vector(r.sq1FbInt));
 
       axiSlaveRegister(axilEp, X"30", 0, v.clearPidState);
+      axiSlaveRegisterR(axilEp, X"34", 0, controlBusy);
+      axiSlaveRegisterR(axilEp, X"34", 1, dacWriteBusy);
+      axiSlaveRegister(axilEp, X"38", 0, v.resetCounters);
+      axiSlaveRegisterR(axilEp, X"80", 0, std_logic_vector(r.missedVisitCount));
+      axiSlaveRegisterR(axilEp, X"84", 0, std_logic_vector(r.discardedVisitCount));
+      axiSlaveRegisterR(axilEp, X"88", 0, std_logic_vector(r.dacOverflowCount));
+      axiSlaveRegisterR(axilEp, X"8C", 0, std_logic_vector(r.dacErrorCount));
 
       axiSlaveRegister(axilEp, X"40", 0, v.fluxQuantumFp);
       axiSlaveRegister(axilEp, X"44", 0, v.invFluxQuantumFp);
@@ -578,8 +622,15 @@ begin
       v.pidDebugMaster   := axiStreamMasterInit(AXIS_DEBUG_CFG_C);
       v.pidDebugMaster.tDest := toSlv(1, 8);  -- Board-local PID-debug stream (DataPath U_AxiStreamMux_1 ROUTED re-stamps this anyway).
 
-      -- Compute negFluxQuantum (sign bit flipped)
-      negFluxQuantum := (not r.fluxQuantumFp(31)) & r.fluxQuantumFp(30 downto 0);
+      -- Canonicalize signed zero; both +0 and -0 disable integral history.
+      if (v.iCoef(30 downto 0) = (30 downto 0 => '0')) then
+         v.iCoef := FP_ZERO_C;
+      end if;
+      if (v.iCoef /= r.iCoef) then
+         v.clearSumPending := '1';
+      end if;
+
+      negFluxQuantum := (not r.activeQuantum(31)) & r.activeQuantum(30 downto 0);
 
       requestClear := false;
 
@@ -596,7 +647,41 @@ begin
          requestClear := true;
       end if;
 
+      -- Count only actual visits. Clear/disable discards are intentional;
+      -- enabled arrivals while computing indicate an unsupported row schedule.
+      if (accumValid = '1') then
+         if (requestClear or r.clearPidStateBusy = '1' or r.clearSumBusy = '1' or
+             (r.state = IDLE_S and v.clearSumPending = '1') or r.fllEnable = '0') then
+            v.discardedVisitCount := r.discardedVisitCount + 1;
+         elsif (r.state /= IDLE_S) then
+            v.missedVisitCount := r.missedVisitCount + 1;
+         end if;
+      end if;
+      if (dacOverflow = '1') then
+         v.dacOverflowCount := r.dacOverflowCount + 1;
+      end if;
+      if (r.sq1FbValid = '1') then
+         v.pendingDacWrites := v.pendingDacWrites + 1;
+      end if;
+      if (dacOverflow = '1') then
+         v.pendingDacWrites := v.pendingDacWrites - 1;
+      end if;
+      if (axilR.req.request = '1' and ack.done = '1') then
+         v.pendingDacWrites := v.pendingDacWrites - 1;
+      end if;
+      if (axilR.req.request = '1' and ack.done = '1' and ack.resp /= AXI_RESP_OK_C) then
+         v.dacErrorCount := r.dacErrorCount + 1;
+      end if;
+      if (v.resetCounters = '1' or timingRxData.startRun = '1') then
+         v.missedVisitCount := (others => '0');
+         v.discardedVisitCount := (others => '0');
+         v.dacOverflowCount := (others => '0');
+         v.dacErrorCount := (others => '0');
+      end if;
+
       if (requestClear) then
+         v.clearSumPending := '0';
+         v.clearSumBusy := '0';
          v.clearPidStateBusy := '1';
          v.state             := IDLE_S;
          v.rowEnabled        := '0';
@@ -642,12 +727,32 @@ begin
             v.pidStateRamAddr := slv(unsigned(r.pidStateRamAddr) + 1);
          end if;
 
-      elsif (r.fllEnable = '0' and accumValid = '1' and accumIn.seqStart = '1') then
+      elsif (r.clearSumBusy = '1') then
+         -- Only the integral RAM is cleared. Preserve feedback, flux state and
+         -- unseeded markers. Another I write during this sweep queues a new one.
+         v.sumAccumRamWrEn := '1';
+         v.sumAccumRamWrData := FP_ZERO_C;
+         if (r.pidStateRamAddr = CLEAR_LAST_ADDR_C) then
+            v.clearSumBusy := '0';
+         else
+            v.pidStateRamAddr := slv(unsigned(r.pidStateRamAddr) + 1);
+         end if;
+      elsif (r.state = IDLE_S and v.clearSumPending = '1') then
+         v.clearSumPending := '0';
+         v.clearSumBusy := '1';
+         v.pidStateRamAddr := (others => '0');
+         v.sumAccumRamWrEn := '1';
+         v.sumAccumRamWrData := FP_ZERO_C;
+         v.sumAccumFp := FP_ZERO_C;
+         v.newSumAccum := FP_ZERO_C;
+      elsif (r.state = IDLE_S and r.fllEnable = '0' and accumValid = '1' and accumIn.seqStart = '1') then
          v.pidStreamMaster.tValid := '1';
          v.pidStreamMaster.tKeep  := (others => '0');
          v.pidStreamMaster.tLast  := '1';
 
-      elsif (r.fllEnable = '1') then
+      -- Disabling prevents new visits but drains the accepted visit and DAC
+      -- queue. ControlBusy/DacWriteBusy expose when configuration is quiescent.
+      elsif (r.fllEnable = '1' or r.state /= IDLE_S) then
          case r.state is
             -------------------------------------------------------------------
             -- IDLE_S
@@ -656,7 +761,7 @@ begin
             -------------------------------------------------------------------
             when IDLE_S =>
                v.pidDebugEnable := not pidDebugCtrl.pause and r.axilPidDebugEnable;
-               if (r.axilPidDebugEnable = '1' and pidDebugCtrl.pause = '1') then
+               if (accumValid = '1' and r.axilPidDebugEnable = '1' and pidDebugCtrl.pause = '1') then
                   v.dropCount := r.dropCount + 1;
                end if;
 
@@ -669,6 +774,10 @@ begin
                   -- Capture the seeded DAC feedback; used to initialize sq1FbFull
                   -- on this row's first visit after a clear (SEED_CONVERT_S).
                   v.sq1FbDacSeed := accumIn.sq1FbDac;
+                  v.activePCoef := v.pCoef;
+                  v.activeICoef := v.iCoef;
+                  v.activeQuantum := v.fluxQuantumFp;
+                  v.activeInvQuantum := v.invFluxQuantumFp;
 
                   -- Launch Int2Fp(accumError) -- result ready in 2 cycles
                   v.int2FpInValid := '1';
@@ -792,7 +901,7 @@ begin
 
                   -- Launch FpMac: P-term = pCoef * accumErrorFp + sq1FbFullFp
                   v.fpMacInValid := '1';
-                  v.fpMacA       := r.pCoef;
+                  v.fpMacA       := r.activePCoef;
                   v.fpMacB       := r.accumErrorFp;
                   v.fpMacC       := r.sq1FbFullFp;
 
@@ -818,7 +927,7 @@ begin
                   -- Capture P-term intermediate, launch I-term
                   -- I-term = iCoef * sumAccumFp + P-term result
                   v.fpMacInValid := '1';
-                  v.fpMacA       := r.iCoef;
+                  v.fpMacA       := r.activeICoef;
                   v.fpMacB       := r.sumAccumFp;
                   v.fpMacC       := fpMacOutData;
 
@@ -837,7 +946,10 @@ begin
 
                   -- Launch FpMac: invFluxQuantumFp * sq1FbNewFp + 0.0
                   v.fpMacInValid := '1';
-                  v.fpMacA       := r.invFluxQuantumFp;
+                  v.fpMacA       := r.activeInvQuantum;
+                  if (r.activeQuantum(30 downto 0) = (30 downto 0 => '0')) then
+                     v.fpMacA := FP_ZERO_C;  -- Q=0 disables wraps, even with a stale reciprocal.
+                  end if;
                   v.fpMacB       := fpMacOutData;
                   v.fpMacC       := FP_ZERO_C;
 
@@ -847,24 +959,24 @@ begin
 
             -------------------------------------------------------------------
             -- FLUX_DIVIDE_S
-            -- Wait for FpMac result (jumpsFp). Launch Fp2Int truncation.
+            -- Wait for FpMac result (jumpsFp). Launch nearest-even Fp2Int conversion.
             -------------------------------------------------------------------
             when FLUX_DIVIDE_S =>
                if (fpMacOutValid = '1') then
-                  -- Convert jumpsFp to integer (truncate toward zero)
+                  -- Convert jumpsFp to integer (round to nearest, ties to even)
                   v.fp2IntInValid := '1';
                   v.fp2IntInData  := fpMacOutData;
 
                   v.waitCount := (others => '0');
-                  v.state     := FLUX_TRUNCATE_S;
+                  v.state     := FLUX_ROUND_S;
                end if;
 
             -------------------------------------------------------------------
-            -- FLUX_TRUNCATE_S
+            -- FLUX_ROUND_S
             -- Wait for Fp2Int result (numFluxJumps integer).
             -- Launch Int2Fp(numFluxJumps) for wrap calculation.
             -------------------------------------------------------------------
-            when FLUX_TRUNCATE_S =>
+            when FLUX_ROUND_S =>
                if (fp2IntOutValid = '1') then
                   v.numFluxJumps := signed(fp2IntOutData);
 
@@ -884,6 +996,7 @@ begin
             -------------------------------------------------------------------
             when FLUX_INT2FP_S =>
                if (int2FpOutValid = '1') then
+                  v.numFluxJumpsFp := int2FpOutData;
                   -- Launch FpMac: numFluxJumpsFp * (-fluxQuantum) + sq1FbNewFp
                   v.fpMacInValid := '1';
                   v.fpMacA       := int2FpOutData;
@@ -896,18 +1009,10 @@ begin
 
             -------------------------------------------------------------------
             -- WRAP_S
-            -- Wait for FpMac result (wrappedFp). Emit debug Word 3.
+            -- Wait for FpMac result (wrappedFp).
             -- Launch Fp2Int(wrappedFp) for DAC conversion.
             -------------------------------------------------------------------
             when WRAP_S =>
-               -- Debug Word 3 (first cycle only): sq1FbNewFp | numFluxJumps
-               if (r.waitCount = 0) then
-                  v.pidDebugMaster.tValid              := r.pidDebugEnable;
-                  v.pidDebugMaster.tData(31 downto 0)  := r.sq1FbNewFp;
-                  v.pidDebugMaster.tData(63 downto 32) := std_logic_vector(r.numFluxJumps);
-                  v.waitCount := to_unsigned(1, 3);
-               end if;
-
                if (fpMacOutValid = '1') then
                   v.wrappedFp := fpMacOutData;
 
@@ -922,6 +1027,7 @@ begin
             -------------------------------------------------------------------
             -- DAC_CONVERT_S
             -- Wait for Fp2Int result. Clip to DAC range, set saturation flags.
+            -- Emit debug Word 3 after any clipped-feedback back-calculation.
             -------------------------------------------------------------------
             when DAC_CONVERT_S =>
                if (fp2IntOutValid = '1') then
@@ -938,9 +1044,37 @@ begin
                      v.saturatedLow  := '1';
                   end if;
 
+                  if (v.saturatedHigh = '1' or v.saturatedLow = '1') then
+                     -- Back-calculate accepted unwrapped feedback only on clipping.
+                     -- Reuse FpMac: J*Q + clipped local DAC, preserving flux history.
+                     v.fpMacInValid := '1';
+                     v.fpMacA := r.numFluxJumpsFp;
+                     v.fpMacB := r.activeQuantum;
+                     if (v.saturatedHigh = '1') then
+                        v.fpMacC := FP_DAC_MAX_C;
+                     else
+                        v.fpMacC := FP_DAC_MIN_C;
+                     end if;
+                     v.state := CLIP_FEEDBACK_S;
+                  else
+                     v.sq1FbValid := r.rowEnabled;
+                     v.waitCount := (others => '0');
+                     v.state := RAM_WRITE_S;
+                     v.pidDebugMaster.tValid := r.pidDebugEnable;
+                     v.pidDebugMaster.tData(31 downto 0) := r.sq1FbNewFp;
+                     v.pidDebugMaster.tData(63 downto 32) := std_logic_vector(r.numFluxJumps);
+                  end if;
+               end if;
+
+            when CLIP_FEEDBACK_S =>
+               if (fpMacOutValid = '1') then
+                  v.sq1FbNewFp := fpMacOutData;
                   v.sq1FbValid := r.rowEnabled;
-                  v.waitCount  := (others => '0');
-                  v.state      := RAM_WRITE_S;
+                  v.waitCount := (others => '0');
+                  v.state := RAM_WRITE_S;
+                  v.pidDebugMaster.tValid := r.pidDebugEnable;
+                  v.pidDebugMaster.tData(31 downto 0) := fpMacOutData;
+                  v.pidDebugMaster.tData(63 downto 32) := std_logic_vector(r.numFluxJumps);
                end if;
 
             -------------------------------------------------------------------
@@ -961,10 +1095,11 @@ begin
                   v.pidDebugMaster.tData(63 downto 32) := std_logic_vector(r.dropCount);
 
                   -- Anti-windup: determine sign of I-contribution
-                  iContribSign := r.iCoef(31) xor r.accumErrorFp(31);
+                  iContribSign := r.activeICoef(31) xor r.accumErrorFp(31);
 
-                  if (r.iCoef = X"00000000") or
-                     (r.saturatedHigh = '1' and iContribSign = '0') or
+                  if (r.activeICoef(30 downto 0) = (30 downto 0 => '0')) then
+                     v.sumAccumRamWrData := FP_ZERO_C;
+                  elsif (r.saturatedHigh = '1' and iContribSign = '0') or
                      (r.saturatedLow = '1' and iContribSign = '1') then
                      -- Discard integrator update (anti-windup active)
                      v.sumAccumRamWrData := r.sumAccumFp;
@@ -976,10 +1111,10 @@ begin
                   -- Write all state RAMs
                   v.accumErrorRamWrEn   := '1';
                   v.accumErrorRamWrData := r.accumErrorFp;
-                  v.sumAccumRamWrEn     := '1';
-                  v.sq1FbFullRamWrEn    := '1';
+                  v.sumAccumRamWrEn     := r.rowEnabled;
+                  v.sq1FbFullRamWrEn    := r.rowEnabled;
                   v.sq1FbFullRamWrData  := r.sq1FbNewFp;
-                  v.fluxJumpRamWrEn     := '1';
+                  v.fluxJumpRamWrEn     := r.rowEnabled;
                   v.fluxJumpRamWrData   := std_logic_vector(r.numFluxJumps);
 
                   v.waitCount := to_unsigned(1, 3);
@@ -1013,7 +1148,7 @@ begin
          end case;
       end if;
 
-      if (v.clearPidStateBusy = '0') then
+      if (v.clearPidStateBusy = '0' and v.clearSumBusy = '0') then
          v.pidStateRamAddr := v.logicalRow;
       end if;
 
@@ -1120,7 +1255,7 @@ begin
          wr_en             => r.sq1FbValid,
          din(13 downto 0)  => sq1fbOffsetBin,
          din(21 downto 14) => logicalRow8,
-         overflow          => open,
+         overflow          => dacOverflow,
          rd_clk            => timingRxClk125,
          rd_en             => axilR.fifoRd,
          dout              => fifoDout,
@@ -1148,7 +1283,7 @@ begin
       v.req.rnw := '0';
       v.fifoRd  := '0';
 
-      if (fifoValid = '1') then
+      if (fifoValid = '1' and axilR.req.request = '0' and ack.done = '0') then
          v.req.request             := '1';
          v.req.address             := SQ1FB_RAM_ADDR_G(31 downto 12) & "00" & fifoDout(21 downto 14) & "00";
          v.req.wrData              := (others => '0');

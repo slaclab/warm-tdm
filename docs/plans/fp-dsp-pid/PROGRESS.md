@@ -1,5 +1,21 @@
 # FP DSP PID — Progress
 
+## 2026-09-16 — correctness fixes and executable regressions
+
+See [FP_FIX_IMPLEMENTATION.md](../pid-cosim-verification/FP_FIX_IMPLEMENTATION.md)
+for the current fixes, register/lifecycle contracts, tests and remaining
+acceptance. The unwrapped float32 PI architecture is retained. Masked state,
+clipping recovery, I-change clearing, physical-period conversion and stalled
+DAC delivery are corrected. Local GHDL regressions pass with explicit arithmetic
+models; generated-IP, closed-loop performance, synthesis and hardware checks
+remain pending.
+
+`PLAN.md` now describes the current design. The May entries below are historical:
+their truncation, 34-cycle total and 40-byte complete-frame statements are
+superseded. Conversion is nearest-even; the v1 FP debug frame is 56 bytes
+including its 16-byte tagged header. Local model-based input-to-DAC timing is
+52 clocks steady, 55 seeded and 57 clipped steady, not a hardware timing result.
+
 ## 2026-05-20: PI-Only Simplification (single FpMac, 34-cycle pipeline)
 
 ### Completed

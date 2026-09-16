@@ -1060,7 +1060,8 @@ begin
       v.req.rnw := '0';
       v.fifoRd  := '0';
 
-      if (fifoValid = '1') then
+      -- Consume one FIFO entry per completed request/acknowledgement handshake.
+      if (fifoValid = '1' and axilR.req.request = '0' and ack.done = '0') then
          v.req.request             := '1';
          v.req.address             := SQ1FB_RAM_ADDR_G(31 downto 12) & "00" & fifoDout(21 downto 14) & "00";
          v.req.wrData              := (others => '0');

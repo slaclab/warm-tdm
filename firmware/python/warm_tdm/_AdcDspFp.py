@@ -1,6 +1,7 @@
 import pyrogue as pr
 
 import warm_tdm
+from ._PidFpConfig import float32, flux_period_registers
 
 
 class IndexedLinkVariable(pr.LinkVariable):
@@ -78,8 +79,8 @@ class AdcDspFp(pr.Device):
             function = pr.RemoteCommand.touchOne))
 
         def _enablePid(value, write):
-            if write:
-                self.ClearPidState()
+            # Rising enable clears in RTL. Disable drains an accepted visit;
+            # it must not abort the visit with a software-generated full clear.
             self.PidEnableRaw.set(value, write=write)
 
         self.add(pr.LinkVariable(
@@ -135,10 +136,9 @@ class AdcDspFp(pr.Device):
             hidden = True,
             mode = 'RW'))
 
-        def _setCoef(dep, value, write, *, clearState=False):
-            dep.set(value, write=write)
-            if write and clearState:
-                self.ClearPidState()
+        def _setCoef(dep, value, write):
+            # RTL handles I changes at a visit boundary and clears only S.
+            dep.set(float32(value), write=write)
 
         self.add(pr.LinkVariable(
             name = 'P_Coef',
@@ -149,7 +149,7 @@ class AdcDspFp(pr.Device):
         self.add(pr.LinkVariable(
             name = 'I_Coef',
             dependencies = [self.I_CoefRaw],
-            linkedSet = lambda value, write: _setCoef(self.I_CoefRaw, value, write, clearState=True),
+            linkedSet = lambda value, write: _setCoef(self.I_CoefRaw, value, write),
             linkedGet = self.I_CoefRaw.get))
 
         # Flux quantum raw registers (hidden)
@@ -172,13 +172,12 @@ class AdcDspFp(pr.Device):
             mode = 'RW'))
 
         self.add(pr.LocalVariable(
-            name = 'WrapMultiplier',
+            name = 'WrapMultiplierRaw',
             value = 1,
+            hidden = True,
+            groups = ['NoConfig'],
             mode = 'RW',
-            minimum = 1,
-            description = 'Number of physical flux quanta per wrap period. '
-                          'Higher values reduce flux jump frequency. '
-                          'DAC range must accommodate WrapMultiplier * FluxQuantum.'))
+            minimum = 1))
 
         self.add(pr.LocalVariable(
             name = 'PhysicalFluxQuantumDac',
@@ -186,36 +185,64 @@ class AdcDspFp(pr.Device):
             mode = 'RO',
             hidden = True))
 
+        def _configureFluxQuantum(value, multiplier, write):
+            quantum, period, reciprocal = flux_period_registers(
+                value, self.amp.currentPerLsb(), multiplier)
+            if write and (self.PidEnableRaw.get(read=True) or
+                          self.ControlBusy.get(read=True) or self.DacWriteBusy.get(read=True)):
+                raise RuntimeError('Disable PID and wait for ControlBusy and DacWriteBusy '
+                                   'to clear before changing flux wrapping')
+            # Processing is quiescent: the two register writes cannot be used
+            # by an in-flight visit. Always update both, including zero.
+            self.FluxQuantumFpRaw.set(period, write=write)
+            self.InvFluxQuantumFpRaw.set(reciprocal, write=write)
+            self.WrapMultiplierRaw.set(multiplier)
+            self.PhysicalFluxQuantumDac.set(quantum)
+
         def _setFluxQuantum(value, write):
-            dac = self.amp.outCurrentToDac(value)
-            if self.amp.Invert.value():
-                dac = dac ^ 0x3fff
-            dac = dac ^ 0x2000
-            self.PhysicalFluxQuantumDac.set(float(dac))
-            N = self.WrapMultiplier.value()
-            wrapPeriod = float(dac) * N
-            self.FluxQuantumFpRaw.set(wrapPeriod, write=write)
-            if wrapPeriod != 0:
-                self.InvFluxQuantumFpRaw.set(1.0 / wrapPeriod, write=write)
+            _configureFluxQuantum(value, self.WrapMultiplierRaw.value(), write)
 
         def _getFluxQuantum(read):
             fq = self.FluxQuantumFpRaw.get(read=read)
-            N = self.WrapMultiplier.value()
-            if N > 0:
-                dac = int(fq / N)
-            else:
-                dac = int(fq)
-            if self.amp.Invert.value():
-                dac = dac ^ 0x3fff
-            dac = dac ^ 0x2000
-            return self.amp.dacToOutCurrent(dac)
+            return fq / self.WrapMultiplierRaw.value() * abs(self.amp.currentPerLsb())
+
+        def _setWrapMultiplier(value, write):
+            _configureFluxQuantum(_getFluxQuantum(read=write), value, write)
+
+        self.add(pr.LinkVariable(
+            name = 'WrapMultiplier',
+            base = pr.UInt,
+            minimum = 1,
+            dependencies = [self.WrapMultiplierRaw],
+            description = 'Physical quanta per centered wrap. Change only with PID '
+                          'disabled and both busy indicators clear; then clear/reseed PID.',
+            linkedSet = _setWrapMultiplier,
+            linkedGet = self.WrapMultiplierRaw.get))
 
         self.add(pr.LinkVariable(
             name = 'FluxQuantum',
-            dependencies = [self.FluxQuantumFpRaw, self.WrapMultiplier],
+            dependencies = [self.FluxQuantumFpRaw, self.WrapMultiplierRaw],
+            description = 'Physical period as a current difference; zero disables wrapping. '
+                          'Configure while PID is disabled and drained, then clear/reseed.',
             units = u'μA',
             linkedSet = _setFluxQuantum,
             linkedGet = _getFluxQuantum))
+
+        for name, bit in (('ControlBusy', 0), ('DacWriteBusy', 1)):
+            self.add(pr.RemoteVariable(
+                name=name, offset=0x34, bitOffset=bit, bitSize=1,
+                mode='RO', base=pr.Bool, groups=['NoConfig']))
+        self.add(pr.RemoteCommand(
+            name='ResetCounters', offset=0x38, bitSize=1,
+            function=pr.RemoteCommand.touchOne))
+        for name, offset, description in (
+                ('MissedVisitCount', 0x80, 'Enabled visits arriving while the calculation is busy.'),
+                ('DiscardedVisitCount', 0x84, 'Visits intentionally ignored during disable or state clearing.'),
+                ('DacOverflowCount', 0x88, 'Feedback writes lost because the DAC FIFO was full.'),
+                ('DacErrorCount', 0x8C, 'DAC AXI writes completed with an error response.')):
+            self.add(pr.RemoteVariable(
+                name=name, offset=offset, bitSize=32, mode='RO', base=pr.UInt,
+                description=description, groups=['NoConfig']))
 
         # Debug readbacks (all float except accumError which is integer)
         self.add(pr.RemoteVariable(
@@ -312,4 +339,3 @@ class AdcDspFp(pr.Device):
         @self.command()
         def ClearPids():
             self.ClearPidState()
-

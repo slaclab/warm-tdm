@@ -1,5 +1,66 @@
 # PID cosim verification — Progress
 
+## 2026-09-16 — FP fixes implemented and locally verified
+
+Implemented the approved [FP fix plan](FP_FIX_PLAN.md) from `e2eafb5`, keeping
+unwrapped float32 feedback and the shared-FpMac PI architecture. The current
+implementation/validation record is [FP_FIX_IMPLEMENTATION.md](FP_FIX_IMPLEMENTATION.md).
+
+- Masked rows hold F/S/J; clipping back-calculates accepted F; actual I changes
+  clear only S at a visit boundary. Full clears still deliberately reseed.
+- Period setters use a current difference, preserve fractional codes, update
+  period/inverse together while disabled and drained, and maintain multiplier
+  coherence. `set_pid` handles PI-only groups and multi-board debug selection.
+- Both DSPs now hold DAC requests through acknowledgement. FP adds busy/drain,
+  missed/discarded-visit, FIFO-overflow and write-error diagnostics.
+- GHDL: **18 FP cases** pass (9 each at 8/inverted and 256/normal rows),
+  **43 existing integer cases** and **2 new integer stalled-delivery cases**
+  pass. The native VHDL bench passes with models. An independent rational
+  oracle passes **791 arithmetic-model vectors**.
+- Delivery fail→pass: baseline `e2eafb5` delivers only `(row 0, value 1)` from
+  five queued commands; fixed RTL delivers all five exactly once in order.
+- Python: **111 tests and 38 subtests pass** across the selected suites; one
+  existing `ColumnModule` helper subtest still fails on its removed source file.
+  The 26 new FP configuration/API tests all pass. No PyRogue tree was instantiated.
+- Model-based input-to-DAC latency: seed **55**, retained-state **52**, clipped
+  retained-state **57** clocks, with this inferred FIFO/RAM and ready sink.
+  These are not vendor/system timing bounds.
+
+The new [native vendor bench](../../../firmware/simulations/AdcDspFpTb/README.md)
+bypasses the unsupported cocotb/VCS VHDL runner. Actual generated-IP execution,
+physical closed-loop comparisons, Vivado 2024.1 synthesis/timing and hardware
+acceptance remain open; no such run was performed on this Mac. The integer stimulus correction in `e2eafb5` resolves the
+obsolete repeated-reseeding assumption recorded in the preceding review.
+
+## 2026-09-16 — consolidated FP fix review
+
+[FP_FIX_PLAN.md](FP_FIX_PLAN.md) consolidates the proposed startup/masking,
+period configuration, clipping, gain-change lifecycle, API, conversion,
+delivery and verification work at `b37ff8c`. It preserves unwrapped float
+feedback and distinguishes the implemented seed fix from remaining proposals.
+The review also identifies the DAC FIFO pop-while-request-active pattern in
+both DSPs as a source-level delivery fault requiring a stalled-bus regression.
+A Python probe of the production FP quantum setter reproduced zero current
+mapping to R=16383 with inverted encoding. No RTL/software fixes were made;
+the proposed I-only reset and clipping policies remain recommendations.
+
+## 2026-09-16 — review of FP seed fix and merged branch (`b37ff8c`)
+
+The [FP seed review](FP_SEED_REVIEW.md) checks `f6f1e55`, the reported cosim
+result, and integration with retained integer feedback. The enabled-row seed
+conversion is consistent with the integer DAC mapping; GHDL source analysis
+passes. Generated-IP simulation was not rerun locally. Masked-row state drift,
+clipping recovery, FP quantum configuration and `set_pid` remain open.
+
+The merged integer property bench currently has **7 passes and 1 failure**:
+`flux_jumps_accumulate_over_visits` assumes externally supplied feedback is
+reloaded every visit, whereas retained feedback correctly yields one jump for
+its three-visit stimulus. The review records the reproduction and test repair.
+It also flags missing exact FP startup assertions, the unsupported attribution
+of opposite P tuning to datapath sign, and why pre-wrapping primary feedback to
+hide the startup count would change the readout reference. No RTL or test
+changes were made in this review.
+
 ## 2026-09-16 — integer flux-jump audit and corrections
 
 The [flux-jump review](FLUX_JUMP_REVIEW.md) verified that the full-precision

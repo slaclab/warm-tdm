@@ -1,5 +1,10 @@
 # Floating-point controller fix assessment — 2026-09-16
 
+The consolidated design is in [FP_FIX_PLAN.md](FP_FIX_PLAN.md); current fixes
+and validation are in [FP_FIX_IMPLEMENTATION.md](FP_FIX_IMPLEMENTATION.md).
+The assessment below records the earlier source revision; startup seeding has
+since been implemented and reviewed in [FP_SEED_REVIEW.md](FP_SEED_REVIEW.md).
+
 ## Scope
 
 Source review of Warm TDM `ef81760`, following the fractional-feedback and MCE

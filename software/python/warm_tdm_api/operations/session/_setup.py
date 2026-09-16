@@ -6,6 +6,7 @@
 ## self.coordinator_cb, self.col_to_board_chan). Mounted on Session.
 
 import logging
+import math
 
 from ._core import COORDINATOR_COL_BOARD
 
@@ -131,8 +132,10 @@ class SetupMixin:
         across a sample-window change. These present the flux-lock-loop gain on
         the *mean* row-window error, so the value is independent of ``sample_num``:
         each write divides by the coordinator's current ``TimingTx.SampleCount``
-        before storing the fixed-point ``AdcDsp`` coefficient (see
-        ``PidGainVariable``). Only the gains passed (not ``None``) are written.
+        before storing the DSP coefficient (see ``PidGainVariable``).
+        Only the gains passed (not ``None``) are written. The floating-point
+        path supports PI: omitted D or D=0 is accepted; nonzero D is rejected
+        before any writes. Changing FP I clears only integral history in RTL.
         ``cols`` selects global column indices (default: columns enabled in
         ``ColEnableMask``); ``debug`` optionally sets each selected column's
         ``PidDebugEnable``.
@@ -141,24 +144,36 @@ class SetupMixin:
         ``setup_mux`` re-applies the pre-existing normalized gains for the
         configured window.
         """
-        for name in ('PidP_Gain', 'PidI_Gain', 'PidD_Gain'):
-            if not hasattr(self.group, name):
-                log.error("Group is missing %s; cannot set normalized PID gains. "
-                          "This tree predates the sample-count-aware PID API.", name)
-                return
-
-        cb = self.coordinator_cb
+        # Validate the whole request before changing any gain. FP exposes PI;
+        # accepting an explicit D=0 preserves common setup scripts.
+        gain_vars = []
+        for label, value in (('P', p), ('I', i), ('D', d)):
+            if value is None:
+                continue
+            value = float(value)
+            if not math.isfinite(value):
+                raise ValueError(f'{label} gain must be finite')
+            gain_var = getattr(self.group, f'Pid{label}_Gain', None)
+            if gain_var is None:
+                if label == 'D' and value == 0:
+                    continue
+                raise ValueError(f'This group does not support the requested {label} gain')
+            gain_vars.append((label, value, gain_var))
         if cols is None:
             cols = [c for c, en in enumerate(self.col_enable_bools()) if en]
-        gain_vars = (('P', p, self.group.PidP_Gain),
-                     ('I', i, self.group.PidI_Gain),
-                     ('D', d, self.group.PidD_Gain))
+        cols = list(cols)
+        targets = {}
+        for col in cols:
+            board, chan = self.col_to_board_chan(col)
+            if board not in self.cbs:
+                raise ValueError(f'Column {col} maps to absent board {board}')
+            if debug is not None:
+                targets[col] = self.cbs[board].DataPath.AdcDsp[chan].PidDebugEnable
         for col in cols:
             for _label, value, gain_var in gain_vars:
-                if value is not None:
-                    gain_var.set(value=float(value), index=col)
+                gain_var.set(value=value, index=col)
             if debug is not None:
-                cb.DataPath.AdcDsp[col].PidDebugEnable.set(bool(debug))
+                targets[col].set(bool(debug))
             print(f"Set PID for column {col}: " + ", ".join(
                 f"{k}={v}" for k, v in
                 (('P', p), ('I', i), ('D', d), ('debug', debug)) if v is not None))

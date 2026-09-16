@@ -1,169 +1,146 @@
-# Floating-Point PI (AdcDspFp)
+# Floating-point PI (AdcDspFp)
 
-## Scope
+## Scope and current status
 
-IEEE 754 single-precision PI servo loop for TES SQUID readout. The module
-(`AdcDspFp.vhd`) is port-compatible with AdcDsp and selectable via
-`USE_FLOAT_PID_G` generic in DataPath.
+IEEE 754 single-precision PI servo for TES SQUID readout, selected by
+`DataPath.USE_FLOAT_PID_G`. Keep unwrapped float32 feedback as the primary
+per-row state, including its fractional part, for the stated approximately
+±256 physical-quantum operating envelope. There is no planned conversion to
+bounded feedback plus a separate accumulated flux offset.
 
-Goals:
-- Improved dynamic range for PI coefficients and state
-- Simpler software interface (coefficients are standard floats)
-- Software-configurable flux jump wrapping period
-- ~34 cycle execution using a single FpMac IP
-- Path toward FP16 configurability in future
+The [2026-09-16 implementation record](../pid-cosim-verification/FP_FIX_IMPLEMENTATION.md)
+contains the correctness fixes, passing local regressions and outstanding
+vendor/system/hardware acceptance. The older 34-cycle and truncation sketches
+are superseded; generated-IP timing/resource qualification remains open.
 
 ## Architecture
 
-### IP Cores (per instance)
+One shared FpMac performs each floating-point operation in sequence. The current
+XCIs request FpMac latency 4, Int2Fp latency 2, and Fp2Int latency 2. State-machine
+handshakes, RAMs and transport add cycles beyond the sum of core latencies.
 
-| Core | Operation | Latency | Notes |
-|------|-----------|---------|-------|
-| FpMac | A*B+C | 4 cycles | All FP operations (PI, flux wrap, add/sub via ±1.0) |
-| Int2Fp | int32 → float32 | 2 cycles | accumError entry + numFluxJumps reconversion |
-| Fp2Int | float32 → int32 | 2 cycles | Flux truncation + DAC output |
+For row-window error sum E, old accumulated error S and full feedback F:
 
-### Per-Row RAM State
-
-| RAM | Width | Contents |
-|-----|-------|----------|
-| ACCUM_ERROR | 32-bit float | Last accumErrorFp (debug readback only) |
-| SUM_ACCUM | 32-bit float | Integral accumulator |
-| SQ1FB_FULL | 32-bit float | Unwrapped SQ1FB (primary state) |
-| FLUX_JUMP | 32-bit int | numFluxJumps (for debug readback) |
-
-### State Machine (~34 cycles)
-
-```
-IDLE_S (1 cyc)
-  -- accumValid fires. Launch Int2Fp(accumError). Present rowIndex to RAMs.
-  -- Emit debug Word 0 (SOF): col, row, runTime.
-
-WAIT_INT2FP_S (4 cyc, wc=0..3)
-  -- Poll int2FpOutValid to capture accumErrorFp.
-  -- At wc=3: RAM outputs valid. Capture sumAccumFp, sq1FbFullFp, numFluxJumps.
-  -- Launch FpMac(1.0, accumErrorFp, sumAccumFp) → integrator.
-
-INTEGRATOR_S (4 cyc)
-  -- Wait for FpMac → newSumAccum.
-  -- Emit debug Word 1: accumErrorFp | sq1FbFullFp.
-  -- Launch FpMac(pCoef, accumErrorFp, sq1FbFullFp) → P-term + sq1FbFull.
-
-PID_P_S (4 cyc)
-  -- Wait for FpMac → P*error + sq1FbFull.
-  -- Emit debug Word 2: sumAccumFp | newSumAccum.
-  -- Launch FpMac(iCoef, sumAccumFp, prev) → sq1FbNew.
-
-PID_I_S (4 cyc)
-  -- Wait for FpMac → sq1FbNew (= P*err + I*sum + sq1FbFull).
-  -- Launch FpMac(invFluxQuantum, sq1FbNew, 0) → jumpsFp.
-
-FLUX_DIVIDE_S (4 cyc)
-  -- Wait for FpMac → jumpsFp.
-  -- Launch Fp2Int(jumpsFp) → numFluxJumps.
-
-FLUX_TRUNCATE_S (2 cyc)
-  -- Wait for Fp2Int → numFluxJumps (integer).
-  -- Launch Int2Fp(numFluxJumps) → numFluxJumpsFp.
-
-FLUX_INT2FP_S (2 cyc)
-  -- Wait for Int2Fp → numFluxJumpsFp.
-  -- Launch FpMac(numFluxJumpsFp, -fluxQuantum, sq1FbNew) → wrappedFp.
-
-WRAP_S (4 cyc)
-  -- Wait for FpMac → wrappedFp (DAC value as float).
-  -- Emit debug Word 3: sq1FbNewFp | numFluxJumps.
-  -- Launch Fp2Int(wrappedFp) → sq1FbInt.
-
-DAC_CONVERT_S (2 cyc)
-  -- Wait for Fp2Int → sq1FbInt.
-  -- Clip to DAC range [SQ1FB_MIN, SQ1FB_MAX]. Set saturation flags.
-
-RAM_WRITE_S (2 cyc)
-  -- Anti-windup mux: commit or discard newSumAccum.
-  -- Write SUM_ACCUM, SQ1FB_FULL, FLUX_JUMP RAMs.
-  -- Emit debug Word 4 (EOF): sq1FbInt | accumSamples | dropCount.
-
-DATA_STREAM_S (1 cyc)
-  -- Emit pidStreamMaster (sq1FbNew or per outputMode).
-  -- Return to IDLE_S.
+```text
+S_candidate = FMA(1, E, S)
+F_P         = FMA(P, E, F)
+F_candidate = FMA(I, S, F_P)         # uses old S
+quotient    = FMA(inverse_R, F_candidate, 0)
+J           = nearest_even_int32(quotient)
+W           = FMA(float32(J), -R, F_candidate)
+D_rounded   = nearest_even_int32(W)
+D           = clamp(D_rounded, -8192, 8191)
+F_next      = F_candidate           # preserves fraction across ordinary rounding
+if D != D_rounded:
+    F_next  = FMA(float32(J), R, float32(D))
 ```
 
-### Key Design Decisions
+R=N*Q is the configured wrap period in controller DAC-code units, Q is the
+physical quantum and N the positive integer WrapMultiplier. The reciprocal is
+float32, so boundary behavior must be tested with the actual stored pair.
+R=0 disables wrapping, even if a raw client left a stale inverse. J counts
+periods of R, not individual crossing events; N*J is physical quanta.
 
-1. **PI only (no D-term)** — derivative action amplifies noise in SQUID FLL
-   applications where the error signal is already band-limited by accumulator
-   averaging.
+For enabled rows, save F_next/J and issue D. Save S_candidate unless the
+existing anti-windup sign check says I*E would drive farther into the clipped
+rail; in that case retain old S. I=±0 saves zero S. Masked rows hold F/S/J and
+issue neither DAC nor primary data, while error telemetry/debug may update.
 
-2. **Single FpMac for all operations** — addition/subtraction expressed as
-   FpMac(±1.0, x, y). Eliminates FpAdd IP (saves ~1800 LUTs × 8 instances).
-   Operations serialize through the one FpMac in a linear chain.
+The loop is deliberately PI-only. Normalized software gains divide by the row
+sample count; this changes the summed row-window error into an effective mean.
+Retaining feedback across visits is distinct from summing ADC samples within
+one visit. No control-law or MCE-equivalence change is part of these fixes.
 
-3. **Folded PI+SQ1FB computation** — FpMac(P, error, sq1FbFull) followed by
-   FpMac(I, sumAccum, prev) gives sq1FbNew directly without a separate add step.
+### State and lifecycle
 
-4. **Direct flux jump computation** — numFluxJumps = trunc(sq1FbNew / fluxQuantum)
-   computed fresh each iteration. No incremental offset tracking, no LUT. Single
-   FMA wraps: FpMac(numFluxJumpsFp, -fluxQuantum, sq1FbNew).
+| Per-row RAM | Format | Purpose |
+|---|---|---|
+| ACCUM_ERROR | float32 | Last error, telemetry |
+| SUM_ACCUM | float32 | Integral history S |
+| SQ1FB_FULL | float32 | Unwrapped feedback F, including fraction |
+| FLUX_JUMP | signed int32 | Last recomputed wrap quotient J, diagnostic |
 
-5. **Software-configurable wrap period** — writing N*physicalQuantum into the
-   fluxQuantum register reduces flux jump frequency (wraps every N quanta instead
-   of 1). Equivalent to the original threshold-based approach but configurable.
+Full clear, StartRun and rising enable mark F unseeded with `0x7FC00000` and
+clear the other state. On its first enabled visit, a row seeds F through Int2Fp
+from the captured/decoded applied DAC. Masked visits leave the marker intact.
+Full clearing deliberately starts a new unwrapped reference.
 
-6. **Anti-windup via sign-bit check** — `iCoef(31) XOR accumErrorFp(31)`
-   determines I-contribution direction. Speculative integrator committed or
-   discarded at RAM_WRITE.
+An actual I-coefficient change clears **only S**, after the accepted visit
+completes; same-value writes do not clear. P/I/R/inverse are captured per visit.
+Incoming visits during the integral RAM sweep are counted as intentional
+discards. Disabling drains the accepted calculation and DAC queue; use both
+busy bits before reconfiguration. Full clearing does not flush that queue.
 
-7. **Debug stream during FpMac waits** — 5-word (40-byte) debug packets emitted
-   at zero cycle cost during the 3 idle cycles of each FpMac operation.
+### Execution path
 
-### Resource Impact (8 instances, XC7K325T)
-
-Compared to original AdcDsp + proposed PID+FpAdd design:
-- Removes: 8× FpAdd IP (~1800 LUTs), 1 RAM (FLUX_OFFSET)
-- Keeps: 8× FpMac, 8× Int2Fp, 8× Fp2Int, 4 RAMs per instance
-- AXIL crossbar: 5 masters (was 6)
-- Timing: single-IP pipelined path, no parallel timing constraints
-
-## Register Map (AdcDspFp local offsets)
-
-```
-0x00[0]       fllEnable
-0x00[9:8]     outputMode (0=Sq1FbFull, 1=AccumError, 2=RowSeqCount, 3=NewSumAccum)
-0x04[31:0]    P coefficient (IEEE 754 float)
-0x08[31:0]    I coefficient (IEEE 754 float)
-0x10[31:0]    accumError readback (sign-extended integer)
-0x18[31:0]    sumAccumFp readback (float)
-0x20[31:0]    sq1FbNewFp readback (float)
-0x28[31:0]    sq1FbFullFp readback (float)
-0x2C[31:0]    sq1FbInt readback (integer DAC value)
-0x30[0]       clearPidState
-0x40[31:0]    fluxQuantumFp (float, software sets N * physicalQuantum)
-0x44[31:0]    invFluxQuantumFp (float, software computes 1/fluxQuantumFp)
-0x50[0]       pidDebugEnable
-0x60[255:0]   rowEnableMask
+```text
+IDLE → DEBUG_HDR1 → DEBUG_BODY → WAIT_INT2FP
+     → [SEED_CONVERT when unseeded]
+     → INTEGRATOR → PID_P → PID_I → FLUX_DIVIDE → FLUX_ROUND
+     → FLUX_INT2FP → WRAP → DAC_CONVERT
+     → [CLIP_FEEDBACK if DAC command clipped]
+     → RAM_WRITE → DATA_STREAM → IDLE
 ```
 
-RAM arrays at AXIL crossbar offsets:
-- 0x1000: AccumError (32-bit float, RO — debug readback)
-- 0x2000: SumAccum (32-bit float, RW)
-- 0x3000: Sq1FbFull (32-bit float, RW)
-- 0x4000: FluxJumps (32-bit int, RW)
+The seed and clipped paths reuse the existing cores; no new arithmetic core
+is instantiated. Model-based measurements to the bench DAC sink are 52 clocks
+steady, 55 seeded and 57 clipped steady, at 125 MHz with inferred RAM/FIFOs and
+a ready AXI slave. A first visit that clips incurs both extra paths. These are
+observations from the test configuration, not vendor timing or worst-case
+transport guarantees. Qualify the complete path against the row schedule.
 
-## Debug Stream (40 bytes per row)
+## Registers and software
 
-| Word | Contents | Purpose |
-|------|----------|---------|
-| 0 (SOF) | col[3:0] \| row[15:8] \| runTime[47:0] | Timing correlation |
-| 1 | accumErrorFp[31:0] \| sq1FbFullFp[31:0] | Error + old feedback |
-| 2 | sumAccumFp[31:0] \| newSumAccum[31:0] | Integrator before/after |
-| 3 | sq1FbNewFp[31:0] \| numFluxJumps[31:0] | New feedback + wrapping |
-| 4 (EOF) | sq1FbInt[13:0] \| pad \| accumSamples[7:0] \| pad \| dropCount[31:0] | DAC + metadata |
+| Offset | Field |
+|---|---|
+| 0x00[0] | fllEnable |
+| 0x00[9:8] | outputMode: F_next, error, sequence count, speculative new S |
+| 0x04 / 0x08 | float32 P / I |
+| 0x10 / 0x18 / 0x20 / 0x28 / 0x2C | Integer error / old S / F_next / old F / integer DAC debug readbacks |
+| 0x30[0] | ClearPidState |
+| 0x34[0] / [1] | ControlBusy / DacWriteBusy |
+| 0x38[0] | ResetCounters |
+| 0x40 / 0x44 | float32 R / inverse R |
+| 0x50[0] | PidDebugEnable |
+| 0x60–0x7C | 256-bit row mask |
+| 0x80 / 0x84 | MissedVisitCount / DiscardedVisitCount |
+| 0x88 / 0x8C | DacOverflowCount / DacErrorCount |
+| 0x1000 / 0x2000 / 0x3000 / 0x4000 | Error / S / F / J RAMs, four-byte stride |
 
-## Validation Plan
+The public FluxQuantum is a nonnegative current **difference**. Convert using
+`abs(currentPerLsb())`, preserve fractional codes, and configure R/inverse
+coherently only while disabled and drained. Zero clears both registers.
+WrapMultiplier changes preserve physical Q and recompute the pair. See the
+implementation record for finite-value, quotient and centered-DAC bounds.
+`Session.set_pid` supports P/I, omitted/zero D, and debug-only FP calls; it
+rejects nonzero D before writes. Actual PyRogue-tree smoke remains pending.
 
-1. Synthesize with `USE_FLOAT_PID_G => true`, verify timing closure
-2. Compare utilization against baseline (expect LUT reduction from FpAdd removal)
-3. Simulate: step response, verify PI behavior and flux jumping
-4. Hardware: lock PI on real SQUID, compare noise/bandwidth with fixed-point
-5. Software: verify FluxQuantum LinkVariable computes and writes correctly
+## Debug stream
+
+FP v1 is **56 bytes**: two 64-bit shared header words plus five body words.
+The headers carry identity/version and timestamp as specified in
+[DataChannelization.md](../../../firmware/common/DataChannelization.md).
+
+| Body word | Low bits | High bits |
+|---|---|---|
+| 0 | Column [3:0], row [15:8] | Reserved |
+| 1 | Error float32 | Old F float32 |
+| 2 | Old S float32 | Speculative new S float32 |
+| 3 | F_next float32 | J signed int32 |
+| 4 (last) | Signed DAC [13:0], samples [23:16] | Debug dropCount |
+
+Body word 3 is emitted after any clipping back-calculation. New S remains a
+speculative value before anti-windup selection. Masked-row debug fields are
+computed candidates; they are not applied DAC/control state. Debug dropCount
+counts actual visits suppressed by debug pause, separately from control loss.
+
+## Remaining qualification
+
+- Run the [native generated-IP bench](../../../firmware/simulations/AdcDspFpTb/README.md).
+- Verify PyRogue construction, dependency updates and configuration round-trip.
+- Measure plant slope and fixed-visit step/reversal recovery at matched gains,
+  sample counts, polarity, period and operating point; assess residual/noise
+  near zero and ±256 physical quanta.
+- Verify lossless scheduling, complete system transport and BiquadFilter output.
+- Synthesize with Vivado **2024.1**, check timing/utilization, then complete
+  hardware lock, bandwidth and noise acceptance under issue #70.
