@@ -41,7 +41,13 @@ entity GroupTb is
       -- false = integer AdcDsp. Default true preserves the historical behavior;
       -- ruckus.tcl overrides it from the USE_FLOAT_PID env var so `make vcs` can
       -- elaborate either path without editing this file.
-      USE_FLOAT_PID_G : boolean             := true);
+      USE_FLOAT_PID_G : boolean             := true;
+      -- Scales the TES-bias -> SQ1-input coupling in the wafer model. Default 1.0
+      -- is the model's nominal; the synthetic TES-bias amp is weakly coupled, so
+      -- a much larger value (set via the TES_CURRENT_SCALE env var in ruckus.tcl)
+      -- lets a modest TesBias ramp shift the SQ1 flux by several Phi0 to exercise
+      -- the servo's flux-jump handling. Purely a test aid, not physical fidelity.
+      TES_CURRENT_SCALE_G : real            := 1.0);
 end GroupTb;
 
 architecture sim of GroupTb is
@@ -316,6 +322,7 @@ begin
             ROW_FAS_PARAMS_G       => WAFER_PROFILE_C.rowFas,
             CHIP_FAS_PARAMS_G      => WAFER_PROFILE_C.chipFas,
             COLUMN_PARAMS_G        => WAFER_PROFILE_C.muxColumn,
+            TES_CURRENT_SCALE_G    => TES_CURRENT_SCALE_G,
             VARIATION_SEED_G       => VARIATION_SEED_G)
          port map (
             columnDrive    => columnDrive,
