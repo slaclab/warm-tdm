@@ -403,15 +403,13 @@ class FastDacVariable(GroupLinkVariable):
             if index != -1:
                 colIndex = index[0]
                 rowIndex = index[1]
-                if (self.tuneEnVar is None
-                        or self.tuneEnVar.get(index=colIndex)):
+                if self._colEnabled(colIndex):
                     self.dependencies[colIndex].set(
                         value=value, index=rowIndex, write=write)
                     staged = True
             else:
                 for colIndex in range(self._config.numColumns):
-                    if (self.tuneEnVar is not None
-                            and not self.tuneEnVar.get(index=colIndex)):
+                    if not self._colEnabled(colIndex):
                         continue
                     self.dependencies[colIndex].set(
                         value=value[colIndex], index=-1, write=False)
@@ -432,8 +430,7 @@ class FastDacVariable(GroupLinkVariable):
                 cols = self._config.numColumns
                 ret = []
                 for colIndex in range(cols):
-                    read_column = read and (self.tuneEnVar is None
-                                            or self.tuneEnVar.get(index=colIndex))
+                    read_column = read and self._colEnabled(colIndex)
                     ret.append(self.dependencies[colIndex].get(
                         index=-1, read=read_column))
                 return np.array(ret, dtype=np.float64)
