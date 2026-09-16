@@ -107,6 +107,15 @@ architecture rtl of AdcDspFp is
    constant FP_NEG_ONE_C : slv(31 downto 0) := X"BF800000";  -- -1.0
    constant FP_ZERO_C    : slv(31 downto 0) := X"00000000";  -- 0.0
 
+   -- "Unseeded" marker written into the SQ1FB_FULL RAM by the clear, so the first
+   -- visit of each row after StartRun/clearPidState initializes sq1FbFull from the
+   -- seeded DAC value (accumIn.sq1FbDac) instead of the cleared 0 -- otherwise the
+   -- servo starts from feedback 0 (SQ1 V-Phi extremum) and cannot lock at the
+   -- tuned mid-slope operating point. A NaN is used because the FP PI datapath
+   -- never produces NaN from finite inputs, so it can never collide with a real
+   -- stored feedback value.
+   constant SEED_SENTINEL_C : slv(31 downto 0) := X"7FC00000";  -- NaN = "unseeded"
+
    constant AXIS_DEBUG_CFG_C : AxiStreamConfigType := ssiAxiStreamConfig(
       dataBytes => 8,
       tKeepMode => TKEEP_COMP_C,
@@ -124,6 +133,7 @@ architecture rtl of AdcDspFp is
       DEBUG_HDR1_S,
       DEBUG_BODY_S,
       WAIT_INT2FP_S,
+      SEED_CONVERT_S,
       INTEGRATOR_S,
       PID_P_S,
       PID_I_S,
@@ -145,6 +155,9 @@ architecture rtl of AdcDspFp is
       -- Integer accumulation
       accumSamples       : unsigned(7 downto 0);
       accumError         : signed(ACCUM_BITS_C-1 downto 0);
+      -- Seeded DAC feedback captured at accumValid, used to initialize sq1FbFull
+      -- on a row's first visit after a clear (see SEED_SENTINEL_C).
+      sq1FbDacSeed       : slv(13 downto 0);
       -- FP PID state
       accumErrorFp       : slv(31 downto 0);
       sumAccumFp         : slv(31 downto 0);
@@ -205,6 +218,7 @@ architecture rtl of AdcDspFp is
       logicalRow           => (others => '0'),
       accumSamples       => (others => '0'),
       accumError         => (others => '0'),
+      sq1FbDacSeed       => (others => '0'),
       accumErrorFp       => (others => '0'),
       sumAccumFp         => (others => '0'),
       sq1FbFullFp        => (others => '0'),
@@ -604,7 +618,9 @@ begin
          v.sumAccumRamWrEn     := '1';
          v.sumAccumRamWrData   := (others => '0');
          v.sq1FbFullRamWrEn    := '1';
-         v.sq1FbFullRamWrData  := (others => '0');
+         -- Mark unseeded so the row's first post-clear visit seeds sq1FbFull from
+         -- the DAC value rather than starting the servo from feedback 0.
+         v.sq1FbFullRamWrData  := SEED_SENTINEL_C;
          v.fluxJumpRamWrEn     := '1';
          v.fluxJumpRamWrData   := (others => '0');
       elsif (r.clearPidStateBusy = '1') then
@@ -614,7 +630,9 @@ begin
          v.sumAccumRamWrEn     := '1';
          v.sumAccumRamWrData   := (others => '0');
          v.sq1FbFullRamWrEn    := '1';
-         v.sq1FbFullRamWrData  := (others => '0');
+         -- Mark unseeded so the row's first post-clear visit seeds sq1FbFull from
+         -- the DAC value rather than starting the servo from feedback 0.
+         v.sq1FbFullRamWrData  := SEED_SENTINEL_C;
          v.fluxJumpRamWrEn     := '1';
          v.fluxJumpRamWrData   := (others => '0');
 
@@ -648,6 +666,9 @@ begin
                   v.accumError   := resize(accumIn.accumError, ACCUM_BITS_C);
                   v.accumSamples := accumIn.numSamples;
                   v.rowEnabled   := r.rowEnableMask(to_integer(unsigned(accumIn.logicalRow)));
+                  -- Capture the seeded DAC feedback; used to initialize sq1FbFull
+                  -- on this row's first visit after a clear (SEED_CONVERT_S).
+                  v.sq1FbDacSeed := accumIn.sq1FbDac;
 
                   -- Launch Int2Fp(accumError) -- result ready in 2 cycles
                   v.int2FpInValid := '1';
@@ -705,19 +726,51 @@ begin
                if (r.waitCount = 3) then
                   -- RAM outputs are valid after READ_LATENCY_G=3 cycles
                   v.sumAccumFp   := sumAccumRamOut;
-                  v.sq1FbFullFp  := sq1FbFullRamOut;
                   v.numFluxJumps := signed(fluxJumpRamOut);
+                  v.waitCount    := (others => '0');
+
+                  if (sq1FbFullRamOut = SEED_SENTINEL_C) then
+                     -- First visit for this row since the clear: convert the
+                     -- seeded DAC feedback to float (Int2Fp is free now that
+                     -- accumError is captured) and finish the integrator launch in
+                     -- SEED_CONVERT_S once sq1FbFull is established.
+                     v.int2FpInValid := '1';
+                     v.int2FpInData  := std_logic_vector(resize(signed(convOffsetBin(r.sq1FbDacSeed)), 32));
+                     v.state         := SEED_CONVERT_S;
+                  else
+                     v.sq1FbFullFp  := sq1FbFullRamOut;
+
+                     -- Launch FpMac: integrator = 1.0 * accumErrorFp + sumAccumFp
+                     v.fpMacInValid := '1';
+                     v.fpMacA       := FP_ONE_C;
+                     v.fpMacB       := v.accumErrorFp;
+                     v.fpMacC       := sumAccumRamOut;
+
+                     v.state        := INTEGRATOR_S;
+                  end if;
+               else
+                  v.waitCount := r.waitCount + 1;
+               end if;
+
+            -------------------------------------------------------------------
+            -- SEED_CONVERT_S (first visit per row after a clear)
+            -- Wait for Int2Fp(seed DAC) -> establish sq1FbFull from the seeded
+            -- operating point, then launch the integrator FpMac (same as the
+            -- WAIT_INT2FP_S seeded==false path) so the servo starts locked at the
+            -- tuned point instead of feedback 0 (V-Phi extremum).
+            -------------------------------------------------------------------
+            when SEED_CONVERT_S =>
+               if (int2FpOutValid = '1') then
+                  v.sq1FbFullFp  := int2FpOutData;
 
                   -- Launch FpMac: integrator = 1.0 * accumErrorFp + sumAccumFp
                   v.fpMacInValid := '1';
                   v.fpMacA       := FP_ONE_C;
-                  v.fpMacB       := v.accumErrorFp;
-                  v.fpMacC       := sumAccumRamOut;
+                  v.fpMacB       := r.accumErrorFp;
+                  v.fpMacC       := r.sumAccumFp;
 
-                  v.waitCount := (others => '0');
-                  v.state     := INTEGRATOR_S;
-               else
-                  v.waitCount := r.waitCount + 1;
+                  v.waitCount    := (others => '0');
+                  v.state        := INTEGRATOR_S;
                end if;
 
             -------------------------------------------------------------------
