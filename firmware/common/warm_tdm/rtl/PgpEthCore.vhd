@@ -203,54 +203,75 @@ begin
    end generate GEN_PGP;
 
    ---------------------
-   -- Ethernet Interfacepcie
+   -- Ethernet Interface (coordinator only)
    ---------------------
-   U_EthCore_1 : entity warm_tdm.EthCore
-      generic map (
-         TPD_G                   => TPD_G,
-         RING_ADDR_0_G           => RING_ADDR_0_G,
-         ETH_10G_G               => ETH_10G_G,
-         SIMULATION_G            => SIMULATION_G,
-         SIM_SRP_PORT_NUM_G      => SIM_ETH_SRP_PORT_NUM_G,
-         SIM_DATA_PORT_NUM_G     => SIM_ETH_DATA_PORT_NUM_G,
-         AXIL_BASE_ADDR_G        => AXIL_BASE_ADDR_G + X"00100000",
-         AXIL_CLK_FREQ_G         => 125.0e6,
-         RSSI_WINDOW_ADDR_SIZE_G => RSSI_WINDOW_ADDR_SIZE_G,
-         DHCP_G                  => DHCP_G,
-         IP_ADDR_G               => IP_ADDR_G,
-         MAC_ADDR_G              => MAC_ADDR_G)
-      port map (
-         extRst                => '0',                               -- [in]
-         gtRefClk250           => gtRefClk250,                       -- [in]
-         fabRefClk125          => fabRefClk125,                      -- [in]
-         gtRefClk156           => gtRefClk156,                       -- [in]
-         fabRefClk156          => fabRefClk156,                      -- [in]
-         gtRxP                 => ethRxP,                            -- [in]
-         gtRxN                 => ethRxN,                            -- [in]
-         gtTxP                 => ethTxP,                            -- [out]
-         gtTxN                 => ethTxN,                            -- [out]
-         phyReady              => ethPhyReady,                       -- [out]
-         rssiStatus            => rssiStatus,                        -- [out]
-         axilClk               => axilClk,                           -- [in]
-         axilRst               => axilRst,                           -- [in]
-         mAxilReadMaster       => mLocAxilReadMasters(AXIL_ETH_C),   -- [out]
-         mAxilReadSlave        => mLocAxilReadSlaves(AXIL_ETH_C),    -- [in]
-         mAxilWriteMaster      => mLocAxilWriteMasters(AXIL_ETH_C),  -- [out]
-         mAxilWriteSlave       => mLocAxilWriteSlaves(AXIL_ETH_C),   -- [in]
-         sAxilReadMaster       => sLocAxilReadMasters(AXIL_ETH_C),   -- [in]
-         sAxilReadSlave        => sLocAxilReadSlaves(AXIL_ETH_C),    -- [out]
-         sAxilWriteMaster      => sLocAxilWriteMasters(AXIL_ETH_C),  -- [in]
-         sAxilWriteSlave       => sLocAxilWriteSlaves(AXIL_ETH_C),   -- [out]
-         axisClk               => axilClk,                           -- [in]
-         axisRst               => axilRst,                           -- [in]
-         localDataRxAxisMaster => ethDataRxAxisMaster,               -- [out]
-         localDataRxAxisSlave  => ethDataRxAxisSlave,                -- [in]
-         localDataTxAxisMaster => ethDataTxAxisMaster,               -- [in]
-         localDataTxAxisSlave  => ethDataTxAxisSlave,                -- [out]
-         remoteRxAxisMasters   => ethRemoteRxAxisMasters,            -- [out]
-         remoteRxAxisSlaves    => ethRemoteRxAxisSlaves,             -- [in]
-         remoteTxAxisMasters   => ethRemoteTxAxisMasters,            -- [in]
-         remoteTxAxisSlaves    => ethRemoteTxAxisSlaves);            -- [out]
+   GEN_ETH : if (RING_ADDR_0_G) generate
+      U_EthCore_1 : entity warm_tdm.EthCore
+         generic map (
+            TPD_G                   => TPD_G,
+            RING_ADDR_0_G           => RING_ADDR_0_G,
+            ETH_10G_G               => ETH_10G_G,
+            SIMULATION_G            => SIMULATION_G,
+            SIM_SRP_PORT_NUM_G      => SIM_ETH_SRP_PORT_NUM_G,
+            SIM_DATA_PORT_NUM_G     => SIM_ETH_DATA_PORT_NUM_G,
+            AXIL_BASE_ADDR_G        => AXIL_BASE_ADDR_G + X"00100000",
+            AXIL_CLK_FREQ_G         => 125.0e6,
+            RSSI_WINDOW_ADDR_SIZE_G => RSSI_WINDOW_ADDR_SIZE_G,
+            DHCP_G                  => DHCP_G,
+            IP_ADDR_G               => IP_ADDR_G,
+            MAC_ADDR_G              => MAC_ADDR_G)
+         port map (
+            extRst                => '0',                               -- [in]
+            gtRefClk250           => gtRefClk250,                       -- [in]
+            fabRefClk125          => fabRefClk125,                      -- [in]
+            gtRefClk156           => gtRefClk156,                       -- [in]
+            fabRefClk156          => fabRefClk156,                      -- [in]
+            gtRxP                 => ethRxP,                            -- [in]
+            gtRxN                 => ethRxN,                            -- [in]
+            gtTxP                 => ethTxP,                            -- [out]
+            gtTxN                 => ethTxN,                            -- [out]
+            phyReady              => ethPhyReady,                       -- [out]
+            rssiStatus            => rssiStatus,                        -- [out]
+            axilClk               => axilClk,                           -- [in]
+            axilRst               => axilRst,                           -- [in]
+            mAxilReadMaster       => mLocAxilReadMasters(AXIL_ETH_C),   -- [out]
+            mAxilReadSlave        => mLocAxilReadSlaves(AXIL_ETH_C),    -- [in]
+            mAxilWriteMaster      => mLocAxilWriteMasters(AXIL_ETH_C),  -- [out]
+            mAxilWriteSlave       => mLocAxilWriteSlaves(AXIL_ETH_C),   -- [in]
+            sAxilReadMaster       => sLocAxilReadMasters(AXIL_ETH_C),   -- [in]
+            sAxilReadSlave        => sLocAxilReadSlaves(AXIL_ETH_C),    -- [out]
+            sAxilWriteMaster      => sLocAxilWriteMasters(AXIL_ETH_C),  -- [in]
+            sAxilWriteSlave       => sLocAxilWriteSlaves(AXIL_ETH_C),   -- [out]
+            axisClk               => axilClk,                           -- [in]
+            axisRst               => axilRst,                           -- [in]
+            localDataRxAxisMaster => ethDataRxAxisMaster,               -- [out]
+            localDataRxAxisSlave  => ethDataRxAxisSlave,                -- [in]
+            localDataTxAxisMaster => ethDataTxAxisMaster,               -- [in]
+            localDataTxAxisSlave  => ethDataTxAxisSlave,                -- [out]
+            remoteRxAxisMasters   => ethRemoteRxAxisMasters,            -- [out]
+            remoteRxAxisSlaves    => ethRemoteRxAxisSlaves,             -- [in]
+            remoteTxAxisMasters   => ethRemoteTxAxisMasters,            -- [in]
+            remoteTxAxisSlaves    => ethRemoteTxAxisSlaves);            -- [out]
+   end generate GEN_ETH;
+
+   NO_ETH : if (not RING_ADDR_0_G) generate
+      ethTxP      <= '0';
+      ethTxN      <= '1';
+      ethPhyReady <= '0';
+      rssiStatus  <= (others => (others => '0'));
+
+      -- Keep the unused master idle and reject accesses to absent registers.
+      mLocAxilReadMasters(AXIL_ETH_C)  <= AXI_LITE_READ_MASTER_INIT_C;
+      mLocAxilWriteMasters(AXIL_ETH_C) <= AXI_LITE_WRITE_MASTER_INIT_C;
+      sLocAxilReadSlaves(AXIL_ETH_C)   <= AXI_LITE_READ_SLAVE_EMPTY_DECERR_C;
+      sLocAxilWriteSlaves(AXIL_ETH_C)  <= AXI_LITE_WRITE_SLAVE_EMPTY_DECERR_C;
+
+      -- No Ethernet ingress; discard any traffic routed to its absent outputs.
+      ethRemoteRxAxisMasters <= (others => AXI_STREAM_MASTER_INIT_C);
+      ethRemoteTxAxisSlaves  <= (others => AXI_STREAM_SLAVE_FORCE_C);
+      ethDataRxAxisMaster    <= AXI_STREAM_MASTER_INIT_C;
+      ethDataTxAxisSlave     <= AXI_STREAM_SLAVE_FORCE_C;
+   end generate NO_ETH;
 
    -------------------------------------
    -- Data Mux

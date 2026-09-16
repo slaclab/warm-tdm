@@ -12,7 +12,7 @@ source -quiet $::env(RUCKUS_DIR)/vivado_proc.tcl
 loadRuckusTcl $::env(TOP_DIR)/submodules/surf
 loadRuckusTcl $::env(TOP_DIR)/common/warm_tdm
 
-loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore2.xdc
+loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore.xdc
 loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/ColumnFpgaBoard.xdc
 
 set_property top {ColumnFpgaBoard} [get_filesets {sources_1}]

@@ -32,8 +32,8 @@ from ._BoardTemp2 import *
 from ._ColumnFpgaBoard import *
 from ._ColumnAwaXeFpgaBoard import *
 from ._RowFpgaBoard import *
-from ._WarmTdmCommon2 import *
-from ._WarmTdmCore2 import *
+from ._WarmTdmCommon import *
+from ._WarmTdmCore import *
 from ._SaBiasOffset2 import *
 from ._TesBias2 import *
 from ._WarmTdmConfig import *

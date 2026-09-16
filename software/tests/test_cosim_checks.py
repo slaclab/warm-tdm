@@ -85,7 +85,7 @@ class CosimChecks(unittest.TestCase):
         txs = [SimpleNamespace(**{n: leaf(0) for n in ['PwrSyncA', 'PwrSyncB', 'PwrSyncC', 'PwrSyncEn']}) for _ in leds]
         cables = [leaf(100.), leaf(200.)]
         boards = [SimpleNamespace(WarmTdmCore=SimpleNamespace(Timing=SimpleNamespace(TimingTx=tx),
-            WarmTdmCommon2=SimpleNamespace(WarmTdmConfig=SimpleNamespace(LedEn=led)))) for led, tx in zip(leds, txs)]
+            WarmTdmCommon=SimpleNamespace(WarmTdmConfig=SimpleNamespace(LedEn=led)))) for led, tx in zip(leds, txs)]
         def ps(value):
             for tx in txs:
                 for n in ['PwrSyncA', 'PwrSyncB', 'PwrSyncC']:

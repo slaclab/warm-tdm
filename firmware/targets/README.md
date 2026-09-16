@@ -37,8 +37,14 @@ scheme was rejected because it added churn without fixing that dependency.
 
 ## Constraint selection
 
-Each active target explicitly loads `WarmTdmCore2.xdc` and exactly its own board
+Each active target explicitly loads `WarmTdmCore.xdc` and exactly its own board
 pinout (`ColumnFpgaBoard.xdc`, `ColumnFpgaBoardAwaXe.xdc`, or `RowFpgaBoard.xdc`).
+Coordinator targets also explicitly load `WarmTdmCore_1g.xdc` or
+`WarmTdmCore_10g.xdc` after the common XDC, matching `ETH_10G_G`.
+Non-coordinator targets load neither Ethernet XDC. Keep each target's
+constraint selection consistent with `RING_ADDR_0_G` and `ETH_10G_G` when
+changing its generics. All constraint files remain managed XDC without Tcl
+control flow.
 The common `ruckus.tcl` must keep `loadConstraints -dir .../xdc` disabled:
 loading the directory would combine incompatible board pinouts. Common RTL and
 simulation directories can be loaded as VHDL 2008.
@@ -74,7 +80,9 @@ timing closure. Current candidate build/resource obligations are on
 ## Legacy targets
 
 `legacy/` retains `ColumnModule`, `ColumnModule0`, `RowModule`, `RowModule0`, and
-`RowModuleC00` for reference and legacy simulations. They are excluded from the
-active aggregate/release catalog and may retain local sibling-source
-dependencies. Keeping those sources does not imply current hardware or Python
-support.
+`RowModuleC00` for historical reference. They are excluded from the active
+aggregate/release catalog. The original WarmTdmCore/WarmTdmCommon implementations
+were removed; these names now identify the former `*2` implementations used
+by active boards. The archived RowModule sources and RowTb/StackTb simulations
+depend on the original interfaces and require a historical checkout. They are
+not supported build or simulation targets for the current common library.

@@ -63,7 +63,7 @@ class IntegerFluxQuantumTests(unittest.TestCase):
 
 class BatchHelpersTests(unittest.TestCase):
     def test_all_fast_dacs_stages_all_channels_before_flushing_each_driver(self):
-        for variant in ['ColumnModule', 'ColumnFpgaBoard', 'ColumnAwaXeFpgaBoard']:
+        for variant in ['ColumnFpgaBoard', 'ColumnAwaXeFpgaBoard']:
             with self.subTest(variant=variant):
                 events = []
                 dev = SimpleNamespace(root=SimpleNamespace(updateGroup=lambda: nullcontext()))
@@ -113,7 +113,7 @@ class PromLoaderTests(unittest.TestCase):
         self.root = MagicMock()
         self.root.__enter__.return_value = self.root
         self.root.Group.HardwareGroup.ColumnBoard = {0: SimpleNamespace(WarmTdmCore=
-            SimpleNamespace(WarmTdmCommon2=SimpleNamespace(AxiVersion=self.avs[0])))}
+            SimpleNamespace(WarmTdmCommon=SimpleNamespace(AxiVersion=self.avs[0])))}
         self.root.find.side_effect = lambda name: self.avs if name=='AxiVersion' else self.proms
         self.factory = Mock(return_value=self.root)
         self.api = SimpleNamespace(WarmTdmArgparse=argparse.ArgumentParser, arg_dict=lambda a: {}, GroupRoot=self.factory)

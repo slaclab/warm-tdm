@@ -99,7 +99,7 @@ Platform-specific files use suffixes: `*7s.vhd` (7-Series), `*Usp.vhd` (UltraSca
 
 | Entity | Path (under `firmware/common/warm_tdm/rtl/`) | Role |
 |--------|----------------------------------------------|------|
-| WarmTdmCore2 | `WarmTdmCore2.vhd` | Top integration: timing + comms + AXI crossbar + app |
+| WarmTdmCore | `WarmTdmCore.vhd` | Top integration: timing + comms + AXI crossbar + app |
 | DataPath | `DataPath.vhd` | ADC interface + DSP pipeline instantiation |
 | AdcDsp | `AdcDsp.vhd` | Per-column PID loop, baseline tracking, flux-jump |
 | Timing | `Timing.vhd` | Top timing module (instantiates Tx + Rx) |
@@ -182,7 +182,7 @@ source -quiet $::env(RUCKUS_DIR)/vivado_proc.tcl
 loadRuckusTcl $::env(TOP_DIR)/submodules/surf
 loadRuckusTcl $::env(TOP_DIR)/common/warm_tdm
 loadSource -lib warm_tdm -dir "$::DIR_PATH/rtl" -fileType "VHDL 2008"
-loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore2.xdc
+loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore.xdc
 loadConstraints -dir "$::DIR_PATH/xdc"
 # Feature generics set via:
 set_property generic "RING_ADDR_0_G=true ETH_10G_G=true" [current_fileset]
@@ -318,10 +318,10 @@ perform that migration.
 | Row board firmware | `RowDacDriver2.vhd`, `RowModuleDacs.vhd`, `RowModuleTimingRx.vhd` |
 | Clock distribution | `ClockDist.vhd`, `ClockDist7s.vhd`, `ClockDistUsp.vhd`, `TimingMmcm.vhd` |
 | Adding a new target | Copy existing target dir; modify `Makefile` (PRJ_PART, target) and `ruckus.tcl` (generics, constraints) |
-| PyRogue drivers | `_WarmTdmCore2.py`, `_AdcDsp.py`, `_HardwareGroup.py`, `_TimingTx.py`, `_TimingRx.py` |
+| PyRogue drivers | `_WarmTdmCore.py`, `_AdcDsp.py`, `_HardwareGroup.py`, `_TimingTx.py`, `_TimingRx.py` |
 | Tuning algorithms | `software/python/warm_tdm_api/_SaTune.py`, `_Sq1Tune.py`, `_FasTune.py` |
-| Simulation | `firmware/simulations/StackTb/` (full system), `firmware/common/warm_tdm/sim/` (device models) |
-| Constraints / timing closure | `common/warm_tdm/xdc/WarmTdmCore2.xdc` (shared), target-specific `xdc/` dirs |
+| Simulation | `firmware/simulations/GroupTb/` (current boards), `firmware/common/warm_tdm/sim/` (device models); RowTb/StackTb require historical legacy sources |
+| Constraints / timing closure | `common/warm_tdm/xdc/WarmTdmCore.xdc` (shared), target-specific `xdc/` dirs |
 
 ## Task Plans
 

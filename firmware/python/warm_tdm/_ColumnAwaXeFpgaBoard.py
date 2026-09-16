@@ -20,7 +20,7 @@ class ColumnAwaXeFpgaBoard(pr.Device):
         self.add(frontEndClass(
             name='AnalogFrontEnd'))
  
-        self.add(warm_tdm.WarmTdmCore2(
+        self.add(warm_tdm.WarmTdmCore(
             name = 'WarmTdmCore',
             offset = 0x00000000,
             expand = True,

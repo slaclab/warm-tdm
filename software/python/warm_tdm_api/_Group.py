@@ -659,7 +659,7 @@ class Group(pr.Device):
         # Synchronized => PwrSyncA/B/C = OSC (2), PwrSyncEn = 1; unsynchronized =>
         # all LOW (0), PwrSyncEn = 0. get() reports True only if all four are in
         # the synchronized state on the representative board. A TimingTx node
-        # exists on every board (added unconditionally in WarmTdmCore2).
+        # exists on every board (added unconditionally in WarmTdmCore).
         #
         # This one drives FOUR heterogeneous fields per board (three enums + a
         # bool) with an AND-reduce on get, so it stays a custom LinkVariable --

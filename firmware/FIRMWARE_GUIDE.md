@@ -58,7 +58,7 @@ Serialization uses SURF's `assignSlv`/`assignRecord` helpers for bit-packing.
 
 ## AXI-Lite Address Map
 
-`WarmTdmCore2` uses a 4-port crossbar defined via `AxiLiteCrossbarMasterConfigArray`:
+`WarmTdmCore` uses a 4-port crossbar defined via `AxiLiteCrossbarMasterConfigArray`:
 
 | Index | Constant | Base Address | Size | Content |
 |-------|----------|-------------|------|---------|
@@ -111,16 +111,16 @@ build guidance.
 
 | File | Location | Content |
 |------|----------|---------|
-| `WarmTdmCore2.xdc` | `common/warm_tdm/xdc/` | Cross-domain false paths, async clock groups |
-| `WarmTdmCore2_7s.xdc` | `common/warm_tdm/xdc/` | 7-Series MMCM-derived clock definitions |
-| `WarmTdmCore2_usp.xdc` | `common/warm_tdm/xdc/` | UltraScale+ clock definitions |
-| `WarmTdmCore2_1g.xdc` | `common/warm_tdm/xdc/` | 1G Ethernet clock groups |
-| `WarmTdmCore2_10g.xdc` | `common/warm_tdm/xdc/` | 10G Ethernet clock groups |
+| `WarmTdmCore.xdc` | `common/warm_tdm/xdc/` | Cross-domain false paths, async clock groups |
+| `WarmTdmCore_1g.xdc` | `common/warm_tdm/xdc/` | 1G Ethernet clock groups |
+| `WarmTdmCore_10g.xdc` | `common/warm_tdm/xdc/` | 10G Ethernet clock groups |
 | `ColumnFpgaBoard.xdc`, `ColumnFpgaBoardAwaXe.xdc`, `RowFpgaBoard.xdc` | `common/warm_tdm/xdc/` | Board pin assignments and I/O standards |
 
 Each active target's `ruckus.tcl` explicitly loads its board pinout and
-`WarmTdmCore2.xdc`. Keep common XDC directory auto-loading disabled so a build
-does not combine incompatible pinouts.
+`WarmTdmCore.xdc`. Coordinator targets additionally load `WarmTdmCore_1g.xdc`
+or `WarmTdmCore_10g.xdc`, matching `ETH_10G_G`; non-coordinators load neither.
+Keep common XDC directory auto-loading disabled so a build does not combine
+incompatible pinouts or Ethernet constraints.
 
 ## Simulation
 
@@ -128,14 +128,14 @@ Three testbenches in `firmware/simulations/`:
 
 | Testbench | Scope | Description |
 |-----------|-------|-------------|
-| `StackTb` | Full system | Multiple Row + Column boards, timing, PGP ring |
+| `StackTb` | Historical | Legacy module stack; requires a historical checkout |
 | `GroupTb` | Group level | Board group with device models |
-| `RowTb` | Row module | Isolated row board testing |
+| `RowTb` | Historical | Legacy row module; requires a historical checkout |
 
 ### Running Simulation
 
 ```bash
-cd firmware/simulations/StackTb && make vcs
+cd firmware/simulations/GroupTb && make vcs
 ```
 
 Device models in `common/warm_tdm/sim/` provide behavioral representations of external ICs (AD5263, AD5679R, AD9106, AD9767) and board assemblies (ColumnFpgaBoardModel, RowFpgaBoardModel, Squid models).

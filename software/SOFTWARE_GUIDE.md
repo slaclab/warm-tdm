@@ -64,6 +64,12 @@ pyrogue.addLibraryPath(f'../../firmware/submodules/surf/python')
 
 ## Device Tree Hierarchy
 
+The maintained drivers are `warm_tdm.WarmTdmCore` and
+`warm_tdm.WarmTdmCommon` (formerly the `*2` classes). The common-register
+subtree is now `WarmTdmCore.WarmTdmCommon`. Update older scripts and saved
+YAML configuration keys from `WarmTdmCommon2` to `WarmTdmCommon`; the register
+addresses are unchanged. The original legacy implementations have been removed.
+
 ```
 GroupRoot (pyrogue.Root)
 └── Group (pr.Device)
@@ -71,13 +77,13 @@ GroupRoot (pyrogue.Root)
     │   ├── SrpRssi (UdpRssiPack, port 8192)
     │   ├── DataRssi (UdpRssiPack, port 8193)
     │   ├── ColumnBoard[0..N] (warm_tdm.ColumnFpgaBoard or variant)
-    │   │   ├── WarmTdmCore2 registers
+    │   │   ├── WarmTdmCore registers
     │   │   ├── DataPath
     │   │   ├── AdcDsp[0..7]
     │   │   ├── FastDacDriver
     │   │   └── Amplifiers, TesBias, etc.
     │   └── RowBoard[0..N] (warm_tdm.RowFpgaBoard or variant)
-    │       ├── WarmTdmCore2 registers
+    │       ├── WarmTdmCore registers
     │       ├── TimingTx (coordinator only)
     │       ├── RowDacDriver2
     │       └── RowModuleDacs

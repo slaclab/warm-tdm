@@ -63,14 +63,14 @@ Worktree/branch: `/sdf/group/faders/users/bareese/projects/warm-tdm-channelizati
 Merge current `cleanup` into `channelization` (merge, not rebase). `merge-base` `f0af673`;
 cleanup +42, channelization +19. Only **7 files** conflict: `AGENTS.md`,
 `firmware/python/warm_tdm/_HardwareGroup.py`, RTL `ColumnFpgaBoard.vhd`,
-`ColumnFpgaBoardAwaXe.vhd`, `AdcDsp.vhd`, `DataPath.vhd`, `WarmTdmCore2.vhd`. Format infra
+`ColumnFpgaBoardAwaXe.vhd`, `AdcDsp.vhd`, `DataPath.vhd`, `WarmTdmCore.vhd`. Format infra
 (`_DataFormats.py`, `streamreader.py`, `AdcDspFp.vhd`) is not in the conflict set.
 
 1. Backup branch `channelization-backup-presync-<date>`.
 2. `git merge cleanup`; reuse earlier resolutions: ColumnFpgaBoard generics = cleanup's
    superset; **AdcDsp.vhd must keep both** channelization's header emission
    (`emitFrameHeaderWord0/1`, `FRAME_FORMAT_PID_FIXED_C`) **and** cleanup's `6aec8a2` fix;
-   DataPath/WarmTdmCore2/AwaXe = union. Reconcile submodule pointers to newer.
+   DataPath/WarmTdmCore/AwaXe = union. Reconcile submodule pointers to newer.
 3. Verify: no markers; `surf.*` entities resolve; crossbar indices in range;
    `python -c "import warm_tdm, warm_tdm_api"` OK.
 

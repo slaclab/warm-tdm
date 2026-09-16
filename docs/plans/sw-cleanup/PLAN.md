@@ -2,6 +2,11 @@
 
 > Historical cleanup plan. Separate already-integrated #67/#78 work from legacy-driver removal carried by #106; see [resource integration](../resource-integration/README.md). Live acceptance is on #68/#70, not the old phase checklist below.
 
+The old deletion list below refers to the original legacy implementations.
+The maintained core/common drivers now use `_WarmTdmCore.py` and
+`_WarmTdmCommon.py` after dropping their `2` suffix; those current files are
+not legacy-removal candidates. See the [naming handoff](../coordinator-ethernet/README.md#corecommon-naming-cleanup).
+
 
 ## Scope
 

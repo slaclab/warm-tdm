@@ -288,7 +288,7 @@ architecture rtl of ColumnFpgaBoard is
    signal axilClk : sl;
    signal axilRst : sl;
 
-   signal config : WarmTdmConfigType;  -- config/identity bus: WarmTdmCore2 -> DataPath
+   signal config : WarmTdmConfigType;  -- config/identity bus: WarmTdmCore -> DataPath
 
    signal srpAxilWriteMaster : AxiLiteWriteMasterType;
    signal srpAxilWriteSlave  : AxiLiteWriteSlaveType;
@@ -342,7 +342,7 @@ begin
    -- Shared logic
    -- PGP, Ethernet, Timing, AxiVersion, Etc
    -------------------------------------------------------------------------------------------------
-   U_WarmTdmCore_1 : entity warm_tdm.WarmTdmCore2
+   U_WarmTdmCore_1 : entity warm_tdm.WarmTdmCore
       generic map (
          TPD_G                   => TPD_G,
          SIMULATION_G            => SIMULATION_G,

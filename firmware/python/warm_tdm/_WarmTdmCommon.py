@@ -10,7 +10,7 @@ import surf.devices.transceivers
 
 import warm_tdm
 
-class WarmTdmCommon2(pr.Device):
+class WarmTdmCommon(pr.Device):
     def __init__(self, local_therm_channels, fe_therm_channels, **kwargs):
         super().__init__(**kwargs)
 

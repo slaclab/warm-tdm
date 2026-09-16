@@ -107,7 +107,7 @@ with warm_tdm_api.GroupRoot(**arg_dict) as root:
     if args.reload_only:
         sel = input("Select which board's FPGA to reload [index or 'all']: ").strip()
         if sel == 'all':
-            coordinator = root.Group.HardwareGroup.ColumnBoard[0].WarmTdmCore.WarmTdmCommon2.AxiVersion
+            coordinator = root.Group.HardwareGroup.ColumnBoard[0].WarmTdmCore.WarmTdmCommon.AxiVersion
             if sum(av.path == coordinator.path for av in avs) != 1:
                 raise RuntimeError("Cannot identify the coordinator in the reload targets")
             # Reload downstream boards first; the coordinator owns the host link.

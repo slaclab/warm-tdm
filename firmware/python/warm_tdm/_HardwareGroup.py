@@ -130,6 +130,9 @@ class HardwareGroup(pyrogue.Device):
                 rows=rows,
                 useFloatPid=useFloatPid))
 
+            # Only ring address zero instantiates the Ethernet register block.
+            self.ColumnBoard[index].WarmTdmCore.ComCore.EthCore.enable.set(index == 0)
+
             pidDebug = [warm_tdm.PidDebugger(name=f'PidDebug[{i}]', hidden=False, numRows=rows, col=i, frontEnd=self.ColumnBoard[index].AnalogFrontEnd) for i in range(8)]
             pidDebugFilters = [warm_tdm.PidDebugFilter(column=i) for i in range(8)]
             saAmps = [self.ColumnBoard[index].AnalogFrontEnd.Channel[x].SAAmp for x in range(8)]
@@ -212,6 +215,8 @@ class HardwareGroup(pyrogue.Device):
                 memBase=srp,
                 expand=True,
                 enabled=True))
+
+            self.RowBoard[rowIndex].WarmTdmCore.ComCore.EthCore.enable.set(boardIndex == 0)
 
         def rro_get(read):
             length = self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.NumReadoutRows.get(read=read)
