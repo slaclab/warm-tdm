@@ -33,6 +33,12 @@
   hardware coefficient (raw P=−0.0006) all 8 rows converge-and-hold (`FluxJumps=0`)
   — the first clean lock. The prior "flat / diverging" gains were a wrong-sign
   artifact (positive *normalized* P → wrong raw sign). See the 2026-09-16 section.
+- **Layer 2 step-response (centerpiece) DONE (integer path).** Per-visit PID-debug
+  capture shows a +60 µA `TesBias` step → `accumError` −18620 → one-visit recovery
+  to the deadband, `FluxJumps=0`. En route, fixed a **third bug** (`50f96cb`): the
+  PID-debug frame decoders still assumed the pre-split 80-byte body, so every
+  integer PID-debug frame failed to decode (broke the documented cosim PID capture).
+  Float-path step-response still owed.
 - **Cosim infra (Layer 2) — UP.** Integer-path `GroupTb` + `warmTdmServer --sim`
   + VirtualClient/`ops.Session` client connect and drive registers end-to-end
   (Vivado 2025.1 + VCS X-2025.06). Both PID datapaths elaborate via
@@ -205,11 +211,38 @@ Integer no-variation build (fixed RTL) is up: `./simv` (bridges 10000/11000/2000
 --maxRows 32` (Rogue 9099). Fixture seeded via `SetCosimTunePoints`. Tear down with
 the usual kill (server → simv) if not continuing.
 
+### Layer 2 step-response (centerpiece) — DONE for the integer path
+Captured a `TesBias` step-response at **per-visit resolution** via the PID-debug
+stream (`take_data` → `StreamData.pid[col][row]`), the PLAN's intended method.
+With the tuned gains (raw P=−0.0006, I=−2e-5) locked, a +60 µA `TesBias` step on
+col 0:
+- `accumError` jumps to **−18620** on the first captured row-0 visit, then recovers
+  to **+60** (the deadband) on the **next** visit — near-deadbeat — as `sq1FbStart`
+  moves 8569→8580 (+11 codes); holds there. `numFluxJumps=0` (no relock). The step
+  is also bidirectionally stable (register-poll step-up + step-back stayed locked).
+- Register-polling can only confirm "stays locked" (the servo recovers within one
+  ~1 s poll); the per-visit debug stream is what resolves the excursion/recovery.
+
+**Third bug found + fixed en route (SW): PID-debug frame decode was broken on
+`channelization`.** The accumulator split removed the AdcDsp body "word 1"
+baseline word (baseline moved to AdcAccumulator), making the integer PID-debug
+body 72 B / 9 words, but the Python decoders still assumed 80 B / 10 words — so
+every 88-byte frame failed (`StreamData.pid` empty/raising; `PidDebugger` rejecting
+all frames on a 96-vs-88 size check). Fixed in `50f96cb`: `PID_DEBUG_TYPE` and
+`PID_DEBUG_FIELDS` (`_DataFormats.py`), the live `_PidDebugger.py` register-map
+offsets (shift accumError+ down one word), and a `streamreader.py` guard that skips
+boundary-fragment frames instead of aborting the file. Validated: decoded streams
+now show monotonic `readoutCount` and correct `numSamples`. This had broken the
+documented cosim PID capture (verify_cosim_readout PID checks) — undetected since
+the cosim scripts weren't re-run after the split/frame-header refactors.
+- Capture caveat: the per-visit debug stream is FIFO-throttled at the fast row
+  rate, so a `take_data` window yields a short contiguous burst (~9 sequences) — a
+  snapshot spanning the step, not every visit. Enough to see excursion→recovery.
+
 ### Owed next
-- **Layer 2 step-response (centerpiece) — now unblocked:** with the P-only lock
-  (raw P=−0.0006) holding on all 8 rows, apply a `TesBias` step and capture `sq1Fb`
-  recovering the error to the deadband; analyze via the tagged-header PID-debug
-  reader. Integer path first, then float (`USE_FLOAT_PID=1` rebuild).
+- **Float-path step-response:** rebuild `USE_FLOAT_PID=1` and repeat the lock +
+  step-response (the FP PID-debug body is a separate 40-byte layout — verify its
+  decoder likewise matches the RTL before relying on captures).
 - **(Optional) shrink the P-only residual deadband** — reviewer experiment #5
   (measure per-row plant slope g, pick P from `z≈1+gP`), rather than a bolt-on I
   (which drifted in the quick test). Not blocking the step-response.
