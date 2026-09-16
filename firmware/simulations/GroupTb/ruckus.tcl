@@ -38,3 +38,13 @@ if { [info exists ::env(USE_FLOAT_PID)] } {
 }
 set_property generic "[get_property generic [get_filesets {sim_1}]] USE_FLOAT_PID_G=$useFloatPid" [get_filesets {sim_1}]
 puts "GroupTb: USE_FLOAT_PID_G=$useFloatPid"
+
+# Per-device wafer variation seed. Defaults to the entity default (nonzero, so
+# channels differ). Set VARIATION_SEED in the environment to override -- notably
+# VARIATION_SEED=0 makes every device identical, which matches the single
+# no-variation cosim tune point (SetCosimTunePoints) so the servo can lock.
+if { [info exists ::env(VARIATION_SEED)] } {
+   set variationSeed $::env(VARIATION_SEED)
+   set_property generic "[get_property generic [get_filesets {sim_1}]] VARIATION_SEED_G=$variationSeed" [get_filesets {sim_1}]
+   puts "GroupTb: VARIATION_SEED_G=$variationSeed"
+}

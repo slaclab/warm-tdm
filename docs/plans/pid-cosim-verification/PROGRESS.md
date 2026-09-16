@@ -1,5 +1,84 @@
 # PID cosim verification — Progress
 
+## 2026-09-15 (latest) — Layer 1 integer re-qual COMPLETE; real bug found + fixed
+
+### Done — whole-path bit-exact re-qualification (integer path)
+Built the two-bench model-free re-qualification and it did its job — proved the
+accumulation move bit-exact AND caught a real per-row PID-state bug.
+- **Capture bench** (`test_AdcDsp_bitexact_capture.py`, commit `d45303f`): drives
+  the pre-split `AdcDsp` snapshot (`golden_refs/presplit_rtl/`, commit `5645f7e`)
+  with a scripted raw-ADC + timing stimulus; records its mAxil SQ1-FB-DAC writes
+  as the golden (`presplit_dac_writes.json`, 9 writes / 3 rows × 3 visits).
+- **Compare bench** (`test_AdcDsp_bitexact_compare.py`, commit `bf4d5d9`): replays
+  the identical stimulus into the current `AdcAccumulator`+`AdcDsp`
+  (`AdcDspAccumCompareWrapper`) and asserts the mAxil writes match bit-for-bit.
+- Shared driver `_pid_bitexact.py`: one deterministic stimulus (single source of
+  truth) + mAxil write monitor + dormant `read_state()`/`collect_diag` diagnostic
+  hook (per-visit PID-state register dump) for future divergence localization.
+- Sim enablers: `AdcAccumulator` gained `SIMULATION_G` (commit `9788c6f`, default
+  false) to infer its baseline RAM under GHDL, mirroring `AdcDsp`.
+
+### Bug found + fixed (commit `eb14424`)
+`accumError` matched every visit (accumulation move IS bit-exact), but the
+current integer `AdcDsp` read STALE per-row state: `lastAccumError`/`sumAccum`
+came from the previous *visit* (any row), not the current row — cross-
+contaminating the I-term integrator and D-term. Root cause: post-split, `AdcDsp`
+learns the row only at `accumValid` (`accumIn.logicalRow`), then reads its
+`READ_LATENCY_G=3` per-row state RAMs at `PREP_PID_S` only ~2 cycles later —
+insufficient setup. Fix: drive `pidStateRamAddr` from `accumIn.logicalRow` at
+`accumValid` + add a `PREP_WAIT_S` hold state (mirrors how `AdcDspFp` already
+gates its RAM read on `WAIT_INT2FP_S waitCount=3`). Compare now passes 9/9;
+property bench still green. Latent because the cosim defaulted to the float path.
+
+### Integer fix validated through full-system elaboration
+`USE_FLOAT_PID=0 make vcs` + `sim_vcs_mx.sh` on `GroupTb` WITH the `eb14424` fix
+builds/elaborates clean under VCS + Vivado 2025.1 ("Ready to simulate", exit 0).
+So the fix is sound at unit-bit-exact AND full-system-elaboration levels.
+
+### BLOCKER: FP `AdcDspFp` cocotb bench under VCS is not runnable as documented
+`test_AdcDspFp.py` (`WARM_TDM_SIM=vcs`) cannot run with the installed
+`cocotb_test` 2.0.1: its `Vcs` backend compiles only `verilog_sources` (no
+`vhdlan`/VHDL step) and additionally builds a command list containing a
+`PosixPath` (`cocotb_config.lib_name_path`) that `" ".join(cmd)` rejects
+(simulator.py:295). There is no `vcs_mx`/`xsim` backend. So the handoff doc's
+"AdcDspFp under VCS via WARM_TDM_SIM=vcs" recipe is not achievable without harness
+work (switch to `cocotb_tools.runner`, or add a VCS-MX backend). The FP path is
+still validatable under VCS via the GroupTb cosim (Vivado export -> VCS-MX, which
+handles VHDL and already elaborates the float path).
+
+### Layer 2 cosim: infra UP, integer fix validated through connectivity
+Brought up the full integer-path cosim (Vivado 2025.1 + VCS): `./simv` free-runs
+with TCP bridges on 10000/11000/20000/21000; `warmTdmServer --sim
+--columnBoards 1 --rowBoards 1 --rowAddrBits 5 --maxRows 32` serves Rogue on 9099;
+a `VirtualClient` + `ops.Session` client connected, saw 1 column + 1 row board,
+and read live registers over the sim link — i.e. the integer RTL WITH the
+`eb14424` fix is driveable end-to-end in cosim.
+
+### BLOCKER: operations `Session` (setup_mux/tuning/acquisition) broken over VirtualClient
+`sess.setup_mux(...)` raises `AttributeError: GroupRoot.Group has no attribute
+colEnableBools`. Root cause: the operations refactor (commit `263296e`, "mask-
+based enabled-set interface") made `setup_mux` (and the tuning/acquisition paths)
+depend on real `Group`-DEVICE Python members — the `colEnableBools` `@property`,
+`self.config` (a plain attr set at device construction, incl. `numColumns`),
+`_numCols`, `PidX_Gain` — none of which `VirtualClient`'s `VirtualGroup` mirrors
+(it only exposes the Rogue node tree). So `ops.Session(client.root.Group)` cannot
+run setup_mux/tuning over VirtualClient, which also breaks the documented cosim
+verify scripts (`verify_cosim_readout.py`, `verify_cosim_tuning.py`, …) that
+construct the Session exactly that way. Likely undetected because cosim wasn't
+re-run against these scripts since `263296e`.
+
+Options to unblock the PID lock smoke: (a) make the operations Session work over
+VirtualClient (client-side adapter supplying config/colEnableBools/_numCols from
+the Rogue nodes, or refactor setup_mux to use only Rogue nodes) — the right fix,
+benefits all cosim scripts; (b) hand-roll the muxed-PID config via raw registers
+(large, must also establish a lockable operating point); (c) defer.
+
+### Still owed
+- Layer 2: closed-loop cosim step-response, integer + float (blocked above).
+- Layer 1 FP unit bench: needs harness rework to run under VCS-MX (or run under
+  Questa/Xcelium if ever available), or fold FP coverage into the cosim.
+- Layer 3: Vivado 2024.1 synth of the fixed RTL (timing/util; FP IP under 2024.1).
+
 ## 2026-09-15 (later) — GroupTb PID-path parameterized; both paths elaborate (Layer 2 gate)
 
 ### Done
