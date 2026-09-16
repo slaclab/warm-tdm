@@ -25,10 +25,14 @@
      full 32-bit sum because the FP DSP needs it.
   Bench extended (per-visit DAC + overflow vectors); demonstrated fail on unfixed
   RTL → pass after fix. Compare passes 11/11, property bench green.
-  **These two are the leading explanation for the non-independent-row lock
-  failures below** — feedback coupling directly produces correlated per-row error
-  and initial-condition sensitivity. Not yet re-confirmed in cosim (sim rebuild
-  owed).
+  **These two were the leading explanation for the non-independent-row lock
+  failures** — feedback coupling directly produces correlated per-row error and
+  initial-condition sensitivity — and cosim confirmed it (below).
+- **Closed-loop lock CONFIRMED in cosim (rebuilt with the fixed RTL).** Row
+  symmetry restored (all 8 rows identical at P=0), and with the correct-sign
+  hardware coefficient (raw P=−0.0006) all 8 rows converge-and-hold (`FluxJumps=0`)
+  — the first clean lock. The prior "flat / diverging" gains were a wrong-sign
+  artifact (positive *normalized* P → wrong raw sign). See the 2026-09-16 section.
 - **Cosim infra (Layer 2) — UP.** Integer-path `GroupTb` + `warmTdmServer --sim`
   + VirtualClient/`ops.Session` client connect and drive registers end-to-end
   (Vivado 2025.1 + VCS X-2025.06). Both PID datapaths elaborate via
@@ -165,12 +169,29 @@ re-ran `SetCosimTunePoints` + a PID-enabled run, polling per-row `AccumError`
   rows 0–3 distinct, 4–7 sharing a stale value) is **gone**: it was the
   feedback-capture coupling, now fixed. This is the system-level confirmation of
   finding 1.
-- **The lock must be re-tuned against the corrected plant.** The prior "partial
-  lock at P=+0.05" was tuned against the *buggy* (predecessor-feedback) loop and no
-  longer applies: post-fix, P=+0.05 diverges (mae 5k→40k) while ±0.01/±0.02 sit
-  flat at ~8820 (7.0 µA is not the null point). Choosing P now needs the reviewer's
-  disciplined path (experiment #5): measure each row's local plant gain, then pick
-  a conservative P — not guess-and-check.
+- **CLEAN CLOSED-LOOP LOCK ACHIEVED (P-only, correct sign).** The blocker was the
+  gain SIGN, not the plant. `set_pid` writes *normalized* gains (raw = norm/N); the
+  earlier sweeps used *positive* normalized P, i.e. the wrong raw sign (hence
+  +0.05 diverging = positive feedback, and small values crawling so slowly they
+  read "flat"). The hardware coefficient is **raw P = −0.0006** (norm −0.012 at
+  N=20; confirmed `P_CoefRaw = −0.0006`). With it, a single row's trajectory
+  converges and holds: `AccumError 1720→800`, `Sq1Fb 7.00→6.73 µA` (feedback
+  moves — not stationary), then steady. **All 8 rows lock** (AccumError ~840–1560,
+  distinct feedbacks, `FluxJumps=0`) — no shared-stale-value pathology. This is the
+  first clean converge-and-hold; prior sessions were defeated by the coupling bug +
+  wrong sign + contaminated sequential (no re-null) runs.
+- **Residual ~800–1500 counts is a P-only actuator deadband** (the reviewer's
+  prediction): correction ≈ 0.5/|P_raw| counts rounds below one DAC code near null.
+- **PI GAINS TUNED — the I term works (first time).** With a clean per-point
+  protocol (clear PID state + re-seed Sq1Fb=7 + null-once; **raw** coefficients),
+  swept P then I. P-only: residual ≈ 0.5/|P_raw|, all P stable (no oscillation up to
+  raw −0.0024). Adding a small I closes the deadband: at raw P=−0.0006,
+  **I=−2e-5 (raw)** converges cleanly and monotonically to ~120 counts (~0.7 mV),
+  no limit cycle, SumAccum bounded, FluxJumps=0; I=−3e-5 begins a quantization
+  limit-cycle. **Recommended raw P=−0.0006, I=−2e-5, D=0.** The prior "I never
+  works" was windup from un-cleared state + wrong sign — the earlier quick-I test
+  that "drifted" reused carried-over integrator state between phases. Full table in
+  `cosim-tuning-settings.md`.
 - **Measurement gotchas found (for a reproducible harness — experiment #3):**
   writing the per-row `Sq1FbCurrent` RAM *while running* races the sequencer and
   fails verify ("override is a stopped-state operation"); set it STOPPED, then run.
@@ -184,11 +205,16 @@ Integer no-variation build (fixed RTL) is up: `./simv` (bridges 10000/11000/2000
 --maxRows 32` (Rogue 9099). Fixture seeded via `SetCosimTunePoints`. Tear down with
 the usual kill (server → simv) if not continuing.
 
-### Owed next (unchanged priority, unblocked at the unit level)
-- **Closed-loop lock re-tune against the corrected plant** — reproducible fixture +
-  fixed-visit capture, measure per-row plant gain, choose P (sign/magnitude),
-  confirm the operating point (user's physical intuition welcome). Then the
-  Layer 2 step-response centerpiece; then Layer 3 synthesis.
+### Owed next
+- **Layer 2 step-response (centerpiece) — now unblocked:** with the P-only lock
+  (raw P=−0.0006) holding on all 8 rows, apply a `TesBias` step and capture `sq1Fb`
+  recovering the error to the deadband; analyze via the tagged-header PID-debug
+  reader. Integer path first, then float (`USE_FLOAT_PID=1` rebuild).
+- **(Optional) shrink the P-only residual deadband** — reviewer experiment #5
+  (measure per-row plant slope g, pick P from `z≈1+gP`), rather than a bolt-on I
+  (which drifted in the quick test). Not blocking the step-response.
+- **Layer 3 synthesis** (Vivado 2024.1) of the fixed RTL; confirm FP IP synthesizes.
+- Software follow-ons from REVIEW.md (unchanged list above).
 - Software follow-ons from REVIEW.md still owed (see PLAN out-of-scope list):
   `Session.set_pid` PidD_Gain requirement for FP; FP `Sq1FbFull` not seeded from
   `accumIn.sq1FbDac`; `SetCosimTunePoints` stale fixture (FAS 163 µA on a 300 µA
