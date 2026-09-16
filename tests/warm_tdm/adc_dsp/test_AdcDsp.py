@@ -95,7 +95,15 @@ REG_D_COEF = 0x000C
 REG_ACCUM_ERROR = 0x0010
 REG_LAST_ACCUM_ERROR = 0x0014
 REG_SUM_ACCUM = 0x0018
+REG_PID_RESULT = 0x0020
+REG_SQ1FB = 0x0028          # r.sq1Fb, sfixed(13 downto 0) 2's-complement DAC code
 REG_CLEAR_PID_STATE = 0x0030
+REG_FLUX_QUANTUM = 0x0040   # v.fluxQuantum, slv(13 downto 0)
+REG_NUM_FLUX_JUMPS = 0x0044  # r.numFluxJumps, slv(8 downto 0) signed
+
+# The RTL wraps the feedback and (de)counts a flux jump once |sq1Fb| exceeds this
+# fixed threshold (AdcDsp.vhd FLUX_JUMP_S: sq1Fb > 7862 / < -7862).
+FLUX_JUMP_THRESHOLD = 7862
 
 FLL_ENABLE_MASK = 0x00000001
 # `sfixed(0 downto -23)` cannot represent +1.0; the top bit is the sign bit.
@@ -127,6 +135,14 @@ TIMING_FIELD_LAYOUT = {
 
 def _mask(width: int) -> int:
     return (1 << width) - 1
+
+
+def _signed(value: int, bits: int) -> int:
+    """Interpret the low `bits` of `value` as a two's-complement integer."""
+    value &= _mask(bits)
+    if value & (1 << (bits - 1)):
+        value -= (1 << bits)
+    return value
 
 
 def _pack_timing(**fields: int) -> int:
@@ -344,6 +360,79 @@ async def anti_windup_holds_integrator_at_positive_rail(dut):
     sum_accum_saturated = await axil_read_u32(bench.axil, REG_SUM_ACCUM)
 
     assert sum_accum_saturated == 0
+
+
+@cocotb.test()
+async def flux_jump_positive_rail_wraps_and_counts(dut):
+    # A P-only update that drives sq1Fb past +7862 must subtract one FluxQuantum
+    # from the written feedback and increment numFluxJumps by one.
+    bench = await setup_bench(dut)
+    flux_quantum = 500
+
+    await axil_write_u32(bench.axil, REG_I_COEF, 0)
+    await axil_write_u32(bench.axil, REG_FLUX_QUANTUM, flux_quantum)
+    await axil_write_u32(bench.axil, REG_P_COEF, UNIT_COEF)   # P ~= 1.0
+    await axil_write_u32(bench.axil, REG_CONTROL, FLL_ENABLE_MASK)
+    await bench.wait_for_pid_clear()
+
+    # Seed feedback just below the rail; P*error pushes sq1Fb over +7862.
+    seed = FLUX_JUMP_THRESHOLD - 2   # 7860
+    error = 50
+    await bench.drive_accum(error=error, sq1fb_value=seed)
+
+    num_jumps = _signed(await axil_read_u32(bench.axil, REG_NUM_FLUX_JUMPS), 9)
+    sq1fb = _signed(await axil_read_u32(bench.axil, REG_SQ1FB), 14)
+
+    assert num_jumps == 1, f"expected one flux jump, got {num_jumps}"
+    # Unwrapped command ~= seed + P*error; the write is that minus one quantum.
+    assert sq1fb == seed + error - flux_quantum, (
+        f"expected wrapped sq1Fb {seed + error - flux_quantum}, got {sq1fb}")
+
+
+@cocotb.test()
+async def flux_jump_negative_rail_wraps_and_counts(dut):
+    # The mirror case: driving sq1Fb below -7862 adds a quantum and decrements
+    # numFluxJumps.
+    bench = await setup_bench(dut)
+    flux_quantum = 500
+
+    await axil_write_u32(bench.axil, REG_I_COEF, 0)
+    await axil_write_u32(bench.axil, REG_FLUX_QUANTUM, flux_quantum)
+    await axil_write_u32(bench.axil, REG_P_COEF, UNIT_COEF)
+    await axil_write_u32(bench.axil, REG_CONTROL, FLL_ENABLE_MASK)
+    await bench.wait_for_pid_clear()
+
+    seed = -(FLUX_JUMP_THRESHOLD - 2)  # -7860
+    error = -50
+    await bench.drive_accum(error=error, sq1fb_value=seed)
+
+    num_jumps = _signed(await axil_read_u32(bench.axil, REG_NUM_FLUX_JUMPS), 9)
+    sq1fb = _signed(await axil_read_u32(bench.axil, REG_SQ1FB), 14)
+
+    assert num_jumps == -1, f"expected one negative flux jump, got {num_jumps}"
+    assert sq1fb == seed + error + flux_quantum, (
+        f"expected wrapped sq1Fb {seed + error + flux_quantum}, got {sq1fb}")
+
+
+@cocotb.test()
+async def flux_jumps_accumulate_over_visits(dut):
+    # numFluxJumps is per-row state held in RAM, so repeated visits that each
+    # cross the rail accumulate the count (a monotonic feedback ramp on hardware).
+    bench = await setup_bench(dut)
+    flux_quantum = 500
+
+    await axil_write_u32(bench.axil, REG_I_COEF, 0)
+    await axil_write_u32(bench.axil, REG_FLUX_QUANTUM, flux_quantum)
+    await axil_write_u32(bench.axil, REG_P_COEF, UNIT_COEF)
+    await axil_write_u32(bench.axil, REG_CONTROL, FLL_ENABLE_MASK)
+    await bench.wait_for_pid_clear()
+
+    visits = 3
+    for _ in range(visits):
+        await bench.drive_accum(error=50, sq1fb_value=FLUX_JUMP_THRESHOLD - 2)
+
+    num_jumps = _signed(await axil_read_u32(bench.axil, REG_NUM_FLUX_JUMPS), 9)
+    assert num_jumps == visits, f"expected {visits} accumulated jumps, got {num_jumps}"
 
 
 @pytest.mark.parametrize("parameters", [pytest.param({}, id="adcdsp_cocotb_wrapper")])
