@@ -1,5 +1,93 @@
 # PID cosim verification — Progress
 
+## 2026-09-16 — integer flux-jump audit and corrections
+
+The [flux-jump review](FLUX_JUMP_REVIEW.md) verified that the full-precision
+wrap direction preserves `F + J*Q`, then reproduced and fixed four RTL/transport
+faults: masked visits writing the count without a DAC wrap, Q=0 consuming count
+range, debug/software losing the ninth count bit, and the 24-bit internal FIFO
+losing sign extension before BiquadFilter's Int32 converter. The negative
+readout counterexample was −21862 becoming +16755354. The internal integer
+stream now carries all 32 bits; the external readout layout is unchanged.
+
+The software quantum conversion now treats a flux period as a current
+difference using `abs(currentPerLsb())`. Previously an inverted-amplifier
+zero-current setting could encode signed −1 instead of disabling wraps.
+Negative, sub-resolution and overrange period requests are rejected.
+
+**User decision: keep the signed nine-bit net count (−256..255).** Beyond its
+endpoints the actuator can still wrap while the count saturates; the resulting
+loss of a quantum from readout history is explicitly documented and tested as
+an operating limit. Single-wrap slew/clipping and pre-wrap I anti-windup also
+remain unchanged. No new FSM cycles were added.
+
+Integer PID-debug is now **v3**, still 96 bytes: body word 7 preserves all nine
+count bits in a signed int32. V1/v2 files retain their original decoding, with
+their original eight-bit count limitation. FP/readout/waveform versions are
+unchanged. The full-feedback word remains at frame byte 64.
+
+Final GHDL 6.0.0/cocotb 2.0.1 run passed **all 40 RTL cases**, with no skips:
+eight new flux cases and nine retained-feedback cases in each of the 8-row/
+inverted and 256-row/normal configurations, five existing properties, and the
+11-write historical-stimulus comparison. All six pytest configurations passed.
+The **37 targeted Python tests** passed (29 format/receiver, six cosim checks,
+two quantum-conversion tests; 25 subtests). A broader helper-suite run hit one
+unrelated stale `ColumnModule` subtest referencing the removed
+`_ColumnModule.py`; it is recorded in the review rather than marked passed.
+
+Vivado 2024.1 synthesis/timing, full PyRogue tree construction, and physical
+closed-loop/flux-wrap performance remain unverified locally. The review gives
+the reproducible commands, failure evidence, operating constraints and follow-up
+checks. No frozen golden/reference RTL was changed.
+
+## 2026-09-16 — retained integer fractional feedback
+
+The `43a5bee` working tree now implements the
+[fractional-feedback design](INTEGER_FRACTIONAL_FEEDBACK.md): full-precision
+feedback per row, initialized from the captured DAC after a clear and retained
+for subsequent updates. The DAC output alone is quantized. A validity bit
+participates in the existing clear sweep; masked rows hold their state.
+The candidate paths need one saved-feedback-plus-correction addition.
+There are no additional FSM states or changes to the diagnostic PidResults
+meaning. Existing register addresses are preserved. `sq1FbFull` now holds the
+retained full-precision value, replacing its unused integer-only accumulation.
+AdcDspFp is unchanged. The simplified feedback path updates `sq1FbFull`, applies
+one flux shift, clamps it, and converts once to the integer `sq1Fb`. The
+`sq1FbCommand` and `sq1FbWrapped` temporaries and parallel integer wrap were
+removed. Flux thresholds now inspect the full-precision value; wrapping precedes
+DAC clipping and rounding, including half-code ties. The 38-bit payload's guard
+bit permits a one-quantum recovery of overrange corrections before the clamp.
+
+The dedicated GHDL bench feeds actual DAC writes back into later row visits;
+its sequences and exact rational expectations cover retained fractions,
+rounding, independent rows, initialization/reseeding, lifecycle, wrapping,
+clipping and anti-windup. The frozen pre-split golden remains unchanged; the
+historical stimulus comparison has explicit new expectations for visits that
+now use saved feedback instead of reloading externally changed DAC values.
+The current regression includes nine feedback cases in each of two row-count/
+DAC-encoding configurations, five existing properties, and the 11-write
+historical-stimulus comparison. All 24 cases pass under GHDL 6.0.0 / cocotb
+2.0.1, including the AXI RAM/debug addition. The quarter-code case failed on the baseline;
+the retained-feedback expectation is two codes over eight visits, and 1/64-code
+corrections first move on visit 33. Width coverage includes one-wrap recovery
+of +/-8500.25 to +/-6500.25 and the fractional-bit-23 test.
+PidResults is retained for debugging, with possible later deletion/reuse
+recorded in the design note and beside its RAM instance.
+`sq1FbFull` now uses `surf.AxiDualPortRam` at `0x7000 + 8*row`, with a
+38-bit signed Q15.23 value and bit-38 validity. The Python driver exposes both
+fields and per-row status links. The fixed PID-debug v2 frame adds the
+post-wrap/clamp, pre-rounding `sq1FbFull` word (96 bytes total). Existing FSM
+cycles carry it; the live and file decoders retain compatibility with 88-byte
+v1 frames. Other stream formats remain v1. Host writes and both halves of AXI
+readback, validity/clear/mask behavior, and real debug FIFO output were checked
+at both row-count extremes. All 16 format/receiver tests and six existing
+cosim-check tests pass; full PyRogue tree construction and hardware were not
+available locally. See the design note for the reproducible commands and
+validation details.
+Vivado 2024.1 synthesis/timing and system performance are not established by
+these unit checks. In particular, the historical cosim lock/deadband results
+below predate fractional carry and must not be treated as its validation.
+
 > This effort has grown well beyond the original layered-verification plan. It
 > now spans (1) a real RTL bug fix in integer `AdcDsp`, (2) a model-free
 > bit-exact cocotb bench that caught it, (3) **two** operations-software

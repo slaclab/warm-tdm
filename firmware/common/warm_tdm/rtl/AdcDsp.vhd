@@ -67,7 +67,7 @@ end entity;
 
 architecture rtl of AdcDsp is
 
-   constant NUM_AXIL_MASTERS_C : integer := 7;
+   constant NUM_AXIL_MASTERS_C : integer := 8;
    constant LOCAL_C            : integer := 0;
    constant ACCUM_ERROR_C      : integer := 1;
    constant SUM_ACCUM_C        : integer := 2;
@@ -75,6 +75,7 @@ architecture rtl of AdcDsp is
    constant FILTER_RESULTS_C   : integer := 4;
    constant FILTER_COEF_C      : integer := 5;
    constant FLUX_JUMP_C        : integer := 6;
+   constant SQ1FB_FULL_C       : integer := 7;
 
    constant XBAR_CONFIG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) :=
       genAxiLiteConfig(NUM_AXIL_MASTERS_C, AXIL_BASE_ADDR_G, 16, 12);
@@ -100,9 +101,18 @@ architecture rtl of AdcDsp is
    constant RESULT_HIGH_C : integer := sfixed_high(COEF_HIGH_C, COEF_LOW_C, '*', ACCUM_BITS_C-1, 0);  --26;
    constant RESULT_LOW_C  : integer := sfixed_low(COEF_HIGH_C, COEF_LOW_C, '*', ACCUM_BITS_C-1, 0);  --8;
    constant RESULT_BITS_C : integer := RESULT_HIGH_C - RESULT_LOW_C + 1;
+   -- Full feedback: 38 bits (sign + 14 integer magnitude + 23 fractional).
+   -- The guard integer bit lets a command exceed the DAC range before one
+   -- flux wrap (e.g. 8500.25 - 2000 = 6500.25). A larger overflow cannot be
+   -- recovered by one signed 14-bit quantum, so saturation here is harmless:
+   -- it will still reach the final DAC clamp after the wrap.
+   constant SQ1FB_FULL_HIGH_C : integer := 14;
+   constant SQ1FB_FULL_BITS_C : integer := SQ1FB_FULL_HIGH_C - RESULT_LOW_C + 1;
+   constant SQ1FB_FULL_RAM_BITS_C : integer := SQ1FB_FULL_BITS_C + 1;  -- MSB = valid
    constant ZERO_COEF_C   : slv(COEF_BITS_C-1 downto 0) := (others => '0');
    constant SQ1FB_MAX_C   : integer := 2**13-1;
    constant SQ1FB_MIN_C   : integer := -(2**13);
+   constant FLUX_JUMP_THRESHOLD_C : integer := 7862;
    constant CLEAR_LAST_ADDR_C : slv(ROW_ADDR_BITS_G-1 downto 0) := toSlv((2**ROW_ADDR_BITS_G)-1, ROW_ADDR_BITS_G);
 
    constant FILTER_COEFFICIENTS_C : IntegerArray(0 to 10) := (5 => 2**7-1, others => 0);
@@ -113,9 +123,7 @@ architecture rtl of AdcDsp is
       tDestBits => 4);
 
    -- GHDL/cocotb cannot elaborate the XPM-backed FIFO primitives. Select the
-   -- vendor XPM path for hardware builds and an inferred (behavioral) FIFO for
-   -- simulation. This is the only functional difference the SIMULATION_G
-   -- generic introduces.
+   -- vendor XPM path for hardware builds and inferred FIFOs/RAMs for simulation.
    constant STREAM_FIFO_SYNTH_MODE_C : string := ite(SIMULATION_G, "inferred", "xpm");
 
 
@@ -163,7 +171,9 @@ architecture rtl of AdcDsp is
       pidResult          : sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
       sq1Fb              : sfixed(13 downto 0);
       sq1FbValid         : sl;
-      sq1FbFull          : sfixed(31 downto 0);          -- SQ1FB + flux jumps
+      sq1FbFull          : sfixed(SQ1FB_FULL_HIGH_C downto RESULT_LOW_C);
+      -- Signed net count, saturating at -256/+255. Beyond that range the
+      -- actuator still wraps but reconstructed readout loses a quantum.
       numFluxJumps       : slv(8 downto 0);
       fluxQuantum        : slv(13 downto 0);
       clearPidState      : sl;
@@ -177,6 +187,8 @@ architecture rtl of AdcDsp is
       pidResultRamWrData : slv(RESULT_BITS_C-1 downto 0);
       fluxJumpRamWrEn    : sl;
       fluxJumpRamWrData  : slv(8 downto 0);
+      sq1FbFullRamWrEn   : sl;
+      sq1FbFullRamWrData : slv(SQ1FB_FULL_RAM_BITS_C-1 downto 0);
       dropCount          : ufixed(31 downto 0);
       axilPidDebugEnable : sl;
       pidDebugEnable     : sl;
@@ -221,6 +233,8 @@ architecture rtl of AdcDsp is
       pidResultRamWrData => (others => '0'),
       fluxJumpRamWrEn    => '0',
       fluxJumpRamWrData  => (others => '0'),
+      sq1FbFullRamWrEn   => '0',
+      sq1FbFullRamWrData => (others => '0'),
       dropCount          => (others => '0'),
       axilPidDebugEnable => '0',
       pidDebugEnable     => '0',
@@ -236,6 +250,7 @@ architecture rtl of AdcDsp is
    signal sumRamOut         : slv(SUM_BITS_C-1 downto 0);
    signal pidRamOut         : slv(RESULT_BITS_C-1 downto 0);
    signal fluxJumpRamOut    : slv(8 downto 0);
+   signal sq1FbFullRamOut    : slv(SQ1FB_FULL_RAM_BITS_C-1 downto 0);
 
 --   signal pidStreamMaster    : AxiStreamMasterType := AXI_STREAM_MASTER_INIT_C;
    signal filterStreamMaster : AxiStreamMasterType := AXI_STREAM_MASTER_INIT_C;
@@ -413,6 +428,10 @@ begin
          din            => r.sumAccumRamWrData,              -- [in]
          dout           => sumRamOut);                        -- [in]
 
+   -- Retained for per-row software diagnostics; pidRamOut is not servo state.
+   -- TODO: consider removing/reusing this RAM once per-row PidResults polling
+   -- is no longer needed. Update the software register map at the same time;
+   -- the current correction is also carried in the PID-debug stream.
    U_AxiDualPortRam_PID_RESULTS : entity surf.AxiDualPortRam
       generic map (
          TPD_G            => TPD_G,
@@ -440,7 +459,37 @@ begin
          dout           => pidRamOut);                          -- [in]
 
 
-   comb : process (accumIn, accumRamOut, accumValid, fluxJumpRamOut, pidDebugCtrl, r,
+   -- Full feedback at 0x7000 + 8*row: signed bits 37:0, binary point at -23,
+   -- and valid bit 38. Matches the existing three-cycle state-RAM wait.
+   -- Reset leaves FLL disabled; its rising enable clears every RAM address
+   -- before the first update, just as StartRun/ClearPidState/I changes do.
+   U_Sq1FbFullRam : entity surf.AxiDualPortRam
+      generic map (
+         TPD_G            => TPD_G,
+         SYNTH_MODE_G     => STREAM_FIFO_SYNTH_MODE_C,
+         MEMORY_TYPE_G    => "block",
+         READ_LATENCY_G   => 3,
+         AXI_WR_EN_G      => true,
+         SYS_WR_EN_G      => true,
+         SYS_BYTE_WR_EN_G => false,
+         COMMON_CLK_G     => true,
+         ADDR_WIDTH_G     => ROW_ADDR_BITS_G,
+         DATA_WIDTH_G     => SQ1FB_FULL_RAM_BITS_C)
+      port map (
+         axiClk         => timingRxClk125,
+         axiRst         => timingRxRst125,
+         axiReadMaster  => locAxilReadMasters(SQ1FB_FULL_C),
+         axiReadSlave   => locAxilReadSlaves(SQ1FB_FULL_C),
+         axiWriteMaster => locAxilWriteMasters(SQ1FB_FULL_C),
+         axiWriteSlave  => locAxilWriteSlaves(SQ1FB_FULL_C),
+         clk            => timingRxClk125,
+         rst            => timingRxRst125,
+         we             => r.sq1FbFullRamWrEn,
+         addr           => r.pidStateRamAddr,
+         din            => r.sq1FbFullRamWrData,
+         dout           => sq1FbFullRamOut);
+
+   comb : process (accumIn, accumRamOut, accumValid, sq1FbFullRamOut, fluxJumpRamOut, pidDebugCtrl, r,
                    sumRamOut, timingAxilReadMaster, timingAxilWriteMaster,
                    timingRxData, timingRxRst125) is
       variable v                 : RegType;
@@ -452,9 +501,6 @@ begin
       variable pidStateRamAddrFixed : ufixed(ROW_ADDR_BITS_G-1 downto 0);
       variable pidResultNext     : sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
       variable iContribution     : sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
-      variable sq1FbCommand      : sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
-      variable sq1FbHighLimit    : sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
-      variable sq1FbLowLimit     : sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
       variable requestClear      : boolean;
       variable allowIntegrate    : boolean;
       variable axilEp            : AxiLiteEndpointType;
@@ -509,6 +555,8 @@ begin
       v.pidResultRamWrData  := to_slv(r.pidResult);
       v.fluxJumpRamWrEn     := '0';
       v.fluxJumpRamWrData   := r.numFluxJumps;
+      v.sq1FbFullRamWrEn   := '0';
+      v.sq1FbFullRamWrData := '1' & to_slv(r.sq1FbFull);
 
       v.pidStreamMaster := axiStreamMasterInit(PID_DATA_AXIS_CFG_C);
 
@@ -521,8 +569,6 @@ begin
       fluxQuantumFixed  := to_sfixed(r.fluxQuantum, fluxQuantumFixed);
       numFluxJumpsFixed := to_sfixed(r.numFluxJumps, numFluxJumpsFixed);
       pidStateRamAddrFixed := to_ufixed(r.pidStateRamAddr, pidStateRamAddrFixed);
-      sq1FbHighLimit    := to_sfixed(SQ1FB_MAX_C, sq1FbHighLimit);
-      sq1FbLowLimit     := to_sfixed(SQ1FB_MIN_C, sq1FbLowLimit);
       requestClear      := false;
 
       if (timingRxData.startRun = '1') then
@@ -566,6 +612,8 @@ begin
          v.pidResultRamWrData  := (others => '0');
          v.fluxJumpRamWrEn     := '1';
          v.fluxJumpRamWrData   := (others => '0');
+         v.sq1FbFullRamWrEn   := '1';
+         v.sq1FbFullRamWrData := (others => '0');
       elsif (r.clearPidStateBusy = '1') then
          v.state             := IDLE_S;
          v.rowEnabled        := '0';
@@ -588,6 +636,8 @@ begin
          v.pidResultRamWrData  := (others => '0');
          v.fluxJumpRamWrEn     := '1';
          v.fluxJumpRamWrData   := (others => '0');
+         v.sq1FbFullRamWrEn   := '1';
+         v.sq1FbFullRamWrData := (others => '0');
 
          if (r.pidStateRamAddr = CLEAR_LAST_ADDR_C) then
             v.clearPidStateBusy := '0';
@@ -640,7 +690,8 @@ begin
                      formatType => FRAME_FORMAT_PID_FIXED_C,
                      boardId    => "00000" & config.boardId,
                      groupId    => config.groupId,
-                     valid      => v.pidDebugEnable);
+                     valid      => v.pidDebugEnable,
+                     formatVersion => FRAME_FORMAT_PID_FIXED_VERSION_C);
 
                   if (accumIn.seqStart = '1') then
                      v.pidStreamMaster.tValid := '1';
@@ -685,8 +736,16 @@ begin
                -- Convert offset binary to 2-s complement
                -- Store in sfixed type register
                v.sq1FB          := to_sfixed(convOffsetBin(r.sq1FbDacIn), r.sq1FB);
+               -- Seed from the applied DAC on the first enabled update after
+               -- a clear. Thereafter the full-precision state is authoritative;
+               -- quantizing the output must not quantize the next loop's base.
+               if (sq1FbFullRamOut(SQ1FB_FULL_BITS_C) = '1') then
+                  v.sq1FbFull := to_sfixed(sq1FbFullRamOut(SQ1FB_FULL_BITS_C-1 downto 0), v.sq1FbFull);
+               else
+                  v.sq1FbFull := resize(v.sq1Fb, v.sq1FbFull);
+               end if;
 
-               -- Word 2 is accum error
+               -- Body word 1 is accum error
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
                v.pidDebugMaster.tData(31 downto 0) := to_slv(resize(r.accumError, 31, 0));
 
@@ -701,7 +760,7 @@ begin
 --                v.state         := PID_P_S;
 
             when PID_P_S =>
-               -- Word 3 is starting SQ1FB
+               -- Body word 2 is starting SQ1FB
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
                v.pidDebugMaster.tData(13 downto 0) := resize(convOffsetBin(to_slv(r.sq1FB)), 14);
 
@@ -713,7 +772,7 @@ begin
                v.state         := PID_I_S;
 
             when PID_I_S =>
-               -- Word 4 is SumAccum
+               -- Body word 3 is SumAccum
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
                v.pidDebugMaster.tData(31 downto 0) := to_slv(resize(r.pidMultiplier, 31, 0));
 
@@ -725,7 +784,7 @@ begin
                v.state         := PID_D_S;
 
             when PID_D_S =>
-               -- Word 5 is diff multiplier result
+               -- Body word 4 is diff multiplier result
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
                v.pidDebugMaster.tData(31 downto 0) := to_slv(resize(r.pidMultiplier, 31, 0));
 
@@ -738,12 +797,13 @@ begin
                   v.sumAccum := (others => '0');
                else
                   iContribution := resize(iSfixed * r.accumError, iContribution);
-                  sq1FbCommand  := resize(resize(r.sq1Fb, sq1FbCommand) + resize(pidResultNext, sq1FbCommand), sq1FbCommand);
                   allowIntegrate := true;
 
-                  if ((sq1FbCommand > sq1FbHighLimit) and (iContribution > 0)) then
+                  -- The fixed_pkg addition keeps its carry and fraction here;
+                  -- preserve the existing directional, pre-wrap I-state check.
+                  if ((r.sq1FbFull + pidResultNext > SQ1FB_MAX_C) and (iContribution > 0)) then
                      allowIntegrate := false;
-                  elsif ((sq1FbCommand < sq1FbLowLimit) and (iContribution < 0)) then
+                  elsif ((r.sq1FbFull + pidResultNext < SQ1FB_MIN_C) and (iContribution < 0)) then
                      allowIntegrate := false;
                   end if;
 
@@ -762,30 +822,54 @@ begin
                v.state              := SQ1FB_ADJUST_S;
 
             when SQ1FB_ADJUST_S =>
-               -- Word 6 is PID result
+               -- Body word 5 is PID result
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
                v.pidDebugMaster.tData(63 downto 0) := resize(to_slv(r.pidResult), 64);
 
-               v.sq1Fb     := resize(r.sq1Fb + r.pidResult, v.sq1Fb);
+               -- Keep the fraction and guard bit through the flux adjustment.
+               -- sq1Fb is only the applied/commanded integer DAC value.
                v.sq1FbFull := resize(r.sq1FbFull + r.pidResult, v.sq1FbFull);
-               v.state     := FLUX_JUMP_S;
+               v.state    := FLUX_JUMP_S;
 
             when FLUX_JUMP_S =>
-               if (r.sq1Fb > 7862) then
-                  v.sq1Fb           := resize(r.sq1Fb - fluxQuantumFixed, v.sq1Fb);
+               -- Zero quantum disables wrapping and must not consume count
+               -- range. A physical wrap requires a positive signed quantum.
+               if (fluxQuantumFixed /= 0 and r.sq1FbFull > FLUX_JUMP_THRESHOLD_C) then
+                  v.sq1FbFull       := resize(r.sq1FbFull - fluxQuantumFixed, v.sq1FbFull);
                   numFluxJumpsFixed := resize(numFluxJumpsFixed + 1, numFluxJumpsFixed);
-               elsif (r.sq1Fb < -7862) then
-                  v.sq1Fb           := resize(r.sq1Fb + fluxQuantumFixed, v.sq1Fb);
+               elsif (fluxQuantumFixed /= 0 and r.sq1FbFull < -FLUX_JUMP_THRESHOLD_C) then
+                  v.sq1FbFull       := resize(r.sq1FbFull + fluxQuantumFixed, v.sq1FbFull);
                   numFluxJumpsFixed := resize(numFluxJumpsFixed - 1, numFluxJumpsFixed);
                end if;
+               -- Clamp the retained state as well as the actuator, discarding
+               -- any overrange value that one flux adjustment cannot recover.
+               if (v.sq1FbFull > SQ1FB_MAX_C) then
+                  v.sq1FbFull := to_sfixed(SQ1FB_MAX_C, v.sq1FbFull);
+               elsif (v.sq1FbFull < SQ1FB_MIN_C) then
+                  v.sq1FbFull := to_sfixed(SQ1FB_MIN_C, v.sq1FbFull);
+               end if;
+               -- The sole feedback-to-DAC conversion (nearest-even rounding).
+               v.sq1Fb := resize(v.sq1FbFull, v.sq1Fb);
+               -- Commit with the DAC command. A masked visit neither advances
+               -- existing state nor initializes a row from an unapplied command.
+               v.sq1FbFullRamWrEn   := r.rowEnabled;
+               v.sq1FbFullRamWrData := '1' & to_slv(v.sq1FbFull);
 
                v.numFluxJumps      := to_slv(numFluxJumpsFixed);
-               v.fluxJumpRamWrEn   := '1';
+               -- The count and local feedback are one state pair. Commit
+               -- both only when the corresponding DAC command is enabled.
+               v.fluxJumpRamWrEn   := r.rowEnabled;
                v.fluxJumpRamWrData := to_slv(numFluxJumpsFixed);
                v.sq1FbValid        := r.rowEnabled;
                v.state             := DATA_STREAM_FLUX_JUMP_0_S;
 
             when DATA_STREAM_FLUX_JUMP_0_S =>
+               -- Body word 6: post-wrap/clamp feedback, before DAC rounding.
+               -- Sign-extend Q15.23 to 64 bits; no valid bit in the stream.
+               -- Like sq1FbEnd, this is computed but not committed if masked.
+               v.pidDebugMaster.tValid             := r.pidDebugEnable;
+               v.pidDebugMaster.tData(63 downto 0) := to_slv(resize(r.sq1FbFull, 40, RESULT_LOW_C));
+
                v.pidResult     := to_sfixed(to_slv(resize(r.sq1Fb, r.pidResult'length-1, 0)), r.pidResult);
                v.pidMultiplier := to_sfixed(to_slv(resize(numFluxJumpsFixed, r.pidMultiplier'length-1, 0)), r.pidMultiplier);
                v.pidCoef       := to_sfixed(to_slv(resize(fluxQuantumFixed, r.pidCoef'length-1, 0)), r.pidCoef);
@@ -811,9 +895,9 @@ begin
                v.state := FLUX_DEBUG_S;
 
             when FLUX_DEBUG_S =>
-               -- word 7 is number of flux jumps
+               -- Body word 7: signed net count, including its ninth bit.
                v.pidDebugMaster.tValid            := r.pidDebugEnable;
-               v.pidDebugMaster.tData(7 downto 0) := resize(to_slv(r.numFluxJumps), 8);
+               v.pidDebugMaster.tData(31 downto 0) := to_slv(resize(numFluxJumpsFixed, 31, 0));
 
                v.state := LOOP_DONE_S;
 

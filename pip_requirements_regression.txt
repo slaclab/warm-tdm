@@ -1,6 +1,7 @@
 cocotb
 cocotb-test
 cocotbext-axi
+numpy
 pytest
 pytest-cov
 pytest-xdist

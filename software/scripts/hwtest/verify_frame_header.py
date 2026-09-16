@@ -18,7 +18,7 @@ then walks the resulting .dat file record-by-record and asserts, for every bulk
 frame:
 
   * the 16-byte header parses: formatType in {readout, pid-fixed, pid-float,
-    waveform}, formatVersion == EXPECTED_FORMAT_VERSION;
+    waveform}, formatVersion supported for that type;
   * the frame length matches the format (readout variable; pid-fixed 96;
     pid-float 56);
   * boardId == (file channel >> 4)   -- the "body is authoritative, channel is a
@@ -91,7 +91,9 @@ def check_file(path, chk):
             n_frames += 1
             hdr = warm_tdm.FrameHeader.from_numpy(data)
 
-            if hdr.formatVersion != warm_tdm.EXPECTED_FORMAT_VERSION:
+            versions = (warm_tdm.PID_DEBUG_FRAME_BYTES_BY_VERSION if name == 'pid-fixed'
+                        else (warm_tdm.EXPECTED_FORMAT_VERSION,))
+            if hdr.formatVersion not in versions:
                 bad_version.append((name, hdr.formatVersion))
             # boardId must match the file-channel high nibble.
             if hdr.boardId != (channel >> 4):
@@ -100,8 +102,10 @@ def check_file(path, chk):
                 bad_zero_ts.append(name)
 
             # PID frames have a fixed total length (header + body).
-            if name == 'pid-fixed' and len(data) != warm_tdm.PID_DEBUG_FRAME_BYTES:
-                bad_pid_len.append(('pid-fixed', len(data), warm_tdm.PID_DEBUG_FRAME_BYTES))
+            if name == 'pid-fixed':
+                expected = warm_tdm.PID_DEBUG_FRAME_BYTES_BY_VERSION.get(hdr.formatVersion)
+                if len(data) != expected:
+                    bad_pid_len.append(('pid-fixed', len(data), expected))
             if name == 'pid-float' and len(data) != warm_tdm.PID_DEBUG_FP_FRAME_BYTES:
                 bad_pid_len.append(('pid-float', len(data), warm_tdm.PID_DEBUG_FP_FRAME_BYTES))
 
