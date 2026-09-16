@@ -42,6 +42,16 @@ class RowPidStatus(pr.Device):
             dep = dsp.PidResults,
             index = rowNum))
 
+        self.add(IndexedLinkVariable(
+            name = 'Sq1FbFull',
+            dep = dsp.Sq1FbFull,
+            index = rowNum))
+
+        self.add(IndexedLinkVariable(
+            name = 'Sq1FbFullValid',
+            dep = dsp.Sq1FbFullValid,
+            index = rowNum))
+
 #         self.add(IndexedLinkVariable(
 #             name = 'FilterResults',
 #             dep = dsp.FilterResults,
@@ -67,6 +77,7 @@ class AdcDsp(pr.Device):
     COEF_BASE = pr.Fixed(24, 23)
     ACCUM_BASE = pr.Fixed(18, 0)
     RESULT_BASE = pr.Fixed(48, 23)
+    SQ1FB_FULL_BASE = pr.Fixed(38, 23)
 
     def __init__(self, frontEnd, column, rows=256, **kwargs):
         super().__init__(**kwargs)
@@ -183,34 +194,40 @@ class AdcDsp(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'FluxQuantumRaw',
+            description = 'Positive signed DAC-code period (1..8191); zero disables wrapping. '
+                          'Configure while stopped, then clear PID state before resuming.',
             groups = ['NoConfig'],            
             offset = 0x40,
             base = pr.UInt,
             bitSize = 14,
+            minimum = 0,
+            maximum = 8191,
             bitOffset = 0))
 
-        def _set(value, write):
-            dac = self.amp.outCurrentToDac(value)
-            # Convert offset binary to 2s complement
-            if self.amp.Invert.value() == True:
-                dac = dac ^ 0x3fff
-            dac = dac ^ 0x2000
+        def _setFluxQuantum(value, write):
+            # A quantum is a current DIFFERENCE, not an absolute DAC operating
+            # point. Use the slope so zero remains zero for either polarity.
+            if value < 0:
+                raise ValueError('FluxQuantum must be a nonnegative period')
+            dac = round(value / abs(self.amp.currentPerLsb()))
+            if value > 0 and dac == 0:
+                raise ValueError('FluxQuantum is too small to represent in DAC codes')
+            if dac > 8191:
+                raise ValueError('FluxQuantum exceeds the signed 14-bit positive range')
             self.FluxQuantumRaw.set(dac, write=write)
 
-        def _get(read):
+        def _getFluxQuantum(read):
             dac = self.FluxQuantumRaw.get(read=read)
-            if self.amp.Invert.value() == True:
-                dac = dac ^ 0x3fff
-            dac = dac ^ 0x2000
-            current = self.amp.dacToOutCurrent(dac)
-            return current
+            if dac > 8191:
+                raise ValueError('FluxQuantumRaw encodes an unsupported negative period')
+            return dac * abs(self.amp.currentPerLsb())
 
         self.add(pr.LinkVariable(
             name = 'FluxQuantum',
             dependencies = [self.FluxQuantumRaw],
             units = u'\u03bcA',
-            linkedSet = _set,
-            linkedGet = _get))
+            linkedSet = _setFluxQuantum,
+            linkedGet = _getFluxQuantum))
 
         self.add(pr.RemoteVariable(
             name = 'PidDebugEnable',
@@ -222,10 +239,11 @@ class AdcDsp(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'FluxJumps_DBG',
+            description = 'Signed net wrap count; saturates at -256/+255.',
             offset = 0x44,
             mode = 'RO',
             base = pr.Int,
-            bitSize = 8,
+            bitSize = 9,
             bitOffset = 0,
             disp = '{:d}'))
 
@@ -302,12 +320,37 @@ class AdcDsp(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'FluxJumps',
+            description = 'Signed net wrap count per row; valid reconstruction requires -256..255.',
             offset = 0x6000,
             base = pr.Int,
             mode = 'RW',
             numValues = rows,
-            valueBits = 8,
+            valueBits = 9,
             valueStride = 32))
+
+        self.add(pr.RemoteVariable(
+            name = 'Sq1FbFull',
+            description = 'Retained post-wrap/clamp feedback in signed DAC-code units. '
+                          'Only edit between visits with clearing complete; set Sq1FbFullValid to use it.',
+            offset = 0x7000,
+            base = AdcDsp.SQ1FB_FULL_BASE,
+            mode = 'RW',
+            groups = ['NoConfig'],
+            numValues = rows,
+            valueBits = AdcDsp.SQ1FB_FULL_BASE.bitSize,
+            valueStride = 64))
+
+        self.add(pr.RemoteVariable(
+            name = 'Sq1FbFullValid',
+            description = 'When false, the next enabled visit seeds Sq1FbFull from the applied DAC.',
+            offset = 0x7004,
+            bitOffset = 6,
+            base = pr.Bool,
+            mode = 'RW',
+            groups = ['NoConfig'],
+            numValues = rows,
+            valueBits = 1,
+            valueStride = 64))
 
         self.add(RowPidStatusArray(
             name = 'RowPidStatus',

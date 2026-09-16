@@ -63,6 +63,18 @@ entity AdcDspAccumCompareWrapper is
       -- Delayed SQ1 feedback DAC code (offset binary)
       SQ1FB_DAC : in slv(13 downto 0) := (others => '0');
 
+      -- Real PID-debug FIFO output, consumed without backpressure.
+      DEBUG_TDATA  : out slv(63 downto 0);
+      DEBUG_TVALID : out sl;
+      DEBUG_TLAST  : out sl;
+      DEBUG_TKEEP  : out slv(7 downto 0);
+
+      -- Unfiltered reconstructed feedback (signed integer DAC-code units).
+      PID_TDATA  : out slv(31 downto 0);
+      PID_TVALID : out sl;
+      PID_TKEEP  : out slv(3 downto 0);
+      PID_TID    : out slv(7 downto 0);
+
       -- AXI-Lite register bus (flat, driven by cocotbext-axi AxiLiteMaster) ->
       -- AdcDsp PID coefficients.
       S_AXIL_AWADDR  : in  slv(15 downto 0) := (others => '0');
@@ -99,6 +111,8 @@ architecture rtl of AdcDspAccumCompareWrapper is
    signal accumValid  : sl                 := '0';
 
    signal axisReady : AxiStreamSlaveType := AXI_STREAM_SLAVE_FORCE_C;
+   signal debugMaster : AxiStreamMasterType;
+   signal pidMaster : AxiStreamMasterType;
 
    signal axilClk         : sl;
    signal axilRst         : sl;
@@ -119,6 +133,15 @@ architecture rtl of AdcDspAccumCompareWrapper is
    signal sq1FbWriteSlave  : AxiLiteWriteSlaveType  := AXI_LITE_WRITE_SLAVE_INIT_C;
 
 begin
+
+   DEBUG_TDATA  <= debugMaster.tData(63 downto 0);
+   DEBUG_TVALID <= debugMaster.tValid;
+   DEBUG_TLAST  <= debugMaster.tLast;
+   DEBUG_TKEEP  <= debugMaster.tKeep(7 downto 0);
+   PID_TDATA  <= pidMaster.tData(31 downto 0);
+   PID_TVALID <= pidMaster.tValid;
+   PID_TKEEP  <= pidMaster.tKeep(3 downto 0);
+   PID_TID    <= pidMaster.tId(7 downto 0);
 
    ----------------------------------------------------------------------------
    -- AXI-Lite shim: flat AXI -> surf record (drives AdcDsp coefficients)
@@ -241,11 +264,11 @@ begin
          mAxilReadSlave   => sq1FbReadSlave,
          mAxilWriteMaster => sq1FbWriteMaster,
          mAxilWriteSlave  => sq1FbWriteSlave,
-         pidStreamMaster  => open,
+         pidStreamMaster  => pidMaster,
          pidStreamSlave   => axisReady,
          axisClk          => clk,
          axisRst          => rst,
-         pidDebugMaster   => open,
+         pidDebugMaster   => debugMaster,
          pidDebugSlave    => axisReady);
 
 end architecture rtl;

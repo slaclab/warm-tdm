@@ -73,10 +73,12 @@ package WarmTdmPkg is
 
    --constant SQ1FB_DATA_AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 2, tDestBits => 8);
 
-   -- Data from AdcDsp to filter and downsampler (fixed-point integer, 24-bit)
+   -- Data from AdcDsp to filter and downsampler (signed integer, 32-bit).
+   -- Keep the sign-extension byte through both FIFOs: BiquadFilter feeds
+   -- tData(31:0) directly to the Int32-to-float core.
    constant PID_DATA_AXIS_CFG_C : AxiStreamConfigType := (
       TSTRB_EN_C    => true,
-      TDATA_BYTES_C => 3,
+      TDATA_BYTES_C => 4,
       TDEST_BITS_C  => 8,
       TID_BITS_C    => 8,
       TKEEP_MODE_C  => TKEEP_NORMAL_C,
@@ -120,4 +122,3 @@ package WarmTdmPkg is
       daqReadoutStart => '0');
 
 end package;
-

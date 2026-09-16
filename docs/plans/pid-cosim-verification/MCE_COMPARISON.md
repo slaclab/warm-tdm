@@ -266,10 +266,13 @@ configuration/documentation conclusion pending the proposed IP boundary test.
 
 ### Integer fractional-feedback change assessment
 
-The dedicated [integer fractional-feedback proposal](INTEGER_FRACTIONAL_FEEDBACK.md)
-expands this assessment into the proposed arithmetic, per-row state lifecycle,
-implementation boundaries and verification contract. It is the implementation
-reference for this proposal; the following is the original assessment summary.
+The dedicated [integer fractional-feedback design](INTEGER_FRACTIONAL_FEEDBACK.md)
+records the implemented arithmetic, per-row state lifecycle and GHDL checks.
+The implementation stores full-precision feedback and seeds it from the applied
+DAC after a clear; the original rounding-remainder proposal below is historical.
+The earlier comparisons in this document describe the baseline integer RTL,
+before retained feedback was added. The following preserves the original
+assessment summary.
 
 This is a localized state/arithmetic change, not a new controller design. A
 small per-row signed rounding-remainder RAM would retain the existing applied-
@@ -311,8 +314,8 @@ corrections and half ties, alternating rows, reset/enable/mask behavior with a
 nonzero DAC seed, positive/negative flux wraps, and clipping/recovery. Preserve
 the old golden as a historical reference; fractional-carry cases intentionally
 change behavior and need an independently specified new expectation. Existing
-row-coupling/overflow checks should still be exercised. This is a design
-assessment only; the proposed RTL change has not been implemented or simulated.
+row-coupling/overflow checks should still be exercised. See the dedicated design
+note for the subsequent implementation and regression coverage.
 
 ## Next decisions and validation
 

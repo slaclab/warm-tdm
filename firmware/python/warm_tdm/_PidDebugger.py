@@ -9,7 +9,7 @@ class PidRowDebugger(pr.Device):
 
         self.debugDev = debugDev
         self.row = row
-        self.parsedVars = ['AccumError', 'SumAccum', 'Diff', 'PidResult', 'Sq1FbPre', 'Sq1FbPost', 'FluxJumps']
+        self.parsedVars = ['AccumError', 'SumAccum', 'Diff', 'PidResult', 'Sq1FbPre', 'Sq1FbPost', 'Sq1FbFull', 'FluxJumps']
 
         self.add(pr.LocalVariable(
             name = 'Visits',
@@ -52,6 +52,13 @@ class PidRowDebugger(pr.Device):
             value = 0.0))
 
         self.add(pr.LocalVariable(
+            name = 'Sq1FbFull',
+            description = 'Post-wrap/clamp fractional feedback in signed DAC-code units (NaN for v1 frames).',
+            mode = 'RO',
+            disp = '{:0.09f}',
+            value = float('nan')))
+
+        self.add(pr.LocalVariable(
             name = 'FluxJumps',
             mode = 'RO',
             value = 0))
@@ -85,6 +92,13 @@ class PidDebugger(pr.DataReceiver):
         self.col = col
 
         super().__init__(memBase=self.mem, **kwargs)
+
+        self.add(pr.LocalVariable(
+            name = 'Sq1FbFull',
+            description = 'Post-wrap/clamp fractional feedback in signed DAC-code units (NaN for v1 frames).',
+            mode = 'RO',
+            disp = '{:0.09f}',
+            value = float('nan')))
 
         self.add(pr.RemoteVariable(
             name = 'Column',
@@ -178,7 +192,7 @@ class PidDebugger(pr.DataReceiver):
             mode = 'RO',
             offset = 6 * 8,
             base = pr.Int,
-            bitSize = 8,
+            bitSize = 9,
             bitOffset = 0))
 
         self.add(pr.RemoteVariable(
@@ -223,16 +237,25 @@ class PidDebugger(pr.DataReceiver):
         frame.read(raw, 0)
 
         #print(f'Got PID Debug frame for col {self.col}, row {raw[1]}, size {fl}')
-        if fl != warm_tdm.PID_DEBUG_FRAME_BYTES:
-            print(f'Got PID debug frame with wrong size {fl}')
+        try:
+            msg = warm_tdm.PidDebug.from_numpy(np.frombuffer(raw, dtype=np.uint8))
+        except (ValueError, IndexError) as exc:
+            print(f'Invalid PID debug frame: {exc}')
             return
 
-        # Strip the 16-byte self-describing header; the register map addresses the
-        # 72-byte body, so copy only the body into the MemEmulate backing store.
+        # Keep the existing diagnostic register offsets for both frame versions.
+        # Decode the v2/v3 fractional word separately and remove it for this legacy
+        # 72-byte MemEmulate map; never interpret an absent v1 value as zero.
         body = raw[warm_tdm.FRAME_HEADER_BYTES:]
+        if 'sq1FbFull' in msg.fields:
+            body = body[:48] + body[56:]
+        # V1/v2 stored only eight count bits. Normalize the sign before the live
+        # nine-bit register view reads it (v3 carries a sign-extended int32).
+        body[48:52] = msg.fields['numFluxJumps'].to_bytes(4, 'little', signed=True)
         for i, byte in enumerate(body):
             self.mem._data[i] = byte
 
+        self.Sq1FbFull.set(msg.fields.get('sq1FbFull', float('nan')))
         self.readBlocks()
         self.checkBlocks()
 

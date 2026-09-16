@@ -14,6 +14,10 @@
 # sideband (DAC_WR_VALID / DAC_WR_ADDR / DAC_WR_DATA): one write per enabled row,
 # addr = rowIndex, data(13:0) = offset-binary sq1Fb. Keeping the stimulus and the
 # monitor here (one source) guarantees both benches drive bit-identical inputs.
+# The later retained-feedback implementation intentionally changes subsequent
+# visits that force an external DAC value without clearing controller state.
+# Its compare test declares those new expectations explicitly; the frozen
+# pre-split RTL and golden remain historical evidence for the accumulator split.
 
 from __future__ import annotations
 

@@ -280,8 +280,9 @@ all three formats at once — is the firmware-track work we are scheduling anywa
 
 Every readout, PID-debug, and waveform frame begins with this fixed prefix; the
 format-specific body follows. 16 bytes preserves 64-bit word alignment (clean
-numpy structured-array views) and is negligible per frame (PID-fixed 80→96,
-PID-float 40→56; readout absorbs it into its existing header words).
+numpy structured-array views). Current frame sizes are 96 bytes for PID-fixed
+v3 (88 for post-accumulator-split v1) and 56 for PID-float v1; readout absorbs
+the prefix into its existing header words.
 
 | Word | Byte | Field | Notes |
 |---|---|---|---|
@@ -300,6 +301,37 @@ once, not per sample.
 Note there is deliberately **no per-frame "time source" field** — the timing
 source and epoch are constant for a run, so they live in the per-run metadata
 (config channel), not in every frame. See the Timebase section for why.
+
+#### Integer PID-debug v3 (fractional feedback and full flux count)
+
+Only PID-fixed (`formatType=0x01`) uses `formatVersion=3`. Its body is
+80 bytes / ten 64-bit words; the total frame is 96 bytes. The body order is:
+
+| Body word | Contents |
+| --- | --- |
+| 0 | Column and logical row |
+| 1 | Accumulated error |
+| 2 | Starting SQ1 feedback DAC code |
+| 3 | Previous integrated error |
+| 4 | Error difference |
+| 5 | PID correction |
+| 6 | `sq1FbFull`: signed Q15.23, sign-extended to 64 bits |
+| 7 | Signed nine-bit net flux count, sign-extended to int32; upper 32 bits zero |
+| 8 | Ending SQ1 feedback DAC code and drop count |
+| 9 | Sample count and readout count |
+
+The added word is at frame byte 64. It reports the post-wrap/clamp feedback,
+before DAC rounding, in signed controller DAC-code units. On enabled visits it
+matches the state written to the per-row RAM; masked visits report the computed
+value without committing it. The validity flag is available separately in the
+RAM window (`AdcDsp + 0x7000 + 8*row`, bit 38), not in the stream word.
+
+The production decoder converts `sq1FbFull` to a Python float, preserving all 23
+fractional bits. It also accepts the post-accumulator-split v1 format (72-byte
+body, 88-byte frame), which omits word 6; that older format has no full-feedback
+field. Version 2 is also readable: it adds the full-feedback word but still
+transmits only eight count bits. Version 3 preserves all nine count bits.
+Readout, floating PID-debug, and waveform layouts remain at version 1.
 
 #### Versioning (non-negotiable)
 

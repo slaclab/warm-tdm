@@ -83,7 +83,8 @@ Gotchas (all confirmed):
 - `GroupTb` currently hardcodes the float path (`USE_FLOAT_PID_C := true`);
   parameterize it (or flip) to cover the integer path too.
 - **Frame format is resolved on `channelization`** by the Issue #82 tagged 16-byte
-  header: the host stream reader dispatches `PID_FIXED` (80-byte body) vs
+  header: the host stream reader dispatches `PID_FIXED` (80-byte v3 body,
+  including retained fractional feedback and all nine count bits; v1/v2 remain readable) vs
   `PID_FLOAT` (40-byte body), so both read cleanly — no bare-frame reader hack
   (this was the blocker on the pre-convergence `fp-pid`).
 - Per-device wafer variation is on (fixed seed), so each column locks at a
@@ -144,8 +145,9 @@ Gotchas (all confirmed):
 4. Synthesis build under 2024.1 for timing closure + utilization.
 
 ## References
-- [Proposed integer fractional SQ1 feedback](INTEGER_FRACTIONAL_FEEDBACK.md) —
-  per-row rounding remainder, lifecycle, saturation/wrapping and verification.
+- [Integer fractional SQ1 feedback](INTEGER_FRACTIONAL_FEEDBACK.md) —
+  implemented full-precision per-row feedback, lifecycle, saturation/wrapping and
+  reproducible GHDL verification; FPGA/system acceptance remains separate.
 - Issue #70 — Floating-point PID firmware (AdcDspFp + accumulator split)
 - Issue #82 — Self-describing data frames + channel-layout cleanup
 - Issue #90 — RTL cocotb/GHDL regression framework (AdcDsp + AdcDspFp)

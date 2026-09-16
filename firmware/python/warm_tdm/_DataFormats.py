@@ -20,14 +20,15 @@ def unsigned_int(arr):
 #
 # Layout (little-endian):
 #   byte 0     formatType     (FormatType enum below)
-#   byte 1     formatVersion  (== EXPECTED_FORMAT_VERSION; bump on any change)
+#   byte 1     formatVersion  (per-format layout version; bump on any change)
 #   byte 2     groupId        (reserved, 0 until the multi-Group model, #80)
 #   byte 3     boardId         (source column board; cross-check channel>>4)
 #   bytes 4-7  reserved       (0)
 #   bytes 8-15 timestampNs    (64-bit absolute nanoseconds)
 
 FRAME_HEADER_BYTES = 16
-EXPECTED_FORMAT_VERSION = 1
+EXPECTED_FORMAT_VERSION = 1  # readout, PID-float and waveform
+PID_DEBUG_FORMAT_VERSION = 3
 
 
 class FormatType(IntEnum):
@@ -158,30 +159,20 @@ class DataReadout:
         return self.header.timestampNs
 
 
-# PID-debug frame: the 16-byte shared header + a 72-byte fixed-point body (one
-# record per (col, row) servo visit), streamed on the PID-debug channels when
-# AdcDsp[col].PidDebugEnable is set. PID_DEBUG_TYPE is the BODY layout (view
-# ``arr[FRAME_HEADER_BYTES:].view(PID_DEBUG_TYPE)``); it mirrors the AdcDsp PID
-# debug word packing (see firmware AdcDsp.vhd and _PidDebugger.py). The body's
-# word-0 runTime bits are now vestigial padding -- the header timestamp is
-# authoritative. NOTE: the accumulator split moved the baseline out of AdcDsp
-# into AdcAccumulator, so AdcDsp no longer emits the old body "word 1" baseline
-# word -- its DEBUG_BODY_S -> PREP_PID_S sequence goes straight from the col/row
-# word to accumError. The body is therefore 72 bytes / 9 words, not the pre-split
-# 80 / 10. Fields:
-#   accumError     P-term (proportional accumulated error)
-#   sumAccumError  I-term (integral)
-#   diffAccumError D-term (derivative)
-#   pidResult      combined PID output (int64)
-#   sq1FbStart/End SQ1FB DAC code before/after this visit's PID update
-#   numFluxJumps   flux-jump count applied this visit
-#   dropCount      dropped-frame counter
-#   numSamples     samples averaged this readout
-#   readoutCount   monotonic readout index (time axis)
-PID_DEBUG_BODY_BYTES = 72
-PID_DEBUG_FRAME_BYTES = FRAME_HEADER_BYTES + PID_DEBUG_BODY_BYTES  # 88 (header + body)
+# Fixed PID-debug v1: 16-byte header + 72-byte body. V2 inserts one 64-bit
+# sq1FbFull word after pidResult (body byte 48), making the frame 96 bytes.
+# V3 carries the complete signed 9-bit flux count in a sign-extended int32.
+# sq1FbFull is the signed, post-wrap/clamp feedback BEFORE DAC rounding, in
+# controller DAC-code units (independent of INVERT_SQ1FB_G). The wire value is
+# sign-extended Q15.23; from_numpy converts it to an exact Python float.
+# Masked visits report the computed result, which is not committed to RAM/DAC.
+# Older v1 captures have no sq1FbFull field.
+PID_DEBUG_V1_BODY_BYTES = 72
+PID_DEBUG_V1_FRAME_BYTES = FRAME_HEADER_BYTES + PID_DEBUG_V1_BODY_BYTES
+PID_DEBUG_BODY_BYTES = 80
+PID_DEBUG_FRAME_BYTES = FRAME_HEADER_BYTES + PID_DEBUG_BODY_BYTES
 
-PID_DEBUG_TYPE = np.dtype([
+PID_DEBUG_V1_TYPE = np.dtype([
     # Word 0
     ('col', np.uint8),
     ('row', np.uint8),
@@ -217,18 +208,33 @@ PID_DEBUG_TYPE = np.dtype([
     ('readoutCount', np.uint32),
 ])
 
+# Insert the v2 word without changing the v1 definition used for old files.
+_PID_DEBUG_FULL_FIELD_INDEX = PID_DEBUG_V1_TYPE.names.index('numFluxJumps')
+PID_DEBUG_V2_TYPE = np.dtype(
+    PID_DEBUG_V1_TYPE.descr[:_PID_DEBUG_FULL_FIELD_INDEX] + [('sq1FbFull', np.int64)] +
+    PID_DEBUG_V1_TYPE.descr[_PID_DEBUG_FULL_FIELD_INDEX:])
+PID_DEBUG_TYPE = np.dtype(
+    PID_DEBUG_V1_TYPE.descr[:_PID_DEBUG_FULL_FIELD_INDEX] + [('sq1FbFull', np.int64)] +
+    [('numFluxJumps', np.int32), ('dummy7_2', np.uint32)] +
+    PID_DEBUG_V1_TYPE.descr[_PID_DEBUG_FULL_FIELD_INDEX+4:])
+PID_DEBUG_TYPES = {1: PID_DEBUG_V1_TYPE, 2: PID_DEBUG_V2_TYPE,
+                   PID_DEBUG_FORMAT_VERSION: PID_DEBUG_TYPE}
+PID_DEBUG_FRAME_BYTES_BY_VERSION = {
+    version: FRAME_HEADER_BYTES + dtype.itemsize
+    for version, dtype in PID_DEBUG_TYPES.items()}
+
 # The per-(col,row) timeseries fields worth keeping from each PID-debug frame.
 # (Excludes the dummy padding and the split runTime words.)
 PID_DEBUG_FIELDS = (
     'accumError', 'sumAccumError', 'diffAccumError', 'pidResult',
-    'sq1FbStart', 'sq1FbEnd', 'numFluxJumps',
+    'sq1FbStart', 'sq1FbEnd', 'sq1FbFull', 'numFluxJumps',
     'dropCount', 'numSamples', 'readoutCount',
 )
 
 
 @dataclass
 class PidDebug:
-    """One decoded fixed-point PID-debug frame (16-byte header + 72-byte body).
+    """One decoded fixed-point PID-debug frame (v1: 88 bytes, v2/v3: 96 bytes).
 
     col is board-local (0-7); the header carries boardId/groupId/timestamp. See
     PID_DEBUG_TYPE for the body layout.
@@ -242,14 +248,22 @@ class PidDebug:
     @classmethod
     def from_numpy(cls, arr):
         header = FrameHeader.from_numpy(arr)
-        # view() yields a shape-(1,) structured array; take element 0 to get the
-        # record scalar whose fields are numpy scalars (.item() -> python int).
-        rec = arr[FRAME_HEADER_BYTES:].view(PID_DEBUG_TYPE)[0]
+        if header.formatType != FormatType.PID_FIXED:
+            raise ValueError('Not a fixed-point PID-debug frame')
+        dtype = PID_DEBUG_TYPES.get(header.formatVersion)
+        if dtype is None:
+            raise ValueError(f'Unsupported PID-debug version {header.formatVersion}')
+        if len(arr) != FRAME_HEADER_BYTES + dtype.itemsize:
+            raise ValueError(f'Wrong PID-debug frame size {len(arr)} for v{header.formatVersion}')
+        rec = arr[FRAME_HEADER_BYTES:].view(dtype)[0]
+        fields = {k: rec[k].item() for k in PID_DEBUG_FIELDS if k in dtype.names}
+        if 'sq1FbFull' in fields:
+            fields['sq1FbFull'] /= 2**23
         return cls(
             header = header,
             col = int(rec['col']) & 0b111,
             row = int(rec['row']) & 0xFF,
-            fields = {k: rec[k].item() for k in PID_DEBUG_FIELDS})
+            fields = fields)
 
 
 # Floating-point PID-debug frame: the 16-byte shared header + a 40-byte float body
@@ -362,4 +376,3 @@ class WaveformReadout:
             markers = markers.reshape(-1, 8)
         return cls(header=header, channel=channel, decimation=decimation,
                    adcs=adcs, markers=markers)
-

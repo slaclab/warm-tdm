@@ -50,6 +50,9 @@ package FrameHeaderPkg is
    -- Layout version (header byte 1). Bump on ANY frame body/layout change so a
    -- reprocessing decoder can tell which layout it is reading.
    constant FRAME_FORMAT_VERSION_C : slv(7 downto 0) := X"01";
+   -- Fixed PID v2 added fractional feedback; v3 preserves the full nine-bit
+   -- flux count as a sign-extended int32. Other formats keep v1.
+   constant FRAME_FORMAT_PID_FIXED_VERSION_C : slv(7 downto 0) := X"03";
 
    -- The header occupies two 64-bit words on a DATA_AXIS_CONFIG_C-style bus.
    constant FRAME_HEADER_WORDS_C : integer := 2;
@@ -62,7 +65,8 @@ package FrameHeaderPkg is
    function frameHeaderWord0 (
       formatType : slv(7 downto 0);
       boardId    : slv(7 downto 0);
-      groupId    : slv(7 downto 0) := X"00")
+      groupId    : slv(7 downto 0) := X"00";
+      formatVersion : slv(7 downto 0) := FRAME_FORMAT_VERSION_C)
       return slv;
 
    -- Build header word 1 (the 64-bit absolute-nanoseconds timestamp).
@@ -80,7 +84,8 @@ package FrameHeaderPkg is
       formatType       : in    slv(7 downto 0);
       boardId          : in    slv(7 downto 0);
       groupId          : in    slv(7 downto 0) := X"00";
-      valid            : in    sl := '1');
+      valid            : in    sl := '1';
+      formatVersion    : in    slv(7 downto 0) := FRAME_FORMAT_VERSION_C);
 
    -- Emit header word 1 (timestamp) onto an AXI-stream master variable. No SOF.
    procedure emitFrameHeaderWord1 (
@@ -95,12 +100,13 @@ package body FrameHeaderPkg is
    function frameHeaderWord0 (
       formatType : slv(7 downto 0);
       boardId    : slv(7 downto 0);
-      groupId    : slv(7 downto 0) := X"00")
+      groupId    : slv(7 downto 0) := X"00";
+      formatVersion : slv(7 downto 0) := FRAME_FORMAT_VERSION_C)
       return slv is
       variable ret : slv(63 downto 0) := (others => '0');
    begin
       ret(7 downto 0)   := formatType;              -- byte 0
-      ret(15 downto 8)  := FRAME_FORMAT_VERSION_C;  -- byte 1
+      ret(15 downto 8)  := formatVersion;           -- byte 1
       ret(23 downto 16) := groupId;                 -- byte 2 (reserved 0 today)
       ret(31 downto 24) := boardId;                 -- byte 3
       -- bytes 4-7 (63 downto 32) reserved, left zero
@@ -120,10 +126,11 @@ package body FrameHeaderPkg is
       formatType       : in    slv(7 downto 0);
       boardId          : in    slv(7 downto 0);
       groupId          : in    slv(7 downto 0) := X"00";
-      valid            : in    sl := '1') is
+      valid            : in    sl := '1';
+      formatVersion    : in    slv(7 downto 0) := FRAME_FORMAT_VERSION_C) is
    begin
       axisMaster.tValid            := valid;
-      axisMaster.tData(63 downto 0) := frameHeaderWord0(formatType, boardId, groupId);
+      axisMaster.tData(63 downto 0) := frameHeaderWord0(formatType, boardId, groupId, formatVersion);
       ssiSetUserSof(axisConfig, axisMaster, '1');
    end procedure emitFrameHeaderWord0;
 
