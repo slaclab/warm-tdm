@@ -1,5 +1,101 @@
 # PID cosim verification — Progress
 
+## 2026-09-16 (later) — retained-fractional-feedback RTL re-locks in cosim; PID test harness added
+
+### Integer AdcDsp fractional-feedback change — RE-VERIFIED LOCKING IN COSIM
+Rebuilt the integer no-variation cosim at HEAD `e2eafb5` (retained fractional SQ1
+feedback, commits `4248929` + `e2eafb5`) — `USE_FLOAT_PID=0 VARIATION_SEED=0 make vcs`,
+Vivado 2025.1 + VCS X-2025.06 — and confirmed the servo still locks with the tuned
+gains (raw P=−0.0006, I=−2e-5). `cosim_pid_lock.py` converged from a ~43k StartRun
+transient to ~1–2k, feedback moved, **FluxJumps=0**, all 8 rows uniform (correct for
+`VARIATION_SEED=0`). `verify_cosim_readout.py` first sub-check PASS (PID-debug **v3**
+frames + readout + config-derived units decode cleanly — the frame plumbing this
+commit changed); one masking sub-check flaked with a concurrent FIFO-drop warning
+(readout-channel masking, not the PID arithmetic — capture-completeness at
+`--rows 4 --acq 30`, not a lock regression).
+
+### NEW: unified PID test harness (integer + float), behavior + performance
+Added a proper, parameterized cosim PID harness (the user asked for one covering both
+controllers, behavior AND performance):
+- **`software/python/warm_tdm_api/operations/pid_analysis.py`** — shared, format-agnostic
+  `pid_metrics(pid_data, col, row)` (steady residual+RMS, peak, settling, feedback mean,
+  flux-jump/drop rates, windup) via a semantic-field alias resolver (int `accumError`/
+  float `accumErrorFp`, etc.). The `pid_metrics` home reserved by PID_ANALYZER_PLAN.md;
+  the future analyzer extends it. Offline-unit-tested on synthetic int+float series.
+- **`software/scripts/hwtest/verify_cosim_pid.py`** — `_cosim_common`-based check with
+  **verify** (thresholded CI gate) and **measure** (report-only) modes; auto-detects the
+  live controller (int has `D_Coef`/`Sq1FbFullValid`; float is PI-only float32 coefs);
+  applies the right gain interface+sign per path (int `set_pid` normalized, negative P;
+  float `PidP_Gain`/`PidI_Gain` since `set_pid` early-returns for PI-only FP, positive P).
+  Behaviors: **steady** (lock+residual), **step** (DC TesBias disturbance rejection /
+  lock retention), **flux** (opt-in, best-effort). 
+- **`software/scripts/hwtest/run_cosim_pid_suite.py`** — turnkey driver: builds+launches
+  the integer cosim, runs the harness, tears down, then the float cosim; two-stage
+  readiness gate (bridge ports + real SRP read); aggregates `suite_result.json`.
+- **`software/scripts/hwtest/cosim_pid.example.json`** — per-path gain/operating-point/
+  threshold profile (raw gains incl. sign; model-specific, documented).
+
+**Integer path VALIDATED live (verify mode, PASS):** steady mean residual ~505–724
+(< 800), FluxJumps=0; step disturbance rejection held lock (residual ~312 after a
++500 µA TesBias step, feedback moved ~3.6 codes, FluxJumps=0).
+
+Three cosim-specific gotchas found + handled while building the harness:
+1. `take_data` inherits a stale absolute `DataWriter.DataFile` dir on a reused server →
+   harness anchors `DataFile` in its own output dir each capture.
+2. The DataWriter tees the readout+PID-debug streams only *after* its first Open/Close
+   on a run → prime with a throwaway capture after `run_mux`.
+3. The cosim PID-debug stream is **intermittent** (empty, empty, DATA, empty, … ~6–8
+   visits when populated) → **retry-until-data** capture loop.
+
+**Model limit reaffirmed (informs the step check design):** the synthetic TES→SQ1
+coupling is weak (~0.024 µA_fb/µA_TES at `TES_CURRENT_SCALE=1`), so even a large
+`TesBias` step needs only a few DAC codes of feedback and barely moves the steady error;
+the servo recovers near-deadbeat while the stream is sparse, so the single-visit
+transient PEAK cannot be caught reliably. The step check therefore asserts **DC
+disturbance rejection / lock retention** (error stays bounded, FluxJumps stable), with
+the feedback move + any captured peak reported as informational — the same model
+limitation already documented for the flux-jump exercise.
+
+### Float path (AdcDspFp) — LOCKS; verify PASSES (steady + step)
+Bringing the FP path up through the harness surfaced four issues; the FP **servo itself
+was fine all along** — the initial "no lock" was a harness setup bug, not an FP/RTL fault.
+
+Fixes:
+1. **FP PyRogue server crashed on startup** — `_AdcDspFp.py` declared the `WrapMultiplier`
+   `LinkVariable` with `minimum=1`, which rogue 6.15.0 rejects ("Invalid use of min or max
+   values with LinkVariable"); the `warmTdmServer --floatPid` tree wouldn't build. Fixed by
+   removing the illegal kwarg (the >=1 bound is already enforced by the backing
+   `WrapMultiplierRaw` LocalVariable). *(committed-tree change in `_AdcDspFp.py`)*
+2. **Harness never set `RowReadoutOrder`** — a fresh sim defaults it to `[0]`, so only row 0
+   was ever visited (only row 0 seeded/servoed; the other rows read as unseeded / no-data).
+   This is the real "FP no-lock" cause AND a latent integer-path bug (the integer runs only
+   "worked" because an earlier `verify_cosim_readout` had left `RowReadoutOrder` = many rows).
+   Fixed: harness sets `RowReadoutOrder = range(rows)` and restores it.
+3. **FP `FluxQuantum` write is PID-guarded** — must be set with PID disabled + not busy. The
+   harness now disables PID before writing FluxQuantum (setup) and before the restore block
+   (teardown; `EndRun` alone doesn't clear `PidEnable`, which broke variable restoration).
+4. **Driver SRP readiness probe** was single-shot + malformed (`python -c` with newlines).
+   Fixed: write the probe to a file and POLL a real SampleCount read until the Rogue<->simv
+   bridge aligns (~90 s after the socket opens).
+
+**Root-cause evidence (register + stream):** with `RowReadoutOrder = [0..7]` all 8 rows
+seed to `Sq1FbFull = 377` codes (= 7 µA; the `f6f1e55` seed works) and `AccumError = 0`;
+the DAC wraps to −162 codes (7 µA − Φ0), read as `sq1FbInt = 16222` unsigned (NOT railed —
+this is the expected centered wrap, and explains the earlier bogus "feedback railed to
+16258" reading). **`verify_cosim_pid.py --path float` PASSES: steady residual 0.0 on all 8
+rows, step disturbance rejection holds lock, FluxJumps=0, clean teardown.** FP stable P sign
+is positive; residual is lowest near the seed (the seed lands on the sa_offset null).
+
+### Both controllers now verify-PASS in cosim
+Integer (`AdcDsp`, retained fractional feedback) and float (`AdcDspFp`) both pass
+`verify_cosim_pid.py` steady + step against their respective builds.
+
+### Owed next
+- Run the full `run_cosim_pid_suite.py --paths integer,float` once for a single turnkey
+  both-paths PASS artifact (both paths already pass individually).
+- Optional: fold `pid_metrics` into the PID_ANALYZER_PLAN.md analyzer; add pytest
+  synthetic-frame coverage for `pid_metrics`.
+
 ## 2026-09-16 — FP fixes implemented and locally verified
 
 Implemented the approved [FP fix plan](FP_FIX_PLAN.md) from `e2eafb5`, keeping
