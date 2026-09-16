@@ -153,13 +153,42 @@ current RTL the compare FAILED on all 11 (Group A base-DAC lag; Group B landed
 mid-range `(0,12658)`/`(1,4962)` instead of the saturated rails `(0,0)`/`(1,16383)`).
 After both fixes: compare **passes 11/11**, property bench green (GHDL 1.0.0).
 
-### Owed next (unchanged priority, now unblocked at the unit level)
-- Rebuild the integer no-variation cosim with the fixed RTL
-  (`USE_FLOAT_PID=0 VARIATION_SEED=0 make vcs`) — the currently-running `./simv` is
-  the pre-fix build — and re-observe the rows 4–7 behavior (last seen
-  `AccumError=[2780,4280,3020,1200,2900,2900,2900,2900]`, rows 4–7 pinned at a
-  shared stale 2900) now that cross-row feedback coupling is removed.
-- Then the Layer 2 step-response centerpiece; Layer 3 synthesis.
+### Cosim (system level) — row symmetry RESTORED by the fix; lock needs re-tuning
+Rebuilt the integer no-variation cosim with the fixed RTL
+(`USE_FLOAT_PID=0 VARIATION_SEED=0 make vcs`, Vivado 2025.1 + VCS X-2025.06),
+re-ran `SetCosimTunePoints` + a PID-enabled run, polling per-row `AccumError`
+**live** (stopped-state reads are stale — REVIEW.md).
+- **The coupling fix works end-to-end.** With the DSP enabled at **P=0**
+  (telemetry, no writeback) and Sq1Fb held, **all 8 rows read an identical settled
+  error (8820)**. With `VARIATION_SEED=0` (identical plants) that is exactly
+  correct. The pre-fix asymmetry (`[2780,4280,3020,1200,2900,2900,2900,2900]` —
+  rows 0–3 distinct, 4–7 sharing a stale value) is **gone**: it was the
+  feedback-capture coupling, now fixed. This is the system-level confirmation of
+  finding 1.
+- **The lock must be re-tuned against the corrected plant.** The prior "partial
+  lock at P=+0.05" was tuned against the *buggy* (predecessor-feedback) loop and no
+  longer applies: post-fix, P=+0.05 diverges (mae 5k→40k) while ±0.01/±0.02 sit
+  flat at ~8820 (7.0 µA is not the null point). Choosing P now needs the reviewer's
+  disciplined path (experiment #5): measure each row's local plant gain, then pick
+  a conservative P — not guess-and-check.
+- **Measurement gotchas found (for a reproducible harness — experiment #3):**
+  writing the per-row `Sq1FbCurrent` RAM *while running* races the sequencer and
+  fails verify ("override is a stopped-state operation"); set it STOPPED, then run.
+  And a fresh `StartRun` + short (~2 s) settle does NOT refresh all 8 rows'
+  `AccumError` (many read 0 or half-settled) — a trustworthy error-vs-Sq1Fb curve
+  needs a fixed-visit-count capture with adequate settle, not wall-clock snapshots.
+
+### Live cosim state (left running for continued lock work)
+Integer no-variation build (fixed RTL) is up: `./simv` (bridges 10000/11000/20000/
+21000) + `warmTdmServer --sim --columnBoards 1 --rowBoards 1 --rowAddrBits 5
+--maxRows 32` (Rogue 9099). Fixture seeded via `SetCosimTunePoints`. Tear down with
+the usual kill (server → simv) if not continuing.
+
+### Owed next (unchanged priority, unblocked at the unit level)
+- **Closed-loop lock re-tune against the corrected plant** — reproducible fixture +
+  fixed-visit capture, measure per-row plant gain, choose P (sign/magnitude),
+  confirm the operating point (user's physical intuition welcome). Then the
+  Layer 2 step-response centerpiece; then Layer 3 synthesis.
 - Software follow-ons from REVIEW.md still owed (see PLAN out-of-scope list):
   `Session.set_pid` PidD_Gain requirement for FP; FP `Sq1FbFull` not seeded from
   `accumIn.sq1FbDac`; `SetCosimTunePoints` stale fixture (FAS 163 µA on a 300 µA
