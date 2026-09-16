@@ -614,7 +614,15 @@ begin
                   -- earlier; combined with PREP_WAIT_S this gives the
                   -- READ_LATENCY_G=3 RAMs enough setup before PREP_PID_S reads.
                   v.pidStateRamAddr := accumIn.logicalRow(ROW_ADDR_BITS_G-1 downto 0);
-                  v.accumError   := to_sfixed(slv(accumIn.accumError(ACCUM_BITS_C-1 downto 0)), v.accumError);
+                  -- SATURATE the 32-bit accumulated error into the 18-bit PID
+                  -- accumulator instead of slicing the low bits. The pre-split DSP
+                  -- accumulated directly into this sfixed and its resize saturated;
+                  -- a bare low-18-bit slice WRAPS (e.g. +249000 -> -13144),
+                  -- reversing the correction sign on overflow. resize into
+                  -- sfixed(17:0) saturates by fixed_pkg default (clamp +/-131071).
+                  -- The shared AdcAccumulator keeps the full 32-bit sum because the
+                  -- FP DSP (AdcDspFp) needs it, so the clamp lives here.
+                  v.accumError   := resize(to_sfixed(accumIn.accumError, 31, 0), v.accumError);
                   -- accumIn.numSamples is unsigned(7 downto 0); accumSamples is
                   -- ufixed(31 downto 0). Use the numeric unsigned->ufixed
                   -- conversion (which resizes) rather than the slv overload,

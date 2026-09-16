@@ -122,7 +122,6 @@ begin
             if (timingRxData.rowStrobe = '1') then
                v.accumOut.accumError      := (others => '0');
                v.accumOut.numSamples      := (others => '0');
-               v.accumOut.sq1FbDac        := sq1FbDac;
                v.accumOut.seqStart        := timingRxData.rowSeqStart;
                v.accumOut.daqReadoutStart := timingRxData.daqReadoutStart;
                v.state                    := WAIT_FIRST_SAMPLE_S;
@@ -130,7 +129,14 @@ begin
 
          when WAIT_FIRST_SAMPLE_S =>
             if (timingRxData.firstSample = '1') then
-               v.state := ACCUMULATE_S;
+               -- Capture the SQ1-FB feedback here, NOT at rowStrobe: the row
+               -- select re-points at rowStrobe but the FastDacDriver only drives
+               -- the new row's DAC value a clock later, so sampling at rowStrobe
+               -- latches the PREVIOUS row's feedback (couples every row's update
+               -- to its predecessor). By firstSample the DAC has settled, matching
+               -- how the pre-split AdcDsp read feedback after the row strobe.
+               v.accumOut.sq1FbDac := sq1FbDac;
+               v.state             := ACCUMULATE_S;
             end if;
 
          when ACCUMULATE_S =>

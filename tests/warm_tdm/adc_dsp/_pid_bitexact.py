@@ -101,6 +101,10 @@ class RowVisit:
     adc_code: int          # constant 14-bit two's-complement ADC code for the row
     num_samples: int = 16  # ADC beats accumulated in the row window
     seq_start: bool = False
+    sq1fb_dac: int = 0x2000  # per-visit feedback (offset binary), driven one clock
+                             # AFTER this visit's rowStrobe -- see visit(). Distinct
+                             # per-visit values expose a feedback-capture that reads
+                             # the previous row's DAC (AdcAccumulator finding 1).
 
 
 @dataclass(frozen=True)
@@ -109,7 +113,9 @@ class Stimulus:
     i_coef: int
     d_coef: int
     row_enable_mask: int
-    sq1fb_dac: int                 # held constant (offset binary), same for both DUTs
+    sq1fb_dac: int                 # initial/reset feedback (offset binary) present
+                                   # at the first visit's rowStrobe; per-visit values
+                                   # thereafter come from RowVisit.sq1fb_dac.
     visits: list[RowVisit] = field(default_factory=list)
 
 
@@ -121,22 +127,35 @@ UNIT_COEF = (1 << 23) - 1
 # several sequences with distinct per-row ADC levels, so the P term responds each
 # visit and the I term integrates across visits -> a varied, non-trivial sq1Fb
 # trajectory and a distinct mAxil write per enabled row visit.
+#
+# Two coverage groups the original constant-DAC / small-error stimulus missed:
+#   * per-visit DISTINCT feedback DACs -- each row's writeback base must be its OWN
+#     row's feedback, not the previous visit's (AdcAccumulator finding 1);
+#   * OVERFLOW visits whose accumulated (adc*beats) exceeds the signed 18-bit range
+#     -- the accumError must SATURATE like the pre-split DSP, not wrap to the
+#     opposite sign (AdcDsp finding 2). num_samples=250 accumulates 249 beats (the
+#     firstSample cycle only transitions into ACCUMULATE), so adc_code*249 is the
+#     mathematical sum; 249000 and -249000 straddle the +/-131071 rails.
 STIMULUS = Stimulus(
     p_coef=UNIT_COEF // 4,
     i_coef=UNIT_COEF // 64,
     d_coef=0,
     row_enable_mask=0b111,
-    sq1fb_dac=0x2000,  # offset-binary mid-scale
+    sq1fb_dac=0x2000,  # offset-binary mid-scale, present at the first rowStrobe
     visits=[
-        RowVisit(row=0, adc_code=120, seq_start=True),
-        RowVisit(row=1, adc_code=-80),
-        RowVisit(row=2, adc_code=40),
-        RowVisit(row=0, adc_code=120, seq_start=True),
-        RowVisit(row=1, adc_code=-80),
-        RowVisit(row=2, adc_code=40),
-        RowVisit(row=0, adc_code=120, seq_start=True),
-        RowVisit(row=1, adc_code=-80),
-        RowVisit(row=2, adc_code=40),
+        # Group A -- feedback coupling: small errors, distinct per-visit DACs.
+        RowVisit(row=0, adc_code=120, seq_start=True, sq1fb_dac=0x2123),
+        RowVisit(row=1, adc_code=-80, sq1fb_dac=0x2345),
+        RowVisit(row=2, adc_code=40, sq1fb_dac=0x2567),
+        RowVisit(row=0, adc_code=120, seq_start=True, sq1fb_dac=0x1F00),
+        RowVisit(row=1, adc_code=-80, sq1fb_dac=0x2200),
+        RowVisit(row=2, adc_code=40, sq1fb_dac=0x2400),
+        RowVisit(row=0, adc_code=120, seq_start=True, sq1fb_dac=0x2050),
+        RowVisit(row=1, adc_code=-80, sq1fb_dac=0x22A0),
+        RowVisit(row=2, adc_code=40, sq1fb_dac=0x24F0),
+        # Group B -- 18-bit overflow: +249000 (positive rail) then -249000.
+        RowVisit(row=0, adc_code=1000, num_samples=250, seq_start=True, sq1fb_dac=0x2000),
+        RowVisit(row=1, adc_code=-1000, num_samples=250, sq1fb_dac=0x2000),
     ],
 )
 
@@ -216,10 +235,17 @@ class BitExactDriver:
         self._timing["rowIndex"] = visit.row
 
         # Row strobe: register rowIndex, reset the accumulator, latch seqStart.
+        # SQ1FB_DAC still holds the PREVIOUS visit's value on this edge -- the
+        # FastDacDriver only registers the new row's DAC one clock after rowStrobe.
         self._apply_timing(rowStrobe=1,
                            rowSeqStart=1 if visit.seq_start else 0)
         await self._tick()
         self._apply_timing()
+
+        # New row's feedback becomes visible one clock after rowStrobe (as the
+        # FastDacDriver drives dacOut), i.e. AFTER the edge the accumulator uses to
+        # (incorrectly) latch it, and stays stable through the sample window.
+        self.dut.SQ1FB_DAC.value = visit.sq1fb_dac
 
         # Gap before firstSample (>3 cycles for the baseline-RAM read latency).
         for _ in range(6):

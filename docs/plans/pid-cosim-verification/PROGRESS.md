@@ -7,12 +7,28 @@
 > refinement to make the closed-loop cosim lockable. Read the "Current state"
 > block first; the dated sections below are newest-first history.
 
-## Current state at a glance (2026-09-15, night)
+## Current state at a glance (2026-09-16)
 
 **DONE**
-- **Layer 1 integer re-qual — COMPLETE.** Whole-path bit-exact cocotb bench
-  (capture + compare) proves the accumulator split is bit-exact AND caught a real
-  per-row PID-state stale-read bug, now fixed (`eb14424`). Compare passes 9/9.
+- **Layer 1 integer re-qual — re-opened by review, then two MORE regressions
+  fixed.** The whole-path bit-exact bench caught the first bug (`eb14424`, stale
+  per-row PID state), but a code review (`REVIEW.md`) showed the 9-write golden
+  *under-constrained* the compare (constant feedback DAC + small errors only) and
+  produced two GHDL counterexamples. Both independently re-verified against the
+  frozen pre-split reference and now **fixed + covered** (see 2026-09-16 section):
+  1. **Feedback captured one row too early** — `AdcAccumulator` latched `sq1FbDac`
+     at `rowStrobe` (before the FastDacDriver drives the new row), coupling each
+     row's writeback to its predecessor. Fixed: capture moved to `firstSample`.
+  2. **18-bit overflow wrapped instead of saturating** — `AdcDsp:617` sliced the
+     low 18 bits of the 32-bit accumError (a +249000 sum → −13144, sign reversed).
+     Fixed: saturating `resize` (clamp ±131071); the shared accumulator keeps the
+     full 32-bit sum because the FP DSP needs it.
+  Bench extended (per-visit DAC + overflow vectors); demonstrated fail on unfixed
+  RTL → pass after fix. Compare passes 11/11, property bench green.
+  **These two are the leading explanation for the non-independent-row lock
+  failures below** — feedback coupling directly produces correlated per-row error
+  and initial-condition sensitivity. Not yet re-confirmed in cosim (sim rebuild
+  owed).
 - **Cosim infra (Layer 2) — UP.** Integer-path `GroupTb` + `warmTdmServer --sim`
   + VirtualClient/`ops.Session` client connect and drive registers end-to-end
   (Vivado 2025.1 + VCS X-2025.06). Both PID datapaths elaborate via
@@ -77,17 +93,77 @@
 - Layer 3 **synthesis** (Vivado 2024.1) of the fixed RTL: timing + utilization;
   confirm FP IP synthesizes under 2024.1.
 
-**Uncommitted on `channelization` right now**
-- `firmware/common/warm_tdm/sim/WaferSimPkg.vhd` — `SQUID_SINUSOID_BLEND_C` +
-  `idealSquidVoltage` blend, and `ROW_FAS_SQUID_SYNTHETIC_C.criticalCurrentAmp`
-  20 µA → 100 µA (so OFF rows superconduct and shunt their SQ1: on/off SQ1
-  visibility went ~1.15× → ~4600×).
-- `software/python/warm_tdm_api/_Group.py` — `SetSimSaTunePoint` seed SaFb 41 → 9.
-- `docs/design/squid-vphi-shaping/README.md` — new; rationale + alternatives.
-- `docs/plans/pid-cosim-verification/cosim-tuning-settings.md` — new; measured
-  operating points + servo-tuning settings.
-- (`firmware/simulations/GroupTb/ruckus.tcl` VARIATION_SEED wiring is **already
-  committed** as `580165b`, not pending.)
+**Uncommitted on `channelization` right now** (the two-regression fix + coverage)
+- `firmware/common/warm_tdm/rtl/AdcAccumulator.vhd` — feedback capture moved
+  `rowStrobe` → `firstSample` (finding 1).
+- `firmware/common/warm_tdm/rtl/AdcDsp.vhd` — saturating `resize` of accumError at
+  the 32→18-bit load (finding 2).
+- `tests/warm_tdm/adc_dsp/_pid_bitexact.py` — per-visit `sq1fb_dac` + overflow
+  visits in the shared stimulus.
+- `tests/warm_tdm/adc_dsp/golden_refs/presplit_dac_writes.json` — regenerated
+  golden (11 writes) from the pre-split RTL under the extended stimulus.
+- `docs/plans/pid-cosim-verification/PROGRESS.md` — this update.
+- (NOTE: the WaferSimPkg sinusoid blend, `_Group.py` SaFb seed, squid-vphi-shaping
+  README, and cosim-tuning-settings.md that a prior revision listed here as
+  "uncommitted" were committed in `94215d6`; that note was stale.)
+
+## 2026-09-16 — review found two more integer-path regressions; both fixed + covered
+
+A code review (`docs/plans/pid-cosim-verification/REVIEW.md`, against HEAD
+`94215d6`) produced two GHDL counterexamples proving the 9-write bit-exact golden
+did **not** establish general equivalence to the pre-split DSP. Both were
+independently re-verified here against the current RTL and the frozen pre-split
+reference, then fixed, with regression coverage that fails on the unfixed RTL and
+passes after the fix.
+
+### Finding 1 — feedback captured one row too early (FIXED)
+`AdcAccumulator.vhd` latched `sq1FbDac` in `IDLE_S` at `rowStrobe` — the edge that
+re-points the row select, before `FastDacDriver` drives the new row's DAC value.
+The pre-split DSP read feedback in `PREP_PID_S`, after accumulation
+(`presplit_rtl/AdcDsp.vhd:692`), when the DAC has settled. Net: each row's
+writeback used the **previous** row's feedback → rows coupled by visit order. This
+is the leading explanation for correlated per-row error and initial-condition
+sensitivity in the lock work.
+Fix: move the `sq1FbDac` capture to the `firstSample` transition (leaving the
+`seqStart`/`daqReadoutStart`/reset at `rowStrobe`). The feedback enters `AdcDsp`
+solely via `accumIn.sq1FbDac`, so the accumulator-side move fully addresses it.
+
+### Finding 2 — 18-bit overflow wrapped instead of saturating (FIXED)
+`AdcDsp.vhd:617` sliced the low 18 bits of the 32-bit `accumIn.accumError` and
+reinterpreted them as signed — a modulo wrap (+249000 → −13144, sign reversed).
+The pre-split path accumulated into `sfixed(17:0)` whose `resize` saturates.
+Fix: `v.accumError := resize(to_sfixed(accumIn.accumError, 31, 0), v.accumError)`
+(saturates to ±131071). **Contract = final-sum saturation**, applied in the
+integer `AdcDsp` consumer — NOT in the shared `AdcAccumulator`, which must keep the
+full 32-bit sum for the FP DSP (`AdcDspFp.vhd:654` feeds it losslessly to Int2Fp).
+Final vs pre-split's per-sample saturation is bit-exact for all physically
+realizable inputs: within one row window `(adc−baseline)` holds a constant sign so
+the running sum is monotonic and cannot rail-then-reverse. Only adversarial
+mid-window sign flips (which a settled row never produces) would differ.
+
+### Coverage — the bench now bites (fail → pass demonstrated)
+The shared stimulus (`_pid_bitexact.py`) held `sq1fb_dac=0x2000` constant and drove
+only small errors, so it saw neither bug. Extended:
+- per-visit `sq1fb_dac` on `RowVisit`, driven one clock **after** `rowStrobe`
+  (modelling `FastDacDriver`) with distinct values per visit → exposes finding 1;
+- two overflow visits (`adc_code=±1000 × num_samples=250` → ±249000, straddling the
+  ±131071 rails) → exposes finding 2.
+Regenerated the golden from the pre-split RTL (11 writes). On the **unfixed**
+current RTL the compare FAILED on all 11 (Group A base-DAC lag; Group B landed
+mid-range `(0,12658)`/`(1,4962)` instead of the saturated rails `(0,0)`/`(1,16383)`).
+After both fixes: compare **passes 11/11**, property bench green (GHDL 1.0.0).
+
+### Owed next (unchanged priority, now unblocked at the unit level)
+- Rebuild the integer no-variation cosim with the fixed RTL
+  (`USE_FLOAT_PID=0 VARIATION_SEED=0 make vcs`) — the currently-running `./simv` is
+  the pre-fix build — and re-observe the rows 4–7 behavior (last seen
+  `AccumError=[2780,4280,3020,1200,2900,2900,2900,2900]`, rows 4–7 pinned at a
+  shared stale 2900) now that cross-row feedback coupling is removed.
+- Then the Layer 2 step-response centerpiece; Layer 3 synthesis.
+- Software follow-ons from REVIEW.md still owed (see PLAN out-of-scope list):
+  `Session.set_pid` PidD_Gain requirement for FP; FP `Sq1FbFull` not seeded from
+  `accumIn.sq1FbDac`; `SetCosimTunePoints` stale fixture (FAS 163 µA on a 300 µA
+  period); `cosim_pid_lock.py` fixture/visit-count robustness.
 
 ## 2026-09-15 (night, latest) — sinusoid sim tuned; −93000 mystery root-caused; lock partial
 
