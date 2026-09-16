@@ -239,10 +239,34 @@ the cosim scripts weren't re-run after the split/frame-header refactors.
   rate, so a `take_data` window yields a short contiguous burst (~9 sequences) — a
   snapshot spanning the step, not every visit. Enough to see excursion→recovery.
 
+### Flux-jump exercise (integer path)
+- **RTL flux-jump logic QUALIFIED model-free (`888762f`).** Added three AdcDsp
+  cocotb property tests that seed the feedback at the ±7862 rail and push it over:
+  positive rail wraps down one `FluxQuantum` and `numFluxJumps=+1`; negative rail
+  wraps up and `-1`; repeated crossings accumulate the per-row count. Exact wrapped
+  `sq1Fb` readback asserted. Fills the gap left by the bit-exact/property benches
+  (which never reached the rail). TESTS=8 PASS=8 under GHDL.
+- **Cosim TES-ramp flux-jump demo — BLOCKED by the synthetic model (characterized).**
+  A TES-bias ramp runs and the servo tracks/stays locked (`FluxJumps=0`), but can't
+  reach the rail: the ±7862 threshold is ~138 µA of SQ1 feedback from the 7 µA
+  operating point, and the TES→SQ1 coupling is tiny (~0.024 µA_fb/µA_TES even at
+  `TES_CURRENT_SCALE=1000`). Pushing coupling to ~1:1 (`TES_CURRENT_SCALE≈40000`,
+  the new GroupTb env generic `18c797b`) reaches the rail regime but amplifies a
+  small TES-bias baseline offset enough to break the base lock at TesBias=0;
+  seeding the operating point near the rail doesn't lock cleanly (model not cleanly
+  periodic that far up). A clean cosim demo needs model surgery (zero the TES-bias
+  baseline offset; and/or make the model periodic near the rail). Deferred — the
+  RTL flux-jump path is already qualified by the unit bench above.
+
 ### Owed next
 - **Float-path step-response:** rebuild `USE_FLOAT_PID=1` and repeat the lock +
   step-response (the FP PID-debug body is a separate 40-byte layout — verify its
   decoder likewise matches the RTL before relying on captures).
+- **(Optional) cosim flux-jump demo:** requires zeroing the model's TES-bias
+  baseline offset so a high `TES_CURRENT_SCALE` is usable, then a fine TES ramp
+  from the operating point through the rail.
+- NOTE: the cosim sim is currently stopped; resuming needs a `make vcs` rebuild
+  (use default `TES_CURRENT_SCALE`=1 for normal work).
 - **(Optional) shrink the P-only residual deadband** — reviewer experiment #5
   (measure per-row plant slope g, pick P from `z≈1+gP`), rather than a bolt-on I
   (which drifted in the quick test). Not blocking the step-response.
