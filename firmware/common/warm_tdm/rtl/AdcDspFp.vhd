@@ -23,9 +23,6 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-library unisim;
-use unisim.vcomponents.all;
-
 library surf;
 use surf.StdRtlPkg.all;
 use surf.AxiStreamPkg.all;
@@ -104,7 +101,6 @@ architecture rtl of AdcDspFp is
 
    -- FP constants
    constant FP_ONE_C     : slv(31 downto 0) := X"3F800000";  -- 1.0
-   constant FP_NEG_ONE_C : slv(31 downto 0) := X"BF800000";  -- -1.0
    constant FP_ZERO_C    : slv(31 downto 0) := X"00000000";  -- 0.0
    constant FP_DAC_MAX_C : slv(31 downto 0) := X"45FFF800";  -- +8191.0
    constant FP_DAC_MIN_C : slv(31 downto 0) := X"C6000000";  -- -8192.0
@@ -122,12 +118,9 @@ architecture rtl of AdcDspFp is
       tKeepMode => TKEEP_COMP_C,
       tDestBits => 4);
 
-   -- GHDL/cocotb cannot elaborate the XPM-backed FIFO primitives. Select the
-   -- vendor XPM path for hardware builds and an inferred (behavioral) FIFO for
-   -- simulation. NOTE: this only affects the AXI-stream FIFOs; the FpMac /
-   -- Int2Fp / Fp2Int Xilinx IP cores this entity instantiates still require a
-   -- simulator that can model them (XSIM) or behavioral stand-ins.
-   constant STREAM_FIFO_SYNTH_MODE_C : string := ite(SIMULATION_G, "inferred", "xpm");
+   -- Select inferred RAM/FIFOs for portable control-logic simulation. The FP
+   -- cores still need generated vendor models or explicit test-only stand-ins.
+   constant MEMORY_SYNTH_MODE_C : string := ite(SIMULATION_G, "inferred", "xpm");
 
    type StateType is (
       IDLE_S,
@@ -148,156 +141,179 @@ architecture rtl of AdcDspFp is
       DATA_STREAM_S);
 
    type RegType is record
-      fllEnable          : sl;
-      rowEnableMask      : slv(255 downto 0);
-      rowEnabled         : sl;
-      outputMode         : slv(1 downto 0);
-      state              : StateType;
+      -- Software configuration
+      fllEnable            : sl;
+      rowEnableMask        : slv(255 downto 0);
+      outputMode           : slv(1 downto 0);
+      pCoef                : slv(31 downto 0);
+      iCoef                : slv(31 downto 0);
+      fluxQuantumFp        : slv(31 downto 0);
+      invFluxQuantumFp     : slv(31 downto 0);
+      axilPidDebugEnable   : sl;
+      -- Accepted visit and its coefficient snapshot
+      state                : StateType;
       logicalRow           : slv(ROW_ADDR_BITS_G-1 downto 0);
-      -- Integer accumulation
-      accumSamples       : unsigned(7 downto 0);
-      accumError         : signed(ACCUM_BITS_C-1 downto 0);
-      -- Seeded DAC feedback captured at accumValid, used to initialize sq1FbFull
-      -- on a row's first visit after a clear (see SEED_SENTINEL_C).
-      sq1FbDacSeed       : slv(13 downto 0);
-      -- FP PID state
-      accumErrorFp       : slv(31 downto 0);
-      sumAccumFp         : slv(31 downto 0);
-      sq1FbFullFp        : slv(31 downto 0);
-      sq1FbNewFp         : slv(31 downto 0);
-      newSumAccum        : slv(31 downto 0);
-      wrappedFp          : slv(31 downto 0);
-      numFluxJumps       : signed(31 downto 0);
-      -- FP coefficients (IEEE 754)
-      pCoef              : slv(31 downto 0);
-      iCoef              : slv(31 downto 0);
-      fluxQuantumFp      : slv(31 downto 0);
-      invFluxQuantumFp   : slv(31 downto 0);
-      -- Snapshot settings for one complete visit, including a gain write in flight.
-      activePCoef        : slv(31 downto 0);
-      activeICoef        : slv(31 downto 0);
-      activeQuantum      : slv(31 downto 0);
-      activeInvQuantum   : slv(31 downto 0);
-      numFluxJumpsFp     : slv(31 downto 0);
-      -- Integral-only clearing waits for the current visit to finish.
-      clearSumPending    : sl;
-      clearSumBusy       : sl;
-      resetCounters      : sl;
-      missedVisitCount   : unsigned(31 downto 0);
-      discardedVisitCount : unsigned(31 downto 0);
-      dacOverflowCount   : unsigned(31 downto 0);
-      dacErrorCount      : unsigned(31 downto 0);
-      pendingDacWrites   : unsigned(5 downto 0);
-      -- Integer DAC output
-      sq1FbInt           : signed(31 downto 0);
-      sq1FbValid         : sl;
-      -- Control
-      clearPidState      : sl;
-      clearPidStateBusy  : sl;
-      pidStateRamAddr    : slv(ROW_ADDR_BITS_G-1 downto 0);
-      waitCount          : unsigned(2 downto 0);
-      saturatedHigh      : sl;
-      saturatedLow       : sl;
-      -- RAM write signals
-      accumErrorRamWrEn  : sl;
-      accumErrorRamWrData : slv(31 downto 0);
-      sumAccumRamWrEn    : sl;
-      sumAccumRamWrData  : slv(31 downto 0);
-      sq1FbFullRamWrEn   : sl;
-      sq1FbFullRamWrData : slv(31 downto 0);
-      fluxJumpRamWrEn    : sl;
-      fluxJumpRamWrData  : slv(31 downto 0);
-      -- FP IP core interfaces
-      int2FpInValid      : sl;
-      int2FpInData       : slv(31 downto 0);
-      fpMacInValid       : sl;
-      fpMacA             : slv(31 downto 0);
-      fpMacB             : slv(31 downto 0);
-      fpMacC             : slv(31 downto 0);
-      fp2IntInValid      : sl;
-      fp2IntInData       : slv(31 downto 0);
-      -- Debug
-      dropCount          : unsigned(31 downto 0);
-      axilPidDebugEnable : sl;
-      pidDebugEnable     : sl;
-      pidDebugMaster     : AxiStreamMasterType;
-      pidStreamMaster    : AxiStreamMasterType;
-      axilWriteSlave     : AxiLiteWriteSlaveType;
-      axilReadSlave      : AxiLiteReadSlaveType;
+      rowEnabled           : sl;
+      accumSamples         : unsigned(7 downto 0);
+      accumError           : signed(ACCUM_BITS_C-1 downto 0);
+      sq1FbDacSeed         : slv(13 downto 0);
+      activePCoef          : slv(31 downto 0);
+      activeICoef          : slv(31 downto 0);
+      activeQuantum        : slv(31 downto 0);
+      activeInvQuantum     : slv(31 downto 0);
+      pidDebugEnable       : sl;
+      waitCount            : unsigned(2 downto 0);
+      -- Working PI/feedback values
+      accumErrorFp         : slv(31 downto 0);
+      sumAccumFp           : slv(31 downto 0);
+      newSumAccum          : slv(31 downto 0);
+      sq1FbFullFp          : slv(31 downto 0);
+      sq1FbNewFp           : slv(31 downto 0);
+      numFluxJumps         : signed(31 downto 0);
+      numFluxJumpsFp       : slv(31 downto 0);
+      sq1FbInt             : signed(31 downto 0);
+      sq1FbValid           : sl;
+      saturatedHigh        : sl;
+      saturatedLow         : sl;
+      -- State clearing and per-row RAM interface
+      clearPidState        : sl;
+      clearPidStateBusy    : sl;
+      clearSumPending      : sl;
+      clearSumBusy         : sl;
+      pidStateRamAddr      : slv(ROW_ADDR_BITS_G-1 downto 0);
+      ramWriteEnable       : slv(FLUX_JUMP_C downto ACCUM_ERROR_C);
+      ramWriteData         : Slv32Array(FLUX_JUMP_C downto ACCUM_ERROR_C);
+      -- Shared arithmetic core requests
+      int2FpInValid        : sl;
+      int2FpInData         : slv(31 downto 0);
+      fpMacInValid         : sl;
+      fpMacA               : slv(31 downto 0);
+      fpMacB               : slv(31 downto 0);
+      fpMacC               : slv(31 downto 0);
+      fp2IntInValid        : sl;
+      fp2IntInData         : slv(31 downto 0);
+      -- Stream and register-bus outputs
+      pidDebugMaster       : AxiStreamMasterType;
+      pidStreamMaster      : AxiStreamMasterType;
+      axilWriteSlave       : AxiLiteWriteSlaveType;
+      axilReadSlave        : AxiLiteReadSlaveType;
+      -- Diagnostics and outstanding DAC writes
+      resetCounters        : sl;
+      missedVisitCount     : unsigned(31 downto 0);
+      discardedVisitCount  : unsigned(31 downto 0);
+      dacOverflowCount     : unsigned(31 downto 0);
+      dacErrorCount        : unsigned(31 downto 0);
+      pendingDacWrites     : unsigned(5 downto 0);
+      dropCount            : unsigned(31 downto 0);
    end record;
 
    constant REG_INIT_C : RegType := (
-      fllEnable          => '0',
-      rowEnableMask      => (others => '1'),
-      rowEnabled         => '0',
-      outputMode         => (others => '0'),
-      state              => IDLE_S,
+      fllEnable            => '0',
+      rowEnableMask        => (others => '1'),
+      rowEnabled           => '0',
+      outputMode           => (others => '0'),
+      state                => IDLE_S,
       logicalRow           => (others => '0'),
-      accumSamples       => (others => '0'),
-      accumError         => (others => '0'),
-      sq1FbDacSeed       => (others => '0'),
-      accumErrorFp       => (others => '0'),
-      sumAccumFp         => (others => '0'),
-      sq1FbFullFp        => (others => '0'),
-      sq1FbNewFp         => (others => '0'),
-      newSumAccum        => (others => '0'),
-      wrappedFp          => (others => '0'),
-      numFluxJumps       => (others => '0'),
-      pCoef              => (others => '0'),
-      iCoef              => (others => '0'),
-      fluxQuantumFp      => (others => '0'),
-      invFluxQuantumFp   => (others => '0'),
-      activePCoef        => (others => '0'),
-      activeICoef        => (others => '0'),
-      activeQuantum      => (others => '0'),
-      activeInvQuantum   => (others => '0'),
-      numFluxJumpsFp     => (others => '0'),
-      clearSumPending    => '0',
-      clearSumBusy       => '0',
-      resetCounters      => '0',
-      missedVisitCount   => (others => '0'),
-      discardedVisitCount => (others => '0'),
-      dacOverflowCount   => (others => '0'),
-      dacErrorCount      => (others => '0'),
-      pendingDacWrites   => (others => '0'),
-      sq1FbInt           => (others => '0'),
-      sq1FbValid         => '0',
-      clearPidState      => '0',
-      clearPidStateBusy  => '0',
-      pidStateRamAddr    => (others => '0'),
-      waitCount          => (others => '0'),
-      saturatedHigh      => '0',
-      saturatedLow       => '0',
-      accumErrorRamWrEn  => '0',
-      accumErrorRamWrData => (others => '0'),
-      sumAccumRamWrEn    => '0',
-      sumAccumRamWrData  => (others => '0'),
-      sq1FbFullRamWrEn   => '0',
-      sq1FbFullRamWrData => (others => '0'),
-      fluxJumpRamWrEn    => '0',
-      fluxJumpRamWrData  => (others => '0'),
-      int2FpInValid      => '0',
-      int2FpInData       => (others => '0'),
-      fpMacInValid       => '0',
-      fpMacA             => (others => '0'),
-      fpMacB             => (others => '0'),
-      fpMacC             => (others => '0'),
-      fp2IntInValid      => '0',
-      fp2IntInData       => (others => '0'),
-      dropCount          => (others => '0'),
-      axilPidDebugEnable => '0',
-      pidDebugEnable     => '0',
-      pidDebugMaster     => axiStreamMasterInit(AXIS_DEBUG_CFG_C),
-      pidStreamMaster    => axiStreamMasterInit(PID_DATA_FP_AXIS_CFG_C),
-      axilWriteSlave     => AXI_LITE_WRITE_SLAVE_INIT_C,
-      axilReadSlave      => AXI_LITE_READ_SLAVE_INIT_C);
+      accumSamples         => (others => '0'),
+      accumError           => (others => '0'),
+      sq1FbDacSeed         => (others => '0'),
+      accumErrorFp         => (others => '0'),
+      sumAccumFp           => (others => '0'),
+      sq1FbFullFp          => (others => '0'),
+      sq1FbNewFp           => (others => '0'),
+      newSumAccum          => (others => '0'),
+      numFluxJumps         => (others => '0'),
+      pCoef                => (others => '0'),
+      iCoef                => (others => '0'),
+      fluxQuantumFp        => (others => '0'),
+      invFluxQuantumFp     => (others => '0'),
+      activePCoef          => (others => '0'),
+      activeICoef          => (others => '0'),
+      activeQuantum        => (others => '0'),
+      activeInvQuantum     => (others => '0'),
+      numFluxJumpsFp       => (others => '0'),
+      clearSumPending      => '0',
+      clearSumBusy         => '0',
+      resetCounters        => '0',
+      missedVisitCount     => (others => '0'),
+      discardedVisitCount  => (others => '0'),
+      dacOverflowCount     => (others => '0'),
+      dacErrorCount        => (others => '0'),
+      pendingDacWrites     => (others => '0'),
+      sq1FbInt             => (others => '0'),
+      sq1FbValid           => '0',
+      clearPidState        => '0',
+      clearPidStateBusy    => '0',
+      pidStateRamAddr      => (others => '0'),
+      waitCount            => (others => '0'),
+      saturatedHigh        => '0',
+      saturatedLow         => '0',
+      ramWriteEnable       => (others => '0'),
+      ramWriteData         => (others => (others => '0')),
+      int2FpInValid        => '0',
+      int2FpInData         => (others => '0'),
+      fpMacInValid         => '0',
+      fpMacA               => (others => '0'),
+      fpMacB               => (others => '0'),
+      fpMacC               => (others => '0'),
+      fp2IntInValid        => '0',
+      fp2IntInData         => (others => '0'),
+      dropCount            => (others => '0'),
+      axilPidDebugEnable   => '0',
+      pidDebugEnable       => '0',
+      pidDebugMaster       => axiStreamMasterInit(AXIS_DEBUG_CFG_C),
+      pidStreamMaster      => axiStreamMasterInit(PID_DATA_FP_AXIS_CFG_C),
+      axilWriteSlave       => AXI_LITE_WRITE_SLAVE_INIT_C,
+      axilReadSlave        => AXI_LITE_READ_SLAVE_INIT_C);
+
+   -- These procedures only assign next-cycle register values. The calling
+   -- state still selects the operation and its completion/transition cycle.
+   procedure launchMac (
+      variable v : inout RegType;
+      constant a, b, c : in slv(31 downto 0)) is
+   begin
+      v.fpMacInValid := '1';
+      v.fpMacA := a;
+      v.fpMacB := b;
+      v.fpMacC := c;
+   end procedure;
+
+   procedure emitDebugPair (
+      variable v : inout RegType;
+      constant lowWord, highWord : in slv(31 downto 0)) is
+   begin
+      v.pidDebugMaster.tValid := v.pidDebugEnable;
+      v.pidDebugMaster.tData(31 downto 0) := lowWord;
+      v.pidDebugMaster.tData(63 downto 32) := highWord;
+   end procedure;
+
+   procedure clearRowState (
+      variable v : inout RegType;
+      constant allState : in boolean) is
+   begin
+      v.ramWriteEnable(SUM_ACCUM_C) := '1';
+      v.ramWriteData(SUM_ACCUM_C) := FP_ZERO_C;
+      if allState then
+         v.ramWriteEnable := (others => '1');
+         v.ramWriteData := (others => FP_ZERO_C);
+         v.ramWriteData(SQ1FB_FULL_C) := SEED_SENTINEL_C;
+      end if;
+   end procedure;
+
+   procedure completeFeedback (
+      variable v : inout RegType;
+      constant feedback : in slv(31 downto 0)) is
+   begin
+      v.sq1FbNewFp := feedback;
+      v.sq1FbValid := v.rowEnabled;
+      v.waitCount := (others => '0');
+      v.state := RAM_WRITE_S;
+   end procedure;
 
    signal r   : RegType := REG_INIT_C;
    signal rin : RegType;
 
-   signal sumAccumRamOut     : slv(31 downto 0);
-   signal sq1FbFullRamOut    : slv(31 downto 0);
-   signal fluxJumpRamOut     : slv(31 downto 0);
+   signal ramReadData : Slv32Array(FLUX_JUMP_C downto ACCUM_ERROR_C);
 
    signal int2FpOutValid : sl;
    signal int2FpOutData  : slv(31 downto 0);
@@ -411,113 +427,35 @@ begin
    timingAxilWriteMaster       <= locAxilWriteMasters(LOCAL_C);
    locAxilWriteSlaves(LOCAL_C) <= timingAxilWriteSlave;
 
-   -- AccumError RAM (32-bit float, written each iteration for debug readback)
-   U_AxiDualPortRam_ACCUM_ERROR : entity surf.AxiDualPortRam
-      generic map (
-         TPD_G            => TPD_G,
-         SYNTH_MODE_G     => STREAM_FIFO_SYNTH_MODE_C,
-         MEMORY_TYPE_G    => "block",
-         READ_LATENCY_G   => 3,
-         AXI_WR_EN_G      => true,
-         SYS_WR_EN_G      => true,
-         SYS_BYTE_WR_EN_G => false,
-         COMMON_CLK_G     => false,
-         ADDR_WIDTH_G     => ROW_ADDR_BITS_G,
-         DATA_WIDTH_G     => 32)
-      port map (
-         axiClk         => timingRxClk125,
-         axiRst         => timingRxRst125,
-         axiReadMaster  => locAxilReadMasters(ACCUM_ERROR_C),
-         axiReadSlave   => locAxilReadSlaves(ACCUM_ERROR_C),
-         axiWriteMaster => locAxilWriteMasters(ACCUM_ERROR_C),
-         axiWriteSlave  => locAxilWriteSlaves(ACCUM_ERROR_C),
-         clk            => timingRxClk125,
-         rst            => timingRxRst125,
-         addr           => r.pidStateRamAddr,
-         we             => r.accumErrorRamWrEn,
-         din            => r.accumErrorRamWrData,
-         dout           => open);
-
-   -- SumAccum RAM (32-bit float)
-   U_AxiDualPortRam_SUM_ACCUM : entity surf.AxiDualPortRam
-      generic map (
-         TPD_G            => TPD_G,
-         SYNTH_MODE_G     => STREAM_FIFO_SYNTH_MODE_C,
-         MEMORY_TYPE_G    => "block",
-         READ_LATENCY_G   => 3,
-         AXI_WR_EN_G      => true,
-         SYS_WR_EN_G      => true,
-         SYS_BYTE_WR_EN_G => false,
-         COMMON_CLK_G     => false,
-         ADDR_WIDTH_G     => ROW_ADDR_BITS_G,
-         DATA_WIDTH_G     => 32)
-      port map (
-         axiClk         => timingRxClk125,
-         axiRst         => timingRxRst125,
-         axiReadMaster  => locAxilReadMasters(SUM_ACCUM_C),
-         axiReadSlave   => locAxilReadSlaves(SUM_ACCUM_C),
-         axiWriteMaster => locAxilWriteMasters(SUM_ACCUM_C),
-         axiWriteSlave  => locAxilWriteSlaves(SUM_ACCUM_C),
-         clk            => timingRxClk125,
-         rst            => timingRxRst125,
-         addr           => r.pidStateRamAddr,
-         we             => r.sumAccumRamWrEn,
-         din            => r.sumAccumRamWrData,
-         dout           => sumAccumRamOut);
-
-   -- SQ1FB Full (unwrapped) RAM (32-bit float)
-   U_AxiDualPortRam_SQ1FB_FULL : entity surf.AxiDualPortRam
-      generic map (
-         TPD_G            => TPD_G,
-         SYNTH_MODE_G     => STREAM_FIFO_SYNTH_MODE_C,
-         MEMORY_TYPE_G    => "block",
-         READ_LATENCY_G   => 3,
-         AXI_WR_EN_G      => true,
-         SYS_WR_EN_G      => true,
-         SYS_BYTE_WR_EN_G => false,
-         COMMON_CLK_G     => false,
-         ADDR_WIDTH_G     => ROW_ADDR_BITS_G,
-         DATA_WIDTH_G     => 32)
-      port map (
-         axiClk         => timingRxClk125,
-         axiRst         => timingRxRst125,
-         axiReadMaster  => locAxilReadMasters(SQ1FB_FULL_C),
-         axiReadSlave   => locAxilReadSlaves(SQ1FB_FULL_C),
-         axiWriteMaster => locAxilWriteMasters(SQ1FB_FULL_C),
-         axiWriteSlave  => locAxilWriteSlaves(SQ1FB_FULL_C),
-         clk            => timingRxClk125,
-         rst            => timingRxRst125,
-         addr           => r.pidStateRamAddr,
-         we             => r.sq1FbFullRamWrEn,
-         din            => r.sq1FbFullRamWrData,
-         dout           => sq1FbFullRamOut);
-
-   -- Flux Jump counter RAM (32-bit signed integer)
-   U_AxiDualPortRam_FLUX_JUMP : entity surf.AxiDualPortRam
-      generic map (
-         TPD_G            => TPD_G,
-         SYNTH_MODE_G     => STREAM_FIFO_SYNTH_MODE_C,
-         MEMORY_TYPE_G    => "block",
-         READ_LATENCY_G   => 3,
-         AXI_WR_EN_G      => true,
-         SYS_WR_EN_G      => true,
-         SYS_BYTE_WR_EN_G => false,
-         COMMON_CLK_G     => false,
-         ADDR_WIDTH_G     => ROW_ADDR_BITS_G,
-         DATA_WIDTH_G     => 32)
-      port map (
-         axiClk         => timingRxClk125,
-         axiRst         => timingRxRst125,
-         axiReadMaster  => locAxilReadMasters(FLUX_JUMP_C),
-         axiReadSlave   => locAxilReadSlaves(FLUX_JUMP_C),
-         axiWriteMaster => locAxilWriteMasters(FLUX_JUMP_C),
-         axiWriteSlave  => locAxilWriteSlaves(FLUX_JUMP_C),
-         clk            => timingRxClk125,
-         rst            => timingRxRst125,
-         addr           => r.pidStateRamAddr,
-         we             => r.fluxJumpRamWrEn,
-         din            => r.fluxJumpRamWrData,
-         dout           => fluxJumpRamOut);
+   -- Four independent per-row RAMs with the same port timing and geometry:
+   -- error telemetry, integral history, unwrapped feedback, and wrap quotient.
+   GEN_STATE_RAM : for bank in ACCUM_ERROR_C to FLUX_JUMP_C generate
+      U_StateRam : entity surf.AxiDualPortRam
+         generic map (
+            TPD_G            => TPD_G,
+            SYNTH_MODE_G     => MEMORY_SYNTH_MODE_C,
+            MEMORY_TYPE_G    => "block",
+            READ_LATENCY_G   => 3,
+            AXI_WR_EN_G      => true,
+            SYS_WR_EN_G      => true,
+            SYS_BYTE_WR_EN_G => false,
+            COMMON_CLK_G     => false,
+            ADDR_WIDTH_G     => ROW_ADDR_BITS_G,
+            DATA_WIDTH_G     => 32)
+         port map (
+            axiClk         => timingRxClk125,
+            axiRst         => timingRxRst125,
+            axiReadMaster  => locAxilReadMasters(bank),
+            axiReadSlave   => locAxilReadSlaves(bank),
+            axiWriteMaster => locAxilWriteMasters(bank),
+            axiWriteSlave  => locAxilWriteSlaves(bank),
+            clk            => timingRxClk125,
+            rst            => timingRxRst125,
+            addr           => r.pidStateRamAddr,
+            we             => r.ramWriteEnable(bank),
+            din            => r.ramWriteData(bank),
+            dout           => ramReadData(bank));
+   end generate GEN_STATE_RAM;
 
    -------------------------------------------------------------------------------------------------
    -- FP IP Core instances
@@ -564,6 +502,8 @@ begin
       variable requestClear   : boolean;
       variable iContribSign   : sl;
       variable negFluxQuantum : slv(31 downto 0);
+      variable wrapReciprocal : slv(31 downto 0);
+      variable clippedFeedback : slv(31 downto 0);
       variable axilEp         : AxiLiteEndpointType;
    begin
       v := r;
@@ -610,10 +550,7 @@ begin
       ----------------------------------------------------------------------------------------------
       v.sq1FbValid         := '0';
       v.pidStateRamAddr    := r.logicalRow;
-      v.accumErrorRamWrEn  := '0';
-      v.sumAccumRamWrEn    := '0';
-      v.sq1FbFullRamWrEn   := '0';
-      v.fluxJumpRamWrEn    := '0';
+      v.ramWriteEnable     := (others => '0');
       v.int2FpInValid      := '0';
       v.fpMacInValid       := '0';
       v.fp2IntInValid      := '0';
@@ -647,6 +584,9 @@ begin
          requestClear := true;
       end if;
 
+      ----------------------------------------------------------------------------------------------
+      -- Visit-loss and DAC-delivery accounting (independent of arithmetic state)
+      ----------------------------------------------------------------------------------------------
       -- Count only actual visits. Clear/disable discards are intentional;
       -- enabled arrivals while computing indicate an unsupported row schedule.
       if (accumValid = '1') then
@@ -679,6 +619,9 @@ begin
          v.dacErrorCount := (others => '0');
       end if;
 
+      ----------------------------------------------------------------------------------------------
+      -- Clearing has priority over accepting/continuing a visit.
+      ----------------------------------------------------------------------------------------------
       if (requestClear) then
          v.clearSumPending := '0';
          v.clearSumBusy := '0';
@@ -692,57 +635,29 @@ begin
          v.sq1FbFullFp       := (others => '0');
          v.sq1FbNewFp        := (others => '0');
          v.newSumAccum       := (others => '0');
-         v.wrappedFp         := (others => '0');
          v.numFluxJumps      := (others => '0');
          v.sq1FbInt          := (others => '0');
          v.sq1FbValid        := '0';
          v.pidDebugEnable    := '0';
          v.pidStateRamAddr   := (others => '0');
-         v.accumErrorRamWrEn   := '1';
-         v.accumErrorRamWrData := (others => '0');
-         v.sumAccumRamWrEn     := '1';
-         v.sumAccumRamWrData   := (others => '0');
-         v.sq1FbFullRamWrEn    := '1';
-         -- Mark unseeded so the row's first post-clear visit seeds sq1FbFull from
-         -- the DAC value rather than starting the servo from feedback 0.
-         v.sq1FbFullRamWrData  := SEED_SENTINEL_C;
-         v.fluxJumpRamWrEn     := '1';
-         v.fluxJumpRamWrData   := (others => '0');
-      elsif (r.clearPidStateBusy = '1') then
+         clearRowState(v, true);
+      elsif (r.clearPidStateBusy = '1' or r.clearSumBusy = '1') then
+         -- Both sweeps walk the same address sequence; integral-only clearing
+         -- leaves feedback, quotient and unseeded markers untouched.
          v.state := IDLE_S;
-         v.accumErrorRamWrEn   := '1';
-         v.accumErrorRamWrData := (others => '0');
-         v.sumAccumRamWrEn     := '1';
-         v.sumAccumRamWrData   := (others => '0');
-         v.sq1FbFullRamWrEn    := '1';
-         -- Mark unseeded so the row's first post-clear visit seeds sq1FbFull from
-         -- the DAC value rather than starting the servo from feedback 0.
-         v.sq1FbFullRamWrData  := SEED_SENTINEL_C;
-         v.fluxJumpRamWrEn     := '1';
-         v.fluxJumpRamWrData   := (others => '0');
-
+         clearRowState(v, r.clearPidStateBusy = '1');
          if (r.pidStateRamAddr = CLEAR_LAST_ADDR_C) then
             v.clearPidStateBusy := '0';
-         else
-            v.pidStateRamAddr := slv(unsigned(r.pidStateRamAddr) + 1);
-         end if;
-
-      elsif (r.clearSumBusy = '1') then
-         -- Only the integral RAM is cleared. Preserve feedback, flux state and
-         -- unseeded markers. Another I write during this sweep queues a new one.
-         v.sumAccumRamWrEn := '1';
-         v.sumAccumRamWrData := FP_ZERO_C;
-         if (r.pidStateRamAddr = CLEAR_LAST_ADDR_C) then
             v.clearSumBusy := '0';
          else
             v.pidStateRamAddr := slv(unsigned(r.pidStateRamAddr) + 1);
          end if;
+
       elsif (r.state = IDLE_S and v.clearSumPending = '1') then
          v.clearSumPending := '0';
          v.clearSumBusy := '1';
          v.pidStateRamAddr := (others => '0');
-         v.sumAccumRamWrEn := '1';
-         v.sumAccumRamWrData := FP_ZERO_C;
+         clearRowState(v, false);
          v.sumAccumFp := FP_ZERO_C;
          v.newSumAccum := FP_ZERO_C;
       elsif (r.state = IDLE_S and r.fllEnable = '0' and accumValid = '1' and accumIn.seqStart = '1') then
@@ -767,7 +682,7 @@ begin
 
                if (accumValid = '1') then
                   -- Capture accumulation inputs
-                  v.logicalRow     := accumIn.logicalRow(ROW_ADDR_BITS_G-1 downto 0);
+                  v.logicalRow   := accumIn.logicalRow(ROW_ADDR_BITS_G-1 downto 0);
                   v.accumError   := resize(accumIn.accumError, ACCUM_BITS_C);
                   v.accumSamples := accumIn.numSamples;
                   v.rowEnabled   := r.rowEnableMask(to_integer(unsigned(accumIn.logicalRow)));
@@ -827,18 +742,18 @@ begin
             -- At wc=3: capture RAM outputs, launch integrator FpMac.
             -------------------------------------------------------------------
             when WAIT_INT2FP_S =>
-               -- Poll for Int2Fp result (arrives at wc~2)
+               -- Capture the pipelined error conversion when valid.
                if (int2FpOutValid = '1') then
                   v.accumErrorFp := int2FpOutData;
                end if;
 
                if (r.waitCount = 3) then
                   -- RAM outputs are valid after READ_LATENCY_G=3 cycles
-                  v.sumAccumFp   := sumAccumRamOut;
-                  v.numFluxJumps := signed(fluxJumpRamOut);
+                  v.sumAccumFp   := ramReadData(SUM_ACCUM_C);
+                  v.numFluxJumps := signed(ramReadData(FLUX_JUMP_C));
                   v.waitCount    := (others => '0');
 
-                  if (sq1FbFullRamOut = SEED_SENTINEL_C) then
+                  if (ramReadData(SQ1FB_FULL_C) = SEED_SENTINEL_C) then
                      -- First visit for this row since the clear: convert the
                      -- seeded DAC feedback to float (Int2Fp is free now that
                      -- accumError is captured) and finish the integrator launch in
@@ -847,13 +762,10 @@ begin
                      v.int2FpInData  := std_logic_vector(resize(signed(convOffsetBin(r.sq1FbDacSeed)), 32));
                      v.state         := SEED_CONVERT_S;
                   else
-                     v.sq1FbFullFp  := sq1FbFullRamOut;
+                     v.sq1FbFullFp  := ramReadData(SQ1FB_FULL_C);
 
                      -- Launch FpMac: integrator = 1.0 * accumErrorFp + sumAccumFp
-                     v.fpMacInValid := '1';
-                     v.fpMacA       := FP_ONE_C;
-                     v.fpMacB       := v.accumErrorFp;
-                     v.fpMacC       := sumAccumRamOut;
+                     launchMac(v, FP_ONE_C, v.accumErrorFp, ramReadData(SUM_ACCUM_C));
 
                      v.state        := INTEGRATOR_S;
                   end if;
@@ -873,10 +785,7 @@ begin
                   v.sq1FbFullFp  := int2FpOutData;
 
                   -- Launch FpMac: integrator = 1.0 * accumErrorFp + sumAccumFp
-                  v.fpMacInValid := '1';
-                  v.fpMacA       := FP_ONE_C;
-                  v.fpMacB       := r.accumErrorFp;
-                  v.fpMacC       := r.sumAccumFp;
+                  launchMac(v, FP_ONE_C, r.accumErrorFp, r.sumAccumFp);
 
                   v.waitCount    := (others => '0');
                   v.state        := INTEGRATOR_S;
@@ -890,9 +799,7 @@ begin
             when INTEGRATOR_S =>
                -- Debug Word 1 (first cycle only): accumErrorFp | sq1FbFullFp
                if (r.waitCount = 0) then
-                  v.pidDebugMaster.tValid              := r.pidDebugEnable;
-                  v.pidDebugMaster.tData(31 downto 0)  := r.accumErrorFp;
-                  v.pidDebugMaster.tData(63 downto 32) := r.sq1FbFullFp;
+                  emitDebugPair(v, r.accumErrorFp, r.sq1FbFullFp);
                   v.waitCount := to_unsigned(1, 3);
                end if;
 
@@ -900,10 +807,7 @@ begin
                   v.newSumAccum := fpMacOutData;
 
                   -- Launch FpMac: P-term = pCoef * accumErrorFp + sq1FbFullFp
-                  v.fpMacInValid := '1';
-                  v.fpMacA       := r.activePCoef;
-                  v.fpMacB       := r.accumErrorFp;
-                  v.fpMacC       := r.sq1FbFullFp;
+                  launchMac(v, r.activePCoef, r.accumErrorFp, r.sq1FbFullFp);
 
                   v.waitCount := (others => '0');
                   v.state     := PID_P_S;
@@ -917,19 +821,14 @@ begin
             when PID_P_S =>
                -- Debug Word 2 (first cycle only): sumAccumFp | newSumAccum
                if (r.waitCount = 0) then
-                  v.pidDebugMaster.tValid              := r.pidDebugEnable;
-                  v.pidDebugMaster.tData(31 downto 0)  := r.sumAccumFp;
-                  v.pidDebugMaster.tData(63 downto 32) := r.newSumAccum;
+                  emitDebugPair(v, r.sumAccumFp, r.newSumAccum);
                   v.waitCount := to_unsigned(1, 3);
                end if;
 
                if (fpMacOutValid = '1') then
                   -- Capture P-term intermediate, launch I-term
                   -- I-term = iCoef * sumAccumFp + P-term result
-                  v.fpMacInValid := '1';
-                  v.fpMacA       := r.activeICoef;
-                  v.fpMacB       := r.sumAccumFp;
-                  v.fpMacC       := fpMacOutData;
+                  launchMac(v, r.activeICoef, r.sumAccumFp, fpMacOutData);
 
                   v.waitCount := (others => '0');
                   v.state     := PID_I_S;
@@ -944,14 +843,12 @@ begin
                if (fpMacOutValid = '1') then
                   v.sq1FbNewFp := fpMacOutData;
 
-                  -- Launch FpMac: invFluxQuantumFp * sq1FbNewFp + 0.0
-                  v.fpMacInValid := '1';
-                  v.fpMacA       := r.activeInvQuantum;
+                  -- R=0 disables wrapping even if the raw inverse is stale.
+                  wrapReciprocal := r.activeInvQuantum;
                   if (r.activeQuantum(30 downto 0) = (30 downto 0 => '0')) then
-                     v.fpMacA := FP_ZERO_C;  -- Q=0 disables wraps, even with a stale reciprocal.
+                     wrapReciprocal := FP_ZERO_C;
                   end if;
-                  v.fpMacB       := fpMacOutData;
-                  v.fpMacC       := FP_ZERO_C;
+                  launchMac(v, wrapReciprocal, fpMacOutData, FP_ZERO_C);
 
                   v.waitCount := (others => '0');
                   v.state     := FLUX_DIVIDE_S;
@@ -998,10 +895,7 @@ begin
                if (int2FpOutValid = '1') then
                   v.numFluxJumpsFp := int2FpOutData;
                   -- Launch FpMac: numFluxJumpsFp * (-fluxQuantum) + sq1FbNewFp
-                  v.fpMacInValid := '1';
-                  v.fpMacA       := int2FpOutData;
-                  v.fpMacB       := negFluxQuantum;
-                  v.fpMacC       := r.sq1FbNewFp;
+                  launchMac(v, int2FpOutData, negFluxQuantum, r.sq1FbNewFp);
 
                   v.waitCount := (others => '0');
                   v.state     := WRAP_S;
@@ -1009,13 +903,11 @@ begin
 
             -------------------------------------------------------------------
             -- WRAP_S
-            -- Wait for FpMac result (wrappedFp).
-            -- Launch Fp2Int(wrappedFp) for DAC conversion.
+            -- Wait for wrapped feedback from FpMac.
+            -- Launch Fp2Int for DAC conversion.
             -------------------------------------------------------------------
             when WRAP_S =>
                if (fpMacOutValid = '1') then
-                  v.wrappedFp := fpMacOutData;
-
                   -- Launch Fp2Int for DAC conversion
                   v.fp2IntInValid := '1';
                   v.fp2IntInData  := fpMacOutData;
@@ -1046,35 +938,24 @@ begin
 
                   if (v.saturatedHigh = '1' or v.saturatedLow = '1') then
                      -- Back-calculate accepted unwrapped feedback only on clipping.
-                     -- Reuse FpMac: J*Q + clipped local DAC, preserving flux history.
-                     v.fpMacInValid := '1';
-                     v.fpMacA := r.numFluxJumpsFp;
-                     v.fpMacB := r.activeQuantum;
+                     -- Reuse FpMac: J*R + clipped local DAC, preserving flux history.
                      if (v.saturatedHigh = '1') then
-                        v.fpMacC := FP_DAC_MAX_C;
+                        clippedFeedback := FP_DAC_MAX_C;
                      else
-                        v.fpMacC := FP_DAC_MIN_C;
+                        clippedFeedback := FP_DAC_MIN_C;
                      end if;
+                     launchMac(v, r.numFluxJumpsFp, r.activeQuantum, clippedFeedback);
                      v.state := CLIP_FEEDBACK_S;
                   else
-                     v.sq1FbValid := r.rowEnabled;
-                     v.waitCount := (others => '0');
-                     v.state := RAM_WRITE_S;
-                     v.pidDebugMaster.tValid := r.pidDebugEnable;
-                     v.pidDebugMaster.tData(31 downto 0) := r.sq1FbNewFp;
-                     v.pidDebugMaster.tData(63 downto 32) := std_logic_vector(r.numFluxJumps);
+                     completeFeedback(v, r.sq1FbNewFp);
+                     emitDebugPair(v, r.sq1FbNewFp, std_logic_vector(r.numFluxJumps));
                   end if;
                end if;
 
             when CLIP_FEEDBACK_S =>
                if (fpMacOutValid = '1') then
-                  v.sq1FbNewFp := fpMacOutData;
-                  v.sq1FbValid := r.rowEnabled;
-                  v.waitCount := (others => '0');
-                  v.state := RAM_WRITE_S;
-                  v.pidDebugMaster.tValid := r.pidDebugEnable;
-                  v.pidDebugMaster.tData(31 downto 0) := fpMacOutData;
-                  v.pidDebugMaster.tData(63 downto 32) := std_logic_vector(r.numFluxJumps);
+                  completeFeedback(v, fpMacOutData);
+                  emitDebugPair(v, fpMacOutData, std_logic_vector(r.numFluxJumps));
                end if;
 
             -------------------------------------------------------------------
@@ -1098,24 +979,24 @@ begin
                   iContribSign := r.activeICoef(31) xor r.accumErrorFp(31);
 
                   if (r.activeICoef(30 downto 0) = (30 downto 0 => '0')) then
-                     v.sumAccumRamWrData := FP_ZERO_C;
+                     v.ramWriteData(SUM_ACCUM_C) := FP_ZERO_C;
                   elsif (r.saturatedHigh = '1' and iContribSign = '0') or
                      (r.saturatedLow = '1' and iContribSign = '1') then
                      -- Discard integrator update (anti-windup active)
-                     v.sumAccumRamWrData := r.sumAccumFp;
+                     v.ramWriteData(SUM_ACCUM_C) := r.sumAccumFp;
                   else
                      -- Commit integrator
-                     v.sumAccumRamWrData := r.newSumAccum;
+                     v.ramWriteData(SUM_ACCUM_C) := r.newSumAccum;
                   end if;
 
-                  -- Write all state RAMs
-                  v.accumErrorRamWrEn   := '1';
-                  v.accumErrorRamWrData := r.accumErrorFp;
-                  v.sumAccumRamWrEn     := r.rowEnabled;
-                  v.sq1FbFullRamWrEn    := r.rowEnabled;
-                  v.sq1FbFullRamWrData  := r.sq1FbNewFp;
-                  v.fluxJumpRamWrEn     := r.rowEnabled;
-                  v.fluxJumpRamWrData   := std_logic_vector(r.numFluxJumps);
+                  -- Error telemetry always updates; masked control state holds.
+                  v.ramWriteEnable(ACCUM_ERROR_C) := '1';
+                  v.ramWriteData(ACCUM_ERROR_C)   := r.accumErrorFp;
+                  v.ramWriteEnable(SUM_ACCUM_C)   := r.rowEnabled;
+                  v.ramWriteEnable(SQ1FB_FULL_C)  := r.rowEnabled;
+                  v.ramWriteData(SQ1FB_FULL_C)    := r.sq1FbNewFp;
+                  v.ramWriteEnable(FLUX_JUMP_C)   := r.rowEnabled;
+                  v.ramWriteData(FLUX_JUMP_C)     := std_logic_vector(r.numFluxJumps);
 
                   v.waitCount := to_unsigned(1, 3);
                else
@@ -1185,7 +1066,7 @@ begin
             FIFO_PAUSE_THRESH_G => 15,
             GEN_SYNC_FIFO_G     => false,
             FIFO_ADDR_WIDTH_G   => 9,
-            SYNTH_MODE_G        => STREAM_FIFO_SYNTH_MODE_C,
+            SYNTH_MODE_G        => MEMORY_SYNTH_MODE_C,
             MEMORY_TYPE_G       => "bram",
             INT_WIDTH_SELECT_G  => "WIDE",
             SLAVE_AXI_CONFIG_G  => AXIS_DEBUG_CFG_C,
@@ -1217,7 +1098,7 @@ begin
          FIFO_PAUSE_THRESH_G => 15,
          GEN_SYNC_FIFO_G     => true,
          FIFO_ADDR_WIDTH_G   => 5,
-         SYNTH_MODE_G        => STREAM_FIFO_SYNTH_MODE_C,
+         SYNTH_MODE_G        => MEMORY_SYNTH_MODE_C,
          MEMORY_TYPE_G       => "distributed",
          INT_WIDTH_SELECT_G  => "WIDE",
          SLAVE_AXI_CONFIG_G  => PID_DATA_FP_AXIS_CFG_C,
@@ -1244,7 +1125,7 @@ begin
          TPD_G           => TPD_G,
          GEN_SYNC_FIFO_G => false,
          FWFT_EN_G       => true,
-         SYNTH_MODE_G    => STREAM_FIFO_SYNTH_MODE_C,
+         SYNTH_MODE_G    => MEMORY_SYNTH_MODE_C,
          MEMORY_TYPE_G   => "distributed",
          PIPE_STAGES_G   => 0,
          DATA_WIDTH_G    => 22,
