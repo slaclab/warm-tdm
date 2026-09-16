@@ -77,14 +77,14 @@ class SetupMixin:
             if len(self.rdds) > 1:
                 print(f"Set RowBoard[{rb_idx}] to timing mode.")
 
-        # TODO: expand to support multiple column boards.
         # Make the run's PID enable-set exactly track ColEnableMask: iterate ALL
         # columns, enabling PID (+clear, +debug) on the selected ones and
         # explicitly disabling (+clear) the de-selected ones. A previously
         # enabled, now-deselected column must not keep servoing.
         col_enabled = self.col_enable_bools()
         for col, enabled in enumerate(col_enabled):
-            dsp = cb.DataPath.AdcDsp[col]
+            board_idx, chan = self.col_to_board_chan(col)
+            dsp = self.cbs[board_idx].DataPath.AdcDsp[chan]
             dsp.ClearPids()
             dsp.PidEnable.set(bool(enable_pid) and bool(enabled))
             dsp.PidDebugEnable.set(bool(enable_pid_debug) and bool(enabled))
@@ -96,7 +96,8 @@ class SetupMixin:
             masks = self.group.RowEnableMasks.get(read=True)
             for col, enabled in enumerate(col_enabled):
                 if enabled:
-                    cb.DataPath.AdcDsp[col].RowEnableMask.set(int(masks[col]))
+                    board_idx, chan = self.col_to_board_chan(col)
+                    self.cbs[board_idx].DataPath.AdcDsp[chan].RowEnableMask.set(int(masks[col]))
 
         if run_now:
             self.run_mux()
@@ -144,7 +145,6 @@ class SetupMixin:
                           "This tree predates the sample-count-aware PID API.", name)
                 return
 
-        cb = self.coordinator_cb
         if cols is None:
             cols = [c for c, en in enumerate(self.col_enable_bools()) if en]
         gain_vars = (('P', p, self.group.PidP_Gain),
@@ -155,21 +155,22 @@ class SetupMixin:
                 if value is not None:
                     gain_var.set(value=float(value), index=col)
             if debug is not None:
-                cb.DataPath.AdcDsp[col].PidDebugEnable.set(bool(debug))
+                board_idx, chan = self.col_to_board_chan(col)
+                self.cbs[board_idx].DataPath.AdcDsp[chan].PidDebugEnable.set(bool(debug))
             print(f"Set PID for column {col}: " + ", ".join(
                 f"{k}={v}" for k, v in
                 (('P', p), ('I', i), ('D', d), ('debug', debug)) if v is not None))
 
     def apply_dead_masks(self, dead_masks):
-        """Write per-column dead-row masks through ``Group.RowEnableMasks``
-        (issue #83, G9).
+        """Write per-column dead-row masks and cache them in ``Group.RowEnableMasks``.
 
         This is the bridge from the pure ``make_dead_masks`` / ``read_dead_masks``
         helpers (which only build ``{col: mask}`` dicts and read/write mask files)
         to the graduated Group variable: each mask is a 256-bit integer where bit
         ``row`` = 1 means the row is active, 0 means dead. The servo acts only on
-        rows whose bit is set. Writing ``Group.RowEnableMasks`` stores the desired
-        state and drives the corresponding ``AdcDsp[col].RowEnableMask`` register;
+        rows whose bit is set. This helper writes the corresponding board-local
+        ``AdcDsp[chan].RowEnableMask`` register, then stores the desired state in
+        ``Group.RowEnableMasks``;
         ``setup_mux`` re-applies it as part of MUX setup.
 
         ``col`` keys are **global** column indices; columns whose board is not
@@ -187,11 +188,15 @@ class SetupMixin:
             return
 
         for col, mask in sorted(dead_masks.items()):
-            board_idx, _chan = self.col_to_board_chan(col)
+            board_idx, chan = self.col_to_board_chan(col)
             if self.cbs.get(board_idx) is None:
                 log.warning("Column %d maps to absent column board %d; "
                             "skipping dead mask.", col, board_idx)
                 continue
+            # RowEnableMasks is a LocalVariable: setting it alone does not
+            # write hardware. Cache the desired value only after a successful
+            # register write, including for currently disabled columns.
+            self.cbs[board_idx].DataPath.AdcDsp[chan].RowEnableMask.set(int(mask))
             self.group.RowEnableMasks.set(value=int(mask), index=col)
             print(f"Applied dead mask for column {col}.")
 

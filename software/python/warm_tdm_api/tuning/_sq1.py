@@ -396,6 +396,12 @@ def sq1Tune(group, process, doSet=True, doBiasRamp=True):
             log.debug('SQ1 tune deactivating row %s', rowIndex)
             group.ManualRowOff(rowIndex)
 
+        # A Stop inside the final row's sweep never reaches another loop-entry
+        # check. Keep even fitted partial results from being applied in that case.
+        if not _pause_point(process, lambda: process._publishResults(outputs)):
+            completed = False
+            break
+
     log.info(
         'SQ1 tune complete: collected %d/%d row result(s)',
         len(outputs), numEnabledRows)
@@ -411,8 +417,8 @@ def sq1Tune(group, process, doSet=True, doBiasRamp=True):
             rowIndex = rowTuneList[rowNumber]
             for col in enabledColumns:
                 result = results[col]
-                if (result.xOut is None or result.biasOut is None
-                        or result.yOut is None):
+                if any(value is None or not np.isfinite(value)
+                       for value in (result.xOut, result.biasOut, result.yOut)):
                     raise RuntimeError(
                         f'SQ1 tune produced no fitted operating point for '
                         f'enabled column {col}, row {rowIndex}')

@@ -109,11 +109,12 @@ a local `data` dir then `$HOME` if the requested base is not writable.
 |---|---|
 | `sess.status()` | One-shot instrument-state summary (board counts, run/MUX mode, tune-enabled columns, output dir). Read-only; returns a dict. |
 | `sess.print_hardware()` | Firmware/build info (BuildStamp, DeviceDna, GitHash, ImageName) per board. |
-| `sess.setup_mux(num_pts, sample_end_offset, sample_num, …, enable_pid, enable_pid_debug)` | Configure the coordinator timing (row period + sample window), put row DACs in timing mode, and enable SQ1 PID for every active column. |
+| `sess.setup_mux(num_pts, sample_end_offset, sample_num, …, enable_pid, enable_pid_debug)` | Configure coordinator timing and all row drivers; apply PID/debug enables and desired row masks across every column board. Deselected columns have PID/debug disabled. |
+| `sess.set_pid(p=None, i=None, d=None, cols=None, debug=None)` | Set sample-count-normalized gains for enabled columns, or explicit global column indices. Optional debug changes reach each column's board. |
 | `sess.set_cryo_resistance(Rcryo_Ohm)` | Set the cryostat roundtrip cable resistance on every board's analog-front-end amp model. |
 | `sess.set_ps_synch(mode)` / `sess.check_ps_synch()` | Set / read the board power-supply synchronization state. |
 | `sess.disable_leds()` | Turn off the status-blink LEDs on all boards. |
-| `sess.apply_dead_masks(dead_masks)` | Write per-column dead-row masks to `AdcDsp[col].RowEnableMask`. Takes `{col: mask}` from `make_dead_masks` / `read_dead_masks`. |
+| `sess.apply_dead_masks(dead_masks)` | Write `{global_col: mask}` to each board-local `AdcDsp[chan].RowEnableMask`, including deselected columns, then cache successful writes in `Group.RowEnableMasks`. `setup_mux` reapplies that desired state. |
 | `sess.save_config()` / `sess.load_config(path)` | Save / restore all RW+WO variables (a recallable config YAML). |
 | `sess.save_state()` | Save the full system state (adds RO) — a complete snapshot. |
 | `sess.stop_and_zero()` | Best-effort return to a safe baseline (see the caveat below). |
@@ -194,7 +195,8 @@ Pure (no-hardware) helpers:
 `stop_and_zero()` ends any active run, drops to manual timing, and zeros the
 column outputs — the fast-DAC force outputs with **read-back verification and
 bounded retry** (via `DacCurrentNow`), the slow bias/offset outputs with a single
-write. Row DACs are currently left untouched.
+write. Both paths address board-local outputs, so `ColEnableMask` does not
+exclude deselected columns from zeroing. Row DACs are currently left untouched.
 
 `DacCurrentNow.get()` refreshes the underlying raw register in the driver;
 callers do not need a separate `DacRawNow.get()`. Use `.value()` or
@@ -227,13 +229,20 @@ Rogue/Warm-TDM environment with the software, firmware and SURF Python paths:
 
 ```bash
 python software/tests/rogue_operations_smoke.py
+python software/tests/rogue_ops_setup_smoke.py
 ```
 
-The latter uses a synthetic instrument, real localhost ZMQ and real file I/O.
+The first uses a synthetic instrument, real localhost ZMQ and real file I/O.
 It covers direct/client Session calls, timeouts/interrupts, acquisition ownership,
 force-readback failures and file-derived readout/PID-debug/calibration decoding.
 It does not run the FPGA state machines or measure physical DAC outputs. Record
-candidate results and the outstanding GroupTb/bench checks on #68 and #86.
+candidate results and the outstanding GroupTb/bench checks on #68.
+
+The second builds a two-column-board production tree in MemEmulate. It exercises
+direct and VirtualClient setup, normalized gains, deselection, full-width row
+masks, and slow-output zeroing with every column disabled. Fast-DAC verification
+is stubbed only in the slow-output test because MemEmulate does not execute that
+FSM; the test checks fresh slow-DAC register readbacks, not physical outputs.
 
 `PromLoader --reload` programs the selected PROM and then reloads its sibling
 FPGA; `--reload-only` skips programming. The flags are mutually exclusive,

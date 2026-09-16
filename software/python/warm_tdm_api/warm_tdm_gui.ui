@@ -401,37 +401,17 @@ p, li { white-space: pre-wrap; }
                <string/>
               </property>
               <property name="channel" stdset="0">
-               <string>rogue://0/GroupRoot.Group.ConfigSelect.ColTuneEnable/name</string>
+               <string>rogue://0/GroupRoot.Group.ColEnableMask/name</string>
               </property>
              </widget>
             </item>
             <item row="0" column="1">
-             <widget class="PyDMEnumComboBox" name="PyDMEnumComboBox_3">
+             <widget class="PyDMLineEdit" name="colEnableMaskEdit">
               <property name="toolTip">
                <string/>
               </property>
               <property name="channel" stdset="0">
-               <string>rogue://0/GroupRoot.Group.ConfigSelect.ColTuneEnable/string</string>
-              </property>
-             </widget>
-            </item>
-            <item row="1" column="0">
-             <widget class="PyDMLabel" name="PyDMLabel_11">
-              <property name="toolTip">
-               <string/>
-              </property>
-              <property name="channel" stdset="0">
-               <string>rogue://0/GroupRoot.Group.ConfigSelect.RowTuneEnable/name</string>
-              </property>
-             </widget>
-            </item>
-            <item row="1" column="1">
-             <widget class="PyDMEnumComboBox" name="PyDMEnumComboBox_4">
-              <property name="toolTip">
-               <string/>
-              </property>
-              <property name="channel" stdset="0">
-               <string>rogue://0/GroupRoot.Group.ConfigSelect.RowTuneEnable</string>
+               <string>rogue://0/GroupRoot.Group.ColEnableMask</string>
               </property>
              </widget>
             </item>

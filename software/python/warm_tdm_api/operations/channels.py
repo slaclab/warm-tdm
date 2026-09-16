@@ -15,8 +15,8 @@
 ##                   per-column 256-bit masks (a Python int list, since a 256-bit
 ##                   value overflows the float64 GroupArrayLinkVariable payload).
 ##                   The Session bridge Session.apply_dead_masks writes these
-##                   helpers' {col:mask} dicts through Group.RowEnableMasks, and
-##                   setup_mux applies it to the RowEnableMask registers;
+##                   helpers' {col:mask} dicts to the RowEnableMask registers and
+##                   caches them in Group.RowEnableMasks; setup_mux reapplies them.
 ##                   Session.read_hardware_dead_masks reads them back.
 ##   - column enable: column_enabled/enabled_columns decode Group.ColEnableMask
 ##                   (integer bitmask, bit c = column c enabled).

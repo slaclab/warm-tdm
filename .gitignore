@@ -20,6 +20,10 @@ build*
 !firmware/targets/build_release.sh
 __pycache__/
 
+# Local Python environments and cocotb/GHDL simulation output
+.venv/
+/tests/sim_build/
+
 .ipynb_checkpoints/
 
 # Directories with YYYYMMDD format
