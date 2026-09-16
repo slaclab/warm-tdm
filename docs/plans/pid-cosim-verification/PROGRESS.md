@@ -157,7 +157,7 @@ current RTL the compare FAILED on all 11 (Group A base-DAC lag; Group B landed
 mid-range `(0,12658)`/`(1,4962)` instead of the saturated rails `(0,0)`/`(1,16383)`).
 After both fixes: compare **passes 11/11**, property bench green (GHDL 1.0.0).
 
-### Cosim (system level) — row symmetry RESTORED by the fix; lock needs re-tuning
+### Cosim (system level) — row symmetry RESTORED, clean lock achieved, PI gains tuned
 Rebuilt the integer no-variation cosim with the fixed RTL
 (`USE_FLOAT_PID=0 VARIATION_SEED=0 make vcs`, Vivado 2025.1 + VCS X-2025.06),
 re-ran `SetCosimTunePoints` + a PID-enabled run, polling per-row `AccumError`
