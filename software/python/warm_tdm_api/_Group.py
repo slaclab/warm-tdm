@@ -262,19 +262,34 @@ class Group(pr.Device):
         ##################################
 
         # Hidden: driven only by the tuning algorithms (_Tuning.py), never
-        # invoked manually from the GUI.
-        def _setRowIndex(name, value):
+        # invoked manually from the GUI. Manually turn a row on/off outside a
+        # timing run. The active RowDacDriver2 names these registers ManualRowOn/
+        # ManualRowOff (a LOGICAL row, mapped via RowMap); the legacy RowModule
+        # RowDacDriver names them ActivateRowIndex/DeactivateRowIndex (a physical
+        # address), so accept either node name per board.
+        # ``candidate_names`` lists the register under each driver version, most
+        # preferred first: RowDacDriver2 (active) calls it ManualRowOn/ManualRowOff;
+        # the legacy RowModule RowDacDriver calls it ActivateRowIndex/
+        # DeactivateRowIndex. Drive whichever name a given row board's driver has.
+        def _setManualRow(candidate_names, value):
             with self.root.updateGroup():
                 for board in self.HardwareGroup.RowBoard.values():
-                    getattr(board.RowDacDriver, name).set(value)
+                    drv = board.RowDacDriver
+                    for name in candidate_names:
+                        if hasattr(drv, name):
+                            getattr(drv, name).set(value)
+                            break
+                    else:
+                        raise AttributeError(
+                            f'{drv.path} has none of {candidate_names}')
 
         @self.command(hidden=True)
-        def ActivateRowIndex(arg):
-            _setRowIndex('ActivateRowIndex', arg)
+        def ManualRowOn(arg):
+            _setManualRow(('ManualRowOn', 'ActivateRowIndex'), arg)
 
         @self.command(hidden=True)
-        def DeactivateRowIndex(arg):
-            _setRowIndex('DeactivateRowIndex', arg)
+        def ManualRowOff(arg):
+            _setManualRow(('ManualRowOff', 'DeactivateRowIndex'), arg)
 
         self.rowSelectedVars = []
 

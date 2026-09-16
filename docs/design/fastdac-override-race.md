@@ -110,8 +110,9 @@ and a DAC code in bits `21:8`. Firmware captures that request in a one-entry
 pending latch and services it through the existing `MANUAL_RS_*` states when
 the FSM returns to idle.
 
-This does not harden the legacy `ActivateRowIndex`, `DeactivateRowIndex`, or
-FAS-table write-through pulses, and it does not change `FastDacDriver`.
+This does not harden the `ManualRowOn`/`ManualRowOff` row actuation (RTL
+`manualRowOn`/`manualRowOff`), or FAS-table write-through pulses, and it does not
+change `FastDacDriver`.
 `ManualSet` is intentionally statusless and restricted to stopped manual-mode
 tuning, where software serializes writes and waits much longer for electrical
 settling than the short firmware transaction requires.

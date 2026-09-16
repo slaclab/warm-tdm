@@ -114,7 +114,7 @@ def check_tuning(sess, args, report, directory):
                     errors.append(str(exc))
             for row in rows:
                 try:
-                    sess.group.DeactivateRowIndex(row)
+                    sess.group.ManualRowOff(row)
                 except BaseException as exc:
                     errors.append(str(exc))
             try:

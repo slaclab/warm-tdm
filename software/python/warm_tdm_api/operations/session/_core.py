@@ -67,6 +67,19 @@ class TopologyCore:
         """Map a global column index to (board_index, channel) for this Group."""
         return col_to_board_chan(col, self.chans_per_board)
 
+    def col_enable_bools(self):
+        """Per-column enable flags decoded from the ``ColEnableMask`` node.
+
+        Rogue-node based (``ColEnableMask`` + ``NumColumns``), so it works over a
+        VirtualClient -- unlike the Group DEVICE's ``colEnableBools`` property,
+        which does not exist on the ``VirtualGroup`` a client sees. Session code
+        must use THIS, not ``self.group.colEnableBools``, so operations run in
+        cosim as well as embedded. Returns a list[bool], one per column.
+        """
+        mask = int(self.group.ColEnableMask.get())
+        ncols = int(self.group.NumColumns.get())
+        return [bool((mask >> c) & 1) for c in range(ncols)]
+
     @staticmethod
     def _discover(board_node):
         """Map a tree board-container node to {index: board}.
@@ -145,7 +158,7 @@ class TopologyCore:
         try:
             mask = int(self.group.ColEnableMask.get())
             st['col_enable_mask'] = mask
-            st['enabled_cols'] = [c for c, en in enumerate(self.group.colEnableBools) if en]
+            st['enabled_cols'] = [c for c, en in enumerate(self.col_enable_bools()) if en]
         except (AttributeError, TypeError) as e:
             log.error("Could not read ColEnableMask: %s", e)
             st['col_enable_mask'] = st['enabled_cols'] = None

@@ -85,7 +85,7 @@ class SetupMixin:
         # columns, enabling PID (+clear, +debug) on the selected ones and
         # explicitly disabling (+clear) the de-selected ones. A previously
         # enabled, now-deselected column must not keep servoing.
-        col_enabled = self.group.colEnableBools
+        col_enabled = self.col_enable_bools()
         for col, enabled in enumerate(col_enabled):
             dsp = cb.DataPath.AdcDsp[col]
             dsp.ClearPids()
@@ -149,7 +149,7 @@ class SetupMixin:
 
         cb = self.coordinator_cb
         if cols is None:
-            cols = [c for c, en in enumerate(self.group.colEnableBools) if en]
+            cols = [c for c, en in enumerate(self.col_enable_bools()) if en]
         gain_vars = (('P', p, self.group.PidP_Gain),
                      ('I', i, self.group.PidI_Gain),
                      ('D', d, self.group.PidD_Gain))
@@ -207,7 +207,7 @@ class SetupMixin:
         Columns on absent boards are skipped. Global column indices key the dict.
         """
         masks = {}
-        for col in range(self.group.config.numColumns):
+        for col in range(int(self.group.NumColumns.get())):
             board_idx, chan = self.col_to_board_chan(col)
             cb = self.cbs.get(board_idx)
             if cb is None:
