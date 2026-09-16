@@ -115,14 +115,15 @@ class PidDebugger(pr.DataReceiver):
         self.add(pr.RemoteVariable(
             name = 'AccumError',
             mode = 'RO',
-            offset = 2 * 8,
+            # Body word 1 (was word 2 pre-split; the baseline word 1 is gone).
+            offset = 1 * 8,
             base = warm_tdm.AdcDsp.ACCUM_BASE,
             bitSize = warm_tdm.AdcDsp.ACCUM_BASE.bitSize))
 
         self.add(pr.RemoteVariable(
             name = 'SumAccum',
             mode = 'RO',
-            offset = 4 * 8,
+            offset = 3 * 8,
             base = warm_tdm.AdcDsp.ACCUM_BASE,
             bitSize = warm_tdm.AdcDsp.ACCUM_BASE.bitSize))
 
@@ -130,14 +131,14 @@ class PidDebugger(pr.DataReceiver):
         self.add(pr.RemoteVariable(
             name = 'Diff',
             mode = 'RO',
-            offset = 5 * 8,
+            offset = 4 * 8,
             base = warm_tdm.AdcDsp.ACCUM_BASE,
             bitSize = warm_tdm.AdcDsp.ACCUM_BASE.bitSize))
 
         self.add(pr.RemoteVariable(
             name = 'PidResult',
             mode = 'RO',
-            offset = 6 * 8,
+            offset = 5 * 8,
             disp = '{:0.03f}',
             base = warm_tdm.AdcDsp.RESULT_BASE,
             bitSize = warm_tdm.AdcDsp.RESULT_BASE.bitSize))
@@ -145,7 +146,7 @@ class PidDebugger(pr.DataReceiver):
         self.add(pr.RemoteVariable(
             name = 'Sq1FbPreRaw',
             mode = 'RO',
-            offset = 3 * 8,
+            offset = 2 * 8,
             base = pr.UInt,
             bitSize = 14))
 
@@ -160,7 +161,7 @@ class PidDebugger(pr.DataReceiver):
         self.add(pr.RemoteVariable(
             name = 'Sq1FbPostRaw',
             mode = 'RO',
-            offset = 8 * 8,
+            offset = 7 * 8,
             base = pr.UInt,
             bitSize = 14))
 
@@ -175,7 +176,7 @@ class PidDebugger(pr.DataReceiver):
         self.add(pr.RemoteVariable(
             name = 'FluxJumps',
             mode = 'RO',
-            offset = 7 * 8,
+            offset = 6 * 8,
             base = pr.Int,
             bitSize = 8,
             bitOffset = 0))
@@ -185,7 +186,7 @@ class PidDebugger(pr.DataReceiver):
             mode = 'RO',
             disp = '{:d}',
             base = pr.UInt,
-            offset = 8*8,
+            offset = 7*8,
             bitOffset = 32))
 
         self.add(pr.RemoteVariable(
@@ -193,7 +194,7 @@ class PidDebugger(pr.DataReceiver):
             mode = 'RO',
             disp = '{:d}',
             base = pr.UInt,
-            offset = 9 * 8))
+            offset = 8 * 8))
 
         self.add(pr.RemoteVariable(
             name = 'ReadoutCount',
@@ -201,7 +202,7 @@ class PidDebugger(pr.DataReceiver):
             disp = '{:d}',
             base = pr.UInt,
             bitOffset = 32,
-            offset = 9 * 8))
+            offset = 8 * 8))
         
 
         self.add(pr.ArrayDevice(
@@ -227,7 +228,7 @@ class PidDebugger(pr.DataReceiver):
             return
 
         # Strip the 16-byte self-describing header; the register map addresses the
-        # 80-byte body, so copy only the body into the MemEmulate backing store.
+        # 72-byte body, so copy only the body into the MemEmulate backing store.
         body = raw[warm_tdm.FRAME_HEADER_BYTES:]
         for i, byte in enumerate(body):
             self.mem._data[i] = byte

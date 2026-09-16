@@ -91,6 +91,9 @@ class StreamReader():
         # Run-cumulative count of readout frames the firmware dropped to FIFO
         # backpressure (max burnCount seen across readout frames; 0 = none lost).
         self.dropped_readouts = 0
+        # Count of PID-debug frames skipped because they did not decode as a whole
+        # record (boundary/fragment frames at a DataWriter open/close).
+        self.malformed_pid = 0
 
     def readStream(self, filename):
         # clear the dictionaries
@@ -99,6 +102,7 @@ class StreamReader():
         self.waveform = nesteddict()
         self.config = {}
         self.dropped_readouts = 0
+        self.malformed_pid = 0
         configBlobs = []
         with pyrogue.utilities.fileio.FileReader(files=[filename]) as fd:
             for header, data in fd.records():
@@ -129,6 +133,13 @@ class StreamReader():
                 'dropped during acquisition (FIFO backpressure); readout data '
                 'is incomplete.')
 
+        # A couple of boundary fragments per acquisition are expected (writer
+        # open/close); a large count suggests real corruption. Surface either way.
+        if self.malformed_pid:
+            warnings.warn(
+                f'{filename}: skipped {self.malformed_pid} malformed PID-debug '
+                'frame(s) (boundary fragments at writer open/close).')
+
     def _accept_readout(self, data, board):
         """Decode one readout frame into data[global_col][row] timeseries.
 
@@ -158,13 +169,21 @@ class StreamReader():
         frame size. The PID body col is board-local, so the global column is
         header.boardId*8 + col (in-band identity, not the file channel).
         """
-        hdr = warm_tdm.FrameHeader.from_numpy(data)
-        if hdr.formatType == warm_tdm.FormatType.PID_FIXED:
-            msg = warm_tdm.PidDebug.from_numpy(data)
-        elif hdr.formatType == warm_tdm.FormatType.PID_FLOAT:
-            msg = warm_tdm.PidDebugFp.from_numpy(data)
-        else:
-            return  # not a PID-debug frame; skip defensively
+        # A DataWriter opened or closed mid-run can glue a partial frame onto the
+        # channel; such a boundary fragment is not a whole PID record and fails to
+        # view() as one. Skip (and count) it rather than aborting the whole file --
+        # the same tolerance the readout/sample path applies to off-size frames.
+        try:
+            hdr = warm_tdm.FrameHeader.from_numpy(data)
+            if hdr.formatType == warm_tdm.FormatType.PID_FIXED:
+                msg = warm_tdm.PidDebug.from_numpy(data)
+            elif hdr.formatType == warm_tdm.FormatType.PID_FLOAT:
+                msg = warm_tdm.PidDebugFp.from_numpy(data)
+            else:
+                return  # not a PID-debug frame; skip defensively
+        except (ValueError, IndexError):
+            self.malformed_pid += 1
+            return
         global_col = msg.header.boardId * CHANS_PER_BOARD + msg.col
         slot = self.pid[global_col][msg.row]
         for field, value in msg.fields.items():

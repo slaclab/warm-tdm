@@ -158,25 +158,28 @@ class DataReadout:
         return self.header.timestampNs
 
 
-# PID-debug frame: the 16-byte shared header + an 80-byte fixed-point body (one
+# PID-debug frame: the 16-byte shared header + a 72-byte fixed-point body (one
 # record per (col, row) servo visit), streamed on the PID-debug channels when
 # AdcDsp[col].PidDebugEnable is set. PID_DEBUG_TYPE is the BODY layout (view
 # ``arr[FRAME_HEADER_BYTES:].view(PID_DEBUG_TYPE)``); it mirrors the AdcDsp PID
 # debug word packing (see firmware AdcDsp.vhd and _PidDebugger.py). The body's
 # word-0 runTime bits are now vestigial padding -- the header timestamp is
-# authoritative. Fields:
+# authoritative. NOTE: the accumulator split moved the baseline out of AdcDsp
+# into AdcAccumulator, so AdcDsp no longer emits the old body "word 1" baseline
+# word -- its DEBUG_BODY_S -> PREP_PID_S sequence goes straight from the col/row
+# word to accumError. The body is therefore 72 bytes / 9 words, not the pre-split
+# 80 / 10. Fields:
 #   accumError     P-term (proportional accumulated error)
 #   sumAccumError  I-term (integral)
 #   diffAccumError D-term (derivative)
 #   pidResult      combined PID output (int64)
 #   sq1FbStart/End SQ1FB DAC code before/after this visit's PID update
 #   numFluxJumps   flux-jump count applied this visit
-#   baseline       tracked baseline
 #   dropCount      dropped-frame counter
 #   numSamples     samples averaged this readout
 #   readoutCount   monotonic readout index (time axis)
-PID_DEBUG_BODY_BYTES = 80
-PID_DEBUG_FRAME_BYTES = FRAME_HEADER_BYTES + PID_DEBUG_BODY_BYTES  # 96 (header + body)
+PID_DEBUG_BODY_BYTES = 72
+PID_DEBUG_FRAME_BYTES = FRAME_HEADER_BYTES + PID_DEBUG_BODY_BYTES  # 88 (header + body)
 
 PID_DEBUG_TYPE = np.dtype([
     # Word 0
@@ -184,10 +187,8 @@ PID_DEBUG_TYPE = np.dtype([
     ('row', np.uint8),
     ('runTimeLow', np.uint16),
     ('runTimeHigh', np.uint32),
-    # Word 1
-    ('baseline', np.uint32),
-    ('dummy1', np.uint32),
-    # Word 2
+    # Word 1 (was the baseline word pre-split; AdcDsp no longer emits it, so
+    # accumError is now the first PID-state body word).
     ('accumError', np.int32),       # P-term
     ('dummy2', np.uint32),
     # Word 3
@@ -220,14 +221,14 @@ PID_DEBUG_TYPE = np.dtype([
 # (Excludes the dummy padding and the split runTime words.)
 PID_DEBUG_FIELDS = (
     'accumError', 'sumAccumError', 'diffAccumError', 'pidResult',
-    'sq1FbStart', 'sq1FbEnd', 'numFluxJumps', 'baseline',
+    'sq1FbStart', 'sq1FbEnd', 'numFluxJumps',
     'dropCount', 'numSamples', 'readoutCount',
 )
 
 
 @dataclass
 class PidDebug:
-    """One decoded fixed-point PID-debug frame (16-byte header + 80-byte body).
+    """One decoded fixed-point PID-debug frame (16-byte header + 72-byte body).
 
     col is board-local (0-7); the header carries boardId/groupId/timestamp. See
     PID_DEBUG_TYPE for the body layout.

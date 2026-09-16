@@ -5,6 +5,40 @@ Operating points and tuning-process settings for the closed-loop PID cosim on th
 integer PID). Measured 2026-09-15 against GroupTb (1 col + 1 row board, 32 rows)
 under Vivado 2025.1 + VCS.
 
+## Closed-loop muxed-PID gains (integer AdcDsp) — TUNED 2026-09-16
+
+Measured against the **fixed** RTL (commit `0f8b13c`: feedback-capture + overflow
+saturation fixes) with the clean per-point protocol: clear PID state
+(`AdcDsp.ClearPids`), re-seed `Sq1FbCurrent=7.0 µA` for all rows while stopped,
+`sa_offset` once, `setup_mux(num_pts=400, sample_num=20)`, then set **raw** AdcDsp
+coefficients directly (`AdcDsp.P_Coef`/`I_Coef` are the raw values — do NOT confuse
+with the normalized `Group.PidP_Gain`, which is raw×SampleCount).
+
+- **Sign matters and is NEGATIVE.** Raw `P = −0.0006` (the hardware value). Positive
+  normalized/raw P is positive feedback here → diverges. `set_pid` writes
+  *normalized* gains (raw = norm/SampleCount), so normalized `P_norm=-0.012` at
+  SampleCount=20 also yields raw −0.0006.
+- **P-only** locks all 8 rows cleanly (FluxJumps=0) but leaves an actuator
+  **deadband** residual ≈ `0.5/|P_raw|` counts (~700 at P=−0.0006): the correction
+  rounds below one DAC code near null.
+- **A small I closes the deadband** (first time I has worked — prior failures were
+  windup from un-cleared state + wrong sign). At P=−0.0006, sweeping raw I:
+
+  | raw I | 30 s residual (mean\|E\|) | character |
+  |------:|--------------------------:|-----------|
+  | 0        | 705 | deadband floor, clean |
+  | −1e-5    | 540 | clean, uniform, slow |
+  | **−2e-5**| **~120** | **clean monotonic, no hunt — recommended** |
+  | −3e-5    | ~270 | quantization limit-cycle stepping begins |
+  | −6e-5    | hunts (min ~100, overshoot ~320) | too high |
+
+- **Recommended: raw P=−0.0006, I=−2e-5, D=0** → all 8 rows converge to ~120 counts
+  (~0.7 mV, ~6 ADC codes), SumAccum bounded, FluxJumps=0. For faster nulling, a
+  larger P (e.g. −0.0012, lower deadband) with I≈−2e-5 is a candidate not yet swept.
+- Residual metrics are `mean(|per-row AccumError|)` over the 8 readout rows at
+  SampleCount=20; note a large one-time StartRun transient (first ~1–2 s) before the
+  first clean accumulation — ignore it when reading settling.
+
 ## Measured operating points (col 0, no variation → all rows identical)
 
 - **SA tune:** SaBias = **55 µA**, SaFb (lock) = **9.03 µA** (≈ Φ0/4 of the 35 µA
