@@ -258,10 +258,37 @@ the cosim scripts weren't re-run after the split/frame-header refactors.
   baseline offset; and/or make the model periodic near the rail). Deferred — the
   RTL flux-jump path is already qualified by the unit bench above.
 
+### Float path (AdcDspFp) — couldn't lock; root-caused + FIXED (`f6f1e55`)
+Switched the cosim to the FP build (`USE_FLOAT_PID=1` rebuild + `warmTdmServer
+--floatPid`; `VirtualAdcDspFp` confirmed). Findings:
+- **FP PID-debug decoder is correct** (5 body words = 40 bytes, matches the RTL —
+  no skew like the integer path had). FP captures decode.
+- **`set_pid` is broken for FP** (requires `PidD_Gain`, which the PI-only FP group
+  lacks → early return). Worked around by setting `AdcDspFp.P_Coef`/`I_Coef`
+  (float) directly. (Real bug; REVIEW follow-on — fix set_pid to only require the
+  gains present.)
+- **FP couldn't lock — root cause (RTL): `AdcDspFp` cleared `sq1FbFull` to 0 at
+  StartRun and never used `accumIn.sq1FbDac`,** so the servo started from feedback
+  0 = SQ1 V–Φ extremum (ungovernable), not the tuned 7 µA. Confirmed: FP feedback
+  slid 7→0→−4.7 µA and diverged. (Exactly the REVIEW-flagged concern.)
+- **Fixed (`f6f1e55`):** on each row's first post-clear visit, seed `sq1FbFull`
+  from `convOffsetBin(accumIn.sq1FbDac)` via Int2Fp (new `SEED_CONVERT_S` state),
+  using a NaN sentinel in the SQ1FB_FULL RAM to mark "unseeded". Rebuilt + verified
+  in cosim: `Sq1FbFull` seeds to 377 codes (=7 µA) and **the FP servo locks**
+  (mean|error| ~60–700, stable across a P sweep) where it diverged before.
+- FP tuning notes: stable P sign is **positive** (raw `P_Coef≈+1e-4`; opposite the
+  integer path — float datapath sign differs); residual is lowest near P=0 because
+  the seed already lands on the null. A benign `FluxJumps=1/row` appears at the
+  7 µA seed — the FP wrap centers the DAC near zero (DAC reads 7−Φ0≈−3 µA while the
+  internal full-feedback is correctly 7 µA, an equivalent flux point).
+
 ### Owed next
-- **Float-path step-response:** rebuild `USE_FLOAT_PID=1` and repeat the lock +
-  step-response (the FP PID-debug body is a separate 40-byte layout — verify its
-  decoder likewise matches the RTL before relying on captures).
+- **FP step-response** (now unblocked): capture a `TesBias` step recovery on the
+  FP path via the (verified) FP PID-debug stream.
+- **Fix `set_pid` for FP** (only require/write the gains that exist) — REVIEW
+  follow-on, enables the documented FP tuning interface.
+- **(Optional) tidy the FP seed wrap:** seed `sq1FbFull` already wrapped to
+  ±Φ0/2 so the 7 µA seed doesn't register a startup flux jump (cosmetic).
 - **(Optional) cosim flux-jump demo:** requires zeroing the model's TES-bias
   baseline offset so a high `TES_CURRENT_SCALE` is usable, then a fine TES ramp
   from the operating point through the rail.
