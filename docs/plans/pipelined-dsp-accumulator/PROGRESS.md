@@ -1,5 +1,8 @@
 # Progress
 
+> Historical May implementation log. Current tests and intentional numerical changes are indexed in [integer-pid](../integer-pid/README.md); remaining acceptance is on [#70](https://github.com/slaclab/warm-tdm/issues/70). The "Not Yet Done" section below records that earlier revision.
+
+
 ## 2026-05-19 — Implementation
 
 ### Completed

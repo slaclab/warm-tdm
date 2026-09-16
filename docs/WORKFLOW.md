@@ -63,7 +63,7 @@ it. Do not maintain duplicate parent and child checklists.
 2. Complete review and appropriate checks against the current integration
    baseline. Use software tests, emulation, simulation and affected-target
    builds according to the change. Firmware builds use Vivado 2024.1. The
-   current GitHub workflow performs Python syntax checks; a green run alone
+   GitHub workflow performs Python syntax and software regression checks; a green run alone
    does not establish firmware correctness or timing closure.
 3. Record what was tested and what remains unverified. Before merging a
    hardware-affecting change with deferred acceptance, ensure an owning issue

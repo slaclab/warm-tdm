@@ -67,10 +67,10 @@ reference/current comparison wrapper):
 ```
 
 `git diff --check` passes. Only AdcDspFp.vhd and this note changed after the
-fix commit; this cleanup remains unstaged and uncommitted for review.
+fix commit; this cleanup was committed as `fae7151` and is included in PR #106.
 
 Generated-IP qualification and synthesis/timing remain pending as recorded in
 [FP_FIX_IMPLEMENTATION.md](FP_FIX_IMPLEMENTATION.md). RAM hierarchy names have
 changed, so external saved waveform configurations may need updating.
 
-Keep this follow-up separate from the committed fixes for review.
+The separate cleanup commit preserves review against the correctness baseline `07a87d0`.

@@ -1,5 +1,8 @@
 # Pipelined DSP Accumulator
 
+> Historical split design. Current integer/FP behavior and acceptance are indexed in [integer-pid](../integer-pid/README.md) and [fp-dsp-pid](../fp-dsp-pid/README.md), owned by #70. The old latency/iterative-wrap descriptions below are not current implementation claims.
+
+
 ## Scope
 
 Split the integer accumulation front-end out of `AdcDsp`/`AdcDspFp` into a standalone `AdcAccumulator` entity. This allows accumulation and PID computation to overlap, removing PID latency from the critical path for row rate.

@@ -103,19 +103,20 @@ Connection modes:
 
 ## GroupLinkVariable Pattern
 
-`GroupLinkVariable` (`software/python/warm_tdm_api/_Group.py`) provides array-style access across multiple boards:
+The classes in `software/python/warm_tdm_api/_GroupVariables.py` provide
+array-style access across boards. Scalar-column groups, board-array groups, and
+per-row fast-DAC tables have distinct dependency layouts. For example:
 
 ```python
-self.add(warm_tdm_api.GroupLinkVariable(
-    name='Sq1Feedback',
-    dependencies=[board.FastDacDriver.DacValue for board in colBoards],
-    tuneEnVar=self.TuneEn))
+group.SaBiasCurrent.get(index=0)  # Explicit read of column 0
+group.SaBiasCurrent.get()         # Refresh enabled columns; return all columns
 ```
 
-- `get(index=N)` reads a single channel; `get(index=-1)` reads all as numpy array
-- `set(value, index=N)` writes a single channel; `set(array, index=-1)` writes all
-- `tuneEnVar` controls which channels are active (skips disabled channels)
-- Dependencies are ordered by column for consistent indexing
+Whole-array reads use the column mask to select refreshes; disabled entries may
+be cached. Explicit indexed reads still read the requested column. Writes are
+masked, and `FastDacVariable` uses `(column, row)` indices. See
+[Group variable I/O contracts](../docs/design/group-variables.md) for batching,
+dependency ownership, normalized PID gains, and the legacy TES-write limitation.
 
 ## Tuning Processes
 
@@ -156,6 +157,10 @@ fas_result = session.fas_tune()
 
 Timing must already be stopped. Sweep bounds, settling delay, and servo values
 must be established on the applicable cryogenic hardware.
+
+The [FAS design record](../docs/design/fas-tuning.md) explains the temporary
+`ManualSet` register, cancellation behavior, and one-level scope. Hardware
+acceptance remains on [#99](https://github.com/slaclab/warm-tdm/issues/99).
 
 For software-clocked TES bias sine/square generation, configuration migration,
 and Stop/error behavior, see [Software TES bias waveforms](../docs/tes-bias-waveform.md).

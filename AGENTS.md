@@ -329,12 +329,19 @@ For substantial feature work, debug efforts, refactors, or multi-step investigat
 
 Each task directory should include enough context for another contributor (or a future agent session) to resume without reconstructing the work from chat history. Capture the goal, current status, decisions made, files or modules involved, validation run, open risks, and next steps. Keep large logs, generated output, and build artifacts out of `docs/plans`; summarize them and link to durable locations instead.
 
-Current plans:
-- [`docs/plans/fp-dsp-pid/`](docs/plans/fp-dsp-pid/) — Floating-point PID servo (AdcDspFp)
-- [`docs/plans/pipelined-dsp-accumulator/`](docs/plans/pipelined-dsp-accumulator/) — Pipelined DSP accumulator
-- [`docs/plans/sw-cleanup/`](docs/plans/sw-cleanup/) — Python legacy removal and API simplification
-- [`docs/plans/channelization/`](docs/plans/channelization/) — Self-describing data frames + channel-layout cleanup (#82)
-- [`docs/plans/pid-cosim-verification/`](docs/plans/pid-cosim-verification/) — Layered verification of the integer + FP PID paths (unit bit-exact → closed-loop cosim → synthesis)
+Start with the [plans index](docs/plans/README.md), which maps each workstream
+to its design records and owning issue. The `channelization` branch carries
+multiple efforts; the frame-format, integer/FP PID, resource integration and
+verification work have separate entry points. PID analysis and RSSI tuning are
+separate proposals. Use live issue checklists for unfinished acceptance.
+
+When implementation is integrated into `pre-release`, move enduring usage,
+design decisions, and maintenance guidance into the nearest permanent README,
+guide, or `docs/design/` record. Remove superseded implementation checklists and
+progress logs; Git history preserves them. Keep a task directory only for an
+intentional design record, active follow-up handoff, or a short redirect needed
+by existing issue/wiki links. Preserve links to the issues owning unfinished
+build or hardware acceptance; integration does not make those checks pass.
 
 ## Submodules
 

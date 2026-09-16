@@ -1,5 +1,8 @@
 # Python Software Cleanup
 
+> Historical cleanup plan. Separate already-integrated #67/#78 work from legacy-driver removal carried by #106; see [resource integration](../resource-integration/README.md). Live acceptance is on #68/#70, not the old phase checklist below.
+
+
 ## Scope
 
 Remove legacy code paths, simplify configuration structures, and fix broken

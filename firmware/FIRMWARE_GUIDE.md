@@ -105,6 +105,10 @@ Platform-split entities:
 
 ## Constraint Organization
 
+Active targets select shared board sources and explicit pinouts. See the
+[targets README](targets/README.md) for naming, source ownership, and release
+build guidance.
+
 | File | Location | Content |
 |------|----------|---------|
 | `WarmTdmCore2.xdc` | `common/warm_tdm/xdc/` | Cross-domain false paths, async clock groups |
@@ -112,9 +116,11 @@ Platform-split entities:
 | `WarmTdmCore2_usp.xdc` | `common/warm_tdm/xdc/` | UltraScale+ clock definitions |
 | `WarmTdmCore2_1g.xdc` | `common/warm_tdm/xdc/` | 1G Ethernet clock groups |
 | `WarmTdmCore2_10g.xdc` | `common/warm_tdm/xdc/` | 10G Ethernet clock groups |
-| `<Target>.xdc` | `targets/<Target>/xdc/` | Pin assignments, I/O standards, board-specific |
+| `ColumnFpgaBoard.xdc`, `ColumnFpgaBoardAwaXe.xdc`, `RowFpgaBoard.xdc` | `common/warm_tdm/xdc/` | Board pin assignments and I/O standards |
 
-Each target's `ruckus.tcl` selects which common XDC files to load based on its platform and Ethernet configuration.
+Each active target's `ruckus.tcl` explicitly loads its board pinout and
+`WarmTdmCore2.xdc`. Keep common XDC directory auto-loading disabled so a build
+does not combine incompatible pinouts.
 
 ## Simulation
 
@@ -135,6 +141,10 @@ cd firmware/simulations/StackTb && make vcs
 Device models in `common/warm_tdm/sim/` provide behavioral representations of external ICs (AD5263, AD5679R, AD9106, AD9767) and board assemblies (ColumnFpgaBoardModel, RowFpgaBoardModel, Squid models).
 
 The simulation environment supports PyRogue co-simulation via TCP socket bridges (`SIMULATION_G => true`, `SIM_PGP_PORT_NUM_G`).
+
+The [sensor-wafer model README](common/warm_tdm/sim/README.md) documents detector
+topology, warm/cold interfaces, device equations, synthetic-profile limits, and
+focused GHDL test entry points.
 
 ## IP Cores
 

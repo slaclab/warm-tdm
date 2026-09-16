@@ -1,156 +1,94 @@
-# PID cosim verification (integer + floating-point)
+# Layered PID verification
+
+[#90](https://github.com/slaclab/warm-tdm/issues/90) owns the reusable harness;
+[#70](https://github.com/slaclab/warm-tdm/issues/70) owns the controller and
+system/build/hardware acceptance. Framing acceptance remains on
+[#82](https://github.com/slaclab/warm-tdm/issues/82). Implementation is consolidated
+in [#106](https://github.com/slaclab/warm-tdm/pull/106). See the
+[index](README.md) for current design records and historical investigations.
 
 ## Goal
 
-Re-qualify the column-board PID DSP path after the accumulator-split restructure
-and validate the new floating-point PI servo, using layered simulation — from
-model-free bit-exact unit regression up to full-system closed-loop cosim.
+Verify both PID paths after the accumulator split. Distinguish numerical unit
+checks, generated-IP behavior, closed-loop system behavior and physical
+performance; success in one does not establish the others.
 
-Both paths are in scope, and **the integer path is treated as new code to be
-re-qualified**, not assumed good: the restructure moved real logic, so "it was
-the known-good integer PID" no longer holds without proof.
+## Layer 0: software, register and configuration integration
 
-## Branch & worktree
+Cross-check production RTL/driver offsets and defaults, instantiate fixed and
+FP trees, and exercise direct/VirtualClient controls, configuration save/restore
+and enabled-column behavior. Repeat affected checks after interface changes.
 
-Verification targets the `channelization` integration (Issue #82, Self-describing
-data frames + channel-layout cleanup; PR #106), which now carries the FP-PID core
-(Issue #70, Floating-point PID firmware — AdcDspFp + accumulator split), the
-accumulator split, and the self-describing frame header. The FP-PID track
-(formerly `fp-pid`) converged into `channelization`; see the Branch Merge Roadmap
-wiki. Worktree: `warm-tdm-channelization`.
+At `fae7151`, the published CI fails because new pytest modules are imported by
+unittest discovery without pytest installed. Merely installing pytest is not
+enough to collect their module-level pytest functions; run pytest explicitly.
+A separate helper subtest still loads removed `_ColumnModule.py`. Reconcile
+legacy-support scope and all active driver cases rather than hiding failures.
+The exact current blockers belong on #90/#106.
 
-## Background — why re-qualification is needed
+## Layer 1: deterministic RTL and arithmetic
 
-- **Integer `AdcDsp` was restructured.** The accumulation front-end (baseline
-  subtract + sample sum) moved out into the new `AdcAccumulator`; `AdcDsp` now
-  consumes `accumIn : AdcAccumResultType` + `accumValid` instead of the raw ADC
-  stream. The AXI-Lite crossbar shrank 8→7 masters, every downstream RAM offset
-  shifted, and `ROW_ADDR_BITS_G` default changed 8→7. The PID compute states look
-  unchanged, but the accumulation numerics moved from an `sfixed` accumulator to a
-  `signed(31:0)` accumulator + slice — that must be shown **bit-exact**.
-- **Floating-point `AdcDspFp` is new.** PI-only (D dropped), single shared FpMac,
-  ~34-cycle pipeline, software-configurable flux-quantum wrap; depends on the
-  Xilinx FpMac / Int2Fp / Fp2Int IEEE-754 IP cores.
-- **The detector/wafer sim model differs between branches**, so a *closed-loop*
-  cross-branch comparison confounds "PID logic changed" with "model changed."
-  Bit-exact checks therefore live at the unit level (model-free); the closed loop
-  is a behavioral check only.
+Integer GHDL/cocotb benches cover controller properties, retained fractional
+feedback, flux accounting and signed transport, and stalled DAC delivery.
+The pre-split golden is immutable history. Later intentional numerical changes
+use independent expectations, with a common-prefix historical comparison;
+whole-path bit equivalence is not the acceptance criterion for changed behavior.
 
-## Verification layers
+FP GHDL/cocotb benches now use explicit test-only arithmetic models. The
+independent rational oracle checks model rounding/conversion. These tests run
+without the generated Xilinx cores; they do not qualify vendor exceptional
+values, denormals, scheduling or XPM transport.
 
-### Layer 0 — static / build sanity  *(largely done)*
-- VHDL↔PyRogue register cross-check across the offset shifts. Done by hand (the
-  automated parser is blind to the crossbar + `AxiDualPortRam` + local-endpoint
-  architecture); `RowPidStatus`/`RowPidStatusFp`/`AdcAccumulator` offsets all
-  match VHDL. **PASS.**
-- Device-tree import smoke in `warm-tdm-r615`. **PASS.**
-- `software/tests/` pytest suite — **owed** (pytest not installed in
-  `warm-tdm-r615`; resolve the env).
+Use [the native AdcDspFpTb target](../../../firmware/simulations/AdcDspFpTb/README.md)
+for generated-IP execution. The cocotb/VCS VHDL runner is not a supported path.
+Record the actual IP/tool versions for that run; do not treat older VCS-selector
+notes or a modeled bench pass as generated-IP evidence.
 
-### Layer 1 — unit RTL simulation (cocotb, Issue #90)
-The unit half of the story; deterministic and model-free. Issue #90's framework
-already lives on `channelization`.
-- **Integer `AdcDsp` bit-exact regression under GHDL** — the Tier-1
-  re-qualification. Drive identical scripted stimulus and compare against a
-  captured pre-split (ops-fixes-era) reference; plus the reconstructed PID checks
-  (P-term response, anti-windup, software PID-state clear). Model-free, license-
-  free, CI-able. This is the check the closed-loop cosim **cannot** provide.
-- **`AdcDspFp` under VCS** (`WARM_TDM_SIM=vcs`; GHDL can't elaborate the FP IP) —
-  deterministic PI arithmetic, flux-jump wrap at the configured quantum, ~34-cycle
-  latency, dropCount behavior.
+Reproduction commands and reported local case counts are in
+[FP_FIX_IMPLEMENTATION.md](FP_FIX_IMPLEMENTATION.md). The separate
+[FP cleanup](FP_CLEANUP.md) compares output records and cycle timing against
+`07a87d0` under its stated stimulus/configurations, not formal equivalence.
 
-### Layer 2 — closed-loop cosim  *(centerpiece)*
-Full system (`GroupTb` + `warmTdmServer --sim`) with a **wafer load**, where the
-servo loop closes physically: `SaOut = f(TesBias, sq1Fb, saFb, rowSel, …)` through
-the SQUID transfer functions, and TES bias opposes SQ1 feedback (the sign a
-nulling servo needs).
+## Layer 2: full GroupTb closed loop
 
-Procedure:
-1. Configure a known tune point; `setup_mux(enable_pid=True, enable_pid_debug=True)`.
-2. `run_mux()` (StartRun); let the loop lock — the PID should hold the accumulated
-   error (SaOut vs baseline) at ~zero by driving `sq1Fb`.
-3. Capture and analyze the PID-debug stream per row visit (locked state).
-4. `Group.TesBias.set(index=col, value=step)` to perturb SaOut.
-5. Observe `sq1Fb` recover the error to zero; capture and analyze the transient.
+Use `USE_FLOAT_PID_G` to select each path and record the complete fixture:
+source/submodule revisions, wafer variation seed, shaping/current scaling,
+row/column map, gains, sample timing and initial DAC state. Earlier captures in
+[PROGRESS.md](PROGRESS.md) predate some current corrections and are not inherited
+by later revisions automatically.
 
-Run once for the integer path (`USE_FLOAT_PID_G=false`) and once for the float
-path (`true`).
+For each path, establish the same supported visit schedule and a measured local
+plant slope, lock, perturb TES bias, and capture step/reversal recovery. Check
+residual/noise, fractional correction, flux wrapping, start/stop/reseed, masked
+rows and all loss/error counters. Bound small steps to the locked branch; label
+large-step relocking separately. Parameter/setup guidance is in
+[cosim-tuning-settings.md](cosim-tuning-settings.md).
 
-Pass criteria: loop locks (error → ~0), recovers from the step with sensible
-settling, no spurious flux-jump relocking, stable dropCount.
+Closed-loop comparisons across different models, gains or operating points do
+not establish an intrinsic fixed/FP performance difference. A simulated wafer
+is not a calibrated physical detector.
 
-Gotchas (all confirmed):
-- `GroupTb` currently hardcodes the float path (`USE_FLOAT_PID_C := true`);
-  parameterize it (or flip) to cover the integer path too.
-- **Frame format is resolved on `channelization`** by the Issue #82 tagged 16-byte
-  header: the host stream reader dispatches `PID_FIXED` (80-byte v3 body,
-  including retained fractional feedback and all nine count bits; v1/v2 remain readable) vs
-  `PID_FLOAT` (40-byte body), so both read cleanly — no bare-frame reader hack
-  (this was the blocker on the pre-convergence `fp-pid`).
-- Per-device wafer variation is on (fixed seed), so each column locks at a
-  different operating point — compare each column's own trajectory.
-- The SSA V–Φ is periodic and clamps at ±1 V: keep the step modest to stay on the
-  locked branch, or use a large step deliberately to exercise flux-jump handling.
-- `TesBias` broadcasts to all rows of a column, perturbing every enabled row.
-- Cross-branch, this is a behavioral reference only (model differs); bit-exact
-  belongs to Layer 1.
+## Layer 3: synthesis and timing
 
-### Layer 3 — synthesis / timing / utilization
-- Build under **Vivado 2024.1** (2025.1 has the hold-time bug); the FP IP needs
-  2025.1 to *simulate* — confirm it also *synthesizes* clean under 2024.1 (an
-  untested risk).
-- Build `ColumnFpgaBoard325Coord10G` (`USE_FLOAT_PID_G=true`): timing closure +
-  utilization (verify the LUT savings from dropping the D-term / FpAdd; assess the
-  distributed-vs-block RAM opportunity for the PID state RAMs).
-- Build a plain integer target to confirm the shared-RTL changes (accumulator
-  split, timing rename) didn't regress non-FP builds.
+Build the affected target/generic matrix with **Vivado 2024.1**. Include an
+integer configuration, FP configuration, supported row depths, debug/memory
+options and the release targets listed by #70. Verify generated-core
+compatibility with the build tool, timing closure, utilization, register map
+and source/package selection. Report actual artifacts and checksums.
 
-## Tooling / environments
-- GHDL — integer cocotb bench (no Vivado license needed).
-- VCS X-2025.06 + Vivado 2025.1 sim libraries — FP cocotb bench and cosim
-  (`WARM_TDM_SIM=vcs`; FP IP requires 2025.1 in simulation).
-- Vivado 2024.1 — synthesis builds.
-- conda `warm-tdm-r615` — cosim client / software (needs surf's Python on
-  `PYTHONPATH`; pytest currently missing).
-- surf ≥ `4acecf9` for cosim ADC reads; the branch is currently at `af07029b`.
+The modeled 52/55/57-clock FP delivery measurements are not real-system latency
+bounds. Test the intended row schedule through the actual generated IP, XPM and
+AXI paths and confirm no unexpected missed/discarded visits or delivery loss.
 
-## Affected modules / files
-- RTL: `AdcDsp.vhd`, `AdcDspFp.vhd`, `AdcAccumulator.vhd`, `DataPath.vhd`,
-  `WarmTdmPkg.vhd`, `TimingPkg.vhd`, `EventBuilder.vhd`, the frame-header package.
-- Benches: `tests/warm_tdm/adc_dsp/test_AdcDsp.py`, `test_AdcDspFp.py`,
-  `tests/common/regression_utils.py`.
-- Cosim / host: `software/scripts/hwtest/verify_cosim_*.py`,
-  `warm_tdm_api/operations/streamreader.py`, `warm_tdm/_DataFormats.py`,
-  `_PidDebugger.py` / `_PidDebuggerFp.py`, `software/scripts/PidDebugFileReaderFp.py`.
-- SW knobs: `Group.TesBias`, `setup_mux` / `run_mux`
-  (`warm_tdm_api/operations/session/_setup.py`).
+## Hardware acceptance and evidence
 
-## Open risks & dependencies
-- **FP IP under Vivado 2024.1 build** while simulation needs 2025.1 — untested;
-  could block Layer 3.
-- **Integer bit-exact baseline**: need a captured pre-split (ops-fixes-era) `AdcDsp`
-  reference and a model-free stimulus definition to diff against.
-- **Relock risk**: a large `TesBias` step may relock the servo on a different flux
-  branch (periodic V–Φ) — bound the step for the settling measurement.
-- **pytest env gap** blocks the software suite in Layer 0.
+The live #70/#82 checklists define supported board/configuration coverage and
+physical acceptance. Record fixed candidate revisions and artifacts; retain
+failures and limitations. #42/#52 remain separate physical investigations even
+when the same session supplies useful evidence. Hardware tests may follow
+integration; prerequisite simulation and build checks may not be replaced by a
+promise of later bench time.
 
-## Next steps
-1. Elaborate `GroupTb` with `USE_FLOAT_PID_G` both true and false (Vivado 2025.1) —
-   the next gate; catches parent-crossbar/port issues beyond the import check.
-2. Run the integer `AdcDsp` GHDL bench; capture a pre-split reference and assert
-   bit-exact equivalence.
-3. Wire the cosim step-response test (extend `verify_cosim_readout.py`: enable PID +
-   debug, set non-zero coefficients, apply a `TesBias` step, capture, analyze via
-   the tagged-header reader).
-4. Synthesis build under 2024.1 for timing closure + utilization.
-
-## References
-- [Integer fractional SQ1 feedback](INTEGER_FRACTIONAL_FEEDBACK.md) —
-  implemented full-precision per-row feedback, lifecycle, saturation/wrapping and
-  reproducible GHDL verification; FPGA/system acceptance remains separate.
-- Issue #70 — Floating-point PID firmware (AdcDspFp + accumulator split)
-- Issue #82 — Self-describing data frames + channel-layout cleanup
-- Issue #90 — RTL cocotb/GHDL regression framework (AdcDsp + AdcDspFp)
-- PR #106 — channelization integration (base `pre-release`)
-- [`docs/plans/fp-dsp-pid/`](../fp-dsp-pid/), [`docs/plans/pipelined-dsp-accumulator/`](../pipelined-dsp-accumulator/), [`docs/plans/channelization/`](../channelization/)
-- Branch Merge Roadmap wiki
+[The original plan](https://github.com/slaclab/warm-tdm/blob/fae7151/docs/plans/pid-cosim-verification/PLAN.md)
+preserves the earlier tools and proposed sequence. Its hardcoded-GroupTb,
+GHDL-cannot-run-FP and pending-baseline claims are historical.

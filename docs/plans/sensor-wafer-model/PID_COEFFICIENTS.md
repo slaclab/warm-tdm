@@ -1,5 +1,15 @@
 # Fixed-Point PID Coefficients for the Sensor-Wafer Simulation
 
+> Historical static derivation retained for the physical-unit work on
+> [#44](https://github.com/slaclab/warm-tdm/issues/44). The numerical plant slopes,
+> trial gains, and integer-state details below predate the later per-row feedback
+> coupling, fractional-feedback, and model-shaping changes. They are not a current
+> tuned configuration or a statement of current RTL widths. Re-identify the local
+> plant slope before using the pole-placement formulas. See the
+> [model architecture](../../../firmware/common/warm_tdm/sim/README.md),
+> [integer PID record](../integer-pid/README.md), and
+> [verification index](../pid-cosim-verification/README.md) for current context.
+
 ## Scope and conclusion
 
 This note derives starting fixed-point SQ1 feedback-loop coefficients for the
