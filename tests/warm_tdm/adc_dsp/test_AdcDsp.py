@@ -284,10 +284,10 @@ async def i_coef_write_clears_integrator_state(dut):
     await bench.wait_for_pid_clear()
 
     sum_accum_after = await axil_read_u32(bench.axil, REG_SUM_ACCUM)
-    last_accum_after = await axil_read_u32(bench.axil, REG_LAST_ACCUM_ERROR)
+    stored_error_after = await axil_read_u32(bench.axil, 0x1000)
 
     assert sum_accum_after == 0
-    assert last_accum_after == 0
+    assert stored_error_after == 10  # Changing I clears only integral history.
 
 
 @cocotb.test()

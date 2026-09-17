@@ -103,9 +103,19 @@ class AdcDsp(pr.Device):
             bitOffset = 0,
             function = pr.RemoteCommand.touchOne))
 
+        self.add(pr.RemoteVariable(
+            name = 'ControlBusy',
+            description = 'A PID visit or state-clear sweep is active. '
+                          'Does not include queued DAC writes.',
+            offset = 0x34,
+            base = pr.Bool,
+            mode = 'RO',
+            bitSize = 1,
+            bitOffset = 0))
+
         def _enablePid(value, write):
-            if write:
-                self.ClearPidState()
+            # Rising enable clears in hardware; disabling drains an accepted
+            # visit. Rewriting enable must not force an unrelated full clear.
             self.PidEnableRaw.set(value, write=write)
 
         self.add(pr.LinkVariable(
@@ -166,10 +176,8 @@ class AdcDsp(pr.Device):
             bitSize = AdcDsp.COEF_BASE.bitSize,
             bitOffset = 0))
 
-        def _setCoef(dep, value, write, *, clearState=False):
+        def _setCoef(dep, value, write):
             dep.set(value, write=write)
-            if write and clearState:
-                self.ClearPidState()
 
         self.add(pr.LinkVariable(
             name = 'P_Coef',
@@ -180,9 +188,11 @@ class AdcDsp(pr.Device):
 
         self.add(pr.LinkVariable(
             name = 'I_Coef',
+            description = 'Changing I clears integral history after the active visit; '
+                          'feedback and flux count are preserved.',
             base = AdcDsp.COEF_BASE,
             dependencies = [self.I_CoefRaw],
-            linkedSet = lambda value, write: _setCoef(self.I_CoefRaw, value, write, clearState=True),
+            linkedSet = lambda value, write: _setCoef(self.I_CoefRaw, value, write),
             linkedGet = self.I_CoefRaw.get))
 
         self.add(pr.LinkVariable(

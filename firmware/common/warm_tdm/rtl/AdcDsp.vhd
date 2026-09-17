@@ -165,9 +165,15 @@ architecture rtl of AdcDsp is
       accumShift         : slv(3 downto 0);
       pidMultiplier      : sfixed(ACCUM_BITS_C-1 downto 0);
       pidCoef            : sfixed(COEF_HIGH_C downto COEF_LOW_C);
-      p                  : slv(COEF_BITS_C-1 downto 0);  -- sfixed(COEF_HIGH_C downto COEF_LOW_C);
-      i                  : slv(COEF_BITS_C-1 downto 0);  -- sfixed(COEF_HIGH_C downto COEF_LOW_C);
-      d                  : slv(COEF_BITS_C-1 downto 0);  -- sfixed(COEF_HIGH_C downto COEF_LOW_C);
+      -- AXI-writable configuration; the PID stages consume active copies.
+      axiP               : slv(COEF_BITS_C-1 downto 0);
+      axiI               : slv(COEF_BITS_C-1 downto 0);
+      axiD               : slv(COEF_BITS_C-1 downto 0);
+      -- Accepted visits finish with one coherent coefficient/quantum snapshot.
+      activeP            : slv(COEF_BITS_C-1 downto 0);
+      activeI            : slv(COEF_BITS_C-1 downto 0);
+      activeD            : slv(COEF_BITS_C-1 downto 0);
+      activeQuantum      : slv(13 downto 0);
       pidResult          : sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
       sq1Fb              : sfixed(13 downto 0);
       sq1FbValid         : sl;
@@ -175,9 +181,11 @@ architecture rtl of AdcDsp is
       -- Signed net count, saturating at -256/+255. Beyond that range the
       -- actuator still wraps but reconstructed readout loses a quantum.
       numFluxJumps       : slv(8 downto 0);
-      fluxQuantum        : slv(13 downto 0);
+      axiFluxQuantum     : slv(13 downto 0);
       clearPidState      : sl;
       clearPidStateBusy  : sl;
+      clearSumPending    : sl;
+      clearSumBusy       : sl;
       pidStateRamAddr    : slv(ROW_ADDR_BITS_G-1 downto 0);
       accumErrorRamWrEn  : sl;
       accumErrorRamWrData : slv(ACCUM_BITS_C-1 downto 0);
@@ -213,17 +221,23 @@ architecture rtl of AdcDsp is
       accumShift         => toSlv(0, 4),
       pidMultiplier      => (others => '0'),
       pidCoef            => (others => '0'),
-      p                  => (others => '0'),
-      i                  => (others => '0'),
-      d                  => (others => '0'),
+      axiP               => (others => '0'),
+      axiI               => (others => '0'),
+      axiD               => (others => '0'),
+      activeP            => (others => '0'),
+      activeI            => (others => '0'),
+      activeD            => (others => '0'),
+      activeQuantum      => (others => '0'),
       pidResult          => (others => '0'),
       sq1Fb              => (others => '0'),
       sq1FbValid         => '0',
       sq1FbFull          => (others => '0'),
       numFluxJumps       => (others => '0'),
-      fluxQuantum        => (others => '0'),
+      axiFluxQuantum     => (others => '0'),
       clearPidState      => '0',
       clearPidStateBusy  => '0',
+      clearSumPending    => '0',
+      clearSumBusy       => '0',
       pidStateRamAddr    => (others => '0'),
       accumErrorRamWrEn  => '0',
       accumErrorRamWrData => (others => '0'),
@@ -520,11 +534,11 @@ begin
 
       axiSlaveRegister(axilEp, X"00", 8, v.outputMode);
       axiSlaveRegister(axilEp, X"00", 16, v.accumShift);
-      axiSlaveRegister(axilEp, X"04", 0, v.p);
-      axiSlaveRegister(axilEp, X"08", 0, v.i);
-      axiSlaveRegister(axilEp, X"0c", 0, v.d);
+      axiSlaveRegister(axilEp, X"04", 0, v.axiP);
+      axiSlaveRegister(axilEp, X"08", 0, v.axiI);
+      axiSlaveRegister(axilEp, X"0c", 0, v.axiD);
 
-      axiSlaveRegister(axilEp, X"40", 0, v.fluxQuantum);
+      axiSlaveRegister(axilEp, X"40", 0, v.axiFluxQuantum);
       axiSlaveRegisterR(axilEp, X"44", 0, r.numFluxJumps);
 
       axiSlaveRegister(axilEp, X"50", 0, v.axilPidDebugEnable);
@@ -539,6 +553,9 @@ begin
 
 
       axiSlaveRegister(axilEp, X"30", 0, v.clearPidState);
+      axiSlaveRegisterR(axilEp, X"34", 0,
+         toSl(r.state /= IDLE_S or r.clearPidStateBusy = '1' or
+              r.clearSumBusy = '1' or r.clearSumPending = '1'));
 
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
@@ -563,10 +580,10 @@ begin
       v.pidDebugMaster       := axiStreamMasterInit(AXIS_DEBUG_CFG_C);
       v.pidDebugMaster.tDest := toSlv(1, 8);  -- Board-local PID-debug stream (DataPath U_AxiStreamMux_1 ROUTED re-stamps this anyway).
 
-      pSfixed           := to_sfixed(r.p, pSfixed);
-      iSfixed           := to_sfixed(r.i, iSfixed);
-      dSfixed           := to_sfixed(r.d, dSfixed);
-      fluxQuantumFixed  := to_sfixed(r.fluxQuantum, fluxQuantumFixed);
+      pSfixed           := to_sfixed(r.activeP, pSfixed);
+      iSfixed           := to_sfixed(r.activeI, iSfixed);
+      dSfixed           := to_sfixed(r.activeD, dSfixed);
+      fluxQuantumFixed  := to_sfixed(r.activeQuantum, fluxQuantumFixed);
       numFluxJumpsFixed := to_sfixed(r.numFluxJumps, numFluxJumpsFixed);
       pidStateRamAddrFixed := to_ufixed(r.pidStateRamAddr, pidStateRamAddrFixed);
       requestClear      := false;
@@ -584,11 +601,15 @@ begin
          requestClear := true;
       end if;
 
-      if (v.i /= r.i) then
-         requestClear := true;
+      if (v.axiI /= r.axiI) then
+         -- Defer an integral-only sweep until the accepted visit completes.
+         -- Rewriting the same coefficient leaves all state untouched.
+         v.clearSumPending := '1';
       end if;
 
       if (requestClear) then
+         v.clearSumPending   := '0';
+         v.clearSumBusy      := '0';
          v.clearPidStateBusy := '1';
          v.state             := IDLE_S;
          v.rowEnabled        := '0';
@@ -644,12 +665,32 @@ begin
          else
             v.pidStateRamAddr := to_slv(resize(pidStateRamAddrFixed + 1, pidStateRamAddrFixed));
          end if;
-      elsif (r.fllEnable = '0' and accumValid = '1' and accumIn.seqStart = '1') then
+      elsif (r.clearSumBusy = '1') then
+         -- Preserve feedback, validity, flux count and error history. Only S
+         -- is invalidated when changing I, including transitions to/from zero.
+         v.sumAccum          := (others => '0');
+         v.sumAccumRamWrEn   := '1';
+         v.sumAccumRamWrData := (others => '0');
+         if (r.pidStateRamAddr = CLEAR_LAST_ADDR_C) then
+            v.clearSumBusy := '0';
+         else
+            v.pidStateRamAddr := to_slv(resize(pidStateRamAddrFixed + 1, pidStateRamAddrFixed));
+         end if;
+      elsif (r.state = IDLE_S and v.clearSumPending = '1') then
+         v.clearSumPending   := '0';
+         v.clearSumBusy      := '1';
+         v.pidStateRamAddr   := (others => '0');
+         v.sumAccum          := (others => '0');
+         v.sumAccumRamWrEn   := '1';
+         v.sumAccumRamWrData := (others => '0');
+      elsif (r.state = IDLE_S and r.fllEnable = '0' and accumValid = '1' and accumIn.seqStart = '1') then
          v.pidStreamMaster.tValid := '1';
          v.pidStreamMaster.tKeep  := (others => '0');
          v.pidStreamMaster.tLast  := '1';
 
-      elsif (r.fllEnable = '1') then
+      -- Drain an accepted visit even if disabled, so a pending I change can
+      -- reach its boundary and clear S without aborting a feedback update.
+      elsif (r.fllEnable = '1' or r.state /= IDLE_S) then
          case r.state is
             when IDLE_S =>
                v.pidDebugEnable := not pidDebugCtrl.pause and r.axilPidDebugEnable;
@@ -681,6 +722,10 @@ begin
                   v.accumSamples := to_ufixed(accumIn.numSamples, v.accumSamples);
                   v.sq1FbDacIn   := accumIn.sq1FbDac;
                   v.rowEnabled   := r.rowEnableMask(to_integer(unsigned(accumIn.logicalRow)));
+                  v.activeP       := v.axiP;
+                  v.activeI       := v.axiI;
+                  v.activeD       := v.axiD;
+                  v.activeQuantum := v.axiFluxQuantum;
 
                   -- Frame word 0: shared identity header (SOF here). The old
                   -- col/row/runTime word is demoted to a body word (DEBUG_BODY_S).
@@ -793,7 +838,7 @@ begin
                pidResultNext := resize(r.pidResult + (r.pidCoef * r.pidMultiplier), pidResultNext);
                v.pidResult   := pidResultNext;
 
-               if (r.i = ZERO_COEF_C) then
+               if (r.activeI = ZERO_COEF_C) then
                   v.sumAccum := (others => '0');
                else
                   iContribution := resize(iSfixed * r.accumError, iContribution);
@@ -815,7 +860,10 @@ begin
                end if;
 
                -- Save result and sumAccum in RAM
-               v.sumAccumRamWrEn    := '1';
+               -- Like retained feedback/count, integral history advances only
+               -- when this visit's DAC command is enabled. Error telemetry and
+               -- the computed PID diagnostic remain available for masked rows.
+               v.sumAccumRamWrEn    := r.rowEnabled;
                v.sumAccumRamWrData  := to_slv(v.sumAccum);
                v.pidResultRamWrEn   := '1';
                v.pidResultRamWrData := to_slv(v.pidResult);
@@ -921,7 +969,7 @@ begin
          end case;
       end if;
 
-      if (v.clearPidStateBusy = '0') then
+      if (v.clearPidStateBusy = '0' and v.clearSumBusy = '0') then
          v.pidStateRamAddr := v.logicalRow;
       end if;
 

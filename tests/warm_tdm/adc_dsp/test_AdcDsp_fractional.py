@@ -16,7 +16,7 @@ import pytest
 from firmware.submodules.surf.tests.axi.utils import axil_read_u32, axil_write_u32
 from tests.common.regression_utils import run_warm_tdm_vhdl_test
 from tests.warm_tdm.adc_dsp._pid_bitexact import (
-    BitExactDriver, RowVisit, Stimulus, REG_CONTROL, REG_P_COEF, REG_I_COEF,
+    BitExactDriver, RowVisit, Stimulus, REG_CONTROL, REG_P_COEF,
     REG_ROW_ENABLE, REG_FLUX_QUANTUM,
 )
 from tests.warm_tdm.adc_dsp.test_AdcDsp_bitexact_compare import (
@@ -135,7 +135,8 @@ async def feedback_state_lifecycle(dut):
         await loop.mask(row, True)
         assert await loop.visit(row=row) == 201  # old residue held, not cleared
 
-    for trigger in ("clear", "start_run", "enable", "i_change", "reset"):
+    # I changes preserve feedback; the dedicated lifecycle bench checks those.
+    for trigger in ("clear", "start_run", "enable", "reset"):
         await loop.clear()
         for row in (0, loop.last_row):
             assert await loop.visit(row=row, seed=200) == 200
@@ -150,11 +151,6 @@ async def feedback_state_lifecycle(dut):
             await loop.write(REG_CONTROL, 0)
             await loop.visit(row=loop.last_row, enabled=False)
             await loop.write(REG_CONTROL, 1)
-        elif trigger == "i_change":
-            # Raw coefficient changes clear, even a one-bit change.
-            await loop.write(REG_I_COEF, 1)
-            await loop.settle_clear()
-            await loop.write(REG_I_COEF, 0)
         else:
             dut.rst.value = 1
             for _ in range(5):

@@ -1,6 +1,6 @@
 # This file is part of Warm TDM. It is subject to the license terms in the
 # LICENSE.txt file found in the top-level directory of this distribution.
-"""FP period configuration and PI operational API, with fake register I/O."""
+"""FP period configuration and integer/FP PID controls with fake register I/O."""
 import ast
 import importlib.util
 import logging
@@ -144,6 +144,29 @@ def test_gain_and_disable_setters_do_not_full_clear_feedback():
         with pytest.raises(ValueError):
             fn._setCoef(coef, value, True)
     assert coef.set.call_count == 2
+
+
+def test_integer_i_link_and_enable_leave_state_lifecycle_to_hardware():
+    path = 'firmware/python/warm_tdm/_AdcDsp.py'
+    dev = SimpleNamespace(I_CoefRaw=Register(), PidEnableRaw=Register(),
+                          ClearPidState=Mock())
+    env = {'self': dev}
+    fn = functions(path, ('_setCoef', '_enablePid'), env)
+    # Exercise the actual I_Coef callback wiring, not just its helper: the old
+    # link passed clearState=True and unconditionally forced a full reset.
+    tree = ast.parse((ROOT/path).read_text())
+    call = next(n for n in ast.walk(tree) if isinstance(n, ast.Call) and
+                any(k.arg == 'name' and isinstance(k.value, ast.Constant) and
+                    k.value.value == 'I_Coef' for k in n.keywords))
+    setter = next(k.value for k in call.keywords if k.arg == 'linkedSet')
+    set_i = eval(compile(ast.Expression(setter), path, 'eval'), env)
+    for value, write in ((.125, True), (.125, True), (0, True), (-.25, False)):
+        set_i(value, write)
+        dev.I_CoefRaw.set.assert_called_with(value, write=write)
+    for value, write in ((False, True), (True, True), (True, True), (False, False)):
+        fn._enablePid(value, write)
+        dev.PidEnableRaw.set.assert_called_with(value, write=write)
+    dev.ClearPidState.assert_not_called()
 
 
 def session(fp=True):

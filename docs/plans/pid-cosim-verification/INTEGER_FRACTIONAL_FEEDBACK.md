@@ -295,10 +295,15 @@ timing cost of this wider per-row state.
 | Masked-row visit | Hold existing state; do not initialize an invalid row |
 | Global PID disabled | No feedback-state updates |
 | StartRun, explicit ClearPidState, rising PID enable | Invalidate all rows with the existing clear sweep |
-| Raw I-coefficient change | Follow the existing clear trigger and invalidate all rows |
+| Raw I-coefficient change | Clear only SumAccum after the accepted visit; preserve feedback/validity and flux count (see [lifecycle alignment](../integer-pid/LIFECYCLE.md)) |
 | P/D changes, or normal I=0 operation | Preserve feedback state |
 | Reset | FLL is disabled; rising enable clears the RAM before the first accepted update |
 | Manual DAC reseeding | Clear PID state before resuming so the new applied DAC becomes the seed |
+
+The September 17 lifecycle follow-up also holds SumAccum during masked visits.
+Error telemetry continues updating. Rewriting the same I coefficient does not
+clear state. The I-change full-reseed behavior in the initial implementation
+was superseded; full clear, StartRun and rising enable still invalidate rows.
 
 After initialization, an external DAC write by itself does not replace the
 controller's saved feedback. This is an intentional difference from the baseline,
