@@ -13,8 +13,8 @@ from the tune-point / servo registers it deliberately sets; it always ``EndRun``
 
 The process, in order (each step matters -- see PROGRESS.md "night" section):
   1. Seed the operating point at MID-SLOPE. The SQ1 flux-lock must sit on the
-     steep, roughly-linear zero-crossing of the sinusoid V-Phi (~7 uA = ~Phi0/4 of
-     the 10 uA SQ1 period), NOT near the extremum (~0.85 Phi0). Off mid-slope the
+     steep, roughly-linear region of the sinusoid V-Phi (16.1 uA = 0.7 Phi0 of
+     the 23 uA SQ1 period), NOT near the extremum (~0.85 Phi0). Off mid-slope the
      loop will not lock at any gain.
   2. Set FluxQuantum = Phi0 (the SQ1 flux period). The RTL flux-jump wrap
      (AdcDsp.vhd) needs it; it defaults to 0 (disabled) -- setup must set it.
@@ -31,9 +31,12 @@ The process, in order (each step matters -- see PROGRESS.md "night" section):
      slope the stable P sign is POSITIVE.
   6. run_mux(), then poll per-row AccumError.
 
-Known state (2026-09-15): at mid-slope, FluxQuantum=Phi0, sample_num=20, P=+0.05,
+Historical state (2026-09-15, 10 uA fixture): at mid-slope, FluxQuantum=Phi0,
+sample_num=20, P=+0.05,
 most rows lock to ~+/-1000 counts (~ADC quant floor); a few high rows (5-7) still
 swing (row 6 is an outlier even with PID off) -- under investigation.
+The current seed preserves that phase at 23 uA; gains need revalidation on the
+rebuilt model.
 """
 import argparse
 import sys
@@ -58,9 +61,9 @@ def build_parser():
     p.add_argument('--d', type=float, default=0.0, help='normalized D gain')
     p.add_argument('--sample-num', type=int, default=20, help='samples per row window')
     p.add_argument('--num-pts', type=int, default=400, help='RowPeriodCycles')
-    p.add_argument('--sq1fb', type=float, default=7.0,
-                   help='mid-slope SQ1 FB operating point [uA] (~Phi0/4)')
-    p.add_argument('--flux-quantum', type=float, default=10.0,
+    p.add_argument('--sq1fb', type=float, default=16.1,
+                   help='near-mid-slope SQ1 FB operating point [uA] (0.7 Phi0)')
+    p.add_argument('--flux-quantum', type=float, default=23.0,
                    help='FluxQuantum = SQ1 flux period Phi0 [uA]')
     p.add_argument('--secs', type=float, default=6.0, help='monitor duration')
     p.add_argument('--seed-tune', action='store_true',

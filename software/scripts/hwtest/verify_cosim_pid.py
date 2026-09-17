@@ -42,19 +42,23 @@ from _cosim_common import parser, passed, positive, require, restore, run, wait_
 # Built-in per-path defaults (gains are RAW hardware coefficients, sign included).
 # From docs/plans/pid-cosim-verification/{PROGRESS.md,cosim-tuning-settings.md};
 # model+build specific (VARIATION_SEED=0 sinusoid-blend build), NOT physics.
+# The seed is phase-scaled from the old 10 uA fixture to the 23 uA period.
+# Gains/thresholds are retained starting values; closed-loop acceptance must
+# be rerun after rebuilding the model with the new period.
 DEFAULTS = {
     'integer': dict(
-        sq1fb_uA=7.0, flux_quantum_uA=10.0,
+        sq1fb_uA=16.1, flux_quantum_uA=23.0,
         gains=dict(p_raw=-0.0006, i_raw=-2e-5, d_raw=0.0, use_group_gain=True),
         step_uA=500.0,
         thresholds=dict(residual_max=800.0, flux_jump_max=0),
     ),
     'float': dict(
-        sq1fb_uA=7.0, flux_quantum_uA=10.0,
+        sq1fb_uA=16.1, flux_quantum_uA=23.0,
         gains=dict(p_raw=1e-4, i_raw=0.0, d_raw=0.0, use_group_gain=True),
         step_uA=500.0,
-        # A benign FluxJumps=1/row can appear at the 7 uA seed (FP DAC-centering
-        # wrap), so allow 1; residual observed ~60-700 across a P sweep.
+        # A benign FluxJumps=1/row can appear at the 0.7-Phi0 seed (FP
+        # DAC-centering wrap), so allow 1. The residual limit was established
+        # on the old 10 uA fixture and needs revalidation at 23 uA.
         thresholds=dict(residual_max=700.0, flux_jump_max=1),
     ),
 }
@@ -122,7 +126,7 @@ def apply_lock(sess, cb, args, cfg, col, path):
     # (0) fresh sim: seed the SA/SQ1/FAS bias fixture (runs saOffset server-side).
     if args.seed_tune_points:
         sess.group.SetCosimTunePoints()
-    # (1) mid-slope operating point (~Phi0/4) -- MUST be stopped-state.
+    # (1) near-mid-slope operating point (0.7 Phi0) -- MUST be stopped-state.
     for r in range(args.rows):
         sess.group.Sq1FbCurrent.set(index=(col, r), value=cfg['sq1fb_uA'])
     # (2) FluxQuantum = Phi0 (RTL default 0 = wrap disabled). The float path

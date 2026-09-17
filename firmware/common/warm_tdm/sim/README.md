@@ -138,6 +138,22 @@ phi = phaseOffsetCycles + sum(polarity * couplingScale * I / currentPerPhi0Amp)
 currentPerPhi0Amp = Phi0 / abs(M)          (when mutual inductance is known)
 ```
 
+The nominal SQ1 feedback period is **23 uA**, rounded from the approximately
+22.976 uA implied by a 90 pH feedback-coil mutual inductance. This replaces the
+old 10 uA fixture value; the compatibility `WaferSim` wrapper defaults to the
+same shared value. It is a nominal hardware-informed setting, not a fit to each
+wafer. Seeded variation still perturbs the period when enabled. SSA and FAS
+periods and the warm amplifier current conversion are independent settings.
+
+The cosimulation PID profiles program `FluxQuantum=23 uA` and seed SQ1 FB at
+16.1 uA (0.7 of a period). `SetSimSq1TunePoint` scales its older fitted seed to
+16.951 uA, and the default SQ1 tune sweep spans -34.5..+34.5 uA in 31 points.
+Rebuild the wafer simulation and restart the software server together when
+moving from the 10 uA fixture. Previous closed-loop gain/settling results do
+not validate the new period; the PID profiles retain those gains as starting
+values pending another GroupTb run. See the
+[hardware scale evidence](../../../../docs/plans/integer-pid/HARDWARE_SCALE.md).
+
 The foundational ideal law is the symmetric, overdamped, negligible-loop-
 inductance dc-SQUID approximation. With effective whole-SQUID parameters:
 

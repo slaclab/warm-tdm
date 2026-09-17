@@ -102,10 +102,8 @@ architecture rtl of AdcDsp is
    constant RESULT_LOW_C  : integer := sfixed_low(COEF_HIGH_C, COEF_LOW_C, '*', ACCUM_BITS_C-1, 0);  --8;
    constant RESULT_BITS_C : integer := RESULT_HIGH_C - RESULT_LOW_C + 1;
    -- Full feedback: 38 bits (sign + 14 integer magnitude + 23 fractional).
-   -- The guard integer bit lets a command exceed the DAC range before one
-   -- flux wrap (e.g. 8500.25 - 2000 = 6500.25). A larger overflow cannot be
-   -- recovered by one signed 14-bit quantum, so saturation here is harmless:
-   -- it will still reach the final DAC clamp after the wrap.
+   -- Retained RAM/debug format. The visit candidate has a separate carry-wide
+   -- register so multi-wrap recovery happens before any feedback saturation.
    constant SQ1FB_FULL_HIGH_C : integer := 14;
    constant SQ1FB_FULL_BITS_C : integer := SQ1FB_FULL_HIGH_C - RESULT_LOW_C + 1;
    constant SQ1FB_FULL_RAM_BITS_C : integer := SQ1FB_FULL_BITS_C + 1;  -- MSB = valid
@@ -113,6 +111,9 @@ architecture rtl of AdcDsp is
    constant SQ1FB_MAX_C   : integer := 2**13-1;
    constant SQ1FB_MIN_C   : integer := -(2**13);
    constant FLUX_JUMP_THRESHOLD_C : integer := 7862;
+   constant FLUX_COUNT_BITS_C : integer := 19;
+   constant FLUX_COUNT_MAX_C : integer := 2**(FLUX_COUNT_BITS_C-1)-1;
+   constant FLUX_COUNT_MIN_C : integer := -(2**(FLUX_COUNT_BITS_C-1));
    constant CLEAR_LAST_ADDR_C : slv(ROW_ADDR_BITS_G-1 downto 0) := toSlv((2**ROW_ADDR_BITS_G)-1, ROW_ADDR_BITS_G);
 
    constant FILTER_COEFFICIENTS_C : IntegerArray(0 to 10) := (5 => 2**7-1, others => 0);
@@ -143,6 +144,11 @@ architecture rtl of AdcDsp is
       PID_D_S,
       SQ1FB_ADJUST_S,
       FLUX_JUMP_S,
+      FLUX_ESTIMATE_S,
+      FLUX_COUNT_S,
+      FLUX_PRODUCT_S,
+      FLUX_REMAINDER_S,
+      FLUX_CORRECT_S,
       DATA_STREAM_FLUX_JUMP_0_S,
       DATA_STREAM_FLUX_JUMP_1_S,
       DATA_STREAM_S,
@@ -174,14 +180,24 @@ architecture rtl of AdcDsp is
       activeI            : slv(COEF_BITS_C-1 downto 0);
       activeD            : slv(COEF_BITS_C-1 downto 0);
       activeQuantum      : slv(13 downto 0);
+      activeReciprocal   : slv(16 downto 0);
+      activeReciprocalShift : slv(4 downto 0);
       pidResult          : sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
       sq1Fb              : sfixed(13 downto 0);
       sq1FbValid         : sl;
       sq1FbFull          : sfixed(SQ1FB_FULL_HIGH_C downto RESULT_LOW_C);
-      -- Signed net count, saturating at -256/+255. Beyond that range the
-      -- actuator still wraps but reconstructed readout loses a quantum.
-      numFluxJumps       : slv(8 downto 0);
+      -- Preserve sq1FbFull + pidResult, including manually written RAM extrema.
+      fluxCandidate     : sfixed(19 downto RESULT_LOW_C);
+      fluxNegative      : sl;
+      visitFluxJumps    : unsigned(18 downto 0);
+      -- Saturating signed net count; overflow is sticky until a full clear.
+      numFluxJumps       : slv(FLUX_COUNT_BITS_C-1 downto 0);
+      fluxCountOverflow : sl;
       axiFluxQuantum     : slv(13 downto 0);
+      -- Ordinary software-written configuration, trusted without validation.
+      axiReciprocal     : slv(16 downto 0);
+      axiReciprocalShift : slv(4 downto 0);
+      clearQuantumPending : sl;
       clearPidState      : sl;
       clearPidStateBusy  : sl;
       clearSumPending    : sl;
@@ -194,7 +210,7 @@ architecture rtl of AdcDsp is
       pidResultRamWrEn   : sl;
       pidResultRamWrData : slv(RESULT_BITS_C-1 downto 0);
       fluxJumpRamWrEn    : sl;
-      fluxJumpRamWrData  : slv(8 downto 0);
+      fluxJumpRamWrData  : slv(FLUX_COUNT_BITS_C-1 downto 0);
       sq1FbFullRamWrEn   : sl;
       sq1FbFullRamWrData : slv(SQ1FB_FULL_RAM_BITS_C-1 downto 0);
       dropCount          : ufixed(31 downto 0);
@@ -228,12 +244,21 @@ architecture rtl of AdcDsp is
       activeI            => (others => '0'),
       activeD            => (others => '0'),
       activeQuantum      => (others => '0'),
+      activeReciprocal   => (others => '0'),
+      activeReciprocalShift => (others => '0'),
       pidResult          => (others => '0'),
       sq1Fb              => (others => '0'),
       sq1FbValid         => '0',
       sq1FbFull          => (others => '0'),
+      fluxCandidate     => (others => '0'),
+      fluxNegative      => '0',
+      visitFluxJumps    => (others => '0'),
       numFluxJumps       => (others => '0'),
+      fluxCountOverflow => '0',
       axiFluxQuantum     => (others => '0'),
+      axiReciprocal     => (others => '0'),
+      axiReciprocalShift => (others => '0'),
+      clearQuantumPending => '0',
       clearPidState      => '0',
       clearPidStateBusy  => '0',
       clearSumPending    => '0',
@@ -263,7 +288,7 @@ architecture rtl of AdcDsp is
    signal accumRamOut       : slv(ACCUM_BITS_C-1 downto 0);
    signal sumRamOut         : slv(SUM_BITS_C-1 downto 0);
    signal pidRamOut         : slv(RESULT_BITS_C-1 downto 0);
-   signal fluxJumpRamOut    : slv(8 downto 0);
+   signal fluxJumpRamOut    : slv(FLUX_COUNT_BITS_C-1 downto 0);
    signal sq1FbFullRamOut    : slv(SQ1FB_FULL_RAM_BITS_C-1 downto 0);
 
 --   signal pidStreamMaster    : AxiStreamMasterType := AXI_STREAM_MASTER_INIT_C;
@@ -374,7 +399,7 @@ begin
          SYS_BYTE_WR_EN_G => false,
          COMMON_CLK_G     => false,
          ADDR_WIDTH_G     => ROW_ADDR_BITS_G,
-         DATA_WIDTH_G     => 9)
+         DATA_WIDTH_G     => FLUX_COUNT_BITS_C)
       port map (
          axiClk         => timingRxClk125,                    -- [in]
          axiRst         => timingRxRst125,                    -- [in]
@@ -476,7 +501,7 @@ begin
    -- Full feedback at 0x7000 + 8*row: signed bits 37:0, binary point at -23,
    -- and valid bit 38. Matches the existing three-cycle state-RAM wait.
    -- Reset leaves FLL disabled; its rising enable clears every RAM address
-   -- before the first update, just as StartRun/ClearPidState/I changes do.
+   -- before the first update, just as startRun/clearPidState do.
    U_Sq1FbFullRam : entity surf.AxiDualPortRam
       generic map (
          TPD_G            => TPD_G,
@@ -511,10 +536,15 @@ begin
       variable iSfixed           : sfixed(COEF_HIGH_C downto COEF_LOW_C);
       variable dSfixed           : sfixed(COEF_HIGH_C downto COEF_LOW_C);
       variable fluxQuantumFixed  : sfixed(13 downto 0);
-      variable numFluxJumpsFixed : sfixed(8 downto 0);
+      variable numFluxJumpsFixed : sfixed(FLUX_COUNT_BITS_C-1 downto 0);
       variable pidStateRamAddrFixed : ufixed(ROW_ADDR_BITS_G-1 downto 0);
       variable pidResultNext     : sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
-      variable iContribution     : sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
+      variable fluxMagnitude     : sfixed(19 downto RESULT_LOW_C);
+      variable countNext         : sfixed(20 downto 0);
+      variable jumpFixed         : sfixed(19 downto 0);
+      variable productBits       : slv(RESULT_BITS_C-1 downto 0);
+      variable excess            : natural range 0 to 270666;
+      variable finishFlux        : boolean;
       variable requestClear      : boolean;
       variable allowIntegrate    : boolean;
       variable axilEp            : AxiLiteEndpointType;
@@ -540,6 +570,9 @@ begin
 
       axiSlaveRegister(axilEp, X"40", 0, v.axiFluxQuantum);
       axiSlaveRegisterR(axilEp, X"44", 0, r.numFluxJumps);
+      axiSlaveRegister(axilEp, X"48", 0, v.axiReciprocal);
+      axiSlaveRegister(axilEp, X"4c", 0, v.axiReciprocalShift);
+      axiSlaveRegisterR(axilEp, X"54", 0, r.fluxCountOverflow);
 
       axiSlaveRegister(axilEp, X"50", 0, v.axilPidDebugEnable);
 
@@ -555,10 +588,17 @@ begin
       axiSlaveRegister(axilEp, X"30", 0, v.clearPidState);
       axiSlaveRegisterR(axilEp, X"34", 0,
          toSl(r.state /= IDLE_S or r.clearPidStateBusy = '1' or
-              r.clearSumBusy = '1' or r.clearSumPending = '1'));
+              r.clearSumBusy = '1' or r.clearSumPending = '1' or
+              r.clearQuantumPending = '1'));
 
 
       axiSlaveDefault(axilEp, v.axilWriteSlave, v.axilReadSlave, AXI_RESP_DECERR_C);
+
+      -- Software changes the three wrap registers while disabled and idle.
+      -- Changing axiFluxQuantum invalidates the old per-row flux reference.
+      if (v.axiFluxQuantum /= r.axiFluxQuantum) then
+         v.clearQuantumPending := '1';
+      end if;
 
       ----------------------------------------------------------------------------------------------
 
@@ -587,6 +627,14 @@ begin
       numFluxJumpsFixed := to_sfixed(r.numFluxJumps, numFluxJumpsFixed);
       pidStateRamAddrFixed := to_ufixed(r.pidStateRamAddr, pidStateRamAddrFixed);
       requestClear      := false;
+      finishFlux        := false;
+
+      -- Finish the accepted visit using activeQuantum/activeReciprocal, then invalidate
+      -- its flux reference before any visit can use the new configuration.
+      if (r.state = IDLE_S and v.clearQuantumPending = '1') then
+         v.clearQuantumPending := '0';
+         requestClear := true;
+      end if;
 
       if (timingRxData.startRun = '1') then
          v.dropCount := (others => '0');
@@ -602,12 +650,13 @@ begin
       end if;
 
       if (v.axiI /= r.axiI) then
-         -- Defer an integral-only sweep until the accepted visit completes.
+         -- Defer the sumAccum sweep until the accepted visit completes.
          -- Rewriting the same coefficient leaves all state untouched.
          v.clearSumPending := '1';
       end if;
 
       if (requestClear) then
+         v.fluxCountOverflow := '0';
          v.clearSumPending   := '0';
          v.clearSumBusy      := '0';
          v.clearPidStateBusy := '1';
@@ -666,8 +715,8 @@ begin
             v.pidStateRamAddr := to_slv(resize(pidStateRamAddrFixed + 1, pidStateRamAddrFixed));
          end if;
       elsif (r.clearSumBusy = '1') then
-         -- Preserve feedback, validity, flux count and error history. Only S
-         -- is invalidated when changing I, including transitions to/from zero.
+         -- Preserve feedback, validity, flux count and error history. Only sumAccum
+         -- is invalidated when axiI changes, including transitions to/from zero.
          v.sumAccum          := (others => '0');
          v.sumAccumRamWrEn   := '1';
          v.sumAccumRamWrData := (others => '0');
@@ -688,8 +737,8 @@ begin
          v.pidStreamMaster.tKeep  := (others => '0');
          v.pidStreamMaster.tLast  := '1';
 
-      -- Drain an accepted visit even if disabled, so a pending I change can
-      -- reach its boundary and clear S without aborting a feedback update.
+      -- Drain an accepted visit even if disabled, so a pending axiI change can
+      -- reach its boundary and clear sumAccum without aborting a feedback update.
       elsif (r.fllEnable = '1' or r.state /= IDLE_S) then
          case r.state is
             when IDLE_S =>
@@ -726,6 +775,8 @@ begin
                   v.activeI       := v.axiI;
                   v.activeD       := v.axiD;
                   v.activeQuantum := v.axiFluxQuantum;
+                  v.activeReciprocal := v.axiReciprocal;
+                  v.activeReciprocalShift := v.axiReciprocalShift;
 
                   -- Frame word 0: shared identity header (SOF here). The old
                   -- col/row/runTime word is demoted to a body word (DEBUG_BODY_S).
@@ -794,9 +845,9 @@ begin
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
                v.pidDebugMaster.tData(31 downto 0) := to_slv(resize(r.accumError, 31, 0));
 
-               -- Prep for P stage
+               -- Prepare activeP * accumError
                v.pidCoef       := pSfixed;
-               v.pidMultiplier := r.accumError;     -- Prep accumError for P stage
+               v.pidMultiplier := r.accumError;     -- Proportional operand
                v.pidResult     := (others => '0');  -- Clear pid result
                v.state         := PID_P_S;          --PID_PRESHIFT_S;
 
@@ -811,7 +862,7 @@ begin
 
                -- Calcualte PID Stage
                v.pidResult     := resize(r.pidResult + (r.pidCoef * r.pidMultiplier), v.pidResult);  -- r.accumError;
-               -- Prep for I Stage
+               -- Prepare activeI * sumAccum
                v.pidCoef       := iSfixed;
                v.pidMultiplier := r.sumAccum;
                v.state         := PID_I_S;
@@ -823,9 +874,9 @@ begin
 
                -- Calculate PID stage
                v.pidResult     := resize(r.pidResult + (r.pidCoef * r.pidMultiplier), v.pidResult);  -- r.sumAccum
-               -- Prep for D stage
+               -- Prepare activeD * (lastAccumError - accumError)
                v.pidCoef       := dSfixed;
-               v.pidMultiplier := resize(r.lastAccumError - r.accumError, v.pidMultiplier);  -- Prep for D stage
+               v.pidMultiplier := resize(r.lastAccumError - r.accumError, v.pidMultiplier);  -- Prepare activeD * (lastAccumError - accumError)
                v.state         := PID_D_S;
 
             when PID_D_S =>
@@ -838,33 +889,9 @@ begin
                pidResultNext := resize(r.pidResult + (r.pidCoef * r.pidMultiplier), pidResultNext);
                v.pidResult   := pidResultNext;
 
-               if (r.activeI = ZERO_COEF_C) then
-                  v.sumAccum := (others => '0');
-               else
-                  iContribution := resize(iSfixed * r.accumError, iContribution);
-                  allowIntegrate := true;
-
-                  -- The fixed_pkg addition keeps its carry and fraction here;
-                  -- preserve the existing directional, pre-wrap I-state check.
-                  if ((r.sq1FbFull + pidResultNext > SQ1FB_MAX_C) and (iContribution > 0)) then
-                     allowIntegrate := false;
-                  elsif ((r.sq1FbFull + pidResultNext < SQ1FB_MIN_C) and (iContribution < 0)) then
-                     allowIntegrate := false;
-                  end if;
-
-                  if (allowIntegrate) then
-                     v.sumAccum := resize(r.sumAccum + r.accumError, v.sumAccum);
-                  else
-                     v.sumAccum := r.sumAccum;
-                  end if;
-               end if;
-
-               -- Save result and sumAccum in RAM
-               -- Like retained feedback/count, integral history advances only
-               -- when this visit's DAC command is enabled. Error telemetry and
-               -- the computed PID diagnostic remain available for masked rows.
-               v.sumAccumRamWrEn    := r.rowEnabled;
-               v.sumAccumRamWrData  := to_slv(v.sumAccum);
+               -- Save the correction before reusing the MAC for wrapping.
+               -- Defer anti-windup and the integral commit until the actual
+               -- post-wrap command is known.
                v.pidResultRamWrEn   := '1';
                v.pidResultRamWrData := to_slv(v.pidResult);
                v.state              := SQ1FB_ADJUST_S;
@@ -874,42 +901,88 @@ begin
                v.pidDebugMaster.tValid             := r.pidDebugEnable;
                v.pidDebugMaster.tData(63 downto 0) := resize(to_slv(r.pidResult), 64);
 
-               -- Keep the fraction and guard bit through the flux adjustment.
-               -- sq1Fb is only the applied/commanded integer DAC value.
-               v.sq1FbFull := resize(r.sq1FbFull + r.pidResult, v.sq1FbFull);
+               v.fluxCandidate := resize(r.sq1FbFull + r.pidResult, v.fluxCandidate);
                v.state    := FLUX_JUMP_S;
 
             when FLUX_JUMP_S =>
-               -- Zero quantum disables wrapping and must not consume count
-               -- range. A physical wrap requires a positive signed quantum.
-               if (fluxQuantumFixed /= 0 and r.sq1FbFull > FLUX_JUMP_THRESHOLD_C) then
-                  v.sq1FbFull       := resize(r.sq1FbFull - fluxQuantumFixed, v.sq1FbFull);
-                  numFluxJumpsFixed := resize(numFluxJumpsFixed + 1, numFluxJumpsFixed);
-               elsif (fluxQuantumFixed /= 0 and r.sq1FbFull < -FLUX_JUMP_THRESHOLD_C) then
-                  v.sq1FbFull       := resize(r.sq1FbFull + fluxQuantumFixed, v.sq1FbFull);
-                  numFluxJumpsFixed := resize(numFluxJumpsFixed - 1, numFluxJumpsFixed);
+               v.fluxNegative := toSl(r.fluxCandidate < 0);
+               fluxMagnitude := resize(abs(r.fluxCandidate), fluxMagnitude);
+               v.visitFluxJumps := (others => '0');
+               finishFlux := true;
+               if (fluxQuantumFixed > 0 and fluxMagnitude > FLUX_JUMP_THRESHOLD_C) then
+                  if (fluxMagnitude <= FLUX_JUMP_THRESHOLD_C + fluxQuantumFixed) then
+                     -- Preserve the ordinary zero/one-wrap visit latency.
+                     v.visitFluxJumps := to_unsigned(1, v.visitFluxJumps'length);
+                     if (v.fluxNegative = '1') then
+                        v.fluxCandidate := resize(r.fluxCandidate + fluxQuantumFixed, v.fluxCandidate);
+                     else
+                        v.fluxCandidate := resize(r.fluxCandidate - fluxQuantumFixed, v.fluxCandidate);
+                     end if;
+                  else
+                     -- excess=ceil(fluxMagnitude-FLUX_JUMP_THRESHOLD_C)-1. Slice
+                     -- the integer part, then adjust exact integers only;
+                     -- never round away the 23-bit residue.
+                     excess := to_integer(unsigned(to_slv(fluxMagnitude(19 downto 0)))) - FLUX_JUMP_THRESHOLD_C;
+                     if (fluxMagnitude(-1 downto RESULT_LOW_C) = 0) then
+                        excess := excess - 1;
+                     end if;
+                     if (fluxQuantumFixed = 1) then
+                        v.visitFluxJumps := to_unsigned(excess+1, v.visitFluxJumps'length);
+                        if (v.fluxNegative = '1') then
+                           v.fluxCandidate := resize(r.fluxCandidate + to_sfixed(excess+1, 19, 0), v.fluxCandidate);
+                        else
+                           v.fluxCandidate := resize(r.fluxCandidate - to_sfixed(excess+1, 19, 0), v.fluxCandidate);
+                        end if;
+                     else
+                        -- Multiply raw excess by activeReciprocal on the existing MAC.
+                        v.pidCoef := to_sfixed(toSlv(excess, COEF_BITS_C), v.pidCoef);
+                        v.pidMultiplier := to_sfixed('0' & r.activeReciprocal, v.pidMultiplier);
+                        v.pidResult := (others => '0');
+                        v.state := FLUX_ESTIMATE_S;
+                        finishFlux := false;
+                     end if;
+                  end if;
                end if;
-               -- Clamp the retained state as well as the actuator, discarding
-               -- any overrange value that one flux adjustment cannot recover.
-               if (v.sq1FbFull > SQ1FB_MAX_C) then
-                  v.sq1FbFull := to_sfixed(SQ1FB_MAX_C, v.sq1FbFull);
-               elsif (v.sq1FbFull < SQ1FB_MIN_C) then
-                  v.sq1FbFull := to_sfixed(SQ1FB_MIN_C, v.sq1FbFull);
-               end if;
-               -- The sole feedback-to-DAC conversion (nearest-even rounding).
-               v.sq1Fb := resize(v.sq1FbFull, v.sq1Fb);
-               -- Commit with the DAC command. A masked visit neither advances
-               -- existing state nor initializes a row from an unapplied command.
-               v.sq1FbFullRamWrEn   := r.rowEnabled;
-               v.sq1FbFullRamWrData := '1' & to_slv(v.sq1FbFull);
 
-               v.numFluxJumps      := to_slv(numFluxJumpsFixed);
-               -- The count and local feedback are one state pair. Commit
-               -- both only when the corresponding DAC command is enabled.
-               v.fluxJumpRamWrEn   := r.rowEnabled;
-               v.fluxJumpRamWrData := to_slv(numFluxJumpsFixed);
-               v.sq1FbValid        := r.rowEnabled;
-               v.state             := DATA_STREAM_FLUX_JUMP_0_S;
+            when FLUX_ESTIMATE_S =>
+               v.pidResult := resize(r.pidResult + (r.pidCoef * r.pidMultiplier), v.pidResult);
+               v.state := FLUX_COUNT_S;
+
+            when FLUX_COUNT_S =>
+               -- Floor by unsigned raw-bit shifting, not fixed_pkg rounding.
+               v.visitFluxJumps := resize(shift_right(unsigned(to_slv(r.pidResult)),
+                  to_integer(unsigned(r.activeReciprocalShift))), v.visitFluxJumps'length) + 1;
+               v.pidCoef := to_sfixed(resize(slv(v.visitFluxJumps), COEF_BITS_C), v.pidCoef);
+               v.pidMultiplier := to_sfixed(resize(r.activeQuantum, ACCUM_BITS_C), v.pidMultiplier);
+               v.pidResult := (others => '0');
+               v.state := FLUX_PRODUCT_S;
+
+            when FLUX_PRODUCT_S =>
+               v.pidResult := resize(r.pidResult + (r.pidCoef * r.pidMultiplier), v.pidResult);
+               v.state := FLUX_REMAINDER_S;
+
+            when FLUX_REMAINDER_S =>
+               productBits := to_slv(r.pidResult);
+               -- visitFluxJumps * activeQuantum is below 2^19 for every fluxCandidate.
+               jumpFixed := to_sfixed('0' & productBits(18 downto 0), jumpFixed);
+               if (r.fluxNegative = '1') then
+                  v.fluxCandidate := resize(r.fluxCandidate + jumpFixed, v.fluxCandidate);
+               else
+                  v.fluxCandidate := resize(r.fluxCandidate - jumpFixed, v.fluxCandidate);
+               end if;
+               v.state := FLUX_CORRECT_S;
+
+            when FLUX_CORRECT_S =>
+               -- Normalizing activeReciprocal to 17 significant bits guarantees the estimate
+               -- is at most one low, even at the largest arithmetic excursion.
+               if (r.fluxCandidate > FLUX_JUMP_THRESHOLD_C) then
+                  v.fluxCandidate := resize(r.fluxCandidate - fluxQuantumFixed, v.fluxCandidate);
+                  v.visitFluxJumps := r.visitFluxJumps + 1;
+               elsif (r.fluxCandidate < -FLUX_JUMP_THRESHOLD_C) then
+                  v.fluxCandidate := resize(r.fluxCandidate + fluxQuantumFixed, v.fluxCandidate);
+                  v.visitFluxJumps := r.visitFluxJumps + 1;
+               end if;
+               finishFlux := true;
 
             when DATA_STREAM_FLUX_JUMP_0_S =>
                -- Body word 6: post-wrap/clamp feedback, before DAC rounding.
@@ -919,8 +992,9 @@ begin
                v.pidDebugMaster.tData(63 downto 0) := to_slv(resize(r.sq1FbFull, 40, RESULT_LOW_C));
 
                v.pidResult     := to_sfixed(to_slv(resize(r.sq1Fb, r.pidResult'length-1, 0)), r.pidResult);
-               v.pidMultiplier := to_sfixed(to_slv(resize(numFluxJumpsFixed, r.pidMultiplier'length-1, 0)), r.pidMultiplier);
-               v.pidCoef       := to_sfixed(to_slv(resize(fluxQuantumFixed, r.pidCoef'length-1, 0)), r.pidCoef);
+               -- Count uses the 24-bit side: all 19 signed bits must survive.
+               v.pidCoef       := to_sfixed(to_slv(resize(numFluxJumpsFixed, r.pidCoef'length-1, 0)), r.pidCoef);
+               v.pidMultiplier := to_sfixed(to_slv(resize(fluxQuantumFixed, r.pidMultiplier'length-1, 0)), r.pidMultiplier);
                v.state         := DATA_STREAM_FLUX_JUMP_1_S;
 
             when DATA_STREAM_FLUX_JUMP_1_S =>
@@ -943,7 +1017,7 @@ begin
                v.state := FLUX_DEBUG_S;
 
             when FLUX_DEBUG_S =>
-               -- Body word 7: signed net count, including its ninth bit.
+               -- Body word 7: sign-extend the entire 19-bit net count.
                v.pidDebugMaster.tValid            := r.pidDebugEnable;
                v.pidDebugMaster.tData(31 downto 0) := to_slv(resize(numFluxJumpsFixed, 31, 0));
 
@@ -967,6 +1041,56 @@ begin
                v.state := IDLE_S;
 
          end case;
+      end if;
+
+      if (finishFlux) then
+         -- Directional anti-windup depends on real post-wrap clipping. A large
+         -- recoverable excursion must not suppress sumAccum. Only the sign of
+         -- iSfixed * accumError is needed; pidResult used the old sumAccum.
+         allowIntegrate := true;
+         if (v.fluxCandidate > SQ1FB_MAX_C and
+             ((iSfixed > 0 and r.accumError > 0) or (iSfixed < 0 and r.accumError < 0))) then
+            allowIntegrate := false;
+         elsif (v.fluxCandidate < SQ1FB_MIN_C and
+                ((iSfixed > 0 and r.accumError < 0) or (iSfixed < 0 and r.accumError > 0))) then
+            allowIntegrate := false;
+         end if;
+         if (r.activeI = ZERO_COEF_C) then
+            v.sumAccum := (others => '0');
+         elsif (allowIntegrate) then
+            v.sumAccum := resize(r.sumAccum + r.accumError, v.sumAccum);
+         end if;
+         v.sumAccumRamWrEn := r.rowEnabled;
+         v.sumAccumRamWrData := to_slv(v.sumAccum);
+
+         jumpFixed := to_sfixed('0' & slv(v.visitFluxJumps), jumpFixed);
+         if (v.fluxNegative = '1') then
+            countNext := resize(numFluxJumpsFixed - jumpFixed, countNext);
+         else
+            countNext := resize(numFluxJumpsFixed + jumpFixed, countNext);
+         end if;
+         if (r.rowEnabled = '1' and (countNext > FLUX_COUNT_MAX_C or countNext < FLUX_COUNT_MIN_C)) then
+            v.fluxCountOverflow := '1';
+         end if;
+         numFluxJumpsFixed := resize(countNext, numFluxJumpsFixed);
+         v.numFluxJumps := to_slv(numFluxJumpsFixed);
+         v.fluxJumpRamWrEn := r.rowEnabled;
+         v.fluxJumpRamWrData := v.numFluxJumps;
+
+         -- activeQuantum=0 retains DAC clipping. Valid multi-wrap configurations always
+         -- finish within +/-7862 before this sole feedback-to-DAC conversion.
+         if (v.fluxCandidate > SQ1FB_MAX_C) then
+            v.sq1FbFull := to_sfixed(SQ1FB_MAX_C, v.sq1FbFull);
+         elsif (v.fluxCandidate < SQ1FB_MIN_C) then
+            v.sq1FbFull := to_sfixed(SQ1FB_MIN_C, v.sq1FbFull);
+         else
+            v.sq1FbFull := resize(v.fluxCandidate, v.sq1FbFull);
+         end if;
+         v.sq1Fb := resize(v.sq1FbFull, v.sq1Fb);
+         v.sq1FbFullRamWrEn := r.rowEnabled;
+         v.sq1FbFullRamWrData := '1' & to_slv(v.sq1FbFull);
+         v.sq1FbValid := r.rowEnabled;
+         v.state := DATA_STREAM_FLUX_JUMP_0_S;
       end if;
 
       if (v.clearPidStateBusy = '0' and v.clearSumBusy = '0') then

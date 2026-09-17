@@ -6,6 +6,25 @@ import scipy.signal
 import numpy as np
 
 import warm_tdm
+import time
+import numbers
+
+
+def flux_reciprocal_registers(quantum):
+    """Return (reciprocal, shift) for the integer MAC.
+
+    Normalization fills the positive 18-bit multiplier operand. For every
+    candidate the PID can produce, the wrap estimate is at most one jump low.
+    Software writes these ordinary registers while PID is disabled and idle.
+    """
+    if isinstance(quantum, bool) or not isinstance(quantum, numbers.Integral) or not 0 <= quantum <= 8191:
+        raise ValueError('FluxQuantumRaw must be an integer in 0..8191')
+    quantum = int(quantum)
+    if quantum == 0:
+        return 0, 0
+    shift = 16 + (quantum - 1).bit_length()
+    return (1 << shift) // quantum, shift
+
 
 class IndexedLinkVariable(pr.LinkVariable):
     def __init__(self, dep, index, **kwargs):
@@ -204,8 +223,9 @@ class AdcDsp(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'FluxQuantumRaw',
-            description = 'Positive signed DAC-code period (1..8191); zero disables wrapping. '
-                          'Configure while stopped, then clear PID state before resuming.',
+            description = 'DAC-code period in 0..8191; zero disables wrapping. '
+                          'Raw clients must also program FluxReciprocalRaw and FluxReciprocalShift.',
+            hidden = False,
             groups = ['NoConfig'],            
             offset = 0x40,
             base = pr.UInt,
@@ -213,6 +233,33 @@ class AdcDsp(pr.Device):
             minimum = 0,
             maximum = 8191,
             bitOffset = 0))
+
+        self.add(pr.RemoteVariable(
+            name = 'FluxReciprocalRaw', offset = 0x48, bitSize = 17,
+            base = pr.UInt, hidden = True, groups = ['NoConfig'],
+            description = 'Software-computed normalized reciprocal; firmware trusts this value.'))
+        self.add(pr.RemoteVariable(
+            name = 'FluxReciprocalShift', offset = 0x4C, bitSize = 5,
+            base = pr.UInt, hidden = True, groups = ['NoConfig'],
+            description = 'Binary scale of FluxReciprocalRaw; computed in software.'))
+        self.add(pr.RemoteVariable(
+            name = 'FluxCountOverflow', offset = 0x54, bitOffset = 0, bitSize = 1,
+            base = pr.Bool, mode = 'RO',
+            description = 'Net count saturated; unwrapped history was lost. Cleared by full PID clear.'))
+
+        def _setFluxQuantumRegisters(value, write):
+            reciprocal, shift = flux_reciprocal_registers(value)
+            if write and (self.PidEnableRaw.get(read=True) or self.ControlBusy.get(read=True)):
+                raise RuntimeError('Disable PID and wait for ControlBusy before changing flux wrapping')
+            self.FluxReciprocalRaw.set(reciprocal, write=write)
+            self.FluxReciprocalShift.set(shift, write=write)
+            self.FluxQuantumRaw.set(value, write=write)
+            if write:
+                deadline = time.monotonic() + 1.0
+                while self.ControlBusy.get(read=True):
+                    if time.monotonic() >= deadline:
+                        raise TimeoutError('Integer flux configuration did not finish')
+                    time.sleep(0.001)
 
         def _setFluxQuantum(value, write):
             # A quantum is a current DIFFERENCE, not an absolute DAC operating
@@ -224,7 +271,7 @@ class AdcDsp(pr.Device):
                 raise ValueError('FluxQuantum is too small to represent in DAC codes')
             if dac > 8191:
                 raise ValueError('FluxQuantum exceeds the signed 14-bit positive range')
-            self.FluxQuantumRaw.set(dac, write=write)
+            _setFluxQuantumRegisters(dac, write)
 
         def _getFluxQuantum(read):
             dac = self.FluxQuantumRaw.get(read=read)
@@ -249,11 +296,11 @@ class AdcDsp(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'FluxJumps_DBG',
-            description = 'Signed net wrap count; saturates at -256/+255.',
+            description = 'Signed net wrap count; saturates at -262144/+262143.',
             offset = 0x44,
             mode = 'RO',
             base = pr.Int,
-            bitSize = 9,
+            bitSize = 19,
             bitOffset = 0,
             disp = '{:d}'))
 
@@ -330,12 +377,12 @@ class AdcDsp(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'FluxJumps',
-            description = 'Signed net wrap count per row; valid reconstruction requires -256..255.',
+            description = 'Signed net wrap count per row; valid reconstruction requires -262144..262143.',
             offset = 0x6000,
             base = pr.Int,
             mode = 'RW',
             numValues = rows,
-            valueBits = 9,
+            valueBits = 19,
             valueStride = 32))
 
         self.add(pr.RemoteVariable(

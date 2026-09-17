@@ -6,7 +6,12 @@ Reviewed the working-tree `AdcDsp` path after retained fractional feedback and
 AXI RAM/debug exposure. The wrap direction and fractional arithmetic are correct
 for a positive quantum, within the single-wrap and net-count limits below.
 The review found and corrected counting, telemetry and signed-readout defects.
-The user explicitly chose to retain the **signed nine-bit net count,
+**Superseded limits:** the later [multi-wrap implementation](../integer-pid/MULTI_FLUX.md)
+expands J to 19 signed bits, recovers multiple wraps before clipping, and
+moves integral admission to the post-wrap command. The single-wrap/nine-bit
+limits below describe the earlier revision and its evidence.
+
+At that earlier revision, the user chose to retain the **signed nine-bit net count,
 −256 through +255**, rather than widen it. AdcDspFp is unchanged.
 
 The primary files are `AdcDsp.vhd`, `WarmTdmPkg.vhd`, `FrameHeaderPkg.vhd`,

@@ -53,7 +53,7 @@ entity WaferSim is
 
       SQ1_RN_G     : real := 14.0;
       SQ1_IC0_G    : real := 20.0e-6;
-      SQ1_PHINOT_G : real := 10.0e-6;
+      SQ1_PHINOT_G : real := SQ1_SQUID_SYNTHETIC_C.currentPerPhi0Amp;
 
       RS_RN_G     : real := 14.0;
       RS_IC0_G    : real := 20.0e-6;

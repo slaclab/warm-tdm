@@ -3,9 +3,11 @@
 """Masked state and boundary-safe I changes, using real RAMs and DAC writes."""
 import copy
 from fractions import Fraction
+import numpy as np
 
 import cocotb
 from cocotb.clock import Clock
+from cocotb.triggers import RisingEdge, Timer
 import pytest
 
 from tests.common.regression_utils import run_warm_tdm_vhdl_test
@@ -14,6 +16,24 @@ from tests.warm_tdm.adc_dsp.test_AdcDspFp import Bench, WRAPPER, signed
 
 
 class IntegerBench(Bench):
+    async def monitor(self):
+        while True:
+            await RisingEdge(self.d.clk)
+            await Timer(2, unit='ns')
+            self.cycles += 1
+            if int(self.d.rst.value):
+                continue
+            if int(self.d.DAC_WR_VALID.value):
+                self.writes.append((int(self.d.DAC_WR_ADDR.value), self.decode(int(self.d.DAC_WR_DATA.value))))
+                self.write_cycles.append(self.cycles)
+            if int(self.d.DEBUG_TVALID.value):
+                self.frame.extend(int(self.d.DEBUG_TDATA.value).to_bytes(8, 'little'))
+                if int(self.d.DEBUG_TLAST.value):
+                    self.frames.append(self.formats.PidDebug.from_numpy(np.frombuffer(bytes(self.frame), dtype=np.uint8)))
+                    self.frame.clear()
+            if int(self.d.PID_TVALID.value) and int(self.d.PID_TKEEP.value):
+                self.outputs.append((int(self.d.PID_TID.value), signed(int(self.d.PID_TDATA.value))))
+
     async def idle(self, **kwargs):
         for _ in range(self.rows + 40):
             if await self.read(0x34) == 0:
@@ -24,7 +44,7 @@ class IntegerBench(Bench):
         return signed(await self.read(0x2000 + 4*row), 18)
 
     async def count(self, row=0):
-        return signed(await self.read(0x6000 + 4*row), 9)
+        return signed(await self.read(0x6000 + 4*row), 19)
 
     async def feedback(self, row=0):
         raw = await self.read(0x7000 + 8*row)
@@ -59,7 +79,11 @@ async def setup(dut, p=Fraction(1, 4), i=Fraction(1, 8), d=0, q=2000):
     await b.clocks(5)
     for address, value in ((4, p), (8, i), (12, d)):
         await b.write(address, round(value * (1 << 23)) & 0xffffff)
+    shift = 16 + (q - 1).bit_length() if q else 0
+    await b.write(0x48, (1 << shift) // q if q else 0)
+    await b.write(0x4c, shift)
     await b.write(0x40, q)
+    await b.idle()
     await b.write(0x50, 0)  # Shared monitor decodes FP debug; leave it disabled.
     await b.write(0, 1)
     await b.idle()
@@ -122,7 +146,7 @@ async def i_changes_clear_only_integrals_and_preserve_unseeded_rows(dut):
                     await b.error(row), await b.correction(row)) == saved[row]
         assert await b.feedback(1) == (0, False)
     # Preserve fractional carry and flux history even if the captured seed
-    # changes. First update after an I change sees S=0, without reseeding.
+    # changes. The first visit after changing axiI uses sumAccum=0, without reseeding.
     await b.visit(error=1, seed=100)
     assert await b.feedback() == (Fraction(11725, 2), True)  # 5862.5
     assert await b.integral() == 1
@@ -139,16 +163,16 @@ async def i_changes_clear_only_integrals_and_preserve_unseeded_rows(dut):
 @cocotb.test()
 async def same_i_preserves_integrals_and_derivative_history(dut):
     b = await setup(dut, p=0, d=Fraction(1, 4), q=0)
-    await b.visit(error=4, seed=100)  # D*(0-4)=-1, old S=0
+    await b.visit(error=4, seed=100)  # activeD*(lastAccumError-accumError)=-1, sumAccum=0
     assert await b.feedback() == (99, True)
     assert await b.integral() == 4
-    await b.change_i(Fraction(1, 8))  # Same value must not sweep S.
+    await b.change_i(Fraction(1, 8))  # Same value must not clear sumAccum.
     assert await b.integral() == 4
     await b.visit(error=4)
     assert await b.feedback() == (Fraction(199, 2), True)  # 99 + .125*4
     await b.change_i(Fraction(1, 2))
     await b.visit(error=4)
-    assert await b.feedback() == (Fraction(199, 2), True)  # D=0, old S=0
+    assert await b.feedback() == (Fraction(199, 2), True)  # activeD=0, sumAccum=0
     await b.visit(error=4)
     assert await b.feedback() == (Fraction(203, 2), True)
 

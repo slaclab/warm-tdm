@@ -14,6 +14,15 @@ below describe that baseline. The subsequent user-requested
 I changes with FP; see that record for implementation and validation.
 Earlier 12/34/40-cycle sketches predate these implementations.
 
+The subsequent [multi-wrap implementation](../integer-pid/MULTI_FLUX.md)
+also supersedes the single-wrap and nine-bit limitations discussed below.
+Integer now supports the full PID candidate range with a host-computed
+reciprocal, a signed 19-bit net count and at most one cleanup subtraction.
+It retains the +/-7862 trigger and rounded-local-plus-net-count readout;
+FP still uses centered wrapping and a running floating-point Full value.
+The original comparison measurements below remain baseline evidence; current
+multi-wrap timing and validation are recorded in the implementation record.
+
 ## Sources and decisions
 
 - `firmware/common/warm_tdm/rtl/AdcAccumulator.vhd`: shared sampling front end.
@@ -127,6 +136,92 @@ one wrap would recover an in-range command. FP tests actual post-wrap,
 rounded-DAC clipping and back-calculates F only if clipping occurs. Fixed
 clamps F before rounding; FP can retain a fractional excursion beyond a rail
 if it still rounds to a valid DAC code.
+
+### Readout into the biquad: September 17 follow-up
+
+The following applies to normal feedback output mode `00`. The two readouts
+represent the unwrapped controller coordinate, but retain different precision:
+
+| Stage | Integer AdcDsp | AdcDspFp |
+|---|---|---|
+| Retained feedback | Fractional, wrapped local `sq1FbFull`, plus signed net J | Fractional, unwrapped `sq1FbFullFp` |
+| Primary DSP stream | Signed int32 `round_even(F_local) + J*Q` | Float32 accepted unwrapped `sq1FbNewFp` |
+| Biquad input | Convert that int32 to float32 | Use float32 bits directly |
+| Filter arithmetic/output | Float32 | Float32 |
+
+Integer `DATA_STREAM_FLUX_JUMP_0_S` seeds the MAC with the already rounded
+`sq1Fb`, selects the updated total signed `numFluxJumps` and this visit's
+`activeQuantum`, and `DATA_STREAM_FLUX_JUMP_1_S` adds J*Q. These stages
+intentionally reinterpret the fixed-point MAC's raw bits as integer arithmetic.
+There is no missing multiplication or Q1.23 scale factor in the stream.
+The multiplication is quantum times net count, then added to local feedback;
+it is not local feedback times count, nor this visit's jump increment times Q.
+
+Both integer stream FIFOs now preserve all 32 bits (`PID_DATA_AXIS_CFG_C`),
+including sign extension. `BiquadFilter` feeds the integer word to the Int32
+converter selected in `Int2Fp.xci`. Within the retained count/quantum/DAC
+ranges, the reconstructed integer has magnitude below 2^22, so conversion to
+binary32 is exact. The loss of fractional readout occurs earlier, at the
+choice of rounded `sq1Fb`, not in this converter.
+
+FP `DATA_STREAM_S` sends `sq1FbNewFp`, the same accepted unwrapped state saved
+to RAM. Ordinary wrapping changes the DAC coordinate without changing this
+value. On actual DAC clipping, `DAC_CONVERT_S`/`CLIP_FEEDBACK_S` first replaces
+it with `J*activeQuantum + clipped_DAC`; the emitted value therefore follows
+the accepted clipped state. J is recomputed from full feedback each visit and
+is not an accumulated nine-bit count used to reconstruct ordinary readout.
+FP J counts configured wrap periods (physical Q times WrapMultiplier).
+
+`DataPath` connects both DSP variants to the same biquad and sets
+`INPUT_IS_FLOAT_G => USE_FLOAT_PID_G`. The filter's input branch selects the
+Int32 conversion or direct float input accordingly. Its filtered low 32-bit
+word reaches `EventBuilder`, and the host `DataReadout` decodes that word as
+float32 in either build. The filter performs no flux unwrapping itself.
+
+For an unwrapped candidate of 8500.25, Q=2000 and initially zero integer J,
+integer produces local 6500.25, J=1, DAC=6500 and readout=8500. FP chooses
+J=4, local 500.25, DAC=500 and readout=8500.25. Different wrapping thresholds
+can therefore give different local DAC/count pairs while preserving the same
+unwrapped coordinate up to integer readout rounding.
+
+The arithmetic is correct within the existing contracts, with these limits:
+
+- Integer's retained fraction helps future control visits but is absent from
+  the filter input. Error relative to its unrounded reconstructed state is at
+  most half a DAC code. With odd Q, nearest-even half ties need not equal
+  rounding the unwrapped value directly. Filtering cannot recover information
+  discarded before its input; quantization impact depends on the signal.
+- At J=255/-256, another outward integer wrap moves the local DAC while J
+  saturates, losing one Q in readout. The nine-bit limit was explicitly retained
+  previously. Multiple wraps per visit make overflow handling more important.
+- A large integer correction that one wrap cannot recover clips local state
+  and reports that clipped reconstruction. For C=11000, Q=2000, J_old=0, the
+  current readout is 8191+2000=10191. Two wraps would preserve 11000. This is
+  the pending multi-wrap limitation, not a missing readout MAC operation.
+- FP preserves fractions subject to binary32 precision; its absolute resolution
+  degrades at large full-state magnitude. Finite valid configuration, a
+  representable quotient and successful stream/DAC delivery remain assumptions.
+- Changing integer Q with nonzero J changes readout by J*change_in_Q. A per-visit
+  snapshot prevents mixed configuration within a visit, but does not rebase
+  existing state. Configure quiescently and clear/reseed as documented.
+
+For fractional readout parity, a separate change would reconstruct
+`F_local_full + J*Q` before DAC rounding and preserve that fraction through
+the DSP-to-filter interface. The current signed-int32 conversion cannot
+accomplish this just by substituting `sq1FbFull` in the existing raw-bit MAC.
+No RTL or stream-format change was made as part of this review.
+
+Validation: refreshed sources with `make rtl_import` and reran four integer
+flux cases (continuity, count saturation, negative sign preservation and
+single-wrap recovery/clipping) plus three FP cases (seeding/fractions,
+multi-quantum excursions and clipped-state readout), each with 8 rows/inverted
+DAC and 256 rows/normal DAC. All **14 selected cocotb cases / four pytest
+configurations passed** in 73.57 seconds. Nonselected cases were excluded with
+`COCOTB_TEST_FILTER`; this was not a full-suite run. The DSP FIFO outputs were
+observed by these tests, while biquad wiring/conversion and EventBuilder
+forwarding were checked in source. No end-to-end biquad simulation or
+generated-IP qualification was performed. The run log is
+`/private/tmp/warm-tdm-readout-review-tests.log`.
 
 ### Lifecycle differences at the reviewed baseline
 
