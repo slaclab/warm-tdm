@@ -489,7 +489,7 @@ begin
          din            => r.sq1FbFullRamWrData,
          dout           => sq1FbFullRamOut);
 
-   comb : process (accumIn, accumRamOut, accumValid, sq1FbFullRamOut, fluxJumpRamOut, pidDebugCtrl, r,
+   comb : process (accumIn, accumRamOut, accumValid, config, sq1FbFullRamOut, fluxJumpRamOut, pidDebugCtrl, r,
                    sumRamOut, timingAxilReadMaster, timingAxilWriteMaster,
                    timingRxData, timingRxRst125) is
       variable v                 : RegType;
