@@ -7,8 +7,22 @@
 ## may be copied, modified, propagated, or distributed except according to
 ## the terms contained in the LICENSE.txt file.
 ##############################################################################
+# 10G coordinator ColumnFpgaBoard, floating-point (AdcDspFp) PID datapath
+# (USE_FLOAT_PID_G=true). RING_ADDR_0_G=true with ETH_10G_G=true instantiates the
+# 10G Ethernet core, so load WarmTdmCore_10g.xdc after the base WarmTdmCore.xdc.
+# Unlike the 1G targets, this leaves GEN_ADC_FILTER_G/GEN_PID_DEBUG_G/
+# RSSI_WINDOW_ADDR_SIZE_G/ROW_ADDR_BITS_G at their ColumnFpgaBoard entity defaults.
 source -quiet $::env(RUCKUS_DIR)/vivado_proc.tcl
 
-# Floating-point (AdcDspFp) PID datapath.
-set useFloatPid true
-source $::env(PROJ_DIR)/../common/ColumnFpgaBoard32510G.tcl
+loadRuckusTcl $::env(TOP_DIR)/submodules/surf
+loadRuckusTcl $::env(TOP_DIR)/common/warm_tdm
+
+loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore.xdc
+loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore_10g.xdc
+loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/ColumnFpgaBoard.xdc
+
+set_property top {ColumnFpgaBoard} [get_filesets {sources_1}]
+
+set_property generic "[get_property generic [current_fileset]] RING_ADDR_0_G=true ETH_10G_G=true USE_FLOAT_PID_G=true" [current_fileset]
+
+set_property strategy Performance_ExplorePostRoutePhysOpt [get_runs impl_1]
