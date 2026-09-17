@@ -13,6 +13,8 @@ export PRJ_VERSION = 0x00000000
 
 export GIT_BYPASS = 1
 
+export GEN_MCS_IMAGE = 0
+
 export GEN_MCS_IMAGE_GZIP = 1
 
 # Use top level makefile

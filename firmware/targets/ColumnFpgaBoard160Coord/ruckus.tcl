@@ -15,6 +15,7 @@ loadRuckusTcl $::env(TOP_DIR)/common/warm_tdm
 loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore.xdc
 loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore_1g.xdc
 loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/ColumnFpgaBoard.xdc
+loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCoreSfp.xdc
 
 set_property top {ColumnFpgaBoard} [get_filesets {sources_1}]
 set_property generic "[get_property generic [current_fileset]] RING_ADDR_0_G=true ETH_10G_G=false GEN_ADC_FILTER_G=false GEN_PID_DEBUG_G=false USE_FLOAT_PID_G=false RSSI_WINDOW_ADDR_SIZE_G=2 ROW_ADDR_BITS_G=6" [current_fileset]

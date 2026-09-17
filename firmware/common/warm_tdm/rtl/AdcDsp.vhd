@@ -352,7 +352,7 @@ begin
    U_AxiDualPortRam_FLUX_JUMP : entity surf.AxiDualPortRam
       generic map (
          TPD_G            => TPD_G,
-         SYNTH_MODE_G     => STREAM_FIFO_SYNTH_MODE_C,
+         SYNTH_MODE_G     => "inferred",
          MEMORY_TYPE_G    => "block",
          READ_LATENCY_G   => 3,
          AXI_WR_EN_G      => true,
@@ -378,7 +378,7 @@ begin
    U_AxiDualPortRam_ACCUM_ERROR : entity surf.AxiDualPortRam
       generic map (
          TPD_G            => TPD_G,
-         SYNTH_MODE_G     => STREAM_FIFO_SYNTH_MODE_C,
+         SYNTH_MODE_G     => "inferred",
          MEMORY_TYPE_G    => "block",
          READ_LATENCY_G   => 3,
          AXI_WR_EN_G      => true,
@@ -405,7 +405,7 @@ begin
    U_AxiDualPortRam_SUM_ACCUM : entity surf.AxiDualPortRam
       generic map (
          TPD_G            => TPD_G,
-         SYNTH_MODE_G     => STREAM_FIFO_SYNTH_MODE_C,
+         SYNTH_MODE_G     => "inferred",
          MEMORY_TYPE_G    => "block",
          READ_LATENCY_G   => 3,
          AXI_WR_EN_G      => true,
@@ -435,7 +435,7 @@ begin
    U_AxiDualPortRam_PID_RESULTS : entity surf.AxiDualPortRam
       generic map (
          TPD_G            => TPD_G,
-         SYNTH_MODE_G     => STREAM_FIFO_SYNTH_MODE_C,
+         SYNTH_MODE_G     => "inferred",
          MEMORY_TYPE_G    => "block",
          READ_LATENCY_G   => 3,
          AXI_WR_EN_G      => true,
@@ -466,7 +466,7 @@ begin
    U_Sq1FbFullRam : entity surf.AxiDualPortRam
       generic map (
          TPD_G            => TPD_G,
-         SYNTH_MODE_G     => STREAM_FIFO_SYNTH_MODE_C,
+         SYNTH_MODE_G     => "inferred",
          MEMORY_TYPE_G    => "block",
          READ_LATENCY_G   => 3,
          AXI_WR_EN_G      => true,
@@ -489,7 +489,7 @@ begin
          din            => r.sq1FbFullRamWrData,
          dout           => sq1FbFullRamOut);
 
-   comb : process (accumIn, accumRamOut, accumValid, sq1FbFullRamOut, fluxJumpRamOut, pidDebugCtrl, r,
+   comb : process (accumIn, accumRamOut, accumValid, config, sq1FbFullRamOut, fluxJumpRamOut, pidDebugCtrl, r,
                    sumRamOut, timingAxilReadMaster, timingAxilWriteMaster,
                    timingRxData, timingRxRst125) is
       variable v                 : RegType;

@@ -15,16 +15,18 @@ Names use `Function·FpgaBoard·Part·[FrontEnd]·[Pid]·[Coord|Eth]`:
   (`USE_FLOAT_PID_G` = `true`/`false`), and the Ethernet type doubles as the
   coordinator marker: a `1G`/`10G` suffix = coordinator (`RING_ADDR_0_G=true`),
   while a bare name (no Ethernet suffix) = non-coordinator (`RING_ADDR_0_G=false`).
-  Non-coordinators are intended to carry no Ethernet; until `ColumnFpgaBoard` can
-  be built without an Ethernet core they still instantiate a 1G core.
+  Non-coordinators carry no Ethernet: `PgpEthCore` gates the Ethernet core on ring
+  address zero (`GEN_ETH`), so `RING_ADDR_0_G=false` ties off the Ethernet
+  interfaces and instantiates no core.
 - Other targets retain the legacy `Coord` suffix for `RING_ADDR_0_G=true`
   (e.g. `RowFpgaBoard160Coord`, `ColumnFpgaBoard325AwaXeCoord10G`), which replaced
   the even older `0`/`Coordinator` suffixes.
 
-The three `ColumnFpgaBoard325` families share a build body under
-[`common/`](common) (`ColumnFpgaBoard325.tcl`, `ColumnFpgaBoard3251G.tcl`,
-`ColumnFpgaBoard32510G.tcl`); each target's `ruckus.tcl` only sets `useFloatPid`
-and sources its family body, so the `Fp`/`Int` siblings cannot drift.
+Each `ColumnFpgaBoard325` target's `ruckus.tcl` is self-contained: it sets its own
+generics (including `USE_FLOAT_PID_G`) and loads its own constraints directly. The
+`Fp`/`Int` siblings differ only in `USE_FLOAT_PID_G`, and the `1G`/`10G`/bare
+variants only in `RING_ADDR_0_G`/`ETH_10G_G` and the Ethernet XDC; keep the
+matching families in sync by hand when editing shared generics.
 
 | Target | RTL top |
 |---|---|
@@ -61,7 +63,7 @@ Non-coordinator targets load neither Ethernet XDC. Keep each target's
 constraint selection consistent with `RING_ADDR_0_G` and `ETH_10G_G` when
 changing its generics. All constraint files remain managed XDC without Tcl
 control flow.
-The common `ruckus.tcl` must keep `loadConstraints -dir .../xdc` disabled:
+Each target's `ruckus.tcl` must keep `loadConstraints -dir .../xdc` disabled:
 loading the directory would combine incompatible board pinouts. Common RTL and
 simulation directories can be loaded as VHDL 2008.
 
@@ -84,6 +86,15 @@ The aggregate build defaults to `prom`; `SUBTARGET` selects another supported
 make target. Build products are under the `firmware/build/` symlink, and final
 images under each target's `images/` directory. Inspect that symlink directly
 when locating logs.
+
+`make all` builds every target but, under `-j`, a single failure is easy to lose
+in interleaved output. For a parallel build with a clear pass/fail summary and
+per-target logs, use `make report` (optionally `make report JOBS=N` to cap
+concurrency): it delegates to `build_release.sh` over the aggregate target list,
+keeps going past failures, and prints an `OK`/`FAILED` table under
+`build_logs/<git-hash>/`. Each `FAILED` line is followed by the tail of that
+target's log (the error itself; override the line count with `FAIL_TAIL=N`), plus
+the full log path. It exits non-zero if any target failed.
 
 The `warmTdm` release selects the six split `ColumnFpgaBoard325` targets
 (`Fp`/`Int` × non-coord/`1G`/`10G`), `RowFpgaBoard160`, and `RowFpgaBoard325`.

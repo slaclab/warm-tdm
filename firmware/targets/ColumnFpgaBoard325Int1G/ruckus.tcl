@@ -7,8 +7,21 @@
 ## may be copied, modified, propagated, or distributed except according to
 ## the terms contained in the LICENSE.txt file.
 ##############################################################################
+# 1G coordinator ColumnFpgaBoard, integer (AdcDsp) PID datapath
+# (USE_FLOAT_PID_G=false). RING_ADDR_0_G=true with ETH_10G_G=false instantiates the
+# 1G Ethernet core, so load WarmTdmCore_1g.xdc after the base WarmTdmCore.xdc.
 source -quiet $::env(RUCKUS_DIR)/vivado_proc.tcl
 
-# Integer (AdcDsp) PID datapath.
-set useFloatPid false
-source $::env(PROJ_DIR)/../common/ColumnFpgaBoard3251G.tcl
+loadRuckusTcl $::env(TOP_DIR)/submodules/surf
+loadRuckusTcl $::env(TOP_DIR)/common/warm_tdm
+
+loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore.xdc
+loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore_1g.xdc
+loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/ColumnFpgaBoard.xdc
+loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCoreSfp.xdc
+
+set_property top {ColumnFpgaBoard} [get_filesets {sources_1}]
+
+set_property generic "[get_property generic [current_fileset]] RING_ADDR_0_G=true ETH_10G_G=false GEN_ADC_FILTER_G=false GEN_PID_DEBUG_G=false RSSI_WINDOW_ADDR_SIZE_G=2 ROW_ADDR_BITS_G=6 USE_FLOAT_PID_G=false" [current_fileset]
+
+set_property strategy Power_DefaultOpt [get_runs impl_1]
