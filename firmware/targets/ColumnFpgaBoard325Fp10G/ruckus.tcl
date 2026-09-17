@@ -20,6 +20,7 @@ loadRuckusTcl $::env(TOP_DIR)/common/warm_tdm
 loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore.xdc
 loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore_10g.xdc
 loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/ColumnFpgaBoard.xdc
+loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCoreSfp.xdc
 
 set_property top {ColumnFpgaBoard} [get_filesets {sources_1}]
 
