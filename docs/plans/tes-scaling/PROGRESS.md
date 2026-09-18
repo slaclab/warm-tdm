@@ -309,12 +309,25 @@ flux walks that feedback across ±7862; P only sets convergence speed/deadband.
 The earlier "raise P" idea was wrong; the fix was reading the counter correctly
 and using fine steps.
 
-### Follow-up (optional)
-`check_flux_jump` in verify_cosim_pid.py under-reports: it should read the
-`FluxJumps` register delta across the whole ramp (or per-step) rather than the
-net count within one capture window, and drop the `locked=False` heuristic that
-mislabels a tracking-and-wrapping loop. Not required for the demo; the raw
-register is the ground truth. Read Sq1Fb_DBG as a SCALAR, Sq1FbFull/FluxJumps
+### Follow-up (DONE + caveat, 2026-09-18)
+- **`cosim_pid_lock.py` now captures the full validated procedure** (committed):
+  `--seed-tune-points` (SetCosimTunePoints), `--seed-tune` writes the COHERENT
+  per-row point (Sq1Bias=50/Sq1Fb=2/SaFb=9) before the SA null, negative-P
+  default, and a `--tes-steps` TES flux-jump ramp that reads the FluxJumps
+  register. VALIDATED live: `--tes-steps 12 --tes-step-uA 4` drove FluxJumps
+  0→11 across a 48 µA ramp, Sq1FbFull bounded. This is the repeatable demo.
+- **`check_flux_jump` rewritten** to read the `FluxJumps` register directly
+  (`_flux_jump_counts`) and report `total_flux_jumps` = net wrap over the ramp,
+  instead of the per-window `flux_jump_delta`.
+- **CAVEAT — the harness still reports net=0** in a `steady,flux` run even though
+  `cosim_pid_lock.py` shows clear jumps on the same sim/point. Suspect the
+  harness's `capture_data` cadence (long `--settle`, a fresh `take_data` per
+  step) lets the servo fully re-null between steps so the net register delta per
+  step is ~0, and the ramp base already sits settled. The register read is
+  correct; the harness step/settle interaction needs a separate look (compare
+  the immediate-read cadence cosim_pid_lock uses). For a trustworthy flux-jump
+  demo TODAY, use `cosim_pid_lock.py --tes-steps ...`, not the harness flux check.
+- Read Sq1Fb_DBG as a SCALAR, Sq1FbFull/FluxJumps
 per-row via .flat[0].
 
 ## Key finding (2026-09-17) — supersedes the "weak coupling" note
