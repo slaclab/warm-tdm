@@ -481,22 +481,6 @@ begin
          mAxiReadMasters     => i2cAxilReadMasters,                  -- [out]
          mAxiReadSlaves      => i2cAxilReadSlaves);                  -- [in]
 
---    U_AwaXeI2c_1 : entity warm_tdm.AwaXeI2c
---       generic map (
---          TPD_G           => TPD_G,
---          SIMULATION_G    => SIMULATION_G,
---          CHIP_ADDR_G     => "000",
---          AXIL_CLK_FREQ_G => AXIL_CLK_FREQ_C)
---       port map (
---          axilClk         => axilClk,                 -- [in]
---          axilRst         => axilRst,                 -- [in]
---          axilReadMaster  => i2cAxilReadMasters(0),   -- [in]
---          axilReadSlave   => i2cAxilReadSlaves(0),    -- [out]
---          axilWriteMaster => i2cAxilWriteMasters(0),  -- [in]
---          axilWriteSlave  => i2cAxilWriteSlaves(0),   -- [out]
---          sda             => feI2cSda(0),             -- [inout]
---          scl             => feI2cScl(0));            -- [inout]
-
    U_AwaXeAxiI2cBridge_1 : entity warm_tdm.AwaXeAxiI2cBridge
       generic map (
          TPD_G           => TPD_G,

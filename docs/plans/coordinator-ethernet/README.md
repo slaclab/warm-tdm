@@ -120,10 +120,8 @@ RTL instance labels stay the same, preserving constraint hierarchy paths.
 The Python common-register subtree becomes `WarmTdmCore.WarmTdmCommon`.
 Existing scripts and saved YAML using `WarmTdmCommon2` must migrate their path;
 register addresses and logic are unchanged. Other `*2` devices are out of scope.
-Archived RowModule consumers and RowTb/StackTb retain their historical sources
-and require a historical checkout with the original core/common interfaces.
-Commit-specific references in the old verification log retain their original
-filenames.
+The retired module targets and RowTb/StackTb benches are available in Git
+history with their original core/common interfaces.
 
 Files: PgpEthCore and WarmTdmCore/WarmTdmCommon RTL, their active board
 instantiations, shared XDC files, all active target loaders, renamed Python

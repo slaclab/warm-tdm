@@ -106,8 +106,7 @@ GroupRoot (pyrogue.Root)
     │   └── RowBoard[0..N] (warm_tdm.RowFpgaBoard or variant)
     │       ├── WarmTdmCore registers
     │       ├── TimingTx (coordinator only)
-    │       ├── RowDacDriver2
-    │       └── RowModuleDacs
+    │       └── RowDacDriver (RowDacDriver2 implementation)
     ├── GroupLinkVariables (cross-board array access)
     ├── SaTuneProcess
     ├── Sq1TuneProcess

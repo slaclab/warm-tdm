@@ -16,22 +16,20 @@ Boards communicate via a **PGP ring topology** with Ethernet bridge for host acc
 warm-tdm/
 ├── firmware/
 │   ├── build/ -> (symlink)     # Vivado build outputs (symlink to local scratch)
-│   ├── targets/                # 14 FPGA build targets (Row/Column variants)
-│   │   ├── ColumnFpgaBoard/    #   Kintex-7, prom output
-│   │   ├── ColumnAu25p/        #   Artix UltraScale+, bit output, 10G Ethernet
-│   │   ├── RowFpgaBoard/       #   Kintex-7, prom output
-│   │   ├── RowModule/          #   Compact row module
-│   │   ├── ColumnModule/       #   Compact column module
-│   │   ├── Makefile            #   Aggregate build (all targets)
-│   │   └── ...                 #   Numbered/feature variants (0, 325, AwaXe, 10G)
+│   ├── targets/                # Current Row/Column board configurations
+│   │   ├── ColumnFpgaBoard325Int/ # Kintex-7, integer PID, prom output
+│   │   ├── ColumnFpgaBoard325Fp/  # Kintex-7, floating-point PI, prom output
+│   │   ├── RowFpgaBoard160/    #   Kintex-7, prom output
+│   │   ├── Makefile            #   Aggregate release build
+│   │   └── ...                 #   Part/front-end/coordinator/Ethernet variants
 │   ├── common/warm_tdm/        # Shared RTL library
-│   │   ├── rtl/                #   ~44 VHDL entities (production logic)
+│   │   ├── rtl/                #   Production logic and shared packages
 │   │   ├── sim/                #   Device simulation models
 │   │   ├── xdc/                #   Shared timing constraints
 │   │   ├── ip/                 #   Xilinx IP cores (Int2Fp, FpMac)
 │   │   └── ruckus.tcl          #   Loads common sources into build
 │   ├── python/warm_tdm/        # PyRogue device drivers (~47 files)
-│   ├── simulations/            # Testbenches (GroupTb, RowTb, StackTb)
+│   ├── simulations/            # GroupTb, AdcDspFpTb, WaferModelTb
 │   ├── submodules/             # surf + ruckus (git submodules)
 │   └── releases.yaml           # Release and packaging config
 ├── software/
@@ -315,12 +313,12 @@ perform that migration.
 | Timing protocol | [`TimingProtocol.md`](firmware/common/TimingProtocol.md), `TimingPkg.vhd`, `TimingTx.vhd`, `TimingRx.vhd`, `TimingSerializer*.vhd`, `TimingDeserializer*.vhd` |
 | DSP / data path | `DataPath.vhd`, `AdcDsp.vhd`, `BiquadFilter.vhd`, `EventBuilder.vhd` |
 | Communication / PGP | `PgpEthCore.vhd`, `RingRouter.vhd`, `PgpRingRouter.vhd`, `EthCore.vhd` |
-| Row board firmware | `RowDacDriver2.vhd`, `RowModuleDacs.vhd`, `RowModuleTimingRx.vhd` |
-| Clock distribution | `ClockDist.vhd`, `ClockDist7s.vhd`, `ClockDistUsp.vhd`, `TimingMmcm.vhd` |
+| Row board firmware | `RowFpgaBoard.vhd`, `RowDacDriver2.vhd` |
+| Clock distribution | `ClockDist.vhd`, `TimingRx.vhd`, `TimingTx.vhd` |
 | Adding a new target | Copy existing target dir; modify `Makefile` (PRJ_PART, target) and `ruckus.tcl` (generics, constraints) |
 | PyRogue drivers | `_WarmTdmCore.py`, `_AdcDsp.py`, `_HardwareGroup.py`, `_TimingTx.py`, `_TimingRx.py` |
 | Tuning algorithms | `software/python/warm_tdm_api/_SaTune.py`, `_Sq1Tune.py`, `_FasTune.py` |
-| Simulation | `firmware/simulations/GroupTb/` (current boards), `firmware/common/warm_tdm/sim/` (device models); RowTb/StackTb require historical legacy sources |
+| Simulation | `firmware/simulations/GroupTb/` (current boards), `firmware/simulations/AdcDspFpTb/`, `firmware/simulations/WaferModelTb/`, `firmware/common/warm_tdm/sim/` (device models) |
 | Constraints / timing closure | `common/warm_tdm/xdc/WarmTdmCore.xdc` (shared), target-specific `xdc/` dirs |
 
 ## Task Plans

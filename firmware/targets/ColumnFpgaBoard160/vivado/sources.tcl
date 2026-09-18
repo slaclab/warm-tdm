@@ -7,5 +7,3 @@
 ## may be copied, modified, propagated, or distributed except according to 
 ## the terms contained in the LICENSE.txt file.
 ##############################################################################
-# Set top level sim
-#set_property top "ColumnModuleBoardTb"     [get_filesets sim_1]

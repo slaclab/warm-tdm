@@ -104,12 +104,10 @@ timing closure. Current candidate build/resource obligations are on
 [#70](https://github.com/slaclab/warm-tdm/issues/70), with context in the
 [resource integration handoff](../../docs/plans/resource-integration/README.md).
 
-## Legacy targets
+## Retired targets
 
-`legacy/` retains `ColumnModule`, `ColumnModule0`, `RowModule`, `RowModule0`, and
-`RowModuleC00` for historical reference. They are excluded from the active
-aggregate/release catalog. The original WarmTdmCore/WarmTdmCommon implementations
-were removed; these names now identify the former `*2` implementations used
-by active boards. The archived RowModule sources and RowTb/StackTb simulations
-depend on the original interfaces and require a historical checkout. They are
-not supported build or simulation targets for the current common library.
+`ColumnModule`, `ColumnModule0`, `RowModule`, `RowModule0`, and `RowModuleC00`
+are retired, along with their `RowTb`/`StackTb` benches and exclusive support
+modules. Use Git history for those sources and their matching dependencies.
+The current `WarmTdmCore`/`WarmTdmCommon` names identify the former `*2`
+implementations used by active boards, not the original legacy interfaces.

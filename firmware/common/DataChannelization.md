@@ -420,12 +420,13 @@ fit this design.
   burst-mode handshake. So frame-*byte* correctness is **not** verified with
   isolated per-module benches.
 - **Integrated rogue↔firmware cosim already exists** and is the right home for
-  frame verification: `firmware/simulations/{GroupTb,StackTb,RowTb}` instantiate
+  frame verification: `firmware/simulations/GroupTb` instantiates
   the real boards (`ColumnFpgaBoardSim → ColumnFpgaBoardModel → ColumnFpgaBoard`)
-  plus device models, and expose SRP/Eth/PGP over TCP so real PyRogue
+  plus device models, and exposes SRP/Eth/PGP over TCP so real PyRogue
   (`_HardwareGroup` with `simulation=True`) drives the simulated firmware. Data
   returns through the actual `DataPath → EventBuilder → PGP` to the host
-  `StreamReader`. **These testbenches are Vivado/xsim-only** (not GHDL). The
+  `StreamReader`. Follow the [GroupTb simulator setup](../simulations/GroupTb/README_cosim.md)
+  for the supported full-system flow. The
   end-to-end header check (host register-write → real datapath emits framed data →
   `StreamReader` decodes the 16-byte header + global column) belongs here.
 - **Host-side decoder unit tests (no simulator)** cover the decode contract
