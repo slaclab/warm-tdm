@@ -540,7 +540,6 @@ begin
       variable fluxQuantumFixed  : sfixed(13 downto 0);
       variable numFluxJumpsFixed : sfixed(FLUX_COUNT_BITS_C-1 downto 0);
       variable pidStateRamAddrFixed : ufixed(ROW_ADDR_BITS_G-1 downto 0);
-      variable pidResultNext     : sfixed(RESULT_HIGH_C downto RESULT_LOW_C);
       variable fluxMagnitude     : sfixed(19 downto RESULT_LOW_C);
       variable countNext         : sfixed(20 downto 0);
       variable jumpFixed         : sfixed(19 downto 0);
@@ -886,8 +885,7 @@ begin
 
 
                -- Calculate PID Stage
-               pidResultNext := resize(r.pidResult + (r.pidCoef * r.pidMultiplier), pidResultNext);
-               v.pidResult   := pidResultNext;
+               v.pidResult := resize(r.pidResult + (r.pidCoef * r.pidMultiplier), v.pidResult);
 
                -- Save the correction before reusing the MAC for wrapping.
                -- Defer anti-windup and the integral commit until the actual
@@ -905,6 +903,8 @@ begin
                v.state    := FLUX_JUMP_S;
 
             when FLUX_JUMP_S =>
+               -- Choose the wrap path: handle zero/one wrap and quantum=1 here,
+               -- or prepare the shared MAC to estimate a multi-wrap count.
                v.fluxNegative := toSl(r.fluxCandidate < 0);
                fluxMagnitude := resize(abs(r.fluxCandidate), fluxMagnitude);
                v.visitFluxJumps := (others => '0');
@@ -944,10 +944,13 @@ begin
                end if;
 
             when FLUX_ESTIMATE_S =>
+               -- Multiply excess by the configured reciprocal on the shared MAC.
                v.pidResult := resize(r.pidResult + (r.pidCoef * r.pidMultiplier), v.pidResult);
                v.state := FLUX_COUNT_S;
 
             when FLUX_COUNT_S =>
+               -- Convert the reciprocal product to a wrap count and load the MAC
+               -- operands for the total feedback adjustment (count * quantum).
                -- Floor by unsigned raw-bit shifting, not fixed_pkg rounding.
                v.visitFluxJumps := resize(shift_right(unsigned(to_slv(r.pidResult)),
                   to_integer(unsigned(r.activeReciprocalShift))), v.visitFluxJumps'length) + 1;
@@ -957,10 +960,12 @@ begin
                v.state := FLUX_PRODUCT_S;
 
             when FLUX_PRODUCT_S =>
+               -- Multiply the estimated wrap count by the quantum on the shared MAC.
                v.pidResult := resize(r.pidResult + (r.pidCoef * r.pidMultiplier), v.pidResult);
                v.state := FLUX_REMAINDER_S;
 
             when FLUX_REMAINDER_S =>
+               -- Apply the estimated adjustment toward zero, retaining the fraction.
                productBits := to_slv(r.pidResult);
                -- visitFluxJumps * activeQuantum is below 2^19 for every fluxCandidate.
                jumpFixed := to_sfixed('0' & productBits(18 downto 0), jumpFixed);
@@ -972,6 +977,7 @@ begin
                v.state := FLUX_CORRECT_S;
 
             when FLUX_CORRECT_S =>
+               -- Apply one more wrap if the estimate left feedback outside the threshold.
                -- Normalizing activeReciprocal to 17 significant bits guarantees the estimate
                -- is at most one low, even at the largest arithmetic excursion.
                if (r.fluxCandidate > FLUX_JUMP_THRESHOLD_C) then
@@ -984,6 +990,8 @@ begin
                v.state := FLUX_COMMIT_S;
 
             when FLUX_COMMIT_S =>
+               -- Commit the integral state, net flux count and clipped feedback for
+               -- enabled rows, using the completed wrap result for anti-windup.
                -- Consume the registered wrap result. Keep candidate adjustment
                -- out of the clipping, anti-windup and count-update paths.
                -- Directional anti-windup depends on real post-wrap clipping. A large
