@@ -14,16 +14,18 @@ class ColumnAwaXeFpgaBoard(pr.Device):
                  frontEndClass,
 #                 loading={},
                  rows=256,
+                 ethPresent=True,
                  **kwargs):
         super().__init__(**kwargs)
 
         self.add(frontEndClass(
             name='AnalogFrontEnd'))
- 
+
         self.add(warm_tdm.WarmTdmCore(
             name = 'WarmTdmCore',
             offset = 0x00000000,
             expand = True,
+            ethPresent = ethPresent,
             local_therm_channels = [9, 10, 1, 11, 0, 3],
             fe_therm_channels = [2, 8]))
 

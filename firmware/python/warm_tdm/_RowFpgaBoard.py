@@ -6,7 +6,7 @@ import surf.protocols.ssi
 import warm_tdm
 
 class RowFpgaBoard(pr.Device):
-    def __init__(self, frontEndClass, num_wafers=1, num_row_selects=32, num_chip_selects=0, rows=256, **kwargs):
+    def __init__(self, frontEndClass, num_wafers=1, num_row_selects=32, num_chip_selects=0, rows=256, ethPresent=True, **kwargs):
         super().__init__(**kwargs)
 
         self.forceCheckEach = True
@@ -19,6 +19,7 @@ class RowFpgaBoard(pr.Device):
             offset = 0x00000000,
             expand = True,
             disable_timing_tx = True,
+            ethPresent = ethPresent,
             local_therm_channels = [9, 10, 1, 11, 0, 3],
             fe_therm_channels = [2, 8]))
         

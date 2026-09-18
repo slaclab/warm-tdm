@@ -122,16 +122,19 @@ class HardwareGroup(pyrogue.Device):
 
             # Instantiate the board Device tree and link it to the SRP
 
+            # ethPresent must match the RTL's EthCore generate condition
+            # (PgpEthCore GEN_ETH_C = RING_ADDR_0_G or SIMULATION_G): the
+            # coordinator on real hardware, and EVERY board in simulation (where
+            # EthCore is a lightweight Rogue TCP bridge, not a GigEth PHY, so each
+            # board is reachable directly without simulating the PGP ring).
             self.add(colBoardClass(
                 name=f'ColumnBoard[{index}]',
                 frontEndClass=colFeClass,
                 memBase=srp,
                 expand=True,
                 rows=rows,
-                useFloatPid=useFloatPid))
-
-            # Only ring address zero instantiates the Ethernet register block.
-            self.ColumnBoard[index].WarmTdmCore.ComCore.EthCore.enable.set(index == 0)
+                useFloatPid=useFloatPid,
+                ethPresent=(index == 0 or simulation)))
 
             pidDebug = [warm_tdm.PidDebugger(name=f'PidDebug[{i}]', hidden=False, numRows=rows, col=i, frontEnd=self.ColumnBoard[index].AnalogFrontEnd) for i in range(8)]
             pidDebugFilters = [warm_tdm.PidDebugFilter(column=i) for i in range(8)]
@@ -205,7 +208,9 @@ class HardwareGroup(pyrogue.Device):
                 srp = rogue.protocols.srp.SrpV3()
                 srp == srpStream
 
-            # Instantiate the board Device tree and link it to the SRP
+            # Instantiate the board Device tree and link it to the SRP.
+            # ethPresent matches the RTL EthCore generate condition (coordinator
+            # in hardware, every board in simulation); see the ColumnBoard above.
             self.add(rowBoardClass(
                 name=f'RowBoard[{rowIndex}]',
                 frontEndClass=rowFeClass,
@@ -214,9 +219,8 @@ class HardwareGroup(pyrogue.Device):
                 rows=rows,
                 memBase=srp,
                 expand=True,
-                enabled=True))
-
-            self.RowBoard[rowIndex].WarmTdmCore.ComCore.EthCore.enable.set(boardIndex == 0)
+                enabled=True,
+                ethPresent=(boardIndex == 0 or simulation)))
 
         def rro_get(read):
             length = self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.NumReadoutRows.get(read=read)

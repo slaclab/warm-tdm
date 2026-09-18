@@ -140,6 +140,16 @@ architecture rtl of PgpEthCore is
    -- is not generated (SIMULATE_PGP_G).
    signal boardIdInt : slv(2 downto 0) := "000";
 
+   -- Instantiate the Ethernet core on the coordinator (real hardware access
+   -- point), and additionally on every board in simulation. In sim the core is
+   -- not a GigEth PHY: its SIM_GEN branch is a lightweight RogueTcpStream SRP/
+   -- data bridge (see EthCore.vhd). Giving each simulated board its own bridge
+   -- lets the host reach non-coordinator registers directly, WITHOUT simulating
+   -- the PGP GTX ring (which is stubbed in sim and would be far slower). On real
+   -- hardware non-coordinators still omit the Ethernet PHY and are reached over
+   -- the PGP ring through the coordinator.
+   constant GEN_ETH_C : boolean := RING_ADDR_0_G or SIMULATION_G;
+
 begin
 
    axilClkOut <= axilClk;
@@ -203,9 +213,9 @@ begin
    end generate GEN_PGP;
 
    ---------------------
-   -- Ethernet Interface (coordinator only)
+   -- Ethernet Interface (coordinator in hardware; every board in simulation)
    ---------------------
-   GEN_ETH : if (RING_ADDR_0_G) generate
+   GEN_ETH : if (GEN_ETH_C) generate
       U_EthCore_1 : entity warm_tdm.EthCore
          generic map (
             TPD_G                   => TPD_G,
@@ -254,7 +264,7 @@ begin
             remoteTxAxisSlaves    => ethRemoteTxAxisSlaves);            -- [out]
    end generate GEN_ETH;
 
-   NO_ETH : if (not RING_ADDR_0_G) generate
+   NO_ETH : if (not GEN_ETH_C) generate
       ethTxP      <= '0';
       ethTxN      <= '1';
       ethPhyReady <= '0';

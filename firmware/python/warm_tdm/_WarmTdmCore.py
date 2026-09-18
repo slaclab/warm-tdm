@@ -3,7 +3,7 @@ import pyrogue as pr
 import warm_tdm
 
 class WarmTdmCore(pr.Device):
-    def __init__(self, local_therm_channels, fe_therm_channels, disable_timing_tx=False, **kwargs):
+    def __init__(self, local_therm_channels, fe_therm_channels, disable_timing_tx=False, ethPresent=True, **kwargs):
         super().__init__(**kwargs)
 
         self.add(warm_tdm.WarmTdmCommon(
@@ -19,4 +19,5 @@ class WarmTdmCore(pr.Device):
 
         self.add(warm_tdm.ComCore(
             offset = 0xA0000000,
+            ethPresent = ethPresent,
             expand = True))
