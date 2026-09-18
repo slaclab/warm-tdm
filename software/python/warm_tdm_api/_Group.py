@@ -527,13 +527,27 @@ class Group(pr.Device):
                 # matching what saTune() does after setting the bias point.
                 warm_tdm_api.saOffset(group=self)
 
-            # Seed the SQ1 tune point at the same phase as the old 10 uA-period
-            # fixture: Sq1Fb=7.37*(23/10)=16.951 uA, Sq1Bias=100, SaFb=64.8 uA.
-            # This rescales the old fitted seed; it is not a new measured tune.
-            # Written per tuning-enabled column into the per-row
-            # readout RAMs for exactly the enabled rows (RowReadoutOrder). The
-            # refined SaFb here supersedes the SA-tune SaFb, matching the real
-            # SA-tune -> sq1-tune ordering.
+            # SQ1 tune point for the 23 uA-period sinusoid-blend wafer model.
+            # These match the measured cosim fit in docs/plans/
+            # pid-cosim-verification/cosim-tuning-settings.md (FittedSq1Bias=50,
+            # FAS-on=150-163) and the model V-Phi at that bias:
+            #   Sq1Bias = 50 uA  -- the FITTED SQ1 bias. (The prior 100 uA was a
+            #                      stale pre-sinusoidal-model value; it also
+            #                      exceeded the SQ1-bias DAC range and clipped to
+            #                      an arbitrary ~77 uA, so the operating bias was
+            #                      never a controlled tune point.)
+            #   Sq1Fb = 2.0 uA  -- mid-slope (steep flank) of the 23 uA SQ1 V-Phi
+            #                      at Sq1Bias=50, FAS-on=150 uA. At 50 uA bias the
+            #                      curve is sharp (tall narrow peaks near Sq1Fb=0
+            #                      and +23); +2 uA is the falling mid-slope.
+            #   SaFb = 9.0 uA   -- the SA-tune mid-slope null (was 64.8, which
+            #                      put the SA far off its null so the muxed
+            #                      readout saw a large fixed offset).
+            # The prior 16.951/100/64.8 values were the old 10 uA-fixture ideal
+            # seed and did NOT lock on the recalibrated model.
+            # Written per tuning-enabled column into the per-row readout RAMs for
+            # exactly the enabled rows (RowReadoutOrder). The SaFb here supersedes
+            # the SA-tune SaFb, matching the real SA-tune -> sq1-tune ordering.
             @self.command()
             def SetSimSq1TunePoint():
                 colTuneEnable = self.colEnableBools
@@ -543,9 +557,9 @@ class Group(pr.Device):
                         if not colTuneEnable[col]:
                             continue
                         for row in tuneRows:
-                            self.Sq1FbCurrent.set(index=(col, row), value=16.951)
-                            self.Sq1BiasCurrent.set(index=(col, row), value=100.0)
-                            self.SaFbCurrent.set(index=(col, row), value=64.8)
+                            self.Sq1FbCurrent.set(index=(col, row), value=2.0)
+                            self.Sq1BiasCurrent.set(index=(col, row), value=50.0)
+                            self.SaFbCurrent.set(index=(col, row), value=9.0)
 
             @self.command()
             def ZeroSq1Bias():

@@ -42,19 +42,23 @@ from _cosim_common import parser, passed, positive, require, restore, run, wait_
 # Built-in per-path defaults (gains are RAW hardware coefficients, sign included).
 # From docs/plans/pid-cosim-verification/{PROGRESS.md,cosim-tuning-settings.md};
 # model+build specific (VARIATION_SEED=0 sinusoid-blend build), NOT physics.
-# The seed is phase-scaled from the old 10 uA fixture to the 23 uA period.
-# Integer gains revalidated closed-loop 2026-09-17 on the merged multi-flux-wrap
-# RTL + 23 uA plant: P is POSITIVE here (the old negative-P values railed and
-# never locked). Normalized P=+0.05, I=+0.0004 at SampleCount=20 -> raw below.
+# Operating point revalidated closed-loop 2026-09-18 on the merged multi-flux-wrap
+# RTL + 23 uA plant at the CORRECTED SQ1 tune point (Sq1Bias=50, Sq1Fb=2, SaFb=9;
+# the old Sq1Bias=100 clipped the DAC to ~77 uA and would not lock at any gain).
+# At the correct point the stable integer P is NEGATIVE: raw P=-0.0025
+# (normalized -0.05 at SampleCount=20) converges monotonically to ~370 counts,
+# P-only (I=0). Positive P also converges but slower; I is left 0 (a nonzero I
+# can wind the 19-bit flux count). NOTE this sign is opposite the earlier
+# clipped-bias result -- the operating point, not just the gain, matters.
 DEFAULTS = {
     'integer': dict(
-        sq1fb_uA=16.1, flux_quantum_uA=23.0,
-        gains=dict(p_raw=0.0025, i_raw=2e-5, d_raw=0.0, use_group_gain=True),
+        sq1fb_uA=2.0, sq1bias_uA=50.0, safb_uA=9.0, flux_quantum_uA=23.0,
+        gains=dict(p_raw=-0.0025, i_raw=0.0, d_raw=0.0, use_group_gain=True),
         step_uA=500.0,
         thresholds=dict(residual_max=800.0, flux_jump_max=0),
     ),
     'float': dict(
-        sq1fb_uA=16.1, flux_quantum_uA=23.0,
+        sq1fb_uA=2.0, sq1bias_uA=50.0, safb_uA=9.0, flux_quantum_uA=23.0,
         gains=dict(p_raw=1e-4, i_raw=0.0, d_raw=0.0, use_group_gain=True),
         step_uA=500.0,
         # A benign FluxJumps=1/row can appear at the 0.7-Phi0 seed (FP
@@ -127,9 +131,6 @@ def apply_lock(sess, cb, args, cfg, col, path):
     # (0) fresh sim: seed the SA/SQ1/FAS bias fixture (runs saOffset server-side).
     if args.seed_tune_points:
         sess.group.SetCosimTunePoints()
-    # (1) near-mid-slope operating point (0.7 Phi0) -- MUST be stopped-state.
-    for r in range(args.rows):
-        sess.group.Sq1FbCurrent.set(index=(col, r), value=cfg['sq1fb_uA'])
     # (2) FluxQuantum = Phi0 (RTL default 0 = wrap disabled). The float path
     # guards this write behind "PID disabled + not busy", so disable PID first
     # (harmless for the integer path).
@@ -139,7 +140,22 @@ def apply_lock(sess, cb, args, cfg, col, path):
     # RowReadoutOrder to [0] -- without this only row 0 is ever visited (so only
     # row 0 seeds/servos and the rest read as unseeded/no-data).
     sess.group.RowReadoutOrder.set(list(range(args.rows)))
-    # (3) null the SA immediately before the run.
+    # (1) Write the COMPLETE coherent per-row operating point into the readout
+    # tables -- Sq1Bias AND Sq1Fb AND SaFb, not just Sq1Fb. The per-row SaFb
+    # current sets the SA operating point, so all three must be applied BEFORE
+    # the SA null below; seeding only Sq1Fb (and leaving SaFb/Sq1Bias at whatever
+    # SetCosimTunePoints or a prior run left) is what made the lock flaky. Values
+    # from cfg (sq1fb) + the model-fit constants (Sq1Bias=50, SaFb=9); see
+    # docs/plans/pid-cosim-verification/cosim-tuning-settings.md and
+    # warm_tdm_api._Group.SetSimSq1TunePoint.
+    for r in range(args.rows):
+        sess.group.Sq1BiasCurrent.set(index=(col, r), value=cfg.get('sq1bias_uA', 50.0))
+        sess.group.Sq1FbCurrent.set(index=(col, r), value=cfg['sq1fb_uA'])
+        sess.group.SaFbCurrent.set(index=(col, r), value=cfg.get('safb_uA', 9.0))
+    # (3) null the SA AFTER the operating-point tables are applied, so the offset
+    # references the actual SA operating point the muxed readout will use. An
+    # offset taken before these per-row currents does not null the run and the
+    # servo cannot lock (verified A/B, 2026-09-18).
     sess.sa_offset()
     # (4) mux config: small sample window keeps the integrator off the rail.
     sess.setup_mux(num_pts=args.num_pts, sample_num=args.sample_num,
@@ -284,39 +300,58 @@ def check_step_response(sess, args, report, cfg, col, rows):
            per_row=metrics)
 
 
+def _flux_jump_counts(dsp, rows):
+    """Signed per-row net flux-jump count straight from the FluxJumps register.
+
+    This is the ground truth for how many quanta the servo has wrapped, unlike
+    the PID-debug ``flux_jump_delta`` (which is only the count change WITHIN one
+    short capture window and so under-reports a slow ramp)."""
+    vals = np.asarray(dsp.FluxJumps.get())
+    return [int(vals.flat[r]) for r in rows]
+
+
 def check_flux_jump(sess, args, report, cfg, col, rows):
-    """Best-effort flux-jump exercise. NEVER hard-fails on not reaching the rail."""
+    """Ramp TesBias and confirm the servo tracks it across multiple flux quanta.
+
+    Reads the FluxJumps *register* directly at each step (ground truth) rather
+    than the per-window PID-debug delta. Best-effort: never hard-fails on not
+    reaching the rail; requires only that the loop stays locked and the counts
+    move monotonically (no spurious reversals)."""
     th = cfg['thresholds']
-    observed = False
-    monotone_ok = True
+    cb = sess.coordinator_cb
+    dsp = cb.DataPath.AdcDsp[col]
     traj = []
     with restore([sess.group.TesBias]):
         base = float(np.asarray(sess.group.TesBias.get())[col])
+        start_counts = _flux_jump_counts(dsp, rows)
         for k in range(1, args.flux_steps + 1):
             sess.group.TesBias.set(index=col, value=base + k * args.flux_step_uA)
             path, metrics, _got = capture_data(sess, args, col, rows, deadband=args.deadband)
-            deltas = [m['flux_jump_delta'] for m in metrics.values()
-                      if m.get('flux_jump_delta') is not None]
-            events = [m['flux_jump_events'] for m in metrics.values()
-                      if m.get('flux_jump_events') is not None]
-            if any(d != 0 for d in deltas):
-                observed = True
-            # self-consistency: events count should match nonzero deltas' direction
-            if any(e < 0 for e in events):
-                monotone_ok = False
+            counts = _flux_jump_counts(dsp, rows)
+            # Cumulative net wrap since the pre-ramp baseline, per row.
+            net = [c - s for c, s in zip(counts, start_counts)]
             traj.append(dict(tesbias=base + k * args.flux_step_uA, file=path,
-                             flux_jump_delta=max(deltas, default=None,
-                                                 key=lambda x: abs(x)),
+                             flux_jump_counts=counts, flux_jump_net=net,
                              locked=_locked(metrics, cfg)))
+    # Total wrap the ramp produced (max |net| over rows).
+    total_net = max((abs(n) for t in traj for n in t['flux_jump_net']), default=0)
+    observed = total_net > 0
+    # Monotonic in |net| per row: a locked, continuously-tracking loop only adds
+    # wraps in one direction, so |net| must be non-decreasing along the ramp.
+    monotone_ok = True
+    for r in range(len(rows)):
+        seq = [abs(t['flux_jump_net'][r]) for t in traj]
+        if any(b < a for a, b in zip(seq, seq[1:])):
+            monotone_ok = False
     stayed_locked = bool(traj) and traj[-1]['locked']
-    # verify criterion is ONLY "stayed locked + counts self-consistent"; reaching
-    # the rail (observed) is reported, never required.
     ok = stayed_locked and monotone_ok
     record(report, args, 'flux-jump exercise (best-effort)', ok,
-           flux_jump_observed=observed, stayed_locked=stayed_locked,
-           counts_self_consistent=monotone_ok, trajectory=traj,
-           limitation='Synthetic TES->SQ1 coupling may not reach the rail; RTL '
-                      'wrap qualified by tests/warm_tdm/adc_dsp/test_AdcDsp_flux.py')
+           flux_jump_observed=observed, total_flux_jumps=total_net,
+           stayed_locked=stayed_locked, counts_self_consistent=monotone_ok,
+           trajectory=traj,
+           note='FluxJumps read from the register directly; total_flux_jumps is '
+                'the net quanta the TesBias ramp drove the servo through. RTL '
+                'wrap also unit-qualified by tests/warm_tdm/adc_dsp/test_AdcDsp_flux.py')
 
 
 def check(sess, args, report, directory):

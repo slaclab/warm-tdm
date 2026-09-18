@@ -11,32 +11,37 @@ sessions. Run against a live ``warmTdmServer --sim`` (see
 docs/plans/pid-cosim-verification/PROGRESS.md for the sim recipe). Read-only apart
 from the tune-point / servo registers it deliberately sets; it always ``EndRun``s.
 
-The process, in order (each step matters -- see PROGRESS.md "night" section):
-  1. Seed the operating point at MID-SLOPE. The SQ1 flux-lock must sit on the
-     steep, roughly-linear region of the sinusoid V-Phi (16.1 uA = 0.7 Phi0 of
-     the 23 uA SQ1 period), NOT near the extremum (~0.85 Phi0). Off mid-slope the
-     loop will not lock at any gain.
-  2. Set FluxQuantum = Phi0 (the SQ1 flux period). The RTL flux-jump wrap
-     (AdcDsp.vhd) needs it; it defaults to 0 (disabled) -- setup must set it.
-  3. sa_offset() -- null SaOutAdc (WaveformCapture.AdcAverage) just before the
-     run. This zeroes the raw ADC stream the AdcAccumulator sums; there is no
-     per-row baseline written (AdcBaselines stays 0 by design). NOTE the Session
-     method is ``sa_offset``; ``saOffset`` silently no-ops.
-  4. setup_mux() -- fewer samples/row (sample_num~20) shrinks the per-visit error
-     and keeps the integrator from railing.
-  5. set_pid() -- P is the STABLE knob here: the RTL adds pidResult to sq1Fb every
-     visit (sq1Fb += P*error), so "P" is a single integrator that nulls the error.
-     I-only is a DOUBLE integrator (sumAccum += error AND sq1Fb += I*sumAccum) and
-     oscillates at any gain/sign -- do not lock with I alone. On the descending
-     slope the stable P sign is POSITIVE.
-  6. run_mux(), then poll per-row AccumError.
+The process, in order (each step matters -- see docs/plans/tes-scaling/ and
+cosim-tuning-settings.md):
+  0. --seed-tune-points: Group.SetCosimTunePoints() for a fresh sim (RowMap +
+     FAS-on=163 uA + SA/SQ1 seed; runs saOffset server-side).
+  1. --seed-tune: write the COHERENT per-row operating point -- Sq1Bias, Sq1Fb
+     AND SaFb, not just Sq1Fb. On the 23 uA sinusoid model the mid-slope lock is
+     Sq1Bias=50 uA (NOT 100 -- 100 clips the SQ1-bias DAC to ~77 and will not
+     lock), Sq1Fb~2 uA (steep flank at that bias), SaFb~9 uA. The per-row SaFb
+     sets the SA operating point, so all three MUST be written before the SA
+     null in step 3. Do NOT ClearPids (it wipes the seeded feedback -> the servo
+     drops to the ungovernable V-Phi extremum).
+  2. FluxQuantum = Phi0 (23 uA). The multi-flux-wrap RTL rejects the write unless
+     PID is disabled + ControlBusy clear, so PidEnable(False) first.
+  3. sa_offset() AFTER the operating-point tables are applied, so the offset
+     references the SA operating point the muxed readout uses.
+  4. setup_mux() -- sample_num~20 keeps the per-visit error small.
+  5. set_pid() -- P is the stable single-integrator knob (sq1Fb += P*error). At
+     the correct Sq1Bias=50 point the stable integer sign is NEGATIVE (P=-0.05
+     normalized). P-only (I=0) locks cleanly; a nonzero I can wind the 19-bit
+     flux count. (The sign is opposite the earlier clipped-77 result -- the
+     operating point, not just the gain, determines it.)
+  6. run_mux(), poll per-row AccumError.
+  7. --tes-steps>0: ramp TesBias and read the FluxJumps register at each step --
+     the end-to-end flux-jump demo. A locked servo tracks the TES-induced flux
+     and wraps at +/-7862; FluxJumps climbs monotonically while Sq1FbFull stays
+     bounded. Verified 2026-09-18: +4 uA/step drove FluxJumps 1 -> ~104 over an
+     80 uA ramp. P does NOT gate this; the applied TES flux does.
 
-Historical state (2026-09-15, 10 uA fixture): at mid-slope, FluxQuantum=Phi0,
-sample_num=20, P=+0.05,
-most rows lock to ~+/-1000 counts (~ADC quant floor); a few high rows (5-7) still
-swing (row 6 is an outlier even with PID off) -- under investigation.
-The current seed preserves that phase at 23 uA; gains need revalidation on the
-rebuilt model.
+Example (fresh sim, lock 4 rows then ramp TES through many flux jumps):
+  python cosim_pid_lock.py --rows 4 --seed-tune-points --seed-tune \\
+      --tes-steps 20 --tes-step-uA 4
 """
 import argparse
 import sys
@@ -56,18 +61,36 @@ def build_parser():
     p.add_argument('--port', type=int, default=9099)
     p.add_argument('--col', type=int, default=0, help='global column index to servo')
     p.add_argument('--rows', type=int, default=8, help='rows to monitor')
-    p.add_argument('--p', type=float, default=0.05, help='normalized P gain (stable knob)')
+    # NEGATIVE P is the stable integer sign at the correct Sq1Bias=50 tune point
+    # (see cosim-tuning-settings.md / docs/plans/tes-scaling). P-only (I=0)
+    # converges cleanly; a nonzero I can wind the 19-bit flux count.
+    p.add_argument('--p', type=float, default=-0.05, help='normalized P gain (stable knob; NEGATIVE at the 23uA/Sq1Bias=50 point)')
     p.add_argument('--i', type=float, default=0.0, help='normalized I gain (double integrator; leave 0)')
     p.add_argument('--d', type=float, default=0.0, help='normalized D gain')
     p.add_argument('--sample-num', type=int, default=20, help='samples per row window')
     p.add_argument('--num-pts', type=int, default=400, help='RowPeriodCycles')
-    p.add_argument('--sq1fb', type=float, default=16.1,
-                   help='near-mid-slope SQ1 FB operating point [uA] (0.7 Phi0)')
+    # Coherent SQ1 operating point on the 23 uA sinusoid-blend model (mid-slope).
+    p.add_argument('--sq1fb', type=float, default=2.0,
+                   help='SQ1 FB mid-slope operating point [uA] at Sq1Bias=50')
+    p.add_argument('--sq1bias', type=float, default=50.0,
+                   help='SQ1 bias [uA] (fitted; 100 clips the DAC and will not lock)')
+    p.add_argument('--safb', type=float, default=9.0,
+                   help='SA FB [uA] (SA-tune null; must be applied before sa_offset)')
     p.add_argument('--flux-quantum', type=float, default=23.0,
                    help='FluxQuantum = SQ1 flux period Phi0 [uA]')
-    p.add_argument('--secs', type=float, default=6.0, help='monitor duration')
+    p.add_argument('--secs', type=float, default=10.0, help='monitor duration')
+    p.add_argument('--seed-tune-points', action='store_true',
+                   help='run Group.SetCosimTunePoints() first (fresh-sim fixture: RowMap+FAS+SA/SQ1 seed)')
     p.add_argument('--seed-tune', action='store_true',
-                   help='also (re)seed Sq1FbCurrent to --sq1fb for every monitored row')
+                   help='write the coherent per-row operating point (Sq1Bias/Sq1Fb/SaFb) before the SA null')
+    # TES flux-jump ramp: after locking, walk TesBias and read the FluxJumps
+    # register (ground truth) at each step. This is the end-to-end flux-jump demo.
+    p.add_argument('--tes-steps', type=int, default=0,
+                   help='if >0, after locking ramp TesBias this many steps and report FluxJumps')
+    p.add_argument('--tes-step-uA', type=float, default=4.0,
+                   help='TesBias increment per step [uA] (keep < one Phi0 so the servo tracks continuously)')
+    p.add_argument('--tes-settle', type=float, default=5.0,
+                   help='seconds to settle after each TesBias step')
     return p
 
 
@@ -93,16 +116,28 @@ def main(argv=None):
             tx.EndRun()
             time.sleep(0.4)
 
-        # 1) mid-slope operating point
-        if args.seed_tune:
-            for r in range(args.rows):
-                sess.group.Sq1FbCurrent.set(index=(args.col, r), value=args.sq1fb)
-            print(f"Seeded Sq1FbCurrent = {args.sq1fb} uA on col {args.col} rows 0..{args.rows-1}")
+        # 0) fresh-sim fixture: RowMap + FAS-on + SA/SQ1 seed (runs saOffset).
+        if args.seed_tune_points:
+            sess.group.SetCosimTunePoints()
+            print("Ran SetCosimTunePoints()")
 
         # Read out exactly the rows under test. A fresh sim defaults
         # RowReadoutOrder to [0], so without this only row 0 is ever visited and
         # rows 1..N-1 read as stale/zero (not servoed).
         sess.group.RowReadoutOrder.set(list(range(args.rows)))
+
+        # 1) COHERENT per-row operating point. Write Sq1Bias AND Sq1Fb AND SaFb,
+        # not just Sq1Fb -- the per-row SaFb sets the SA operating point, so all
+        # three must be in the readout tables BEFORE the SA null below, or the
+        # servo will not lock. (Do NOT ClearPids: that wipes the seeded feedback
+        # and drops the servo to the ungovernable V-Phi extremum.)
+        if args.seed_tune:
+            for r in range(args.rows):
+                sess.group.Sq1BiasCurrent.set(index=(args.col, r), value=args.sq1bias)
+                sess.group.Sq1FbCurrent.set(index=(args.col, r), value=args.sq1fb)
+                sess.group.SaFbCurrent.set(index=(args.col, r), value=args.safb)
+            print(f"Seeded per-row Sq1Bias={args.sq1bias} Sq1Fb={args.sq1fb} "
+                  f"SaFb={args.safb} uA on col {args.col} rows 0..{args.rows-1}")
 
         # 2) FluxQuantum = Phi0 (setup responsibility -- RTL default is 0/disabled).
         # The multi-flux-wrap RTL rejects a FluxQuantum change unless PID is
@@ -112,7 +147,8 @@ def main(argv=None):
         dsp.FluxQuantum.set(args.flux_quantum)
         print(f"FluxQuantum = {float(dsp.FluxQuantum.get()):.3f} uA")
 
-        # 3) null the SA just before the run
+        # 3) null the SA AFTER the operating-point tables are applied, so the
+        # offset references the SA operating point the muxed readout will use.
         sess.sa_offset()
         print(f"SaOutAdc after null = {float(np.asarray(sess.group.SaOutAdc.get())[args.col]):+.4f} V")
 
@@ -132,6 +168,32 @@ def main(argv=None):
         print(f"mean|AccumError| per second: {traj}")
         print(f"final per-row AccumError:    {final}")
         print(f"FluxJumps: {[int(x) for x in np.asarray(dsp.FluxJumps.get())[:args.rows]]}")
+
+        # TES flux-jump ramp: walk TesBias and read the FluxJumps register
+        # (ground truth) at each step. A locked servo tracks the TES-induced
+        # flux and wraps at +/-7862; FluxJumps should climb monotonically while
+        # Sq1FbFull stays bounded (does NOT rail). P does not gate this -- it is
+        # driven by how much TES flux is applied. Keep --tes-step-uA below one
+        # Phi0 so the loop tracks continuously rather than jumping fringes.
+        if args.tes_steps > 0:
+            fjv = np.asarray(dsp.FluxJumps.get())
+            fbv = np.asarray(dsp.Sq1FbFull.get())
+            base = float(np.asarray(sess.group.TesBias.get())[args.col])
+            start = [int(fjv.flat[r]) for r in range(args.rows)]
+            print(f"\nTES flux-jump ramp from TesBias={base:.1f} uA, "
+                  f"{args.tes_steps} x {args.tes_step_uA} uA:")
+            print(f"  {'dTesBias':>9} {'FluxJumps(net)':>28} {'Sq1FbFull[0]':>13}")
+            try:
+                for k in range(1, args.tes_steps + 1):
+                    sess.group.TesBias.set(index=args.col, value=base + k * args.tes_step_uA)
+                    time.sleep(args.tes_settle)
+                    fjv = np.asarray(dsp.FluxJumps.get())
+                    fbv = np.asarray(dsp.Sq1FbFull.get())
+                    net = [int(fjv.flat[r]) - start[r] for r in range(args.rows)]
+                    print(f"  {k*args.tes_step_uA:8.1f}u {str(net):>28} "
+                          f"{float(fbv.flat[0]):13.1f}")
+            finally:
+                sess.group.TesBias.set(index=args.col, value=base)
     finally:
         try:
             if bool(tx.Running.get()):

@@ -160,9 +160,162 @@ Sq1Fb≈5). This is the current edge.
 
 ### Concrete recommended tune points (from the model, for _Group.py)
 - FAS-on: 150 µA (163 is fine); FAS-off: 0 µA.
-- Sq1Bias: 100 µA (keep). Sq1Fb lock: ≈5 µA (falling mid-slope), NOT 16.951.
-- SaBias: 55 µA; SaFb: the SA-tune fit (~9 µA), NOT 64.8 — the 64.8 in
-  `SetSimSq1TunePoint` is likely what breaks the SA null in the muxed run.
+- Sq1Bias: 100 µA requested → clips to ~77 µA (SQ1-bias fast-DAC max); 77 is the
+  actual operating bias and locks fine.
+- Sq1Fb lock: ≈5 µA (falling mid-slope), NOT 16.951.
+- SaBias: 55 µA; SaFb: the SA-tune fit (~9 µA), NOT 64.8.
+
+## Lock ACHIEVED (2026-09-18), but harness path still flaky
+
+**`_Group.py` `SetSimSq1TunePoint` updated:** Sq1Fb 16.951→5.0, SaFb 64.8→9.0
+(Sq1Bias stays 100, clips to 77). Comment records the closed-loop rationale.
+
+**Reproducible manual lock:** the recipe that reliably converges (to ±20-280
+AccumError, P=+0.05, I=0, FluxJumps=0):
+1. `SetCosimTunePoints()` (RowMap + FAS=163 + SA/SQ1 seed)
+2. `sa_offset()` (reference null)
+3. write the coherent operating point to the row tables:
+   Sq1Bias=100(→77), Sq1Fb=5, SaFb=9 for each readout row
+4. **`sa_offset()` AGAIN** — after the tables are applied
+5. setup_mux(sample_num=20) + set_pid(P=+0.05,I=0) + run_mux
+
+**Decisive A/B (run_ab2.py):** with the operating-point tables applied,
+- readout with the offset taken BEFORE the tables → **rails ~80000 (no lock)**
+- readout with an extra `sa_offset()` AFTER the tables → **LOCKS (±200)**
+
+So the cosim helpers' extra pre-readout `sa_offset()` is **necessary, not
+harmful** — but it MUST run AFTER the final per-row SaFb/Sq1 values are in the
+tables, because those per-row currents shift the SA operating point and the
+earlier offset no longer nulls it. (This differs from the hardware workflow,
+where the SQ1-tune servo already nulls at each fitted point so no extra offset
+is needed. In cosim we apply static tables, so we must re-null once after.)
+
+**Still flaky:** `verify_cosim_pid.py --seed-tune-points` intermittently does
+NOT lock (resid ~70000, windup 0, error a fixed constant P can't reduce) even
+though its order is SetCosimTunePoints → seed Sq1Fb → sa_offset → run. The
+manual recipe locks; the harness sometimes doesn't, from the same operating
+point. Difference not fully closed — suspected residual SA-offset/state
+dependence (the SA-offset DAC and per-row feedback RAM carry between runs; a
+warm vs fresh fixture changes the result). apply_lock re-seeds only Sq1Fb, not
+Sq1Bias/SaFb, so it leans entirely on SetCosimTunePoints having written a
+coherent point THEN its own sa_offset. Needs: make apply_lock write the full
+coherent per-row point (Sq1Bias/Sq1Fb/SaFb) explicitly, then sa_offset, and/or
+clear PID/feedback RAM (ClearPids) at entry for determinism.
+
+### Profile/DEFAULTS state
+- `cosim_pid.example.json` + `verify_cosim_pid.py` DEFAULTS: integer
+  sq1fb_uA=5.0, p_raw=+0.0025, **i_raw=0.0** (I=+2e-5 wound the 19-bit count to
+  the 131071 rail — P-only is the verified lock).
+
+## ROOT CAUSE of flakiness: Sq1Bias was 100, should be 50 (2026-09-18)
+
+User caught it: `SetSimSq1TunePoint` seeded **Sq1Bias=100 µA**, but the measured
+cosim fit is **50 µA** (`cosim-tuning-settings.md:58`: "FittedSq1Bias = 50 µA
+... `SetSimSq1TunePoint` currently seeds ... Sq1Bias=100 ... from the old ideal
+model; update ... once the SQ1 lock is confirmed" — that update never happened).
+The 100 traces to `caf32d5` where the function was first added as
+`TmpSetSq1TunePoint`; every later commit carried it forward untouched. Worse,
+**100 µA exceeds the SQ1-bias fast-DAC range**, so it clipped to an arbitrary
+~77 µA — the operating bias was never a controlled tune point, which is exactly
+why the lock was erratic and state-dependent.
+
+Fixes applied:
+- `_Group.py SetSimSq1TunePoint`: **Sq1Bias 100→50**, Sq1Fb 16.951→**2.0**
+  (re-derived: at Sq1Bias=50 the model V-Phi is sharper; steepest mid-slope is
+  ~+2 µA on the falling flank, per a fresh GHDL DetectorModuleSim probe), SaFb
+  64.8→**9.0**. Unlike Sq1Fb (scales with the 10→23 µA period), Sq1 *bias* is an
+  operating current and does not scale — 50 carries straight over.
+- `verify_cosim_pid.py apply_lock` HARDENED: now writes the COMPLETE coherent
+  per-row point (Sq1Bias=50, Sq1Fb, SaFb=9) into the readout tables BEFORE the
+  SA null, then `sa_offset()` — instead of seeding only Sq1Fb. New profile keys
+  `sq1bias_uA`/`safb_uA` (DEFAULTS 50/9). The per-row SaFb sets the SA operating
+  point, so the offset must be taken after all three are applied (the A/B
+  finding above).
+
+Result (harness, measure mode, 4 rows, P=+0.05, I=0):
+- Sq1Bias=100 (old): resid **~89000, no lock**.
+- Sq1Bias=50 + coherent seed: resid **~9700** at short settle, **~2274 and still
+  descending** at longer settle (25 s) — all rows converging together, feedback
+  ~7887 (not railed), windup 0. **The servo now LOCKS/converges.**
+
+Remaining gap to the 800 threshold is P-only convergence speed / deadband;
+close it with a small I (now safer — 19-bit count) or larger P, then the TES
+flux-jump sweep is unblocked. This is the current edge.
+
+## LOCK VERIFIED + flux-jump characterized (2026-09-18)
+
+**Gain sign: NEGATIVE P is correct at the fixed Sq1Bias=50 point** (opposite the
+earlier clipped-77 result — operating point, not just gain, set the sign). Gain
+sweep (re-seed each trial; do NOT `ClearPids` — it wipes the seeded sq1Fb and
+drops the servo to the V-Phi extremum, ungovernable):
+- P=-0.05 (raw -0.0025), I=0 → monotonic converge to **370** (best).
+- P=+0.05, I=0 → converges slower to ~1300.
+- P=+0.05, I=+2e-4 → ~880.
+
+**`verify_cosim_pid.py --mode verify` steady PASSES:** residual **577 < 800**,
+FluxJumps=0, at P=-0.0025 / Sq1Bias=50 / Sq1Fb=2 / SaFb=9, long settle. The
+integer servo genuinely locks on the 23 µA plant. Profile + DEFAULTS set to
+p_raw=-0.0025.
+
+**TES flux-jump sweep: servo stays locked, but does NOT wrap (FluxJumps=0).**
+Stepping TesBias from the locked point (probed to +1200 µA, DAC max ~±1250):
+- AccumError stays BOUNDED and OSCILLATES with TesBias (e.g. -13360, -13180,
+  -1600, +2540, -8080, -13540 at +200..+1200 µA) — i.e. the readout traverses
+  the SQ1 V-Phi periodically, dipping to ~0 near nulls.
+- FluxJumps stays 0 throughout; the servo never railed sq1Fb.
+
+Interpretation: with P-only at this modest gain the loop shows the periodic
+*error* as TES flux moves it, but does NOT drive the sq1Fb feedback across the
+±7862 wrap threshold — so no flux jumps. The AccumError swing (±14000) exceeds
+7862 in error units, but the wrap triggers on the FEEDBACK (sq1Fb) crossing, not
+the accumulated error. To actually produce flux jumps the servo must TRACK the
+TES-induced flux into the DAC rail: needs higher loop gain (so feedback follows
+and wraps) and/or a finer/slower TES ramp so the servo stays locked while its
+feedback walks to ±7862. (Note `Sq1Fb_DBG` is 0-dim per-visit — index it as a
+scalar, not [:n], to read the feedback value next time.)
+
+### GOAL ACHIEVED (2026-09-18): TES ramp drives multiple flux jumps
+
+The "no flux jumps" conclusion above was an **artifact of the flux-jump CHECK**,
+not the servo. `verify_cosim_pid`'s `check_flux_jump` used 20 µA steps and
+measured `flux_jump_delta` as the net count change WITHIN one short capture
+window (and reported a heuristic `locked=False`); it missed the jumps. Reading
+the raw `FluxJumps` register directly during a fine ramp shows them plainly.
+
+Fine ramp (single row, P=-0.0025, I=0, FluxQuantum=23 µA, TesBias +4 µA/step):
+
+```
+ TesBias   Sq1FbFull   Sq1Fb_DBG   FluxJumps
+  base      6834        7159          1
+  +4        6897        7408          6
+  +8        7162        7508         11
+  +12       7480        7802         16
+  +20       7750        7094         27
+  +40       7686        6744         53
+  +80       7297        7650        104
+```
+
+`FluxJumps` climbs **monotonically 1 → 104** across an 80 µA TES ramp (~5 jumps
+per 4 µA step). `Sq1FbFull`/`Sq1Fb_DBG` stay BOUNDED (~6700-8000 codes, hugging
+the ±7862 wrap threshold) instead of railing — textbook multi-flux-wrap: the
+feedback tracks the TES-induced flux, wraps at the threshold, increments the
+count, and keeps the retained feedback in range. End-to-end through the real
+RTL against the wafer model. **This is the original goal met.**
+
+**User was right that P does NOT gate flux jumps.** A locked P-only loop is an
+integrator (sq1Fb += P·error); at DC it drives error→0 and sq1Fb parks where it
+cancels the applied flux — independent of P. Flux jumps occur because the TES
+flux walks that feedback across ±7862; P only sets convergence speed/deadband.
+The earlier "raise P" idea was wrong; the fix was reading the counter correctly
+and using fine steps.
+
+### Follow-up (optional)
+`check_flux_jump` in verify_cosim_pid.py under-reports: it should read the
+`FluxJumps` register delta across the whole ramp (or per-step) rather than the
+net count within one capture window, and drop the `locked=False` heuristic that
+mislabels a tracking-and-wrapping loop. Not required for the demo; the raw
+register is the ground truth. Read Sq1Fb_DBG as a SCALAR, Sq1FbFull/FluxJumps
+per-row via .flat[0].
 
 ## Key finding (2026-09-17) — supersedes the "weak coupling" note
 
