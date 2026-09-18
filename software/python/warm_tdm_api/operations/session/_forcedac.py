@@ -237,13 +237,19 @@ class ForceDacMixin:
 
         # 3b. Zero the remaining (slow) bias/offset outputs. These do not go
         #     through the override FSM, so a single write is sufficient.
-        for name in ['SaBiasCurrent', 'SaOffset', 'TesBias']:
-            try:
-                var = getattr(self.group, name)
-                var.set(np.zeros_like(var.get()))
-            except Exception:
-                all_ok = False
-                log.exception("stop_and_zero: error zeroing %s", name)
+        # Group setters honor ColEnableMask. Use the same board-local leaves
+        # directly so a deselected column cannot retain a nonzero slow output.
+        for board_idx, cb in self.cbs.items():
+            for device, variable in [('SaBiasOffset', 'BiasCurrent'),
+                                     ('SaBiasOffset', 'OffsetVoltage'),
+                                     ('TesBias', 'BiasCurrent')]:
+                for chan in range(self.chans_per_board):
+                    try:
+                        getattr(getattr(cb, device), variable)[chan].set(0.0)
+                    except Exception:
+                        all_ok = False
+                        log.exception("stop_and_zero: error zeroing board %d %s.%s[%d]",
+                                      board_idx, device, variable, chan)
 
         # TODO: zero row DACs once the reorder is confirmed on the bench
         # for i, rdd in self.rdds.items():

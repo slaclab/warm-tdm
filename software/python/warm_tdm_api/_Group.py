@@ -469,9 +469,9 @@ class Group(pr.Device):
 
             # Per-column dead-row mask, graduated from the pure make/read_dead_masks
             # helpers (issue #83). One 256-bit integer per column (bit r = 1 -> row r
-            # active for the servo; 0 -> dead). Client-side desired state, default
+            # active for the servo; 0 -> dead). Saved desired state, default
             # all-active; setup_mux applies it to each AdcDsp[col].RowEnableMask, and
-            # apply_dead_masks writes through it. Held as a Python int list (256-bit
+            # apply_dead_masks writes hardware before updating it. Held as a Python int list (256-bit
             # values overflow numpy float64/int64), so typeCheck is disabled.
             # No scalar disp: the value is a list, so a '{:#x}' per-value format
             # would raise in genDisp. Hidden: a large per-column 256-bit table
@@ -479,8 +479,8 @@ class Group(pr.Device):
             self.add(pr.LocalVariable(
                 name = 'RowEnableMasks',
                 description = 'Per-column 256-bit row-enable bitmask (bit r=1 -> row r '
-                              'active). Drives each AdcDsp[col].RowEnableMask; applied '
-                              'by setup_mux. Default all-active.',
+                              'active). Desired state applied to each board-local '
+                              'AdcDsp RowEnableMask by setup_mux. Default all-active.',
                 value = [(1 << 256) - 1] * self._numCols,
                 typeCheck = False,
                 hidden = True,
