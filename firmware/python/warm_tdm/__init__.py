@@ -12,7 +12,7 @@ from ._FrontEnds import *
 from ._TimingRx import *
 from ._TimingTx import *
 from ._Timing import *
-from ._RowDacDriver2 import *
+from ._RowDacDriver import *
 from ._WarmTdmRoot import *
 from ._ComCore import *
 from ._DataPath import *

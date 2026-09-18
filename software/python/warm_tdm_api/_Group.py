@@ -263,14 +263,10 @@ class Group(pr.Device):
 
         # Hidden: driven only by the tuning algorithms (_Tuning.py), never
         # invoked manually from the GUI. Manually turn a row on/off outside a
-        # timing run. The active RowDacDriver2 names these registers ManualRowOn/
-        # ManualRowOff (a LOGICAL row, mapped via RowMap); the legacy RowModule
-        # RowDacDriver names them ActivateRowIndex/DeactivateRowIndex (a physical
-        # address), so accept either node name per board.
-        # ``candidate_names`` lists the register under each driver version, most
-        # preferred first: RowDacDriver2 (active) calls it ManualRowOn/ManualRowOff;
-        # the legacy RowModule RowDacDriver calls it ActivateRowIndex/
-        # DeactivateRowIndex. Drive whichever name a given row board's driver has.
+        # timing run. RowDacDriver uses ManualRowOn/ManualRowOff with logical
+        # rows mapped via RowMap. The fallback ActivateRowIndex/DeactivateRowIndex
+        # names support historical RowModule trees with physical addresses;
+        # prefer the current register names when present.
         def _setManualRow(candidate_names, value):
             with self.root.updateGroup():
                 for board in self.HardwareGroup.RowBoard.values():

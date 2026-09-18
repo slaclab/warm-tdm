@@ -97,7 +97,7 @@ def fasSweep(*, group, row, board, address, driver, enabled_mask,
         Row-board index containing the line.
     address : int
         Board-local FAS address in the range 0..31.
-    driver : warm_tdm.RowDacDriver2
+    driver : warm_tdm.RowDacDriver
         Row-DAC driver, already configured for MANUAL operation.
     enabled_mask : array-like of bool
         Logical columns whose servo responses should be recorded.
@@ -219,7 +219,7 @@ def fasTune(*, group, process=None, doSet=True):
     """Tune FAS-on currents for every active logical row.
 
     Active logical rows come from ``RowReadoutOrder`` and are resolved through
-    ``RowMap``. Sweep points use ``RowDacDriver2.manual_set()``; persistent
+    ``RowMap``. Sweep points use ``RowDacDriver.manual_set()``; persistent
     ``FasOn`` entries are optionally written only after every row sweep
     completes. A provisional SQ1 bias makes the FAS state observable before SQ1
     tuning; the original SQ1 force-current values are restored on exit.

@@ -107,7 +107,7 @@ Platform-specific files use suffixes: `*7s.vhd` (7-Series), `*Usp.vhd` (UltraSca
 | PgpEthCore | `PgpEthCore.vhd` | PGP ring + Ethernet bridge |
 | RingRouter | `RingRouter.vhd` | Frame routing/depacketization in PGP ring |
 | EventBuilder | `EventBuilder.vhd` | Packs 8-channel DSP output into data frames |
-| RowDacDriver2 | `RowDacDriver2.vhd` | Row-select DAC sequencing |
+| RowDacDriver | `RowDacDriver.vhd` | Row-select DAC sequencing |
 | FastDacDriver | `FastDacDriver.vhd` | SQ1 feedback fast DAC driver |
 | WarmTdmPkg | `WarmTdmPkg.vhd` | Package constants and AXI stream configs |
 
@@ -313,7 +313,7 @@ perform that migration.
 | Timing protocol | [`TimingProtocol.md`](firmware/common/TimingProtocol.md), `TimingPkg.vhd`, `TimingTx.vhd`, `TimingRx.vhd`, `TimingSerializer*.vhd`, `TimingDeserializer*.vhd` |
 | DSP / data path | `DataPath.vhd`, `AdcDsp.vhd`, `BiquadFilter.vhd`, `EventBuilder.vhd` |
 | Communication / PGP | `PgpEthCore.vhd`, `RingRouter.vhd`, `PgpRingRouter.vhd`, `EthCore.vhd` |
-| Row board firmware | `RowFpgaBoard.vhd`, `RowDacDriver2.vhd` |
+| Row board firmware | `RowFpgaBoard.vhd`, `RowDacDriver.vhd` |
 | Clock distribution | `ClockDist.vhd`, `TimingRx.vhd`, `TimingTx.vhd` |
 | Adding a new target | Copy existing target dir; modify `Makefile` (PRJ_PART, target) and `ruckus.tcl` (generics, constraints) |
 | PyRogue drivers | `_WarmTdmCore.py`, `_AdcDsp.py`, `_HardwareGroup.py`, `_TimingTx.py`, `_TimingRx.py` |

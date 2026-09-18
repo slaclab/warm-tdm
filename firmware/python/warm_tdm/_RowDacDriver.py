@@ -3,7 +3,7 @@ import math
 import numpy as np
 import warm_tdm
 
-class RowDacDriver2(pr.Device):
+class RowDacDriver(pr.Device):
     def __init__(
             self,
             frontEnd,
@@ -107,7 +107,7 @@ class RowDacDriver2(pr.Device):
         if not 0 <= address < len(self.amps):
             raise ValueError(f'ManualSet address must be in 0..31, got {address}')
         if check_mode and int(self.Mode.get(read=True)) != 1:
-            raise RuntimeError('ManualSet requires RowDacDriver2 Mode=MANUAL')
+            raise RuntimeError('ManualSet requires RowDacDriver Mode=MANUAL')
 
         code = int(self.amps[address].outCurrentToDac(float(current))) & 0x3FFF
         self.ManualSetRaw.set(value=(code << 8) | address, write=True)

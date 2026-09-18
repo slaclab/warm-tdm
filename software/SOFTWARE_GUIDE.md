@@ -106,7 +106,7 @@ GroupRoot (pyrogue.Root)
     │   └── RowBoard[0..N] (warm_tdm.RowFpgaBoard or variant)
     │       ├── WarmTdmCore registers
     │       ├── TimingTx (coordinator only)
-    │       └── RowDacDriver (RowDacDriver2 implementation)
+    │       └── RowDacDriver
     ├── GroupLinkVariables (cross-board array access)
     ├── SaTuneProcess
     ├── Sq1TuneProcess
@@ -167,7 +167,7 @@ Process lifecycle:
 
 `FasTuneProcess` supports stopped one-level and two-level row maps. It uses
 `RowReadoutOrder` and `RowMap` to actuate physical outputs through
-`RowDacDriver2.manual_set()` and measure the nulled SA-feedback response.
+`RowDacDriver.manual_set()` and measure the nulled SA-feedback response.
 The active map entries automatically select the topology on every run; the
 same `session.fas_tune()` call or GUI Start button handles either configuration
 without a mode flag. One-level maps use the row-select sweep. Two-level maps

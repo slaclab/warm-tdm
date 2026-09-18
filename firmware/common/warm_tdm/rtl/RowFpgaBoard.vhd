@@ -388,7 +388,7 @@ begin
    -------------------------------------------------------------------------------------------------
    -- DACS
    -------------------------------------------------------------------------------------------------
-   U_RowDacDriver_1 : entity warm_tdm.RowDacDriver2
+   U_RowDacDriver_1 : entity warm_tdm.RowDacDriver
       generic map (
          TPD_G            => TPD_G,
          SIMULATION_G     => SIMULATION_G,

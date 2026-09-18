@@ -27,7 +27,7 @@ use surf.AxiLitePkg.all;
 library warm_tdm;
 use warm_tdm.TimingPkg.all;
 
-entity RowDacDriver2 is
+entity RowDacDriver is
 
    generic (
       TPD_G            : time                  := 1 ns;
@@ -54,9 +54,9 @@ entity RowDacDriver2 is
       axilReadMaster  : in  AxiLiteReadMasterType;
       axilReadSlave   : out AxiLiteReadSlaveType);
 
-end entity RowDacDriver2;
+end entity RowDacDriver;
 
-architecture rtl of RowDacDriver2 is
+architecture rtl of RowDacDriver is
 
    constant TIMING_MODE_C : sl := '0';
    constant MANUAL_MODE_C : sl := '1';
