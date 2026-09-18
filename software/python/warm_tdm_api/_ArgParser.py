@@ -46,9 +46,9 @@ class WarmTdmArgparse(argparse.ArgumentParser):
 
         self.add_argument(
             "--initRead",
-            action = 'store_true',
+            action = argparse.BooleanOptionalAction,
             default = True,
-            help = 'Read all registers on startup')
+            help = 'Read all registers on startup (use --no-initRead to skip)')
 
         self.add_argument(
             "--rowBoards",
