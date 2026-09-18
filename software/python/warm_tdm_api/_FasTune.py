@@ -1,3 +1,9 @@
+# This file is part of the WarmTDM software package. It is subject to
+# the license terms in LICENSE.txt in the top-level directory and at:
+# https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part may be copied, modified, propagated or distributed except under
+# those license terms.
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pyrogue as pr
@@ -31,10 +37,17 @@ class RowFasSweepPlot(pr.LinkVariable):
 
         result = tune[result_index]
         logical_row = result['logicalRow']
+        select = result.get('select', 'RS')
+        companion = ''
+        if result.get('companionAddress') is not None:
+            other = 'CS' if select == 'RS' else 'RS'
+            companion = (f'; hold {other} board {result["companionBoard"]}, '
+                         f'address {result["companionAddress"]} at '
+                         f'{result["companionCurrent"]:.3f} uA')
         self._ax.set_title(
             'SA Feedback Required to Null SA Output vs FAS Current\n'
-            f'Logical Row {logical_row}; '
-            f'Row Board {result["board"]}, Address {result["address"]}')
+            f'Logical Row {logical_row}; {select} '
+            f'board {result["board"]}, address {result["address"]}{companion}')
 
         x_values = result['xValues']
         curves = result['curves']
@@ -90,12 +103,49 @@ class FasTunePlot(pr.LinkVariable):
                           transform=self._ax.transAxes)
             return self._fig
 
-        rows = [result['logicalRow'] for result in tune]
-        currents = [
-            np.nan if result['fasOn'] is None else result['fasOn']
-            for result in tune
-        ]
-        self._ax.plot(rows, currents, marker='o')
+        for select in ('RS', 'CS'):
+            results = [r for r in tune if r.get('select', 'RS') == select]
+            if results:
+                self._ax.plot(
+                    [r['logicalRow'] for r in results],
+                    [np.nan if r['fasOn'] is None else r['fasOn'] for r in results],
+                    marker='o', label=select)
+        self._ax.legend()
+        return self._fig
+
+
+class FasDiscoveryPlot(pr.LinkVariable):
+    """Median SA-feedback response after removing each column's offset."""
+
+    def __init__(self, **kwargs):
+        super().__init__(linkedGet=self.linkedGet, **kwargs)
+        self._fig = plt.Figure(tight_layout=True, figsize=(10, 8))
+
+    def linkedGet(self, index=-1, read=False):
+        results = self.parent.FasDiscoveryOutput.value()
+        index = self.parent.PlotDiscoveryRow.value() if index == -1 else index
+        self._fig.clear()
+        ax = self._fig.add_subplot()
+        ax.set_xlabel('RS current (uA)')
+        ax.set_ylabel('CS current (uA)')
+        if not 0 <= index < len(results):
+            ax.text(.5, .5, 'No discovery data', ha='center', va='center',
+                    transform=ax.transAxes)
+            return self._fig
+        result = results[index]
+        ax.set_title(f'FAS discovery, logical row {result["logicalRow"]}\n'
+                     'Median response above each column minimum')
+        responses = np.asarray(result['responses'])
+        responses = responses[np.any(np.isfinite(responses), axis=(1, 2))]
+        if responses.size:
+            adjusted = responses - np.nanmin(responses, axis=(1, 2), keepdims=True)
+            # Mask missing samples explicitly, including an interrupted grid.
+            score = np.ma.median(np.ma.masked_invalid(adjusted), axis=0)
+            mesh = ax.pcolormesh(result['rsValues'], result['csValues'], score,
+                                 shading='nearest')
+            self._fig.colorbar(mesh, ax=ax, label='SA feedback (uA)')
+        if result['rsOn'] is not None:
+            ax.plot(result['rsOn'], result['csOn'], 'rx', markersize=12)
         return self._fig
 
 
@@ -106,9 +156,34 @@ class FasTuneProcess(warm_tdm_api.PausableProcess):
             function=self._fasTuneWrap,
             description=(
                 'Sweep each enabled FAS line, select its on-current, and '
-                'optionally program the fitted values.'),
+                'optionally program the fitted values. RowMap automatically '
+                'selects a one-level sweep or two-level RS/CS discovery and '
+                'verification of shared currents.'),
             **kwargs)
 
+        self.add(pr.LocalVariable(
+            name='DiscoveryNumSteps', value=9, minimum=3, mode='RW',
+            description='Coarse grid points per axis and active logical row. '
+                        'Discovery uses the RS and CS sweep bounds below.'))
+        self.add(pr.LocalVariable(
+            name='CsFluxLowOffset', value=0.0, mode='RW', units='uA',
+            description='First chip-select current in two-level sweeps.'))
+        self.add(pr.LocalVariable(
+            name='CsFluxHighOffset', value=310.0, mode='RW', units='uA',
+            description='Last chip-select current in two-level sweeps.'))
+        self.add(pr.LocalVariable(
+            name='CsFluxNumSteps', value=21, minimum=3, mode='RW',
+            description='Number of chip-select refinement sweep points.'))
+        self.add(pr.LocalVariable(
+            name='FasMinimumResponse', value=0.1, minimum=0.0, mode='RW', units='uA',
+            description='Two-level tuning requires each enabled column to '
+                        'exceed this SA-feedback response on each swept axis '
+                        'and between off states and the final on/on state.'))
+        self.add(pr.LocalVariable(
+            name='FasIsolationTolerance', value=0.1, minimum=0.0,
+            mode='RW', units='uA',
+            description='Maximum SA-feedback spread between off/off, on/off, '
+                        'and off/on states in two-level verification.'))
         self.add(pr.LocalVariable(
             name='FasFluxLowOffset',
             value=0.0,
@@ -184,15 +259,28 @@ class FasTuneProcess(warm_tdm_api.PausableProcess):
             hidden=True,
             value=[],
             mode='RO',
-            description='FAS sweep results in active row order.'))
+            description='FAS sweep results in active row order; two-level '
+                        'discovery produces an RS result then a CS result per row.'))
+        self.add(pr.LocalVariable(
+            name='FasDiscoveryOutput', hidden=True, value=[], mode='RO',
+            description='RS x CS grids, enabled-column samples, and bootstrap '
+                        'pairs, in active row order. Missing samples are NaN.'))
+        self.add(pr.LocalVariable(
+            name='FasValidationOutput', hidden=True, value=[], mode='RO',
+            description='Four-state responses and pass/error results for each '
+                        'logical row using the final shared physical currents.'))
         self.add(pr.LocalVariable(
             name='PlotRow',
             value=0,
             minimum=0,
-            maximum=max(config.maxRows-1, 0),
+            maximum=max(2*config.maxRows-1, 0),
             mode='RW',
             description='Index into the active-row sweep results. The sweep '
                         'plot shows every tuned column for the selected row.'))
+        self.add(pr.LocalVariable(
+            name='PlotDiscoveryRow', value=0, minimum=0,
+            maximum=max(config.maxRows-1, 0), mode='RW',
+            description='Index into active-row discovery grids.'))
 
         self.add(RowFasSweepPlot(
             name='SweepPlot',
@@ -204,12 +292,18 @@ class FasTuneProcess(warm_tdm_api.PausableProcess):
             hidden=True,
             mode='RO',
             dependencies=[self.FasTuneOutput]))
+        self.add(FasDiscoveryPlot(
+            name='DiscoveryPlot', hidden=True, mode='RO',
+            dependencies=[self.PlotDiscoveryRow, self.FasDiscoveryOutput]))
 
     def _fasTuneWrap(self):
         # Detailed acquisition/programming trace is emitted at DEBUG; raise this
         # node's log level to DEBUG to see it when diagnosing a run.
         self._log.debug('Entering FAS tune update group')
         with self.root.updateGroup(0.25):
+            self.FasTuneOutput.set([])
+            self.FasDiscoveryOutput.set([])
+            self.FasValidationOutput.set([])
             curves = warm_tdm_api.fasTune(
                 group=self.parent,
                 process=self,
@@ -228,6 +322,11 @@ class FasTuneProcess(warm_tdm_api.PausableProcess):
                 'board': curve.board,
                 'address': curve.address,
                 'fasOn': curve.fasOn,
+                'select': getattr(curve, 'select', 'RS'),
+                'rowFasOn': getattr(curve, 'rowFasOn', curve.fasOn),
+                'companionBoard': getattr(curve, 'companionBoard', None),
+                'companionAddress': getattr(curve, 'companionAddress', None),
+                'companionCurrent': getattr(curve, 'companionCurrent', None),
             })
             output.append(result)
         self.FasTuneOutput.set(output)

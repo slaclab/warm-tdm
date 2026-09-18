@@ -130,6 +130,14 @@ class TuningMixin:
     def fas_tune(self, block=True, **params):
         """Run physical-line FasTuneProcess. See run_process.
 
+        The active ``RowMap`` entries automatically select a one-level RS
+        sweep or two-level discovery of unknown RS/CS on-currents, refinement
+        of both axes, and verification of final shared settings. The same
+        ``session.fas_tune()`` call handles either topology without a mode flag.
+        ``FasFlux*`` bounds/steps control RS and ``CsFlux*`` control CS;
+        ``DiscoveryNumSteps`` controls the coarse grid resolution. Off currents
+        must already be valid. Only active logical rows are measured.
+
         ``Sq1BiasCurrent`` selects the temporary bootstrap SQ1 bias applied to
         enabled columns during acquisition (40 uA by default). The previous
         SQ1 bias and feedback force currents are restored afterward. Before
@@ -140,5 +148,9 @@ class TuningMixin:
         candidate; disabled columns are not included in the acquired curves.
         Pass ``SetAfterFinish=True`` to program the fitted ``FasOn`` currents;
         the default only returns the candidates.
+
+        Discovery grids and final four-state measurements are available on
+        ``group.FasTuneProcess.FasDiscoveryOutput`` and ``FasValidationOutput``.
+        Two-level discovery returns an RS curve then a CS curve per active row.
         """
         return self.run_process('FasTuneProcess', block=block, **params)

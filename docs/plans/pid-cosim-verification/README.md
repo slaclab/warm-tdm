@@ -21,6 +21,8 @@ review. Their live checklists supersede old "next steps" in dated reports.
 | Integer wrap/count/transport corrections | [FLUX_JUMP_REVIEW.md](FLUX_JUMP_REVIEW.md) |
 | Vendor-IP execution | [AdcDspFpTb README](../../../firmware/simulations/AdcDspFpTb/README.md) |
 | Fixture/gain setup for historical captures | [cosim-tuning-settings.md](cosim-tuning-settings.md) |
+| Current 23 uA SQ1 sweep and static/muxed operating-point investigation | [SQ1_RETUNE.md](SQ1_RETUNE.md) |
+| Historical hardware tune/apply sequence and SA-offset ordering | [HARDWARE_TUNING_SEQUENCE.md](HARDWARE_TUNING_SEQUENCE.md) |
 | Rationale and chronology | [PROGRESS.md](PROGRESS.md), [REVIEW.md](REVIEW.md), [FP_REVIEW.md](FP_REVIEW.md), [FP_SEED_REVIEW.md](FP_SEED_REVIEW.md), [FP_FIX_PLAN.md](FP_FIX_PLAN.md), [MCE_COMPARISON.md](MCE_COMPARISON.md) |
 
 Reported passes apply to the revision/configuration named in each record.

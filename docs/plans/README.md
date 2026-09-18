@@ -41,6 +41,7 @@ acceptance remains with [#68](https://github.com/slaclab/warm-tdm/issues/68),
 | PID metrics, diagnosis and comparison proposal | [PID analyzer](pid-debug-analysis/PLAN.md) | [#108](https://github.com/slaclab/warm-tdm/issues/108) |
 | RSSI segment-size proposal | [RSSI tuning](rssi-tuning/PLAN.md) | [#109](https://github.com/slaclab/warm-tdm/issues/109) |
 | Integrated FAS tuning rationale | [FAS tuning design](../design/fas-tuning.md) | [#99](https://github.com/slaclab/warm-tdm/issues/99) |
+| Two-level FAS discovery and shared-line verification | [Active handoff](fas-two-level/README.md) | Extension under [#99](https://github.com/slaclab/warm-tdm/issues/99) |
 | Integrated group variable I/O contracts | [Group variable design](../design/group-variables.md) | [#103](https://github.com/slaclab/warm-tdm/issues/103) owns deferred AD5679R writes; #83 owns graduation decisions |
 | Physical PID units | [PID coefficients](sensor-wafer-model/PID_COEFFICIENTS.md) | [#44](https://github.com/slaclab/warm-tdm/issues/44) |
 | Software cleanup, including unmerged legacy removal | [Software cleanup](sw-cleanup/PLAN.md) | Remaining resource/legacy/build obligations are on #70 |
