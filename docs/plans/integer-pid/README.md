@@ -16,6 +16,7 @@ owns the frame contract.
 | Historical single-wrap accounting and v3 debug transport | [Flux-jump review](../pid-cosim-verification/FLUX_JUMP_REVIEW.md) |
 | Multiple wraps, host reciprocal configuration, 19-bit net count and bounds | [Multi-wrap design and implementation](MULTI_FLUX.md) |
 | Implementation failure, two-state pipeline fix and timing validation | [Timing review](TIMING_REVIEW.md) |
+| Shared MAC operand/result audit and pending DSP48 mapping check | [MAC reuse review](MAC_REUSE_REVIEW.md) |
 | Hardware SQ1 period, DAC range, and recovered notebook outputs | [Hardware scale evidence](HARDWARE_SCALE.md) |
 | Shared FIFO/AXI delivery correction | [Implementation, section 8](../pid-cosim-verification/FP_FIX_IMPLEMENTATION.md) |
 | Reproduction and system/build gates | [Verification plan](../pid-cosim-verification/PLAN.md) |

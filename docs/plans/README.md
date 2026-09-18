@@ -37,6 +37,8 @@ acceptance remains with [#68](https://github.com/slaclab/warm-tdm/issues/68),
 
 | Topic | Document | Owning issue / context |
 |---|---|---|
+| Register timeouts after the September 18 integer 10G image | [Source comparison and diagnostic checks](register-timeout/README.md) | Active hardware regression investigation; cause unconfirmed |
+| Live PyDM feedback, flux count and PID error plots | [PID lock monitor](pid-lock-monitor/README.md) | Active GUI work; related metrics proposal #108 |
 | Current integer/FP DSP behavior and performance comparison | [PID path comparison](pid-path-comparison/README.md) | September 17 source review and local timing probe; acceptance stays on #70 |
 | PID metrics, diagnosis and comparison proposal | [PID analyzer](pid-debug-analysis/PLAN.md) | [#108](https://github.com/slaclab/warm-tdm/issues/108) |
 | RSSI segment-size proposal | [RSSI tuning](rssi-tuning/PLAN.md) | [#109](https://github.com/slaclab/warm-tdm/issues/109) |

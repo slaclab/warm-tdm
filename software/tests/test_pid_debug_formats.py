@@ -104,7 +104,7 @@ def test_live_receiver_normalizes_all_versions_and_clears_missing_full():
         debugger = load('pid_debugger', 'firmware/python/warm_tdm/_PidDebugger.py')
     row = SimpleNamespace(updateFromParser=Mock())
     receiver = SimpleNamespace(
-        mem=SimpleNamespace(_data={}), Sq1FbFull=SimpleNamespace(set=Mock()),
+        col=3, mem=SimpleNamespace(_data={}), Sq1FbFull=SimpleNamespace(set=Mock()),
         LogicalRow=SimpleNamespace(get=Mock(return_value=255)),
         RowPids=SimpleNamespace(PID={255: row}), readBlocks=Mock(), checkBlocks=Mock())
     for version in (3, 2, 1):

@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+##############################################################################
+## This file is part of 'warm-tdm'. It is subject to the license terms in the
+## LICENSE.txt file found in the top-level directory of this distribution and
+## at https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+## No part may be copied, modified, propagated, or distributed except according
+## to the terms contained in the LICENSE.txt file.
+##############################################################################
 import argparse
 import logging
 
@@ -26,6 +33,7 @@ parser.add_argument(
 
 args = parser.parse_known_args()[0]
 
-pyrogue.pydm.runPyDM(serverList=args.server,title='Warm TDM',sizeX=2000,sizeY=2000,ui=warm_tdm_api.pydmUi)
+pyrogue.pydm.runPyDM(serverList=args.server, title='Warm TDM', sizeX=2000, sizeY=1600,
+                    display=warm_tdm_api.WarmTdmDisplay)
 
 pyrogue.waitCntrlC()

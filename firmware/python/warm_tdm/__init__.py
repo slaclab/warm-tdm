@@ -26,6 +26,8 @@ from ._HardwareGroup import *
 from ._Plotter import *
 from ._WaveformCapture import *
 from ._PidDebugger import *
+from ._PidDebuggerFp import *
+from ._PidLockMonitor import *
 from ._PidDebugFilter import *
 from ._BoardTemp import *
 from ._BoardTemp2 import *
