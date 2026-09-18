@@ -72,7 +72,7 @@ class TimingTx(pr.Device):
 
         self.add(pr.RemoteCommand(
             name = 'StartRun',
-            description = 'Start a timing run and prime the first pending row from RowIndexOrder[0].',
+            description = 'Start a timing run and prime the first pending row from RowReadoutOrder[0].',
             offset = 0x00,
             bitOffset = 0,
             bitSize = 1,
@@ -134,8 +134,8 @@ class TimingTx(pr.Device):
             linkedSet = lambda value, write: self.RowVisitRate.set(1.0e-3 / value, write=write)))
 
         self.add(pr.RemoteVariable(
-            name = 'NumRows',
-            description = 'Number of entries in RowIndexOrder that participate in the active row sequence.',
+            name = 'NumReadoutRows',
+            description = 'Number of entries in RowReadoutOrder that participate in the active row sequence.',
             mode = 'RW',
             offset = 0x0C,
             bitOffset = 0,
@@ -145,10 +145,10 @@ class TimingTx(pr.Device):
         self.add(pr.LinkVariable(
             name = 'RowSequencePeriod',
             description = 'Time to complete one full pass through the programmed row sequence.',
-            dependencies = [self.RowVisitPeriod, self.NumRows],
+            dependencies = [self.RowVisitPeriod, self.NumReadoutRows],
             disp = '{:0.03f}',
             units = '\u03bcSec',
-            linkedGet = lambda read: self.RowVisitPeriod.get(read=read) * self.NumRows.get(read=read)))
+            linkedGet = lambda read: self.RowVisitPeriod.get(read=read) * self.NumReadoutRows.get(read=read)))
 
         self.add(pr.LinkVariable(
             name = 'RowSequenceRate',
@@ -312,7 +312,7 @@ class TimingTx(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'RowSeq',
-            description = 'Sequence index of the currently active row within RowIndexOrder.',
+            description = 'Sequence index of the currently active row within RowReadoutOrder.',
             mode = 'RO',
             offset = 0x34,
             bitOffset = 0,
@@ -320,8 +320,8 @@ class TimingTx(pr.Device):
             disp = '{:d}'))
 
         self.add(pr.RemoteVariable(
-            name = 'RowIndex',
-            description = 'Active physical row index currently in effect on the timing link.',
+            name = 'LogicalRow',
+            description = 'Active logical row currently in effect on the timing link (resolved to a physical row-select via RowMap).',
             mode = 'RO',
             offset = 0x34,
             bitOffset = 16,
@@ -329,8 +329,8 @@ class TimingTx(pr.Device):
             disp = '{:d}'))
 
         self.add(pr.RemoteVariable(
-            name = 'RowIndexNext',
-            description = 'Pending physical row index already prefetched for the next row-boundary commit.',
+            name = 'NextLogicalRow',
+            description = 'Pending logical row already prefetched for the next row-boundary commit.',
             mode = 'RO',
             offset = 0x34,
             bitOffset = 24,
@@ -480,8 +480,8 @@ class TimingTx(pr.Device):
 
 
         self.add(pr.RemoteVariable(
-            name = 'RowIndexOrder',
-            description = 'Row-order RAM contents indexed by RowSeq; each entry provides the physical RowIndex to activate for that sequence slot.',
+            name = 'RowReadoutOrder',
+            description = 'Row-order RAM contents indexed by RowSeq; each entry provides the logical row to activate for that sequence slot (resolved to a physical row-select via RowMap).',
             offset = 0x1000,
             valueBits = 8,
             numValues = 256,

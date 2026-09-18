@@ -9,7 +9,7 @@ The protocol carries:
 - run control
 - row-boundary markers
 - initial pending-row priming at `START_RUN`
-- the pending row index byte after each boundary marker
+- the pending logical row byte after each boundary marker
 - sample-window markers
 - next-row staging markers
 - waveform-capture markers
@@ -24,11 +24,11 @@ The transmitter emits either:
 - a control character (`K` character in the 8b/10b stream), or
 - a normal data byte
 
-Most timing events are sent as control characters. For row boundaries, the control character is followed on the next cycle by a data byte containing the pending row index for the upcoming row strobe.
+Most timing events are sent as control characters. For row boundaries, the control character is followed on the next cycle by a data byte containing the pending logical row for the upcoming row strobe.
 
 `START_RUN_C` is a special case. It is followed by one data byte:
 
-1. the initial pending row index for the first row strobe
+1. the initial pending logical row for the first row strobe
 
 ## Control Characters
 
@@ -55,7 +55,7 @@ These values are defined in [`TimingPkg.vhd`](/Users/bareese/warm-tdm/firmware/c
 `START_RUN_C` is transmitted as:
 
 1. `START_RUN_C`
-2. initial pending row index
+2. initial pending logical row
 
 This primes the receiver with the row that will become active on the first real row-boundary event.
 
@@ -72,21 +72,21 @@ During that same interval, `STAGE_NEXT_ROW_C` is allowed. This lets downstream D
 A normal row advance is transmitted as:
 
 1. `ROW_STROBE_C`
-2. pending row index byte
+2. pending logical row byte
 
 ### Sequence-start boundary
 
 When the row sequence wraps from the final row back to row 0, the boundary is transmitted as:
 
 1. `ROW_SEQ_START_C`
-2. pending row index byte for the row after the newly entered row
+2. pending logical row byte for the row after the newly entered row
 
 ### DAQ-readout boundary
 
 When the row sequence wrap also aligns with a DAQ readout interval, the boundary is transmitted as:
 
 1. `DAQ_READOUT_START_C`
-2. pending row index byte for the row after the newly entered row
+2. pending logical row byte for the row after the newly entered row
 
 ## Receiver Interpretation
 
@@ -97,7 +97,7 @@ When the row sequence wrap also aligns with a DAQ readout interval, the boundary
   - clears counters
   - sets `rowSeq = 0`
   - expects one following data byte:
-    - that byte loads `rowIndexNext` for the first row-boundary event
+    - that byte loads `nextLogicalRow` for the first row-boundary event
 - `END_RUN_C`
   - exits running state
   - clears the sample level
@@ -105,22 +105,22 @@ When the row sequence wrap also aligns with a DAQ readout interval, the boundary
   - does not assert `rowStrobe` or commit a new row
 - `ROW_STROBE_C`
   - increments `rowSeq`
-  - updates `rowIndex` from the previously received `rowIndexNext`
+  - updates `logicalRow` from the previously received `nextLogicalRow`
   - clears `rowTime`
 - `ROW_SEQ_START_C`
   - sets `rowSeq = 0`
   - asserts `rowSeqStart`
   - increments `rowSeqCount`
-  - updates `rowIndex`
+  - updates `logicalRow`
   - clears `rowTime`
 - `DAQ_READOUT_START_C`
   - same as `ROW_SEQ_START_C`
   - also asserts `daqReadoutStart`
   - increments `daqReadoutCount`
 
-After any row-boundary control word, the next received data byte is captured into `rowIndexNext`.
+After any row-boundary control word, the next received data byte is captured into `nextLogicalRow`.
 
-`STAGE_NEXT_ROW_C` is interpreted as an explicit request for downstream logic to stage the row transition described by the current `rowIndex` and `rowIndexNext`. By default `TimingTx` emits it 32 timing clocks ahead of the upcoming row-boundary event.
+`STAGE_NEXT_ROW_C` is interpreted as an explicit request for downstream logic to stage the row transition described by the current `logicalRow` and `nextLogicalRow`. By default `TimingTx` emits it 32 timing clocks ahead of the upcoming row-boundary event.
 
 ## Local Timing State
 
@@ -140,8 +140,8 @@ After any row-boundary control word, the next received data byte is captured int
 | `lastSample` | `sl` | One-cycle strobe marking the final sample cycle of the active sample window. |
 | `stageNextRow` | `sl` | One-cycle strobe asserted when downstream logic should stage the upcoming row transition, corresponding to `STAGE_NEXT_ROW_C`. |
 | `rowSeq` | `slv(7 downto 0)` | Sequence index within the programmed row-order list for the currently active row. |
-| `rowIndex` | `slv(7 downto 0)` | Active row index currently in effect. This is the row index consumed by downstream logic. |
-| `rowIndexNext` | `slv(7 downto 0)` | Pending row index already preloaded for the next row strobe. |
+| `logicalRow` | `slv(7 downto 0)` | Active logical row currently in effect. This is the logical row consumed by downstream logic. |
+| `nextLogicalRow` | `slv(7 downto 0)` | Pending logical row already preloaded for the next row strobe. |
 | `rowTime` | `slv(31 downto 0)` | Number of `TimingClk` cycles elapsed since the most recent row-boundary event. In `pwrSync` wait mode this counter is intentionally held on both Tx and Rx. |
 | `rowSeqCount` | `slv(63 downto 0)` | Count of completed full passes through the row-order list. This increments on each asserted `rowSeqStart`. |
 | `daqReadoutCount` | `slv(63 downto 0)` | Count of DAQ readout intervals started so far. This increments on each asserted `daqReadoutStart`. |
@@ -156,14 +156,14 @@ Practical interpretation:
 
 The intended interpretation is:
 
-- `rowIndex` is the active row
-- `rowIndexNext` is the pending row that will be committed on the next `rowStrobe`
+- `logicalRow` is the active row
+- `nextLogicalRow` is the pending row that will be committed on the next `rowStrobe`
 - `stageNextRow` tells downstream logic to prepare that pending row ahead of the boundary
 - `rowStrobe` promotes the pending row to the active row
 - the byte after a row-boundary control word loads the next pending row
 - the byte after `START_RUN_C` primes the initial pending row for the first `rowStrobe`
 
-Between `START_RUN_C` and the first row-boundary event, `rowIndexNext` is valid and `rowIndex` still reflects the pre-run/idle value. `stageNextRow` may be asserted in that interval so the first pending row can be prepared early. The first asserted `rowStrobe` is also the first `rowSeqStart` (and `daqReadoutStart` when the DAQ period counter is zero), and that is the point where the row index stored at row-order address 0 becomes active.
+Between `START_RUN_C` and the first row-boundary event, `nextLogicalRow` is valid and `logicalRow` still reflects the pre-run/idle value. `stageNextRow` may be asserted in that interval so the first pending row can be prepared early. The first asserted `rowStrobe` is also the first `rowSeqStart` (and `daqReadoutStart` when the DAQ period counter is zero), and that is the point where the logical row stored at row-order address 0 becomes active.
 
 ## `pwrSync` Behavior
 
@@ -196,7 +196,7 @@ When `pwrSync` arrives:
 
 - the pending sequence-start boundary is emitted immediately
 - the row transition is committed on that same cycle
-- the row index byte follows on the next cycle as usual
+- the logical row byte follows on the next cycle as usual
 
 ## Why `PWR_SYNC_WAIT_C` Exists
 
@@ -266,4 +266,4 @@ If you are debugging `pwrSync`, the next rule is:
 
 - a sequence-start boundary may pause on repeated `PWR_SYNC_WAIT_C` characters until the local sync pulse arrives
 
-Once the sync pulse arrives, the next transmitted control character will be `ROW_SEQ_START_C` or `DAQ_READOUT_START_C`, followed by the pending row index byte for the row after the newly entered row.
+Once the sync pulse arrives, the next transmitted control character will be `ROW_SEQ_START_C` or `DAQ_READOUT_START_C`, followed by the pending logical row byte for the row after the newly entered row.

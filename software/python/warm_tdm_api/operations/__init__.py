@@ -38,7 +38,10 @@ from .session import (
     save_state,
     load_config,
     setup_mux,
+    run_mux,
+    set_pid,
     apply_dead_masks,
+    read_hardware_dead_masks,
     take_raw,
     multi_raw,
     take_data,
@@ -53,6 +56,8 @@ from .session import (
 # Pure channel helpers: addressing, identifiers, dead masks (no hardware)
 from .channels import (
     get_row_col,
+    column_enabled,
+    enabled_columns,
     make_dead_masks,
     write_dead_masks,
     read_dead_masks,
@@ -108,7 +113,10 @@ __all__ = [
     'save_state',
     'load_config',
     'setup_mux',
+    'run_mux',
+    'set_pid',
     'apply_dead_masks',
+    'read_hardware_dead_masks',
     # session shims (acquisition)
     'take_raw',
     'multi_raw',
@@ -119,8 +127,10 @@ __all__ = [
     'sa_tune',
     'sq1_tune',
     'fas_tune',
-    # channels (addressing, identifiers, dead masks)
+    # channels (addressing, identifiers, column enable, dead masks)
     'get_row_col',
+    'column_enabled',
+    'enabled_columns',
     'make_dead_masks',
     'write_dead_masks',
     'read_dead_masks',

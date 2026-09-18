@@ -55,6 +55,11 @@ class ControlTab(PyDMFrame):
             PyDMLabel(init_channel=group_path + '.RowTuneIndex/name'),
             sp)
 
+        # Enabled-column bitmask (integer, shown/entered as hex via /disp).
+        fl_left.addRow(
+            PyDMLabel(init_channel=group_path + '.ColEnableMask/name'),
+            PyRogueLineEdit(parent=None, init_channel=group_path + '.ColEnableMask/disp'))
+
         hb.addItem(QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum))
 
         fl_right = QFormLayout()
@@ -124,14 +129,10 @@ class ControlTab(PyDMFrame):
         fl_right = QFormLayout()
         hb.addLayout(fl_right)
 
-        combo_vars = ('ColTuneEnable', 'RowTuneEnable')
-        for var in combo_vars:
-            ch = cs_path + f'.{var}'
-            if var == 'ColTuneEnable':
-                ch += '/string'
-            fl_right.addRow(
-                PyDMLabel(init_channel=cs_path + f'.{var}/name'),
-                PyDMEnumComboBox(init_channel=ch))
+        # The per-column enable is now the scalar integer Group.ColEnableMask
+        # bitmask (edited as a hex field in the General Configuration section
+        # above), not a per-column bool array via ConfigSelect. RowTuneEnable was
+        # a phantom that never resolved and has been removed.
 
         edit_vars = (
             'TesBias', 'SaBiasCurrent', 'SaOffset',

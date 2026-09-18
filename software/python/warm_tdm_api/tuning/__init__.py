@@ -1,7 +1,7 @@
 """Hardware-facing SA, FAS, and SQ1 tuning routines.
 
 The public functions operate on the Group-level PyRogue array variables. Those
-variables apply ``ColTuneEnable`` and batch accesses to the underlying boards,
+variables apply ``ColEnableMask`` and batch accesses to the underlying boards,
 so tuning code passes complete column vectors rather than walking individual
 board/channel nodes. Long-running sweeps cooperate with Process Stop/Pause
 requests and may publish partial curve data at safe points.

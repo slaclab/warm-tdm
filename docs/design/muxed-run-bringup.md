@@ -19,8 +19,8 @@ the key to reasoning about ordering and save/restore:
 
 ### A. Enabled set (topology / frame of reference)
 *Which* columns and rows participate. Everything else is indexed against this.
-- `Group.ColTuneEnable` — which columns are active.
-- `Group.RowIndexOrderList` / `RowMap` — which logical rows are read out and how
+- `Group.ColEnableMask` — which columns are active.
+- `Group.RowReadoutOrder` / `RowMap` — which logical rows are read out and how
   they map to physical row-selects (see [row-mapping.md](row-mapping.md)).
 
 A is the **anchor**: it is established first in every real workflow, and both B
@@ -56,7 +56,7 @@ exist).
 The dependency graph — not a single mandated order — is:
 
 ```
-        A  (enabled set: ColTuneEnable, RowMap/order)
+        A  (enabled set: ColEnableMask, RowMap/order)
        / \
       B   C
  (tune pt) (run settings: timing, PID enable, row masks)
@@ -78,7 +78,7 @@ point must be validated against the A it was solved against**, regardless of the
 B/C order.
 
 Observed bench sequence (`2026May14-...bamodI1`, representative):
-static analog gains → set `ColTuneEnable` → `RowMap1x32()` + `RowIndexOrderList`
+static analog gains → set `ColEnableMask` → `RowMap1x32()` + `RowReadoutOrder`
 → zero setpoints → SaOffset → SaTune → set FAS currents → Sq1Tune → *then*
 num_pts/sample window/Mode/PID-enable → take data.
 
@@ -88,7 +88,7 @@ Blindly applying a saved tune point when a different enabled set is active drive
 DACs to values solved for a *different* configuration — worse than not loading.
 So `load_tune_point` must **gate**:
 
-1. A saved tune point records the **A it belongs to** (`ColTuneEnable` + row
+1. A saved tune point records the **A it belongs to** (`ColEnableMask` + row
    map/order at save time), as provenance embedded in the artifact.
 2. On load, compare recorded-A against the currently-active A.
 3. On mismatch: refuse by default; allow an explicit `force=` override; ideally
@@ -158,7 +158,7 @@ informs what `Tuned` must express.
 
 | Layer | Key variables | Where set today |
 |---|---|---|
-| A enabled set | `ColTuneEnable`, `RowIndexOrderList`, `RowMap` | notebook, first |
+| A enabled set | `ColEnableMask`, `RowReadoutOrder`, `RowMap` | notebook, first |
 | B tune point | `Sa/Sq1 *Current/*ForceCurrent`, `SaOffset`, `TesBias`, FAS currents | tune `pr.Process`es (`SetAfterFinish`) |
 | C run settings | `TimingTx.{RowPeriodCycles,Sample*,Mode}`, `AdcDsp[col].{PidEnable,RowEnableMask}` | `setup_mux` (partial) + notebook |
 

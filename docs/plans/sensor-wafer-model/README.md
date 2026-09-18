@@ -1154,7 +1154,7 @@ physical row DAC currents
   -> EventBuilder / host readout
 ```
 
-The detector model must not accept the firmware's logical `rowIndex` as an
+The detector model must not accept the firmware's logical row (`logicalRow`) as an
 analog shortcut. Responding to the actual row-line currents is what tests the
 row map, turn-off/turn-on sequence, settling interval, ADC sample window, and
 inactive-module slots.

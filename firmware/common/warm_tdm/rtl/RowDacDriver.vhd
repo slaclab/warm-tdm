@@ -544,13 +544,13 @@ begin
             -- In timing mode, wait for row strobe to set next RS DAC
             if (r.mode = TIMING_MODE_C) then
                if (timingRxData.stageNextRow = '1' and r.activeRowValid = '0') then
-                  v.onIndex         := timingRxData.rowIndexNext;
+                  v.onIndex         := timingRxData.nextLogicalRow;
                   v.state           := ON_PRE_S;
 
                elsif (timingRxData.stageNextRow = '1') then
                   v.state    := OFF_PRE_S;
-                  v.offIndex := timingRxData.rowIndex;
-                  v.onIndex  := timingRxData.rowIndexNext;
+                  v.offIndex := timingRxData.logicalRow;
+                  v.onIndex  := timingRxData.nextLogicalRow;
                end if;
             elsif (r.mode = MANUAL_MODE_C) then
                if (rsOnWrValid = '1') then
@@ -653,7 +653,7 @@ begin
             end if;
 
          when ON_PRE_S =>
-            -- Switch to next row index for DAC address
+            -- Switch to next logical row for DAC address
             v.rowAddr := r.onIndex(ROW_HIGH_C downto ROW_LOW_C);
             v.rsDac   := getRsDac(v.rowAddr);
 

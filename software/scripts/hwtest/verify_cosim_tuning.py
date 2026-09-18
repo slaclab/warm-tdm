@@ -50,7 +50,7 @@ def check_tuning(sess, args, report, directory):
             'ServoDisable must be false for the closed-loop SQ1 check')
     spans = profile['minimum_curve_span']
     require(all(np.isfinite(spans[k]) and spans[k] > 0 for k in ['sa', 'sq1']), 'Positive curve spans required')
-    variables = [sess.group.ColTuneEnable, sess.group.RowIndexOrderList]
+    variables = [sess.group.ColEnableMask, sess.group.RowReadoutOrder]
     for name, params in specs:
         proc = getattr(sess.group, name)
         variables.extend(getattr(proc, key) for key in params)
@@ -58,8 +58,8 @@ def check_tuning(sess, args, report, directory):
     report['limitations'] = ['Model response only; real SQUID gain/noise/stability remain on #68',
                              'Cooperative Stop/transport cleanup may exceed the execution timeout']
     with restore(variables):
-        sess.group.ColTuneEnable.set([c in cols for c in range(sess.chans_per_board)])
-        sess.group.RowIndexOrderList.set(rows)
+        sess.group.ColEnableMask.set(sum(1 << c for c in cols if 0 <= c < sess.chans_per_board))
+        sess.group.RowReadoutOrder.set(rows)
         failed = False
         try:
             if args.cancel_only:
@@ -114,11 +114,11 @@ def check_tuning(sess, args, report, directory):
                     errors.append(str(exc))
             for row in rows:
                 try:
-                    sess.group.DeactivateRowIndex(row)
+                    sess.group.ManualRowOff(row)
                 except BaseException as exc:
                     errors.append(str(exc))
             try:
-                sess.group.ColTuneEnable.set([True] * sess.chans_per_board)
+                sess.group.ColEnableMask.set((1 << sess.chans_per_board) - 1)
                 require(sess.stop_and_zero(settle_sec=args.timing_timeout), 'Final stop/zero failed')
             except BaseException as exc:
                 errors.append(str(exc))

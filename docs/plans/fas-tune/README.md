@@ -18,7 +18,7 @@ tuning UI onto a shared process widget and hardens Stop/state-restoration.
 - **`RowDacDriver2.ManualSet`** — a narrow, write-only path for temporary
   physical-line actuation during characterization, without editing the persistent
   FAS tables (see design note below).
-- **`FasTuneProcess`** — active rows from `RowIndexOrderList` resolved through
+- **`FasTuneProcess`** — active rows from `RowReadoutOrder` resolved through
   `RowMap`; one-level maps only (two-level rejected before any hardware write);
   configurable sweep range/points, interruptible settling, provisional SQ1 bias,
   `SetAfterFinish` gating, partial-result publication on Stop, and rollback of the

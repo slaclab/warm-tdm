@@ -562,7 +562,7 @@ begin
                v.timingRxData.running         := '1';
                v.timingRxData.sample          := '0';
                v.timingRxData.rowSeq          := (others => '0');
-               v.timingRxData.rowIndexNext    := (others => '0');
+               v.timingRxData.nextLogicalRow    := (others => '0');
                v.pwrSyncWait                  := '0';
                v.rxState                      := ROW_INDEX_S;
             when END_RUN_C =>
@@ -577,7 +577,7 @@ begin
                v.timingRxData.daqReadoutStart := '1';
                v.timingRxData.rowSeqStart     := '1';
                v.timingRxData.rowSeq          := (others => '0');
-               v.timingRxData.rowIndex        := r.timingRxData.rowIndexNext;
+               v.timingRxData.logicalRow        := r.timingRxData.nextLogicalRow;
                v.timingRxData.rowSeqCount     := r.timingRxData.rowSeqCount + 1;
                v.timingRxData.daqReadoutCount := r.timingRxData.daqReadoutCount + 1;
                v.timingRxData.rowTime         := (others => '0');
@@ -587,7 +587,7 @@ begin
                v.timingRxData.rowStrobe   := '1';
                v.timingRxData.rowSeqStart := '1';
                v.timingRxData.rowSeq      := (others => '0');
-               v.timingRxData.rowIndex    := r.timingRxData.rowIndexNext;
+               v.timingRxData.logicalRow    := r.timingRxData.nextLogicalRow;
                v.timingRxData.rowSeqCount := r.timingRxData.rowSeqCount + 1;
                v.timingRxData.rowTime     := (others => '0');
                v.pwrSyncWait              := '0';
@@ -595,7 +595,7 @@ begin
             when ROW_STROBE_C =>
                v.timingRxData.rowStrobe := '1';
                v.timingRxData.rowSeq    := r.timingRxData.rowSeq + 1;
-               v.timingRxData.rowIndex  := r.timingRxData.rowIndexNext;
+               v.timingRxData.logicalRow  := r.timingRxData.nextLogicalRow;
                v.timingRxData.rowTime   := (others => '0');
                v.rxState                := ROW_INDEX_S;
             when PWR_SYNC_WAIT_C =>
@@ -617,7 +617,7 @@ begin
       if (timingRxValid = '1' and timingRxDataK = '0' and locked = '1') then
          case r.rxState is
             when ROW_INDEX_S =>
-               v.timingRxData.rowIndexNext := timingRxData;
+               v.timingRxData.nextLogicalRow := timingRxData;
                v.rxState                   := CONTROL_S;
             when others => null;
          end case;

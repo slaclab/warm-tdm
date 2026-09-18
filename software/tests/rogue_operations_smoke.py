@@ -78,6 +78,8 @@ class SmokeRoot(pr.Root):
                 values[:] = value
             group.add(pr.LinkVariable(name=setter, linkedGet=lambda values=values: values.copy(),
                                       linkedSet=apply))
+            cb.add(pr.LinkVariable(name=setter, linkedGet=lambda values=values: values.copy(),
+                                   linkedSet=apply))
             cb.add(driver)
         hwg.add(cb)
         group.add(hwg)

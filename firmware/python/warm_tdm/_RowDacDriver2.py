@@ -36,15 +36,24 @@ class RowDacDriver2(pr.Device):
             bitSize = 1,
             function = pr.Command.touchOne))
 
+        # Name matches the RTL register (manualRowOn/manualRowOff). Manually turn
+        # one LOGICAL row on/off (mapped to its physical row-select via RowMap, the
+        # same path the timing sequencer uses); honored only in MANUAL mode outside
+        # a run, which is the tuning context.
         self.add(pr.RemoteVariable(
-            name = 'ActivateRowIndex',
+            name = 'ManualRowOn',
+            description = ('Manually turn ON one LOGICAL row (mapped to its physical '
+                          'row-select via RowMap). Honored only in MANUAL mode '
+                          'outside a run; used by the tuning algorithms.'),
             offset = 0x10,
             bitSize = 8,
             base = pr.UInt,
             disp = '{:d}'))
 
         self.add(pr.RemoteVariable(
-            name = 'DeactivateRowIndex',
+            name = 'ManualRowOff',
+            description = ('Manually turn OFF one LOGICAL row (mapped via RowMap). '
+                          'Honored only in MANUAL mode outside a run.'),
             offset = 0x14,
             bitSize = 8,
             base = pr.UInt,

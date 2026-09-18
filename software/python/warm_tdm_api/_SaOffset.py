@@ -168,7 +168,7 @@ class SaOffsetSweepProcess(warm_tdm_api.PausableProcess):
             curves = np.full((biasSteps, len(fbPoints), colCount), np.nan)
 
             saBias = np.full(colCount, low)
-            mask = np.array([1.0 if en else 0 for en in group.ColTuneEnable.value()])
+            mask = np.array([1.0 if en else 0 for en in group.colEnableBools])
 
             totalSteps = len(fbPoints) * biasRange.size
             self.setTotalSteps(totalSteps)

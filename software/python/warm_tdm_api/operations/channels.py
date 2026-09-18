@@ -10,13 +10,16 @@
 ##   - dead masks:   make/write/read_dead_masks (per-column dead-row bitmask +
 ##                   its on-disk .cfg format). The mask shape matches the
 ##                   AdcDsp[col].RowEnableMask hardware register; these pure
-##                   helpers stay client-side. The Session-side hardware bridge
-##                   Session.apply_dead_masks (issue #83, G9) writes the masks to
-##                   RowEnableMask. Graduating the mask onto a Group variable is
-##                   deliberately deferred: RowEnableMask is a 256-bit int, and
-##                   the existing GroupArrayLinkVariable carries only np.float64
-##                   arrays -- a mask-capable Group node (or a Group command) can
-##                   follow if server-side execution is ever needed.
+##                   helpers stay client-side. The mask has been graduated onto a
+##                   Group variable (issue #83): Group.RowEnableMasks holds the
+##                   per-column 256-bit masks (a Python int list, since a 256-bit
+##                   value overflows the float64 GroupArrayLinkVariable payload).
+##                   The Session bridge Session.apply_dead_masks writes these
+##                   helpers' {col:mask} dicts to the RowEnableMask registers and
+##                   caches them in Group.RowEnableMasks; setup_mux reapplies them.
+##                   Session.read_hardware_dead_masks reads them back.
+##   - column enable: column_enabled/enabled_columns decode Group.ColEnableMask
+##                   (integer bitmask, bit c = column c enabled).
 
 import re
 
@@ -70,6 +73,24 @@ def get_row_col(value):
         row = match.group("row_alt")
 
     return (int(col), int(row))
+
+
+def column_enabled(mask, col):
+    """True if column ``col``'s bit is set in the integer enable ``mask``.
+
+    ``mask`` is the ``Group.ColEnableMask`` bitmask (bit c = column c enabled).
+    Pure so it can be unit-tested without a tree.
+    """
+    return bool((int(mask) >> col) & 1)
+
+
+def enabled_columns(mask, ncol):
+    """List of column indices (0..``ncol``-1) whose bit is set in ``mask``.
+
+    The list form of :func:`column_enabled`, for callers that want to iterate
+    the enabled column set of a ``Group.ColEnableMask`` bitmask.
+    """
+    return [c for c in range(ncol) if (int(mask) >> c) & 1]
 
 
 def make_dead_masks(channels, ncol=8, nrow=256):

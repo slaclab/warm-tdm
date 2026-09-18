@@ -8,7 +8,7 @@ These helpers are the cross-cutting pieces of the tuning package:
   each FAS or SQ1 stimulus change.
 
 The public functions operate on the Group-level PyRogue array variables, which
-apply ``ColTuneEnable`` and batch board accesses, so callers pass complete
+apply ``ColEnableMask`` and batch board accesses, so callers pass complete
 column vectors rather than walking individual board/channel nodes.
 """
 
@@ -77,7 +77,7 @@ def saOffset(*, group, process=None, publish=None):
     precision = group.SaOffsetProcess.Precision.get()
     maxLoops = group.SaOffsetProcess.MaxLoops.get()
     colCount = group.NumColumns.get()
-    enabled_mask = np.asarray(group.ColTuneEnable.value(), dtype=bool)
+    enabled_mask = group.colEnableBools
     enabled_columns = np.flatnonzero(enabled_mask)
 
     # Keep one controller per logical column so each enabled channel has
@@ -175,7 +175,7 @@ def saFbServo(*, group, process, publish=None):
     maxLoops = process.ServoMaxLoops.get()
     log = process._log
     col_count = group.NumColumns.get()
-    enabled_mask = np.asarray(group.ColTuneEnable.value(), dtype=bool)
+    enabled_mask = group.colEnableBools
     enabled_columns = np.flatnonzero(enabled_mask)
     log.debug(
         'SA FB servo start: kp=%s ki=%s kd=%s precision=%s maxLoops=%s',

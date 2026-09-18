@@ -25,7 +25,7 @@ The timing system distributes synchronization across all boards via a dedicated 
 | `SAMPLE_START_C` | 0x9C | K28.4 | ADC sampling begins |
 | `SAMPLE_END_C` | 0xDC | K28.6 | ADC sampling ends |
 | `PWR_SYNC_WAIT_C` | 0xFC | K28.7 | Power synchronization pause |
-| `STAGE_NEXT_ROW_C` | 0xF7 | K23.7 | Preload next row index |
+| `STAGE_NEXT_ROW_C` | 0xF7 | K23.7 | Preload next logical row |
 | `DAQ_READOUT_START_C` | 0xFD | K29.7 | DAQ readout trigger |
 | `WAVEFORM_CAPTURE_C` | 0xFE | K30.7 | Trigger waveform capture |
 
@@ -47,8 +47,8 @@ The decoded timing frame produces a `LocalTimingType` record with these fields:
 | `lastSample` | 1 | Last sample of window |
 | `stageNextRow` | 1 | Preload next row |
 | `rowSeq` | 8 | Sequence index in row-order list |
-| `rowIndex` | 8 | Active row index |
-| `rowIndexNext` | 8 | Pending row for next strobe |
+| `logicalRow` | 8 | Active logical row |
+| `nextLogicalRow` | 8 | Pending row for next strobe |
 | `rowTime` | 32 | Clocks since last row strobe |
 | `rowSeqCount` | 64 | Full loops through all rows |
 | `daqReadoutCount` | 64 | Number of DAQ readouts |
