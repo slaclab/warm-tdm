@@ -200,27 +200,49 @@ async def bounded_visit_schedule_and_dac_latency(dut):
     # The optional debug FIFO can pause diagnostics independently of control.
     # Measure accepted visits from DAC writes and the PID readout stream.
     await b.write(0x50, 0)
-    for p, minimum in ((0, 16), (-1, 21)):
+    # The common flux-commit and DAC-round stages add two clocks to every
+    # branch. Exercise each bypass as well as the reciprocal calculation.
+    cases = (
+        ('no_wrap', 0, 1239, Fraction(0), -100000, 18, 22),
+        ('one_positive', -1, 1239, Fraction(14001, 2), -1239, 18, 22),
+        ('one_negative', -1, 1239, Fraction(-14001, 2), 1239, 18, 22),
+        ('unit_positive', -1, 1, Fraction(0), -100000, 18, 22),
+        ('unit_negative', -1, 1, Fraction(0), 100000, 18, 22),
+        ('clip_positive', -1, 0, Fraction(0), -100000, 18, 22),
+        ('clip_negative', -1, 0, Fraction(0), 100000, 18, 22),
+        ('multi_positive', -1, 1239, Fraction(0), -100000, 23, 27),
+        ('multi_negative', -1, 1239, Fraction(0), 100000, 23, 27),
+    )
+    for name, p, q, before, error, minimum, dac_latency in cases:
+        await period(b, q)
         await b.write(4, round(p*(1 << 23)) & 0xffffff)
         for spacing, accepted in ((minimum, 10), (minimum-1, 5)):
             await b.write(0x30, 1)
             await b.idle()
-            await seed(b, 0, Fraction(0))
+            await seed(b, 0, before)
             nw, no, nf = len(b.writes), len(b.outputs), len(b.frames)
             starts = []
             for _ in range(10):
-                starts.append(await b.visit(error=-100000, settle=spacing-1))
+                starts.append(await b.visit(error=error, settle=spacing-1))
             await b.clocks(60)
             assert len(b.writes)-nw == accepted
             assert len(b.outputs)-no == accepted
             assert len(b.frames) == nf
+            local, count = before, 0
+            writes, outputs = [], []
+            for _ in range(accepted):
+                local, count = reference(local + p*error, count, q)
+                writes.append((0, round(local)))
+                outputs.append((0, round(local) + count*q))
+            assert b.writes[nw:] == writes
+            assert b.outputs[no:] == outputs
             # visit() records the drive cycle; accumulation is accepted on
             # the next rising edge. Measure from that acceptance edge.
             latencies = [cycle-start-1 for cycle, start in
                          zip(b.write_cycles[nw:], starts[::10//accepted])]
-            assert latencies == [minimum+4]*accepted
-            dut._log.info('Integer P=%s spacing=%d accepted=%d/10 DAC latency=%s',
-                          p, spacing, accepted, latencies)
+            assert latencies == [dac_latency]*accepted
+            dut._log.info('Integer %s spacing=%d accepted=%d/10 DAC latency=%s',
+                          name, spacing, accepted, latencies)
 
 
 @pytest.mark.parametrize('parameters', [

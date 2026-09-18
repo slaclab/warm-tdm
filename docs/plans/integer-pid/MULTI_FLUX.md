@@ -56,6 +56,12 @@ based on post-wrap clipping. Readout remains
 on the MAC's 24-bit operand. Vivado 2024.1 resource/timing and hardware acceptance
 remain outstanding; simulation evidence is recorded below.
 
+September 18 timing follow-up: the [two-state pipeline fix](TIMING_REVIEW.md)
+adds `FLUX_COMMIT_S` and `DAC_ROUND_S` to every completion path, separating
+wrap adjustment, clipped state updates and DAC rounding. The September 17
+latency measurements below describe the original implementation; use the
+timing review for the updated schedule and validation.
+
 ## Validation at the implementation revision
 
 Working tree based on `channelization` commit `33599a9`. The maintained

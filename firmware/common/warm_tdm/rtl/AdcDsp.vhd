@@ -149,6 +149,8 @@ architecture rtl of AdcDsp is
       FLUX_PRODUCT_S,
       FLUX_REMAINDER_S,
       FLUX_CORRECT_S,
+      FLUX_COMMIT_S,
+      DAC_ROUND_S,
       DATA_STREAM_FLUX_JUMP_0_S,
       DATA_STREAM_FLUX_JUMP_1_S,
       DATA_STREAM_S,
@@ -544,7 +546,6 @@ begin
       variable jumpFixed         : sfixed(19 downto 0);
       variable productBits       : slv(RESULT_BITS_C-1 downto 0);
       variable excess            : natural range 0 to 270666;
-      variable finishFlux        : boolean;
       variable requestClear      : boolean;
       variable allowIntegrate    : boolean;
       variable axilEp            : AxiLiteEndpointType;
@@ -627,7 +628,6 @@ begin
       numFluxJumpsFixed := to_sfixed(r.numFluxJumps, numFluxJumpsFixed);
       pidStateRamAddrFixed := to_ufixed(r.pidStateRamAddr, pidStateRamAddrFixed);
       requestClear      := false;
-      finishFlux        := false;
 
       -- Finish the accepted visit using activeQuantum/activeReciprocal, then invalidate
       -- its flux reference before any visit can use the new configuration.
@@ -908,10 +908,10 @@ begin
                v.fluxNegative := toSl(r.fluxCandidate < 0);
                fluxMagnitude := resize(abs(r.fluxCandidate), fluxMagnitude);
                v.visitFluxJumps := (others => '0');
-               finishFlux := true;
+               v.state := FLUX_COMMIT_S;
                if (fluxQuantumFixed > 0 and fluxMagnitude > FLUX_JUMP_THRESHOLD_C) then
                   if (fluxMagnitude <= FLUX_JUMP_THRESHOLD_C + fluxQuantumFixed) then
-                     -- Preserve the ordinary zero/one-wrap visit latency.
+                     -- Zero/one-wrap visits bypass the reciprocal calculation.
                      v.visitFluxJumps := to_unsigned(1, v.visitFluxJumps'length);
                      if (v.fluxNegative = '1') then
                         v.fluxCandidate := resize(r.fluxCandidate + fluxQuantumFixed, v.fluxCandidate);
@@ -939,7 +939,6 @@ begin
                         v.pidMultiplier := to_sfixed('0' & r.activeReciprocal, v.pidMultiplier);
                         v.pidResult := (others => '0');
                         v.state := FLUX_ESTIMATE_S;
-                        finishFlux := false;
                      end if;
                   end if;
                end if;
@@ -982,7 +981,63 @@ begin
                   v.fluxCandidate := resize(r.fluxCandidate + fluxQuantumFixed, v.fluxCandidate);
                   v.visitFluxJumps := r.visitFluxJumps + 1;
                end if;
-               finishFlux := true;
+               v.state := FLUX_COMMIT_S;
+
+            when FLUX_COMMIT_S =>
+               -- Consume the registered wrap result. Keep candidate adjustment
+               -- out of the clipping, anti-windup and count-update paths.
+               -- Directional anti-windup depends on real post-wrap clipping. A large
+               -- recoverable excursion must not suppress sumAccum. Only the sign of
+               -- iSfixed * accumError is needed; pidResult used the old sumAccum.
+               allowIntegrate := true;
+               if (r.fluxCandidate > SQ1FB_MAX_C and
+                   ((iSfixed > 0 and r.accumError > 0) or (iSfixed < 0 and r.accumError < 0))) then
+                  allowIntegrate := false;
+               elsif (r.fluxCandidate < SQ1FB_MIN_C and
+                      ((iSfixed > 0 and r.accumError < 0) or (iSfixed < 0 and r.accumError > 0))) then
+                  allowIntegrate := false;
+               end if;
+               if (r.activeI = ZERO_COEF_C) then
+                  v.sumAccum := (others => '0');
+               elsif (allowIntegrate) then
+                  v.sumAccum := resize(r.sumAccum + r.accumError, v.sumAccum);
+               end if;
+               v.sumAccumRamWrEn := r.rowEnabled;
+               v.sumAccumRamWrData := to_slv(v.sumAccum);
+
+               jumpFixed := to_sfixed('0' & slv(r.visitFluxJumps), jumpFixed);
+               if (r.fluxNegative = '1') then
+                  countNext := resize(numFluxJumpsFixed - jumpFixed, countNext);
+               else
+                  countNext := resize(numFluxJumpsFixed + jumpFixed, countNext);
+               end if;
+               if (r.rowEnabled = '1' and (countNext > FLUX_COUNT_MAX_C or countNext < FLUX_COUNT_MIN_C)) then
+                  v.fluxCountOverflow := '1';
+               end if;
+               numFluxJumpsFixed := resize(countNext, numFluxJumpsFixed);
+               v.numFluxJumps := to_slv(numFluxJumpsFixed);
+               v.fluxJumpRamWrEn := r.rowEnabled;
+               v.fluxJumpRamWrData := v.numFluxJumps;
+
+               -- activeQuantum=0 retains DAC clipping. Valid multi-wrap configurations
+               -- finish within +/-7862. Register the clamped full-precision feedback
+               -- before the sole feedback-to-DAC rounding in DAC_ROUND_S.
+               if (r.fluxCandidate > SQ1FB_MAX_C) then
+                  v.sq1FbFull := to_sfixed(SQ1FB_MAX_C, v.sq1FbFull);
+               elsif (r.fluxCandidate < SQ1FB_MIN_C) then
+                  v.sq1FbFull := to_sfixed(SQ1FB_MIN_C, v.sq1FbFull);
+               else
+                  v.sq1FbFull := resize(r.fluxCandidate, v.sq1FbFull);
+               end if;
+               v.sq1FbFullRamWrEn := r.rowEnabled;
+               v.sq1FbFullRamWrData := '1' & to_slv(v.sq1FbFull);
+               v.state := DAC_ROUND_S;
+
+            when DAC_ROUND_S =>
+               -- Round only the registered clipped feedback, then queue the DAC write.
+               v.sq1Fb := resize(r.sq1FbFull, v.sq1Fb);
+               v.sq1FbValid := r.rowEnabled;
+               v.state := DATA_STREAM_FLUX_JUMP_0_S;
 
             when DATA_STREAM_FLUX_JUMP_0_S =>
                -- Body word 6: post-wrap/clamp feedback, before DAC rounding.
@@ -1041,56 +1096,6 @@ begin
                v.state := IDLE_S;
 
          end case;
-      end if;
-
-      if (finishFlux) then
-         -- Directional anti-windup depends on real post-wrap clipping. A large
-         -- recoverable excursion must not suppress sumAccum. Only the sign of
-         -- iSfixed * accumError is needed; pidResult used the old sumAccum.
-         allowIntegrate := true;
-         if (v.fluxCandidate > SQ1FB_MAX_C and
-             ((iSfixed > 0 and r.accumError > 0) or (iSfixed < 0 and r.accumError < 0))) then
-            allowIntegrate := false;
-         elsif (v.fluxCandidate < SQ1FB_MIN_C and
-                ((iSfixed > 0 and r.accumError < 0) or (iSfixed < 0 and r.accumError > 0))) then
-            allowIntegrate := false;
-         end if;
-         if (r.activeI = ZERO_COEF_C) then
-            v.sumAccum := (others => '0');
-         elsif (allowIntegrate) then
-            v.sumAccum := resize(r.sumAccum + r.accumError, v.sumAccum);
-         end if;
-         v.sumAccumRamWrEn := r.rowEnabled;
-         v.sumAccumRamWrData := to_slv(v.sumAccum);
-
-         jumpFixed := to_sfixed('0' & slv(v.visitFluxJumps), jumpFixed);
-         if (v.fluxNegative = '1') then
-            countNext := resize(numFluxJumpsFixed - jumpFixed, countNext);
-         else
-            countNext := resize(numFluxJumpsFixed + jumpFixed, countNext);
-         end if;
-         if (r.rowEnabled = '1' and (countNext > FLUX_COUNT_MAX_C or countNext < FLUX_COUNT_MIN_C)) then
-            v.fluxCountOverflow := '1';
-         end if;
-         numFluxJumpsFixed := resize(countNext, numFluxJumpsFixed);
-         v.numFluxJumps := to_slv(numFluxJumpsFixed);
-         v.fluxJumpRamWrEn := r.rowEnabled;
-         v.fluxJumpRamWrData := v.numFluxJumps;
-
-         -- activeQuantum=0 retains DAC clipping. Valid multi-wrap configurations always
-         -- finish within +/-7862 before this sole feedback-to-DAC conversion.
-         if (v.fluxCandidate > SQ1FB_MAX_C) then
-            v.sq1FbFull := to_sfixed(SQ1FB_MAX_C, v.sq1FbFull);
-         elsif (v.fluxCandidate < SQ1FB_MIN_C) then
-            v.sq1FbFull := to_sfixed(SQ1FB_MIN_C, v.sq1FbFull);
-         else
-            v.sq1FbFull := resize(v.fluxCandidate, v.sq1FbFull);
-         end if;
-         v.sq1Fb := resize(v.sq1FbFull, v.sq1Fb);
-         v.sq1FbFullRamWrEn := r.rowEnabled;
-         v.sq1FbFullRamWrData := '1' & to_slv(v.sq1FbFull);
-         v.sq1FbValid := r.rowEnabled;
-         v.state := DATA_STREAM_FLUX_JUMP_0_S;
       end if;
 
       if (v.clearPidStateBusy = '0' and v.clearSumBusy = '0') then
