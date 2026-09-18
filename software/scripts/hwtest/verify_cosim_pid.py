@@ -43,12 +43,13 @@ from _cosim_common import parser, passed, positive, require, restore, run, wait_
 # From docs/plans/pid-cosim-verification/{PROGRESS.md,cosim-tuning-settings.md};
 # model+build specific (VARIATION_SEED=0 sinusoid-blend build), NOT physics.
 # The seed is phase-scaled from the old 10 uA fixture to the 23 uA period.
-# Gains/thresholds are retained starting values; closed-loop acceptance must
-# be rerun after rebuilding the model with the new period.
+# Integer gains revalidated closed-loop 2026-09-17 on the merged multi-flux-wrap
+# RTL + 23 uA plant: P is POSITIVE here (the old negative-P values railed and
+# never locked). Normalized P=+0.05, I=+0.0004 at SampleCount=20 -> raw below.
 DEFAULTS = {
     'integer': dict(
         sq1fb_uA=16.1, flux_quantum_uA=23.0,
-        gains=dict(p_raw=-0.0006, i_raw=-2e-5, d_raw=0.0, use_group_gain=True),
+        gains=dict(p_raw=0.0025, i_raw=2e-5, d_raw=0.0, use_group_gain=True),
         step_uA=500.0,
         thresholds=dict(residual_max=800.0, flux_jump_max=0),
     ),

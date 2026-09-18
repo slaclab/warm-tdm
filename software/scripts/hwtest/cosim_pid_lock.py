@@ -99,7 +99,16 @@ def main(argv=None):
                 sess.group.Sq1FbCurrent.set(index=(args.col, r), value=args.sq1fb)
             print(f"Seeded Sq1FbCurrent = {args.sq1fb} uA on col {args.col} rows 0..{args.rows-1}")
 
-        # 2) FluxQuantum = Phi0 (setup responsibility -- RTL default is 0/disabled)
+        # Read out exactly the rows under test. A fresh sim defaults
+        # RowReadoutOrder to [0], so without this only row 0 is ever visited and
+        # rows 1..N-1 read as stale/zero (not servoed).
+        sess.group.RowReadoutOrder.set(list(range(args.rows)))
+
+        # 2) FluxQuantum = Phi0 (setup responsibility -- RTL default is 0/disabled).
+        # The multi-flux-wrap RTL rejects a FluxQuantum change unless PID is
+        # disabled and ControlBusy is clear (the reciprocal/shift/count registers
+        # must be quiescent), so disable PID first.
+        dsp.PidEnable.set(False)
         dsp.FluxQuantum.set(args.flux_quantum)
         print(f"FluxQuantum = {float(dsp.FluxQuantum.get()):.3f} uA")
 

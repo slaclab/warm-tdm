@@ -7,6 +7,163 @@ the GroupTb PyRogue↔VCS cosim, so the flux-jump path is exercised end-to-end
 through the real RTL against the wafer model. Owning issue: #70 (closed-loop
 PID/flux-jump acceptance).
 
+## Post-merge lock revalidation (2026-09-18)
+
+After merging the big integer-PID changes (`558cad9` multi-flux wrapping +
+19-bit count + 23 µA SQ1 period; `33599a9` PID refactor), the integer servo
+initially did NOT lock with the carried-over profile (residual ~35000, feedback
+railed) — because the profile's **P sign was negative**, wrong for the current
+plant. Chasing it with `cosim_pid_lock.py`:
+
+- **P must be POSITIVE.** Normalized P=+0.05 (raw +0.0025 at SampleCount=20)
+  locks: row 0-3 settle to ~±260-360 counts, `FluxJumps=0`, monotonic descent.
+  Negative P railed the feedback. Matches the doc note "descending slope stable
+  P sign is POSITIVE".
+- Higher rows (4-7) converge slower — need >10 s of settling; add I=+0.0004
+  (raw +2e-5) to close the deadband.
+- Updated `cosim_pid.example.json` + `verify_cosim_pid.py` DEFAULTS integer
+  block to `p_raw=+0.0025, i_raw=+2e-5`.
+- Two script fixes for the new RTL: `cosim_pid_lock.py` now (a) disables PID
+  before setting `FluxQuantum` (multi-flux RTL rejects the change otherwise:
+  "Disable PID and wait for ControlBusy"), and (b) sets `RowReadoutOrder` to all
+  monitored rows (default [0] left rows 1..N reading stale 0).
+
+### BUT: lock only holds WITHOUT `SetCosimTunePoints` — tune points are stale
+
+Sharp contradiction found and reproduced:
+- `cosim_pid_lock.py` P=+0.05, I=0 on the fixture left by an earlier harness run
+  (Sq1Bias≈76.9 µA) → **locks**, rows 0-3 to ±260, FluxJumps=0.
+- The turnkey harness (`--seed-tune-points`) and a manual repro that calls
+  `SetCosimTunePoints()` first → **does NOT lock**, AccumError ≈ 33400 at the
+  same P. windup=0 confirms it's not integrator windup (I=0 too).
+
+Root cause: `SetCosimTunePoints` → `SetSimSq1TunePoint` seeds
+`Sq1Fb=16.951, Sq1Bias=100, SaFb=64.8` — all **scaled/carried from the old 10 µA
+fixture** (Sq1Fb = 7.37·23/10; the others unchanged). On the recalibrated 23 µA
+sinusoid-blend plant these do NOT land on a lockable mid-slope operating point.
+This is exactly the "gains/tune points retained from the old fixture, require
+closed-loop revalidation on the rebuilt model" caveat the merge flagged.
+
+**So the positive-P gain is correct, but the SEED operating point from
+`SetCosimTunePoints` is wrong for the new plant.** Fixing it needs a real SA +
+SQ1 tune sweep on the 23 µA model to re-fit `SetSimSaTunePoint` /
+`SetSimSq1TunePoint` (SaBias, SaFb, Sq1Bias, Sq1Fb) — a multi-cycle slow-sim
+effort. NOT yet done. (A PID-off `AccumError` vs `Sq1Fb` sweep to find the
+zero-crossing failed — AccumError reads 0 with PID disabled, so the operating
+point must be found with the debug/accumulator path active or via a proper
+sq1Tune process run.)
+
+### Status of the TES sweep goal
+
+Still blocked on a clean lock at the seeded operating point. Once
+`SetCosimTunePoints` seeds a lockable point on the 23 µA model, the merged
+multi-flux-wrap RTL (multiple quanta/visit, 19-bit count) should let the TES
+ramp walk `numFluxJumps` up cleanly — that capability is new and directly serves
+this goal.
+
+## SQ1 retune on the 23 µA period (2026-09-18) — deeper blocker found
+
+Ran the actual tune processes (SetCosimTunePoints → SaOffset → SaTune →
+Sq1Tune) against a fresh simv of the merged RTL.
+
+- **SA side is fine.** SaOffset nulls (SaOutAdc≈0.002), SaTune fits
+  SaFb≈9.13 µA (mid-slope, as expected).
+- **Full 2-row SQ1 sweep (24×3×2=144 pts) TIMED OUT at 1500 s** in VCS — too
+  many points. A reduced row-0 / fixed-bias / 15-pt sweep finishes in ~114 s.
+- **The SQ1 tune cannot find a lock point because the measured SQ1 V–Φ is not a
+  proper periodic curve on this fixture.** Dumped `Sq1TuneOutput[0][0]` curve at
+  bias 76.87 µA (note: requested 100, but the force-current path applied 76.87):
+
+  ```
+   Sq1Fb:  -17..-2.4  -> SaOut flat +9.11   (no modulation)
+   Sq1Fb:  0          -> +12.24
+   Sq1Fb:  +7.3       -> +14.84
+   Sq1Fb:  +9.7       -> +23.69
+   Sq1Fb:  +12..+17   -> +34.9 .. +41.0     (monotonic ramp, no turnover)
+  ```
+
+  This is a one-sided ramp, not a sinusoidal V–Φ — there is no steep mid-slope
+  null to lock to. The fit is unstable across runs (xOut came back 14.571, then
+  9.719, then 9.714). Closed-loop tests at the fitted points do NOT lock at
+  either P sign (AccumError ~24000-71000, feedback rails).
+
+- **Likely root cause = row-select / SQ1-bias operating point, not PID gains.**
+  `SetCosimTunePoints` drives FAS-on = 163 µA, but the row-FAS period is 300 µA,
+  so 163 µA sits at ~0.54 Φ0 — the max-resistance extremum with weak (~15%)
+  gating (already flagged in `cosim-tuning-settings.md` "Row-FAS set point does
+  NOT agree with the model"). A weakly/incorrectly selected row won't route SQ1
+  modulation into the readout, which matches the flat/ramp curve. Sq1Bias=76.87
+  (vs the intended 100) may also leave the SQ1 below the modulation regime.
+
+### Next steps (plant setup, NOT gain tuning)
+
+1. Fix the FAS on/off currents to the 300 µA-period extrema (0 or 300 µA for
+   min-R, 150 µA for max-R) — decide which extreme is "on" (run `fas_tune` or
+   confirm switch topology), so the selected row actually gates its SQ1.
+2. Re-check Sq1Bias: sweep it (the 40-140 µA range) to find where the SQ1
+   actually modulates, before fixing the Fb sweep.
+3. Only then re-fit Sq1Fb and re-test closed-loop lock + P sign.
+4. `SetCosimTunePoints` / `SetSimSq1TunePoint` in
+   `software/python/warm_tdm_api/_Group.py` need updating with the results.
+
+This is a wafer-model/tune-fixture problem at the new period, beyond a gain
+retune. The two infra fixes (server crash, sim eth bridge) and the positive-P
+finding stand; the TES flux-jump sweep remains blocked on a real SQ1 lock.
+
+## FAS row-select characterized on the model (2026-09-18) — GHDL probes
+
+Rather than more slow cosim cycles, probed the wafer model directly with fast
+throwaway GHDL testbenches on `DetectorModuleSim` (WaferModelTb path, seconds
+per run; TBs since removed). Findings, all at Sq1Bias=100 µA:
+
+**Row-FAS "ON" point is 150 µA, not 0/300.** SQ1 modulation depth (ssaV
+peak-to-peak over a full Sq1Fb sweep) vs FAS-select current:
+
+| FAS current | SQ1 modulation p-p |
+|---|---|
+| 0 µA   | 0.003 mV (row OFF — SQ1 invisible) |
+| 50 µA  | 0.33 mV |
+| **150 µA** | **4.61 mV (row fully ON, max)** |
+| 250 µA | 0.33 mV |
+| 300 µA | 0.003 mV (row OFF) |
+
+So `SetCosimTunePoints`'s **FAS-on = 163 µA is actually correct** (≈150, the
+half-period of the 300 µA row-FAS). The `cosim-tuning-settings.md` claim that
+163 µA is a "bad" point and that 0/300 are the clean extrema is **BACKWARDS**:
+0/300 µA is where the row is OFF (SQ1 shunted/invisible); 150 µA is ON.
+
+**Clean SQ1 V–Φ at FAS=150, Sq1Bias=100** (23 µA period, ssaV):
+peaks ≈4.99 mV at Sq1Fb≈+0.5 and +23; minima ≈0.37 mV at ≈−11.5 and +11;
+steep mid-slopes (lock candidates) at Sq1Fb ≈ **+5 µA** (falling) and ≈+18
+(rising). So the real mid-slope lock point is Sq1Fb≈5, NOT the scaled 16.951 in
+`SetSimSq1TunePoint`.
+
+**Why earlier tunes saw flat/ramp curves:** they ran at LOW Sq1Bias — FasTune
+default Sq1Bias=40 µA and the SQ1 sweep landed near 40-77 µA, where modulation
+is weak. At Sq1Bias=100 the model modulates cleanly (4.6 mV).
+
+## Still NOT locking in cosim — SA-offset/per-row-setpoint interaction
+
+Closed-loop test with the model-derived point (SetCosimTunePoints, then override
+Sq1Fb=5, FAS=163, Sq1Bias=100) STILL does not lock: AccumError ≈35000 constant
+at both P signs, FluxJumps=0. The static SA null reads fine (SaOutAdc≈0.002 V)
+but the muxed-run error is large and constant.
+
+Suspected cause: `SetSimSq1TunePoint` writes a large per-row **SaFb=64.8 µA**
+into the readout table, and the single global SA-offset DAC can only null one
+operating point — so during the muxed readout the SA sees a large fixed SQ1
+voltage that shows as constant AccumError. The model has signal (GHDL proves
+it); the cosim readout/servo setpoint path is where it's lost. Next: check the
+per-row SaFb table vs SA-offset null, and whether AccumError is measured against
+the right baseline for the seeded point (the GHDL V–Φ says a real null exists at
+Sq1Fb≈5). This is the current edge.
+
+### Concrete recommended tune points (from the model, for _Group.py)
+- FAS-on: 150 µA (163 is fine); FAS-off: 0 µA.
+- Sq1Bias: 100 µA (keep). Sq1Fb lock: ≈5 µA (falling mid-slope), NOT 16.951.
+- SaBias: 55 µA; SaFb: the SA-tune fit (~9 µA), NOT 64.8 — the 64.8 in
+  `SetSimSq1TunePoint` is likely what breaks the SA null in the muxed run.
+
 ## Key finding (2026-09-17) — supersedes the "weak coupling" note
 
 Prior notes (`pid-cosim-verification/PROGRESS.md`, `cosim-tuning-settings.md`,
