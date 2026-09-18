@@ -1,6 +1,6 @@
 # Floating-point PI (AdcDspFp)
 
-## Scope and current status
+## Scope and implementation
 
 IEEE 754 single-precision PI servo for TES SQUID readout, selected by
 `DataPath.USE_FLOAT_PID_G`. Keep unwrapped float32 feedback as the primary
@@ -8,10 +8,11 @@ per-row state, including its fractional part, for the stated approximately
 ±256 physical-quantum operating envelope. There is no planned conversion to
 bounded feedback plus a separate accumulated flux offset.
 
-The [2026-09-16 implementation record](../pid-cosim-verification/FP_FIX_IMPLEMENTATION.md)
-contains the correctness fixes, passing local regressions and outstanding
-vendor/system/hardware acceptance. The older 34-cycle and truncation sketches
-are superseded; generated-IP timing/resource qualification remains open.
+The implementation is carried by `channelization` / PR #106. The older
+34-cycle and truncation sketches are superseded. Candidate-specific evidence
+and remaining qualification are recorded on
+[#70](https://github.com/slaclab/warm-tdm/issues/70); the historical implementation
+and cleanup revisions are `07a87d0` and `fae7151`.
 
 ## Architecture
 
@@ -110,10 +111,9 @@ transport guarantees. Qualify the complete path against the row schedule.
 The public FluxQuantum is a nonnegative current **difference**. Convert using
 `abs(currentPerLsb())`, preserve fractional codes, and configure R/inverse
 coherently only while disabled and drained. Zero clears both registers.
-WrapMultiplier changes preserve physical Q and recompute the pair. See the
-implementation record for finite-value, quotient and centered-DAC bounds.
+WrapMultiplier changes preserve physical Q and recompute the pair. Configuration bounds are described below.
 `Session.set_pid` supports P/I, omitted/zero D, and debug-only FP calls; it
-rejects nonzero D before writes. Actual PyRogue-tree smoke remains pending.
+rejects nonzero D before writes. Tree construction and configuration round-trip must be qualified on the selected candidate.
 
 ## Debug stream
 
@@ -134,7 +134,50 @@ speculative value before anti-windup selection. Masked-row debug fields are
 computed candidates; they are not applied DAC/control state. Debug dropCount
 counts actual visits suppressed by debug pause, separately from control loss.
 
-## Remaining qualification
+## Configuration envelope and delivery
+
+Gains/periods must be finite, Q nonnegative and N a positive integer. Positive
+R is at most 16380 DAC codes, preserving headroom near the centered upper
+endpoint. `_PidFpConfig.py` rejects periods whose int32 quotient could overflow
+within any 14-bit seed plus the stated +/-256 physical-quantum envelope.
+That is not a bound on arbitrary gain/error transients: intermediates and
+conversions must remain finite and representable. Exceptional-value recovery
+for NaN/Inf/denormals is not specified as an ordinary operating mode.
+
+Recompute R and its float32 reciprocal together, deriving the reciprocal from
+the represented R. Public writes require PID disabled, ControlBusy=0 and
+DacWriteBusy=0; raw clients must honor the same quiescent configuration rule.
+Re-enabling deliberately reseeds. `setup_mux` is an explicit setup/reset
+operation, while routine `set_pid` preserves the reference except for the
+specified integral-only clear on an actual I change.
+
+Both controller DAC paths pop one FIFO command only when the request/ack
+handshake is idle, hold it through acknowledgement, and wait for ack release
+before consuming another. Error/overflow counters do not roll back saved
+state or retry failed writes. The supported visit schedule must keep delivery
+lossless; masked telemetry is distinct from applied control state.
+
+FP MissedVisitCount counts enabled visits arriving while busy;
+DiscardedVisitCount counts disabled/clearing discards; DacOverflowCount counts
+rejected FIFO writes; DacErrorCount counts non-OK completed AXI writes.
+These are wrapping uint32 counters reset by hardware reset, StartRun or
+ResetCounters. Debug dropCount counts visits suppressed by debug pause, not
+idle paused clocks. DacWriteBusy includes FIFO pointer transit.
+
+## Design and maintenance rationale
+
+Retaining unwrapped F preserves fractional corrections without a separate
+bounded-feedback/offset architecture. Keep this design unless measured
+precision or performance fails the stated operating envelope. A recomputed
+J=1 immediately after seeding need not be a fault: F=377 and R=538 gives
+W=-161 while preserving F. Forcing J=0 would change the readout reference.
+
+Nearest-even applies independently to the quotient and final DAC conversion;
+truncation would be a different algorithm. Clipping back-calculates accepted
+F, but ordinary rounding must not erase its fraction. Clearing only S on an
+I change avoids silently losing the operating point and unwrapped reference.
+
+## Qualification
 
 - Run the [native generated-IP bench](../../../firmware/simulations/AdcDspFpTb/README.md).
 - Verify PyRogue construction, dependency updates and configuration round-trip.

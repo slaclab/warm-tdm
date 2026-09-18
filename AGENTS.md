@@ -325,9 +325,19 @@ perform that migration.
 
 ## Task Plans
 
-For substantial feature work, debug efforts, refactors, or multi-step investigations, keep planning, progress, and handoff Markdown under `docs/plans/<task-name>/`. Use a short kebab-case task name, keep notes factual, and update the plan as the work changes.
+Update an existing workstream note only when unfinished work needs a handoff.
+Do not create a document for each session, review, merge-readiness check, or
+issue audit. Routine completed work needs no plan file. Put implementation
+results on PRs, acceptance evidence and remaining checks on their owning
+issues, and lasting explanations in the nearest guide or design document.
 
-Each task directory should include enough context for another contributor (or a future agent session) to resume without reconstructing the work from chat history. Capture the goal, current status, decisions made, files or modules involved, validation run, open risks, and next steps. Keep large logs, generated output, and build artifacts out of `docs/plans`; summarize them and link to durable locations instead.
+For a new substantial workstream that needs a handoff, use one concise
+`docs/plans/<task-name>/README.md` with its goal, current state, important
+decisions, affected modules, evidence links and next step. Update that note
+instead of appending chronological reports or creating parallel PLAN,
+PROGRESS and REVIEW files. Remove resolved hypotheses from the current
+account; Git history and issue comments preserve their context. Keep logs,
+generated output and build artifacts out of `docs/plans`.
 
 Start with the [plans index](docs/plans/README.md), which maps each workstream
 to its design records and owning issue. The `channelization` branch carries
@@ -335,13 +345,16 @@ multiple efforts; the frame-format, integer/FP PID, resource integration and
 verification work have separate entry points. PID analysis and RSSI tuning are
 separate proposals. Use live issue checklists for unfinished acceptance.
 
-When implementation is integrated into `pre-release`, move enduring usage,
-design decisions, and maintenance guidance into the nearest permanent README,
-guide, or `docs/design/` record. Remove superseded implementation checklists and
-progress logs; Git history preserves them. Keep a task directory only for an
-intentional design record, active follow-up handoff, or a short redirect needed
-by existing issue/wiki links. Preserve links to the issues owning unfinished
-build or hardware acceptance; integration does not make those checks pass.
+Document implemented interfaces and design decisions in permanent guides even
+while their integration PR is open; identify the branch/compatibility boundary.
+Use `docs/reference/` for intentionally dated analyses or recovered evidence.
+Keep `docs/plans/` for active proposals, unresolved investigations and short
+redirects needed by existing issue/wiki links. Before deleting a handoff,
+preserve material test evidence and remaining obligations on its issue/PR and
+repair incoming links. One-off code reviews, source inspections and cleanup
+recaps need no replacement document; Git history is enough. Untracked notes
+have no Git history: migrate their unique content before deleting them.
+Integration does not make outstanding checks pass.
 
 ## Submodules
 

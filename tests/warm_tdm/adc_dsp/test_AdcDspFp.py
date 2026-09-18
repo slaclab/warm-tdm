@@ -4,7 +4,7 @@
 
 Default: GHDL plus explicit test-only finite binary32 arithmetic models. This
 qualifies control/state/transport, NOT generated Xilinx arithmetic or timing.
-See docs/plans/pid-cosim-verification/FP_FIX_PLAN.md for vendor acceptance.
+See docs/design/controllers/floating-point.md for vendor acceptance.
 """
 from __future__ import annotations
 

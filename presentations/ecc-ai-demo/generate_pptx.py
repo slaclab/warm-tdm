@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Generate the ECC AI Seminar demo PowerPoint using the existing template's layout."""
 
+from pathlib import Path
+
 from pptx import Presentation
 from pptx.util import Inches, Pt, Emu
 from pptx.dml.color import RGBColor
@@ -8,7 +10,7 @@ from pptx.enum.text import PP_ALIGN
 from pptx.enum.shapes import MSO_SHAPE
 
 # Load template, extract layout, delete existing slides
-prs = Presentation('docs/ECC AI Use Best Practices.pptx')
+prs = Presentation(Path(__file__).with_name('ECC AI Use Best Practices.pptx'))
 DEFAULT_LAYOUT = prs.slides[6].slide_layout
 
 while len(prs.slides) > 0:
@@ -577,7 +579,7 @@ add_body(slide, [
 # ============================================================================
 # Save
 # ============================================================================
-output_path = 'docs/plans/fp-dsp-pid/ECC_AI_Demo_Use_Case_2.pptx'
+output_path = Path(__file__).with_name('ECC_AI_Demo_Use_Case_2.pptx')
 prs.save(output_path)
 print(f"Saved to {output_path}")
 print(f"Total slides: {len(prs.slides)}")

@@ -29,6 +29,24 @@ Avoid maintaining copies of their current statuses or completion checklists.
 Repository design plans may preserve rationale and implementation guidance;
 link ongoing tasks to issues instead of maintaining another progress inventory.
 
+## Documentation lifecycle
+
+Keep one concise handoff per active workstream, updating its current state
+and next step. Do not create a repository document for each session, review,
+merge-readiness check or issue audit. Completed routine work needs no plan.
+Implementation results belong on PRs; acceptance evidence and remaining checks
+belong on the owning issues. Guides describe maintained behavior, and
+`docs/reference/` holds intentionally dated technical analyses.
+
+Before retiring a note, preserve material test evidence with its original
+revision and limitations, transfer unfinished obligations, and repair incoming
+links. One-off code reviews and source-inspection recaps need no replacement
+document; Git history is enough.
+Untracked notes have no Git history. Use short redirects only where an existing
+issue/wiki URL needs them; use source-pinned links for historical evidence.
+Do not create an archive directory duplicating Git history. Integration does
+not make outstanding verification pass.
+
 ## Issue lifecycle
 
 Use one issue for a coherent feature or fix, through implementation and

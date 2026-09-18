@@ -6,9 +6,9 @@
 > coupling, fractional-feedback, and model-shaping changes. They are not a current
 > tuned configuration or a statement of current RTL widths. Re-identify the local
 > plant slope before using the pole-placement formulas. See the
-> [model architecture](../../../firmware/common/warm_tdm/sim/README.md),
-> [integer PID record](../integer-pid/README.md), and
-> [verification index](../pid-cosim-verification/README.md) for current context.
+> [model architecture](../../firmware/common/warm_tdm/sim/README.md),
+> [integer PID record](../plans/integer-pid/README.md), and
+> [verification index](../plans/pid-cosim-verification/README.md) for current context.
 
 ## Scope and conclusion
 

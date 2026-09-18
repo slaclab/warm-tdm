@@ -8,7 +8,7 @@
 
 Encapsulates the exact process we use to chase a lock so it is repeatable across
 sessions. Run against a live ``warmTdmServer --sim`` (see
-docs/plans/pid-cosim-verification/PROGRESS.md for the sim recipe). Read-only apart
+software/scripts/hwtest/README_cosim.md for the sim recipe). Read-only apart
 from the tune-point / servo registers it deliberately sets; it always ``EndRun``s.
 
 The process, in order (each step matters -- see docs/plans/tes-scaling/ and

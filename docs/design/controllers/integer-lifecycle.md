@@ -1,8 +1,8 @@
 # Integer PID masking and I-coefficient lifecycle
 
-## Goal and decision
+## Operating contract
 
-September 17, 2026 follow-up to the [path comparison](../pid-path-comparison/README.md):
+September 17, 2026 follow-up to the [path comparison](../../reference/pid-path-comparison.md):
 align the integer controller with the FP lifecycle requested by the user.
 Issue #70 remains the acceptance owner.
 
@@ -25,7 +25,7 @@ changes: subsequent correction increments naturally change with the new gain.
 
 ## Implementation
 
-Implemented in the working tree following `996aae6`:
+The implementation uses these boundaries:
 
 - `AdcDsp.vhd` gates SumAccum RAM commits with the accepted row mask, matching
   its feedback/count commits. Error/PID-result diagnostics still update.
@@ -45,37 +45,11 @@ Implemented in the working tree following `996aae6`:
   to hardware instead of issuing unconditional full clears. Rising enable
   still clears/reseeds, while repeated enable writes do not.
 
-## Validation
+## Verification
 
-The initial focused run passed all 12 cocotb cases (six tests in each of two
-configurations: 8 rows/inverted DAC and 256 rows/normal DAC). They cover masked
-seeded/unseeded state, unmasking, I changes through positive/zero/negative
-values, same-I writes, retained derivative history, in-flight coefficient
-changes, nonzero flux counts and feedback fractions, and disabling/reseeding.
-All 27 Python control tests passed, including the actual integer I-link
-callback and cache-only writes with fake register I/O.
-
-The final RTL, including the `axiP/I/D/FluxQuantum` rename, passed all **75
-cocotb cases across 12 pytest configurations** in 377.43 seconds. This includes
-the 12 new lifecycle cases, 45 existing integer arithmetic/fractional/flux/
-historical/delivery cases, and 18 FP reference cases. No skips or failures.
-`git diff --check` passed. The run log is temporarily at
-`/private/tmp/warm-tdm-integer-lifecycle-regression.log`; this summary preserves
-the validation result. Reproduce from the repo root:
-
-```bash
-make rtl_import
-.venv/bin/python -m pytest -n 4 -q \
-  tests/warm_tdm/adc_dsp/test_AdcDsp_lifecycle.py \
-  tests/warm_tdm/adc_dsp/test_AdcDsp.py \
-  tests/warm_tdm/adc_dsp/test_AdcDsp_fractional.py \
-  tests/warm_tdm/adc_dsp/test_AdcDsp_flux.py \
-  tests/warm_tdm/adc_dsp/test_AdcDsp_bitexact_compare.py \
-  tests/warm_tdm/adc_dsp/test_AdcDsp_delivery.py \
-  tests/warm_tdm/adc_dsp/test_AdcDspFp.py
-.venv/bin/python -m pytest -q software/tests/test_fp_pid_controls.py
-```
-
-FP tests use behavioral arithmetic cores, not generated vendor IP. Vivado
-2024.1 timing/resources, full PyRogue-tree construction and hardware acceptance
-remain separate checks. No files were staged or committed.
+The lifecycle bench checks masked seeded/unseeded rows, positive/zero/negative
+I changes, same-value writes, fractional feedback/count preservation,
+derivative history, in-flight writes and disable/reseed. See the
+[regression guide](../../../tests/README.md) for commands and
+[#70](https://github.com/slaclab/warm-tdm/issues/70) for revision-specific
+results and outstanding system/build/hardware acceptance.

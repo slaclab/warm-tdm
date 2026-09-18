@@ -5,16 +5,16 @@
 Review requested September 17, 2026: compare the current `AdcDsp` and
 `AdcDspFp` implementations, including numerical behavior, loop performance,
 latency, throughput and expected FPGA cost. Feature acceptance remains with issue #70,
-as indexed by [integer PID](../integer-pid/README.md) and
-[FP PID](../fp-dsp-pid/README.md).
+as indexed by [integer PID](../plans/integer-pid/README.md) and
+[FP PID](../plans/fp-dsp-pid/README.md).
 
 Review completed against `channelization` revision `996aae6`. The measurements
 below describe that baseline. The subsequent user-requested
-[integer lifecycle correction](../integer-pid/LIFECYCLE.md) aligns masking and
+[integer lifecycle correction](../design/controllers/integer-lifecycle.md) aligns masking and
 I changes with FP; see that record for implementation and validation.
 Earlier 12/34/40-cycle sketches predate these implementations.
 
-The subsequent [multi-wrap implementation](../integer-pid/MULTI_FLUX.md)
+The subsequent [multi-wrap implementation](../design/controllers/integer-flux-wrapping.md)
 also supersedes the single-wrap and nine-bit limitations discussed below.
 Integer now supports the full PID candidate range with a host-computed
 reciprocal, a signed 19-bit net count and at most one cleanup subtraction.
@@ -32,9 +32,9 @@ multi-wrap timing and validation are recorded in the implementation record.
   centered wrapping, per-visit coefficient snapshots and delivery diagnostics.
 - `DataPath.vhd`, `BiquadFilter.vhd`: parallel column instances and downstream
   format handling.
-- [Integer fractional feedback](../pid-cosim-verification/INTEGER_FRACTIONAL_FEEDBACK.md),
-  [flux review](../pid-cosim-verification/FLUX_JUMP_REVIEW.md), and
-  [FP architecture](../fp-dsp-pid/PLAN.md): current design/evidence records.
+- [Integer fractional feedback](../design/controllers/integer-feedback.md),
+  [flux review](https://github.com/slaclab/warm-tdm/blob/d0bedaae8b65e648d6cec101c39564f5bcbb2b9a/docs/plans/pid-cosim-verification/FLUX_JUMP_REVIEW.md), and
+  [FP architecture](../design/controllers/floating-point.md): current design/evidence records.
 
 Both controllers now retain fractional feedback. Compare current fixed-point
 behavior rather than the historical integer implementation that rounded its
@@ -226,7 +226,7 @@ generated-IP qualification was performed. The run log is
 ### Lifecycle differences at the reviewed baseline
 
 The first three points below prompted the subsequent
-[integer lifecycle correction](../integer-pid/LIFECYCLE.md). In the updated
+[integer lifecycle correction](../design/controllers/integer-lifecycle.md). In the updated
 working tree, both paths hold masked integral state, clear only S on an actual
 I change, snapshot visit coefficients and drain accepted visits on disable.
 Integer now exposes ControlBusy; the remaining FP delivery/loss diagnostics

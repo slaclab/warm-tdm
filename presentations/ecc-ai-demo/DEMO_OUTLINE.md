@@ -1,5 +1,10 @@
 # ECC AI Seminar Demo — Use Case 2: AI-Assisted Feature Addition
 
+Historical seminar material, including examples of the earlier PID design.
+For the maintained implementation, see the [controller guide](../../docs/design/controllers/README.md).
+Run `python presentations/ecc-ai-demo/generate_pptx.py` from the repository root
+with `python-pptx` installed to regenerate the deck beside the script.
+
 **Presenter:** Ben Reese  
 **Time:** ~5 minutes  
 **Tool:** Claude Code (Anthropic CLI agent)

@@ -2,6 +2,27 @@
 
 Supplementary reference for AI agents working on warm-tdm software. For the project overview, see the root [`AGENTS.md`](../AGENTS.md).
 
+## Supported boards and maintained entry points
+
+The `channelization` integration supports `ColumnFpgaBoard`,
+`ColumnAwaXeFpgaBoard` and `RowFpgaBoard` device families. Removed legacy
+ColumnModule/RowModule board constructors are not alternative supported
+configurations. Validate release packaging and CLI choices against the selected
+candidate; existing bitfiles still require a matching register tree.
+
+Use `software/scripts/warmTdmServer.py` (`--gui` for the server GUI).
+The old `warmTdmGui.py` and `gui.py` entry points were consolidated into it.
+`GroupConfig` carries column/row board counts, `maxRows` and host; logical-row
+mapping is separate from physical row/chip select topology. Group variable
+implementations live in `_GroupVariables.py` and tuning algorithms in `tuning/`.
+
+The maintained `_WarmTdmCore.py` and `_WarmTdmCommon.py` names now refer to the
+active implementations after their `2` suffix was removed. Old cleanup lists
+naming those files describe deleted legacy versions and must not be used as
+instructions to delete the current drivers. Supported front ends still use
+shared SURF DAC drivers; removing legacy boards does not resolve the remaining
+AD5679R work on [#103](https://github.com/slaclab/warm-tdm/issues/103).
+
 ## Package Structure
 
 Two Python packages work together:

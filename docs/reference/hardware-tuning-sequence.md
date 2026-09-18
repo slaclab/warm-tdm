@@ -1,7 +1,7 @@
 # Hardware notebook tuning sequence
 
 Investigation dated September 18, 2026. This follows the
-[23 uA retune investigation](SQ1_RETUNE.md) and records historical evidence
+[23 uA retune investigation](../plans/pid-cosim-verification/SQ1_RETUNE.md) and records historical evidence
 for SA feedback, SQ1 bias/feedback, and SA-offset ordering. No control code was
 changed for this investigation. Full cosim lock remains unresolved on #70.
 

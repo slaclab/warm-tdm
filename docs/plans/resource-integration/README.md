@@ -12,9 +12,9 @@ scripts and legacy Python/board-selector removal. Relevant source is in
 - [Target organization](../../../firmware/targets/README.md) documents the
   integrated structure. Verify the actual release target matrix in `firmware/releases.yaml`
   against the candidate; static source checks do not establish a build.
-- [Software cleanup](../sw-cleanup/PLAN.md) mixes changes already integrated
-  through #67/#78 with legacy removal still carried by #106. Do not treat that
-  old plan's completion statements as a pass for current imports/packaging.
+- [Software compatibility](../../../software/SOFTWARE_GUIDE.md#supported-boards-and-maintained-entry-points)
+  records the supported classes and launch/configuration contracts. Legacy
+  removal carried by #106 still requires current imports/packaging validation.
 - [#73](https://github.com/slaclab/warm-tdm/issues/73) remains separate: passing
   `maxRows` through software and slicing RAM addresses does not implement
   runtime firmware-capacity discovery and startup clamp/warn.

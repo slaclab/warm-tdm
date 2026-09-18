@@ -209,7 +209,7 @@ Other FP differences that matter for a fair performance comparison:
    can then disappear despite wrap keeping the physical DAC near zero. Test
    the largest expected net excursion as well as local lock. The user later
    clarified an expected bound of 256 flux jumps; the quantified assessment in
-   [FP_REVIEW.md](FP_REVIEW.md) favors retaining the present architecture and
+   [FP_REVIEW.md](../design/controllers/floating-point.md) favors retaining the present architecture and
    verifying its precision margin, rather than redesigning it speculatively.
 5. **Pipeline timing:** FP serializes several FMA and conversion operations.
    It needs more time per update than the integer path. Check that every
@@ -266,7 +266,7 @@ configuration/documentation conclusion pending the proposed IP boundary test.
 
 ### Integer fractional-feedback change assessment
 
-The dedicated [integer fractional-feedback design](INTEGER_FRACTIONAL_FEEDBACK.md)
+The dedicated [integer fractional-feedback design](../design/controllers/integer-feedback.md)
 records the implemented arithmetic, per-row state lifecycle and GHDL checks.
 The implementation stores full-precision feedback and seeds it from the applied
 DAC after a clear; the original rounding-remainder proposal below is historical.

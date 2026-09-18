@@ -1,32 +1,17 @@
-# PID verification: start here
+# PID verification and active investigations
 
-This directory contains reusable verification guidance and dated investigation
-records. It accumulated several implementation efforts; their entry points are
-now [integer PID](../integer-pid/README.md), [FP PID](../fp-dsp-pid/README.md),
-[frame formats](../channelization/PLAN.md), and
-[resource integration](../resource-integration/README.md).
+The maintained [regression guide](../../../tests/README.md) describes setup,
+software/RTL collection, generated IP, GroupTb, builds and evidence limits.
+Controller contracts are in [the design index](../../design/controllers/README.md).
 
-[#90](https://github.com/slaclab/warm-tdm/issues/90) owns the harness;
-[#70](https://github.com/slaclab/warm-tdm/issues/70) owns controller/build/hardware
-acceptance; [#82](https://github.com/slaclab/warm-tdm/issues/82) owns frame/file
-acceptance. [#106](https://github.com/slaclab/warm-tdm/pull/106) is the integration
-review. Their live checklists supersede old "next steps" in dated reports.
+Active fixture investigations remain here:
 
-| Need | Read |
-|---|---|
-| Verification layers, tools and remaining gates | [PLAN.md](PLAN.md) |
-| Current FP behavior and local regressions (`07a87d0`) | [FP_FIX_IMPLEMENTATION.md](FP_FIX_IMPLEMENTATION.md) |
-| FP refactor comparison (`fae7151`) | [FP_CLEANUP.md](FP_CLEANUP.md) |
-| Integer retained-state numerical contract | [INTEGER_FRACTIONAL_FEEDBACK.md](INTEGER_FRACTIONAL_FEEDBACK.md) |
-| Integer wrap/count/transport corrections | [FLUX_JUMP_REVIEW.md](FLUX_JUMP_REVIEW.md) |
-| Vendor-IP execution | [AdcDspFpTb README](../../../firmware/simulations/AdcDspFpTb/README.md) |
-| Fixture/gain setup for historical captures | [cosim-tuning-settings.md](cosim-tuning-settings.md) |
-| Current 23 uA SQ1 sweep and static/muxed operating-point investigation | [SQ1_RETUNE.md](SQ1_RETUNE.md) |
-| Historical hardware tune/apply sequence and SA-offset ordering | [HARDWARE_TUNING_SEQUENCE.md](HARDWARE_TUNING_SEQUENCE.md) |
-| Rationale and chronology | [PROGRESS.md](PROGRESS.md), [REVIEW.md](REVIEW.md), [FP_REVIEW.md](FP_REVIEW.md), [FP_SEED_REVIEW.md](FP_SEED_REVIEW.md), [FP_FIX_PLAN.md](FP_FIX_PLAN.md), [MCE_COMPARISON.md](MCE_COMPARISON.md) |
+- [SQ1 retune and static/muxed operating-point mismatch](SQ1_RETUNE.md)
+- [Historical fixture settings and their qualifications](cosim-tuning-settings.md)
+- [TES scaling and flux-jump capture](../tes-scaling/PROGRESS.md)
 
-Reported passes apply to the revision/configuration named in each record.
-GHDL arithmetic models, generated vendor IP, full GroupTb, synthesis/timing and
-physical hardware establish different things. Preserve that distinction when
-moving evidence into issues. No current record proves relative FP/integer/MCE
-hardware performance.
+[#90](https://github.com/slaclab/warm-tdm/issues/90) owns the framework,
+[#70](https://github.com/slaclab/warm-tdm/issues/70) owns controller/system/build
+acceptance and [#82](https://github.com/slaclab/warm-tdm/issues/82) owns formats.
+Dated progress/review results were moved to those records; their full original
+text remains in Git history. This index preserves existing issue links.
