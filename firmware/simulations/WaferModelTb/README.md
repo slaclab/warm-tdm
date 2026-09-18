@@ -29,6 +29,12 @@ hardware before warm amplification.
 The group harness also checks that its differential SA-bias cable resistance
 contributes `I*R` to the FEB's sensed voltage even when the intrinsic SSA is in
 its zero-voltage state.
+`Sq1FeedbackTb` sweeps the nominal 32-row detector through three SQ1 feedback
+periods at 50/75 uA column bias and 150/163 uA row-select current. It checks
+23 uA periodicity, positive/negative feedback symmetry, modulation amplitude,
+and turnover in the SA sense voltage. It applies physical currents at the
+harness input; it does not exercise DAC programming, the ADC, or the tuning
+servo. Device variation is disabled for these nominal-period checks.
 The NIST `5x10` bank factorization remains provisional until it is checked
 against the mask schematic.
 

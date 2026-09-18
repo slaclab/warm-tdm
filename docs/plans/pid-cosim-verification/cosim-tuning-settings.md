@@ -1,5 +1,13 @@
 # Cosim tuning settings (sinusoidal SQUID model)
 
+**2026-09-18 investigation:** the cold-model SQ1 response is periodic at
+23 uA, including negative feedback. FAS select near 150 uA selects the row;
+0/300 uA shunts SQ1. The standard SQ1-bias DAC cannot supply the 100 uA used
+by direct-model probes: that command clips near 77 uA. Static force-DAC
+settings also need to match the muxed row settings before an ADC null is
+meaningful. See [the retune investigation](SQ1_RETUNE.md) for measured
+GHDL results, current-scale differences, and the remaining integration check.
+
 **2026-09-17 model update:** the nominal SQ1 feedback period is now **23 µA**.
 The PID profiles use `FluxQuantum=23 µA` and `Sq1FbCurrent=16.1 µA`, preserving
 the old 0.7-period seed. `SetSimSq1TunePoint` uses 16.951 µA (the old 7.37 µA
@@ -94,13 +102,18 @@ close to SaOffset's near-deadbeat −1.0); the slowness was the precision + loop
   - Net: dropping Sq1FbNumSteps 32→24 and Sq1BiasNumSteps 2→1 is ~2.7× fewer
     points; looser ServoPrecision is another ~8×.
 
-## Row-FAS set point — does NOT agree with the model
+## Row-FAS set point — corrected September 18
 
-`SetCosimTunePoints` uses FasOn = 163 µA, but the synthetic row-FAS flux period is
-`currentPerPhi0Amp` = **300 µA**, so 163 µA sits at ~0.54 Φ0 — essentially the
-**max-resistance (≈half-quantum) extremum**, not a clean on/off point. Clean
-extrema: min R (12.2 Ω) at 0 / 300 µA, max R (14.1 Ω) at 150 µA. Also the FAS
-modulation is **weak** (12.2→14.1 Ω, ~15%), so it barely gates the row either way
-— which is why sq1 tune still read a row with 163 µA. For model consistency the
-FAS on/off should use the 300 µA-period extrema (which extreme is "on" depends on
-the switch topology — confirm, or run `fas_tune`).
+The FAS is in parallel with SQ1. At **0/300 µA** select current, the nominal
+FAS is superconducting below its critical current and shunts SQ1: **row off**.
+At **150 µA**, its critical current reaches zero and the resistive FAS allows
+SQ1 modulation to appear: **row on**. `SetCosimTunePoints`'s **163 µA** is near
+this selected extremum and is consistent with the topology.
+
+The former claim that this was a bad on-point was incorrect. Its weak
+12.2–14.1 ohm resistance estimate also predates the nominal row-FAS
+critical-current increase from 20 to 100 µA. At a 10 µA branch probe, the
+current model gives approximately 0.1 ohm at zero select and 14.1 ohm at
+150 µA select, including the FAS series resistance. These select currents
+refer to physical model inputs; full-board command scaling must also be
+accounted for.
