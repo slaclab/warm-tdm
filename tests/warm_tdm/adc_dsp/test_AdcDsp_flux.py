@@ -64,8 +64,7 @@ class FluxLoop(FeedbackLoop):
         return Fraction(signed(raw, 38), 1 << 23), bool(raw & (1 << 38))
 
     async def count(self, row):
-        # User chose to retain the signed nine-bit range.
-        return signed(await axil_read_u32(self.driver.axil, 0x6000 + 4 * row), 9)
+        return signed(await axil_read_u32(self.driver.axil, 0x6000 + 4 * row), 19)
 
     async def seed(self, row, full, count=0):
         word = (int(full * (1 << 23)) & ((1 << 38) - 1)) | (1 << 38)
@@ -158,7 +157,7 @@ async def flux_count_saturation_limit_is_explicit(dut):
     loop = FluxLoop(dut)
     await loop.start()
     await loop.write(REG_FLUX_QUANTUM, 2000)
-    for row, sign, start in ((0, 1, 255), (loop.last_row, -1, -256)):
+    for row, sign, start in ((0, 1, 262143), (loop.last_row, -1, -262144)):
         await loop.seed(row, sign * 7862, start)
         full = sign * Fraction(23449, 4)
         await loop.check(row, sign, full, start, 2000)
@@ -181,7 +180,7 @@ async def readout_preserves_negative_sign_for_int32_converter(dut):
 
 
 @cocotb.test()
-async def one_wrap_recovery_and_slew_limit(dut):
+async def multiple_wrap_recovery(dut):
     loop = FluxLoop(dut)
     await loop.start()
     await loop.write(REG_FLUX_QUANTUM, 2000)
@@ -189,23 +188,21 @@ async def one_wrap_recovery_and_slew_limit(dut):
         await loop.seed(row, sign * 8000)
         await loop.check(row, sign * 2001, sign * Fraction(26001, 4), sign, 2000)
     await loop.write(REG_P_COEF, 1 << 22)
-    for row, sign, rail in ((0, 1, 8191), (loop.last_row, -1, -8192)):
+    for row, sign in ((0, 1), (loop.last_row, -1)):
         await loop.seed(row, sign * 8000)
-        # 8000 + 4000 - 2000 = 10000: one quantum cannot recover this step.
-        # It clips, updates the count once, and the readout reflects clipping.
-        await loop.check(row, sign * 8000, rail, sign, 2000)
+        # 12000 needs three wraps to return to the trigger window.
+        await loop.check(row, sign * 8000, sign * 6000, sign * 3, 2000)
 
 
 @cocotb.test()
-async def prewrap_anti_windup_policy_is_explicit(dut):
+async def postwrap_anti_windup_admits_recovered_excursion(dut):
     loop = FluxLoop(dut)
     await loop.start(i=1 << 20)
     await loop.write(REG_FLUX_QUANTUM, 2000)
     await loop.seed(0, 8000)
     await loop.check(0, 2001, Fraction(26001, 4), 1, 2000)
-    # Existing I-state admission uses the pre-wrap candidate (8500.25), so it
-    # holds even though wrapping successfully recovers a non-clipped command.
-    assert await axil_read_u32(loop.driver.axil, 0x2000) == 0
+    # The actual command is in range after wrapping: admit the integral.
+    assert await axil_read_u32(loop.driver.axil, 0x2000) == 2001
 
 
 @pytest.mark.parametrize('parameters', [

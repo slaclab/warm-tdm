@@ -12,7 +12,10 @@ owns the frame contract.
 | Accumulator split rationale | [Original design](../pipelined-dsp-accumulator/PLAN.md) |
 | State-read, feedback-lag and accumulator-range corrections | [Dated investigation log](../pid-cosim-verification/PROGRESS.md) |
 | Retained fractional feedback, seeding, masking and rounding | [Integer fractional feedback](../pid-cosim-verification/INTEGER_FRACTIONAL_FEEDBACK.md) |
-| Flux accounting, signed nine-bit limit, v3 debug transport | [Flux-jump review](../pid-cosim-verification/FLUX_JUMP_REVIEW.md) |
+| Masked integral hold and I changes that preserve feedback/count | [Lifecycle alignment](LIFECYCLE.md) |
+| Historical single-wrap accounting and v3 debug transport | [Flux-jump review](../pid-cosim-verification/FLUX_JUMP_REVIEW.md) |
+| Multiple wraps, host reciprocal configuration, 19-bit net count and bounds | [Multi-wrap design and implementation](MULTI_FLUX.md) |
+| Hardware SQ1 period, DAC range, and recovered notebook outputs | [Hardware scale evidence](HARDWARE_SCALE.md) |
 | Shared FIFO/AXI delivery correction | [Implementation, section 8](../pid-cosim-verification/FP_FIX_IMPLEMENTATION.md) |
 | Reproduction and system/build gates | [Verification plan](../pid-cosim-verification/PLAN.md) |
 

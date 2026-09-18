@@ -169,7 +169,8 @@ package WaferSimPkg is
    constant SQ1_SQUID_SYNTHETIC_C : SquidParamsType := (
       criticalCurrentAmp  => 20.0E-6,
       normalResistanceOhm => 14.0,
-      currentPerPhi0Amp   => 10.0E-6,
+      -- Nominal SQ1 feedback period: Phi0 / 90 pH is approximately 23 uA.
+      currentPerPhi0Amp   => 23.0E-6,
       phaseOffsetCycles   => 0.0);
 
    -- Row-FAS Ic RAISED (was 20 uA) so it exceeds the muxed readout current: an

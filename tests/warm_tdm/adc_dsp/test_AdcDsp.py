@@ -98,8 +98,10 @@ REG_SUM_ACCUM = 0x0018
 REG_PID_RESULT = 0x0020
 REG_SQ1FB = 0x0028          # r.sq1Fb, sfixed(13 downto 0) 2's-complement DAC code
 REG_CLEAR_PID_STATE = 0x0030
-REG_FLUX_QUANTUM = 0x0040   # v.fluxQuantum, slv(13 downto 0)
-REG_NUM_FLUX_JUMPS = 0x0044  # r.numFluxJumps, slv(8 downto 0) signed
+REG_FLUX_QUANTUM = 0x0040   # v.axiFluxQuantum, slv(13 downto 0)
+REG_NUM_FLUX_JUMPS = 0x0044  # r.numFluxJumps, slv(18 downto 0) signed
+REG_FLUX_RECIPROCAL = 0x0048
+REG_FLUX_RECIPROCAL_SHIFT = 0x004C
 
 # The RTL wraps the feedback and (de)counts a flux jump once |sq1Fb| exceeds this
 # fixed threshold (AdcDsp.vhd FLUX_JUMP_S: sq1Fb > 7862 / < -7862).
@@ -168,6 +170,13 @@ class AdcDspBench:
         self.dut = dut
         self.axil = AxiLiteMaster(AxiLiteBus.from_prefix(dut, "S_AXIL"), dut.clk, dut.rst)
         self.timing_fields = {"running": 1}
+
+    async def set_flux_quantum(self, quantum):
+        shift = 16 + (quantum - 1).bit_length() if quantum else 0
+        reciprocal = (1 << shift) // quantum if quantum else 0
+        await axil_write_u32(self.axil, REG_FLUX_RECIPROCAL, reciprocal)
+        await axil_write_u32(self.axil, REG_FLUX_RECIPROCAL_SHIFT, shift)
+        await axil_write_u32(self.axil, REG_FLUX_QUANTUM, quantum)
 
     async def set_timing(self, **fields: int) -> None:
         self.timing_fields.update(fields)
@@ -284,10 +293,10 @@ async def i_coef_write_clears_integrator_state(dut):
     await bench.wait_for_pid_clear()
 
     sum_accum_after = await axil_read_u32(bench.axil, REG_SUM_ACCUM)
-    last_accum_after = await axil_read_u32(bench.axil, REG_LAST_ACCUM_ERROR)
+    stored_error_after = await axil_read_u32(bench.axil, 0x1000)
 
     assert sum_accum_after == 0
-    assert last_accum_after == 0
+    assert stored_error_after == 10  # Changing I clears only integral history.
 
 
 @cocotb.test()
@@ -370,7 +379,7 @@ async def flux_jump_positive_rail_wraps_and_counts(dut):
     flux_quantum = 500
 
     await axil_write_u32(bench.axil, REG_I_COEF, 0)
-    await axil_write_u32(bench.axil, REG_FLUX_QUANTUM, flux_quantum)
+    await bench.set_flux_quantum(flux_quantum)
     await axil_write_u32(bench.axil, REG_P_COEF, UNIT_COEF)   # P ~= 1.0
     await axil_write_u32(bench.axil, REG_CONTROL, FLL_ENABLE_MASK)
     await bench.wait_for_pid_clear()
@@ -380,7 +389,7 @@ async def flux_jump_positive_rail_wraps_and_counts(dut):
     error = 50
     await bench.drive_accum(error=error, sq1fb_value=seed)
 
-    num_jumps = _signed(await axil_read_u32(bench.axil, REG_NUM_FLUX_JUMPS), 9)
+    num_jumps = _signed(await axil_read_u32(bench.axil, REG_NUM_FLUX_JUMPS), 19)
     sq1fb = _signed(await axil_read_u32(bench.axil, REG_SQ1FB), 14)
 
     assert num_jumps == 1, f"expected one flux jump, got {num_jumps}"
@@ -397,7 +406,7 @@ async def flux_jump_negative_rail_wraps_and_counts(dut):
     flux_quantum = 500
 
     await axil_write_u32(bench.axil, REG_I_COEF, 0)
-    await axil_write_u32(bench.axil, REG_FLUX_QUANTUM, flux_quantum)
+    await bench.set_flux_quantum(flux_quantum)
     await axil_write_u32(bench.axil, REG_P_COEF, UNIT_COEF)
     await axil_write_u32(bench.axil, REG_CONTROL, FLL_ENABLE_MASK)
     await bench.wait_for_pid_clear()
@@ -406,7 +415,7 @@ async def flux_jump_negative_rail_wraps_and_counts(dut):
     error = -50
     await bench.drive_accum(error=error, sq1fb_value=seed)
 
-    num_jumps = _signed(await axil_read_u32(bench.axil, REG_NUM_FLUX_JUMPS), 9)
+    num_jumps = _signed(await axil_read_u32(bench.axil, REG_NUM_FLUX_JUMPS), 19)
     sq1fb = _signed(await axil_read_u32(bench.axil, REG_SQ1FB), 14)
 
     assert num_jumps == -1, f"expected one negative flux jump, got {num_jumps}"
@@ -417,30 +426,24 @@ async def flux_jump_negative_rail_wraps_and_counts(dut):
 @cocotb.test()
 async def flux_jumps_accumulate_over_visits(dut):
     # numFluxJumps is per-row state held in RAM and accumulates across visits.
-    # The DSP now RETAINS fractional feedback per row (seeded from the DAC only on
-    # the first post-clear visit, then held), so re-driving the same near-rail
-    # feedback does NOT re-cross the rail -- the wrapped feedback is retained below
-    # it. To ratchet across the rail on EVERY visit, drive a sustained per-visit
-    # error larger than one FluxQuantum: each visit adds P*error > quantum to the
-    # retained feedback, keeping it above the threshold so it wraps (and counts)
-    # once per visit. One wrap per visit (single comparison in FLUX_JUMP_S).
+    # sq1FbFull retains the previous wrapped feedback, rather than reseeding
+    # from each input. A sustained correction larger than flux_quantum needs
+    # two wraps on the first visit and one on each of the next two visits.
     bench = await setup_bench(dut)
     flux_quantum = 500
 
     await axil_write_u32(bench.axil, REG_I_COEF, 0)
-    await axil_write_u32(bench.axil, REG_FLUX_QUANTUM, flux_quantum)
+    await bench.set_flux_quantum(flux_quantum)
     await axil_write_u32(bench.axil, REG_P_COEF, UNIT_COEF)   # P ~= 1.0
     await axil_write_u32(bench.axil, REG_CONTROL, FLL_ENABLE_MASK)
     await bench.wait_for_pid_clear()
 
-    visits = 3
-    # First visit seeds the retained feedback near the rail from the DAC; the
-    # per-visit error (> flux_quantum) then keeps it above the threshold each visit.
-    for _ in range(visits):
+    for expected_count, expected_feedback in ((2, 7460), (3, 7560), (4, 7660)):
         await bench.drive_accum(error=flux_quantum + 100, sq1fb_value=FLUX_JUMP_THRESHOLD - 2)
-
-    num_jumps = _signed(await axil_read_u32(bench.axil, REG_NUM_FLUX_JUMPS), 9)
-    assert num_jumps == visits, f"expected {visits} accumulated jumps, got {num_jumps}"
+        num_jumps = _signed(await axil_read_u32(bench.axil, REG_NUM_FLUX_JUMPS), 19)
+        feedback = _signed(await axil_read_u32(bench.axil, REG_SQ1FB), 14)
+        assert num_jumps == expected_count
+        assert feedback == expected_feedback
 
 
 @pytest.mark.parametrize("parameters", [pytest.param({}, id="adcdsp_cocotb_wrapper")])

@@ -34,7 +34,8 @@ class IntegerFluxQuantumTests(unittest.TestCase):
             amp=SimpleNamespace(currentPerLsb=Mock(return_value=slope)),
             FluxQuantumRaw=SimpleNamespace(set=Mock(), get=Mock()))
         path = 'firmware/python/warm_tdm/_AdcDsp.py'
-        setter = closure(path, '_setFluxQuantum', {'self': dev})
+        setter = closure(path, '_setFluxQuantum', {'self': dev,
+                         '_setFluxQuantumRegisters': dev.FluxQuantumRaw.set})
         getter = closure(path, '_getFluxQuantum', {'self': dev})
         return dev, setter, getter
 
@@ -45,7 +46,7 @@ class IntegerFluxQuantumTests(unittest.TestCase):
                                     (1023.875, 8191), (1.26, 10)):
                 with self.subTest(slope=slope, value=value):
                     setter(value, write=False)
-                    dev.FluxQuantumRaw.set.assert_called_with(expected, write=False)
+                    dev.FluxQuantumRaw.set.assert_called_with(expected, False)
                     dev.FluxQuantumRaw.get.return_value = expected
                     self.assertEqual(getter(read=True), expected * abs(slope))
                     dev.FluxQuantumRaw.get.assert_called_with(read=True)

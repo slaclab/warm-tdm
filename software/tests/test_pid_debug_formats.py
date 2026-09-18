@@ -34,7 +34,7 @@ def frame(version, full=-100.25):
              21, (-5) & 0xffffffff, 3 << 21,
              0xff, 8100 | (7 << 32), 16 | (99 << 32)]
     if version == 3:
-        words[6] = 0xffffffff  # V3 sign-extends the nine-bit counter to int32.
+        words[6] = 0xffffffff  # V3 sign-extends numFluxJumps to int32.
     if version >= 2:
         words.insert(6, int(full * (1 << 23)) & ((1 << 64) - 1))
     return header + struct.pack('<' + 'Q' * len(words), *words)
@@ -60,8 +60,8 @@ def test_full_feedback_sign_and_fraction(full, version):
     assert msg.fields['sq1FbFull'] == full
 
 
-@pytest.mark.parametrize('count', [-256, -129, -128, 127, 128, 255])
-def test_v3_flux_count_uses_all_nine_bits(count):
+@pytest.mark.parametrize('count', [-262144, -131073, -256, -129, -128, 127, 128, 255, 131072, 262143])
+def test_v3_flux_count_preserves_expanded_range(count):
     raw = bytearray(frame(3))
     raw[72:76] = count.to_bytes(4, 'little', signed=True)
     msg = formats.PidDebug.from_numpy(np.frombuffer(raw, dtype=np.uint8))

@@ -1,5 +1,13 @@
 # Cosim tuning settings (sinusoidal SQUID model)
 
+**2026-09-17 model update:** the nominal SQ1 feedback period is now **23 µA**.
+The PID profiles use `FluxQuantum=23 µA` and `Sq1FbCurrent=16.1 µA`, preserving
+the old 0.7-period seed. `SetSimSq1TunePoint` uses 16.951 µA (the old 7.37 µA
+seed scaled by 23/10); the default SQ1 sweep is -34.5..+34.5 µA with 31 points.
+The measured results below belong to the **old 10 µA fixture**. Gains and
+thresholds are retained starting values, awaiting a rebuilt GroupTb run;
+these historical results do not establish lock/settling at the new period.
+
 Operating points and tuning-process settings for the closed-loop PID cosim on the
 **sinusoidal** wafer model (`SQUID_SINUSOID_BLEND_C=1.0`, `VARIATION_SEED=0`,
 integer PID). Measured 2026-09-15 against GroupTb (1 col + 1 row board, 32 rows)

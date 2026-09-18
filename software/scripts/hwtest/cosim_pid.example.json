@@ -1,8 +1,8 @@
 {
-  "_comment": "Gain / operating-point / threshold profile for verify_cosim_pid.py. RAW gains include the sign (integer P NEGATIVE, float P POSITIVE). All values are MODEL+BUILD specific (GroupTb WAFER, VARIATION_SEED=0, sinusoid-blend build) from docs/plans/pid-cosim-verification/{PROGRESS.md,cosim-tuning-settings.md} -- they are NOT physical SQUID acceptance. Copy and adjust per fixture. Any block/key is optional; omitted values fall back to the built-in DEFAULTS in verify_cosim_pid.py, and --cli flags override this file.",
+  "_comment": "Gain / operating-point / threshold profile for verify_cosim_pid.py. RAW gains include the sign (integer P NEGATIVE, float P POSITIVE). MODEL+BUILD specific (GroupTb WAFER, VARIATION_SEED=0, sinusoid-blend build). The seed is phase-scaled to the 23 uA SQ1 period; gains and thresholds are retained from the old 10 uA fixture and require closed-loop revalidation. These are NOT physical SQUID acceptance. Copy and adjust per fixture. Any block/key is optional; omitted values fall back to the built-in DEFAULTS in verify_cosim_pid.py, and --cli flags override this file.",
   "integer": {
-    "sq1fb_uA": 7.0,
-    "flux_quantum_uA": 10.0,
+    "sq1fb_uA": 16.1,
+    "flux_quantum_uA": 23.0,
     "gains": {"p_raw": -0.0006, "i_raw": -2e-5, "d_raw": 0.0, "use_group_gain": true},
     "step_uA": 500.0,
     "thresholds": {
@@ -11,8 +11,8 @@
     }
   },
   "float": {
-    "sq1fb_uA": 7.0,
-    "flux_quantum_uA": 10.0,
+    "sq1fb_uA": 16.1,
+    "flux_quantum_uA": 23.0,
     "gains": {"p_raw": 1e-4, "i_raw": 0.0, "d_raw": 0.0, "use_group_gain": true},
     "step_uA": 500.0,
     "thresholds": {

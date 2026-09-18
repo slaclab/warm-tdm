@@ -37,6 +37,7 @@ acceptance remains with [#68](https://github.com/slaclab/warm-tdm/issues/68),
 
 | Topic | Document | Owning issue / context |
 |---|---|---|
+| Current integer/FP DSP behavior and performance comparison | [PID path comparison](pid-path-comparison/README.md) | September 17 source review and local timing probe; acceptance stays on #70 |
 | PID metrics, diagnosis and comparison proposal | [PID analyzer](pid-debug-analysis/PLAN.md) | [#108](https://github.com/slaclab/warm-tdm/issues/108) |
 | RSSI segment-size proposal | [RSSI tuning](rssi-tuning/PLAN.md) | [#109](https://github.com/slaclab/warm-tdm/issues/109) |
 | Integrated FAS tuning rationale | [FAS tuning design](../design/fas-tuning.md) | [#99](https://github.com/slaclab/warm-tdm/issues/99) |

@@ -527,9 +527,10 @@ class Group(pr.Device):
                 # matching what saTune() does after setting the bias point.
                 warm_tdm_api.saOffset(group=self)
 
-            # Seed the known SQ1 tune point (the fitted SQ1 tune outputs:
-            # Sq1Fb=7.37, Sq1Bias=100, SaFb=64.8 uA) so sim/bench runs can skip a
-            # full sq1Tune. Written per tuning-enabled column into the per-row
+            # Seed the SQ1 tune point at the same phase as the old 10 uA-period
+            # fixture: Sq1Fb=7.37*(23/10)=16.951 uA, Sq1Bias=100, SaFb=64.8 uA.
+            # This rescales the old fitted seed; it is not a new measured tune.
+            # Written per tuning-enabled column into the per-row
             # readout RAMs for exactly the enabled rows (RowReadoutOrder). The
             # refined SaFb here supersedes the SA-tune SaFb, matching the real
             # SA-tune -> sq1-tune ordering.
@@ -542,7 +543,7 @@ class Group(pr.Device):
                         if not colTuneEnable[col]:
                             continue
                         for row in tuneRows:
-                            self.Sq1FbCurrent.set(index=(col, row), value=7.37)
+                            self.Sq1FbCurrent.set(index=(col, row), value=16.951)
                             self.Sq1BiasCurrent.set(index=(col, row), value=100.0)
                             self.SaFbCurrent.set(index=(col, row), value=64.8)
 

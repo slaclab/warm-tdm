@@ -16,7 +16,7 @@ import pytest
 from firmware.submodules.surf.tests.axi.utils import axil_read_u32, axil_write_u32
 from tests.common.regression_utils import run_warm_tdm_vhdl_test
 from tests.warm_tdm.adc_dsp._pid_bitexact import (
-    BitExactDriver, RowVisit, Stimulus, REG_CONTROL, REG_P_COEF, REG_I_COEF,
+    BitExactDriver, RowVisit, Stimulus, REG_CONTROL, REG_P_COEF,
     REG_ROW_ENABLE, REG_FLUX_QUANTUM,
 )
 from tests.warm_tdm.adc_dsp.test_AdcDsp_bitexact_compare import (
@@ -40,7 +40,14 @@ class FeedbackLoop:
         return signed - 0x4000 if signed & 0x2000 else signed
 
     async def write(self, addr, value):
+        if addr == REG_FLUX_QUANTUM:
+            shift = 16 + (value - 1).bit_length() if value else 0
+            reciprocal = (1 << shift) // value if value else 0
+            await axil_write_u32(self.driver.axil, 0x48, reciprocal)
+            await axil_write_u32(self.driver.axil, 0x4c, shift)
         await axil_write_u32(self.driver.axil, addr, value & 0xffffffff)
+        if addr == REG_FLUX_QUANTUM:
+            await self.settle_clear()
 
     async def settle_clear(self):
         for _ in range(300):
@@ -135,7 +142,8 @@ async def feedback_state_lifecycle(dut):
         await loop.mask(row, True)
         assert await loop.visit(row=row) == 201  # old residue held, not cleared
 
-    for trigger in ("clear", "start_run", "enable", "i_change", "reset"):
+    # Changes to I_Coef preserve feedback; the lifecycle bench checks those.
+    for trigger in ("clear", "start_run", "enable", "reset"):
         await loop.clear()
         for row in (0, loop.last_row):
             assert await loop.visit(row=row, seed=200) == 200
@@ -150,11 +158,6 @@ async def feedback_state_lifecycle(dut):
             await loop.write(REG_CONTROL, 0)
             await loop.visit(row=loop.last_row, enabled=False)
             await loop.write(REG_CONTROL, 1)
-        elif trigger == "i_change":
-            # Raw coefficient changes clear, even a one-bit change.
-            await loop.write(REG_I_COEF, 1)
-            await loop.settle_clear()
-            await loop.write(REG_I_COEF, 0)
         else:
             dut.rst.value = 1
             for _ in range(5):
@@ -191,7 +194,7 @@ async def flux_wraps_and_clipping(dut):
             jumps = await axil_read_u32(loop.driver.axil, 0x6000 + 4 * row)
             assert jumps & 0x1ff == sign & 0x1ff
 
-        # Half ties with an odd Q distinguish rounding AFTER the flux shift
+        # Half ties with odd quantum distinguish rounding AFTER the flux shift
         # from independently wrapping an already-rounded integer DAC command.
         await loop.clear()
         for sign, row in ((1, 0), (-1, loop.last_row)):
@@ -210,19 +213,6 @@ async def flux_wraps_and_clipping(dut):
             assert await loop.visit(error, row, seed=rail) == rail
         assert [await loop.visit(-sign, row) for _ in range(3)] == reverse
 
-    # Preserve the existing signed-quantum behavior, including a wrap that
-    # saturates. Its fractional residue must be discarded at that second clamp.
-    for sign, row, reverse in (
-        (1, 0, [8191, 8190, 8190]),
-        (-1, loop.last_row, [-8192, -8192, -8191]),
-    ):
-        await loop.clear()
-        await loop.write(REG_FLUX_QUANTUM, (-2000) & 0x3fff)
-        assert await loop.visit(sign, row, seed=sign * 8100) == (8191 if sign > 0 else -8192)
-        await loop.write(REG_FLUX_QUANTUM, 0)
-        assert [await loop.visit(-sign, row) for _ in range(3)] == reverse
-
-
 @cocotb.test()
 async def feedback_width_boundaries(dut):
     loop = FeedbackLoop(dut)
@@ -234,52 +224,26 @@ async def feedback_width_boundaries(dut):
         await loop.clear()
         await loop.write(REG_FLUX_QUANTUM, 2000)
         assert await loop.visit(sign * 2001, row, seed=sign * 8000) == sign * 6500
-        await loop.write(REG_FLUX_QUANTUM, 0)
         assert [await loop.visit(sign, row) for _ in range(2)] == [sign * 6500, sign * 6501]
 
-    # A flux shift that still exceeds a rail discards its overrange fraction.
-    # Saved feedback is bounded to the DAC range before the one conversion.
-    for row, seed, error, quantum, rail, recovery in (
-        (0, -7863, -1, -329, -8192, [-8192, -8192, -8191, -8191]),
-        (loop.last_row, 7863, 1, -328, 8191, [8191, 8190, 8190, 8190]),
-    ):
-        await loop.clear()
-        await loop.write(REG_FLUX_QUANTUM, quantum & 0x3fff)
-        assert await loop.visit(error, row, seed=seed) == rail
-        await loop.write(REG_FLUX_QUANTUM, 0)
-        assert [await loop.visit(-error, row) for _ in range(4)] == recovery
-
-    # Most-negative signed Q reaches the full pre-clipping wrap extrema:
-    # -8192 + (-8192) = -16384 and 8191 - (-8192) = 16383.
-    # DAC clipping must replace that excursion with the clipped integer state.
-    for row, rail, reverse, recovery in (
-        (0, -8192, 1, [-8192, -8192, -8191]),
-        (loop.last_row, 8191, -1, [8191, 8190, 8190]),
-    ):
-        await loop.clear()
-        await loop.write(REG_FLUX_QUANTUM, 0x2000)  # signed -8192
-        assert await loop.visit(0, row, seed=rail) == rail
-        await loop.write(REG_FLUX_QUANTUM, 0)
-        assert [await loop.visit(reverse, row) for _ in range(3)] == recovery
-
-    # Commands beyond the guard-bit range cannot be recovered by even the
-    # largest positive quantum in a single wrap; final clipping is required.
-    for sign, row, rail in ((1, 0, 8191), (-1, loop.last_row, -8192)):
+    # Full PID candidates above the old guard-bit range recover in multiple
+    # wraps. accumError saturates to signed 18 bits; activeP=1/4.
+    for sign, row in ((1, 0), (-1, loop.last_row)):
         await loop.clear()
         await loop.write(REG_FLUX_QUANTUM, 8191)
-        assert await loop.visit(sign * 1000, row, seed=0, samples=250) == rail
+        assert await loop.visit(sign * 1000, row, seed=0, samples=250) == sign * 4
 
 
 @cocotb.test()
 async def fractional_anti_windup(dut):
     loop = FeedbackLoop(dut)
-    await loop.start(i=1 << 20)  # I=1/8; P=1/4
+    await loop.start(i=1 << 20)  # activeI=1/8; activeP=1/4
     for sign, seed, row, rail in ((1, 8190, 0, 8191), (-1, -8191, loop.last_row, -8192)):
         await loop.write(REG_P_COEF, 1 << 21)
         assert await loop.visit(sign, row, seed=seed) == seed
         assert await loop.visit(0, row) == seed
         assert await loop.visit(sign, row) == rail
-        # At the rail the residue is -sign/4 and I*S_old is +sign/4.
+        # At the rail the residue is -sign/4 and activeI*sumAccum is +sign/4.
         # They cancel exactly: integration is allowed, unlike a check that
         # omits the residue and incorrectly sees an overrange command.
         await loop.write(REG_P_COEF, 0)
