@@ -145,11 +145,15 @@ Process lifecycle:
 
 ### FAS commissioning
 
-The initial repaired `FasTuneProcess` supports stopped, one-level row maps. It
-uses `RowReadoutOrder` and `RowMap` to sweep each physical row-select output
-through `RowDacDriver2.manual_set()`, runs the existing SA feedback servo, and
-programs the median response minimum into the physical `FasOn.Current` entry.
-`FasOff` is not changed. Two-level maps are rejected explicitly.
+`FasTuneProcess` supports stopped one-level and two-level row maps. It uses
+`RowReadoutOrder` and `RowMap` to actuate physical outputs through
+`RowDacDriver2.manual_set()` and measure the nulled SA-feedback response.
+The active map entries automatically select the topology on every run; the
+same `session.fas_tune()` call or GUI Start button handles either configuration
+without a mode flag. One-level maps use the row-select sweep. Two-level maps
+find an RS/CS bootstrap pair with a two-dimensional grid, refine both axes,
+and check final shared currents in all four on/off states before programming.
+`FasOff` is never changed and must already provide isolation.
 
 Run it through the operations API after SA tuning:
 
@@ -161,11 +165,18 @@ session.sa_tune()
 fas_result = session.fas_tune()
 ```
 
-Timing must already be stopped. Sweep bounds, settling delay, and servo values
-must be established on the applicable cryogenic hardware.
+Timing must already be stopped. Sweep bounds, settling delay, servo values,
+and two-level response/isolation thresholds must be established on the
+applicable cryogenic hardware. For an existing 8×10 map, setting
+`session.group.RowReadoutOrder.set([10, 11, 12, 13])` tunes RS 0–3 with shared
+CS 11 without remapping logical rows. Discovery needs no prior on-currents.
+It records grids in `FasDiscoveryOutput`, curves in `FasTuneOutput`, and final
+pair checks in `FasValidationOutput`. Pass `SetAfterFinish=True` to program
+only after all requested rows pass. Physical lines shared with inactive rows
+also affect those rows when programmed; only requested rows are measured.
 
 The [FAS design record](../docs/design/fas-tuning.md) explains the temporary
-`ManualSet` register, cancellation behavior, and one-level scope. Hardware
+`ManualSet` register, discovery algorithm, cancellation behavior, and limits. Hardware
 acceptance remains on [#99](https://github.com/slaclab/warm-tdm/issues/99).
 
 For software-clocked TES bias sine/square generation, configuration migration,

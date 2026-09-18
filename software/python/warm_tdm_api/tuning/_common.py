@@ -1,3 +1,9 @@
+# This file is part of the WarmTDM software package. It is subject to
+# the license terms in LICENSE.txt in the top-level directory and at:
+# https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part may be copied, modified, propagated or distributed except under
+# those license terms.
+
 """Shared tuning primitives used across the SA, FAS, and SQ1 procedures.
 
 These helpers are the cross-cutting pieces of the tuning package:
@@ -137,7 +143,7 @@ def saOffset(*, group, process=None, publish=None):
     return control
 
 
-def saFbServo(*, group, process, publish=None):
+def saFbServo(*, group, process, publish=None, require_convergence=False):
     """Servo SA feedback until every enabled SA-output ADC is nulled.
 
     This servo is used after each FAS or SQ1 stimulus change. Its PID gains and
@@ -154,6 +160,9 @@ def saFbServo(*, group, process, publish=None):
         logging, and Stop/Pause state.
     publish : callable, optional
         Publishes partial parent-sweep results before a pause.
+    require_convergence : bool, optional
+        Raise on timeout instead of returning an unconverged diagnostic sample.
+        Two-level FAS discovery uses this to reject invalid response surfaces.
 
     Returns
     -------
@@ -163,8 +172,9 @@ def saFbServo(*, group, process, publish=None):
 
     Notes
     -----
-    A timeout is logged but does not raise, allowing the caller to retain the
-    sampled diagnostic curve. Disabled columns are neither updated nor written.
+    By default a timeout is logged but does not raise, allowing the caller to
+    retain the sampled diagnostic curve. Disabled columns are neither updated
+    nor written.
     """
 
     # Hold the selected gains constant for this convergence attempt.
@@ -216,6 +226,9 @@ def saFbServo(*, group, process, publish=None):
             count + 1, maxLoops, np.asarray(current).tolist(),
             np.asarray(masked).tolist(), np.asarray(control).tolist())
 
+        if require_convergence and not np.all(np.isfinite(masked[enabled_columns])):
+            raise RuntimeError('Non-finite ADC response in SA feedback servo')
+
         if np.all(np.abs(masked[enabled_columns]) < precision):
             log.debug(
                 'SA FB servo converged after %d loop(s): control=%s',
@@ -239,6 +252,9 @@ def saFbServo(*, group, process, publish=None):
             'masked=%s control=%s',
             maxLoops, np.asarray(masked).tolist(),
             np.asarray(control).tolist())
+
+        if require_convergence:
+            raise RuntimeError(f'SA feedback servo did not converge after {maxLoops} loops')
         return control
 
     log.debug('SA FB servo return: control=%s', np.asarray(control).tolist())
