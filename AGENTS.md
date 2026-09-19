@@ -15,22 +15,21 @@ Boards communicate via a **PGP ring topology** with Ethernet bridge for host acc
 ```
 warm-tdm/
 ├── firmware/
-│   ├── targets/                # 14 FPGA build targets (Row/Column variants)
-│   │   ├── ColumnFpgaBoard/    #   Kintex-7, prom output
-│   │   ├── ColumnAu25p/        #   Artix UltraScale+, bit output, 10G Ethernet
-│   │   ├── RowFpgaBoard/       #   Kintex-7, prom output
-│   │   ├── RowModule/          #   Compact row module
-│   │   ├── ColumnModule/       #   Compact column module
-│   │   ├── Makefile            #   Aggregate build (all targets)
-│   │   └── ...                 #   Numbered/feature variants (0, 325, AwaXe, 10G)
+│   ├── build/ -> (symlink)     # Vivado build outputs (symlink to local scratch)
+│   ├── targets/                # Current Row/Column board configurations
+│   │   ├── ColumnFpgaBoard325Int/ # Kintex-7, integer PID, prom output
+│   │   ├── ColumnFpgaBoard325Fp/  # Kintex-7, floating-point PI, prom output
+│   │   ├── RowFpgaBoard160/    #   Kintex-7, prom output
+│   │   ├── Makefile            #   Aggregate release build
+│   │   └── ...                 #   Part/front-end/coordinator/Ethernet variants
 │   ├── common/warm_tdm/        # Shared RTL library
-│   │   ├── rtl/                #   ~44 VHDL entities (production logic)
+│   │   ├── rtl/                #   Production logic and shared packages
 │   │   ├── sim/                #   Device simulation models
 │   │   ├── xdc/                #   Shared timing constraints
 │   │   ├── ip/                 #   Xilinx IP cores (Int2Fp, FpMac)
 │   │   └── ruckus.tcl          #   Loads common sources into build
 │   ├── python/warm_tdm/        # PyRogue device drivers (~47 files)
-│   ├── simulations/            # Testbenches (GroupTb, RowTb, StackTb)
+│   ├── simulations/            # GroupTb, AdcDspFpTb, WaferModelTb
 │   ├── submodules/             # surf + ruckus (git submodules)
 │   └── releases.yaml           # Release and packaging config
 ├── software/
@@ -69,6 +68,7 @@ A dedicated serialized link distributes synchronization across all boards:
 - `LocalTimingType` record decodes timing into: runTime, rowStrobe, sample, rowSeq, daqReadout signals
 - Coordinator board (RING_ADDR_0) generates timing; other boards receive and decode
 - See `firmware/common/warm_tdm/rtl/TimingPkg.vhd` for all protocol constants
+- For the full protocol specification (control characters, row-boundary sequences, pwrSync behavior), see [`firmware/common/TimingProtocol.md`](firmware/common/TimingProtocol.md)
 
 ### Communication
 
@@ -97,7 +97,7 @@ Platform-specific files use suffixes: `*7s.vhd` (7-Series), `*Usp.vhd` (UltraSca
 
 | Entity | Path (under `firmware/common/warm_tdm/rtl/`) | Role |
 |--------|----------------------------------------------|------|
-| WarmTdmCore2 | `WarmTdmCore2.vhd` | Top integration: timing + comms + AXI crossbar + app |
+| WarmTdmCore | `WarmTdmCore.vhd` | Top integration: timing + comms + AXI crossbar + app |
 | DataPath | `DataPath.vhd` | ADC interface + DSP pipeline instantiation |
 | AdcDsp | `AdcDsp.vhd` | Per-column PID loop, baseline tracking, flux-jump |
 | Timing | `Timing.vhd` | Top timing module (instantiates Tx + Rx) |
@@ -107,7 +107,7 @@ Platform-specific files use suffixes: `*7s.vhd` (7-Series), `*Usp.vhd` (UltraSca
 | PgpEthCore | `PgpEthCore.vhd` | PGP ring + Ethernet bridge |
 | RingRouter | `RingRouter.vhd` | Frame routing/depacketization in PGP ring |
 | EventBuilder | `EventBuilder.vhd` | Packs 8-channel DSP output into data frames |
-| RowDacDriver2 | `RowDacDriver2.vhd` | Row-select DAC sequencing |
+| RowDacDriver | `RowDacDriver.vhd` | Row-select DAC sequencing |
 | FastDacDriver | `FastDacDriver.vhd` | SQ1 feedback fast DAC driver |
 | WarmTdmPkg | `WarmTdmPkg.vhd` | Package constants and AXI stream configs |
 
@@ -180,7 +180,7 @@ source -quiet $::env(RUCKUS_DIR)/vivado_proc.tcl
 loadRuckusTcl $::env(TOP_DIR)/submodules/surf
 loadRuckusTcl $::env(TOP_DIR)/common/warm_tdm
 loadSource -lib warm_tdm -dir "$::DIR_PATH/rtl" -fileType "VHDL 2008"
-loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore2.xdc
+loadConstraints -path $::env(TOP_DIR)/common/warm_tdm/xdc/WarmTdmCore.xdc
 loadConstraints -dir "$::DIR_PATH/xdc"
 # Feature generics set via:
 set_property generic "RING_ADDR_0_G=true ETH_10G_G=true" [current_fileset]
@@ -201,17 +201,54 @@ cd firmware/targets && make ColumnAu25p
 cd firmware/targets/ColumnFpgaBoard && make gui
 ```
 
+### Build Output Location
+
+**IMPORTANT**: `firmware/build/` is a symlink (typically to a local scratch disk). It will NOT appear in `find` searches unless you follow symlinks. Always check this path directly — do not search the filesystem for build outputs.
+
+```bash
+# List available build targets
+ls firmware/build/
+
+# Typical structure for a target
+firmware/build/<TargetName>/
+├── <TargetName>_project.xpr         # Vivado project file
+├── <TargetName>_project.runs/
+│   ├── synth_1/runme.log            # Synthesis log (check for ERRORs here)
+│   ├── impl_1/runme.log             # Implementation log
+│   └── <IpName>_synth_1/runme.log   # Per-IP synthesis logs
+├── <TargetName>_project.cache/
+├── <TargetName>_project.gen/
+└── <TargetName>_project.srcs/
+```
+
+Final images (`.bit`, `.mcs`) go to:
+```
+firmware/targets/<TargetName>/images/
+```
+
+To diagnose a failed build:
+```bash
+# Check synthesis log for errors
+grep "ERROR" firmware/build/<TargetName>/<TargetName>_project.runs/synth_1/runme.log
+
+# Check implementation log
+grep "ERROR" firmware/build/<TargetName>/<TargetName>_project.runs/impl_1/runme.log
+
+# List all available build outputs
+ls firmware/build/
+```
+
 ## Running the Software
 
 ```bash
 # Create conda environment
 conda env create -f conda.yml
 
-# Start hardware server
+# Start hardware server (headless)
 cd software/scripts && python warmTdmServer.py --ip <board-ip>
 
-# Start GUI
-python warmTdmGui.py
+# Start with GUI
+python warmTdmServer.py --gui --ip <board-ip>
 
 # Command-line client
 python warmTdmClientCmd.py
@@ -273,16 +310,49 @@ perform that migration.
 
 | Task Area | Start With These Files |
 |-----------|----------------------|
-| Timing protocol | `TimingPkg.vhd`, `TimingTx.vhd`, `TimingRx.vhd`, `TimingSerializer*.vhd`, `TimingDeserializer*.vhd` |
+| Timing protocol | [`TimingProtocol.md`](firmware/common/TimingProtocol.md), `TimingPkg.vhd`, `TimingTx.vhd`, `TimingRx.vhd`, `TimingSerializer*.vhd`, `TimingDeserializer*.vhd` |
 | DSP / data path | `DataPath.vhd`, `AdcDsp.vhd`, `BiquadFilter.vhd`, `EventBuilder.vhd` |
 | Communication / PGP | `PgpEthCore.vhd`, `RingRouter.vhd`, `PgpRingRouter.vhd`, `EthCore.vhd` |
-| Row board firmware | `RowDacDriver2.vhd`, `RowModuleDacs.vhd`, `RowModuleTimingRx.vhd` |
-| Clock distribution | `ClockDist.vhd`, `ClockDist7s.vhd`, `ClockDistUsp.vhd`, `TimingMmcm.vhd` |
+| Row board firmware | `RowFpgaBoard.vhd`, `RowDacDriver.vhd` |
+| Clock distribution | `ClockDist.vhd`, `TimingRx.vhd`, `TimingTx.vhd` |
 | Adding a new target | Copy existing target dir; modify `Makefile` (PRJ_PART, target) and `ruckus.tcl` (generics, constraints) |
-| PyRogue drivers | `_WarmTdmCore2.py`, `_AdcDsp.py`, `_HardwareGroup.py`, `_TimingTx.py`, `_TimingRx.py` |
+| PyRogue drivers | `_WarmTdmCore.py`, `_AdcDsp.py`, `_HardwareGroup.py`, `_TimingTx.py`, `_TimingRx.py` |
 | Tuning algorithms | `software/python/warm_tdm_api/_SaTune.py`, `_Sq1Tune.py`, `_FasTune.py` |
-| Simulation | `firmware/simulations/StackTb/` (full system), `firmware/common/warm_tdm/sim/` (device models) |
-| Constraints / timing closure | `common/warm_tdm/xdc/WarmTdmCore2.xdc` (shared), target-specific `xdc/` dirs |
+| Simulation | `firmware/simulations/GroupTb/` (current boards), `firmware/simulations/AdcDspFpTb/`, `firmware/simulations/WaferModelTb/`, `firmware/common/warm_tdm/sim/` (device models) |
+| Constraints / timing closure | `common/warm_tdm/xdc/WarmTdmCore.xdc` (shared), target-specific `xdc/` dirs |
+
+## Task Plans
+
+Update an existing workstream note only when unfinished work needs a handoff.
+Do not create a document for each session, review, merge-readiness check, or
+issue audit. Routine completed work needs no plan file. Put implementation
+results on PRs, acceptance evidence and remaining checks on their owning
+issues, and lasting explanations in the nearest guide or design document.
+
+For a new substantial workstream that needs a handoff, use one concise
+`docs/plans/<task-name>/README.md` with its goal, current state, important
+decisions, affected modules, evidence links and next step. Update that note
+instead of appending chronological reports or creating parallel PLAN,
+PROGRESS and REVIEW files. Remove resolved hypotheses from the current
+account; Git history and issue comments preserve their context. Keep logs,
+generated output and build artifacts out of `docs/plans`.
+
+Start with the [plans index](docs/plans/README.md), which maps each workstream
+to its design records and owning issue. The `channelization` branch carries
+multiple efforts; the frame-format, integer/FP PID, resource integration and
+verification work have separate entry points. PID analysis and RSSI tuning are
+separate proposals. Use live issue checklists for unfinished acceptance.
+
+Document implemented interfaces and design decisions in permanent guides even
+while their integration PR is open; identify the branch/compatibility boundary.
+Use `docs/reference/` for intentionally dated analyses or recovered evidence.
+Keep `docs/plans/` for active proposals, unresolved investigations and short
+redirects needed by existing issue/wiki links. Before deleting a handoff,
+preserve material test evidence and remaining obligations on its issue/PR and
+repair incoming links. One-off code reviews, source inspections and cleanup
+recaps need no replacement document; Git history is enough. Untracked notes
+have no Git history: migrate their unique content before deleting them.
+Integration does not make outstanding checks pass.
 
 ## Submodules
 

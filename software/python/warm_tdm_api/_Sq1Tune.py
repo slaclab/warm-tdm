@@ -97,12 +97,12 @@ class Sq1TuneProcess(warm_tdm_api.PausableProcess):
         warm_tdm_api.PausableProcess.__init__(
             self, function=self._sq1TuneWrap, **kwargs)
 
-        # The synthetic SQ1 has a 10 uA feedback period. This default range
-        # covers three full periods with 1 uA spacing, which is enough for the
+        # The nominal SQ1 model has a 23 uA feedback period. This default range
+        # covers three full periods with 2.3 uA spacing, which is enough for the
         # FFT/slope analysis without making co-simulation unnecessarily slow.
         self.add(pr.LocalVariable(
             name='Sq1FbLowOffset',
-            value=-15.0,
+            value=-34.5,
             mode='RW',
             units=u'\u03bcA',
             description="Starting point offset for SQ1 FB Tuning"))
@@ -110,7 +110,7 @@ class Sq1TuneProcess(warm_tdm_api.PausableProcess):
         # High offset for SQ1 FB Tuning
         self.add(pr.LocalVariable(
             name='Sq1FbHighOffset',
-            value=15.0,
+            value=34.5,
             mode='RW',
             units=u'\u03bcA',
             description="Ending point offset for SQ1 FB Tuning"))

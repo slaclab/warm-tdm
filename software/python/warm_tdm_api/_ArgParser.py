@@ -94,60 +94,49 @@ class WarmTdmArgparse(argparse.ArgumentParser):
 
         self.add_argument(
             "--columnBoardType",
-            choices= ['Legacy', 'FPGA', 'AwaXe'],
+            choices= ['FPGA', 'AwaXe'],
             default= 'FPGA',
             help = "Column board hardware type")
 
         self.add_argument(
             "--rowBoardType",
-            choices= ['Legacy', 'FPGA'],
+            choices= ['FPGA'],
             default= 'FPGA',
             help = "Row board hardware type")
 
         self.add_argument(
             "--columnFrontEnd",
-            choices= ['Legacy', 'LegacyCh0Feb', 'FpgaColFeb', 'FpgaColAwaXeFeb', 'FpgaColFebLnTes'],
+            choices= ['FpgaColFeb', 'FpgaColAwaXeFeb', 'FpgaColFebLnTes'],
             default= 'FpgaColFeb',
             help = "Column front-end board type")
 
         self.add_argument(
-            "--rowFrontEnd",
-            choices= ['Legacy', 'FpgaRowFeb'],
-            default= 'FpgaRowFeb',
-            help = "Row front-end board type")
-
-        # NOTE (wtj-cleanup-sw): --floatPid is accepted but currently IGNORED.
-        # The floating-point PID firmware (_AdcDspFp) is on the deferred firmware
-        # track and is not present in this firmware/python tree. The flag is kept
-        # so command lines and the future FP path do not need to change; Group
-        # emits a warning if it is set. Wire it up when the FP firmware lands.
-        self.add_argument(
             "--floatPid",
             action = 'store_true',
             default = False,
-            help = '(IGNORED on this branch) Use floating-point PID (AdcDspFp) '
-                   'instead of fixed-point. Reserved for the FP firmware.')
+            help = 'Use floating-point PID (AdcDspFp) instead of fixed-point')
+
+        self.add_argument(
+            "--rowFrontEnd",
+            choices= ['FpgaRowFeb'],
+            default= 'FpgaRowFeb',
+            help = "Row front-end board type")
 
 
 colBoardDict = {
-    'Legacy': warm_tdm.ColumnModule,
     'FPGA': warm_tdm.ColumnFpgaBoard,
     'AwaXe': warm_tdm.ColumnAwaXeFpgaBoard}
 
 
 colFeDict = {
-    'Legacy': warm_tdm.ColumnBoardC00StandardFrontEnd,
-    'LegacyCh0Feb': warm_tdm.ColumnBoardC00FebBypassCh0,
     'FpgaColFeb': warm_tdm.FpgaBoardColumnFeb,
     'FpgaColAwaXeFeb': warm_tdm.FpgaBoardColumnAwaXeFeb,
     'FpgaColFebLnTes': warm_tdm.FpgaBoardColumnFebLnTes}
 
 rowBoardDict = {
-    'Legacy': warm_tdm.RowModule,
     'FPGA': warm_tdm.RowFpgaBoard}
 
 rowFeDict = {
-    'Legacy': warm_tdm.RowBoardC01StandardFrontEnd,
     'FpgaRowFeb': warm_tdm.FpgaBoardRowFeb}
 
 

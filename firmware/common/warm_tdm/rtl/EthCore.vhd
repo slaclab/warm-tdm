@@ -36,17 +36,18 @@ use warm_tdm.WarmTdmPkg.all;
 
 entity EthCore is
    generic (
-      TPD_G               : time             := 1 ns;
-      RING_ADDR_0_G       : boolean          := false;
-      ETH_10G_G           : boolean          := false;
-      SIMULATION_G        : boolean          := false;
-      SIM_SRP_PORT_NUM_G  : integer          := 9000;
-      SIM_DATA_PORT_NUM_G : integer          := 9000;
-      AXIL_BASE_ADDR_G    : slv(31 downto 0) := X"00000000";
-      AXIL_CLK_FREQ_G     : real             := 125.0E6;
-      DHCP_G              : boolean          := false;        -- true = DHCP, false = static address
-      IP_ADDR_G           : slv(31 downto 0) := x"0A01A8C0";  -- 192.168.1.10 (before DHCP)
-      MAC_ADDR_G          : slv(47 downto 0) := x"00_00_16_56_00_08");
+      TPD_G                  : time             := 1 ns;
+      RING_ADDR_0_G          : boolean          := false;
+      ETH_10G_G              : boolean          := false;
+      SIMULATION_G           : boolean          := false;
+      SIM_SRP_PORT_NUM_G     : integer          := 9000;
+      SIM_DATA_PORT_NUM_G    : integer          := 9000;
+      AXIL_BASE_ADDR_G       : slv(31 downto 0) := X"00000000";
+      AXIL_CLK_FREQ_G        : real             := 125.0E6;
+      RSSI_WINDOW_ADDR_SIZE_G : positive         := 3;
+      DHCP_G                 : boolean          := false;        -- true = DHCP, false = static address
+      IP_ADDR_G              : slv(31 downto 0) := x"0A01A8C0";  -- 192.168.1.10 (before DHCP)
+      MAC_ADDR_G             : slv(47 downto 0) := x"00_00_16_56_00_08");
    port (
       extRst                : in  sl                    := '0';
       -- GT ports and clock
@@ -508,6 +509,7 @@ begin
             ILEAVE_ON_NOTVALID_G  => true,
             MAX_SEG_SIZE_G        => 1024,
             SEGMENT_ADDR_SIZE_G   => 7,
+            SYNTH_MODE_G          => "xpm",
             APP_STREAMS_G         => RSSI_SIZE_C,
             APP_STREAM_ROUTES_G   => RSSI_ROUTES_C,
             APP_STREAM_PRIORITY_G => RSSI_PRIORITY_C,
@@ -517,7 +519,7 @@ begin
             SERVER_G              => true,
             RETRANSMIT_ENABLE_G   => true,
             BYPASS_CHUNKER_G      => false,
-            WINDOW_ADDR_SIZE_G    => 3,
+            WINDOW_ADDR_SIZE_G    => RSSI_WINDOW_ADDR_SIZE_G,
             PIPE_STAGES_G         => 0,
             TSP_AXIS_CONFIG_G     => EMAC_AXIS_CONFIG_C,
             INIT_SEQ_N_G          => 16#80#)
@@ -552,6 +554,7 @@ begin
             ILEAVE_ON_NOTVALID_G  => true,
             MAX_SEG_SIZE_G        => 1024,
             SEGMENT_ADDR_SIZE_G   => 7,
+            SYNTH_MODE_G          => "xpm",
             APP_STREAMS_G         => RSSI_SIZE_C,
             APP_STREAM_ROUTES_G   => RSSI_ROUTES_C,
             APP_STREAM_PRIORITY_G => RSSI_PRIORITY_C,
@@ -561,7 +564,7 @@ begin
             SERVER_G              => true,
             RETRANSMIT_ENABLE_G   => true,
             BYPASS_CHUNKER_G      => false,
-            WINDOW_ADDR_SIZE_G    => 3,
+            WINDOW_ADDR_SIZE_G    => RSSI_WINDOW_ADDR_SIZE_G,
             PIPE_STAGES_G         => 0,
             TSP_AXIS_CONFIG_G     => EMAC_AXIS_CONFIG_C,
             INIT_SEQ_N_G          => 16#80#)
@@ -855,7 +858,7 @@ begin
          SLAVE_READY_EN_G    => true,
          VALID_THOLD_G       => 1,
          VALID_BURST_MODE_G  => false,
-         SYNTH_MODE_G        => "inferred",
+         SYNTH_MODE_G        => "xpm",
          MEMORY_TYPE_G       => "bram",
          GEN_SYNC_FIFO_G     => false,
          FIFO_ADDR_WIDTH_G   => 8,
@@ -1002,8 +1005,8 @@ begin
             SLAVE_READY_EN_G    => true,
             VALID_THOLD_G       => 1,
             VALID_BURST_MODE_G  => false,
-            SYNTH_MODE_G        => "inferred",
-            MEMORY_TYPE_G       => "distributed",
+            SYNTH_MODE_G        => "xpm",
+            MEMORY_TYPE_G       => "bram",
             GEN_SYNC_FIFO_G     => false,
             FIFO_ADDR_WIDTH_G   => 5,
             FIFO_FIXED_THRESH_G => true,
@@ -1028,8 +1031,8 @@ begin
             SLAVE_READY_EN_G    => true,
             VALID_THOLD_G       => 1,
             VALID_BURST_MODE_G  => false,
-            SYNTH_MODE_G        => "inferred",
-            MEMORY_TYPE_G       => "distributed",
+            SYNTH_MODE_G        => "xpm",
+            MEMORY_TYPE_G       => "bram",
             GEN_SYNC_FIFO_G     => false,
             FIFO_ADDR_WIDTH_G   => 5,
             FIFO_FIXED_THRESH_G => true,

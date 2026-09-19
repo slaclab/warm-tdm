@@ -32,16 +32,22 @@ TDEST (`U_AxiStreamMux_2`, `MODE_G => "ROUTED"`):
 
 | tDest[3:0] | Stream | Producer | Role |
 |---|---|---|---|
-| `0`–`7` | PID-debug | `AdcDsp` per board-channel (gated by `PidDebugEnable`) | debug (loop bring-up) |
+| `0` | *(reserved)* | — | unused; reserved for a future readout move |
+| `1` | PID-debug | `AdcDsp` all board-channels, collapsed (gated by `PidDebugEnable`) | debug (loop bring-up) |
 | `8` | Waveform | `WaveformCapture` | debug (raw ADC) |
 | `9` | Readout | `EventBuilder` | **operational data** |
 
-The board then packetizes the combined stream (`AxiStreamPacketizer2`).
+The 8 per-column PID-debug streams are **collapsed onto the single tDest `1`** by
+`U_AxiStreamMux_1` (`MODE_G => "ROUTED"`, all 8 slaves → `"00000001"`): the source
+column is carried in the frame body (`tData(3:0) = COLUMN_NUM_G`) and the header
+carries `boardId`, so per-column tDest is redundant. This frees stream slots
+`2`–`7` (and `0`). The board then packetizes the combined stream
+(`AxiStreamPacketizer2`).
 
 > Note (historical): the readout — the operational product — sits at `9`, *above*
-> the eight debug channels `0`–`8`. This is a relic of development order (the
-> debug streams were built first). It is a wire/format contract now and is likely
-> too costly to renumber; treat `9 = readout` as fixed and document around it.
+> the debug/waveform channels. This is a relic of development order (the debug
+> streams were built first). It is a wire/format contract now and is likely too
+> costly to renumber; treat `9 = readout` as fixed and document around it.
 
 ### Readout frame body (`EventBuilder.vhd`)
 
@@ -95,86 +101,104 @@ The host separates the single RSSI stream back out in two layers:
    application demux) yields one `dataStream` per board, keyed on the TDEST high
    bits. Board identity is preserved here.
 2. **By stream type** — each board's stream is depacketized and
-   `packetizer.application(i)` demuxes the low nibble into apps `0`–`9`.
+   `packetizer.application(i)` demuxes the low nibble into apps `1`, `8`, `9`.
 
 The apps are then wired to their sinks:
 
+The apps are wired to their sinks via the board-namespaced `warm_tdm.DataWriter`
+accessors (`pidDebugChannel`/`waveformChannel`/`readoutChannel`), so with N column
+boards each board's streams land on distinct file channels (`board*16 + stream`):
+
 | App | Sink | In the `.dat` file? |
 |---|---|---|
-| `0`–`7` (PID-debug) | `dataWriter.getChannel(i)` + live `PidDebugger` decoders | yes |
-| `8` (waveform) | `WaveformCaptureReceiver` → separate `.npy` | **no** (bypasses the file) |
-| `9` (readout) | `dataWriter.getChannel(9)` | yes |
+| `1` (PID-debug, all columns) | teed: `dataWriter.pidDebugChannel(board)` **and** `PidDebugDispatch` → per-column live `PidDebugger` decoders (col from body) | yes |
+| `8` (waveform) | teed: `dataWriter.waveformChannel(board)` **and** live `WaveformCaptureReceiver` | **yes** (folded in; GUI + optional `.npy` save unchanged) |
+| `9` (readout) | `dataWriter.readoutChannel(board)` | yes |
+
+The collapsed PID-debug stream carries all 8 columns; the host `PidDebugDispatch`
+reads the body column and fans out to the per-column live receivers (the wire
+demux that per-column tDests used to provide moved into software).
 
 The tree config/status YAML is written to reserved file **channel 255** on
 `DataWriter` open/close (see `_GroupRoot.py`).
 
-### File-channel layout (as written today)
+### File-channel layout (board-namespaced)
 
-The `DataWriter` is a `StreamWriter` at `GroupRoot` scope. The file frame header
-carries a 1-byte `channel` field (256 slots). Current mapping:
+The `DataWriter` (`warm_tdm.DataWriter`, a `StreamWriter` subclass) is at
+`GroupRoot` scope. The file frame header carries a 1-byte `channel` field
+(256 slots), encoded `board*16 + stream_type` (see `warm_tdm._Channels`). Per
+board:
 
 | File channel | Contents |
 |---|---|
-| `0`–`7` | PID-debug (per board-channel) |
-| `9` | Readout |
-| `255` | Tree config/status YAML |
+| `board*16 + 0` | *(reserved; unused)* |
+| `board*16 + 1` | PID-debug (all columns; source column in body) |
+| `board*16 + 8` | Waveform capture |
+| `board*16 + 9` | Readout |
+| `255` | Tree config/status YAML (file-scope, not board-namespaced) |
 
-Waveform is not in the file (it takes the `.npy` path).
+Board 0 is the single-board layout (`1` PID, `8` waveform, `9` readout).
+Waveform is folded into the file (stream 8) in addition to the live
+`WaveformCaptureReceiver` GUI path and its optional per-capture `.npy` save,
+which are unchanged.
+
+> **Migration (PID-debug collapse).** The 8 per-column PID-debug streams were
+> collapsed onto a single stream (`board*16 + 1`); previously they occupied
+> `board*16 + 0..7`. Pre-collapse single-board `.dat` files therefore carry
+> PID-debug on file channels `0`–`7`; post-collapse files carry it on channel `1`.
+> Frame *bodies* are unchanged (same 16-byte header + body), so the decoders are
+> identical — only the channel numbering moved.
 
 ## Multi-board / multi-Group migration
 
-**Known gap (single-board assumption in the file layer).** Board identity is
-carried correctly all the way to the host (TDEST `[6:4]`, then the per-board
-`application(dest=index)` demux) — but it is **dropped at file-write time**. In
-`_HardwareGroup.py` the `for index in range(colBoards)` loop wires every board's
-apps to the *same* file channels:
+**Board namespacing (DONE, host-only).** Board identity is carried on the wire
+(TDEST `[6:4]`, then the per-board `application(dest=index)` demux); it used to be
+**dropped at file-write time** — every board's apps wired to the *same* file
+channels (`getChannel(i)`/`getChannel(9)` with no `index`), so two boards collided
+on channel `9` (readout) and `0`–`7` (PID-debug). This was a host-side bug, not a
+firmware one. It is now fixed: `_HardwareGroup.py` writes through the
+`warm_tdm.DataWriter` accessors, which namespace channels by board
+(`board*16 + stream_type`, mirroring the wire TDEST), and `StreamReader` recovers
+the board from the channel and folds it into a global column. Waveform is teed
+into the file too. No RTL change was needed.
 
-```python
-packetizer.application(i) >> ... >> dataWriter.getChannel(i)   # no `index`
-packetizer.application(9) >> ... >> dataWriter.getChannel(9)   # no `index`
-```
+**Remaining migration direction:**
 
-So with two column boards, both boards' readout lands on file channel `9` and
-their PID-debug on `0`–`7`, interleaved with no board tag in the file. This is a
-host-side bug, not a firmware one — the wire already distinguishes the boards.
-
-**Migration direction (tracked in [Issue #82](https://github.com/slaclab/warm-tdm/issues/82)):**
-
-- **Namespace file channels by board** (host-only fix): e.g.
-  `channel = board*16 + stream_type`, mirroring the wire TDEST. The uint8 channel
-  field holds 16 boards × 16 streams. No RTL change needed.
 - **Namespace by Group** for a single Instrument-wide file: add group bits to the
-  channel encoding. This is coupled to the federated-vs-non-federated decision —
+  channel encoding. Coupled to the federated-vs-non-federated decision (#80) —
   a single Root/DataWriter needs group bits in the channel; a writer-per-Group
-  (federated) does not, and the Instrument correlates files client-side.
-- **Fold waveform into the file** (host-only): route app `8` to a
-  `getChannel(...)` like readout/PID instead of the `.npy` side path, so one file
-  holds all streams with config embedded.
-- **Widen the readout column field**: the 3-bit per-sample column in the
+  (federated) does not, and the Instrument correlates files client-side. *Not yet
+  done — gated on #80.*
+- **Widen the readout column field** (RTL): the 3-bit per-sample column in the
   EventBuilder body (`tData[47:40]`, low 3 bits) only distinguishes 8 columns of
   one board. A global column index (board·8 + channel) would make the readout
-  frame self-describing across boards — a coordinated RTL change (see below).
+  frame self-describing across boards — a coordinated RTL change, part of the
+  self-describing-frames work below.
 
-**Keep the channel scheme in one place.** The channel numbers are a contract
-shared by the write side (`_HardwareGroup.py`) and the read side
-(`operations/streamreader.py`, which decodes channels `9`, `0`–`7`, `255`).
-Define the encoding once so board/group migration is a single-point edit rather
-than a hunt across both sides.
+**Keep the channel scheme in one place (DONE).** The channel encoding is a
+contract shared by the write side (`_HardwareGroup.py`) and the read side
+(`operations/streamreader.py`, which decodes readout `9`, PID-debug `1`, waveform
+`8`, and config `255`). It is now defined once in `warm_tdm._Channels`
+(`file_channel`/`board_of`/`stream_of` + `is_readout`/`is_pid_debug`/`is_waveform`)
+and consumed by both sides, so board/group migration is a single-point edit.
 
-## Open design item: collapse per-column PID-debug onto one tDest (2026-08-12)
+## Collapse per-column PID-debug onto one tDest (2026-08-12; DONE 2026-08-20)
 
-> Status: **agreed worthwhile, not scheduled.** Firmware-track; a natural
-> corollary of self-describing frames (below).
+> Status: **DONE** (channelization branch, Phase 3). The 8 per-column PID-debug
+> streams are collapsed onto board-local stream `1`; the host `PidDebugDispatch`
+> fans out to the per-column live receivers by body `col`. Freed board-local
+> stream slots `2`–`7` (and reserved `0`).
 
-Today `DataPath.vhd` spreads the 8 per-column PID-debug streams across tDest
-`0`–`7`: `U_AxiStreamMux_1` (`NUM_SLAVES_G => 8`, `MODE_G => "INDEXED"`) stamps
-`tDest = input index`, then `U_AxiStreamMux_2` routes the whole `00000---` block.
+Formerly `DataPath.vhd` spread the 8 per-column PID-debug streams across tDest
+`0`–`7`: `U_AxiStreamMux_1` (`NUM_SLAVES_G => 8`, `MODE_G => "INDEXED"`) stamped
+`tDest = input index`, then `U_AxiStreamMux_2` routed the whole `00000---` block.
 But the PID frame **body already carries `col`** (`_PidDebugger`:
 `col = arr[0] & 0b111`), so the per-column tDest is **redundant with the body**.
 
-**Proposal:** merge the 8 PID streams onto a *single* board-local tDest (frames
-are atomic 80-byte records; a receiver dispatches by the body's `col`). This is
-what the file-based `PidDebugParser` already does.
+**Implemented:** `U_AxiStreamMux_1` is now `MODE_G => "ROUTED"` with all 8 slaves
+→ `"00000001"`, and `U_AxiStreamMux_2` slot 0 routes the single `"00000001"`. The
+8 PID streams merge onto board-local tDest `1` (frames are atomic records; a
+receiver dispatches by the body's `col`) — what the file-based reader already does.
 
 **Why it's worth doing:**
 - **Reclaims 7 of the 16 board-local stream slots.** The low nibble is nearly
@@ -194,20 +218,21 @@ from the body and dispatches to `PID[col]` — a modest host rewrite. INDEXED mu
 was also the path of least resistance in RTL (same development-order relic family
 as readout-at-9).
 
-**Coupling:** this is nearly the same move as "make the body authoritative"
-below. If the **shared frame-identity header (option A)** is chosen, a single PID
-tDest per board is the obvious layout and per-column tDest becomes clearly
-vestigial — so decide this together with the A/B question, and land it in the
-same firmware-track pass. PID-debug is debug-only (not in a delivered
-instrument), so it does not justify a standalone effort.
+**Coupling:** this was nearly the same move as "make the body authoritative"
+below. With the shared frame-identity header (option A) in place, a single PID
+tDest per board is the obvious layout and per-column tDest is clearly vestigial,
+so it landed in the same firmware-track pass as the self-describing frames.
 
-## Self-describing frames (design discussion — 2026-08-12)
+## Self-describing frames (design — resolved 2026-08-17)
 
-> Status: **agreed in principle, not yet designed or built.** This section
-> records the discussion so it does not have to be rehashed. It is a
-> **firmware-track** change (RTL frame builders + `_DataFormats` decoders + host
-> readers land together, since the byte layout is the contract), sequenced with
-> the multi-Group Instrument decision (see [Issue #80](https://github.com/slaclab/warm-tdm/issues/80)).
+> Status: **design resolved; not yet built.** The frame-identity approach is
+> decided — a shared 16-byte header with an absolute-epoch timestamp (see the
+> DECISION and Timebase sections below); this section keeps the motivating
+> discussion so it is not rehashed. It is a **firmware-track** change (RTL frame
+> builders + `_DataFormats` decoders + host readers land together, since the byte
+> layout is the contract), sequenced with the multi-Group Instrument decision
+> (Issue #80 — the `groupId` field's meaning is gated on the federated-vs-not
+> choice). See `docs/plans/channelization/PLAN.md` for the work plan.
 
 ### Motivation
 
@@ -222,60 +247,196 @@ so it must not be the only thing that says what a frame is. Guiding principle:
 
 ### What each format carries today vs. needs
 
-| Format | Carries today | Missing |
+| Format | Carries today | Missing (supplied by the shared header) |
 |---|---|---|
-| Readout (`EventBuilder`) | header `readoutCount`/`rowSeqCount`/`runTime`; per-sample `col` (3-bit, board-local), `row`, value | board id, Group id, global column (3-bit col cannot name column 8+) |
-| PID-debug (`_PidDebugger`) | `col`/`row` per frame (board-local) | board id, Group id |
-| Waveform | least (raw ADC; today decoded structurally, not even in the file) | col / board / Group id |
+| Readout (`EventBuilder`) | header `readoutCount`/`rowSeqCount`/`runTime`; per-sample `col` (3-bit, board-local), `row`, value | formatType/version, board id, Group id, global column (3-bit col cannot name column 8+), absolute-epoch timestamp |
+| PID-debug (`_PidDebugger`, fixed + float) | `col`/`row` per frame (board-local); split `runTime` words | formatType/version, board id, Group id, absolute-epoch timestamp |
+| Waveform | least (raw ADC; today decoded structurally, not even in the file) | formatType/version, col / board / Group id, absolute-epoch timestamp |
 
-Concretely, the readout frame would gain a per-frame **identity block** in its
-header (once per frame, not per sample — negligible overhead): `groupId`,
-`boardId`, and a `colBase` (= boardId·8) so the reader computes
-`global_col = colBase + local_col`. PID-debug can likely absorb `groupId`/
-`boardId` into its existing dummy padding words (`dummy1`, `dummy3_1`, …) with
-**no frame-size change** — desirable for a debug stream. Waveform gets the same
-identity block when it is folded into the file (host-only restructure).
+**This is now supplied uniformly by the 16-byte shared frame-identity header —
+see "DECISION" below.** Rather than per-format ad-hoc fields, every frame gains
+the same fixed prefix (`formatType`, `formatVersion`, `groupId`, `boardId`,
+reserved, 64-bit absolute-ns `timestamp`), with the format-specific body after it. The
+readout reader derives `global_col = boardId·8 + local_col`; the header's
+`timestamp` supersedes readout's `runTime` and PID-debug's split `runTime` words
+(which become free padding); waveform gets the same header when it is folded into
+the file. See the DECISION and Timebase sections for the exact layout and the
+absolute-epoch semantics.
 
-### OPEN QUESTION — one common frame-identity header vs. per-format fields
+### DECISION — one shared frame-identity header (resolved 2026-08-17)
 
-Two ways to add the metadata:
+**Chosen: (A) a single shared frame-identity header on all stream frames.** The
+rejected alternative was (B) per-format identity fields fitted into each layout
+independently. (A) wins because the whole point of #82 is that a reprocessed
+file must decode from the body alone: a fixed-location `formatType` +
+`formatVersion` gives every reader ONE "read the prefix → dispatch to the body
+decoder" entry point and a uniform identity-vs-channel cross-check. (B) leaves
+dispatch ad hoc (each new stream re-solves identity) and would perpetuate
+heuristics like distinguishing the two PID-debug layouts by frame size (80 vs 40
+bytes) — exactly the fragility this design removes. (A)'s cost — re-laying-out
+all three formats at once — is the firmware-track work we are scheduling anyway.
 
-- **(A) One shared "frame identity header"** — a small fixed prefix
-  (`formatType`, `formatVersion`, `groupId`, `boardId`) on *all* stream frames,
-  with the format-specific body after it. A single `_DataFormats` entry point
-  reads the identity, dispatches to the right body decoder, and the host reader
-  cross-checks identity-vs-file-channel uniformly. Adding a fourth stream later
-  is trivial. Most disciplined; pays off most under reprocessing (a derived-file
-  tool routes by self-declared type+identity, ignorant of the original channel
-  map). Cost: touches all three frame layouts at once and imposes a common prefix
-  on formats that today differ.
-- **(B) Per-format fields** — add `groupId`/`boardId`/`version` to each format
-  independently, fitting each one's existing layout (e.g. PID-debug reuses dummy
-  words; readout extends its header). Lower blast radius per format, no forced
-  common prefix, but no uniform dispatch and each new stream re-solves it.
+#### The 16-byte header (two 64-bit words)
 
-**Not decided.** (A) is the cleaner long-term shape; (B) is the lower-risk
-incremental one. Revisit when the firmware-track work is scheduled.
+Every readout, PID-debug, and waveform frame begins with this fixed prefix; the
+format-specific body follows. 16 bytes preserves 64-bit word alignment (clean
+numpy structured-array views). Current frame sizes are 96 bytes for PID-fixed
+v3 (88 for post-accumulator-split v1) and 56 for PID-float v1; readout absorbs
+the prefix into its existing header words.
 
-### Versioning (non-negotiable whichever option)
+| Word | Byte | Field | Notes |
+|---|---|---|---|
+| 0 | 0 | `formatType` | readout / pid-fixed / pid-float / waveform (enum; extensible) |
+| 0 | 1 | `formatVersion` | starts at 1; **bump on any layout change** (see below) |
+| 0 | 2 | `groupId` | reserved, 0 until the multi-Group model is fixed (#80) |
+| 0 | 3 | `boardId` | source column board; cross-checks `file_channel >> 4` |
+| 0 | 4–7 | reserved | zero-filled; future flags / `colBase` |
+| 1 | 8–15 | `timestamp` | **64-bit absolute nanoseconds** (see timebase below) |
 
-The moment frames are self-describing, include a **`formatVersion`** byte — even
-if it is always `1` initially. Reprocessed files outlive the firmware that wrote
-them, so a decoder must be able to tell which layout it is reading. Adding the
-version now is far cheaper than retrofitting it after the first format change.
+A single `_DataFormats` entry point reads word 0, validates `formatVersion`,
+cross-checks `boardId` against the file channel, and dispatches to the body
+decoder named by `formatType`. `groupId`/`boardId`/global-column all live here
+once, not per sample.
+
+Note there is deliberately **no per-frame "time source" field** — the timing
+source and epoch are constant for a run, so they live in the per-run metadata
+(config channel), not in every frame. See the Timebase section for why.
+
+#### Integer PID-debug v3 (fractional feedback and full flux count)
+
+Only PID-fixed (`formatType=0x01`) uses `formatVersion=3`. Its body is
+80 bytes / ten 64-bit words; the total frame is 96 bytes. The body order is:
+
+| Body word | Contents |
+| --- | --- |
+| 0 | Column and logical row |
+| 1 | Accumulated error |
+| 2 | Starting SQ1 feedback DAC code |
+| 3 | Previous integrated error |
+| 4 | Error difference |
+| 5 | PID correction |
+| 6 | `sq1FbFull`: signed Q15.23, sign-extended to 64 bits |
+| 7 | Signed nine-bit net flux count, sign-extended to int32; upper 32 bits zero |
+| 8 | Ending SQ1 feedback DAC code and drop count |
+| 9 | Sample count and readout count |
+
+The added word is at frame byte 64. It reports the post-wrap/clamp feedback,
+before DAC rounding, in signed controller DAC-code units. On enabled visits it
+matches the state written to the per-row RAM; masked visits report the computed
+value without committing it. The validity flag is available separately in the
+RAM window (`AdcDsp + 0x7000 + 8*row`, bit 38), not in the stream word.
+
+The production decoder converts `sq1FbFull` to a Python float, preserving all 23
+fractional bits. It also accepts the post-accumulator-split v1 format (72-byte
+body, 88-byte frame), which omits word 6; that older format has no full-feedback
+field. Version 2 is also readable: it adds the full-feedback word but still
+transmits only eight count bits. Version 3 preserves all nine count bits.
+Readout, floating PID-debug, and waveform layouts remain at version 1.
+
+#### Versioning (non-negotiable)
+
+`formatVersion` is mandatory from day one (starts at `1`). Reprocessed files
+outlive the firmware that wrote them, so a decoder must be able to tell which
+layout it is reading; `formatType`+`formatVersion` together are the authoritative
+discriminator, and frame size becomes a cross-check rather than the selector.
+
+### Timebase — one semantics: absolute nanoseconds
+
+**The `timestamp` is always 64-bit absolute nanoseconds** — ns since an epoch,
+marking the absolute time of the frame's triggering event (readout-sequence start
+for readout, servo visit for PID-debug, capture start for waveform). There is one
+semantics, not a menu of formats:
+
+- **Nanoseconds, always.** At WarmTDM's 125 MHz timing clock, one tick is exactly
+  8 ns, so ns is exact (no accumulator, no rounding), and the field is portable —
+  a reprocessing tool never needs to know the clock rate. It converts trivially
+  to/from LCLS-II's 64-bit-ns `ClockTime` and to/from PTP's seconds:nanoseconds.
+  64-bit ns is ~585 years of range. (This *supersedes* today's `runTime`, which is
+  run-relative ticks; `timestamp = runTime * 8` in the degenerate case, so the
+  readout body's separate `runTime` word is dropped once the header lands.)
+- **Absolute time of the triggering event**, not a within-run position. The
+  intra-run structural counters (`rowSeqCount`, `daqReadoutCount`, per-sample row)
+  stay in the format-specific body where they already live — they answer "where in
+  the run," which is a different question from "what absolute time."
+
+**No per-frame time-source field — by design.** The timing source and epoch are
+**constant for a run**, so they are recorded once in the **per-run metadata**
+(the config channel), not stamped on every frame. A per-frame source enum would
+be redundant (all frames in a run share it) and a source of confusion (readers
+reasoning about frames that "disagree" — they can't). The header timestamp is
+therefore just a number; what that number is *relative to* is a run-level fact.
+
+**One epoch model: "instrument nanoseconds," with standalone as the degenerate
+case.** Rather than distinct `group`/`instrument` modes, there is a single idea —
+absolute ns on the instrument's epoch — and a standalone/self-timed bench is
+simply the *degenerate instrument* (one Group is the whole instrument), whose
+epoch is self-rooted (host-seeded at run start). In a multi-Group instrument every
+Group is disciplined to the shared clock, so all timestamps sit on one epoch and
+are directly comparable. Either way:
+
+> **Binding invariant:** a Group's coordinator must always be able to produce a
+> valid, monotonic absolute-ns `timestamp` on its own (self-rooted epoch), with no
+> external dependency — this is the bench/standalone case and never goes away. An
+> instrument-level distributed clock, when present, *is* the epoch source for all
+> Groups; its absence just means each Group self-roots and cross-Group absolute
+> alignment is only as good as the per-run seeding. The frame format is identical
+> in both cases — only the per-run metadata records which applied.
+
+The candidate ways to distribute that instrument epoch (PTP/White-Rabbit vs. an
+LCLS-II-style timing link with experiment-local fan-out), the likely WarmTDM path
+(125 MHz / 2.5 Gbps link), the inter-Group clock-drift subtlety, and the master
+hardware are explored in
+[`docs/design/timing-distribution.md`](../../docs/design/timing-distribution.md).
+That effort may refine what is written *into* the 64-bit ns field at the source
+(e.g. how the epoch is disciplined), but the field's meaning here — absolute ns —
+does not change.
 
 ### Sequencing (incremental, no flag-day)
 
-1. **Now (host-only, no RTL):** centralize the channel map + board-namespace the
-   file channels (`getChannel(board*16 + stream)`), and add the reader-side
-   `boardId`-vs-channel cross-check hook. Board identity lives in the *channel*
-   immediately.
-2. **With Task 8:** decide the multi-Group file model, which fixes what `groupId`
-   means (single Root/DataWriter needs it in-band; federated writer-per-Group may
-   not).
-3. **Firmware track:** implement option (A) or (B) — the identity block across all
-   three formats + decoders + readers, as one coordinated change. After this the
-   body is authoritative and the channel is merely a checkable hint.
+1. **Done (host-only, no RTL):** centralized channel map + board-namespaced file
+   channels (`file_channel(board*16 + stream)`), unified readers, board identity
+   carried in the *channel* immediately. (Phase 1, this branch.)
+2. **Gated on #80:** the multi-Group file model fixes what `groupId` means
+   (single Root/DataWriter needs it in-band; federated writer-per-Group may not).
+   The header reserves the field regardless.
+3. **Firmware track (Phase 3):** implement the 16-byte shared header across all
+   three formats + `_DataFormats` decoders + host readers as one coordinated
+   change, with the absolute-ns `timestamp` populated by the Group-self-rooted
+   epoch initially. After this the body is authoritative and the file channel is a
+   checkable hint. The instrument-distributed absolute-time source lands later as
+   its own timing effort, feeding the same 64-bit ns slot — no frame re-layout;
+   which epoch applied is recorded per-run, not per frame.
+
+## Verification of the frame formats
+
+How the self-describing frame formats are checked, and where each check lives —
+recorded because the natural instinct (a standalone per-module RTL bench) does not
+fit this design.
+
+- **Modules are deeply interdependent.** A frame builder emits nothing useful
+  without a timing bus, upstream data (accumulator/ADC), and its async output
+  FIFO. A "standalone" bench for one builder ends up re-integrating most of the
+  system with less realism — and fights the output FIFO's cross-domain /
+  burst-mode handshake. So frame-*byte* correctness is **not** verified with
+  isolated per-module benches.
+- **Integrated rogue↔firmware cosim already exists** and is the right home for
+  frame verification: `firmware/simulations/GroupTb` instantiates
+  the real boards (`ColumnFpgaBoardSim → ColumnFpgaBoardModel → ColumnFpgaBoard`)
+  plus device models, and exposes SRP/Eth/PGP over TCP so real PyRogue
+  (`_HardwareGroup` with `simulation=True`) drives the simulated firmware. Data
+  returns through the actual `DataPath → EventBuilder → PGP` to the host
+  `StreamReader`. Follow the [GroupTb simulator setup](../simulations/GroupTb/README_cosim.md)
+  for the supported full-system flow. The
+  end-to-end header check (host register-write → real datapath emits framed data →
+  `StreamReader` decodes the 16-byte header + global column) belongs here.
+- **Host-side decoder unit tests (no simulator)** cover the decode contract
+  cheaply: synthetic framed bytes → `_DataFormats`/`operations.StreamReader`
+  round-trip, asserting header fields, formatType dispatch, and global-column
+  derivation. These run anywhere Python + numpy are available.
+- **cocotb + GHDL module benches** (`tests/warm_tdm/…`, Issue #90) stay scoped to
+  **register-visible module logic** (e.g. the `AdcDsp` PID-math checks), which is
+  self-contained and does not depend on frame emission or the output FIFO. They
+  are not used for frame-byte capture.
 
 ## Reference
 

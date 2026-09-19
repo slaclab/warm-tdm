@@ -166,7 +166,7 @@ def run(args, check):
         sess = ops.Session(client.root.Group, output=SimpleNamespace(sessiondir=str(directory)))
         report['boards'] = {}
         for name, board in sess.boards().items():
-            av = board.WarmTdmCore.WarmTdmCommon2.AxiVersion
+            av = board.WarmTdmCore.WarmTdmCommon.AxiVersion
             report['boards'][name] = dict(build_stamp=av.BuildStamp.get(), git_hash=av.GitHash.get())
         stopped_session(sess)
         check(sess, args, report, directory)

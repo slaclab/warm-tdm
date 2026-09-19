@@ -12,7 +12,7 @@ from _cosim_common import parser, passed, require, restore, run
 
 def check_controls(sess, args, report, directory):
     boards = list(sess.boards().values())
-    leds = [b.WarmTdmCore.WarmTdmCommon2.WarmTdmConfig.LedEn for b in boards]
+    leds = [b.WarmTdmCore.WarmTdmCommon.WarmTdmConfig.LedEn for b in boards]
     timing = [b.WarmTdmCore.Timing.TimingTx for b in boards]
     ps = [getattr(tx, name) for tx in timing
           for name in ['PwrSyncA', 'PwrSyncB', 'PwrSyncC', 'PwrSyncEn']]

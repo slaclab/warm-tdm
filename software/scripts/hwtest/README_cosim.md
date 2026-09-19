@@ -147,6 +147,41 @@ attempts process stops, deactivates selected rows and zeros column outputs;
 profile parameters and row/column selection are restored. It does not restore a
 previous analog tune point, so use a dedicated simulation session.
 
+## Closed-loop PID and flux-jump exercise
+
+`verify_cosim_pid.py` locks the muxed SQ1-FB servo with real gains and measures
+per-row behavior from the PID-debug stream, for both the integer (`AdcDsp`) and
+floating-point (`AdcDspFp`) datapaths. Behaviors: `steady` (lock + residual),
+`step` (DC disturbance rejection), and `flux` (opt-in TES-bias ramp that walks
+the servo across flux quanta and records `numFluxJumps`). Gains/operating point
+come from a profile (see [cosim_pid.example.json](cosim_pid.example.json)); the
+built-in defaults and their provenance are in
+[`docs/plans/pid-cosim-verification/`](../../../docs/plans/pid-cosim-verification/).
+
+`run_cosim_pid_suite.py` is the **turnkey driver**: for each requested path it
+rebuilds GroupTb with the right compile-time generic (`USE_FLOAT_PID`,
+`VARIATION_SEED=0`), compiles and free-runs `simv`, starts `warmTdmServer --sim`,
+gates on a real SRP read, runs `verify_cosim_pid.py`, tears down, and aggregates
+`suite_result.json`. Use `--no-build` to reuse an already-compiled `simv` (single
+path only; the int/float builds share the build dir and TCP ports so they cannot
+coexist). The flux ramp size is `--flux-steps × --flux-step-uA` on the harness.
+
+```bash
+conda activate warm-tdm-r615
+# Both paths, full build, pass/fail gate:
+python software/scripts/hwtest/run_cosim_pid_suite.py \
+  --paths integer,float --behaviors steady,step --output /tmp/wtj-cosim-results
+
+# Reuse a compiled simv and report (no hard-fail) the flux-jump ramp:
+python software/scripts/hwtest/run_cosim_pid_suite.py \
+  --paths integer --no-build --mode measure \
+  --behaviors steady,flux --output /tmp/wtj-cosim-results --keep-up
+```
+
+The TES→SQ1 coupling in the current wafer model is ~1 Φ0 per 10 µA of TES
+current at the default `TES_CURRENT_SCALE=1`, so the default flux ramp
+(6 × 20 µA) sweeps several flux quanta without a large scale generic.
+
 ## Script validation and issue results
 
 ```bash

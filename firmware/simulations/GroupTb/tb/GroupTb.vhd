@@ -32,7 +32,22 @@ entity GroupTb is
    generic (
       LOAD_G          : string               := "WAFER";
       COLUMN_BOARDS_G : integer range 1 to 3 := 1;
-      NUM_DETECTORS_G : integer range 1 to 2 := 1);
+      NUM_DETECTORS_G : integer range 1 to 2 := 1;
+      -- Seed for per-device wafer variation (SSA/SQ1/FAS/TES-baseline spread).
+      -- Nonzero (the default) makes tunings differ channel-to-channel and muxed
+      -- row levels differ pixel-to-pixel; 0 restores identical devices.
+      VARIATION_SEED_G : natural             := WAFER_VARIATION_SEED_C;
+      -- Selects the column-board PID datapath: true = floating-point AdcDspFp,
+      -- false = integer AdcDsp. Default true preserves the historical behavior;
+      -- ruckus.tcl overrides it from the USE_FLOAT_PID env var so `make vcs` can
+      -- elaborate either path without editing this file.
+      USE_FLOAT_PID_G : boolean             := true;
+      -- Scales the TES-bias -> SQ1-input coupling in the wafer model. Default 1.0
+      -- is the model's nominal; the synthetic TES-bias amp is weakly coupled, so
+      -- a much larger value (set via the TES_CURRENT_SCALE env var in ruckus.tcl)
+      -- lets a modest TesBias ramp shift the SQ1 flux by several Phi0 to exercise
+      -- the servo's flux-jump handling. Purely a test aid, not physical fidelity.
+      TES_CURRENT_SCALE_G : real            := 1.0);
 end GroupTb;
 
 architecture sim of GroupTb is
@@ -59,7 +74,8 @@ architecture sim of GroupTb is
    constant COLUMN_BOARDS_C : integer := COLUMN_BOARDS_G;
    constant ROW_BOARDS_C    : integer := 1;
 
-   constant AWAXE_G : boolean := false;
+   constant AWAXE_G         : boolean := false;
+   constant USE_FLOAT_PID_C : boolean := USE_FLOAT_PID_G;
 
    constant WAFER_PROFILE_C : WaferProfileType := waferProfile(LOAD_G);
 
@@ -155,6 +171,7 @@ begin
          generic map (
             TPD_G                   => TPD_G,
             RING_ADDR_0_G           => (i = 0),
+            USE_FLOAT_PID_G         => USE_FLOAT_PID_C,
             AWAXE_G                 => AWAXE_G,
             SIM_PGP_PORT_NUM_G      => 7000 + (40 *i),  --ite(SIM_PGP_GT_C, 0, 7000),
             SIM_ETH_SRP_PORT_NUM_G  => 10000 + (i * 1000),
@@ -304,7 +321,9 @@ begin
             SQ1_PARAMS_G           => WAFER_PROFILE_C.sq1,
             ROW_FAS_PARAMS_G       => WAFER_PROFILE_C.rowFas,
             CHIP_FAS_PARAMS_G      => WAFER_PROFILE_C.chipFas,
-            COLUMN_PARAMS_G        => WAFER_PROFILE_C.muxColumn)
+            COLUMN_PARAMS_G        => WAFER_PROFILE_C.muxColumn,
+            TES_CURRENT_SCALE_G    => TES_CURRENT_SCALE_G,
+            VARIATION_SEED_G       => VARIATION_SEED_G)
          port map (
             columnDrive    => columnDrive,
             columnSense    => columnSense,

@@ -57,7 +57,13 @@ def inspect_file(path, expected, pid_expected, live_fs, live_scales):
                 # close); more indicates systematic corruption. The decoded-field
                 # checks below (pid_pairs / finite fields) do the real validation.
                 require(len(payload) % 8 == 0, 'Misaligned PID-debug frame')
-                if len(payload) == warm_tdm.PID_DEBUG_FRAME_BYTES:
+                try:
+                    warm_tdm.PidDebug.from_numpy(payload)
+                except (ValueError, IndexError):
+                    valid_pid = False
+                else:
+                    valid_pid = True
+                if valid_pid:
                     counts['pid'] += 1
                 else:
                     pid_offsize[header.channel] = pid_offsize.get(header.channel, 0) + 1

@@ -22,7 +22,7 @@ class TesBias(pr.Device):
                 name = f'BiasCurrent[{i}]',
                 disp = '{:1.3f}',                
                 units = '\u03bcA',
-                dependencies = [self._dac.DacVoltage[i], self._dac.DacVoltage[i+8], self.Delatch[i]],
+                dependencies = [self._dac.DacVoltage[2*i], self._dac.DacVoltage[2*i+1], self.Delatch[i]],
                 linkedSet = self._setChannelFunc(i),
                 linkedGet = self._getChannelFunc(i)))
 
@@ -33,13 +33,15 @@ class TesBias(pr.Device):
             # Calculate the DAC voltages to drive
             vp, vn = tesAmp.outCurrentToDac(value, self.Delatch[channel].value())
             # Set the DAC voltages
-            self._dac.setVoltages([channel, channel+8], [vp, vn])
+            with self.root.updateGroup():
+                self._dac.DacVoltage[2*channel].set(vp)
+                self._dac.DacVoltage[2*channel+1].set(vn)
             
         return _setChannel
 
     def _getChannelFunc(self, channel):
         def _getChannel(read, tesAmp=self._frontEnd.Channel[channel].TesBiasAmp):
-            dacChannels = [self._dac.DacVoltage[channel], self._dac.DacVoltage[channel+8]]
+            dacChannels = [self._dac.DacVoltage[2*channel], self._dac.DacVoltage[2*channel+1]]
             dacVp = dacChannels[0].value()
             dacVn = dacChannels[1].value()
             delatch = self.Delatch[channel].value()

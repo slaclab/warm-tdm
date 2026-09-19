@@ -13,6 +13,8 @@ class ColumnFpgaBoard(pr.Device):
                  frontEndClass,
 #                 loading={},
                  rows=256,
+                 useFloatPid=False,
+                 ethPresent=True,
                  **kwargs):
         super().__init__(**kwargs)
 
@@ -20,11 +22,12 @@ class ColumnFpgaBoard(pr.Device):
 
         self.add(frontEndClass(
             name='AnalogFrontEnd'))
- 
-        self.add(warm_tdm.WarmTdmCore2(
+
+        self.add(warm_tdm.WarmTdmCore(
             name = 'WarmTdmCore',
             offset = 0x00000000,
             expand = True,
+            ethPresent = ethPresent,
             local_therm_channels = [9, 10, 1, 11, 0, 3],
             fe_therm_channels = [2, 8]))
 
@@ -39,7 +42,8 @@ class ColumnFpgaBoard(pr.Device):
             expand = True,
             timingTx = self.WarmTdmCore.Timing.TimingTx,
             rows=rows,
-            frontEnd=self.AnalogFrontEnd))
+            frontEnd=self.AnalogFrontEnd,
+            useFloatPid=useFloatPid))
 
         # Software-driven FCO and per-lane IDELAY alignment. Drives the AD9681
         # test-pattern output via the SPI config while scanning input delays on
@@ -59,7 +63,7 @@ class ColumnFpgaBoard(pr.Device):
             hidden = False,
             offset = 0xC0800800))
         
-        self.add(warm_tdm.SaBiasOffset2(
+        self.add(warm_tdm.SaBiasOffset(
             name = 'SaBiasOffset',            
             saBiasDac = self.SaBiasDac,
             saOffsetDac = self.SaOffsetDac,
@@ -72,7 +76,7 @@ class ColumnFpgaBoard(pr.Device):
                 enabled = True,
                 offset = 0xC0800000))
 
-            self.add(warm_tdm.TesBias2(
+            self.add(warm_tdm.TesBias(
                 name = 'TesBias',
                 offset = 0xC0900100,
                 enabled = True,

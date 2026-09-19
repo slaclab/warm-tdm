@@ -1,4 +1,11 @@
 
+##############################################################################
+## This file is part of 'warm-tdm'. It is subject to the license terms in the
+## LICENSE.txt file found in the top-level directory of this distribution and
+## at https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+## No part may be copied, modified, propagated, or distributed except according
+## to the terms contained in the LICENSE.txt file.
+##############################################################################
 import rogue
 import pyrogue
 import pyrogue.interfaces.simulation
@@ -55,6 +62,7 @@ class HardwareGroup(pyrogue.Device):
             rowBoards=1,
             num_row_selects=32,
             num_chip_selects=0,
+            useFloatPid=False,
             rowAddrBits=8,
             maxRows=256,
             **kwargs):
@@ -86,6 +94,7 @@ class HardwareGroup(pyrogue.Device):
         COL_SIM_SRP_PORTS = [10000 + (i * 1000) for i in range(colBoards)]
         ROW_SIM_SRP_PORTS = [10000 + (i * 1000) for i in range(colBoards, colBoards+rowBoards)]        
 
+        pidDebuggers = {}
         # Instantiate and link each board in the Group
         for index in range(colBoards):
 
@@ -121,31 +130,65 @@ class HardwareGroup(pyrogue.Device):
 
             # Instantiate the board Device tree and link it to the SRP
 
+            # ethPresent must match the RTL's EthCore generate condition
+            # (PgpEthCore GEN_ETH_C = RING_ADDR_0_G or SIMULATION_G): the
+            # coordinator on real hardware, and EVERY board in simulation (where
+            # EthCore is a lightweight Rogue TCP bridge, not a GigEth PHY, so each
+            # board is reachable directly without simulating the PGP ring).
             self.add(colBoardClass(
                 name=f'ColumnBoard[{index}]',
                 frontEndClass=colFeClass,
                 memBase=srp,
                 expand=True,
-                rows=rows))
-            
-            pidDebug = [warm_tdm.PidDebugger(name=f'PidDebug[{i}]', hidden=False, numRows=rows, col=i, frontEnd=self.ColumnBoard[index].AnalogFrontEnd) for i in range(8)]
+                rows=rows,
+                useFloatPid=useFloatPid,
+                ethPresent=(index == 0 or simulation)))
+
+            debugClass = warm_tdm.PidDebuggerFp if useFloatPid else warm_tdm.PidDebugger
+            debugArgs = {} if useFloatPid else dict(frontEnd=self.ColumnBoard[index].AnalogFrontEnd)
+            pidDebug = [debugClass(name=f'PidDebug[{index * 8 + i}]', hidden=False,
+                                   numRows=rows, col=i,
+                                   dsp=self.ColumnBoard[index].DataPath.AdcDsp[i],
+                                   **debugArgs) for i in range(8)]
+            for i, receiver in enumerate(pidDebug):
+                self.add(receiver)
+                pidDebuggers[index * 8 + i] = receiver
+            pidDebugFilters = [warm_tdm.PidDebugFilter(column=i) for i in range(8)]
             saAmps = [self.ColumnBoard[index].AnalogFrontEnd.Channel[x].SAAmp for x in range(8)]
             waveGui = warm_tdm.WaveformCaptureReceiver(hidden=False, captureDev=self.ColumnBoard[index].DataPath.WaveformCapture, amplifiers=saAmps)
 
-            # Link the data stream to the DataWriter
+            # Link each stream to the DataWriter.
+            #
+            # File channels are namespaced by board so multiple column boards no
+            # longer collide in the .dat file. The DataWriter's named accessors
+            # (readoutChannel/pidDebugChannel/waveformChannel) resolve the
+            # (board, stream) pair to a channel via warm_tdm.file_channel(); the
+            # per-board packetizer apps here are the SEPARATE on-wire TDEST
+            # namespace (app index = wire tDest[3:0], already board-demuxed
+            # upstream). Board 0 maps to the single-board file layout (PID-debug
+            # 1, waveform 8, readout 9).
             if emulate is False:
+                # PID-debug: all 8 columns arrive collapsed on packetizer app 1
+                # (wire stream 1). Tee to the file on the board's single PID-debug
+                # channel, and fan out to the per-column live GUI receivers: one
+                # PidDebugFilter per column subscribes to the collapsed stream and
+                # passes only its own column's frames (col read from the body)
+                # through to its PidDebugger.
+                pidFifo = rogue.interfaces.stream.Fifo(0, 0, False)
+                packetizer.application(warm_tdm.PID_DEBUG_STREAM) >> pidFifo >> dataWriter.pidDebugChannel(index)
                 for i in range(8):
-                    rateDrop = rogue.interfaces.stream.RateDrop(True, 0.1)
-                    self.addInterface(rateDrop)
-                    
-                    fifo1 = rogue.interfaces.stream.Fifo(0, 0, False)
-                    fifo2 = rogue.interfaces.stream.Fifo(0, 0, False)
-                    packetizer.application(i) >> fifo1
-                    fifo1 >> fifo2 >> dataWriter.getChannel(i)
-                    #fifo1 >> rateDrop >> pidDebug[i]
-                    self.addInterface(fifo1, fifo2, pidDebug[i])
+                    packetizer.application(warm_tdm.PID_DEBUG_STREAM) >> pidDebugFilters[i] >> pidDebug[i]
+                self.addInterface(pidFifo, *pidDebugFilters, *pidDebug)
 
+                # Waveform (packetizer app 8): drive the live GUI receiver AND
+                # fold a copy into the .dat file on the board's waveform channel,
+                # so one file holds every stream. The GUI path is unchanged; the
+                # file path gets its own FIFO (like readout/PID) so a slow writer
+                # cannot back-pressure the GUI.
                 packetizer.application(8) >> waveGui
+                waveFifo = rogue.interfaces.stream.Fifo(0, 0, False)
+                self.addInterface(waveFifo)
+                packetizer.application(8) >> waveFifo >> dataWriter.waveformChannel(index)
 
 #                 dataDbg = rogue.interfaces.stream.Slave()
 #                 dataDbg.setDebug(1000, f'DataStream_App')
@@ -153,13 +196,18 @@ class HardwareGroup(pyrogue.Device):
                 dataDbg = DataDebug()
                 dataDbg.setDebug(100, 'FinalFrame')
 
+                # Readout (packetizer app 9): the operational stream.
                 dataFifo = rogue.interfaces.stream.Fifo(0, 0, False)
                 self.addInterface(dataFifo)
                 packetizer.application(9) >> dataFifo
 
-                dataFifo >> dataWriter.getChannel(9)
+                dataFifo >> dataWriter.readoutChannel(index)
 #                dataFifo >> dataDbg
 
+
+        if colBoards > 0:
+            self.add(warm_tdm.PidLockMonitor(name='PidLockMonitor', debuggers=pidDebuggers,
+                                           rows=rows, groups=['NoConfig']))
 
         for rowIndex, boardIndex in enumerate(range(colBoards, colBoards+rowBoards)):
             # Create streams to each board
@@ -180,7 +228,9 @@ class HardwareGroup(pyrogue.Device):
                 srp = rogue.protocols.srp.SrpV3()
                 srp == srpStream
 
-            # Instantiate the board Device tree and link it to the SRP
+            # Instantiate the board Device tree and link it to the SRP.
+            # ethPresent matches the RTL EthCore generate condition (coordinator
+            # in hardware, every board in simulation); see the ColumnBoard above.
             self.add(rowBoardClass(
                 name=f'RowBoard[{rowIndex}]',
                 frontEndClass=rowFeClass,
@@ -189,7 +239,8 @@ class HardwareGroup(pyrogue.Device):
                 rows=rows,
                 memBase=srp,
                 expand=True,
-                enabled=True))
+                enabled=True,
+                ethPresent=(boardIndex == 0 or simulation)))
 
         def rro_get(read):
             length = self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.NumReadoutRows.get(read=read)
@@ -220,9 +271,5 @@ class HardwareGroup(pyrogue.Device):
 
         if colBoards > 0:
             self.add(waveGui)
-            for i in range(8):
-                self.add(pidDebug[i])
-
-
 
 

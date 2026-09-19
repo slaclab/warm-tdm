@@ -6,16 +6,21 @@ import surf.devices.micron
 import surf.devices.microchip
 import surf.devices.nxp
 import surf.devices.linear
+import surf.devices.transceivers
 
 import warm_tdm
 
 class WarmTdmCommon(pr.Device):
-    def __init__(self, therm_channels, **kwargs):
+    def __init__(self, local_therm_channels, fe_therm_channels, **kwargs):
         super().__init__(**kwargs)
 
         self.add(surf.axi.AxiVersion(
             offset = 0x0000))
 
+        self.add(warm_tdm.WarmTdmConfig(
+            offset = 0x7000))
+
+        therm_channels = local_therm_channels + fe_therm_channels
         self.add(surf.xilinx.Xadc(
             enabled = False,
             offset = 0x00001000,
@@ -27,37 +32,48 @@ class WarmTdmCommon(pr.Device):
             groups = ['NoConfig'],
             offset = 0x00002000))
 
-        self.add(surf.devices.nxp.Sa56004x(
-            enabled = False,
-            groups = ['NoConfig'],
-            offset = 0x00010000))
 
         self.add(surf.devices.linear.Ltc4151(
             name = 'Ltc4151_Digital',
             enabled = False,
             groups = ['NoConfig'],
             senseRes = 0.02,
-            offset = 0x00010400))
+            offset = 0x0003000))
 
         self.add(surf.devices.linear.Ltc4151(
             name = 'Ltc4151_Analog',
             enabled = False,
             groups = ['NoConfig'],
             senseRes = 0.02,
-            offset = 0x00010800))
+            offset = 0x0003400)) # Check this
 
-        self.add(surf.devices.microchip.Axi24LC64FT(
+        # Amp Powerdown at 0x4000
+
+        self.add(surf.devices.nxp.Sa56004x(
             enabled = False,
             groups = ['NoConfig'],
-            offset = 0x00080000))
+            offset = 0x100000))
+        
 
-        self.add(warm_tdm.Ad5263(
+#         self.add(surf.devices.microchip.Axi24LC64FT(
+#             enabled = False,
+#             groups = ['NoConfig'],
+#             offset = 0x100000))
+
+        self.add(surf.devices.transceivers.Sfp(
+            name = 'SFP0',
             enabled = False,
-            hidden = True,
-            groups = ['NoConfig'],
-            offset = 0x000C0000))
+            offset = 0x5000))
+
+        self.add(surf.devices.transceivers.Sfp(
+            name = 'SFP1',
+            enabled = False,
+            offset = 0x6000))
+        
 
         self.add(warm_tdm.BoardTemp(
+            name = 'BoardTemp',
             xadc = self.Xadc,
-            therm_channels = therm_channels,
+            local_therm_channels = local_therm_channels,
+            fe_therm_channels = fe_therm_channels,
             sa56004x = self.Sa56004x))

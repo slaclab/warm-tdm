@@ -46,7 +46,7 @@ group_vars = load('software/python/warm_tdm_api/_GroupVariables.py')
 board_vars = load('firmware/python/warm_tdm/_GroupLinkVariable.py')
 fast_dac = load('firmware/python/warm_tdm/_FastDacDriver.py')
 ad5679 = load('firmware/python/warm_tdm/_Ad5679R.py')
-sa_bias = load('firmware/python/warm_tdm/_SaBiasOffset2.py')
+sa_bias = load('firmware/python/warm_tdm/_SaBiasOffset.py')
 tes_bias = load('firmware/python/warm_tdm/_TesBiasAd5542.py')
 timing_tx = load('firmware/python/warm_tdm/_TimingTx.py')
 awa_bias = load('firmware/python/warm_tdm/_SaBiasOffsetAwaXe.py')
@@ -188,7 +188,7 @@ class GetterTests(unittest.TestCase):
 
             amp = SimpleNamespace(ampVin=ampVin, saBiasCurrent=lambda vp, vn: vp - vn)
             board.AnalogFrontEnd = SimpleNamespace(Channel=[SimpleNamespace(SAAmp=amp)]*8)
-            bias = sa_bias.SaBiasOffset2(
+            bias = sa_bias.SaBiasOffset(
                 name='SaBiasOffset', saBiasDac=dac, saOffsetDac=dac,
                 frontEnd=board.AnalogFrontEnd)
             board.add(bias)
@@ -382,7 +382,7 @@ class GetterTests(unittest.TestCase):
         self.root.add(dac)
         amp = SimpleNamespace(saBiasCurrent=lambda vp, vn: vp - vn)
         front_end = SimpleNamespace(Channel=[SimpleNamespace(SAAmp=amp)]*8)
-        bias = sa_bias.SaBiasOffset2(name='Bias', saBiasDac=dac, saOffsetDac=dac, frontEnd=front_end)
+        bias = sa_bias.SaBiasOffset(name='Bias', saBiasDac=dac, saOffsetDac=dac, frontEnd=front_end)
         self.root.add(bias)
         self.root.add(group_vars.GroupLinkVariable(name='Offset', dependencies=[bias.OffsetVoltage[0]]))
         self.root.start()
@@ -549,7 +549,7 @@ class GetterTests(unittest.TestCase):
         self.root.add(dac)
         front_end = SimpleNamespace(Channel=[SimpleNamespace(SAAmp=SimpleNamespace(
             saBiasCurrent=lambda vp, vn: vp - vn))]*8)
-        bias = sa_bias.SaBiasOffset2(name='Bias', saBiasDac=dac, saOffsetDac=dac, frontEnd=front_end)
+        bias = sa_bias.SaBiasOffset(name='Bias', saBiasDac=dac, saOffsetDac=dac, frontEnd=front_end)
         self.root.add(bias)
         self.root.start()
         result = self.pending_set(bias.OffsetVoltage[0], 1.25, [memory])

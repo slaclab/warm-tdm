@@ -54,7 +54,7 @@ entity ColumnFpgaBoardAwaXe is
       IP_ADDR_G               : slv(31 downto 0)     := x"0B03A8C0";  -- 192.168.3.11
       MAC_ADDR_G              : slv(47 downto 0)     := x"0B_00_16_56_00_08";
       GEN_ADC_FILTER_G        : boolean              := true;
-      ROW_ADDR_BITS_G         : integer range 3 to 8 := 8);
+      ROW_ADDR_BITS_G         : integer range 3 to 8 := 7);
    port (
       -- Clocks
       gtRefClk0P : in sl;
@@ -274,7 +274,7 @@ architecture rtl of ColumnFpgaBoardAwaXe is
    signal axilClk : sl;
    signal axilRst : sl;
 
-   signal adcFilterEn : slv(7 downto 0);
+   signal config : WarmTdmConfigType;  -- config/identity bus: WarmTdmCore -> DataPath
 
    signal srpAxilWriteMaster : AxiLiteWriteMasterType;
    signal srpAxilWriteSlave  : AxiLiteWriteSlaveType;
@@ -323,7 +323,7 @@ begin
    -- Shared logic
    -- PGP, Ethernet, Timing, AxiVersion, Etc
    -------------------------------------------------------------------------------------------------
-   U_WarmTdmCore_1 : entity warm_tdm.WarmTdmCore2
+   U_WarmTdmCore_1 : entity warm_tdm.WarmTdmCore
       generic map (
          TPD_G                   => TPD_G,
          SIMULATION_G            => SIMULATION_G,
@@ -382,7 +382,7 @@ begin
          feThermistorN    => feThermistorN,       -- [in]
          asicResetB       => resetB,              -- [out]
          ampPdB           => ampPdB,              -- [out]
-         adcFilterEn      => adcFilterEn,         -- [out]
+         config           => config,             -- [out]
          leds             => leds,                -- [out]
          conRxGreenLed    => conRxGreenLed,       -- [out]
          conRxYellowLed   => conRxYellowLed,      -- [out]
@@ -480,22 +480,6 @@ begin
          mAxiWriteSlaves     => i2cAxilWriteSlaves,                  -- [in]
          mAxiReadMasters     => i2cAxilReadMasters,                  -- [out]
          mAxiReadSlaves      => i2cAxilReadSlaves);                  -- [in]
-
---    U_AwaXeI2c_1 : entity warm_tdm.AwaXeI2c
---       generic map (
---          TPD_G           => TPD_G,
---          SIMULATION_G    => SIMULATION_G,
---          CHIP_ADDR_G     => "000",
---          AXIL_CLK_FREQ_G => AXIL_CLK_FREQ_C)
---       port map (
---          axilClk         => axilClk,                 -- [in]
---          axilRst         => axilRst,                 -- [in]
---          axilReadMaster  => i2cAxilReadMasters(0),   -- [in]
---          axilReadSlave   => i2cAxilReadSlaves(0),    -- [out]
---          axilWriteMaster => i2cAxilWriteMasters(0),  -- [in]
---          axilWriteSlave  => i2cAxilWriteSlaves(0),   -- [out]
---          sda             => feI2cSda(0),             -- [inout]
---          scl             => feI2cScl(0));            -- [inout]
 
    U_AwaXeAxiI2cBridge_1 : entity warm_tdm.AwaXeAxiI2cBridge
       generic map (
@@ -622,6 +606,7 @@ begin
          timingRxClk125   => timingRxClk125,                         -- [in]
          timingRxRst125   => timingRxRst125,                         -- [in]
          timingRxData     => timingRxData,                           -- [in]
+         config           => config,                                 -- [in]
          idelayCtrlRdy    => idelayCtrlRdy,                          -- [in]
          sq1FbDacs        => sq1FbDacs,                              --[in]
          axisClk          => axisClk,                                -- [in]
@@ -630,7 +615,6 @@ begin
          axisSlave        => dataTxAxisSlave,                        -- [in]
          axilClk          => axilClk,                                -- [in]
          axilRst          => axilRst,                                -- [in]
-         adcFilterEn      => adcFilterEn,                            -- [in]
          sAxilReadMaster  => locAxilReadMasters(AXIL_DATA_PATH_C),   -- [in]
          sAxilReadSlave   => locAxilReadSlaves(AXIL_DATA_PATH_C),    -- [out]
          sAxilWriteMaster => locAxilWriteMasters(AXIL_DATA_PATH_C),  -- [in]

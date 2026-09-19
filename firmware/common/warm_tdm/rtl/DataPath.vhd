@@ -42,7 +42,9 @@ entity DataPath is
       TPD_G            : time                 := 1 ns;
       SIMULATION_G     : boolean              := false;
       GEN_ADC_FILTER_G : boolean              := true;
-      ROW_ADDR_BITS_G  : integer range 3 to 8 := 8;
+      USE_FLOAT_PID_G  : boolean              := false;
+      GEN_PID_DEBUG_G  : boolean              := true;
+      ROW_ADDR_BITS_G  : integer range 3 to 8 := 7;
       NEGATE_ADC_G     : boolean              := true;
       INVERT_SQ1FB_G   : boolean              := true;
       AXIL_BASE_ADDR_G : slv(31 downto 0)     := (others => '0');
@@ -59,6 +61,11 @@ entity DataPath is
       timingRxData   : in LocalTimingType;
       sq1FbDacs      : in Slv14Array(7 downto 0);
 
+      -- Aggregated config/identity bus (WarmTdmConfig, axilClk domain). Carries
+      -- boardId/groupId for the frame-header (synchronized to timingRxClk125
+      -- internally and fed to the builders) and adcFilterEn for the FIR filters.
+      config         : in WarmTdmConfigType := WARM_TDM_CONFIG_INIT_C;
+
       -- ADC IODELAY group controller ready; resynchronized inside the readout PHY
       idelayCtrlRdy : in sl := '0';
 
@@ -71,7 +78,6 @@ entity DataPath is
       -- Local register access
       axilClk          : in  sl;
       axilRst          : in  sl;
-      adcFilterEn      : in  slv(7 downto 0);
       sAxilReadMaster  : in  AxiLiteReadMasterType;
       sAxilReadSlave   : out AxiLiteReadSlaveType  := AXI_LITE_READ_SLAVE_EMPTY_DECERR_C;
       sAxilWriteMaster : in  AxiLiteWriteMasterType;
@@ -90,7 +96,7 @@ architecture rtl of DataPath is
    constant FILTER_COEFFICIENTS_C : IntegerArray(0 to FILTER_NUM_TAPS_C-1) := ((FILTER_NUM_TAPS_C-1)/2 => (2**FILTER_COEFF_WIDTH_C)-1, others => 0);
 
    -- Main crossbar config
-   constant NUM_AXIL_MASTERS_C   : integer := 7;
+   constant NUM_AXIL_MASTERS_C   : integer := 8;
    constant ADC_READOUT_AXIL_C   : integer := 0;
    constant WAVEFORM_AXIL_C      : integer := 1;
    constant EVENT_BUILDER_AXIL_C : integer := 2;
@@ -98,6 +104,7 @@ architecture rtl of DataPath is
    constant ADC_DSP_AXIL_C       : integer := 4;
    constant PID_FILTER_AXIL_C    : integer := 5;
    constant DELAY_AXIL_C         : integer := 6;
+   constant ACCUM_AXIL_C         : integer := 7;
 
    constant XBAR_COFNIG_C : AxiLiteCrossbarMasterConfigArray(NUM_AXIL_MASTERS_C-1 downto 0) := genAxiLiteConfig(NUM_AXIL_MASTERS_C, AXIL_BASE_ADDR_G, 24, 20);
 
@@ -115,6 +122,7 @@ architecture rtl of DataPath is
       0 => ite(SIMULATION_G, 5, 16),
       1 => ite(SIMULATION_G, 14, 10));
    constant ADC_DSP_XBAR_CFG_C    : AxiLiteCrossbarMasterConfigArray(7 downto 0) := genAxiLiteConfig(8, XBAR_COFNIG_C(ADC_DSP_AXIL_C).baseAddr, 20, 16);
+   constant ACCUM_XBAR_CFG_C      : AxiLiteCrossbarMasterConfigArray(7 downto 0) := genAxiLiteConfig(8, XBAR_COFNIG_C(ACCUM_AXIL_C).baseAddr, 16, 12);
 
    signal syncAxilReadMaster  : AxiLiteReadMasterType;
    signal syncAxilReadSlave   : AxiLiteReadSlaveType;
@@ -141,10 +149,14 @@ architecture rtl of DataPath is
    signal pidFilterAxilReadMasters  : AxiLiteReadMasterArray(7 downto 0);
    signal pidFilterAxilReadSlaves   : AxiLiteReadSlaveArray(7 downto 0);
 
+   signal accumAxilWriteMasters : AxiLiteWriteMasterArray(7 downto 0);
+   signal accumAxilWriteSlaves  : AxiLiteWriteSlaveArray(7 downto 0);
+   signal accumAxilReadMasters  : AxiLiteReadMasterArray(7 downto 0);
+   signal accumAxilReadSlaves   : AxiLiteReadSlaveArray(7 downto 0);
+
 
    signal adcStreams         : AxiStreamMasterArray(7 downto 0) := (others => AXI_STREAM_MASTER_INIT_C);
    signal filteredAdcStreams : AxiStreamMasterArray(7 downto 0) := (others => AXI_STREAM_MASTER_INIT_C);
-   signal bypassedAdcStreams : AxiStreamMasterArray(7 downto 0) := (others => AXI_STREAM_MASTER_INIT_C);
    signal selectedAdcStreams : AxiStreamMasterArray(7 downto 0) := (others => AXI_STREAM_MASTER_INIT_C);
    signal adcFilterEnSync    : slv(7 downto 0);
 
@@ -180,8 +192,42 @@ architecture rtl of DataPath is
    signal dataAxisSlave  : AxiStreamSlaveType;
 
    signal timingRxDataDelayed : LocalTimingType;
+   signal timingDelayValue    : slv(6 downto 0);
+   signal sq1FbDacsDelayed    : Slv14Array(7 downto 0);
+   signal selectedSq1FbDacs   : Slv14Array(7 downto 0);
+
+   type AdcAccumResultArray is array (natural range <>) of AdcAccumResultType;
+   signal accumResults : AdcAccumResultArray(7 downto 0);
+   signal accumValids  : slv(7 downto 0);
+
+   type LocalTimingTypeArray is array (natural range <>) of LocalTimingType;
+   signal selectedTimingRxData : LocalTimingTypeArray(7 downto 0);
+
+   -- Config identity fields (boardId/groupId) synchronized into the
+   -- timingRxClk125 builder domain. The builders consume the identity fields of
+   -- this synchronized config record for the self-describing frame header.
+   signal frameIdSyncVec : slv(10 downto 0);
+   signal configSync     : WarmTdmConfigType := WARM_TDM_CONFIG_INIT_C;
 
 begin
+
+   -- Synchronize the (quasi-static, cross-domain) identity sources into the
+   -- builder clock domain before they are packed into the frame-identity header.
+   -- boardId (3b, comms domain) and groupId (8b, axilClk) are crossed together.
+   U_Synchronizer_FrameId : entity surf.SynchronizerVector
+      generic map (
+         TPD_G   => TPD_G,
+         WIDTH_G => 11)
+      port map (
+         clk     => timingRxClk125,        -- [in]
+         rst     => timingRxRst125,        -- [in]
+         dataIn  => config.groupId & config.boardId,  -- [in]
+         dataOut => frameIdSyncVec);                  -- [out]
+
+   -- Builder-domain config: identity fields are the synchronized values; the
+   -- remaining fields are not used by the builders (kept for record completeness).
+   configSync.boardId <= frameIdSyncVec(2 downto 0);
+   configSync.groupId <= frameIdSyncVec(10 downto 3);
 
    U_AxiLiteAsync_SRP : entity surf.AxiLiteAsync
       generic map (
@@ -315,6 +361,25 @@ begin
          mAxiReadMasters     => pidFilterAxilReadMasters,                -- [out]
          mAxiReadSlaves      => pidFilterAxilReadSlaves);                -- [in]
 
+   U_AxiLiteCrossbar_ACCUM : entity surf.AxiLiteCrossbar
+      generic map (
+         TPD_G              => TPD_G,
+         NUM_SLAVE_SLOTS_G  => 1,
+         NUM_MASTER_SLOTS_G => 8,
+         MASTERS_CONFIG_G   => ACCUM_XBAR_CFG_C,
+         DEBUG_G            => false)
+      port map (
+         axiClk              => timingRxClk125,                      -- [in]
+         axiClkRst           => timingRxRst125,                      -- [in]
+         sAxiWriteMasters(0) => locAxilWriteMasters(ACCUM_AXIL_C),   -- [in]
+         sAxiWriteSlaves(0)  => locAxilWriteSlaves(ACCUM_AXIL_C),    -- [out]
+         sAxiReadMasters(0)  => locAxilReadMasters(ACCUM_AXIL_C),    -- [in]
+         sAxiReadSlaves(0)   => locAxilReadSlaves(ACCUM_AXIL_C),     -- [out]
+         mAxiWriteMasters    => accumAxilWriteMasters,               -- [out]
+         mAxiWriteSlaves     => accumAxilWriteSlaves,                -- [in]
+         mAxiReadMasters     => accumAxilReadMasters,                -- [out]
+         mAxiReadSlaves      => accumAxilReadSlaves);                -- [in]
+
    -------------------------------------------------------------------------------------------------
    -- Delay timing by 20 cycles to account for ADC Latency
    -------------------------------------------------------------------------------------------------
@@ -327,13 +392,35 @@ begin
          rst             => timingRxRst125,                     -- [in]
          timingIn        => timingRxData,                       -- [in]
          timingOut       => timingRxDataDelayed,                -- [out]
+         delayOut        => timingDelayValue,                   -- [out]
          axilWriteMaster => locAxilWriteMasters(DELAY_AXIL_C),  -- [in]
          axilWriteSlave  => locAxilWriteSlaves(DELAY_AXIL_C),   -- [out]
          axilReadMaster  => locAxilReadMasters(DELAY_AXIL_C),   -- [in]
-         axilReadSlave   => locAxilReadSlaves(DELAY_AXIL_C));   -- [out]     
+         axilReadSlave   => locAxilReadSlaves(DELAY_AXIL_C));   -- [out]
+
+   SQ1FB_DELAY_GEN : for i in 7 downto 0 generate
+      U_SlvDelay_Sq1FbDacs : entity surf.SlvDelay
+         generic map (
+            TPD_G        => TPD_G,
+            SRL_EN_G     => true,
+            DELAY_G      => 128,
+            REG_OUTPUT_G => true,
+            WIDTH_G      => 14)
+         port map (
+            clk   => timingRxClk125,       -- [in]
+            en    => '1',                  -- [in]
+            delay => timingDelayValue,     -- [in]
+            din   => sq1FbDacs(i),         -- [in]
+            dout  => sq1FbDacsDelayed(i)); -- [out]
+   end generate SQ1FB_DELAY_GEN;
 
 
    FIR_FILTER_GEN : for i in 7 downto 0 generate
+      signal filterTimingSbOut    : slv(14 downto 0);
+      signal filteredSq1FbDac     : slv(13 downto 0);
+      signal filteredTimingRxData : LocalTimingType;
+   begin
+
       GEN_ADC_FILTER : if (GEN_ADC_FILTER_G) generate
          U_FirFilterSingleChannel_1 : entity surf.FirFilterSingleChannel
             generic map (
@@ -357,18 +444,18 @@ begin
                sbIn(12)            => timingRxDataDelayed.sample,      -- [in]
                sbIn(13)            => timingRxDataDelayed.rowSeqStart,            -- [in]
                sbIn(14)            => timingRxDataDelayed.daqReadoutStart,        -- [in]
-               sbIn(28 downto 15)  => sq1FbDacs(i),                    -- [in]
+               sbIn(28 downto 15)  => sq1FbDacsDelayed(i),             -- [in]
                obValid             => filteredAdcStreams(i).tvalid,    -- [out]
                dout                => filteredAdcStreams(i).tData(15 downto 2),   -- [out]
-               sbOut(7 downto 0)   => filteredAdcStreams(i).tid(7 downto 0),      -- [out]
-               sbOut(8)            => filteredAdcStreams(i).tUser(0),  -- [out]
-               sbOut(9)            => filteredAdcStreams(i).tUser(1),  -- [out]
-               sbOut(10)           => filteredAdcStreams(i).tUser(2),  -- [out]
-               sbOut(11)           => filteredAdcStreams(i).tUser(3),  -- [out]
-               sbOut(12)           => filteredAdcStreams(i).tUser(4),  -- [out]
-               sbOut(13)           => filteredAdcStreams(i).tUser(5),  -- [out]
-               sbOut(14)           => filteredAdcStreams(i).tUser(6),  -- [out]            
-               sbOut(28 downto 15) => filteredAdcStreams(i).tData(29 downto 16),  -- [out]
+               sbOut(7 downto 0)   => filterTimingSbOut(7 downto 0),  -- [out]
+               sbOut(8)            => filterTimingSbOut(8),            -- [out]
+               sbOut(9)            => filterTimingSbOut(9),            -- [out]
+               sbOut(10)           => filterTimingSbOut(10),           -- [out]
+               sbOut(11)           => filterTimingSbOut(11),           -- [out]
+               sbOut(12)           => filterTimingSbOut(12),           -- [out]
+               sbOut(13)           => filterTimingSbOut(13),           -- [out]
+               sbOut(14)           => filterTimingSbOut(14),           -- [out]
+               sbOut(28 downto 15) => filteredSq1FbDac,               -- [out]
                axilClk             => timingRxClk125,                  -- [in]
                axilRst             => timingRxRst125,                  -- [in]
                axilReadMaster      => adcFilterAxilReadMasters(i),     -- [in]
@@ -377,34 +464,45 @@ begin
                axilWriteSlave      => adcFilterAxilWriteSlaves(i));    -- [out]
 
          filteredAdcStreams(i).tData(1 downto 0) <= "00";
+
+         filteredTimingRxData.startRun        <= timingRxDataDelayed.startRun;
+         filteredTimingRxData.endRun          <= timingRxDataDelayed.endRun;
+         filteredTimingRxData.running         <= timingRxDataDelayed.running;
+         filteredTimingRxData.runTimeNs       <= timingRxDataDelayed.runTimeNs;
+         filteredTimingRxData.stageNextRow    <= timingRxDataDelayed.stageNextRow;
+         filteredTimingRxData.rowSeq          <= timingRxDataDelayed.rowSeq;
+         filteredTimingRxData.nextLogicalRow  <= timingRxDataDelayed.nextLogicalRow;
+         filteredTimingRxData.rowTime         <= timingRxDataDelayed.rowTime;
+         filteredTimingRxData.rowSeqCount     <= timingRxDataDelayed.rowSeqCount;
+         filteredTimingRxData.daqReadoutCount <= timingRxDataDelayed.daqReadoutCount;
+         filteredTimingRxData.logicalRow      <= filterTimingSbOut(7 downto 0);
+         filteredTimingRxData.firstSample     <= filterTimingSbOut(8);
+         filteredTimingRxData.lastSample      <= filterTimingSbOut(9);
+         filteredTimingRxData.rowStrobe       <= filterTimingSbOut(10);
+         filteredTimingRxData.waveformCapture <= filterTimingSbOut(11);
+         filteredTimingRxData.sample          <= filterTimingSbOut(12);
+         filteredTimingRxData.rowSeqStart     <= filterTimingSbOut(13);
+         filteredTimingRxData.daqReadoutStart <= filterTimingSbOut(14);
+
+         U_Synchronizer_1 : entity surf.Synchronizer
+            generic map (
+               TPD_G => TPD_G)
+            port map (
+               clk     => timingRxClk125,       -- [in]
+               rst     => timingRxRst125,       -- [in]
+               dataIn  => config.adcFilterEn(i),  -- [in]
+               dataOut => adcFilterEnSync(i));     -- [out]
+
+         selectedAdcStreams(i)   <= filteredAdcStreams(i) when adcFilterEnSync(i) = '1' else adcStreams(i);
+         selectedTimingRxData(i) <= filteredTimingRxData when adcFilterEnSync(i) = '1' else timingRxDataDelayed;
+         selectedSq1FbDacs(i)    <= filteredSq1FbDac when adcFilterEnSync(i) = '1' else sq1FbDacsDelayed(i);
       end generate GEN_ADC_FILTER;
 
       NO_GEN_ADC_FILTER : if (GEN_ADC_FILTER_G = false) generate
-         filteredAdcStreams(i) <= bypassedAdcStreams(i);
+         selectedAdcStreams(i)   <= adcStreams(i);
+         selectedTimingRxData(i) <= timingRxDataDelayed;
+         selectedSq1FbDacs(i)    <= sq1FbDacsDelayed(i);
       end generate NO_GEN_ADC_FILTER;
-
-      bypassedAdcStreams(i).tValid              <= adcStreams(i).tValid;
-      bypassedAdcStreams(i).tData(15 downto 0)  <= adcStreams(i).tData(15 downto 0);
-      bypassedAdcStreams(i).tid(7 downto 0)     <= timingRxDataDelayed.logicalRow;
-      bypassedAdcStreams(i).tuser(0)            <= timingRxDataDelayed.firstSample;
-      bypassedAdcStreams(i).tuser(1)            <= timingRxDataDelayed.lastSample;
-      bypassedAdcStreams(i).tuser(2)            <= timingRxDataDelayed.rowStrobe;
-      bypassedAdcStreams(i).tuser(3)            <= timingRxDataDelayed.waveformCapture;
-      bypassedAdcStreams(i).tuser(4)            <= timingRxDataDelayed.sample;
-      bypassedAdcStreams(i).tuser(5)            <= timingRxDataDelayed.rowSeqStart;
-      bypassedAdcStreams(i).tuser(6)            <= timingRxDataDelayed.daqReadoutStart;
-      bypassedAdcStreams(i).tData(29 downto 16) <= sq1FbDacs(i);
-
-      U_Synchronizer_1 : entity surf.Synchronizer
-         generic map (
-            TPD_G => TPD_G)
-         port map (
-            clk     => timingRxClk125,       -- [in]
-            rst     => timingRxRst125,       -- [in]
-            dataIn  => adcFilterEn(i),       -- [in]
-            dataOut => adcFilterEnSync(i));  -- [out]
-
-      selectedAdcStreams(i) <= filteredAdcStreams(i) when adcFilterEnSync(i) = '1' else bypassedAdcStreams(i);
 
    end generate FIR_FILTER_GEN;
 
@@ -416,7 +514,8 @@ begin
       port map (
          timingRxClk125  => timingRxClk125,                        -- [in]
          timingRxRst125  => timingRxRst125,                        -- [in]
-         timingRxData    => timingRxDataDelayed,                   -- [in]
+         timingRxData    => selectedTimingRxData(0),               -- [in]
+         config          => configSync,                           -- [in]
          adcStreams      => selectedAdcStreams,                    -- [in]
          axilReadMaster  => locAxilReadMasters(WAVEFORM_AXIL_C),   -- [in]
          axilReadSlave   => locAxilReadSlaves(WAVEFORM_AXIL_C),    -- [out]
@@ -429,50 +528,110 @@ begin
 
 
    GEN_ADC_DSP : for i in 7 downto 0 generate
-      U_AdcDsp_1 : entity warm_tdm.AdcDsp
+
+      U_AdcAccumulator_1 : entity warm_tdm.AdcAccumulator
          generic map (
-            TPD_G            => TPD_G,
-            COLUMN_NUM_G     => i,
-            INVERT_SQ1FB_G   => INVERT_SQ1FB_G,
-            ROW_ADDR_BITS_G  => ROW_ADDR_BITS_G,
-            AXIL_BASE_ADDR_G => ADC_DSP_XBAR_CFG_C(i).baseAddr,
-            SQ1FB_RAM_ADDR_G => SQ1FB_RAM_ADDR_G(31 downto 16) & toslv(i, 4) & X"000")
+            TPD_G           => TPD_G,
+            ROW_ADDR_BITS_G => ROW_ADDR_BITS_G)
          port map (
-            timingRxClk125   => timingRxClk125,             -- [in]
-            timingRxRst125   => timingRxRst125,             -- [in]
-            timingRxData     => timingRxDataDelayed,        -- [in]
-            adcAxisMaster    => selectedAdcStreams(i),      -- [in]
-            sAxilReadMaster  => adcDspAxilReadMasters(i),   -- [in]
-            sAxilReadSlave   => adcDspAxilReadSlaves(i),    -- [out]
-            sAxilWriteMaster => adcDspAxilWriteMasters(i),  -- [in]
-            sAxilWriteSlave  => adcDspAxilWriteSlaves(i),   -- [out]
-            mAxilReadMaster  => sq1fbAxilReadMasters(i),    -- [out]
-            mAxilReadSlave   => sq1fbAxilReadSlaves(i),     -- [in]
-            mAxilWriteMaster => sq1fbAxilWriteMasters(i),   -- [out]
-            mAxilWriteSlave  => sq1fbAxilWriteSlaves(i),    -- [in]
-            pidStreamMaster  => pidStreamMasters(i),        -- [out]
-            pidStreamSlave   => pidStreamSlaves(i),         -- [in]
-            axisClk          => axisClk,                    -- [in]
-            axisRst          => axisRst,                    -- [in]
-            pidDebugMaster   => pidDebugMasters(i),         -- [out]
-            pidDebugSlave    => pidDebugSlaves(i));         -- [in]
+            clk             => timingRxClk125,              -- [in]
+            rst             => timingRxRst125,              -- [in]
+            timingRxData    => selectedTimingRxData(i),     -- [in]
+            adcValid        => selectedAdcStreams(i).tValid, -- [in]
+            adcData         => selectedAdcStreams(i).tData(15 downto 0), -- [in]
+            sq1FbDac        => selectedSq1FbDacs(i),        -- [in]
+            accumOut        => accumResults(i),             -- [out]
+            accumValid      => accumValids(i),             -- [out]
+            axilReadMaster  => accumAxilReadMasters(i),     -- [in]
+            axilReadSlave   => accumAxilReadSlaves(i),      -- [out]
+            axilWriteMaster => accumAxilWriteMasters(i),    -- [in]
+            axilWriteSlave  => accumAxilWriteSlaves(i));    -- [out]
+
+      GEN_FIXED_PID : if (not USE_FLOAT_PID_G) generate
+         U_AdcDsp_1 : entity warm_tdm.AdcDsp
+            generic map (
+               TPD_G            => TPD_G,
+               SIMULATION_G     => SIMULATION_G,
+               COLUMN_NUM_G     => i,
+               INVERT_SQ1FB_G   => INVERT_SQ1FB_G,
+               ROW_ADDR_BITS_G  => ROW_ADDR_BITS_G,
+               GEN_PID_DEBUG_G  => GEN_PID_DEBUG_G,
+               AXIL_BASE_ADDR_G => ADC_DSP_XBAR_CFG_C(i).baseAddr,
+               SQ1FB_RAM_ADDR_G => SQ1FB_RAM_ADDR_G(31 downto 16) & toslv(i, 4) & X"000")
+            port map (
+               timingRxClk125   => timingRxClk125,
+               timingRxRst125   => timingRxRst125,
+               timingRxData     => selectedTimingRxData(i),
+               config           => configSync,
+               accumIn          => accumResults(i),
+               accumValid       => accumValids(i),
+               sAxilReadMaster  => adcDspAxilReadMasters(i),
+               sAxilReadSlave   => adcDspAxilReadSlaves(i),
+               sAxilWriteMaster => adcDspAxilWriteMasters(i),
+               sAxilWriteSlave  => adcDspAxilWriteSlaves(i),
+               mAxilReadMaster  => sq1fbAxilReadMasters(i),
+               mAxilReadSlave   => sq1fbAxilReadSlaves(i),
+               mAxilWriteMaster => sq1fbAxilWriteMasters(i),
+               mAxilWriteSlave  => sq1fbAxilWriteSlaves(i),
+               pidStreamMaster  => pidStreamMasters(i),
+               pidStreamSlave   => pidStreamSlaves(i),
+               axisClk          => axisClk,
+               axisRst          => axisRst,
+               pidDebugMaster   => pidDebugMasters(i),
+               pidDebugSlave    => pidDebugSlaves(i));
+      end generate GEN_FIXED_PID;
+
+      GEN_FLOAT_PID : if (USE_FLOAT_PID_G) generate
+         U_AdcDspFp_1 : entity warm_tdm.AdcDspFp
+            generic map (
+               TPD_G            => TPD_G,
+               SIMULATION_G     => SIMULATION_G,
+               COLUMN_NUM_G     => i,
+               INVERT_SQ1FB_G   => INVERT_SQ1FB_G,
+               ROW_ADDR_BITS_G  => ROW_ADDR_BITS_G,
+               GEN_PID_DEBUG_G  => GEN_PID_DEBUG_G,
+               AXIL_BASE_ADDR_G => ADC_DSP_XBAR_CFG_C(i).baseAddr,
+               SQ1FB_RAM_ADDR_G => SQ1FB_RAM_ADDR_G(31 downto 16) & toslv(i, 4) & X"000")
+            port map (
+               timingRxClk125   => timingRxClk125,
+               timingRxRst125   => timingRxRst125,
+               timingRxData     => selectedTimingRxData(i),
+               config           => configSync,
+               accumIn          => accumResults(i),
+               accumValid       => accumValids(i),
+               sAxilReadMaster  => adcDspAxilReadMasters(i),
+               sAxilReadSlave   => adcDspAxilReadSlaves(i),
+               sAxilWriteMaster => adcDspAxilWriteMasters(i),
+               sAxilWriteSlave  => adcDspAxilWriteSlaves(i),
+               mAxilReadMaster  => sq1fbAxilReadMasters(i),
+               mAxilReadSlave   => sq1fbAxilReadSlaves(i),
+               mAxilWriteMaster => sq1fbAxilWriteMasters(i),
+               mAxilWriteSlave  => sq1fbAxilWriteSlaves(i),
+               pidStreamMaster  => pidStreamMasters(i),
+               pidStreamSlave   => pidStreamSlaves(i),
+               axisClk          => axisClk,
+               axisRst          => axisRst,
+               pidDebugMaster   => pidDebugMasters(i),
+               pidDebugSlave    => pidDebugSlaves(i));
+      end generate GEN_FLOAT_PID;
 
       U_BiquadFilter_1 : entity warm_tdm.BiquadFilter
          generic map (
             TPD_G                => TPD_G,
             CASCADE_SIZE_G       => 2,
-            CHANNEL_ADDR_WIDTH_G => 8)
+            CHANNEL_ADDR_WIDTH_G => ROW_ADDR_BITS_G,
+            INPUT_IS_FLOAT_G     => USE_FLOAT_PID_G)
          port map (
-            axisClk         => timingRxClk125,                -- [in]
-            axisRst         => timingRxRst125,                -- [in]
-            sAxisMaster     => pidStreamMasters(i),           -- [in]
-            sAxisSlave      => pidStreamSlaves(i),            -- [out]
-            mAxisMaster     => pidFilterStreamMasters(i),     -- [out]
-            mAxisSlave      => pidFilterStreamSlaves(i),      -- [in]
-            axilReadMaster  => pidFilterAxilReadMasters(i),   -- [in]
-            axilReadSlave   => pidFilterAxilReadSlaves(i),    -- [out]
-            axilWriteMaster => pidFilterAxilWriteMasters(i),  -- [in]
-            axilWriteSlave  => pidFilterAxilWriteSlaves(i));  -- [out]
+            axisClk         => timingRxClk125,
+            axisRst         => timingRxRst125,
+            sAxisMaster     => pidStreamMasters(i),
+            sAxisSlave      => pidStreamSlaves(i),
+            mAxisMaster     => pidFilterStreamMasters(i),
+            mAxisSlave      => pidFilterStreamSlaves(i),
+            axilReadMaster  => pidFilterAxilReadMasters(i),
+            axilReadSlave   => pidFilterAxilReadSlaves(i),
+            axilWriteMaster => pidFilterAxilWriteMasters(i),
+            axilWriteSlave  => pidFilterAxilWriteSlaves(i));
    end generate;
 
    U_EventBuilder_1 : entity warm_tdm.EventBuilder
@@ -481,6 +640,7 @@ begin
       port map (
          timingRxClk125   => timingRxClk125,                             -- [in]
          timingRxRst125   => timingRxRst125,                             -- [in]
+         config           => configSync,                                -- [in]
          timingRxData     => timingRxDataDelayed,                        -- [in]
          pidStreamMasters => pidFilterStreamMasters,                     -- [out]
          pidStreamSlaves  => pidFilterStreamSlaves,                      -- [in]
@@ -494,13 +654,28 @@ begin
          eventAxisSlave   => eventAxisSlave);                            -- [in]
 
 
-   -- Multiplex debug streams
+   -- Merge the 8 per-column PID-debug streams onto a SINGLE board-local tDest.
+   -- ROUTED (not INDEXED) so all 8 columns land on stream 1 instead of being
+   -- spread across tDest 0-7: the frame body already carries `col`
+   -- (AdcDsp/AdcDspFp pack tData(3:0)=COLUMN_NUM_G) and the header carries
+   -- boardId, so per-column tDest is redundant. Collapsing frees board-local
+   -- stream slots 2-7 for the namespaced channel scheme (slot 0 reserved for a
+   -- future readout move). The mux still arbitrates the 8 masters frame-atomically.
    U_AxiStreamMux_1 : entity surf.AxiStreamMux
       generic map (
-         TPD_G         => TPD_G,
-         PIPE_STAGES_G => 1,
-         NUM_SLAVES_G  => 8,
-         MODE_G        => "INDEXED")
+         TPD_G          => TPD_G,
+         PIPE_STAGES_G  => 1,
+         NUM_SLAVES_G   => 8,
+         MODE_G         => "ROUTED",
+         TDEST_ROUTES_G => (
+            0 => "00000001",
+            1 => "00000001",
+            2 => "00000001",
+            3 => "00000001",
+            4 => "00000001",
+            5 => "00000001",
+            6 => "00000001",
+            7 => "00000001"))
       port map (
          axisClk      => axisClk,          -- [in]
          axisRst      => axisRst,          -- [in]
@@ -518,7 +693,7 @@ begin
          NUM_SLAVES_G   => 3,
          MODE_G         => "ROUTED",
          TDEST_ROUTES_G => (
-            0           => "00000---",  -- pid debug
+            0           => "00000001",  -- pid debug (all columns, collapsed)
             1           => "00001000",        -- waveform
             2           => "00001001"))       -- data
       port map (

@@ -233,22 +233,6 @@ begin
          rstOut(1) => wordRst,             -- [out]
          locked    => timingRxClkLocked);  -- [out]
 
---    U_TimingMmcm_1 : entity warm_tdm.TimingMmcm
---       generic map (
---          TPD_G              => TPD_G,
---          USE_HPC_G          => false,
---          CLKIN1_PERIOD_G    => 8.0,
---          DIVCLK_DIVIDE_G    => 1,
---          CLKFBOUT_MULT_F_G  => 5.0,
---          CLKOUT0_DIVIDE_F_G => 1.0,
---          CLKOUT1_DIVIDE_G   => 5)
---       port map (
---          timingRxClk => timingRxClk,    -- [in]
---          timingRxRst => timingRxRst,    -- [in]
---          bitClk      => bitClk,         -- [out]
---          wordClk     => wordClk,        -- [out]
---          wordRst     => wordRst);       -- [out]
-
    -------------------------------------------------------------------------------------------------
    -- Deserialize the incomming data
    -------------------------------------------------------------------------------------------------
@@ -534,7 +518,7 @@ begin
       v := r;
 
       if (v.timingRxData.running = '1' and r.pwrSyncWait = '0') then
-         v.timingRxData.runTime := r.timingRxData.runTime + 1;
+         v.timingRxData.runTimeNs := r.timingRxData.runTimeNs + 8;  -- 125 MHz -> 8 ns/tick
          v.timingRxData.rowTime := r.timingRxData.rowTime + 1;
       end if;
 
@@ -555,7 +539,7 @@ begin
          case timingRxData is
             when START_RUN_C =>
                v.timingRxData.startRun        := '1';
-               v.timingRxData.runTime         := (others => '0');
+               v.timingRxData.runTimeNs       := (others => '0');
                v.timingRxData.rowTime         := (others => '0');
                v.timingRxData.rowSeqCount     := (others => '0');
                v.timingRxData.daqReadoutCount := (others => '0');

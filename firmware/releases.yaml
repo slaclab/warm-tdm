@@ -32,52 +32,44 @@ CondaDependencies:
 RogueConfig:
 
 Targets:
-  ColumnFpgaBoard160:
-    ImageDir: targets/ColumnFpgaBoard160/images
+  ColumnFpgaBoard325Fp:
+    ImageDir: targets/ColumnFpgaBoard325Fp/images
     Extensions:
-      - mcs
       - mcs.gz
 
-  ColumnFpgaBoard160Coord:
-    ImageDir: targets/ColumnFpgaBoard160Coord/images
+  ColumnFpgaBoard325Int:
+    ImageDir: targets/ColumnFpgaBoard325Int/images
     Extensions:
-      - mcs
       - mcs.gz
 
-  ColumnFpgaBoard325Coord:
-    ImageDir: targets/ColumnFpgaBoard325Coord/images
+  ColumnFpgaBoard325Fp1G:
+    ImageDir: targets/ColumnFpgaBoard325Fp1G/images
     Extensions:
-      - mcs
       - mcs.gz
 
-  ColumnFpgaBoard325Coord10G:
-    ImageDir: targets/ColumnFpgaBoard325Coord10G/images
+  ColumnFpgaBoard325Int1G:
+    ImageDir: targets/ColumnFpgaBoard325Int1G/images
     Extensions:
-      - mcs
       - mcs.gz
 
-  ColumnFpgaBoard325AwaXeCoord10G:
-    ImageDir: targets/ColumnFpgaBoard325AwaXeCoord10G/images
+  ColumnFpgaBoard325Fp10G:
+    ImageDir: targets/ColumnFpgaBoard325Fp10G/images
     Extensions:
-      - mcs
+      - mcs.gz
+
+  ColumnFpgaBoard325Int10G:
+    ImageDir: targets/ColumnFpgaBoard325Int10G/images
+    Extensions:
       - mcs.gz
 
   RowFpgaBoard160:
     ImageDir: targets/RowFpgaBoard160/images
     Extensions:
-      - mcs
-      - mcs.gz
-
-  RowFpgaBoard160Coord:
-    ImageDir: targets/RowFpgaBoard160Coord/images
-    Extensions:
-      - mcs
       - mcs.gz
 
   RowFpgaBoard325:
     ImageDir: targets/RowFpgaBoard325/images
     Extensions:
-      - mcs
       - mcs.gz
 
 
@@ -85,8 +77,12 @@ Releases:
   warmTdm:
     Primary: true
     Targets:
-      - ColumnFpgaBoard325Coord
-      - ColumnFpgaBoard325Coord10G
+      - ColumnFpgaBoard325Fp
+      - ColumnFpgaBoard325Int
+      - ColumnFpgaBoard325Fp1G
+      - ColumnFpgaBoard325Int1G
+      - ColumnFpgaBoard325Fp10G
+      - ColumnFpgaBoard325Int10G
       - RowFpgaBoard160
       - RowFpgaBoard325
     Types:

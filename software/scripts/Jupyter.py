@@ -99,7 +99,6 @@ def run_server():
 
     with warm_tdm_api.GroupRoot(groupConfig=config, simulation=args.sim, emulate=args.emulate, plots=False, serverPort=9099) as root:
         print("Started Root and GUI")
-        #pyrogue.pydm.runPyDM(root=root,title='Warm TDM',sizeX=2000,sizeY=2000,ui=warm_tdm_api.pydmUi)        
         pyrogue.waitCntrlC()
 
 #multiprocessing.Process(target=run_server).start()
@@ -198,4 +197,3 @@ def test(biasHigh, biasLow, biasSteps):
     group.SaTuneProcess.PlotMulti.get()
     
 #os.system("python -m pyrogue gui --server='localhost:9099' &")
-

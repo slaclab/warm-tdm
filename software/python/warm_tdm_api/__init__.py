@@ -1,3 +1,10 @@
+##############################################################################
+## This file is part of 'warm-tdm'. It is subject to the license terms in the
+## LICENSE.txt file found in the top-level directory of this distribution and
+## at https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+## No part may be copied, modified, propagated, or distributed except according
+## to the terms contained in the LICENSE.txt file.
+##############################################################################
 from ._CurveClass import *
 from ._PausableProcess import *
 from ._GroupVariables import *
@@ -17,6 +24,3 @@ from ._SaStripChart import *
 from ._ArgParser import *
 from warm_tdm_api.widgets import WarmTdmDisplay
 from ._server import runServer
-
-import os.path
-pydmUi = os.path.dirname(__file__) + '/warm_tdm_gui.ui'

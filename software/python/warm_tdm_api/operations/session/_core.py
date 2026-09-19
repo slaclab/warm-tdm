@@ -193,7 +193,7 @@ class TopologyCore:
         for board_name, board in sorted(boards.items()):
             try:
                 board_type, board_index = board_name.split(" ")
-                av = board.WarmTdmCore.WarmTdmCommon2.AxiVersion
+                av = board.WarmTdmCore.WarmTdmCommon.AxiVersion
                 print(f"{board_type} Board {board_index}:")
                 print(f"  BuildStamp       : {av.BuildStamp.get()}")
                 print(f"  DeviceDna        : {hex(av.DeviceDna.get())}")
