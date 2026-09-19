@@ -1,7 +1,7 @@
 import pyrogue as pr
 
 
-class TesBias2(pr.Device):
+class TesBias(pr.Device):
     def __init__(self, frontEnd, dac, **kwargs):
         super().__init__(**kwargs)
         

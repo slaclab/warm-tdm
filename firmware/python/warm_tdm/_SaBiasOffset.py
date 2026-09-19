@@ -1,7 +1,7 @@
 import pyrogue as pr
 import numpy as np
 
-class SaBiasOffset2(pr.Device):
+class SaBiasOffset(pr.Device):
     def __init__(self, saBiasDac, saOffsetDac, frontEnd, **kwargs):
         super().__init__(**kwargs)
 

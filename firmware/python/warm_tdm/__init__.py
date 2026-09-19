@@ -30,14 +30,13 @@ from ._PidDebuggerFp import *
 from ._PidLockMonitor import *
 from ._PidDebugFilter import *
 from ._BoardTemp import *
-from ._BoardTemp2 import *
 from ._ColumnFpgaBoard import *
 from ._ColumnAwaXeFpgaBoard import *
 from ._RowFpgaBoard import *
 from ._WarmTdmCommon import *
 from ._WarmTdmCore import *
-from ._SaBiasOffset2 import *
-from ._TesBias2 import *
+from ._SaBiasOffset import *
+from ._TesBias import *
 from ._WarmTdmConfig import *
 from ._AwaXeI2c import *
 from ._SaBiasOffsetAwaXe import *
