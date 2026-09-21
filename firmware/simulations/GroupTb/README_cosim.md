@@ -52,14 +52,16 @@ source /sdf/group/faders/tools/synopsys/vcs/X-2025.06/settings.sh
 cd firmware/simulations/GroupTb
 make vcs                       # ~5-7 min
 
-# 3. Compile + elaborate + launch the sim (opens the TCP bridges, then free-runs)
+# 3. Compile + elaborate, then launch the sim (opens TCP bridges and free-runs)
 cd $(git rev-parse --show-toplevel)/firmware/build/GroupTb/GroupTb_project.sim/sim_1/behav
-./sim_vcs_mx.sh                # builds ./simv and runs it; leave it running
+./sim_vcs_mx.sh                # builds ./simv; the ruckus script does not launch it
+source setup_env.sh
+./simv -licqueue -l simulate.log  # leave this running
 
 # 4. PyRogue server, --sim (new shell)
 conda activate warm-tdm-r615
 cd software/scripts
-python warmTdmServer.py --sim --columnBoards 1 --rowBoards 1 --rowAddrBits 5 --maxRows 32
+python warmTdmServer.py --sim --simPgpRing --columnBoards 1 --rowBoards 1 --rowAddrBits 5 --maxRows 32
 
 # 5. Client (new shell) — operations / hwtest against localhost:9099
 conda activate warm-tdm-r615
@@ -84,10 +86,38 @@ means the client dials a port nothing is listening on.
 
 The ring mode is the one that reproduces the SRP-over-ring path used on real
 hardware; use it to catch ring/coordinator regressions. The bypass mode is
-faster (no GTX to simulate) and stays the historical default. Ring mode adds GTX
-CDR-lock + PGP handshake time, so give the client extra settle time before the
+faster (no GTX to simulate). The checked-in toggle currently selects ring mode.
+Ring mode adds GTX CDR-lock + PGP handshake time, so give the client extra settle time before the
 first row-board register access (the row's ring address is only valid after
 link-up).
+
+### Checking simulation progress and GTX startup
+
+The ICAP initialization message near 1.272 us can be the last timestamp printed
+by a normally advancing simulation. High CPU use during free-running VCS is
+also expected; neither observation establishes a delta-cycle loop.
+
+To inspect progress, launch `./simv -licqueue -ucli -l simulate.log` instead of
+the free-running command above. At the UCLI prompt:
+
+```tcl
+run 100us
+puts "Reached 100 us"
+```
+
+This pauses at 100 us. Resume with `run` before making client reads; a paused
+simulation cannot service SRP. For a minimal communication check, disable
+startup bulk reads/writes and polling, then read AxiVersion and PGP status on
+ports 10000 (column) and 10002 (row). Allow seconds of wall time per transaction;
+the full simulation roots already use an extended timeout. Confirm PGP local
+and remote link-ready before attempting row access.
+
+For deeper startup debugging, inspect `pgpClk`, `pgpRst`, and `pgpRxOut(0)` in
+each `PgpCore`, and `cPllLock`, `cPllRefClkLost`, `gtTxReset`, `gtRxReset`,
+`txResetDone`, `rxResetDone`, `txFsmResetDone`, and `rxFsmResetDone` in its
+`Gtx7Core`. Both GTX user clocks come from the free-running MMCM `pgpClk`;
+recovered clock outputs are open at `PgpCore`. An unknown recovered RX clock
+therefore does not feed back into the fabric RX clock here.
 
 ## TCP ports (sim side ↔ `--sim` client)
 

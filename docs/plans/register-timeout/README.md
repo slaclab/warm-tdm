@@ -17,8 +17,8 @@ shared transport blockage, and find the smallest discriminating hardware test.
 
 ## Status
 
-Source investigation at `da08863`, SURF `70191c1`; root cause remains unconfirmed
-on hardware. Before the local diagnostic change below, PgpCore, RingRouter,
+Source investigation began at `da08863`, SURF `70191c1`; root cause remains unconfirmed
+on hardware. Before the buffering change below, PgpCore, RingRouter,
 PgpEthCore and EthCore had no source diff from `d0bedaa` to this revision.
 Current bench image identities are not yet confirmed.
 The image revision exists locally as
@@ -26,12 +26,60 @@ The image revision exists locally as
 No hardware access or build reports have been supplied. Local `firmware/build/`
 contains simulation directories, not this target's synthesis/implementation.
 
-The local diagnostic change restores both ring RX FIFOs (VC0 and VC1) on every
+Commit `40c131c` restores both ring RX FIFOs (VC0 and VC1) on every
 board to address width 10 (8 KiB each) and selects the inferred backend with
-block RAM. Transmit FIFOs, the pause threshold and Ethernet bridge settings
-are unchanged. Rebuild the boards with Vivado 2024.1, check resource fit and
+block RAM. It also restores coordinator flow control (`flowCntlDis=0` on the
+coordinator, 1 on other boards). Transmit FIFOs, the pause threshold and Ethernet
+bridge settings are unchanged. Rebuild the boards with Vivado 2024.1, check resource fit and
 repeat the failing ReadAll plus before/after overflow-counter checks. Revisit
 the sizing if synthesis does not fit. Hardware acceptance remains outstanding.
+
+## GTX cosim startup: verified at `fc8f751`
+
+The reported 1.272 us freeze was not reproduced. On `rdsrv419`, the existing
+GroupTb binary advanced through 2, 10, 20, 100 and 300 us without rebuilding or
+changing RTL, serial wiring, delay, model version, warnings or time resolution.
+The ICAP initialization warning at 1.272 us was the last unsolicited timestamp,
+not the simulator's stopping time. Both PGP links were ready at 100 us. At
+300 us both CPLLs were locked, both refclk-lost signals were clear, TX/RX resets
+were deasserted, and both primitive and reset-FSM done signals were asserted.
+
+A minimal Rogue 6.15.0 client, with startup reads/writes and polling disabled
+and a 45-second timeout, read three registers on each board through coordinator
+sockets 10000 and 10002:
+
+| Register | Column | Row |
+|---|---:|---:|
+| AxiVersion FpgaVersion (`0x0`) | `0x1` | `0x1` |
+| PGP status (`0xA0000020`) | `0x1f` | `0x1f` |
+| Peer link data (`0xA0000024`) | `0x1` | `0x0` |
+
+Column reads took 0.17–0.18 seconds each; row reads took 1.26–1.28 seconds.
+Short host timeouts can therefore fail even with advancing simulation time,
+although that has not been established as the cause of the earlier client
+failure. The full Warm-TDM simulation roots already select a 1000-second
+timeout. This test establishes GTX startup and isolated SRP access, not ReadAll
+stability, buffering under stalls, or real Ethernet/RSSI behavior.
+
+Remote artifacts are in `/tmp/warm-tdm-gtx-startup-codex/` on `rdsrv419`:
+`baseline.log`, `progress.log`, `interactive.log`, `read_srp.py` and
+`read_srp.log`. `progress.log` is a deliberately wall-time-limited run stopped
+after its 20 us checkpoint; `interactive.log` contains the completed 300 us
+run and status captures. Local copies of the SRP results and status tail are in
+`/private/tmp/warm-tdm-gtx-startup-check/remote-{read-srp,gtx-status}.log`.
+The diagnostic simulator was quit after the checks.
+
+Historical references confirm real GTX ring simulation existed: `e2a3314`
+(2021-11-02) sets all six StackTb boards' PGP ports to zero; `a966972`
+(2023-05-30, "Use real PGP GT in sim") forces the GTX implementation on.
+That source uses zero-delay serial wiring, `SIM_VERSION_G="4.0"`, and the same
+free-running user-clock arrangement. The earlier claim that StackTb never
+exercised GTX is incorrect. In current PgpCore both recovered-clock outputs are
+open, so the proposed recovered-RX-clock feedback into fabric does not exist.
+
+Next: reproduce the hardware's actual failing read sequence and capture overflow
+counters. Use the [GroupTb progress checks](../../../firmware/simulations/GroupTb/README_cosim.md#checking-simulation-progress-and-gtx-startup)
+to distinguish a quiet simulation from a stall.
 
 ## Current transport findings
 
@@ -41,7 +89,7 @@ SRP RSSI mux/packetizer/window -> host. Coordinator-local replies join at the
 RSSI mux; remote replies do not execute through the coordinator's local SRP
 AXI-Lite master.
 
-The table describes the failing source configuration before the local change.
+The table describes the failing source configuration before `40c131c`.
 
 | Buffer | Baseline nominal payload storage | Consequence |
 |---|---:|---|
@@ -58,10 +106,12 @@ reply includes another 24 bytes of SRP header/footer plus ring framing. The
 Streaming is valid only with an adequate bound on the stall and in-flight data;
 buffering one packet alone does not bound a burst of multiple packets/replies.
 
-- **Flow control is forced off.** PgpCore initializes `locPgpTxIn` with
+- **Flow control was forced off in the failing baseline.** PgpCore initializes `locPgpTxIn` with
   `PGP2B_TX_IN_HALF_DUPLEX_C`, which sets `flowCntlDis=1`. Pgp2bAxi ORs that
   value into the PHY control, so clearing its software bit cannot enable pause.
-  The pause propagation in PgpCore therefore does not stop transmitters.
+  Commit `40c131c` overrides this field to zero for the coordinator; other boards
+  still force it high. Its pause propagation therefore needs validation with
+  the restored coordinator control, rather than assuming all transmitters ignore it.
   PgpRxVcFifo uses `SLAVE_READY_EN_G=ROGUE_SIM_EN_G`; hardware writes ignore
   ready. Do not enable ordinary point-to-point pause blindly in a directed ring:
   the received status belongs to the preceding receiver, not necessarily the
@@ -81,10 +131,11 @@ buffering one packet alone does not bound a burst of multiple packets/replies.
   advertised by that board's transmitter. `RxRemOverflow0Count` at offset
   `0x34` reports the preceding board's advertised overflow. Also capture
   `TxLocPause`, `RxRemPause` and host RSSI `locBusyCnt`/`remBusyCnt`.
-- **Ordinary GroupTb host access misses this path.** HardwareGroup simulation
-  connects each board directly to its own TCP SRP port. EthCore also bypasses
-  RSSI in simulation. Even a PGP FIFO test using `ROGUE_SIM_EN_G=true` can mask
-  loss by respecting ready; a useful stress test must disable that handshake.
+- **GroupTb bypass mode misses this path.** The new GTX ring mode with
+  `--simPgpRing` reaches the row through the coordinator and real PGP models.
+  EthCore still bypasses RSSI in simulation. PgpCore currently passes
+  `ROGUE_SIM_EN_G=SIMULATION_G` to its receive FIFOs even in GTX mode; a useful
+  hardware-overflow stress test must disable that ready handshake for real GTX.
 
 ## Focused buffer experiment
 
@@ -141,9 +192,9 @@ the actual failing read size and bench counter evidence remain necessary.
    SRP timeout cannot directly set the independent column bridge's timeout bit.
    Shared request-stream head-of-line blocking remains possible if a remote
    sink stops accepting and its buffers fill; it is not yet demonstrated here.
-5. Build and test the local ring RX depth restoration from 8 to 10 with inferred
-   RAM on both VCs and all boards. This changes capacity and backend together,
-   so recovery alone will not distinguish their effects. Enlarging EthCore's
+5. Build and test `40c131c` with ring RX depth restored from 8 to 10 and inferred
+   RAM on both VCs and all boards. This changes capacity, backend and coordinator
+   flow control together, so recovery alone will not distinguish their effects. Enlarging EthCore's
    remote SRP return FIFO remains a separate possible experiment. Deeper FIFOs alone do not
    guarantee stability for unbounded bursts or host stalls. A durable solution
    needs bounded outstanding response bytes or ring-appropriate flow control,
