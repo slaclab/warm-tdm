@@ -1,23 +1,159 @@
-# Register timeout after the September 18 image
+# Hardware ReadAll / register timeout investigation
 
 ## Goal and reported behavior
 
-Compare working firmware/software `1045236eecac9719092883b78dee6e850c63698b`
+Latest bench report: one column coordinator and one row board, both AxiVersion
+blocks accessible. ReadAll fails on the row, followed by loss of column SRP
+access. RSSI and PGP links remain up without reported link errors. The first
+failing address, exact error, both image identities, and reset/reconnect recovery
+behavior are still needed. This supersedes the initial assumption that even the
+coordinator's first register read fails.
+
+The earlier comparison used working firmware/software `1045236eecac9719092883b78dee6e850c63698b`
 (`ColumnFpgaBoard325Coord10G`) with the loaded image
 `ColumnFpgaBoard325Int10G-0x00000000-20260918115303-bareese-d0bedaa.mcs.gz`.
-The board responds to ping and RSSI appears to link, but register reads time out.
-Determine the likely regression and the smallest discriminating hardware test.
+Determine whether the bench failure is transport loss, an endpoint timeout, or
+shared transport blockage, and find the smallest discriminating hardware test.
 
 ## Status
 
-Initial source comparison complete; root cause remains unconfirmed on hardware.
+Source investigation at `da08863`, SURF `70191c1`; root cause remains unconfirmed
+on hardware. Before the local diagnostic change below, PgpCore, RingRouter,
+PgpEthCore and EthCore had no source diff from `d0bedaa` to this revision.
+Current bench image identities are not yet confirmed.
 The image revision exists locally as
-`d0bedaae8b65e648d6cec101c39564f5bcbb2b9a`; the working tree is at `dd46689`
-with unrelated uncommitted work. Compare committed revisions explicitly.
+`d0bedaae8b65e648d6cec101c39564f5bcbb2b9a`. Compare committed revisions explicitly.
 No hardware access or build reports have been supplied. Local `firmware/build/`
 contains simulation directories, not this target's synthesis/implementation.
 
-## Findings so far
+The local diagnostic change restores both ring RX FIFOs (VC0 and VC1) on every
+board to address width 10 (8 KiB each) and selects the inferred backend with
+block RAM. Transmit FIFOs, the pause threshold and Ethernet bridge settings
+are unchanged. Rebuild the boards with Vivado 2024.1, check resource fit and
+repeat the failing ReadAll plus before/after overflow-counter checks. Revisit
+the sizing if synthesis does not fit. Hardware acceptance remains outstanding.
+
+## Current transport findings
+
+The remote response path is row SRP TX -> PGP TX FIFO/packetizer -> coordinator
+PGP RX FIFO -> RingRouter depacketizer/demux -> EthCore remote TX FIFO -> shared
+SRP RSSI mux/packetizer/window -> host. Coordinator-local replies join at the
+RSSI mux; remote replies do not execute through the coordinator's local SRP
+AXI-Lite master.
+
+The table describes the failing source configuration before the local change.
+
+| Buffer | Baseline nominal payload storage | Consequence |
+|---|---:|---|
+| PgpCore RX FIFO, per VC | 256 x 8 bytes = 2 KiB | Reduced from 8 KiB by `857a104`; hardware cannot stop incoming writes |
+| EthCore remote TX FIFO, per channel | 32 x 8 bytes = 256 bytes | CDC elasticity, not a full large-response buffer |
+| Row PGP SRP TX FIFO | 1024 x 16 bytes = 16 KiB | Can accumulate substantially more response data upstream |
+| Coordinator local SRP TX FIFO | 512 x 16 bytes = 8 KiB | Local reads have a separate backpressurable response buffer |
+
+These are nominal RAM capacities, excluding pipeline words and packet overhead.
+The receive FIFO uses the wider 8-byte application width, not the 2-byte PHY
+width. The usual Rogue SRPv3 maximum memory transaction is 4096 bytes; a read
+reply includes another 24 bytes of SRP header/footer plus ring framing. The
+2 KiB + 256-byte path cannot absorb a whole such reply if RSSI stops draining.
+Streaming is valid only with an adequate bound on the stall and in-flight data;
+buffering one packet alone does not bound a burst of multiple packets/replies.
+
+- **Flow control is forced off.** PgpCore initializes `locPgpTxIn` with
+  `PGP2B_TX_IN_HALF_DUPLEX_C`, which sets `flowCntlDis=1`. Pgp2bAxi ORs that
+  value into the PHY control, so clearing its software bit cannot enable pause.
+  The pause propagation in PgpCore therefore does not stop transmitters.
+  PgpRxVcFifo uses `SLAVE_READY_EN_G=ROGUE_SIM_EN_G`; hardware writes ignore
+  ready. Do not enable ordinary point-to-point pause blindly in a directed ring:
+  the received status belongs to the preceding receiver, not necessarily the
+  next receiver served by this transmitter.
+- **Remote replies already have priority.** EthCore assigns priority 2 to
+  remote SRP replies versus 1 to local replies, with interleaving enabled.
+  Local AXI work does not directly monopolize the remote path. Shared RSSI
+  window exhaustion, host busy, retransmission, or downstream stalls still can.
+- **Overflow is not repaired here.** PgpRxVcFifo wraps AxiStreamFifoV2 directly,
+  without an SSI frame-drop/termination filter. Once full it can lose payload
+  and packet boundaries. RingRouter discards the depacketizer debug output;
+  the ring packetizer CRC is disabled. RSSI retransmission cannot restore bytes
+  already lost before Ethernet packetization.
+- **Link errors are not the decisive counter.** Check VC0
+  `TxLocOverflow0Count` on each board (Pgp2bAxi offset `0x4c`, absolute
+  `0xA000004C`). Despite its TX name this reports local receive-buffer overflow
+  advertised by that board's transmitter. `RxRemOverflow0Count` at offset
+  `0x34` reports the preceding board's advertised overflow. Also capture
+  `TxLocPause`, `RxRemPause` and host RSSI `locBusyCnt`/`remBusyCnt`.
+- **Ordinary GroupTb host access misses this path.** HardwareGroup simulation
+  connects each board directly to its own TCP SRP port. EthCore also bypasses
+  RSSI in simulation. Even a PGP FIFO test using `ROGUE_SIM_EN_G=true` can mask
+  loss by respecting ready; a useful stress test must disable that handshake.
+
+## Focused buffer experiment
+
+A scratch GHDL 6.0.0 bench at `/private/tmp/warm-tdm-srp-buffer-probe/` connects
+the actual SURF Packetizer2 (512-byte packets, CRC NONE), 8-to-2-byte gearbox,
+PgpRxVcFifo (`ROGUE_SIM_EN_G=false`), Depacketizer2 and remote-sized AXIS FIFO.
+Clocks are 62.5 MHz at the PHY stream, 125 MHz at the receiver application,
+and 156.25 MHz at the sink. Traffic starts at 10 us; stalled cases hold sink
+ready low until 50 us and drain until 60 us. Each response is a synthetic byte
+stream with the stated SRP-equivalent length, not an executed AXI transaction.
+
+| Scenario | Sent / received bytes | Completed frames | RX overflow cycles |
+|---|---:|---:|---:|
+| Current depths, no sink stall | 4120 / 4120 | 1 | 0 |
+| Current depths, stalled 1 KiB + 24-byte reply | 1048 / 1048 | 1 | 0 |
+| Current depths, stalled 4 KiB + 24-byte reply | 4120 / 2288 | 0 | 237 |
+| RX depth restored to 10, stalled large reply | 4120 / 4120 | 1 | 0 |
+| Only bridge depth increased to 10, stalled large reply | 4120 / 4120 | 1 | 0 |
+| Current depths, four queued small replies, stalled | 4192 / 2256 | 2 | 252 |
+
+Non-overflow cases assert byte and completed-frame counts. All runs complete;
+the lossy cases retain truncated traffic, and depacketizer `packetError` stays
+zero within this observation window. Thus that signal alone is insufficient
+to diagnose overflow, particularly when no subsequent packet arrives.
+
+This isolates a real capacity limitation, not the reported hardware failure or
+column lockup. It substitutes inferred FIFOs for XPM, omits PGP wire overhead,
+router demux/pipeline stages and the complete RSSI/host, and injects a downstream
+stall rather than demonstrating how one arises. The queued-response case also
+does not model the current row driver's per-block waiting. Vendor simulation,
+the actual failing read size and bench counter evidence remain necessary.
+
+## Discriminating checks for this bench
+
+1. Capture the *first* failing path/address/length and exact exception. Distinguish
+   a host timeout/errored or truncated frame from an SRP timeout footer (`0x2100`
+   when timeout/bus-lock are the only flags). Record both firmware Git hashes and
+   the actual Rogue version. Read AxiVersion explicitly with `read=True`.
+2. With startup bulk reads and polling off, test the row alone, column alone,
+   then the whole tree with one outstanding block at a time. Use
+   `root.readBlocks(recurse=True, checkEach=True)` on the older Rogue API
+   (`waitEach=True` on newer versions). RowFpgaBoard already sets
+   `forceCheckEach=True`, which propagates into children; column reads submitted
+   earlier by a whole-tree ReadAll can nevertheless still be outstanding.
+3. Separate read size from concurrency. Compare individual reads with a known
+   valid RAM block read, staying inside the deployed row capacity. The current
+   RowMap is only 512 bytes at 128 rows, or 1024 bytes at 256 rows. A single such
+   reply fits the nominal RX buffers; a reproducible isolated failure is not
+   explained just by the 4 KiB worst-case calculation. Check RowDacDriver's
+   timing-clock AXI bridge if its small control registers fail consistently.
+4. Compare VC0 overflow counters before/after, and capture SRP traffic at the
+   host. If column requests still reach destination 0 but no replies return,
+   inspect the common RSSI path and local bridge separately. A row's sticky
+   SRP timeout cannot directly set the independent column bridge's timeout bit.
+   Shared request-stream head-of-line blocking remains possible if a remote
+   sink stops accepting and its buffers fill; it is not yet demonstrated here.
+5. Build and test the local ring RX depth restoration from 8 to 10 with inferred
+   RAM on both VCs and all boards. This changes capacity and backend together,
+   so recovery alone will not distinguish their effects. Enlarging EthCore's
+   remote SRP return FIFO remains a separate possible experiment. Deeper FIFOs alone do not
+   guarantee stability for unbounded bursts or host stalls. A durable solution
+   needs bounded outstanding response bytes or ring-appropriate flow control,
+   plus observable overflow and defined frame recovery.
+
+The existing XPM/`"bram"` spelling still needs a Vivado build-log check, but
+successful reads of both boards weaken the original global-payload-failure
+hypothesis. The current change leaves those Ethernet/RSSI settings in place.
+
+## Earlier image-comparison findings
 
 - Both target configurations enable `RING_ADDR_0_G=true` and `ETH_10G_G=true`.
   The new target explicitly selects the integer PID path. Its default RSSI
@@ -46,68 +182,7 @@ contains simulation directories, not this target's synthesis/implementation.
   bridge. Passing ordinary group co-simulation does not exercise the RSSI
   backend change.
 
-## Ranked suspects
-
-1. **RSSI implementation selection (`857a104`)**: the most direct changed
-   logic on the coordinator register transport. The backend generic affects
-   RSSI RX/TX segment RAMs and application/transport output FIFOs. Connection
-   control traffic can succeed without validating stored application payloads.
-   No specific defect in the RSSI XPM implementation was proven by this review.
-2. **Implementation/constraints**: newly enabled power optimization and the
-   Ethernet hierarchy/XDC split need the actual candidate reports. The selected
-   10G constraints preserve the prior clock-group intent with updated paths;
-   source review cannot establish that Vivado resolved every object or met
-   timing. PGP's AXI clock/reset generation itself has no functional diff.
-3. **Remote-board transport**: remote Ethernet/PGP FIFOs also changed backend,
-   and PGP FIFO address width dropped from 10 to 8. Investigate these first
-   instead if coordinator reads succeed and only remote boards fail.
-
-The new `"bram"` XPM selections deserve a separate build-log check. SURF's
-`Fifo` and `FifoXpm` pass that string through without translating it to
-`"block"`. They are not the segment RAM setting inside the RSSI instances,
-which retains the default `"block"`. One local-data XPM/`"bram"` FIFO already
-existed in the working image, so merely finding that spelling is not proof
-of the newly reported global failure.
-
-## Discriminating next checks
-
-1. Stop other clients to the same RSSI port. Start from a fresh FPGA reset or
-   power cycle, before any normal full-tree startup (see the sticky-timeout
-   mechanism below). Establish that **UDP 8192** links,
-   independently of data-port 8193 status. Read a single 32-bit coordinator
-   AxiVersion word at **address 0, packetizer destination 0**, with initial
-   full-tree reads and polling disabled. A returned value of zero is valid
-   for this target's firmware version. Record the host revision, failing
-   device/address, and whether the host receives any SRP response frame.
-2. If that single read times out, make a diagnostic build changing only
-   `U_RssiServer_SRP`'s generic in `EthCore.vhd` (currently line 512):
-
-   ```diff
-   -            SYNTH_MODE_G          => "xpm",
-   +            SYNTH_MODE_G          => "inferred",
-   ```
-
-   Leave `U_RssiServer_DATA` and the other FIFO settings unchanged for this
-   experiment. Build `ColumnFpgaBoard325Int10G` with Vivado **2024.1** and repeat
-   the same single read. Recovery would implicate the SRP RSSI implementation
-   selection or its physical implementation, not yet identify an exact XPM
-   primitive defect. A failed experiment does not eliminate the other XPM
-   FIFO changes.
-3. Inspect the actual candidate's synthesis/implementation logs and timing
-   reports under `firmware/build/ColumnFpgaBoard325Int10G/` on the build host:
-   Vivado version, resolved generics, XPM memory-type warnings, missing XDC
-   objects, unconstrained endpoints, setup and hold slack, and power optimization
-   messages. If needed, compare an otherwise identical build with both power
-   optimization steps explicitly disabled.
-4. If address zero works, use the matching row-capacity options above and
-   identify the first failing full-tree access before blaming global SRP.
-
-## Follow-up: alternatives to an RSSI backend defect
-
-The backend change is a candidate, not a demonstrated XPM bug. Two other
-mechanisms fit a working network link with failed register access:
-
-### Latched SRP hardware bus lock
+## Endpoint timeout and persistent failure
 
 SURF `protocols/srp/rtl/SrpV3AxiLite.vhd` deliberately retains `r.timeout`
 across requests (line 343). With its request timeout enabled, an AXI transaction
@@ -130,85 +205,16 @@ Do not equate any timing-reset condition with a bus hang: a stopped clock with
 reset not properly reported, or a nonresponding endpoint, is a different case.
 No particular new endpoint has been proven to cause such a hang.
 
-### AXI clock/reset failure with live Ethernet
+## Effective clock-constraint comparison
 
-For 10G, EthCore's Ethernet/RSSI clock is derived from the 156.25 MHz reference.
-The register bus uses PgpCore's separate MMCM, fed by the fabric reference
-derived from the 250 MHz reference. Therefore ping and RSSI link-up do not
-establish that `axilClk` runs or that `axilRst` is released. The clock-generation
-RTL is unchanged across the compared revisions, so this is a physical/build
-or board-state alternative, not an identified source-level regression.
-
-`WarmTdmCore.vhd` exposes useful indications without register reads (provided
-the LEDs are enabled, which is the reset default):
-
-| HDL LED index | Signal | Expected meaning |
-|---|---|---|
-| `leds[0]` | Fabric reference 0 heartbeat | Reference feeding PGP/AXI is running |
-| `leds[1]` | Fabric reference 1 heartbeat | Reference feeding 10G is running |
-| `leds[2]` | AXI clock heartbeat | AXI clock is running; does not prove reset release |
-| `leds[3]` | Timing RX clock heartbeat | Timing clock is running; does not prove link lock |
-| `leds[4]` | `rssiStatus(0)(0)` | Register RSSI connection, UDP 8192 |
-| `leds[5]` | `rssiStatus(1)(0)` | Data RSSI connection, UDP 8193 |
-| `leds[6]` | `ethPhyReady` | Ethernet PHY ready |
-
-These are HDL indices, not verified silkscreen labels. JTAG/ILA inspection of
-`axilRst` and the SRP AXI handshake would separate reset/clock issues from an
-unanswered transaction if a suitable instrumented image is available.
-
-### Host/network and build-state checks
-
-- Establish that the observed RSSI connection is the register port, not only
-  data port 8193. Keep only one client on the register RSSI endpoint during the
-  probe; an old server, notebook, or loader is a possible competing client.
-- A duplicate IP or different running image is a lower-priority alternative.
-  Successful ping alone does not verify the newly loaded image's identity.
-- A clean rebuild with recorded Vivado version, generics, submodule state,
-  timing reports, and boot/image identity separates committed-source analysis
-  from incremental-build or flash/boot provenance problems.
-- If a fresh address-zero read works until normal startup, prioritize the
-  first failing peripheral and startup configuration over a global transport
-  defect. If only remote-board destinations fail, prioritize the PGP/ring path.
-
-## Follow-up: proposed 312.5-to-250 MHz constraint regression
-
-The proposed `gtRefClk0` period change is **not present in the effective target
-comparison**. The old revision contained both a legacy `WarmTdmCore.xdc` and the
-maintained `WarmTdmCore2.xdc`. Commit `316b112` replaced the former filename with
-the latter implementation. Comparing only the unsuffixed filename conflates
-two different designs.
-
-| Revision / target | Explicitly selected common XDC | `gtRefClk0` | `gtRefClk1` |
-|---|---|---|---|
-| `1045236` / `ColumnFpgaBoard325Coord10G` | `WarmTdmCore2.xdc` | 4.000 ns | 6.400 ns |
-| `d0bedaa` / `ColumnFpgaBoard325Int10G` | `WarmTdmCore.xdc` | 4.000 ns | 6.400 ns |
-
-At `1045236`, common `ruckus.tcl` has XDC directory auto-loading commented out;
-the working target explicitly loads `WarmTdmCore2.xdc`. The unused legacy file
-has 3.200 ns / 4.000 ns, which explains the apparent frequency change.
-
-Both maintained core revisions set `ClockDist.CLK_0_DIV2_G=true` and
-`CLK_1_DIV2_G=false`. The actual AXI chain is `gtRefClk0P/N` -> `IBUFDS_GTE2`
-`ODIV2` -> `BUFG` -> PgpCore `ClockManager7` -> `iAxiClk`. Both specify input
-period 8 ns, input divider 1, feedback multiplier 8, and AXI output divider 8.
-SURF passes these generics directly to `MMCME2_ADV`; the GT CPLL configuration
-is calculated from the explicit 250 MHz `REF_CLK_FREQ_G`, not the XDC period.
-`create_clock` supplies a timing constraint; it is not an instruction to select
-new MMCM divider ratios for this directly instantiated primitive.
-
-If the physical reference were instead 312.5 MHz, the same ratios would imply
-a 156.25 MHz MMCM input, 1250 MHz VCO, and 156.25 MHz AXI output in **both**
-images. Both target Makefiles specify `XC7K325TFFG676-2`. For that -2 grade at
-nominal 1.0 V, DS182 Table 41 specifies a 600–1440 MHz MMCM VCO range, so a
-1250 MHz VCO alone does not establish an out-of-range/no-lock diagnosis. This
-does not qualify operation at an incorrectly declared input frequency or
-validate the rest of the system's timing.
-
-Sources: local committed target loaders, core/ClockDist/PgpCore RTL, SURF
-`ClockManager7.vhd`, [AMD DS182 Table 41](https://docs.amd.com/api/khub/documents/BhulK6GRrzUpQYw0lzrnMA/content),
-and [AMD UG903 primary clocks](https://docs.amd.com/r/2024.2-English/ug903-vivado-using-constraints/Primary-Clocks).
-Physical clock/reset and actual implemented constraints remain useful checks;
-the claimed source-level period regression is ruled out for these revisions.
+The proposed 312.5-to-250 MHz source regression was ruled out: the old target
+loaded `WarmTdmCore2.xdc`, renamed to `WarmTdmCore.xdc` in the new target. Both
+selected files constrain `gtRefClk0` to 4.000 ns and `gtRefClk1` to 6.400 ns;
+the old unused legacy file caused the misleading filename-only comparison.
+Both maintained cores use `CLK_0_DIV2_G=true`, MMCM input period 8 ns, input
+divider 1, multiplier 8, and output divider 8. Successful AxiVersion reads now
+also argue against a persistent absence of the AXI clock/reset release. Actual
+implementation reports remain necessary for timing/constraint acceptance.
 
 ## Validation and handoff
 
@@ -225,6 +231,10 @@ the claimed source-level period regression is ruled out for these revisions.
 - No vendor-XPM simulation or hardware read was run. Source inspection cannot
   establish hardware recovery. Current host revision and a concrete timeout
   path/address remain requested information.
+- The focused inferred-FIFO experiment above reproduces truncation with the
+  current capacities and avoids it when either receive-side buffer is enlarged.
+  It does not establish a permanent firmware fix or reproduce cross-board lockup.
 
-No implementation changes, staging, commits, hardware writes, or external
-issue updates have been made for this investigation.
+The ring RX depth/backend change and this existing handoff are local
+changes; the diagnostic bench and logs are scratch artifacts. No staging,
+commits, hardware writes, or external issue updates have been made.
