@@ -7,7 +7,7 @@ shared :func:`saOffset` primitive.
 
 import numpy as np
 
-from ._common import saOffset
+import warm_tdm_api.tuning as tuning
 
 
 def sq1Ramp(group, row, column, low_offset=-77.0, high_offset=77.0, step=1.0):
@@ -50,7 +50,7 @@ def sq1Ramp(group, row, column, low_offset=-77.0, high_offset=77.0, step=1.0):
     outputs = []
     for fb in np.arange(low, high + step, step):
         group.Sq1FbForceCurrent.set(value=fb, index=column)
-        offset = saOffset(group=group)
+        offset = tuning.saOffset(group=group)
         outputs.append(offset)
     return outputs
 
@@ -122,7 +122,7 @@ def tesRamp(group, row, column, low_offset=0.0, high_offset=100.0, step=1.0):
     outputs = []
     for bias in np.arange(low, high, step):
         group.TesBias.set(index=column, value=bias)
-        offset = saOffset(group=group)
+        offset = tuning.saOffset(group=group)
         outputs.append(offset)
     return outputs
 

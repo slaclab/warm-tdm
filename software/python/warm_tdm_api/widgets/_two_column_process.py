@@ -1,10 +1,10 @@
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QFormLayout, QHBoxLayout, QGroupBox
 
-from ._tuning_process import TuningProcess
+import warm_tdm_api.widgets as widgets
 
 
-class TwoColumnProcess(TuningProcess):
+class TwoColumnProcess(widgets.TuningProcess):
     """Process widget with its automatically generated fields in two columns."""
 
     _STATUS_ROWS = 2  # Progress and Message remain full-width.

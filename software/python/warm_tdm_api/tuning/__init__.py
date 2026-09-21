@@ -20,10 +20,11 @@ The public API is unchanged from ``_Tuning.py``; import these as
 ``warm_tdm_api.<name>``.
 """
 
-from ._common import saOffset, saFbServo
+from ._common import _pause_point, saOffset, saFbServo
 from ._sa import saFbSweep, saBiasSweep, saTune
 from ._sq1 import sq1FbSweep, sq1BiasSweep, sq1Tune
-from ._fas import fasSweep, fasTune
+from ._fas import _fas_minimum_center, fasSweep, fasTune
+from ._fas_two_level import fasTuneTwoLevel
 from ._ramp import sq1Ramp, sq1RampRow, tesRamp, tesRampRow
 
 __all__ = [

@@ -1,9 +1,9 @@
 from pydm.widgets import PyDMSpinbox
 from pyrogue.pydm.widgets import PyRogueLineEdit
-from warm_tdm_api.widgets._tuning_tab import TuningTab
+import warm_tdm_api.widgets as widgets
 
 
-class SaTuningTab(TuningTab):
+class SaTuningTab(widgets.TuningTab):
 
     def _plot_channels(self):
         return [self.channel + '.Plot']

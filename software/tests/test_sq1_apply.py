@@ -27,7 +27,8 @@ class Sq1ApplyTests(unittest.TestCase):
             _pause_point=lambda process, publish=None: process.running,
             saOffset=Mock(), saFbServo=Mock())
         with patch.dict(sys.modules, {
-                'warm_tdm_api': SimpleNamespace(), 'sq1_test._common': common}):
+                'warm_tdm_api': SimpleNamespace(tuning=common),
+                'warm_tdm_api.tuning': common}):
             spec.loader.exec_module(self.module)
         self.group = SimpleNamespace(
             RowReadoutOrder=var([1]), colEnableBools=np.array([True, False]),

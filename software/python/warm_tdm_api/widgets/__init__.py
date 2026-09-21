@@ -6,6 +6,8 @@
 ## to the terms contained in the LICENSE.txt file.
 ##############################################################################
 from warm_tdm_api.widgets._control_tab import ControlTab
+from warm_tdm_api.widgets._tuning_process import TuningProcess
+from warm_tdm_api.widgets._two_column_process import TwoColumnProcess
 from warm_tdm_api.widgets._tuning_tab import TuningTab
 from warm_tdm_api.widgets._sa_tuning_tab import SaTuningTab
 from warm_tdm_api.widgets._fas_tuning_tab import FasTuningTab

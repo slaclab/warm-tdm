@@ -8,7 +8,7 @@
 import logging
 import math
 
-from ._core import COORDINATOR_COL_BOARD
+import warm_tdm_api.operations.session as session
 
 log = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class SetupMixin:
             return
         if len(self.cbs) > 1:
             log.warning("Multiple column boards detected %s. Assuming ColumnBoard[%d] "
-                        "is the controller.", list(self.cbs.keys()), COORDINATOR_COL_BOARD)
+                        "is the controller.", list(self.cbs.keys()), session.COORDINATOR_COL_BOARD)
         if len(self.rbs) > 1:
             log.warning("Multiple row boards detected %s. Applying commands to all.",
                         list(self.rbs.keys()))

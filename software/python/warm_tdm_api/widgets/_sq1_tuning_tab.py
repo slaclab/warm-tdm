@@ -1,8 +1,7 @@
-from warm_tdm_api.widgets._tuning_tab import TuningTab
-from warm_tdm_api.widgets._two_column_process import TwoColumnProcess
+import warm_tdm_api.widgets as widgets
 
 
-class Sq1TuningTab(TuningTab):
+class Sq1TuningTab(widgets.TuningTab):
 
     def _process_widget(self):
-        return TwoColumnProcess(init_channel=self._process_channel())
+        return widgets.TwoColumnProcess(init_channel=self._process_channel())
