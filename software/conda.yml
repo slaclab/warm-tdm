@@ -4,6 +4,10 @@ channels:
 dependencies:
   - rogue
   - matplotlib
-  - mpld3
+  - scipy
   - jupyterlab
   - simple-pid
+  - pip
+  - pip:
+    - scipy
+    - mpld3
