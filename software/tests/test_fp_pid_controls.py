@@ -59,8 +59,7 @@ def driver(slope=-.125):
     fn = functions('firmware/python/warm_tdm/_AdcDspFp.py',
                    ('_configureFluxQuantum', '_setFluxQuantum', '_getFluxQuantum',
                     '_setWrapMultiplier', '_setCoef', '_enablePid'),
-                   {'self': dev, 'flux_period_registers': config.flux_period_registers,
-                    'float32': config.float32})
+                   {'self': dev, 'warm_tdm': config})
     return dev, fn, events
 
 

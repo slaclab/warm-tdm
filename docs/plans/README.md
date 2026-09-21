@@ -1,54 +1,54 @@
-# Plans and design records
+# Active work and proposals
 
-Start here to find a workstream. Issues own remaining work and acceptance;
-[project 43](https://github.com/orgs/slaclab/projects/43) owns priority and stage.
-These documents support active work and intentional design records. An old
-unchecked plan item is not a second backlog. See [the workflow](../WORKFLOW.md).
+Use [the documentation index](../README.md) for implemented behavior and
+permanent design references. This directory holds unfinished work that needs
+a handoff, proposals and a few redirects preserving old issue/wiki URLs.
+Issues own acceptance and remaining checks; [project 43](https://github.com/orgs/slaclab/projects/43)
+owns priority and stage. Follow the [workflow](../WORKFLOW.md).
 
-After implementation is integrated into `pre-release`, move enduring guidance
-into a permanent README, guide, or `docs/design/` record. Remove superseded
-checklists and execution logs; their history stays in Git. Retain a task
-directory only for active follow-up, an intentional design record, or a short
-redirect for existing links. Keep unfinished acceptance on its owning issue.
+Update one existing workstream note when its current state or next step changes.
+Do not add a file for each session, review, merge check or issue audit. Put
+revision-specific results on the owning issue/PR. Retire completed handoffs
+after preserving unique evidence and repairing incoming links; use Git history
+for obsolete hypotheses and implementation chronology.
 
-## Work carried by the channelization integration
+## Integration and unresolved investigations
 
-[PR #106](https://github.com/slaclab/warm-tdm/pull/106) combines several related
-changes. Its branch name describes only one of them. Use the separate entry
-points below before editing a shared module.
+[PR #106](https://github.com/slaclab/warm-tdm/pull/106) combines frame-format,
+integer/FP controller, resource and verification work. Its branch name is not
+a complete scope description. [PR #107](https://github.com/slaclab/warm-tdm/pull/107)
+reviews the operations follow-up separately. Integration and hardware acceptance
+remain distinct.
 
-| Workstream | Start here | Owning issue |
+| Workstream | Current handoff | Owner or boundary |
 |---|---|---|
-| Frame identity, file channels, live/file decoders | [Channelization](channelization/PLAN.md) | [#82](https://github.com/slaclab/warm-tdm/issues/82) |
-| Floating-point PI and configuration/lifecycle | [FP PID](fp-dsp-pid/README.md) | [#70](https://github.com/slaclab/warm-tdm/issues/70) |
-| Accumulator split and integer PID corrections | [Integer PID](integer-pid/README.md), [split rationale](pipelined-dsp-accumulator/PLAN.md) | [#70](https://github.com/slaclab/warm-tdm/issues/70) |
-| Resource options, legacy-driver removal, target/build coverage | [Resource integration](resource-integration/README.md) | [#70](https://github.com/slaclab/warm-tdm/issues/70); capacity discovery remains [#73](https://github.com/slaclab/warm-tdm/issues/73) |
-| Regression harness and layered verification | [Verification index](pid-cosim-verification/README.md) | [#90](https://github.com/slaclab/warm-tdm/issues/90); feature acceptance stays on #70/#82 |
-| Sensor fixture updates and V–Φ shaping | [Model architecture](../../firmware/common/warm_tdm/sim/README.md), [shaping design](../design/squid-vphi-shaping/) | Foundation integrated via [#98](https://github.com/slaclab/warm-tdm/issues/98); later PID comparison acceptance on #70 |
+| Frame identity and file-channel integration | [Channelization](channelization/PLAN.md) | [#82](https://github.com/slaclab/warm-tdm/issues/82) |
+| Resource settings, legacy removal and build coverage | [Resource integration](resource-integration/README.md) | [#70](https://github.com/slaclab/warm-tdm/issues/70); capacity discovery is [#73](https://github.com/slaclab/warm-tdm/issues/73) |
+| Coordinator-only Ethernet and constraints | [Coordinator Ethernet](coordinator-ethernet/README.md) | Related #70 resource work; explicit acceptance ownership remains to be assigned |
+| Register timeouts with the September 18 integer 10G image | [Register timeout](register-timeout/README.md) | Unresolved hardware regression; preserve the exact source/image comparison |
+| Static/muxed SQ1 operating point and tuning | [SQ1 retune](pid-cosim-verification/SQ1_RETUNE.md) | [#70](https://github.com/slaclab/warm-tdm/issues/70); historical fixture settings are [here](pid-cosim-verification/cosim-tuning-settings.md) |
+| TES stimulus and multi-flux-jump capture | [TES scaling](tes-scaling/PROGRESS.md) | #70; distinguish later measured results from superseded attempts |
+| Two-level FAS discovery and shared-line verification | [FAS follow-up](fas-two-level/README.md) | [#99](https://github.com/slaclab/warm-tdm/issues/99) |
+| Live PID plots and GUI acceptance | [PID lock monitor](pid-lock-monitor/README.md) | Acceptance owner remains to be assigned; distinct from offline analysis #108 |
 
-The operations baseline comes from PR #78 and tuning/model work from
-#101/#102/#104/#105. PR #107 contains the enabled-set, logical-row vocabulary
-and operations follow-up. Those changes also occur in the integration history;
-acceptance remains with [#68](https://github.com/slaclab/warm-tdm/issues/68),
-[#83](https://github.com/slaclab/warm-tdm/issues/83) and
-[#99](https://github.com/slaclab/warm-tdm/issues/99).
+Controller contracts now live in [design/controllers](../design/controllers/README.md).
+Reproduction and verification layers live in [the regression guide](../../tests/README.md).
+[#70](https://github.com/slaclab/warm-tdm/issues/70),
+[#90](https://github.com/slaclab/warm-tdm/issues/90) and
+[#82](https://github.com/slaclab/warm-tdm/issues/82) own their acceptance.
+Operations, mask graduation and tuning follow-up remain on
+[#68](https://github.com/slaclab/warm-tdm/issues/68),
+[#83](https://github.com/slaclab/warm-tdm/issues/83) and #99.
 
-## Separate work and historical context
+## Proposals
 
-| Topic | Document | Owning issue / context |
+| Proposal | Record | Owning issue |
 |---|---|---|
-| Current integer/FP DSP behavior and performance comparison | [PID path comparison](pid-path-comparison/README.md) | September 17 source review and local timing probe; acceptance stays on #70 |
-| PID metrics, diagnosis and comparison proposal | [PID analyzer](pid-debug-analysis/PLAN.md) | [#108](https://github.com/slaclab/warm-tdm/issues/108) |
-| RSSI segment-size proposal | [RSSI tuning](rssi-tuning/PLAN.md) | [#109](https://github.com/slaclab/warm-tdm/issues/109) |
-| Integrated FAS tuning rationale | [FAS tuning design](../design/fas-tuning.md) | [#99](https://github.com/slaclab/warm-tdm/issues/99) |
-| Two-level FAS discovery and shared-line verification | [Active handoff](fas-two-level/README.md) | Extension under [#99](https://github.com/slaclab/warm-tdm/issues/99) |
-| Integrated group variable I/O contracts | [Group variable design](../design/group-variables.md) | [#103](https://github.com/slaclab/warm-tdm/issues/103) owns deferred AD5679R writes; #83 owns graduation decisions |
-| Physical PID units | [PID coefficients](sensor-wafer-model/PID_COEFFICIENTS.md) | [#44](https://github.com/slaclab/warm-tdm/issues/44) |
-| Software cleanup, including unmerged legacy removal | [Software cleanup](sw-cleanup/PLAN.md) | Remaining resource/legacy/build obligations are on #70 |
-| Integrated target organization | [Firmware targets](../../firmware/targets/README.md) | Current candidate build acceptance remains on #70 |
-| September 16 cleanup audit | [Accounting and handoff](work-tracking-cleanup/README.md) | Dated snapshot; use linked live records afterward |
+| Offline PID metrics, diagnosis and integer/FP comparison | [PID analyzer](pid-debug-analysis/PLAN.md) | [#108](https://github.com/slaclab/warm-tdm/issues/108) |
+| RSSI segment sizing and throughput | [RSSI tuning](rssi-tuning/PLAN.md) | [#109](https://github.com/slaclab/warm-tdm/issues/109) |
 
-Do not create another omnibus plan under `channelization` or the verification
-log. Put a new independently managed effort in its own task directory and link
-its issue here. Leave a short redirect when moving a linked plan so existing
-issue/wiki links remain useful.
+Tune-point/run-settings design is in [muxed-run bring-up](../design/muxed-run-bringup.md)
+([#81](https://github.com/slaclab/warm-tdm/issues/81)); physical-unit analysis is a
+[dated reference](../reference/pid-coefficients.md)
+([#44](https://github.com/slaclab/warm-tdm/issues/44)). Old FAS, group-variable,
+sensor-model and target paths are short redirects, not additional active plans.

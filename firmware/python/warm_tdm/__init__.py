@@ -12,13 +12,14 @@ from ._FrontEnds import *
 from ._TimingRx import *
 from ._TimingTx import *
 from ._Timing import *
-from ._RowDacDriver2 import *
+from ._RowDacDriver import *
 from ._WarmTdmRoot import *
 from ._ComCore import *
 from ._DataPath import *
 from ._FastDacDriver import *
 from ._AdcAccumulator import *
 from ._AdcDsp import *
+from ._PidFpConfig import float32, flux_period_registers
 from ._AdcDspFp import *
 from ._Ad5679R import *
 from ._Ad5263 import *
@@ -26,16 +27,17 @@ from ._HardwareGroup import *
 from ._Plotter import *
 from ._WaveformCapture import *
 from ._PidDebugger import *
+from ._PidDebuggerFp import *
+from ._PidLockMonitor import *
 from ._PidDebugFilter import *
 from ._BoardTemp import *
-from ._BoardTemp2 import *
 from ._ColumnFpgaBoard import *
 from ._ColumnAwaXeFpgaBoard import *
 from ._RowFpgaBoard import *
 from ._WarmTdmCommon import *
 from ._WarmTdmCore import *
-from ._SaBiasOffset2 import *
-from ._TesBias2 import *
+from ._SaBiasOffset import *
+from ._TesBias import *
 from ._WarmTdmConfig import *
 from ._AwaXeI2c import *
 from ._SaBiasOffsetAwaXe import *

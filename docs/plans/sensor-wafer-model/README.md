@@ -7,7 +7,7 @@ provenance now live in the
 It distinguishes the integrated foundation from later variation and V–Φ shaping
 carried by the `channelization` integration.
 
-The [PID coefficient analysis](PID_COEFFICIENTS.md) remains an intentional design
+The [PID coefficient analysis](../../reference/pid-coefficients.md) remains an intentional design
 record for the physical-unit work on
 [#44](https://github.com/slaclab/warm-tdm/issues/44); its numerical examples are
 historical, not a current tuned configuration. Original model acceptance is

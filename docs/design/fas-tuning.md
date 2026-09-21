@@ -142,7 +142,7 @@ diagnostics; starting a new process clears the previous outputs.
 
 ## Temporary physical-line actuation
 
-`RowDacDriver2.ManualSet` provides temporary actuation without changing the
+`RowDacDriver.ManualSet` provides temporary actuation without changing the
 persistent FAS tables. It is one packed, write-only register at local offset
 `0x18`:
 

@@ -17,7 +17,7 @@ import time
 
 import warm_tdm_api
 
-from ._common import _pause_point, saFbServo
+import warm_tdm_api.tuning as tuning
 
 
 def _fas_minimum_center(x_values, points, tolerance):
@@ -97,7 +97,7 @@ def fasSweep(*, group, row, board, address, driver, enabled_mask,
         Row-board index containing the line.
     address : int
         Board-local FAS address in the range 0..31.
-    driver : warm_tdm.RowDacDriver2
+    driver : warm_tdm.RowDacDriver
         Row-DAC driver, already configured for MANUAL operation.
     enabled_mask : array-like of bool
         Logical columns whose servo responses should be recorded.
@@ -146,7 +146,7 @@ def fasSweep(*, group, row, board, address, driver, enabled_mask,
         row, address, off_current)
     try:
         for step, current in enumerate(currents):
-            if not _pause_point(process, publish_data):
+            if not tuning._pause_point(process, publish_data):
                 log.debug(
                     'FAS sweep row %s stopped before step %d/%d',
                     row, step + 1, len(currents))
@@ -167,13 +167,13 @@ def fasSweep(*, group, row, board, address, driver, enabled_mask,
             # settling delay interruptible rather than sleeping in one block.
             deadline = time.monotonic() + max(0.0, delay)
             while time.monotonic() < deadline:
-                if not _pause_point(process, publish_data):
+                if not tuning._pause_point(process, publish_data):
                     break
                 remaining = deadline - time.monotonic()
                 if remaining <= 0.0:
                     break
                 time.sleep(min(0.05, remaining))
-            if not _pause_point(process, publish_data):
+            if not tuning._pause_point(process, publish_data):
                 log.debug(
                     'FAS sweep row %s stopped while settling step %d/%d',
                     row, step + 1, len(currents))
@@ -182,9 +182,9 @@ def fasSweep(*, group, row, board, address, driver, enabled_mask,
             log.debug(
                 'FAS sweep row %s step %d/%d starting SA FB servo',
                 row, step + 1, len(currents))
-            points = saFbServo(
+            points = tuning.saFbServo(
                 group=group, process=process, publish=publish_data)
-            if not _pause_point(process, publish_data):
+            if not tuning._pause_point(process, publish_data):
                 log.debug(
                     'FAS sweep row %s stopped during SA FB servo at '
                     'step %d/%d', row, step + 1, len(currents))
@@ -199,7 +199,7 @@ def fasSweep(*, group, row, board, address, driver, enabled_mask,
             log.debug(
                 'FAS sweep row %s step %d/%d recorded',
                 row, step + 1, len(currents))
-            if not _pause_point(process, publish_data):
+            if not tuning._pause_point(process, publish_data):
                 break
     finally:
         log.debug(
@@ -219,7 +219,7 @@ def fasTune(*, group, process=None, doSet=True):
     """Tune FAS-on currents for every active logical row.
 
     Active logical rows come from ``RowReadoutOrder`` and are resolved through
-    ``RowMap``. Sweep points use ``RowDacDriver2.manual_set()``; persistent
+    ``RowMap``. Sweep points use ``RowDacDriver.manual_set()``; persistent
     ``FasOn`` entries are optionally written only after every row sweep
     completes. A provisional SQ1 bias makes the FAS state observable before SQ1
     tuning; the original SQ1 force-current values are restored on exit.
@@ -291,8 +291,7 @@ def fasTune(*, group, process=None, doSet=True):
     if any(0 <= row < len(row_map) and
            ('csAddr' in row_map[row] or 'csBoard' in row_map[row])
            for row in active_rows):
-        from ._fas_two_level import fasTuneTwoLevel
-        return fasTuneTwoLevel(group=group, process=process, doSet=doSet)
+        return tuning.fasTuneTwoLevel(group=group, process=process, doSet=doSet)
 
     # Resolve one-level logical rows once; the two-level path owns paired
     # actuation, discovery and shared-current validation.
@@ -390,7 +389,7 @@ def fasTune(*, group, process=None, doSet=True):
             driver.Mode.setDisp('MANUAL')
 
         for index, (row, board, address, _) in enumerate(targets):
-            if not _pause_point(
+            if not tuning._pause_point(
                     process, lambda: process._publishResults(curves)):
                 process.Message.set('Stopped by user; FasOn unchanged')
                 return curves
@@ -429,7 +428,7 @@ def fasTune(*, group, process=None, doSet=True):
                 publish=lambda data: process._publishResults(
                     curves + [data]))
             curves.append(curve)
-            if not _pause_point(
+            if not tuning._pause_point(
                     process, lambda: process._publishResults(curves)):
                 log.debug(
                     'FAS tune stopped after logical row %d; '
@@ -478,7 +477,7 @@ def fasTune(*, group, process=None, doSet=True):
         for curve in curves:
             curve.fasOn = selected[(curve.board, curve.address)]
 
-        if not _pause_point(
+        if not tuning._pause_point(
                 process, lambda: process._publishResults(curves)):
             log.debug('FAS tune stopped before FasOn programming')
             process.Message.set('Stopped by user; FasOn unchanged')
@@ -500,7 +499,7 @@ def fasTune(*, group, process=None, doSet=True):
 
         # Catch Stop arriving during programming. A Pause
         # waits here and resumes without rolling back the completed write.
-        if not _pause_point(
+        if not tuning._pause_point(
                 process, lambda: process._publishResults(curves)):
             log.debug(
                 'FAS tune rolling back FasOn after Stop: snapshot=%s',

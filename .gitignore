@@ -20,9 +20,9 @@ build*
 !firmware/targets/build_release.sh
 __pycache__/
 
-# cocotb/GHDL regression flow (repo-local, generated)
+# Local Python environments and cocotb/GHDL simulation output
 .venv/
-tests/sim_build/
+/tests/sim_build/
 /ruckus/
 
 .ipynb_checkpoints/

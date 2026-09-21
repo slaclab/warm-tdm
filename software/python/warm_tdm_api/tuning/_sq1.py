@@ -10,7 +10,7 @@ import numpy as np
 
 import warm_tdm_api
 
-from ._common import _pause_point, saOffset, saFbServo
+import warm_tdm_api.tuning as tuning
 
 
 def sq1FbSweep(*, group, bias, fbRange, process, curves=None,
@@ -61,7 +61,7 @@ def sq1FbSweep(*, group, bias, fbRange, process, curves=None,
         np.asarray(fbRange[:, -1]).tolist())
 
     for fbStep in range(numSteps):
-        if not _pause_point(process, publish):
+        if not tuning._pause_point(process, publish):
             log.debug(
                 'SQ1 FB sweep stopped before step %d/%d',
                 fbStep + 1, numSteps)
@@ -80,13 +80,13 @@ def sq1FbSweep(*, group, bias, fbRange, process, curves=None,
             log.debug(
                 'SQ1 FB sweep step %d/%d starting SA FB servo',
                 fbStep + 1, numSteps)
-            points = saFbServo(
+            points = tuning.saFbServo(
                 group=group, process=process, publish=publish)
         else:
             # Open loop is retained as a diagnostic view of raw SA response.
             points = group.SaOut.get()
 
-        if not _pause_point(process, publish):
+        if not tuning._pause_point(process, publish):
             log.debug(
                 'SQ1 FB sweep stopped during step %d/%d; '
                 'discarding incomplete point',
@@ -105,7 +105,7 @@ def sq1FbSweep(*, group, bias, fbRange, process, curves=None,
         log.debug(
             'SQ1 FB sweep step %d/%d recorded', fbStep + 1, numSteps)
 
-        if not _pause_point(process, publish):
+        if not tuning._pause_point(process, publish):
             break
 
     log.debug(
@@ -197,7 +197,7 @@ def sq1BiasSweep(*, group, process, rowIndex, doBiasRamp=True,
     # Attach each bias curve before acquisition so Pause can display an
     # incomplete feedback sweep without fabricating missing samples.
     for biasStep in range(numBiasSteps):
-        if not _pause_point(process, publish):
+        if not tuning._pause_point(process, publish):
             log.debug(
                 'SQ1 bias sweep row=%s stopped before bias step %d/%d',
                 rowIndex, biasStep + 1, numBiasSteps)
@@ -234,7 +234,7 @@ def sq1BiasSweep(*, group, process, rowIndex, doBiasRamp=True,
             [len(curve.points) for curve in curves])
 
         # Do not begin another bias curve after an interrupted inner sweep.
-        if not _pause_point(process, publish):
+        if not tuning._pause_point(process, publish):
             log.debug(
                 'SQ1 bias sweep row=%s stopped after bias step %d/%d',
                 rowIndex, biasStep + 1, numBiasSteps)
@@ -351,7 +351,7 @@ def sq1Tune(group, process, doSet=True, doBiasRamp=True):
     # any SQ1 stimulus is applied.
     loadSaFbSetpoints(rowTuneList[0])
     log.debug('SQ1 tune starting initial SA offset adjustment')
-    saOffset(
+    tuning.saOffset(
         group=group,
         process=process,
         publish=lambda: process._publishResults(outputs))
@@ -359,7 +359,7 @@ def sq1Tune(group, process, doSet=True, doBiasRamp=True):
 
     completed = True
     for rowNumber, rowIndex in enumerate(rowTuneList):
-        if not _pause_point(
+        if not tuning._pause_point(
                 process, lambda: process._publishResults(outputs)):
             log.info('SQ1 tune stopped before row %s', rowIndex)
             completed = False
@@ -396,6 +396,12 @@ def sq1Tune(group, process, doSet=True, doBiasRamp=True):
             log.debug('SQ1 tune deactivating row %s', rowIndex)
             group.ManualRowOff(rowIndex)
 
+        # A Stop inside the final row's sweep never reaches another loop-entry
+        # check. Keep even fitted partial results from being applied in that case.
+        if not tuning._pause_point(process, lambda: process._publishResults(outputs)):
+            completed = False
+            break
+
     log.info(
         'SQ1 tune complete: collected %d/%d row result(s)',
         len(outputs), numEnabledRows)
@@ -411,8 +417,8 @@ def sq1Tune(group, process, doSet=True, doBiasRamp=True):
             rowIndex = rowTuneList[rowNumber]
             for col in enabledColumns:
                 result = results[col]
-                if (result.xOut is None or result.biasOut is None
-                        or result.yOut is None):
+                if any(value is None or not np.isfinite(value)
+                       for value in (result.xOut, result.biasOut, result.yOut)):
                     raise RuntimeError(
                         f'SQ1 tune produced no fitted operating point for '
                         f'enabled column {col}, row {rowIndex}')

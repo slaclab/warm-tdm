@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- Title      : Testbench for design "ColumnModuleBoard"
+-- Title      : Testbench for design "ColumnFpgaBoard"
 -------------------------------------------------------------------------------
 -- Company    : SLAC National Accelerator Laboratory
 -- Platform   : 

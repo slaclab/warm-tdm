@@ -152,7 +152,7 @@ Rebuild the wafer simulation and restart the software server together when
 moving from the 10 uA fixture. Previous closed-loop gain/settling results do
 not validate the new period; the PID profiles retain those gains as starting
 values pending another GroupTb run. See the
-[hardware scale evidence](../../../../docs/plans/integer-pid/HARDWARE_SCALE.md).
+[hardware scale evidence](../../../../docs/reference/sq1-feedback-scale.md).
 
 The foundational ideal law is the symmetric, overdamped, negligible-loop-
 inductance dc-SQUID approximation. With effective whole-SQUID parameters:
@@ -240,7 +240,7 @@ and these references (retained as provenance, not revalidated by doc cleanup):
 - [Durkin et al., 2023](https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=935895): two-layer switching.
 - [CMB-S4 modular readout, 2022](https://lss.fnal.gov/archive/2022/conf/fermilab-conf-22-607-ppd.pdf), Fig. 4: TES bias and two-level selection.
 
-The [PID coefficient analysis](../../../../docs/plans/sensor-wafer-model/PID_COEFFICIENTS.md)
+The [PID coefficient analysis](../../../../docs/reference/pid-coefficients.md)
 retains a static derivation; its numerical examples predate later plant and
 controller fixes. Measure the local end-to-end slope for the actual tuned
 revision before selecting coefficients.

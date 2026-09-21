@@ -2,6 +2,27 @@
 
 Supplementary reference for AI agents working on warm-tdm software. For the project overview, see the root [`AGENTS.md`](../AGENTS.md).
 
+## Supported boards and maintained entry points
+
+The `channelization` integration supports `ColumnFpgaBoard`,
+`ColumnAwaXeFpgaBoard` and `RowFpgaBoard` device families. Removed legacy
+ColumnModule/RowModule board constructors are not alternative supported
+configurations. Validate release packaging and CLI choices against the selected
+candidate; existing bitfiles still require a matching register tree.
+
+Use `software/scripts/warmTdmServer.py` (`--gui` for the server GUI).
+The old `warmTdmGui.py` and `gui.py` entry points were consolidated into it.
+`GroupConfig` carries column/row board counts, `maxRows` and host; logical-row
+mapping is separate from physical row/chip select topology. Group variable
+implementations live in `_GroupVariables.py` and tuning algorithms in `tuning/`.
+
+The maintained `_WarmTdmCore.py` and `_WarmTdmCommon.py` names now refer to the
+active implementations after their `2` suffix was removed. Old cleanup lists
+naming those files describe deleted legacy versions and must not be used as
+instructions to delete the current drivers. Supported front ends still use
+shared SURF DAC drivers; removing legacy boards does not resolve the remaining
+AD5679R work on [#103](https://github.com/slaclab/warm-tdm/issues/103).
+
 ## Package Structure
 
 Two Python packages work together:
@@ -85,8 +106,7 @@ GroupRoot (pyrogue.Root)
     │   └── RowBoard[0..N] (warm_tdm.RowFpgaBoard or variant)
     │       ├── WarmTdmCore registers
     │       ├── TimingTx (coordinator only)
-    │       ├── RowDacDriver2
-    │       └── RowModuleDacs
+    │       └── RowDacDriver
     ├── GroupLinkVariables (cross-board array access)
     ├── SaTuneProcess
     ├── Sq1TuneProcess
@@ -147,7 +167,7 @@ Process lifecycle:
 
 `FasTuneProcess` supports stopped one-level and two-level row maps. It uses
 `RowReadoutOrder` and `RowMap` to actuate physical outputs through
-`RowDacDriver2.manual_set()` and measure the nulled SA-feedback response.
+`RowDacDriver.manual_set()` and measure the nulled SA-feedback response.
 The active map entries automatically select the topology on every run; the
 same `session.fas_tune()` call or GUI Start button handles either configuration
 without a mode flag. One-level maps use the row-select sweep. Two-level maps
@@ -213,12 +233,65 @@ Read it before touching stream wiring or adding a data format.
 ## GUI Architecture
 
 - Framework: PyDM (Python Display Manager) + PyQt
-- Main UI: `software/python/warm_tdm_api/warm_tdm_gui.ui` (Qt Designer file)
+- Main display: `software/python/warm_tdm_api/widgets/_warm_tdm_display.py`
+  (`WarmTdmDisplay`), used by both the server GUI and remote GUI client
 - Widget modules in `software/python/warm_tdm_api/widgets/`:
   - `_warm_tdm_display.py` — Main display container
   - `_control_tab.py` — Hardware control panel
   - `_tuning_tab.py` — Tuning process controls
   - `_waveform_tab.py` — Real-time waveform display
+  - `_pid_lock_tab.py` — Live selected-row PID feedback, flux count and error
+
+### PID Lock tab
+
+Select a **global column** (`board * 8 + channel`) and a **logical row**, then
+enable that column's PID-debug stream with the checkbox if it is not already
+enabled. The monitor displays visits produced by the existing run; it does not
+start timing or enable PID. Row selection uses logical firmware indices for
+either flat or two-level RowMap configurations. Selection is shared between
+GUI clients. Changing the selected column leaves other debug enables unchanged;
+turn off streams when finished to avoid unnecessary traffic.
+
+The feedback selector offers **DAC + flux jumps**, **Full feedback**, and
+**Both**. Feedback is in signed controller DAC-code units, before the output
+polarity/offset-binary conversion, with a synchronized mean PID-error trace in
+ADC counts per sample. Flux count is a net signed count of configured wrap
+periods, not a count of events or a jump rate. An FP wrap period can represent
+multiple physical flux quanta through `WrapMultiplier`.
+
+FP full feedback comes directly from the accepted post-visit `sq1FbNewFp`.
+Integer full feedback is reconstructed as fractional post-wrap `sq1FbFull +
+numFluxJumps * FluxQuantumRaw`; its displayed DAC value rounds that fractional
+state. All values come from the same debug frame. The integer path requires
+debug v2 or newer for the DAC trace and current v3 firmware for full feedback.
+Full feedback is withheld for truncated or saturated integer counts. Feedback
+from a disabled PID or masked row is withheld because those debug values can
+be computed candidates that were not applied.
+
+The existing `PidDebugger` and `PidDebuggerFp` receivers publish a `Sample` array
+on each `HardwareGroup.PidDebug[column].RowPids.PID[row]`, at up to **10 Hz per
+row**. Each array holds the header timestamp, identity, feedback, net count,
+error and drops from one decoded frame. The existing scalar diagnostics still
+update on every received visit. `HardwareGroup.PidLockMonitor` only selects and
+forwards these samples and the selected column's debug-enable control; it adds
+no stream receiver. It keeps stable channels for PyDM without changing the
+Control tab's `ConfigSelect` targets.
+
+Integer reconstruction and applied-feedback gating use cached DSP settings,
+with no additional register transactions for the sample. These settings are
+not timestamped in the debug frame: refresh the cache after out-of-band writes,
+and interpret samples around configuration changes with care. The GUI keeps
+5–600 seconds of bounded history on the hardware timebase. Pausing freezes the
+display; resuming, changing selection, or reconnecting starts a fresh history.
+Timestamp reversals and drop-counter resets also clear history. Missing samples
+and increases in the firmware debug-drop count break the plotted line. A stale
+indicator reports when samples stop arriving. This sampled view can miss fast
+transients; use recorded debug data for spectral analysis or event counting.
+
+Run `software/tests/rogue_pid_lock_smoke.py` explicitly in a Rogue/PyDM/Qt
+environment for a synthetic stream → localhost ZMQ → GUI smoke test. It uses no
+hardware. `QT_QPA_PLATFORM=offscreen` supports headless runs;
+`PID_MONITOR_SCREENSHOT=/path/to/example.png` saves a rendered example.
 
 ## Key Scripts
 

@@ -124,13 +124,13 @@ incompatible pinouts or Ethernet constraints.
 
 ## Simulation
 
-Three testbenches in `firmware/simulations/`:
+Current simulation targets in `firmware/simulations/`:
 
 | Testbench | Scope | Description |
 |-----------|-------|-------------|
-| `StackTb` | Historical | Legacy module stack; requires a historical checkout |
 | `GroupTb` | Group level | Board group with device models |
-| `RowTb` | Historical | Legacy row module; requires a historical checkout |
+| `AdcDspFpTb` | Controller | Floating-point controller acceptance bench |
+| `WaferModelTb` | Detector models | Focused wafer, profile, scaling and compatibility benches |
 
 ### Running Simulation
 
@@ -138,7 +138,7 @@ Three testbenches in `firmware/simulations/`:
 cd firmware/simulations/GroupTb && make vcs
 ```
 
-Device models in `common/warm_tdm/sim/` provide behavioral representations of external ICs (AD5263, AD5679R, AD9106, AD9767) and board assemblies (ColumnFpgaBoardModel, RowFpgaBoardModel, Squid models).
+Device models in `common/warm_tdm/sim/` provide behavioral representations of external ICs (AD5679R, AD9767) and board assemblies (ColumnFpgaBoardModel, RowFpgaBoardModel, SQUID models).
 
 The simulation environment supports PyRogue co-simulation via TCP socket bridges (`SIMULATION_G => true`, `SIM_PGP_PORT_NUM_G`).
 

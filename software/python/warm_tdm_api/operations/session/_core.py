@@ -11,7 +11,7 @@ import logging
 import re
 
 from ..channels import col_to_board_chan
-from ._output import OutputDir
+import warm_tdm_api.operations.session as session
 
 log = logging.getLogger(__name__)
 
@@ -108,9 +108,9 @@ class TopologyCore:
 
     # ---- session output -------------------------------------------------
 
-    def new_session(self, base=OutputDir.DEFAULT_BASE):
+    def new_session(self, base=session.OutputDir.DEFAULT_BASE):
         """Start a fresh timestamped output directory for this session."""
-        self.output = OutputDir(base=base)
+        self.output = session.OutputDir(base=base)
         return self.output
 
     def _require_output(self):

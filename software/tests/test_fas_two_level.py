@@ -40,20 +40,14 @@ def load_modules():
     api = ModuleType('warm_tdm_api')
     api.Curve = namespace['Curve']
     api.CurveData = namespace['CurveData']
-    package = ModuleType('_fas_test_modules')
-    package.__path__ = [str(API / 'tuning')]
-    sys.modules[package.__name__] = package
-    modules = []
-    with patch.dict(sys.modules, {'warm_tdm_api': api}):
-        for name in ('_common', '_fas', '_fas_two_level'):
-            fullname = package.__name__ + '.' + name
-            spec = importlib.util.spec_from_file_location(fullname, API / 'tuning' / (name + '.py'))
-            module = importlib.util.module_from_spec(spec)
-            sys.modules[fullname] = module
-            spec.loader.exec_module(module)
-            modules.append(module)
-    sys.modules.update({module.__name__: module for module in modules})
-    return modules
+    spec = importlib.util.spec_from_file_location(
+        'warm_tdm_api.tuning', API / 'tuning/__init__.py')
+    package = importlib.util.module_from_spec(spec)
+    api.tuning = package
+    with patch.dict(sys.modules, {
+            'warm_tdm_api': api, 'warm_tdm_api.tuning': package}):
+        spec.loader.exec_module(package)
+    return package._common, package._fas, package._fas_two_level
 
 
 common, flat, two = load_modules()
@@ -224,8 +218,7 @@ class Fixture:
 
     def run(self, do_set=False):
         with patch.object(two, 'time', self.clock), patch.object(flat, 'time', self.clock), \
-             patch.object(two, 'saFbServo', self.response), \
-             patch.object(flat, 'saFbServo', self.response):
+             patch.object(flat.tuning, 'saFbServo', self.response):
             return flat.fasTune(group=self.group, process=self.process, doSet=do_set)
 
 

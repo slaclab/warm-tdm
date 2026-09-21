@@ -26,6 +26,13 @@ def load(name, path):
 acquisition = load('acquisition', 'software/python/warm_tdm_api/operations/session/_acquisition.py')
 tuning = load('tuning', 'software/python/warm_tdm_api/operations/session/_tuning.py')
 forcedac = load('forcedac', 'software/python/warm_tdm_api/operations/session/_forcedac.py')
+session_package = SimpleNamespace(COORDINATOR_COL_BOARD=0)
+operations_package = SimpleNamespace(session=session_package)
+with patch.dict(sys.modules, {
+        'warm_tdm_api': SimpleNamespace(operations=operations_package),
+        'warm_tdm_api.operations': operations_package,
+        'warm_tdm_api.operations.session': session_package}):
+    setup = load('setup_test._setup', 'software/python/warm_tdm_api/operations/session/_setup.py')
 with patch.dict(sys.modules, {'_hwtest_common': SimpleNamespace(
         add_conn_args=Mock(), connect=Mock(), Checklist=Mock(), finish=Mock())}):
     hwtest = load('stop_zero_hwtest', 'software/scripts/hwtest/verify_stop_and_zero.py')
@@ -219,6 +226,10 @@ class ForceTests(unittest.TestCase):
                 # Per-board (unmasked) force setter -- the write path stop_and_zero
                 # and set_force use so disabled columns are still driven/zeroed.
                 setattr(cb, setter, var([0.0] * 2))
+            cb.SaBiasOffset = SimpleNamespace(
+                BiasCurrent={ch: var(25.0) for ch in range(2)},
+                OffsetVoltage={ch: var(0.5) for ch in range(2)})
+            cb.TesBias = SimpleNamespace(BiasCurrent={ch: var(30.0) for ch in range(2)})
             self.session.cbs[i] = cb
         for setter, _ in self.session._FAST_DAC_FORCE.values():
             # Group-level setter is still read for the column count (get); the
@@ -283,13 +294,15 @@ class ForceTests(unittest.TestCase):
     def test_stop_zero_reports_failure_and_attempts_remaining_outputs(self):
         for cb in self.session.cbs.values():
             cb.Sq1FbForceCurrent.set.side_effect = OSError('fast write')
-        self.session.group.SaBiasCurrent.set.side_effect = OSError('slow write')
+        self.session.cbs[0].SaBiasOffset.BiasCurrent[0].set.side_effect = OSError('slow write')
         self.assertFalse(self.session.stop_and_zero())
         for cb in self.session.cbs.values():
             cb.SaFbForceCurrent.set.assert_called()
             cb.Sq1BiasForceCurrent.set.assert_called()
-        self.session.group.SaOffset.set.assert_called()
-        self.session.group.TesBias.set.assert_called()
+        self.session.cbs[0].SaBiasOffset.BiasCurrent[1].set.assert_called_once_with(0.0)
+        for cb in self.session.cbs.values():
+            cb.SaBiasOffset.OffsetVoltage[0].set.assert_called_once_with(0.0)
+            cb.TesBias.BiasCurrent[1].set.assert_called_once_with(0.0)
 
     def test_force_write_uses_unmasked_per_board_setter(self):
         # Issue #86 regression: the force write must go through the unmasked
@@ -304,10 +317,109 @@ class ForceTests(unittest.TestCase):
         self.tx.Running.get.return_value = True
         self.assertFalse(self.session.stop_and_zero(settle_sec=0))
         self.tx.EndRun.assert_called_once()
-        self.session.group.TesBias.set.assert_called()
+        self.session.cbs[1].TesBias.BiasCurrent[1].set.assert_called_once_with(0.0)
 
     def test_stop_zero_success(self):
         self.assertTrue(self.session.stop_and_zero())
+
+    def test_stop_zero_reaches_slow_outputs_even_when_all_columns_disabled(self):
+        self.session.group.ColEnableMask = var(0)
+        # The Group setters intentionally discard writes to disabled columns.
+        # Assert the underlying outputs, rather than calls to those setters.
+        outputs = []
+        for cb in self.session.cbs.values():
+            for bank in [cb.SaBiasOffset.BiasCurrent,
+                         cb.SaBiasOffset.OffsetVoltage, cb.TesBias.BiasCurrent]:
+                for leaf in bank.values():
+                    leaf.set.side_effect = lambda value, leaf=leaf: setattr(leaf.get, 'return_value', value)
+                    outputs.append(leaf)
+        self.assertTrue(self.session.stop_and_zero())
+        self.assertTrue(all(leaf.get() == 0 for leaf in outputs))
+        for name in ['SaBiasCurrent', 'SaOffset', 'TesBias']:
+            getattr(self.session.group, name).set.assert_not_called()
+
+
+class SetupTests(unittest.TestCase):
+    def setUp(self):
+        self.session = setup.SetupMixin()
+        self.session.group = SimpleNamespace(
+            RowEnableMasks=var([10 + col for col in range(16)]),
+            PidP_Gain=var([1.0] * 16), PidI_Gain=var([2.0] * 16),
+            PidD_Gain=var([0.0] * 16))
+        self.session.col_to_board_chan = lambda col: divmod(col, 8)
+        self.enabled = [col in (1, 9) for col in range(16)]
+        self.session.col_enable_bools = lambda: self.enabled
+        self.session.cbs = {}
+        self.tx = SimpleNamespace(**{name: var(0) for name in (
+            'Mode', 'RowPeriodCycles', 'SampleStartTime', 'SampleEndTime')})
+        for idx in range(2):
+            cb = board(self.tx)
+            cb.DataPath = SimpleNamespace(AdcDsp={ch: SimpleNamespace(
+                ClearPids=Mock(), PidEnable=var(True), PidDebugEnable=var(True),
+                RowEnableMask=var(255)) for ch in range(8)})
+            self.session.cbs[idx] = cb
+        self.session.coordinator_cb = self.session.cbs[0]
+        self.session.rbs = {0: object()}
+        self.session.rdds = {0: SimpleNamespace(Mode=var(1))}
+
+    def test_mux_sets_pid_debug_and_masks_on_each_board(self):
+        self.session.setup_mux(enable_pid_debug=True)
+        for col in range(16):
+            idx, ch = divmod(col, 8)
+            dsp = self.session.cbs[idx].DataPath.AdcDsp[ch]
+            dsp.ClearPids.assert_called_once()
+            dsp.PidEnable.set.assert_called_once_with(self.enabled[col])
+            dsp.PidDebugEnable.set.assert_called_once_with(self.enabled[col])
+            if self.enabled[col]:
+                dsp.RowEnableMask.set.assert_called_once_with(10 + col)
+            else:
+                dsp.RowEnableMask.set.assert_not_called()
+
+    def test_mux_can_disable_all_pid_and_debug_outputs(self):
+        self.session.setup_mux(enable_pid=False, enable_pid_debug=False)
+        for cb in self.session.cbs.values():
+            for dsp in cb.DataPath.AdcDsp.values():
+                dsp.PidEnable.set.assert_called_once_with(False)
+                dsp.PidDebugEnable.set.assert_called_once_with(False)
+
+    def test_set_pid_uses_global_gain_index_and_board_local_debug_index(self):
+        self.session.set_pid(p=3, i=4, debug=True)
+        for gain, value in [('PidP_Gain', 3.0), ('PidI_Gain', 4.0)]:
+            self.assertEqual(getattr(self.session.group, gain).set.call_count, 2)
+            for col in (1, 9):
+                getattr(self.session.group, gain).set.assert_any_call(value=value, index=col)
+        for idx in range(2):
+            self.session.cbs[idx].DataPath.AdcDsp[1].PidDebugEnable.set.assert_called_once_with(True)
+            self.session.cbs[idx].DataPath.AdcDsp[0].PidDebugEnable.set.assert_not_called()
+
+
+class DeadMaskTests(unittest.TestCase):
+    def setUp(self):
+        self.session = setup.SetupMixin()
+        self.session.group = SimpleNamespace(RowEnableMasks=var([255] * 24))
+        self.session.col_to_board_chan = lambda col: divmod(col, 8)
+        self.mask = var(255)
+        self.session.cbs = {2: SimpleNamespace(DataPath=SimpleNamespace(
+            AdcDsp={3: SimpleNamespace(RowEnableMask=self.mask)}))}
+
+    def test_apply_writes_global_column_hardware_before_updating_cache(self):
+        events = []
+        self.mask.set.side_effect = lambda value: events.append(('hardware', value))
+        self.session.group.RowEnableMasks.set.side_effect = lambda **kw: events.append(('cache', kw))
+        self.session.apply_dead_masks({19: 5})
+        self.assertEqual(events, [('hardware', 5), ('cache', {'value': 5, 'index': 19})])
+
+    def test_failed_write_does_not_report_mask_applied_in_cache(self):
+        self.mask.set.side_effect = OSError('write failed')
+        with self.assertRaisesRegex(OSError, 'write failed'):
+            self.session.apply_dead_masks({19: 5})
+        self.session.group.RowEnableMasks.set.assert_not_called()
+
+    def test_absent_board_is_skipped_without_cache_update(self):
+        with self.assertLogs(setup.log, 'WARNING'):
+            self.session.apply_dead_masks({0: 5})
+        self.mask.set.assert_not_called()
+        self.session.group.RowEnableMasks.set.assert_not_called()
 
 
 class HarnessTests(unittest.TestCase):

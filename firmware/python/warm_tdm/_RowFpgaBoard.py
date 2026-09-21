@@ -33,7 +33,7 @@ class RowFpgaBoard(pr.Device):
             hidden = True,
             offset = 0xC0201000))
 
-        self.add(warm_tdm.RowDacDriver2(
+        self.add(warm_tdm.RowDacDriver(
             name = 'RowDacDriver',
             offset = 0xC100_0000,
             frontEnd = self.AnalogFrontEnd,

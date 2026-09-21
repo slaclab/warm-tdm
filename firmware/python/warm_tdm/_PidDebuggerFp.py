@@ -14,12 +14,9 @@ import numpy as np
 import warm_tdm
 
 
-class PidRowDebuggerFp(pr.Device):
+class PidRowDebuggerFp(warm_tdm.PidRowDebuggerBase):
     def __init__(self, debugDev, row, **kwargs):
-        super().__init__(**kwargs)
-
-        self.debugDev = debugDev
-        self.row = row
+        super().__init__(debugDev=debugDev, row=row, **kwargs)
         self.parsedVars = ['AccumErrorFp', 'Sq1FbFullFp', 'SumAccumFp', 'NewSumAccum', 'Sq1FbNewFp', 'NumFluxJumps', 'Sq1FbInt', 'AccumSamples']
 
         self.add(pr.LocalVariable(
@@ -67,19 +64,21 @@ class PidRowDebuggerFp(pr.Device):
             mode = 'RO',
             value = 0))
 
-    def updateFromParser(self):
+    def updateFromParser(self, msg):
         with self.root.updateGroup():
             for varName in self.parsedVars:
                 self.variables[varName].set(self.debugDev.variables[varName].get(read=False))
             self.Visits.set(self.Visits.get() + 1)
+            self.updateSample(msg)
 
 
 class PidDebuggerFp(pr.DataReceiver):
 
-    def __init__(self, numRows, col, **kwargs):
+    def __init__(self, numRows, col, dsp=None, **kwargs):
         self.mem = pyrogue.interfaces.simulation.MemEmulate()
 
         self.col = col
+        self._dsp = dsp
 
         super().__init__(memBase=self.mem, **kwargs)
 
@@ -200,13 +199,17 @@ class PidDebuggerFp(pr.DataReceiver):
                 'debugDev': self} for row in range(numRows)]))
 
     def process(self, frame):
-        channel = frame.getChannel()
         fl = frame.getPayload()
         raw = bytearray(fl)
         frame.read(raw, 0)
 
-        if fl != warm_tdm.PID_DEBUG_FP_FRAME_BYTES:
-            print(f'Got PID FP debug frame with wrong size {fl}')
+        try:
+            msg = warm_tdm.PidDebugFp.from_numpy(np.frombuffer(raw, dtype=np.uint8))
+        except (ValueError, IndexError) as exc:
+            self._log.warning('Invalid FP PID debug frame: %s', exc)
+            return
+        if msg.col != self.col or msg.row not in self.RowPids.PID:
+            self._log.warning('Ignoring FP PID frame for column %s, row %s', msg.col, msg.row)
             return
 
         # Strip the 16-byte self-describing header; the register map addresses the
@@ -218,5 +221,4 @@ class PidDebuggerFp(pr.DataReceiver):
         self.readBlocks()
         self.checkBlocks()
 
-        row = self.RowIndex.get(read=False)
-        self.RowPids.PID[row].updateFromParser()
+        self.RowPids.PID[msg.row].updateFromParser(msg)

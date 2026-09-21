@@ -1,4 +1,11 @@
 
+##############################################################################
+## This file is part of 'warm-tdm'. It is subject to the license terms in the
+## LICENSE.txt file found in the top-level directory of this distribution and
+## at https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+## No part may be copied, modified, propagated, or distributed except according
+## to the terms contained in the LICENSE.txt file.
+##############################################################################
 import rogue
 import pyrogue
 import pyrogue.interfaces.simulation
@@ -99,6 +106,7 @@ class HardwareGroup(pyrogue.Device):
             COL_SIM_SRP_PORTS = [10000 + (i * 1000) for i in range(colBoards)]
             ROW_SIM_SRP_PORTS = [10000 + (i * 1000) for i in range(colBoards, colBoards+rowBoards)]
 
+        pidDebuggers = {}
         # Instantiate and link each board in the Group
         for index in range(colBoards):
 
@@ -148,7 +156,15 @@ class HardwareGroup(pyrogue.Device):
                 useFloatPid=useFloatPid,
                 ethPresent=(index == 0 or (simulation and not simPgpRing))))
 
-            pidDebug = [warm_tdm.PidDebugger(name=f'PidDebug[{i}]', hidden=False, numRows=rows, col=i, frontEnd=self.ColumnBoard[index].AnalogFrontEnd) for i in range(8)]
+            debugClass = warm_tdm.PidDebuggerFp if useFloatPid else warm_tdm.PidDebugger
+            debugArgs = {} if useFloatPid else dict(frontEnd=self.ColumnBoard[index].AnalogFrontEnd)
+            pidDebug = [debugClass(name=f'PidDebug[{index * 8 + i}]', hidden=False,
+                                   numRows=rows, col=i,
+                                   dsp=self.ColumnBoard[index].DataPath.AdcDsp[i],
+                                   **debugArgs) for i in range(8)]
+            for i, receiver in enumerate(pidDebug):
+                self.add(receiver)
+                pidDebuggers[index * 8 + i] = receiver
             pidDebugFilters = [warm_tdm.PidDebugFilter(column=i) for i in range(8)]
             saAmps = [self.ColumnBoard[index].AnalogFrontEnd.Channel[x].SAAmp for x in range(8)]
             waveGui = warm_tdm.WaveformCaptureReceiver(hidden=False, captureDev=self.ColumnBoard[index].DataPath.WaveformCapture, amplifiers=saAmps)
@@ -200,6 +216,10 @@ class HardwareGroup(pyrogue.Device):
                 dataFifo >> dataWriter.readoutChannel(index)
 #                dataFifo >> dataDbg
 
+
+        if colBoards > 0:
+            self.add(warm_tdm.PidLockMonitor(name='PidLockMonitor', debuggers=pidDebuggers,
+                                           rows=rows, groups=['NoConfig']))
 
         for rowIndex, boardIndex in enumerate(range(colBoards, colBoards+rowBoards)):
             # Create streams to each board
@@ -264,9 +284,5 @@ class HardwareGroup(pyrogue.Device):
 
         if colBoards > 0:
             self.add(waveGui)
-            for i in range(8):
-                self.add(pidDebug[i])
-
-
 
 

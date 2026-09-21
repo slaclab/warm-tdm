@@ -451,7 +451,7 @@ begin
 
 
    RING_ROUTER_GEN : for i in 1 downto 0 generate
-      -- buffers
+      -- Provide 8 KiB of receive buffering per ring VC on every board.
       U_PgpRXVcFifo_1 : entity surf.PgpRXVcFifo
          generic map (
             TPD_G               => TPD_G,
@@ -461,10 +461,10 @@ begin
             PIPE_STAGES_G       => 0,
             VALID_THOLD_G       => PACKET_SIZE_BYTES_C/8,
             VALID_BURST_MODE_G  => true,
-            SYNTH_MODE_G        => "xpm",
+            SYNTH_MODE_G        => "inferred",
             MEMORY_TYPE_G       => "block",
             GEN_SYNC_FIFO_G     => false,
-            FIFO_ADDR_WIDTH_G   => 8,
+            FIFO_ADDR_WIDTH_G   => 10,
             FIFO_PAUSE_THRESH_G => 192,
             PHY_AXI_CONFIG_G    => SSI_PGP2B_CONFIG_C,
             APP_AXI_CONFIG_G    => AXIS_CONFIG_C)

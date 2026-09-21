@@ -1,3 +1,10 @@
+##############################################################################
+## This file is part of 'warm-tdm'. It is subject to the license terms in the
+## LICENSE.txt file found in the top-level directory of this distribution and
+## at https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+## No part may be copied, modified, propagated, or distributed except according
+## to the terms contained in the LICENSE.txt file.
+##############################################################################
 import numpy as np
 
 from dataclasses import dataclass, field
@@ -62,6 +69,8 @@ class FrameHeader:
     @classmethod
     def from_numpy(cls, arr):
         """Parse the header from the first 16 bytes of a frame's uint8 array."""
+        if len(arr) < FRAME_HEADER_BYTES:
+            raise ValueError('Truncated frame header')
         rec = arr[:FRAME_HEADER_BYTES].view(FRAME_HEADER_TYPE)[0]
         return cls(
             formatType = int(rec['formatType']),
@@ -279,8 +288,8 @@ class PidDebug:
 #   sumAccumFp     I-term / accumulated integral (float)
 #   newSumAccum    updated integral after this visit (float)
 #   sq1FbNewFp     new SQ1FB feedback this visit (float)
-#   numFluxJumps   flux-jump count applied this visit
-#   sq1FbInt       SQ1FB DAC code (uint14) actually written
+#   numFluxJumps   absolute signed net wrap count after this visit
+#   sq1FbInt       signed SQ1FB controller code in the low 14 bits
 #   accumSamples   samples averaged this readout
 #   dropCount      dropped-frame counter
 PID_DEBUG_FP_BODY_BYTES = 40
@@ -333,12 +342,69 @@ class PidDebugFp:
     @classmethod
     def from_numpy(cls, arr):
         header = FrameHeader.from_numpy(arr)
+        if header.formatType != FormatType.PID_FLOAT:
+            raise ValueError('Not a floating-point PID-debug frame')
+        if header.formatVersion != EXPECTED_FORMAT_VERSION:
+            raise ValueError(f'Unsupported FP PID-debug version {header.formatVersion}')
+        if len(arr) != PID_DEBUG_FP_FRAME_BYTES:
+            raise ValueError(f'Wrong FP PID-debug frame size {len(arr)}')
         rec = arr[FRAME_HEADER_BYTES:].view(PID_DEBUG_FP_TYPE)[0]
         return cls(
             header = header,
             col = int(rec['col']) & 0b111,
             row = int(rec['row']) & 0xFF,
             fields = {k: rec[k].item() for k in PID_DEBUG_FP_FIELDS})
+
+
+# One array update carries the identity, hardware time and values from one PID
+# visit. Both live per-row receivers and the GUI use this shared sample layout.
+TIME, COLUMN, ROW, DAC, FULL, JUMPS, ERROR, DROPS, FORMAT, PERIOD, FLAGS = range(11)
+SAMPLE_SIZE = 11
+FULL_UNAVAILABLE = 1
+NOT_COMMITTED = 2
+
+
+def pid_debug_sample(msg, *, quantum, committed=True):
+    """Build a coherent sample from an already decoded PID-debug visit.
+
+    Feedback is in signed controller DAC-code units. Integer full feedback uses
+    the configured wrap quantum and absolute net count; FP already carries the
+    accepted full value. Configuration is cached host state, not part of the
+    timestamped frame. Receivers withhold feedback when that state says the row
+    is disabled. Old integer formats still supply their available diagnostics.
+    """
+    header, f = msg.header, msg.fields
+    count = f['numFluxJumps']
+    flags = 0
+    if header.formatType == FormatType.PID_FIXED:
+        wrapped = f.get('sq1FbFull', float('nan'))
+        # fixed_pkg rounds the retained fractional value to the signed DAC.
+        dac = float(np.clip(np.rint(wrapped), -8192, 8191))
+        full = wrapped + count * quantum
+        # V1 lacks fractional feedback; v2 truncates the count to eight bits.
+        # Current v3 carries 19 bits. At saturation a further wrap is unknowable.
+        if (not np.isfinite(wrapped) or not np.isfinite(quantum) or not 0 <= quantum <= 8191
+                or header.formatVersion < 3 or count <= -262144 or count >= 262143):
+            full = float('nan')
+            flags |= FULL_UNAVAILABLE
+        error, samples = f['accumError'], f['numSamples']
+    elif header.formatType == FormatType.PID_FLOAT:
+        code = int(f['sq1FbInt']) & 0x3fff
+        dac = float(code - 0x4000 if code & 0x2000 else code)
+        # Accepted post-visit value; sq1FbFullFp is the pre-visit full feedback.
+        full = f['sq1FbNewFp']
+        error, samples = f['accumErrorFp'], f['accumSamples']
+    else:
+        raise ValueError('Not a PID-debug sample')
+    if not committed:
+        # Masked visits emit computed candidates without applying them.
+        dac = full = float('nan')
+        flags |= NOT_COMMITTED
+    return np.array([
+        header.timestampNs * 1e-9, header.boardId * 8 + msg.col, msg.row,
+        dac, full, count, error / samples if samples else float('nan'),
+        f['dropCount'], header.formatType, quantum, flags,
+    ], dtype=np.float64)
 
 
 # Waveform-capture frame: the 16-byte shared header + a 16-byte config beat +

@@ -19,8 +19,7 @@ import numpy as np
 
 import warm_tdm_api
 
-from ._common import _pause_point, saFbServo
-from ._fas import _fas_minimum_center
+import warm_tdm_api.tuning as tuning
 
 
 class _Stopped(Exception):
@@ -175,7 +174,7 @@ class _TwoLevelTune:
         self.process.FasValidationOutput.set(copy.deepcopy(self.validation))
 
     def _checkpoint(self):
-        if not _pause_point(self.process, self._publish):
+        if not tuning._pause_point(self.process, self._publish):
             raise _Stopped()
 
     def _drive(self, key, current):
@@ -230,7 +229,7 @@ class _TwoLevelTune:
         self._checkpoint()
         if self.tx.Running.get(read=True):
             raise RuntimeError('Timing started during FAS tuning')
-        values = np.array(saFbServo(
+        values = np.array(tuning.saFbServo(
             group=self.group, process=self.process, publish=self._publish,
             require_convergence=True), copy=True)
         self._checkpoint()
@@ -297,7 +296,7 @@ class _TwoLevelTune:
                 points = data.curveList[col].points
                 if np.ptp(points) <= self.minimum_response:
                     raise RuntimeError(f'No resolved {axis} response for row {row}, column {col}')
-                minima.append(_fas_minimum_center(
+                minima.append(tuning._fas_minimum_center(
                     data.xValues, points, self.tolerance)[0])
             data.rowFasOn = float(np.median(minima))
             return data.rowFasOn

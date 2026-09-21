@@ -16,22 +16,20 @@ Boards communicate via a **PGP ring topology** with Ethernet bridge for host acc
 warm-tdm/
 ├── firmware/
 │   ├── build/ -> (symlink)     # Vivado build outputs (symlink to local scratch)
-│   ├── targets/                # 14 FPGA build targets (Row/Column variants)
-│   │   ├── ColumnFpgaBoard/    #   Kintex-7, prom output
-│   │   ├── ColumnAu25p/        #   Artix UltraScale+, bit output, 10G Ethernet
-│   │   ├── RowFpgaBoard/       #   Kintex-7, prom output
-│   │   ├── RowModule/          #   Compact row module
-│   │   ├── ColumnModule/       #   Compact column module
-│   │   ├── Makefile            #   Aggregate build (all targets)
-│   │   └── ...                 #   Numbered/feature variants (0, 325, AwaXe, 10G)
+│   ├── targets/                # Current Row/Column board configurations
+│   │   ├── ColumnFpgaBoard325Int/ # Kintex-7, integer PID, prom output
+│   │   ├── ColumnFpgaBoard325Fp/  # Kintex-7, floating-point PI, prom output
+│   │   ├── RowFpgaBoard160/    #   Kintex-7, prom output
+│   │   ├── Makefile            #   Aggregate release build
+│   │   └── ...                 #   Part/front-end/coordinator/Ethernet variants
 │   ├── common/warm_tdm/        # Shared RTL library
-│   │   ├── rtl/                #   ~44 VHDL entities (production logic)
+│   │   ├── rtl/                #   Production logic and shared packages
 │   │   ├── sim/                #   Device simulation models
 │   │   ├── xdc/                #   Shared timing constraints
 │   │   ├── ip/                 #   Xilinx IP cores (Int2Fp, FpMac)
 │   │   └── ruckus.tcl          #   Loads common sources into build
 │   ├── python/warm_tdm/        # PyRogue device drivers (~47 files)
-│   ├── simulations/            # Testbenches (GroupTb, RowTb, StackTb)
+│   ├── simulations/            # GroupTb, AdcDspFpTb, WaferModelTb
 │   ├── submodules/             # surf + ruckus (git submodules)
 │   └── releases.yaml           # Release and packaging config
 ├── software/
@@ -109,7 +107,7 @@ Platform-specific files use suffixes: `*7s.vhd` (7-Series), `*Usp.vhd` (UltraSca
 | PgpEthCore | `PgpEthCore.vhd` | PGP ring + Ethernet bridge |
 | RingRouter | `RingRouter.vhd` | Frame routing/depacketization in PGP ring |
 | EventBuilder | `EventBuilder.vhd` | Packs 8-channel DSP output into data frames |
-| RowDacDriver2 | `RowDacDriver2.vhd` | Row-select DAC sequencing |
+| RowDacDriver | `RowDacDriver.vhd` | Row-select DAC sequencing |
 | FastDacDriver | `FastDacDriver.vhd` | SQ1 feedback fast DAC driver |
 | WarmTdmPkg | `WarmTdmPkg.vhd` | Package constants and AXI stream configs |
 
@@ -315,19 +313,29 @@ perform that migration.
 | Timing protocol | [`TimingProtocol.md`](firmware/common/TimingProtocol.md), `TimingPkg.vhd`, `TimingTx.vhd`, `TimingRx.vhd`, `TimingSerializer*.vhd`, `TimingDeserializer*.vhd` |
 | DSP / data path | `DataPath.vhd`, `AdcDsp.vhd`, `BiquadFilter.vhd`, `EventBuilder.vhd` |
 | Communication / PGP | `PgpEthCore.vhd`, `RingRouter.vhd`, `PgpRingRouter.vhd`, `EthCore.vhd` |
-| Row board firmware | `RowDacDriver2.vhd`, `RowModuleDacs.vhd`, `RowModuleTimingRx.vhd` |
-| Clock distribution | `ClockDist.vhd`, `ClockDist7s.vhd`, `ClockDistUsp.vhd`, `TimingMmcm.vhd` |
+| Row board firmware | `RowFpgaBoard.vhd`, `RowDacDriver.vhd` |
+| Clock distribution | `ClockDist.vhd`, `TimingRx.vhd`, `TimingTx.vhd` |
 | Adding a new target | Copy existing target dir; modify `Makefile` (PRJ_PART, target) and `ruckus.tcl` (generics, constraints) |
 | PyRogue drivers | `_WarmTdmCore.py`, `_AdcDsp.py`, `_HardwareGroup.py`, `_TimingTx.py`, `_TimingRx.py` |
 | Tuning algorithms | `software/python/warm_tdm_api/_SaTune.py`, `_Sq1Tune.py`, `_FasTune.py` |
-| Simulation | `firmware/simulations/GroupTb/` (current boards), `firmware/common/warm_tdm/sim/` (device models); RowTb/StackTb require historical legacy sources |
+| Simulation | `firmware/simulations/GroupTb/` (current boards), `firmware/simulations/AdcDspFpTb/`, `firmware/simulations/WaferModelTb/`, `firmware/common/warm_tdm/sim/` (device models) |
 | Constraints / timing closure | `common/warm_tdm/xdc/WarmTdmCore.xdc` (shared), target-specific `xdc/` dirs |
 
 ## Task Plans
 
-For substantial feature work, debug efforts, refactors, or multi-step investigations, keep planning, progress, and handoff Markdown under `docs/plans/<task-name>/`. Use a short kebab-case task name, keep notes factual, and update the plan as the work changes.
+Update an existing workstream note only when unfinished work needs a handoff.
+Do not create a document for each session, review, merge-readiness check, or
+issue audit. Routine completed work needs no plan file. Put implementation
+results on PRs, acceptance evidence and remaining checks on their owning
+issues, and lasting explanations in the nearest guide or design document.
 
-Each task directory should include enough context for another contributor (or a future agent session) to resume without reconstructing the work from chat history. Capture the goal, current status, decisions made, files or modules involved, validation run, open risks, and next steps. Keep large logs, generated output, and build artifacts out of `docs/plans`; summarize them and link to durable locations instead.
+For a new substantial workstream that needs a handoff, use one concise
+`docs/plans/<task-name>/README.md` with its goal, current state, important
+decisions, affected modules, evidence links and next step. Update that note
+instead of appending chronological reports or creating parallel PLAN,
+PROGRESS and REVIEW files. Remove resolved hypotheses from the current
+account; Git history and issue comments preserve their context. Keep logs,
+generated output and build artifacts out of `docs/plans`.
 
 Start with the [plans index](docs/plans/README.md), which maps each workstream
 to its design records and owning issue. The `channelization` branch carries
@@ -335,13 +343,16 @@ multiple efforts; the frame-format, integer/FP PID, resource integration and
 verification work have separate entry points. PID analysis and RSSI tuning are
 separate proposals. Use live issue checklists for unfinished acceptance.
 
-When implementation is integrated into `pre-release`, move enduring usage,
-design decisions, and maintenance guidance into the nearest permanent README,
-guide, or `docs/design/` record. Remove superseded implementation checklists and
-progress logs; Git history preserves them. Keep a task directory only for an
-intentional design record, active follow-up handoff, or a short redirect needed
-by existing issue/wiki links. Preserve links to the issues owning unfinished
-build or hardware acceptance; integration does not make those checks pass.
+Document implemented interfaces and design decisions in permanent guides even
+while their integration PR is open; identify the branch/compatibility boundary.
+Use `docs/reference/` for intentionally dated analyses or recovered evidence.
+Keep `docs/plans/` for active proposals, unresolved investigations and short
+redirects needed by existing issue/wiki links. Before deleting a handoff,
+preserve material test evidence and remaining obligations on its issue/PR and
+repair incoming links. One-off code reviews, source inspections and cleanup
+recaps need no replacement document; Git history is enough. Untracked notes
+have no Git history: migrate their unique content before deleting them.
+Integration does not make outstanding checks pass.
 
 ## Submodules
 

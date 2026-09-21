@@ -233,22 +233,6 @@ begin
          rstOut(1) => wordRst,             -- [out]
          locked    => timingRxClkLocked);  -- [out]
 
---    U_TimingMmcm_1 : entity warm_tdm.TimingMmcm
---       generic map (
---          TPD_G              => TPD_G,
---          USE_HPC_G          => false,
---          CLKIN1_PERIOD_G    => 8.0,
---          DIVCLK_DIVIDE_G    => 1,
---          CLKFBOUT_MULT_F_G  => 5.0,
---          CLKOUT0_DIVIDE_F_G => 1.0,
---          CLKOUT1_DIVIDE_G   => 5)
---       port map (
---          timingRxClk => timingRxClk,    -- [in]
---          timingRxRst => timingRxRst,    -- [in]
---          bitClk      => bitClk,         -- [out]
---          wordClk     => wordClk,        -- [out]
---          wordRst     => wordRst);       -- [out]
-
    -------------------------------------------------------------------------------------------------
    -- Deserialize the incomming data
    -------------------------------------------------------------------------------------------------

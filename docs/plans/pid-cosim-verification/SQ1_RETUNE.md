@@ -93,7 +93,7 @@ its table above records the result without adding generated logs to Git.
 
 ## Next discriminating capture
 
-The subsequent [hardware notebook review](HARDWARE_TUNING_SEQUENCE.md) found
+The subsequent [hardware notebook review](../../reference/hardware-tuning-sequence.md) found
 that the recorded hardware workflow applies all three SQ1 fit results and
 preserves the tuning offset into readout. Its matching helper calls
 `saOffset` before the SQ1 row sweeps, then servos SA feedback at each point.

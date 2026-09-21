@@ -94,7 +94,7 @@ Getters report zero during construction when no valid sample window exists;
 setters reject nonpositive counts. `Session.setup_mux()` preserves normalized
 gains while changing the window. Direct timing-register writes require callers
 to reapply the gains. See the
-[coefficient analysis](../plans/sensor-wafer-model/PID_COEFFICIENTS.md) for the
+[coefficient analysis](../reference/pid-coefficients.md) for the
 control-law derivation and its limits.
 
 ## Deliberate limits and maintenance

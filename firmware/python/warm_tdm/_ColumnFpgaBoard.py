@@ -63,7 +63,7 @@ class ColumnFpgaBoard(pr.Device):
             hidden = False,
             offset = 0xC0800800))
         
-        self.add(warm_tdm.SaBiasOffset2(
+        self.add(warm_tdm.SaBiasOffset(
             name = 'SaBiasOffset',            
             saBiasDac = self.SaBiasDac,
             saOffsetDac = self.SaOffsetDac,
@@ -76,7 +76,7 @@ class ColumnFpgaBoard(pr.Device):
                 enabled = True,
                 offset = 0xC0800000))
 
-            self.add(warm_tdm.TesBias2(
+            self.add(warm_tdm.TesBias(
                 name = 'TesBias',
                 offset = 0xC0900100,
                 enabled = True,

@@ -1,7 +1,6 @@
 import pyrogue as pr
 
 import warm_tdm
-from ._PidFpConfig import float32, flux_period_registers
 
 
 class IndexedLinkVariable(pr.LinkVariable):
@@ -138,7 +137,7 @@ class AdcDspFp(pr.Device):
 
         def _setCoef(dep, value, write):
             # RTL handles I changes at a visit boundary and clears only S.
-            dep.set(float32(value), write=write)
+            dep.set(warm_tdm.float32(value), write=write)
 
         self.add(pr.LinkVariable(
             name = 'P_Coef',
@@ -186,7 +185,7 @@ class AdcDspFp(pr.Device):
             hidden = True))
 
         def _configureFluxQuantum(value, multiplier, write):
-            quantum, period, reciprocal = flux_period_registers(
+            quantum, period, reciprocal = warm_tdm.flux_period_registers(
                 value, self.amp.currentPerLsb(), multiplier)
             if write and (self.PidEnableRaw.get(read=True) or
                           self.ControlBusy.get(read=True) or self.DacWriteBusy.get(read=True)):

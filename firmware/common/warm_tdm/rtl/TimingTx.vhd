@@ -647,25 +647,6 @@ begin
          locClk      => wordClk,        -- [in]
          refClk      => axilClk);       -- [in]
 
-
-   -- 
---    U_TimingMmcm_1 : entity warm_tdm.TimingMmcm
---       generic map (
---          TPD_G     => TPD_G,
---          USE_HPC_G => false,
---          CLKIN1_PERIOD_G    => 8.0,
---          DIVCLK_DIVIDE_G    => 1,
---          CLKFBOUT_MULT_F_G  => 5.0,
---          CLKOUT0_DIVIDE_F_G => 1.0,
---          CLKOUT1_DIVIDE_G   => 5)
---       port map (
---          timingRxClk => timingClk125,   -- [in]
---          timingRxRst => timingRst125,   -- [in]
---          bitClk      => bitClk,         -- [out]
---          bitRst      => bitRst,         -- [out]
---          wordClk     => wordClk,        -- [out]
---          wordRst     => wordRst);       -- [out]
-
    -------------------------------------------------------------------------------------------------
    -- 8B10B encode
    -------------------------------------------------------------------------------------------------

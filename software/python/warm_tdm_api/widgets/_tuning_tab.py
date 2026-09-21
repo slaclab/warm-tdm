@@ -4,7 +4,7 @@ from pyrogue.pydm.widgets import Plotter, PyRogueLineEdit
 from pydm.widgets import PyDMLabel, PyDMSpinbox
 from qtpy.QtWidgets import QVBoxLayout, QFormLayout, QWidget, QSizePolicy
 
-from ._tuning_process import TuningProcess
+import warm_tdm_api.widgets as widgets
 
 
 class TuningTab(PyDMFrame):
@@ -31,7 +31,7 @@ class TuningTab(PyDMFrame):
         return []
 
     def _process_widget(self):
-        return TuningProcess(init_channel=self._process_channel())
+        return widgets.TuningProcess(init_channel=self._process_channel())
 
     def _setup_ui(self):
         vb = QVBoxLayout()
