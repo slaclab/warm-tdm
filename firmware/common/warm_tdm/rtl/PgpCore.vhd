@@ -201,6 +201,10 @@ begin
             TPD_G                 => TPD_G,
             SIM_GTRESET_SPEEDUP_G => "TRUE",
             SIM_VERSION_G         => "4.0",
+            -- stableClk is fabRefClk (125 MHz = 8 ns). The GTX reset FSMs derive
+            -- their CDR-lock / reset wait counters from this; the default 4 ns is
+            -- wrong for this clock and mis-sizes those waits.
+            STABLE_CLOCK_PERIOD_G => 8.0E-9,
             -- CPLL Configurations
             TX_PLL_G              => "CPLL",
             RX_PLL_G              => "CPLL",
