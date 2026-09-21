@@ -27,6 +27,15 @@ class WarmTdmArgparse(argparse.ArgumentParser):
             help = "Run in simulation mode (disables polling, increases timeout)")
 
         self.add_argument(
+            "--simPgpRing",
+            action = 'store_true',
+            default = False,
+            help = "In --sim, reach the row board over the fully simulated PGP "
+                   "ring through the coordinator (matches real hardware). MUST "
+                   "match the GroupTb SIM_PGP_GT_C toggle the sim was built with. "
+                   "Omit for the historical per-board direct-SRP bypass.")
+
+        self.add_argument(
             "--emulate",
             action = 'store_true',
             default = False,
@@ -144,6 +153,7 @@ def arg_dict(args):
     ret = {}
     ret['pollEn'] = args.pollEn
     ret['simulation'] = args.sim
+    ret['simPgpRing'] = args.simPgpRing
     ret['emulate'] = args.emulate
     ret['numRowSelects'] = args.numRowSelects
     ret['numChipSelects'] = args.numChipSelects

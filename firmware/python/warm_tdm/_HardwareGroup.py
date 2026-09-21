@@ -58,6 +58,7 @@ class HardwareGroup(pyrogue.Device):
             useFloatPid=False,
             rowAddrBits=8,
             maxRows=256,
+            simPgpRing=False,
             **kwargs):
 
         super().__init__(**kwargs)
@@ -83,9 +84,20 @@ class HardwareGroup(pyrogue.Device):
             self.add(dataUdp)
             self.addInterface(srpUdp, dataUdp)
 
-        # Direct SRP
-        COL_SIM_SRP_PORTS = [10000 + (i * 1000) for i in range(colBoards)]
-        ROW_SIM_SRP_PORTS = [10000 + (i * 1000) for i in range(colBoards, colBoards+rowBoards)]        
+        # Simulation SRP socket map. Two modes, chosen by simPgpRing, which MUST
+        # match the RTL SIM_PGP_GT_C toggle in GroupTb:
+        #   bypass (simPgpRing=False): every board exposes its own direct SRP
+        #     TcpServer at 10000 + boardIndex*1000. The historical default.
+        #   ring   (simPgpRing=True): only the coordinator exposes a bridge; each
+        #     ring address is reached on the coordinator's socket at
+        #     SIM_SRP_PORT + ringAddr*2 (matching the DATA-stream convention and
+        #     RogueTcpStreamWrap's PORT_NUM + code*2 port layout).
+        if simulation and simPgpRing:
+            COL_SIM_SRP_PORTS = [SIM_SRP_PORT + (i * 2) for i in range(colBoards)]
+            ROW_SIM_SRP_PORTS = [SIM_SRP_PORT + (i * 2) for i in range(colBoards, colBoards+rowBoards)]
+        else:
+            COL_SIM_SRP_PORTS = [10000 + (i * 1000) for i in range(colBoards)]
+            ROW_SIM_SRP_PORTS = [10000 + (i * 1000) for i in range(colBoards, colBoards+rowBoards)]
 
         # Instantiate and link each board in the Group
         for index in range(colBoards):
@@ -123,10 +135,10 @@ class HardwareGroup(pyrogue.Device):
             # Instantiate the board Device tree and link it to the SRP
 
             # ethPresent must match the RTL's EthCore generate condition
-            # (PgpEthCore GEN_ETH_C = RING_ADDR_0_G or SIMULATION_G): the
-            # coordinator on real hardware, and EVERY board in simulation (where
-            # EthCore is a lightweight Rogue TCP bridge, not a GigEth PHY, so each
-            # board is reachable directly without simulating the PGP ring).
+            # (PgpEthCore GEN_ETH_C = RING_ADDR_0_G or (SIMULATION_G and not ring)):
+            # the coordinator always, plus EVERY board in the simulation bypass
+            # (where EthCore is a lightweight Rogue TCP bridge and each board is
+            # reached directly). In ring mode only the coordinator has a bridge.
             self.add(colBoardClass(
                 name=f'ColumnBoard[{index}]',
                 frontEndClass=colFeClass,
@@ -134,7 +146,7 @@ class HardwareGroup(pyrogue.Device):
                 expand=True,
                 rows=rows,
                 useFloatPid=useFloatPid,
-                ethPresent=(index == 0 or simulation)))
+                ethPresent=(index == 0 or (simulation and not simPgpRing))))
 
             pidDebug = [warm_tdm.PidDebugger(name=f'PidDebug[{i}]', hidden=False, numRows=rows, col=i, frontEnd=self.ColumnBoard[index].AnalogFrontEnd) for i in range(8)]
             pidDebugFilters = [warm_tdm.PidDebugFilter(column=i) for i in range(8)]
@@ -210,7 +222,8 @@ class HardwareGroup(pyrogue.Device):
 
             # Instantiate the board Device tree and link it to the SRP.
             # ethPresent matches the RTL EthCore generate condition (coordinator
-            # in hardware, every board in simulation); see the ColumnBoard above.
+            # always, every board in the simulation bypass, coordinator-only in
+            # ring mode); see the ColumnBoard above.
             self.add(rowBoardClass(
                 name=f'RowBoard[{rowIndex}]',
                 frontEndClass=rowFeClass,
@@ -220,7 +233,7 @@ class HardwareGroup(pyrogue.Device):
                 memBase=srp,
                 expand=True,
                 enabled=True,
-                ethPresent=(boardIndex == 0 or simulation)))
+                ethPresent=(boardIndex == 0 or (simulation and not simPgpRing))))
 
         def rro_get(read):
             length = self.ColumnBoard[0].WarmTdmCore.Timing.TimingTx.NumReadoutRows.get(read=read)

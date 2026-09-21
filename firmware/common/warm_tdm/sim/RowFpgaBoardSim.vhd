@@ -44,10 +44,21 @@ entity RowFpgaBoardSim is
       rj45TimingRxClkN  : in  sl;
       rj45TimingRxDataP : in  sl;
       rj45TimingRxDataN : in  sl;
+      -- PGP ring MGT lanes. Defaulted so callers that don't simulate the ring
+      -- (e.g. ColumnFpgaBoardTb) elaborate unchanged; GroupTb wires them in a
+      -- ring when SIM_PGP_PORT_NUM_G = 0 (real GTX model).
+      rj45TimingRxMgtP  : in  sl := '0';
+      rj45TimingRxMgtN  : in  sl := '1';
+      rj45PgpRxMgtP     : in  sl := '0';
+      rj45PgpRxMgtN     : in  sl := '1';
       rj45TimingTxClkP  : out sl;
       rj45TimingTxClkN  : out sl;
       rj45TimingTxDataP : out sl;
-      rj45TimingTxDataN : out sl);
+      rj45TimingTxDataN : out sl;
+      rj45TimingTxMgtP  : out sl := '0';
+      rj45TimingTxMgtN  : out sl := '0';
+      rj45PgpTxMgtP     : out sl := '0';
+      rj45PgpTxMgtN     : out sl := '0');
 
 end entity RowFpgaBoardSim;
 
@@ -100,19 +111,19 @@ begin
          rj45TimingRxClkP  => rj45TimingRxClkP,   -- [in]
          rj45TimingRxClkN  => rj45TimingRxClkN,   -- [in]
          rj45TimingRxDataP => rj45TimingRxDataP,  -- [in]
-         rj45TimingRxDataN => rj45TimingRxDataN,  -- [in] 
-         rj45TimingRxMgtP  => '0',  -- TODO: connect this to something?                   -- [in]
-         rj45TimingRxMgtN  => '1',  -- TODO: connect this to something?                   -- [in]
-         rj45PgpRxMgtP     => '0',  -- TODO: connect this to something?                   -- [in]
-         rj45PgpRxMgtN     => '1',  -- TODO: connect this to something?                   -- [in]
+         rj45TimingRxDataN => rj45TimingRxDataN,  -- [in]
+         rj45TimingRxMgtP  => rj45TimingRxMgtP,   -- [in]
+         rj45TimingRxMgtN  => rj45TimingRxMgtN,   -- [in]
+         rj45PgpRxMgtP     => rj45PgpRxMgtP,      -- [in]
+         rj45PgpRxMgtN     => rj45PgpRxMgtN,      -- [in]
          rj45TimingTxClkP  => rj45TimingTxClkP,   -- [out]
          rj45TimingTxClkN  => rj45TimingTxClkN,   -- [out]
          rj45TimingTxDataP => rj45TimingTxDataP,  -- [out]
          rj45TimingTxDataN => rj45TimingTxDataN,  -- [out]
-         rj45TimingTxMgtP  => open,     -- [out]
-         rj45TimingTxMgtN  => open,     -- [out]
-         rj45PgpTxMgtP     => open,     -- [out]
-         rj45PgpTxMgtN     => open);    -- [out]
+         rj45TimingTxMgtP  => rj45TimingTxMgtP,   -- [out]
+         rj45TimingTxMgtN  => rj45TimingTxMgtN,   -- [out]
+         rj45PgpTxMgtP     => rj45PgpTxMgtP,      -- [out]
+         rj45PgpTxMgtN     => rj45PgpTxMgtN);     -- [out]
 
    U_RowFebModel_1 : entity warm_tdm.RowFebModel
       generic map (

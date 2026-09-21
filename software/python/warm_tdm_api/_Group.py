@@ -74,6 +74,7 @@ class Group(pr.Device):
                  simulation=False,
                  emulate=False,
                  useFloatPid=False,
+                 simPgpRing=False,
                  **kwargs):
         """
         Warm TDM Device
@@ -119,6 +120,7 @@ class Group(pr.Device):
             useFloatPid=useFloatPid,
             rowAddrBits=groupConfig.rowAddrBits,
             maxRows=groupConfig.maxRows,
+            simPgpRing=simPgpRing,
             groups=['Hardware'],
             expand=True))
 

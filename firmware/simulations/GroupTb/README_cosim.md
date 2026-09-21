@@ -66,16 +66,53 @@ conda activate warm-tdm-r615
 python -c "import warm_tdm_api.operations as ops; sess = ops.connect(); ops.status()"
 ```
 
+## Comms mode: direct-SRP bypass vs simulated PGP ring
+
+`GroupTb` has a master toggle, `SIM_PGP_GT_C` (top of `tb/GroupTb.vhd`), that
+selects how the host reaches the boards. **The `warmTdmServer.py --simPgpRing`
+flag MUST be set to match** — the RTL toggle decides which TCP ports get bound,
+and the software toggle decides which ports the client connects to; a mismatch
+means the client dials a port nothing is listening on.
+
+| | `SIM_PGP_GT_C := false` (bypass) | `SIM_PGP_GT_C := true` (ring) |
+|---|---|---|
+| MGT ring | not driven | real `Pgp2bGtx7VarLat` GTX model, board-to-board |
+| SRP bridge | every board has its own | **coordinator only** |
+| Row board reached | direct socket | over the ring, through the coordinator |
+| Client flag | `warmTdmServer.py --sim` | `warmTdmServer.py --sim --simPgpRing` |
+| Exercises the ring-routing path | no | **yes** (matches real hardware) |
+
+The ring mode is the one that reproduces the SRP-over-ring path used on real
+hardware; use it to catch ring/coordinator regressions. The bypass mode is
+faster (no GTX to simulate) and stays the historical default. Ring mode adds GTX
+CDR-lock + PGP handshake time, so give the client extra settle time before the
+first row-board register access (the row's ring address is only valid after
+link-up).
+
 ## TCP ports (sim side ↔ `--sim` client)
 
 Set by generics in `tb/GroupTb.vhd` and matched by `_HardwareGroup.py`'s
-simulation branch:
+simulation branch. The port layout depends on the comms mode:
+
+**Bypass (`SIM_PGP_GT_C := false`, `--sim` without `--simPgpRing`)** — each board
+binds its own sockets:
 
 | Path | Column board (i=0) | Row board (i=1) |
 |------|--------------------|-----------------|
 | SRP (register) | `10000` | `11000` |
 | Data stream | `20000` | `21000` |
-| PGP ring | `7000` | `70000` |
+
+**Ring (`SIM_PGP_GT_C := true`, `--sim --simPgpRing`)** — only the coordinator
+binds sockets; each ring address is reached at `base + ringAddr*2` on the
+coordinator (`RogueTcpStreamWrap` `PORT_NUM + code*2` layout):
+
+| Path | Coordinator (addr 0) | Row board (addr 1) |
+|------|----------------------|--------------------|
+| SRP (register) | `10000` | `10002` |
+| Data stream | `20000` | `20002` |
+
+In both modes `SIM_PGP_PORT_NUM_G` is `0` for the real GTX ring and nonzero
+(`7000`/`70000`) to keep the bypass.
 
 ## Gotchas
 
