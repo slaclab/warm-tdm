@@ -56,6 +56,20 @@ uses test-only finite binary32 models. Their oracle uses independent exact
 arithmetic. Do not select VCS through `WARM_TDM_SIM` to turn this into a
 generated-IP test: use the native target below.
 
+The [ring RX buffer characterization](warm_tdm/pgp_ring/test_rx_buffer.py) runs
+directly from the checked-out SURF sources with GHDL:
+
+```bash
+.venv/bin/python -m pytest tests/warm_tdm/pgp_ring/test_rx_buffer.py -q -n 3
+```
+
+It checks one versus multiple queued 4 KiB read-sized replies, a blocked sink,
+the simulation ready-handshake mismatch, and framing of fresh probes after
+loss. Some cases deliberately expect overflow/loss: passing these tests records
+the limitation, not full-ring stability. GTX, SRP request admission, router
+arbitration and RSSI are outside this bench. See the
+[ReadAll investigation](../docs/plans/register-timeout/README.md#width-10-bound-investigation).
+
 Integer coefficients use signed Q1.23: `1 << 23` is -1, while `(1 << 23)-1`
 is the largest positive coefficient. FP coefficients are binary32.
 Match coefficient encoding, DAC polarity and row width to each bench.

@@ -91,6 +91,27 @@ Ring mode adds GTX CDR-lock + PGP handshake time, so give the client extra settl
 first row-board register access (the row's ring address is only valid after
 link-up).
 
+### RX buffering and ReadAll stress
+
+Real GTX mode uses an unthrottled receive FIFO in simulation, as on hardware.
+`ROGUE_SIM_EN_G` must be false when `SIM_PORT_NUM_G=0`: GTX cannot honor the
+FIFO's `tReady`, and enabling that handshake can discard data without reporting
+RAM overflow. The simulation-only ready handshake is for a Rogue stream model.
+Ring mode still bypasses the Ethernet/RSSI stack, so inject downstream stalls
+explicitly when testing the coordinator's receive capacity.
+
+Use the [RX buffer characterization](../../../tests/warm_tdm/pgp_ring/test_rx_buffer.py)
+for an isolated GHDL test of queued replies and framing after overflow. Width 10
+does not by itself bound outstanding response bytes. Waiting between PyRogue
+blocks also does not serialize the 4 KiB transactions within a larger block.
+See the [ReadAll investigation](../../../docs/plans/register-timeout/README.md#width-10-bound-investigation)
+for the capacity calculation and remaining full-ring checks.
+
+A watchdog expiring around a VirtualClient ReadAll does not cancel that RPC.
+A second request through the same serialized client/server path can wait behind
+it without reaching FPGA SRP. Establish column responsiveness with an independent
+server-side probe or RTL observation before calling that result a column lockup.
+
 ### Checking simulation progress and GTX startup
 
 The ICAP initialization message near 1.272 us can be the last timestamp printed

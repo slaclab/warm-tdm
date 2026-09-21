@@ -2,7 +2,7 @@
 
 ## Goal and reported behavior
 
-Latest bench report: one column coordinator and one row board, both AxiVersion
+Bench topology: one column coordinator and one row board, both AxiVersion
 blocks accessible. ReadAll fails on the row, followed by loss of column SRP
 access. RSSI and PGP links remain up without reported link errors. The first
 failing address, exact error, both image identities, and reset/reconnect recovery
@@ -18,12 +18,16 @@ shared transport blockage, and find the smallest discriminating hardware test.
 ## Status
 
 Source investigation began at `da08863`, SURF `70191c1`; root cause remains unconfirmed
-on hardware. Before the buffering change below, PgpCore, RingRouter,
+on hardware. The latest user report supplies strong evidence of a width-8
+cosim reproduction and a successful width-10 hardware run. The remaining
+question is whether width 10 prevents overflow for all supported read workloads
+and whether a lost response causes persistent firmware blockage. Before the buffering change below, PgpCore, RingRouter,
 PgpEthCore and EthCore had no source diff from `d0bedaa` to this revision.
 Current bench image identities are not yet confirmed.
 The image revision exists locally as
 `d0bedaae8b65e648d6cec101c39564f5bcbb2b9a`. Compare committed revisions explicitly.
-No hardware access or build reports have been supplied. Local `firmware/build/`
+Hardware results are user-reported; image identities, counters and build reports
+have not been supplied. Local `firmware/build/`
 contains simulation directories, not this target's synthesis/implementation.
 
 Commit `40c131c` restores both ring RX FIFOs (VC0 and VC1) on every
@@ -31,8 +35,180 @@ board to address width 10 (8 KiB each) and selects the inferred backend with
 block RAM. It also restores coordinator flow control (`flowCntlDis=0` on the
 coordinator, 1 on other boards). Transmit FIFOs, the pause threshold and Ethernet
 bridge settings are unchanged. Rebuild the boards with Vivado 2024.1, check resource fit and
-repeat the failing ReadAll plus before/after overflow-counter checks. Revisit
-the sizing if synthesis does not fit. Hardware acceptance remains outstanding.
+repeat the failing ReadAll plus before/after overflow-counter checks. The user
+reports the width-10 hardware run succeeds. Worst-case buffering and recovery
+acceptance remain outstanding.
+
+## Width-10 bound investigation
+
+**Width 10 does not establish a lossless bound for queued responses.** Pause
+is asserted at 192 eight-byte entries (1536 bytes), leaving nominal RX RAM
+headroom of 512 bytes at width 8 or 6656 bytes at width 10. Only the coordinator
+obeys PGP pause. Other boards OR received pause with their own and forward it
+around the ring, but continue transmitting. Stopping new coordinator requests
+therefore does not stop responses to requests that remote SRP endpoints have
+already accepted. The row SRP receive and transmit FIFOs each have 16 KiB of
+nominal storage; a short read request can expand into a much larger reply.
+VC1 also has locally generated data that is not bounded by host read requests.
+
+Two software details make this relevant to changing global read parameters:
+
+- `RowFpgaBoard.forceCheckEach=True` waits between **blocks**. In Rogue 6.15,
+  `memory::Hub::doTransaction` splits a larger block into 4096-byte transactions
+  and forwards all pieces before waiting for completion. An isolated fake-memory
+  test with the installed Rogue 6.15 on rdsrv419 submitted addresses 0, 4096 and
+  8192, each of length 4096, before completing any part of one 12 KiB read. It
+  opened no sockets and did not use the active cosim. Multiple boards/clients
+  can also contribute outstanding work. The current small row memory blocks
+  are not evidence that this larger-block case caused the reported failure.
+- 4096 bytes is the standard Rogue SRPv3 transaction limit, not an RTL read-size
+  limit. `SrpV3AxiLite` checks that limit for writes; reads use the requested
+  length. Increasing client limits would need an explicit response-size bound.
+
+The maintained [RX buffer characterization](../../../tests/warm_tdm/pgp_ring/test_rx_buffer.py)
+uses actual SURF packetizer, gearbox, RX FIFO, depacketizer and a 256-byte bridge
+FIFO. It holds the sink until queued responses have arrived, releases it, then
+sends three distinct 32-byte probes. It models already accepted responses,
+not the complete request admission/pause loop. It omits GTX overhead, router
+arbitration and RSSI; bridge RAM is inferred. Run it independently of GroupTb:
+
+```bash
+.venv/bin/python -m pytest tests/warm_tdm/pgp_ring/test_rx_buffer.py -q -n 3
+```
+
+A 4 KiB read-sized reply is 4120 bytes including SRP metadata. With 496 bytes
+of payload per full 512-byte ring packet, nine packets occupy 4264 RX bytes.
+Two such replies require 8528 bytes before downstream draining. Pipeline words
+affect the precise threshold; the test measures loss instead of assuming only
+the nominal RAM capacities. This is a finite queued-response counterexample,
+not a claim that ordinary row ReadAll always generates that backlog.
+
+All six characterization cases passed against SURF `70191c1` with GHDL; a pass
+includes the deliberately expected loss cases below. Counts are taken after
+releasing the sink and before sending the fresh probes. Overflow cycles are
+not PGP's edge-counted overflow register value.
+
+| RX width / mode | Sent bytes | Received bytes | Completed frames | Overflow cycles |
+|---|---:|---:|---:|---:|
+| 8, one reply, stalled | 4120 | 2288 | 0 / 1 | 237 |
+| 10, one reply, stalled | 4120 | 4120 | 1 / 1 | 0 |
+| 10, two replies, stalled | 8240 | 8224 | 1 / 2 | 2 |
+| 10, three replies, stalled | 12360 | 8224 | 1 / 3 | 535 |
+| 10, three replies, stalled, former sim ready enabled | 12360 | 8088 | 1 / 3 | 0 |
+| 10, three replies, no stall | 12360 | 12360 | 3 / 3 | 0 |
+
+**Overflow recovery also needs work.** In each lossy case the first fresh probe
+was absorbed into the unfinished prior frame. At width 10 its intended
+32-byte frame instead terminated a 4152-byte frame, with EOFE clear. The next
+two probes passed length, payload and SOF/EOF checks. Depacketizer `packetError`
+remained zero throughout. In `MOVE_S`, the depacketizer consumes input until
+`tLast`; it does not use a new SOF to abort a packet whose tail was lost. With
+CRC disabled, the new packet's valid tail can close the merged frame without
+an error indication. This demonstrates damaged framing followed by recovery,
+not a permanent full-ring deadlock. The SRP/host consequences still need the
+full-system test. Raw run logs are saved in pytest's temporary build directories;
+the source bench and assertions retain the reproducible evidence.
+
+### Cosim fidelity and reproduction limits
+
+The local `PgpCore` change enables the FIFO ready handshake only for a Rogue
+stream model (`SIMULATION_G and SIM_PORT_NUM_G /= 0`). Real GTX mode now ignores
+ready in simulation just as in hardware. Previously `SIMULATION_G=true` made
+the FIFO gate its writes when full even though GTX cannot honor `pgpRxSlaves`.
+This can lose data before the RAM without asserting its overflow output.
+Hardware depth, memory implementation and pause policy are unchanged by this
+simulation correction. It has not been rebuilt in VCS; the user's active
+rdsrv419 simulator and build were left untouched.
+
+The reproduction script in remote commit `771ee04` runs `row.ReadDevice(True)`
+through a VirtualClient and starts the column probe after a watchdog expires.
+The watchdog leaves the row RPC alive. Rogue's ZMQ client serializes requests
+under `reqLock_`, and the server executes its request callback synchronously.
+Consequently, a column watchdog failure can mean the column request has not
+reached SRP at all. This does not invalidate the reported width A/B behavior,
+but the script alone cannot distinguish FPGA-wide deadlock from one failed
+row transaction holding up software. `RemoteVariable.get()` already defaults
+to `read=True` in the installed version; cached reads are not the issue here.
+The script's 120-second watchdog covers the entire subtree sweep, whereas the
+simulation root's extended timeout covers individual transactions. Record
+per-block progress before treating a long whole-tree sweep as stalled.
+
+### Required bound and next discriminating test
+
+With remote response transmission unthrottled, a lossless admission policy must
+reserve receive capacity for **all outstanding response bytes**, including ring
+overhead and in-flight pipeline data, and release that reservation only as
+downstream delivery frees capacity. Alternatively, backpressure at every source's
+ring injection point can leave queued response bytes at their source; then the
+required receive headroom covers control latency and traffic already admitted
+to the ring. Increasing RAM alone needs a supported maximum backlog/stall bound.
+For SRP, one globally outstanding, size-limited wire transaction across the
+ring is a useful containment experiment; per-device block waiting is weaker.
+A production policy could use host admission limits or firmware response
+credits/size enforcement. VC1 needs separate treatment. Enabling pause on every
+ring transmitter is not a safe substitute: stopping forwarding can prevent a
+full intermediate receiver from draining.
+
+After the current user run finishes, capture the first failing transaction and
+RX overflow/pause on both boards, with the corrected GTX receive semantics.
+Separate response size, number outstanding, board count and sink-stall duration.
+Record flow-control/backend settings as well as depth, since `40c131c` changed
+all three. Check column SRP from inside the server outside the blocked RPC, or
+use passive RTL request/response observations; do not infer its state from a
+second RPC waiting behind the first. Finally, after deliberately overflowing
+and releasing the sink, verify fresh row and column transactions complete
+without reset. Capacity prevention and defined termination/recovery of damaged
+frames are separate requirements.
+
+### Proposed ring pause control
+
+This is a design proposal, not an implemented or validated flow-control change.
+
+1. Keep a per-VC collection chain: coordinator advertises its local RX pressure;
+   each other board advertises local pressure OR the collected incoming pressure.
+   The coordinator receives the aggregate. Do not close this OR feedback loop.
+2. Broadcast that aggregate as separate status. `locData(2:0)` carries the board
+   address; bits `[4:3]`, currently zero, could carry global VC1/VC0 pause. Only
+   the coordinator originates the broadcast; other boards relay it unchanged.
+   This gives every source visibility of congestion anywhere in the ring,
+   including on the far side of the coordinator's collection boundary. Existing
+   PGP status/link-data transport continues without application traffic.
+3. Synchronize the broadcast into the AXI clock domain and stop locally originated
+   traffic at each `RingRouter`, including SRP responses and coordinator Ethernet
+   injection. Preserve forwarding and local receive consumption. In this scheme
+   disable the native whole-VC transmit pause on all boards, including the
+   coordinator, because the aggregate does not identify the next-hop receiver.
+4. Pause at bounded ring-packet boundaries, at most 512 bytes, with normal AXIS
+   handshake. Do not wait for the end of an arbitrarily large SRP response.
+   `disableSel(0)` alone is not a complete implementation: the current packetizer
+   is after the mux and does not close a partial packet merely because input
+   valid disappears. It needs an explicit packet-boundary admission mechanism,
+   or separate local/transit packetization followed by packet arbitration.
+5. Use high/low watermarks and require valid link/control state before resuming.
+   A clear must propagate through collection and broadcast; never OR the previous
+   broadcast back into collection. All boards need compatible status semantics.
+
+For each receiver, prove `capacity - high_watermark` exceeds bytes arriving
+during collection/broadcast delay plus remaining traffic in the ring after
+injection stops, including TX queues and pipelines after the admission gates.
+The current 2 KiB shared TX FIFO on each board contributes to that bound. Source
+SRP FIFOs before the gate do not: their ready handshake holds queued responses
+upstream. Width 10 is not automatically sufficient for every ring size. If the
+bound does not fit, reduce buffering after the gates, increase RX headroom, or
+use addressed per-hop credits with an explicit deadlock-avoidance design.
+
+Test 2, 3 and the maximum supported board count, every congestion location,
+simultaneous pauses, clearing with all application inputs idle, mixed VC traffic,
+partial packet boundaries, link resets and worst-case queued TX data. In a
+separate two-board-only experiment, native PGP pause on both boards with
+**local-only** pause advertisement is simpler: TX and RX connect the same peer.
+That configuration must not be generalized to larger rings.
+
+Independently, repair depacketizer resynchronization after a missing tail:
+terminate the damaged application frame with an error and consume the next SOF
+as a new packet header rather than payload. Also provide a defined overflow
+abort/flush path for the case where no subsequent packet arrives. CRC/error
+counters improve detection but do not supply either backpressure or recovery.
 
 ## GTX cosim startup: verified at `fc8f751`
 
@@ -133,9 +309,9 @@ buffering one packet alone does not bound a burst of multiple packets/replies.
   `TxLocPause`, `RxRemPause` and host RSSI `locBusyCnt`/`remBusyCnt`.
 - **GroupTb bypass mode misses this path.** The new GTX ring mode with
   `--simPgpRing` reaches the row through the coordinator and real PGP models.
-  EthCore still bypasses RSSI in simulation. PgpCore currently passes
-  `ROGUE_SIM_EN_G=SIMULATION_G` to its receive FIFOs even in GTX mode; a useful
-  hardware-overflow stress test must disable that ready handshake for real GTX.
+  EthCore still bypasses RSSI in simulation. The local correction described
+  above disables the FIFO ready handshake in real GTX mode; earlier builds
+  passed `ROGUE_SIM_EN_G=SIMULATION_G` and can mask overflow indications.
 
 ## Focused buffer experiment
 

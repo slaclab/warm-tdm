@@ -455,7 +455,9 @@ begin
       U_PgpRXVcFifo_1 : entity surf.PgpRXVcFifo
          generic map (
             TPD_G               => TPD_G,
-            ROGUE_SIM_EN_G      => SIMULATION_G,
+            -- Only the Rogue stream model can honor tReady. The real GTX
+            -- receive interface is unthrottled, including in simulation.
+            ROGUE_SIM_EN_G      => SIMULATION_G and (SIM_PORT_NUM_G /= 0),
 --            FILTER_G            => true,
             INT_PIPE_STAGES_G   => 1,
             PIPE_STAGES_G       => 0,

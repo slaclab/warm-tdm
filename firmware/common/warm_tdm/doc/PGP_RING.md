@@ -64,7 +64,7 @@ Only the coordinator (Column 0) has an Ethernet uplink to the host. All register
 **Key properties:**
 - The coordinator (node 0) is the sole gateway between the host and the ring
 - Any node's registers are accessible from the host via ring-routed SRP through the coordinator
-- The coordinator has PGP flow control enabled; all other nodes must absorb data without backpressure
+- Only the coordinator's PGP transmitter obeys received pause; other transmitters do not throttle their locally originated traffic
 - Passthrough traffic always has priority over locally-originated traffic at the TX mux
 - A frame that loops the entire ring without finding its destination is dumped (detected by source address in TDEST[6:4])
 
@@ -264,32 +264,59 @@ CDC FIFOs in EthCore (`GEN_REMOTE_FIFOS`, 4× RX + 4× TX, 32-deep distributed) 
 
 ## Flow Control
 
-**Asymmetric by design:**
+**Current implementation is asymmetric and does not provide complete ring backpressure.**
 
-- **Node 0 (Coordinator):** PGP flow control ENABLED (`flowCntlDis <= '0'`). Can backpressure the ring.
-- **Other nodes:** PGP flow control DISABLED (`flowCntlDis <= '1'`). Cannot backpressure upstream. Must absorb all incoming data.
+- **Node 0 (Coordinator):** `flowCntlDis='0'` makes its transmitter obey received pause, stopping transmission on the affected VC.
+- **Other nodes:** `flowCntlDis='1'` makes their transmitters ignore received pause. Their receivers still generate and advertise pause/overflow status.
+
+In a ring of three or more boards, the preceding board whose status is received
+is different from the following board that receives this transmitter's data.
+Ordinary point-to-point PGP flow control therefore does not directly provide
+next-hop backpressure. In a two-board ring, both directions connect the same
+peer, so that topology can use ordinary PGP pause with local status advertisement
+and flow control enabled on both boards.
 
 Non-coordinator nodes merge local and remote pause signals:
 ```vhdl
 tmp(i).pause := locPgpRxCtrl(i).pause or pgpRxOut(0).remPause(i);
 ```
 
-This means if the coordinator signals pause, downstream nodes will also pause their local TX into the PGP RX FIFO, but passthrough data continues to flow (since it has mux priority and the ring cannot stall).
+The coordinator advertises only its own local pause, breaking the OR feedback
+loop. This collects congestion around the ring and stops coordinator transmission.
+It does **not** stop local injection at other boards: `RingRouter` disables its
+local mux input only when passthrough is valid, with no pause input. An earlier
+version of this guide incorrectly claimed local injection was already paused.
 
-**Implication:** If a non-coordinator node's RX FIFO fills (e.g. from heavy passthrough + local traffic), data will be lost. The RingRouter's passthrough priority prevents this for transit traffic, but local delivery can be starved.
+Consequently, responses to previously accepted SRP reads can continue arriving
+at a stalled coordinator. Passthrough priority reduces contention but does not
+guarantee freedom from overflow. Applying the relayed OR at every PHY transmitter
+can also stop the forwarding needed to drain intermediate receivers. Simply
+extending the OR loop through the coordinator would let an asserted pause
+circulate indefinitely after the original congestion clears.
+
+See the [active investigation and proposed admission control](../../../../docs/plans/register-timeout/README.md#proposed-ring-pause-control)
+for a collection/broadcast scheme that would throttle local injection while
+keeping forwarding and sideband status running. That scheme is not implemented.
 
 ## FIFO Sizing
 
 | FIFO | Depth | Memory | Purpose |
 |------|-------|--------|---------|
-| PgpRXVcFifo | 256 (2^8) | BRAM | CDC from pgpClk→axilClk, packet buffering |
-| PgpTXVcFifo | 256 (2^8) | BRAM | CDC from axilClk→pgpClk, packet buffering |
-| Depacketizer | Internal | BRAM | Segment reassembly |
-| Packetizer | Internal | Distributed | Segment framing |
-| SRP (SrpV3AxiLite) | 1024 (2^10) | — | AXI-Lite transaction buffering |
+| PgpRXVcFifo | 1024 x 8 bytes (nominal 8 KiB) | Inferred block RAM | CDC from pgpClk→axilClk, packet buffering |
+| PgpTXVcFifo | 256 x 8 bytes (nominal 2 KiB) | XPM block RAM | CDC from axilClk→pgpClk, packet buffering |
+| Depacketizer | Internal | BRAM | Per-destination framing state, not full-response storage |
+| Packetizer | Internal | Distributed | Per-destination framing state |
+| Ring SRP (SrpV3AxiLite) | 1024 x 16 bytes per RX/TX FIFO | Inferred block RAM | AXI-Lite transaction buffering |
 
-The PGP FIFOs are sized for the expected traffic pattern: SRP register access to a single RowFpgaBoard. Each SRP transaction is ~4-8 words. At 256 deep (2KB), the FIFOs can hold ~4 full 512-byte packets, providing adequate buffering for bursty register access patterns without the overhead of the original 1024-deep FIFOs (which were sized for multi-board waveform streaming that is no longer planned).
+Commit `40c131c` restored both active RX VCs on every board to address width 10.
+A normal Rogue read can return 4096 data bytes plus SRP and ring metadata, and
+a larger memory block can issue several such transactions before waiting.
+The pause threshold remains 192 eight-byte entries. Width 10 supplies additional
+headroom; it does not establish a bound on unthrottled queued responses.
 
 ## Packet Size
 
-All ring traffic is segmented into 512-byte packets (`PACKET_SIZE_BYTES_C = 512`). This bounds latency for passthrough traffic and provides natural flow control units. The PGP RX FIFO's `VALID_THOLD_G = 64` (512 bytes / 8 bytes per word) ensures complete packets are forwarded atomically.
+Ring packets are at most 512 bytes (`PACKET_SIZE_BYTES_C = 512`). The RX FIFO's
+`VALID_THOLD_G=64` with burst mode permits output when a packet is complete or
+64 entries are available. This is a prefill/burst policy, not an overflow filter
+or an atomic whole-SRP-response guarantee.
