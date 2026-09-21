@@ -11,7 +11,8 @@ Physical measurements and real-link tests remain manual acceptance steps.
 | Script | Owning issue | What it checks automatically | Still manual |
 |---|---|---|---|
 | `verify_dead_masks.py` | [#60](https://github.com/slaclab/warm-tdm/issues/60) | Masked channels are exactly the channels that drop out of the stream file | — (fully software) |
-| `check_link_health.py` | [#50](https://github.com/slaclab/warm-tdm/issues/50) | RSSI (and PGP) link counters; baseline + poll-for-deltas | inducing a real fiber fault |
+| `check_link_health.py` | [#50](https://github.com/slaclab/warm-tdm/issues/50) | HOST-side RSSI/UDP link counters (host ↔ coordinator Ethernet); baseline + poll-for-deltas | inducing a real fiber fault |
+| `pgp_link_health.py` | — (bring-up diagnostic) | FPGA-side `Pgp2bAxi` PGP-ring link-ready flags, `RxRemLinkReadyCount` (flap detector) and Rx/Tx clock-freq monitors on the coordinator; one-shot or `--watch` | correlating a failed vs good power-up on the bench |
 | `verify_stop_and_zero.py` | [#86](https://github.com/slaclab/warm-tdm/issues/86) | Complete finite nonzero → confirmed mux run → stopped/zero fast-DAC readbacks across N cycles | load-board DMM confirmation |
 
 ## Running
