@@ -17,6 +17,8 @@ shared transport blockage, and find the smallest discriminating hardware test.
 
 ## Status
 
+The pause/recovery implementation is described [below](#ring-pause-and-overflow-recovery-implementation); the historical characterization that follows records the pre-fix behavior. Vendor and hardware acceptance remain outstanding.
+
 Source investigation began at `da08863`, SURF `70191c1`; root cause remains unconfirmed
 on hardware. The latest user report supplies strong evidence of a width-8
 cosim reproduction and a successful width-10 hardware run. The remaining
@@ -97,7 +99,7 @@ not PGP's edge-counted overflow register value.
 | 10, three replies, stalled, former sim ready enabled | 12360 | 8088 | 1 / 3 | 0 |
 | 10, three replies, no stall | 12360 | 12360 | 3 / 3 | 0 |
 
-**Overflow recovery also needs work.** In each lossy case the first fresh probe
+**Pre-fix overflow recovery behavior.** In each lossy case the first fresh probe
 was absorbed into the unfinished prior frame. At width 10 its intended
 32-byte frame instead terminated a 4152-byte frame, with EOFE clear. The next
 two probes passed length, payload and SOF/EOF checks. Depacketizer `packetError`
@@ -111,7 +113,7 @@ the source bench and assertions retain the reproducible evidence.
 
 ### Cosim fidelity and reproduction limits
 
-The local `PgpCore` change enables the FIFO ready handshake only for a Rogue
+The committed cosim-fidelity correction enables the FIFO ready handshake only for a Rogue
 stream model (`SIMULATION_G and SIM_PORT_NUM_G /= 0`). Real GTX mode now ignores
 ready in simulation just as in hardware. Previously `SIMULATION_G=true` made
 the FIFO gate its writes when full even though GTX cannot honor `pgpRxSlaves`.
@@ -160,55 +162,61 @@ and releasing the sink, verify fresh row and column transactions complete
 without reset. Capacity prevention and defined termination/recovery of damaged
 frames are separate requirements.
 
-### Proposed ring pause control
+### Ring pause and overflow recovery implementation
 
-This is a design proposal, not an implemented or validated flow-control change.
+The collection/broadcast and packet admission design is now implemented in
+`PgpRingFlowControl`, `RingRouter` and `PgpRingRxFifo`, with integration and shared
+limits in `PgpCore` / `PgpRingPkg`. See the permanent
+[ring protocol and headroom budget](../../../firmware/common/warm_tdm/doc/PGP_RING.md#flow-control).
+All boards require the new status semantics; host SRP addressing is unchanged.
 
-1. Keep a per-VC collection chain: coordinator advertises its local RX pressure;
-   each other board advertises local pressure OR the collected incoming pressure.
-   The coordinator receives the aggregate. Do not close this OR feedback loop.
-2. Broadcast that aggregate as separate status. `locData(2:0)` carries the board
-   address; bits `[4:3]`, currently zero, could carry global VC1/VC0 pause. Only
-   the coordinator originates the broadcast; other boards relay it unchanged.
-   This gives every source visibility of congestion anywhere in the ring,
-   including on the far side of the coordinator's collection boundary. Existing
-   PGP status/link-data transport continues without application traffic.
-3. Synchronize the broadcast into the AXI clock domain and stop locally originated
-   traffic at each `RingRouter`, including SRP responses and coordinator Ethernet
-   injection. Preserve forwarding and local receive consumption. In this scheme
-   disable the native whole-VC transmit pause on all boards, including the
-   coordinator, because the aggregate does not identify the next-hop receiver.
-4. Pause at bounded ring-packet boundaries, at most 512 bytes, with normal AXIS
-   handshake. Do not wait for the end of an arbitrarily large SRP response.
-   `disableSel(0)` alone is not a complete implementation: the current packetizer
-   is after the mux and does not close a partial packet merely because input
-   valid disappears. It needs an explicit packet-boundary admission mechanism,
-   or separate local/transit packetization followed by packet arbitration.
-5. Use high/low watermarks and require valid link/control state before resuming.
-   A clear must propagate through collection and broadcast; never OR the previous
-   broadcast back into collection. All boards need compatible status semantics.
+Local admission pauses at complete ring packets while raw transit packets keep
+forwarding. RX RAM stays inferred, width 10. Production packets are 128 bytes;
+the post-admission TX FIFO is 128 bytes, RX pressure uses 64/32-byte watermarks,
+and native cells have at most 32 payload bytes. Early collection stop limits
+source admission before broadcast reaches every board. The eight-board budget
+is 7168 bytes, conditional on a 64-PGP-clock control hop and the documented
+pipeline allowance. Vendor GTX timing must validate those assumptions.
 
-For each receiver, prove `capacity - high_watermark` exceeds bytes arriving
-during collection/broadcast delay plus remaining traffic in the ring after
-injection stops, including TX queues and pipelines after the admission gates.
-The current 2 KiB shared TX FIFO on each board contributes to that bound. Source
-SRP FIFOs before the gate do not: their ready handshake holds queued responses
-upstream. Width 10 is not automatically sufficient for every ring size. If the
-bound does not fit, reduce buffering after the gates, increase RX headroom, or
-use addressed per-hop credits with an explicit deadlock-avoidance design.
+Overflow now queues an error terminator and an ordered per-VC abort marker.
+Each router clears reassembly and terminates every application frame it has
+started; the origin removes the returning marker. No subsequent application
+traffic is required. Fresh SOF also closes a packet with a missing tail without
+consuming the new header. Explicit two/eight-bit TUSER conversion repairs error
+flags previously lost at the SURF depacketizer boundary. Lost bytes still require
+host retry; this is not retransmission.
 
-Test 2, 3 and the maximum supported board count, every congestion location,
-simultaneous pauses, clearing with all application inputs idle, mixed VC traffic,
-partial packet boundaries, link resets and worst-case queued TX data. In a
-separate two-board-only experiment, native PGP pause on both boards with
-**local-only** pause advertisement is simpler: TX and RX connect the same peer.
-That configuration must not be generalized to larger rings.
+The isolated regression is `tests/warm_tdm/pgp_ring/test_ring_control.py`. It uses
+actual production RTL with delayed logical links, separate clocks and payload/
+framing scoreboards. The original expected-loss characterization remains intact
+as evidence for the unguarded SURF path. A separate native PGP lane bench
+measured a largest digital status delay of 35 clocks across 128 transitions,
+with both VCs active and idle; 29 clocks remain for GTX and external control/CDC
+in the conditional hop budget. PgpCore also passes entity-interface analysis.
+These tests do not run SRP, RSSI or GTX.
 
-Independently, repair depacketizer resynchronization after a missing tail:
-terminate the damaged application frame with an error and consume the next SOF
-as a new packet header rather than payload. Also provide a defined overflow
-abort/flush path for the case where no subsequent packet arrives. CRC/error
-counters improve detection but do not supply either backpressure or recovery.
+Implementation validation: all 24 maintained local checks passed (22 routing,
+control, congestion and recovery cases, plus native-PGP status timing and
+PgpCore interface analysis). Congestion covered every sink position in 2-, 3-
+and 8-board rings; the queued-response case offered 16 KiB to an 8 KiB stalled
+receiver without loss. Router recovery, native PGP status and interface analysis
+also passed with unchanged full-width SURF records. The full congestion sweep
+used the documented temporary reduction of unused record capacity; it did not
+reduce any configured stream/FIFO width or latency. SURF itself is unchanged.
+
+Remaining acceptance after the user's current run finishes:
+
+- Rebuild GroupTb with the corrected unthrottled receive semantics and new ring
+  protocol; measure control delay and post-gate storage, including mixed VCs.
+- Repeat queued large reads and sink stalls, capture first failure/overflow
+  counters, then verify fresh row and column SRP transactions without reset.
+- Force overflow and link interruption; verify EOFE, marker completion and
+  first-fresh-transaction recovery through real SRP/RSSI, outside a blocked RPC.
+- Build affected targets with Vivado 2024.1; check resource fit, timing and the
+  throughput impact of shorter packets/cells. Repeat the failing hardware sweep.
+
+The active rdsrv419 simulation/build is untouched. No source was staged or
+committed by the implementation task.
 
 ## GTX cosim startup: verified at `fc8f751`
 

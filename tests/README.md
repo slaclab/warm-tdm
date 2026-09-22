@@ -70,6 +70,47 @@ the limitation, not full-ring stability. GTX, SRP request admission, router
 arbitration and RSSI are outside this bench. See the
 [ReadAll investigation](../docs/plans/register-timeout/README.md#width-10-bound-investigation).
 
+The production ring control and recovery suite is:
+
+```bash
+.venv/bin/python -m pytest tests/warm_tdm/pgp_ring/test_ring_control.py -q -n 3
+```
+
+The runner builds isolated GHDL libraries from the checked-out sources. Cocotb
+owns stimulus and scoreboards in `ring_control_cocotb.py`; `pgp_ring/tb/` contains
+only topology, clock/link models and flattened production interfaces.
+
+All five new ring fixtures use this split: collection/broadcast, router
+admission, congestion, overflow recovery and native PGP status. Their behavioral
+checks belong in cocotb, including packet construction, scoreboards, fault
+injection and parameter sweeps. VHDL remains appropriate for record packing,
+multi-board connectivity, clocks and PHY/status transport models. These are
+test-specific topologies, rather than reusable production interface wrappers.
+The older RX characterization bench remains a historical reproducer; it does
+not need conversion to add the new behavioral coverage.
+
+This follows [SURF's regression guidance](../firmware/submodules/surf/tests/README.md)
+with a deliberately isolated launcher. It reuses one source analysis per pytest
+worker, supports a temporary compact-record package, and owns the GHDL process
+group so a timeout also terminates LLVM GHDL's child executable. The separate
+pytest and cocotb files keep that build/cache machinery out of the simulator
+module. Case-specific logs/results and worker-specific libraries isolate runs.
+The small stream driver handles packed lanes and sixteen SSI user bits; it
+drives on falling edges and checks ready at the accepting rising edge, before
+registered outputs change after `TPD_G`. A helper that checks ready after that
+delay would observe capacity for the next transfer instead.
+
+It checks 2/3/8-board collection and broadcast, congestion with delayed status,
+packet admission and forwarding, missing-tail recovery, and ordered overflow
+termination without subsequent traffic. It also checks native PGP status
+latency with both VCs active and idle, and analyzes PgpCore against the real
+SURF entity interfaces. Unlike the characterization above,
+healthy flow-control cases must not overflow and fresh recovery probes must all
+arrive correctly. See the [ring guide](../firmware/common/warm_tdm/doc/PGP_RING.md#isolated-regression)
+for model limits and the `WARM_TDM_RING_FULL_RECORDS=1` option. The default build
+reduces unused AXI record capacity in a temporary package for simulation speed;
+configured stream and FIFO widths are unchanged.
+
 Integer coefficients use signed Q1.23: `1 << 23` is -1, while `(1 << 23)-1`
 is the largest positive coefficient. FP coefficients are binary32.
 Match coefficient encoding, DAC polarity and row width to each bench.

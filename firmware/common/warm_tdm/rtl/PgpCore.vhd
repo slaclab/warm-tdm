@@ -2,10 +2,10 @@
 -- Title      : PGP Ring Interface for Warm TDM
 -------------------------------------------------------------------------------
 -- Company    : SLAC National Accelerator Laboratory
--- Platform   : 
+-- Platform   :
 -- Standard   : VHDL'93/02
 -------------------------------------------------------------------------------
--- Description: 
+-- Description:
 -------------------------------------------------------------------------------
 -- This file is part of Warm TDM. It is subject to
 -- the license terms in the LICENSE.txt file found in the top-level directory
@@ -31,6 +31,7 @@ use surf.Gtx7CfgPkg.all;
 use surf.Pgp2bPkg.all;
 
 library warm_tdm;
+use warm_tdm.PgpRingPkg.all;
 
 entity PgpCore is
 
@@ -53,10 +54,10 @@ entity PgpCore is
       pgpRxN           : in  slv(1 downto 0);
       pgpTxLink        : out sl;
       pgpRxLink        : out sl;
-      -- Main clock and reset 
+      -- Main clock and reset
       axiClk           : out sl;
       axiRst           : out sl;
-      -- SRP 
+      -- SRP
       mAxilReadMaster  : out AxiLiteReadMasterType;
       mAxilReadSlave   : in  AxiLiteReadSlaveType  := AXI_LITE_READ_SLAVE_EMPTY_DECERR_C;
       mAxilWriteMaster : out AxiLiteWriteMasterType;
@@ -77,7 +78,7 @@ entity PgpCore is
       dataRxAxisMaster : out AxiStreamMasterType;
       dataRxAxisSlave  : in  AxiStreamSlaveType;
 
-      -- This board's ring address (RingRouter tDest[6:4]); async (iAxiClk-domain,
+      -- This board's ring address (RingRouter tDest[6:4]); async (pgpClk-domain,
       -- quasi-static after PGP link-up). Consumers synchronize as needed. Fed to
       -- the frame builders' self-describing header as boardId.
       boardId          : out slv(2 downto 0));
@@ -92,7 +93,8 @@ architecture rtl of PgpCore is
 
    constant GTX_CFG_C : Gtx7CPllCfgType := getGtx7CPllCfg(REF_CLK_FREQ_G, 1.25E9);
 
-   constant PACKET_SIZE_BYTES_C : integer := 512;
+   -- Bound post-admission storage and status latency for up to eight boards.
+   constant PACKET_SIZE_BYTES_C : integer := RING_PACKET_BYTES_C;
 
    signal pgpClk       : sl;
    signal pgpRst       : sl;
@@ -107,7 +109,10 @@ architecture rtl of PgpCore is
    signal pgpRxSlaves  : AxiStreamSlaveArray(3 downto 0)  := (others => AXI_STREAM_SLAVE_INIT_C);
    signal pgpRxCtrl    : AxiStreamCtrlArray(3 downto 0)   := (others => AXI_STREAM_CTRL_UNUSED_C);
    signal locPgpRxCtrl : AxiStreamCtrlArray(3 downto 0)   := (others => AXI_STREAM_CTRL_UNUSED_C);
-   signal locData      : slv(7 downto 0)                  := (others => '0');
+   signal collectPause       : slv(1 downto 0);
+   signal injectionPause     : slv(1 downto 0);
+   signal axisInjectionPause : slv(1 downto 0);
+   signal axisLinkGood       : slv(1 downto 0);
 
    signal iAxiClk : sl;
    signal iAxiRst : sl;
@@ -164,10 +169,70 @@ architecture rtl of PgpCore is
 
 begin
 
+   -- Guard the conditional design budget against independent FIFO/packet edits.
+   -- The guide documents the PHY-latency and elasticity assumptions to verify.
+   assert RING_BUDGET_BYTES_C + 64 <= 8*2**RING_RX_ADDR_WIDTH_C
+      report "PGP ring admission budget exceeds RX capacity" severity failure;
+
    pgpTxLink <= pgpTxOut(0).linkReady;
    pgpRxLink <= pgpRxOut(0).linkReady;
 
-   locPgpTxIn(0).flowCntlDis <= '0' when RING_ADDR_0_G else '1';
+   -- Native pause would stop transit traffic and can deadlock a directed ring.
+   locPgpTxIn(0).flowCntlDis <= '1';
+   boardId <= address;
+   locPgpTxIn(1).locData <= X"AA";
+
+   U_RingFlowControl : entity warm_tdm.PgpRingFlowControl
+      generic map (
+         TPD_G         => TPD_G,
+         RING_ADDR_0_G => RING_ADDR_0_G)
+      port map (
+         pgpClk         => pgpClk,                            -- [in]
+         pgpRst         => pgpRst,                            -- [in]
+         rxLinkGood     => pgpRxOut(0).linkReady,             -- [in]
+         txLinkGood     => pgpTxOut(0).linkReady,             -- [in]
+         localPause(0)  => locPgpRxCtrl(0).pause,             -- [in]
+         localPause(1)  => locPgpRxCtrl(1).pause,             -- [in]
+         remotePause    => pgpRxOut(0).remPause(1 downto 0),  -- [in]
+         remoteLinkData => pgpRxOut(0).remLinkData,           -- [in]
+         collectPause   => collectPause,                      -- [out]
+         txLinkData     => locPgpTxIn(0).locData,             -- [out]
+         injectionPause => injectionPause,                    -- [out]
+         address        => address);                          -- [out]
+
+   U_PauseSync : entity surf.SynchronizerVector
+      generic map (
+         TPD_G    => TPD_G,
+         STAGES_G => 3,
+         WIDTH_G  => 2,
+         INIT_G   => "11")
+      port map (
+         clk     => iAxiClk,              -- [in]
+         rst     => iAxiRst,              -- [in]
+         dataIn  => injectionPause,       -- [in]
+         dataOut => axisInjectionPause);  -- [out]
+
+   U_LinkSync : entity surf.SynchronizerVector
+      generic map (
+         TPD_G    => TPD_G,
+         STAGES_G => 3,
+         WIDTH_G  => 2)
+      port map (
+         clk       => iAxiClk,                -- [in]
+         rst       => iAxiRst,                -- [in]
+         dataIn(0) => pgpRxOut(0).linkReady,  -- [in]
+         dataIn(1) => pgpTxOut(0).linkReady,  -- [in]
+         dataOut   => axisLinkGood);          -- [out]
+
+   PGP_RX_CTRL : process(all) is
+      variable ctrl : AxiStreamCtrlArray(3 downto 0);
+   begin
+      -- Representation-only assembly of registered status from the two owners.
+      ctrl := locPgpRxCtrl;
+      ctrl(0).pause := collectPause(0);
+      ctrl(1).pause := collectPause(1);
+      pgpRxCtrl <= ctrl;
+   end process;
 
    ClockManager7_Inst : entity surf.ClockManager7
       generic map(
@@ -224,7 +289,7 @@ begin
             RX_DFE_KL_CFG2_G  => X"301148AC",
             -- VC Configuration
             VC_INTERLEAVE_G   => 1,
-            PAYLOAD_CNT_TOP_G => 7,
+            PAYLOAD_CNT_TOP_G => RING_PAYLOAD_CNT_TOP_C,
             NUM_VC_EN_G       => 2)
          port map (
             -- GT Clocking
@@ -277,20 +342,7 @@ begin
             axilWriteMaster  => locAxilWriteMasters(AXIL_GTX_0_C),
             axilWriteSlave   => locAxilWriteSlaves(AXIL_GTX_0_C));
 
-      PGP_RX_CTRL : process (locPgpRxCtrl, pgpRxOut) is
-         variable tmp : AxiStreamCtrlArray(3 downto 0);
-      begin
-         tmp := locPgpRxCtrl;
-         for i in 3 downto 0 loop
-            if (RING_ADDR_0_G = false) then
-               if (pgpRxOut(0).linkReady = '1') then
-                  tmp(i).pause := locPgpRxCtrl(i).pause or pgpRxOut(0).remPause(i);
-               end if;
-            end if;
-         end loop;
-         pgpRxCtrl <= tmp;
 
-      end process PGP_RX_CTRL;
 
 --       Pgp2bGtx7VarLat_Inst_1 : entity surf.Pgp2bGtx7VarLat
 --          generic map (
@@ -451,29 +503,19 @@ begin
 
 
    RING_ROUTER_GEN : for i in 1 downto 0 generate
-      -- Provide 8 KiB of receive buffering per ring VC on every board.
-      U_PgpRXVcFifo_1 : entity surf.PgpRXVcFifo
+      -- Eight KiB per VC, with early hysteretic pressure and ordered recovery.
+      U_PgpRXVcFifo_1 : entity warm_tdm.PgpRingRxFifo
          generic map (
-            TPD_G               => TPD_G,
-            -- Only the Rogue stream model can honor tReady. The real GTX
-            -- receive interface is unthrottled, including in simulation.
-            ROGUE_SIM_EN_G      => SIMULATION_G and (SIM_PORT_NUM_G /= 0),
---            FILTER_G            => true,
-            INT_PIPE_STAGES_G   => 1,
-            PIPE_STAGES_G       => 0,
-            VALID_THOLD_G       => PACKET_SIZE_BYTES_C/8,
-            VALID_BURST_MODE_G  => true,
-            SYNTH_MODE_G        => "inferred",
-            MEMORY_TYPE_G       => "block",
-            GEN_SYNC_FIFO_G     => false,
-            FIFO_ADDR_WIDTH_G   => 10,
-            FIFO_PAUSE_THRESH_G => 192,
-            PHY_AXI_CONFIG_G    => SSI_PGP2B_CONFIG_C,
-            APP_AXI_CONFIG_G    => AXIS_CONFIG_C)
+            TPD_G             => TPD_G,
+            READY_EN_G        => SIMULATION_G and (SIM_PORT_NUM_G /= 0),
+            FIFO_ADDR_WIDTH_G => RING_RX_ADDR_WIDTH_C,
+            PAUSE_HIGH_G      => RING_RX_PAUSE_HIGH_C,
+            PAUSE_LOW_G       => RING_RX_PAUSE_LOW_C)
          port map (
             pgpClk      => pgpClk,                 -- [in]
             pgpRst      => pgpRst,                 -- [in]
-            rxlinkReady => pgpRxOut(0).linkReady,  -- [in]
+            rxLinkReady => pgpRxOut(0).linkReady,  -- [in]
+            address     => address,                -- [in]
             pgpRxMaster => pgpRxMasters(i),        -- [in]
             pgpRxCtrl   => locPgpRxCtrl(i),        -- [out]
             pgpRxSlave  => pgpRxSlaves(i),         -- [out]
@@ -481,26 +523,6 @@ begin
             axisRst     => iAxiRst,                -- [in]
             axisMaster  => fifoRxMasters(i),       -- [out]
             axisSlave   => fifoRxSlaves(i));       -- [in]
-
-      address <= ite(RING_ADDR_0_G, "000", pgpRxOut(0).remLinkData(2 downto 0) + 1);
-
-      -- Surface this board's ring address for the frame-header boardId.
-      boardId <= address;
-
-      locPgpTxIn(0).locData <= "00000" & address;
-      locPgpTxIn(1).locData <= X"AA";
---       U_SlvDelay_1 : entity surf.SlvDelay
---          generic map (
---             TPD_G        => TPD_G,
---             SRL_EN_G     => false,
---             DELAY_G      => 10,
---             REG_OUTPUT_G => true,
---             WIDTH_G      => 8)
---          port map (
---             clk  => pgpClk,               -- [in]
---             rst  => pgpRst,               -- [in]
---             din  => locData,              -- [in]
---             dout => locPgpTxIn.locData);  -- [out]
 
       U_RingRouter_1 : entity warm_tdm.RingRouter
          generic map (
@@ -510,12 +532,13 @@ begin
             axisClk          => iAxiClk,                -- [in]
             axisRst          => iAxiRst,                -- [in]
             address          => address,                -- [in]
-            linkRxGood       => pgpRxOut(0).linkReady,  -- [in]
-            linkTxGood       => pgpTxOut(0).linkReady,  -- [in]
+            linkRxGood       => axisLinkGood(0),        -- [in]
+            linkTxGood       => axisLinkGood(1),        -- [in]
             linkRxAxisMaster => fifoRxMasters(i),       -- [in]
             linkRxAxisSlave  => fifoRxSlaves(i),        -- [out]
             linkTxAxisMaster => fifoTxMasters(i),       -- [out]
             linkTxAxisSlave  => fifoTxSlaves(i),        -- [in]
+            appTxPause       => axisInjectionPause(i),  -- [in]
             appRxAxisMaster  => appRxAxisMasters(i),    -- [out]
             appRxAxisSlave   => appRxAxisSlaves(i),     -- [in]
             appTxAxisMaster  => appTxAxisMasters(i),    -- [in]
@@ -528,10 +551,10 @@ begin
             PIPE_STAGES_G      => 0,
 --            VALID_THOLD_G      => 500,
             VALID_BURST_MODE_G => true,
-            SYNTH_MODE_G       => "xpm",
+            SYNTH_MODE_G       => "inferred",
             MEMORY_TYPE_G      => "block",
             GEN_SYNC_FIFO_G    => false,
-            FIFO_ADDR_WIDTH_G  => 8,
+            FIFO_ADDR_WIDTH_G  => RING_TX_ADDR_WIDTH_C,
             APP_AXI_CONFIG_G   => AXIS_CONFIG_C,
             PHY_AXI_CONFIG_G   => SSI_PGP2B_CONFIG_C)
          port map (
@@ -568,9 +591,9 @@ begin
             sAxisMaster     => appRxAxisMasters(i),       -- [in]
             sAxisSlave      => appRxAxisSlaves(i),        -- [out]
             mAxisMasters(0) => appLocalRxAxisMasters(i),  -- [out]
-            mAxisMasters(1) => ethTxAxisMasters(i),       -- [out]            
+            mAxisMasters(1) => ethTxAxisMasters(i),       -- [out]
             mAxisSlaves(0)  => appLocalRxAxisSlaves(i),   -- [in]
-            mAxisSlaves(1)  => ethTxAxisSlaves(i));       -- [in]      
+            mAxisSlaves(1)  => ethTxAxisSlaves(i));       -- [in]
 
       U_AxiStreamMux_1 : entity surf.AxiStreamMux
          generic map (
@@ -581,7 +604,7 @@ begin
             TDEST_ROUTES_G       => (
                0                 => "0-------",
                1                 => "1-------"),
-            ILEAVE_EN_G          => true,                 -- 
+            ILEAVE_EN_G          => true,                 --
             ILEAVE_ON_NOTVALID_G => true,
             ILEAVE_REARB_G       => 31,                   -- Check this
             REARB_DELAY_G        => true,
@@ -590,9 +613,9 @@ begin
             axisClk         => iAxiClk,                   -- [in]
             axisRst         => iAxiRst,                   -- [in]
             sAxisMasters(0) => appLocalTxAxisMasters(i),  -- [in]
-            sAxisMasters(1) => ethRxAxisMasters(i),       -- [in]            
+            sAxisMasters(1) => ethRxAxisMasters(i),       -- [in]
             sAxisSlaves(0)  => appLocalTxAxisSlaves(i),   -- [out]
-            sAxisSlaves(1)  => ethRxAxisSlaves(i),        -- [out]            
+            sAxisSlaves(1)  => ethRxAxisSlaves(i),        -- [out]
             mAxisMaster     => appTxAxisMasters(i),       -- [out]
             mAxisSlave      => appTxAxisSlaves(i));       -- [in]
    end generate ETH_STREAM_MUX;
@@ -652,7 +675,7 @@ begin
          mAxiReadSlaves      => locAxilReadSlaves);   -- [in]
 
    ----------------------------------------
-   -- VC 1 is the data channel 
+   -- VC 1 is the data channel
    ----------------------------------------
    appLocalTxAxisMasters(VC_DATA_C) <= dataTxAxisMaster;
    dataTxAxisSlave                  <= appLocalTxAxisSlaves(VC_DATA_C);
@@ -667,7 +690,7 @@ begin
 
    appLocalTxAxisMasters(VC_LOOPBACK_3_C) <= AXI_STREAM_MASTER_INIT_C;
    appLocalRxAxisSlaves(VC_LOOPBACK_3_C) <= AXI_STREAM_SLAVE_FORCE_C;
-   
+
 --    U_AxiStreamFifoV2_LOOPBACK_2 : entity surf.AxiStreamFifoV2
 --       generic map (
 --          TPD_G               => TPD_G,
