@@ -32,6 +32,7 @@ entity RowFpgaBoardModel is
    generic (
       TPD_G                   : time                  := 1 ns;
       RING_ADDR_0_G           : boolean               := false;
+      ETH_10G_G               : boolean               := false;
       SIM_PGP_PORT_NUM_G      : integer               := 7000;
       SIM_ETH_SRP_PORT_NUM_G  : integer               := 8000;
       SIM_ETH_DATA_PORT_NUM_G : integer               := 9000;
@@ -86,7 +87,6 @@ architecture sim of RowFpgaBoardModel is
 --    constant SIM_ETH_SRP_PORT_NUM_G  : integer               := 8000;
 --    constant SIM_ETH_DATA_PORT_NUM_G : integer               := 9000;
    constant BUILD_INFO_G   : BuildInfoType    := BUILD_INFO_C;
-   constant ETH_10G_G      : boolean          := false;
    constant DHCP_G         : boolean          := false;
    constant IP_ADDR_G      : slv(31 downto 0) := x"0B03A8C0";
    constant MAC_ADDR_G     : slv(47 downto 0) := x"0B_00_16_56_00_08";

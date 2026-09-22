@@ -32,6 +32,7 @@ entity ColumnFpgaBoardModel is
    generic (
       TPD_G                   : time                  := 1 ns;
       RING_ADDR_0_G           : boolean               := false;
+      ETH_10G_G               : boolean               := true;
       USE_FLOAT_PID_G         : boolean               := false;
       SIM_PGP_PORT_NUM_G      : integer               := 7000;
       SIM_ETH_SRP_PORT_NUM_G  : integer               := 8000;
@@ -94,7 +95,6 @@ architecture sim of ColumnFpgaBoardModel is
    constant SIMULATION_G : boolean       := true;
    constant BUILD_INFO_G : BuildInfoType := BUILD_INFO_C;
 
-   constant ETH_10G_G  : boolean          := true;
    constant DHCP_G     : boolean          := true;
    constant IP_ADDR_G  : slv(31 downto 0) := x"0A01A8C0";
    constant MAC_ADDR_G : slv(47 downto 0) := x"0B_00_16_56_00_08";

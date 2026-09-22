@@ -123,6 +123,19 @@ stream-format and exactly-once DAC-delivery assertions alongside that comparison
 
 ## Generated IP and full-system simulation
 
+The [Ethernet bandwidth regression](warm_tdm/ethernet/test_bandwidth.py) checks
+the shared SRP/data payload budget at 1G and 10G, both full-duplex directions,
+partial beats, sidebands, stalls, idle credit and reset using the real SURF
+SimLink pacer. It also checks the GroupTb build selector:
+
+```bash
+.venv/bin/python -m pytest tests/warm_tdm/ethernet/test_bandwidth.py -q
+```
+
+This isolated GHDL test excludes sockets, RSSI/UDP/MAC overhead and vendor IP.
+See [Ethernet bandwidth](../firmware/simulations/GroupTb/README_cosim.md#ethernet-bandwidth)
+for build selection and the payload model's limits.
+
 Run [AdcDspFpTb](../firmware/simulations/AdcDspFpTb/README.md) with generated
 Xilinx cores for converter/FMA boundaries and scheduling. Its GHDL model run
 checks the bench, not vendor equivalence. Record source/XCI/submodule revisions
