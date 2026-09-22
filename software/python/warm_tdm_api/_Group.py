@@ -222,6 +222,27 @@ class Group(pr.Device):
             d = [{'rsBoard': 0, 'rsAddr': rs + (split*16), 'csBoard':0, 'csAddr': cs + (split * 16)} for split in range(2) for cs in range(10, 16) for rs in range(10)]
             self.RowMap.set(d)
 
+        @self.command()
+        def ZeroAllFastDacs():
+            # Drive every fast DAC on every row and column board to zero current,
+            # by calling each board's ZeroFastDacs command.  These are the DACs
+            # subject to the startup zeroing race (see the RowDacDriver/
+            # FastDacDriver PwrUpRst notes): if the one-shot firmware init landed
+            # before the analog rails settled, the DACs can sit at their power-on
+            # default and dump current into the cryo.  Run this after bring-up to
+            # force them back to 0 uA.  Not gated on columnBoards so it also
+            # covers row-only configurations.  A board container is absent (not
+            # empty) when the tree was built without that board type (e.g. a
+            # column-only bench has no RowBoard), so getattr-guard both.
+            colBoards = getattr(self.HardwareGroup, 'ColumnBoard', None)
+            rowBoards = getattr(self.HardwareGroup, 'RowBoard', None)
+            if colBoards is not None:
+                for colBoard in colBoards.values():
+                    colBoard.ZeroFastDacs()
+            if rowBoards is not None:
+                for rowBoard in rowBoards.values():
+                    rowBoard.ZeroFastDacs()
+
         if groupConfig.columnBoards > 0:
             self.add(pr.LinkVariable(
                 name = 'RowReadoutOrder',
