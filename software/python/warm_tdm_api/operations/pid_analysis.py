@@ -24,9 +24,15 @@ import numpy as np
 # Semantic quantity -> ordered concrete field aliases (first present & nonempty
 # wins). Integer names first, then float. See warm_tdm._DataFormats
 # PID_DEBUG_FIELDS (integer) and PID_DEBUG_FP_FIELDS (float).
+#
+# 'feedback' MUST prefer the SIGNED feedback fields (sq1FbFull, sq1FbInt, the FP
+# variants) over sq1FbEnd. sq1FbEnd is the raw OFFSET-BINARY uint16 DAC code
+# (~midscale 8192 at zero feedback), so using it makes feedback_mean physically
+# meaningless (~9750 instead of the true signed ~520 counts). sq1FbEnd is kept
+# only as a last-resort fallback for captures that carry nothing else.
 _FIELD_ALIASES = {
     'error':      ('accumError', 'accumErrorFp'),
-    'feedback':   ('sq1FbEnd', 'sq1FbInt', 'sq1FbNewFp', 'sq1FbFull', 'sq1FbFullFp'),
+    'feedback':   ('sq1FbFull', 'sq1FbInt', 'sq1FbNewFp', 'sq1FbFullFp', 'sq1FbEnd'),
     'integrator': ('sumAccumError', 'newSumAccum', 'sumAccumFp'),
     'flux_jumps': ('numFluxJumps',),
     'drops':      ('dropCount',),
@@ -84,9 +90,9 @@ def pid_metrics(pid_data, col, row, *, settle_frac=0.5, deadband=None):
            'float' if 'accumErrorFp' in slot else None)
 
     metrics = dict(format=fmt, n_visits=0, steady_residual=None, steady_rms=None,
-                   peak_abs_error=None, overshoot=None, settling_visits=None,
-                   feedback_mean=None, flux_jump_delta=None, flux_jump_events=None,
-                   drop_rate=None, integrator_windup=None)
+                   final_residual=None, peak_abs_error=None, overshoot=None,
+                   settling_visits=None, feedback_mean=None, flux_jump_delta=None,
+                   flux_jump_events=None, drop_rate=None, integrator_windup=None)
 
     fb = _series(slot, 'feedback')
     if fb is not None and len(fb):
@@ -113,6 +119,19 @@ def pid_metrics(pid_data, col, row, *, settle_frac=0.5, deadband=None):
     if len(tail):
         metrics['steady_residual'] = float(np.mean(np.abs(tail)))
         metrics['steady_rms'] = float(np.sqrt(np.mean(tail ** 2)))
+
+    # final_residual: mean |error| over the LAST few visits only. The cosim
+    # PID-debug stream is sparse (~7-8 visits per capture), and a StartRun or
+    # TesBias-step transient often sits INSIDE the captured window -- so the
+    # second-half mean (steady_residual) is inflated by the excursion even after
+    # the servo has fully re-converged by the end of the capture. The converged
+    # tail is the honest lock estimator: a genuinely unlocked loop stays large in
+    # the last visits too, so this does not mask a real non-lock. Uses up to the
+    # last 3 visits (or half, whichever is smaller) so it degrades gracefully on
+    # very short series.
+    k = max(1, min(3, n // 2))
+    final = np.abs(error[-k:])
+    metrics['final_residual'] = float(np.mean(final))
 
     metrics['peak_abs_error'] = float(np.max(np.abs(error)))
 

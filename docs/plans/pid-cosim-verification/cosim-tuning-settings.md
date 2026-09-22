@@ -21,7 +21,60 @@ Operating points and tuning-process settings for the closed-loop PID cosim on th
 integer PID). Measured 2026-09-15 against GroupTb (1 col + 1 row board, 32 rows)
 under Vivado 2025.1 + VCS.
 
-## Closed-loop muxed-PID gains (integer AdcDsp) — TUNED 2026-09-16
+## Closed-loop muxed-PID gains — RE-TUNED 2026-09-21 (ring cosim, both paths)
+
+Re-tuned over the **PGP-ring** GroupTb cosim (`SIM_PGP_GT_C=true`, 1 col + 1 row,
+32 rows, 23 µA period, Sq1Bias=50/Sq1Fb=2/SaFb=9) via a closed-loop sweep that
+reads the **AXI `AccumError` register** live during a run (the PID-debug *stream*
+yields too few visits — ~7-8 — to see the loop reach its floor). Values are
+**raw** gains; the harness `PidP_Gain`/`PidI_Gain` path writes raw×SampleCount
+(SampleCount=20). Both controllers share the additive-error P law, so **stable P
+is NEGATIVE for both**; a positive P is positive feedback and diverges.
+
+**Integer (`AdcDsp`) — recommended raw P = −0.010, I = 0, D = 0.**
+
+| raw P (norm) | t to <800 | floor (counts) | settled spread |
+|-------------:|----------:|---------------:|---------------:|
+| −0.0025 (−0.05) | 30 s | ~360 | 265 |
+| −0.0050 (−0.10) | 16 s | ~69 | 100 |
+| **−0.0100 (−0.20)** | **8 s** | **~27** | **15** |
+| −0.0200 (−0.40) | 6 s | ~26 | 20 |
+
+−0.010 converges ~4× faster than the old −0.0025 and floors ~13× tighter with no
+limit cycle; −0.02 is no better. P-only already floors far under the 800-count
+threshold, so integer I is left 0.
+
+**Float (`AdcDspFp`) — recommended raw P = −0.005, I = −1e-5, D = 0** (PI; the FP
+path has no D). The old default `p_raw=+1e-4` was BOTH the wrong sign AND ~50×
+too weak. FP needs a much larger |P| than integer:
+
+| raw P (norm), I=0 | t to <800 | floor |
+|------------------:|----------:|------:|
+| −0.0005 (−0.010) | no lock in 40 s | ~7000 |
+| −0.0010 (−0.020) | no lock in 40 s | ~1755 |
+| −0.0020 (−0.040) | 32 s | ~228 |
+| **−0.0050 (−0.100)** | **14–16 s** | **~90** |
+
+I sweep at P = −0.005 (raw I):
+
+| raw I | floor | spread | character |
+|------:|------:|-------:|-----------|
+| 0        | 92  | 100 | P-only |
+| −5e-6    | 45  | 80  | tighter |
+| **−1e-5**| **40** | **60** | **best floor+spread, no windup — recommended** |
+| −3e-5    | 174 | 100 | over-integrated, floor rising |
+| −6e-5    | 344 | 215 | windup / hunt onset |
+
+"Floor" = `mean|AccumError|` after settling; "spread" = peak-to-peak of a few
+post-settle reads (a coarse limit-cycle screen, not a full time-series analysis).
+Both paths verified end-to-end over the ring (steady lock + step disturbance
+rejection) in `verify_cosim_pid.py --mode verify` on 2026-09-21. These are the
+values baked into that script's `DEFAULTS`.
+
+The section below is the **older 2026-09-16 bypass-mode tuning**, retained for
+provenance; its P=−0.0006/I=−2e-5 predates the ring cosim and this re-tune.
+
+## Closed-loop muxed-PID gains (integer AdcDsp) — TUNED 2026-09-16 (superseded)
 
 Measured against the **fixed** RTL (commit `0f8b13c`: feedback-capture + overflow
 saturation fixes) with the clean per-point protocol: clear PID state
