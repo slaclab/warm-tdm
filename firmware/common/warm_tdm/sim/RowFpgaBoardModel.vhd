@@ -120,7 +120,7 @@ architecture sim of RowFpgaBoardModel is
    signal bootMiso         : sl;                                                 -- [in]
    signal locScl           : sl;                                                 -- [inout]
    signal locSda           : sl;                                                 -- [inout]
-   signal tempAlertL       : sl;                                                 -- [in]
+   signal tempAlertL       : sl := '1';  -- [in] active-low; drive inactive (no alert) so it isn't 'U'
    signal pwrScl           : sl;                                                 -- [inout]
    signal pwrSda           : sl;                                                 -- [inout]
    signal sfpScl           : slv(1 downto 0);                                    -- [inout]
