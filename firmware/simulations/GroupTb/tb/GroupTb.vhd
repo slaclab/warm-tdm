@@ -164,7 +164,7 @@ begin
 
    assert validLoadName(LOAD_G)
       report "GroupTb: LOAD_G must be LOAD_BOARD, WAFER, WAFER_32, " &
-             "BICEP3, NIST_50R, or BA4"
+             "WAFER_8X10, BICEP3, NIST_50R, or BA4"
       severity failure;
    assert NUM_WARM_COLUMNS_C >= NUM_DETECTORS_G
       report "GroupTb: each detector needs at least one warm column"

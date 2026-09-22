@@ -25,6 +25,19 @@ loadSource -lib warm_tdm -sim_only -dir $::env(PROJ_DIR)/tb
 set_property top {ColumnFpgaBoard}       [get_filesets {sources_1}]
 set_property top {GroupTb} [get_filesets {sim_1}]
 
+# Select a cold-load preset without editing the testbench. WAFER retains the
+# historical 1x32 default; WAFER_8X10 uses eight chip-select banks of ten rows.
+set load "WAFER"
+if { [info exists ::env(LOAD)] } {
+   set load [string toupper $::env(LOAD)]
+}
+switch -- $load {
+   LOAD_BOARD - WAFER - WAFER_32 - WAFER_8X10 - BICEP3 - NIST_50R - BA4 {}
+   default { error "LOAD must be LOAD_BOARD, WAFER, WAFER_32, WAFER_8X10, BICEP3, NIST_50R, or BA4" }
+}
+set_property generic "[get_property generic [get_filesets {sim_1}]] LOAD_G=$load" [get_filesets {sim_1}]
+puts "GroupTb: LOAD_G=$load"
+
 # Select the column-board PID datapath for the GroupTb top-level. Defaults to the
 # floating-point AdcDspFp (matching the entity default); set USE_FLOAT_PID=0
 # (or =false) in the environment to elaborate the integer AdcDsp path instead,

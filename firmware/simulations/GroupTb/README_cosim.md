@@ -15,7 +15,8 @@ The RTL under test is **whatever is checked out** in the working tree, so
 ```text
 LOAD_BOARD  # simple resistive electronics load
 WAFER       # legacy alias for the synthetic 32-row, one-level wafer
-WAFER_32    # explicit spelling of the synthetic 32-row wafer
+WAFER_32    # explicit spelling of the synthetic 1x32 wafer
+WAFER_8X10  # synthetic 80-row wafer: eight chip-select banks of ten rows
 BICEP3      # 22-row, 12-column physical profile; eight columns instantiated here
 NIST_50R    # 50-row, 12-column physical profile; provisional 5x10 banks
 BA4         # 60-row, 12-column physical profile; 6x10 banks
@@ -61,12 +62,57 @@ source setup_env.sh
 # 4. PyRogue server, --sim (new shell)
 conda activate warm-tdm-r615
 cd software/scripts
-python warmTdmServer.py --sim --simPgpRing --columnBoards 1 --rowBoards 1 --rowAddrBits 5 --maxRows 32
+python warmTdmServer.py --sim --simPgpRing --columnBoards 1 --rowBoards 1 --rowAddrBits 7 --maxRows 32
 
 # 5. Client (new shell) — operations / hwtest against localhost:9099
 conda activate warm-tdm-r615
 python -c "import warm_tdm_api.operations as ops; sess = ops.connect(); ops.status()"
 ```
+
+## Wafer configuration
+
+Select the preset when generating the VCS scripts:
+
+```bash
+LOAD=WAFER_32 make vcs          # 1x32: 32 rows, no chip select (default)
+LOAD=WAFER_8X10 make vcs        # 8x10: 80 rows, two-level selection
+```
+
+These dimensions are banks × rows per bank; both presets model eight columns
+on one column board and one row board. `LOAD` accepts the preset names above
+(case insensitive), defaults to `WAFER`, and sets `GroupTb.LOAD_G`. Invalid
+names fail during project generation. It can be combined with `USE_FLOAT_PID`,
+`ETH_10G`, `VARIATION_SEED`, and `TES_CURRENT_SCALE`. After changing it,
+regenerate the scripts, rebuild `simv`, and restart the simulation and server.
+
+Both board RTL defaults use seven row-address bits (128 RAM entries). Keep
+`--rowAddrBits 7` for either preset; `--maxRows` controls the software extent:
+
+| Preset | Server options | Group row-map command | Physical select lines |
+|---|---|---|---|
+| `WAFER_32` | `--rowAddrBits 7 --maxRows 32` | `RowMap1x32()` | RS 0–31; no CS |
+| `WAFER_8X10` | `--rowAddrBits 7 --maxRows 80` | `RowMap8x10()` | RS 0–9; CS 10–17 |
+
+For example, start the 8x10 server with:
+
+```bash
+python warmTdmServer.py --sim --simPgpRing --columnBoards 1 --rowBoards 1 --rowAddrBits 7 --maxRows 80
+```
+
+Then program the matching map and logical row order from a client before
+starting acquisition (use `RowMap1x32()` and `range(32)` for 1x32):
+
+```python
+import warm_tdm_api.operations as ops
+sess = ops.connect()
+sess.group.RowMap8x10()
+sess.group.RowReadoutOrder.set(list(range(80)))
+```
+
+The 8x10 logical row is `bank * 10 + row`, with chip line `10 + bank`.
+The model uses the same synthetic device parameters as `WAFER_32`, with a
+chip FAS added for each bank. Operating points still require tuning for the
+selected topology.
 
 ## Ethernet bandwidth
 

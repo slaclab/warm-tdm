@@ -17,5 +17,10 @@ from warm_tdm_api.widgets._fas_tuning_tab import FasTuningTab
 from warm_tdm_api.widgets._sq1_tuning_tab import Sq1TuningTab
 from warm_tdm_api.widgets._waveform_tab import WaveformTab
 from warm_tdm_api.widgets._pid_history import PidHistory
+from warm_tdm_api.widgets._pid_selection import (
+    MAX_PLOT_CHANNELS, parse_indices, channel_pairs, channel_label,
+)
+from warm_tdm_api.widgets._pid_source import PidSampleSource
+from warm_tdm_api.widgets._pid_channel_picker import PidChannelPicker
 from warm_tdm_api.widgets._pid_lock_tab import PidLockTab
 from warm_tdm_api.widgets._warm_tdm_display import WarmTdmDisplay

@@ -239,3 +239,13 @@ def test_history_keeps_diagnostics_when_wrap_period_is_unknown():
     assert len(h.samples) == 2
     assert np.isnan(h.arrays()[:, data.FULL]).all()
     assert (h.arrays()[:, data.ERROR] == -2).all()
+
+
+def test_histories_share_a_reference_without_shifting_stale_channels_to_present():
+    first = history.PidHistory()
+    second = history.PidHistory()
+    first.append(sample_from_frame(fixed(timestamp=1_000_000_000), quantum=1200))
+    second.append(sample_from_frame(fixed(timestamp=2_000_000_000), quantum=1200))
+    assert first.arrays(reference=2.0)[0, data.TIME] == -1.0
+    assert second.arrays(reference=2.0)[0, data.TIME] == 0.0
+    assert first.last[data.TIME] == 1.0  # Rendering never changes stored hardware time.

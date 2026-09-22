@@ -29,6 +29,7 @@ test: analyze
 	$(BUILD_DIR)/wafercompatibilitytb --assert-level=error
 	$(GHDL) -e $(GHDL_FLAGS) --workdir=$(BUILD_DIR) -P$(BUILD_DIR) -o $(BUILD_DIR)/detectorscaletb DetectorScaleTb
 	$(BUILD_DIR)/detectorscaletb --assert-level=error
+	$(BUILD_DIR)/detectorscaletb -gNUM_BANKS_G=8 --assert-level=error
 	$(GHDL) -e $(GHDL_FLAGS) --workdir=$(BUILD_DIR) -P$(BUILD_DIR) -o $(BUILD_DIR)/detectorprofiletb DetectorProfileTb
 	$(BUILD_DIR)/detectorprofiletb --assert-level=error
 	$(GHDL) -e $(GHDL_FLAGS) --workdir=$(BUILD_DIR) -P$(BUILD_DIR) -o $(BUILD_DIR)/groupdetectorharnesstb GroupDetectorHarnessTb

@@ -5,87 +5,77 @@
 ## No part may be copied, modified, propagated, or distributed except according
 ## to the terms contained in the LICENSE.txt file.
 ##############################################################################
+"""Client-local multi-channel PID plots using existing per-row sample publications."""
 import time
 
-from pydm.widgets import PyDMCheckbox, PyDMLabel, PyDMSpinbox
-from pydm.widgets.channel import PyDMChannel
-from pydm.widgets.frame import PyDMFrame
-from pydm.widgets.waveformplot import PyDMWaveformPlot, WaveformCurveItem
-from pyrogue.pydm.data_plugins.rogue_plugin import nodeFromAddress
-from qtpy.QtCore import QTimer, Slot
-from qtpy.QtWidgets import (
-    QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QSpinBox, QPushButton,
-)
 import numpy as np
-
+from pydm import data_plugins
+from pydm.widgets.waveformplot import PyDMWaveformPlot, WaveformCurveItem
+from qtpy.QtCore import Qt, QTimer
+from qtpy.QtGui import QColor, QIcon, QPixmap
+from qtpy.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QSpinBox, QPushButton,
+    QCheckBox, QSplitter, QTableWidget, QTableWidgetItem, QHeaderView,
+    QAbstractItemView, QScrollArea, QMessageBox,
+)
 from warm_tdm import (
     TIME, COLUMN, ROW, DAC, FULL, JUMPS, ERROR, DROPS, FLAGS,
     FULL_UNAVAILABLE, NOT_COMMITTED, SAMPLE_SIZE,
 )
-from warm_tdm_api.widgets import PidHistory, style_display, style_live_plot, TRACE_COLORS
+from warm_tdm_api.widgets import (
+    PidHistory, PidSampleSource, PidChannelPicker, MAX_PLOT_CHANNELS,
+    channel_label, style_display, style_live_plot, TRACE_COLORS,
+)
+
+CHANNEL_COLORS = TRACE_COLORS + ('#ad4778', '#667322', '#485db0', '#875536')
 
 
-class PidLockTab(PyDMFrame):
-    """Live PID-debug view. ``init_channel`` addresses a Group."""
+class PidLockTab(QWidget):
+    """``init_channel`` addresses a Group. Selection belongs only to this widget.
+
+    Dynamic listeners deliberately bypass PyDM channel teardown, which stops the
+    shared VirtualClient in some Rogue versions. This widget never stops it.
+    """
 
     def __init__(self, parent=None, init_channel=None):
+        super().__init__(parent)
+        self.channel = init_channel
+        self._source = None
+        self._entries = {}
+        self._plots = []
+        self._curves = {}
+        self._linked = False
+        self._epoch = None
         self._built = False
-        self._monitor_channels = []
-        self._history = PidHistory()
-        self._column = self._row = 0
-        self._last_received = None
-        self._sample_connected = False
-        super().__init__(parent, init_channel)
+        self._next_color = 0
         style_display(self)
-
-    def channels(self):
-        return (super().channels() or []) + self._monitor_channels
-
-    def connection_changed(self, connected):
-        super().connection_changed(connected)
-        if connected and not self._built:
-            self._built = True
-            self._setup_ui()
+        self._setup_ui()
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._tick)
+        self._timer.start(100)
+        QTimer.singleShot(0, self._connect_source)
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 14, 16, 12)
         layout.setSpacing(12)
-        monitor = self.channel + '.HardwareGroup.PidLockMonitor'
-        if nodeFromAddress(monitor) is None:
-            layout.addWidget(QLabel('PID Lock requires a server with PidLockMonitor support.'))
-            return
-
         heading = QHBoxLayout()
         title = QLabel('PID lock monitor')
         title.setObjectName('plotHeading')
         heading.addWidget(title)
         heading.addStretch()
-        self._age = QLabel('Waiting for samples')
+        self._age = QLabel('Connecting…')
         self._age.setObjectName('plotStatus')
         heading.addWidget(self._age)
         layout.addLayout(heading)
 
-        controls = QHBoxLayout()
-        controls.setSpacing(10)
-        layout.addLayout(controls)
-        for label, variable in [('Global column', 'ColumnSelect'), ('Logical row', 'RowSelect')]:
-            controls.addWidget(QLabel(label))
-            spin = PyDMSpinbox(init_channel=monitor + '.' + variable)
-            spin.setFixedWidth(80)
-            spin.showStepExponent = False
-            spin.writeOnPress = True
-            controls.addWidget(spin)
-        self._debug_enable = PyDMCheckbox(init_channel=monitor + '.PidDebugEnable')
-        self._debug_enable.setText('Enable debug stream for column')
-        controls.addWidget(self._debug_enable)
-        controls.addStretch()
-
         options = QHBoxLayout()
-        layout.addLayout(options)
         self._mode = QComboBox()
         self._mode.addItems(['DAC + flux jumps', 'Full feedback', 'Both'])
         options.addWidget(self._mode)
+        self._layout_mode = QComboBox()
+        self._layout_mode.addItems(['Overlay', 'Separate panels'])
+        options.addWidget(self._layout_mode)
         options.addWidget(QLabel('History'))
         self._window = QSpinBox()
         self._window.setRange(5, 600)
@@ -95,156 +85,384 @@ class PidLockTab(PyDMFrame):
         self._pause = QPushButton('Pause')
         self._pause.setCheckable(True)
         options.addWidget(self._pause)
-        clear = QPushButton('Clear')
+        clear = QPushButton('Clear history')
         options.addWidget(clear)
         options.addStretch()
+        layout.addLayout(options)
 
-        self._feedback = self._plot('SQ1 feedback', 'Signed DAC codes')
-        self._feedback.showLegend = True
-        self._flux = self._plot('Net flux wraps', 'Wrap count')
-        self._error = self._plot('Mean PID error', 'ADC counts / sample')
-        layout.addWidget(self._feedback, 3)
-        layout.addWidget(self._flux, 1)
-        layout.addWidget(self._error, 2)
-        self._curves = {
-            DAC: self._curve(self._feedback, 'DAC', TRACE_COLORS[0]),
-            FULL: self._curve(self._feedback, 'Full feedback', TRACE_COLORS[1]),
-            JUMPS: self._curve(self._flux, 'Net wraps', TRACE_COLORS[2]),
-            ERROR: self._curve(self._error, 'Mean error', TRACE_COLORS[3]),
-        }
-        for plot, title, units in (
-                (self._feedback, 'SQ1 feedback', 'Signed DAC codes'),
-                (self._flux, 'Net flux wraps', 'Wrap count'),
-                (self._error, 'Mean PID error', 'ADC counts / sample')):
-            style_live_plot(plot, title, units)
-        self._detail = QLabel()
+        splitter = QSplitter(Qt.Horizontal)
+        layout.addWidget(splitter, 1)
+        sidebar = QWidget()
+        side = QVBoxLayout(sidebar)
+        side.setContentsMargins(0, 0, 8, 0)
+        buttons = QHBoxLayout()
+        self._add_button = QPushButton('Add channels…')
+        self._add_button.setEnabled(False)
+        buttons.addWidget(self._add_button)
+        remove = QPushButton('Remove')
+        buttons.addWidget(remove)
+        clear_selection = QPushButton('Clear list')
+        buttons.addWidget(clear_selection)
+        side.addLayout(buttons)
+        self._table = QTableWidget(0, 3)
+        self._table.setHorizontalHeaderLabels(['Show', 'Channel', 'Status'])
+        self._table.verticalHeader().hide()
+        self._table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self._table.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self._table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self._table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        self._table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self._table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        side.addWidget(self._table, 1)
+        self._selection_note = QLabel('Add channels to begin.')
+        self._selection_note.setWordWrap(True)
+        side.addWidget(self._selection_note)
+        side.addWidget(QLabel('Debug stream — per column'))
+        self._debug_column = QComboBox()
+        side.addWidget(self._debug_column)
+        self._debug_enable = QCheckBox('Enable debug stream')
+        self._debug_enable.setEnabled(False)
+        side.addWidget(self._debug_enable)
+        note = QLabel('Selection and visibility are local to this window. Debug enables '
+                      'are shared hardware settings. Removing a trace leaves its stream enabled.')
+        note.setWordWrap(True)
+        note.setObjectName('plotNote')
+        side.addWidget(note)
+        splitter.addWidget(sidebar)
+        self._scroll = QScrollArea()
+        self._scroll.setWidgetResizable(True)
+        self._scroll.setFrameShape(QScrollArea.NoFrame)
+        splitter.addWidget(self._scroll)
+        splitter.setSizes([370, 800])
+        splitter.setStretchFactor(1, 1)
+        self._notice = QLabel()
+        self._notice.setWordWrap(True)
+        self._notice.hide()
+        layout.addWidget(self._notice)
+        self._detail = QLabel('')
         self._detail.setWordWrap(True)
         layout.addWidget(self._detail)
-        layout.addWidget(PyDMLabel(init_channel=monitor + '.Status'))
-        note = QLabel('Display samples up to 10 Hz; fast transients may be missed. '
-                      'Selection is shared across GUI clients. Debug enable is per column; '
-                      'changing selection leaves other columns unchanged.')
-        note.setObjectName('plotNote')
-        note.setWordWrap(True)
-        layout.addWidget(note)
-
-        self._mode.currentIndexChanged.connect(self._set_mode)
+        footer = QLabel('Up to 10 samples/s per channel · Common hardware timebase · '
+                        'Solid: DAC · Dashed: full feedback (Both mode) · Fast transients may be missed')
+        footer.setObjectName('plotNote')
+        footer.setWordWrap(True)
+        layout.addWidget(footer)
+        self._add_button.clicked.connect(self._pick_channels)
+        remove.clicked.connect(self._remove_selected)
+        clear_selection.clicked.connect(lambda: self.remove_channels(list(self._entries)))
+        self._table.itemChanged.connect(self._visibility_changed)
+        self._table.itemSelectionChanged.connect(self._show_detail)
+        self._debug_column.currentIndexChanged.connect(self._refresh_debug)
+        self._debug_enable.clicked.connect(self._write_debug)
+        self._mode.currentIndexChanged.connect(self._rebuild_plots)
+        self._layout_mode.currentIndexChanged.connect(self._rebuild_plots)
         self._window.valueChanged.connect(self._set_window)
         self._pause.toggled.connect(self._set_paused)
         clear.clicked.connect(self._clear)
-        self._set_mode(0)
-        self._select_column(0)
-        self._timer = QTimer(self)
-        self._timer.timeout.connect(self._update_age)
-        self._timer.start(250)
+        self._rebuild_plots()
 
-        for suffix, slot in [('ColumnSelect', self._select_column),
-                             ('RowSelect', self._select_row), ('Sample', self._receive_sample)]:
-            channel = PyDMChannel(address=monitor + '.' + suffix, value_slot=slot,
-                                  connection_slot=self._sample_connection if suffix == 'Sample' else None)
-            self._monitor_channels.append(channel)
-            channel.connect()
+    def _connect_source(self):
+        try:
+            self._source = PidSampleSource(self.channel)
+            self.destroyed.connect(lambda _=None, source=self._source: source.close())
+            if not self._source.topology:
+                raise ValueError('No PID sample channels are available on this server.')
+            self._linked, self._epoch, _ = self._source.drain()
+            self._built = True
+            self._add_button.setEnabled(True)
+            column = min(self._source.topology)
+            self.add_channels([(column, min(self._source.topology[column]))])
+        except Exception as exc:
+            self._show_error(f'Cannot connect to PID samples: {exc}')
+            self._age.setText('Unavailable')
 
-    @staticmethod
-    def _plot(title, units):
-        plot = PyDMWaveformPlot()
-        plot.addAxis(plot_data_item=None, name='left', orientation='left', label=units)
-        plot.setAutoRangeX(False)
-        # Curves receive coherent x/y histories together via setData below.
-        # Initialize PyDM's redraw flag before addCurve starts its timer.
-        plot.set_needs_redraw()
-        plot.setTitle(title)
-        plot.setLabel('bottom', 'Time relative to latest sample', units='s')
-        plot.showGrid(x=True, y=True, alpha=0.25)
-        plot.setMinimumHeight(120)
-        return plot
+    def _pick_channels(self):
+        dialog = PidChannelPicker(self._source.topology, self._entries, self)
+        if dialog.exec() == dialog.Accepted:
+            try:
+                self.add_channels(dialog.pairs)
+            except Exception as exc:
+                QMessageBox.warning(self, 'Could not add channels', str(exc))
 
-    @staticmethod
-    def _curve(plot, name, color):
-        curve = WaveformCurveItem(name=name, color=color, lineWidth=2, antialias=True)
-        plot.addCurve(curve, curve_color=color)
-        return curve
+    def add_channels(self, pairs):
+        pairs = sorted(set(pairs) - self._entries.keys())
+        if len(pairs) + len(self._entries) > MAX_PLOT_CHANNELS:
+            raise ValueError(f'Select at most {MAX_PLOT_CHANNELS} channels.')
+        if any(c not in self._source.topology or r not in self._source.topology[c] for c, r in pairs):
+            raise ValueError('Channel is not available on this server.')
+        try:
+            self._source.select(set(self._entries) | set(pairs))
+        except Exception:
+            self._source.select(self._entries)
+            raise
+        for key in pairs:
+            self._entries[key] = dict(history=PidHistory(seconds=self._window.value()),
+                                      color=CHANNEL_COLORS[self._next_color % len(CHANNEL_COLORS)],
+                                      visible=True, received=None)
+            self._next_color += 1
+        self._selection_changed()
 
-    @Slot(int)
-    def _select_column(self, value):
-        self._column = int(value)
-        self._clear()
+    def remove_channels(self, pairs):
+        for key in pairs:
+            self._entries.pop(key, None)
+        if self._source is not None:
+            self._source.select(self._entries)
+        if not self._entries:
+            self._next_color = 0
+        self._selection_changed()
 
-    @Slot(int)
-    def _select_row(self, value):
-        self._row = int(value)
-        self._clear()
+    def _remove_selected(self):
+        keys = [tuple(self._table.item(index.row(), 0).data(Qt.UserRole))
+                for index in self._table.selectionModel().selectedRows()]
+        self.remove_channels(keys)
 
-    @Slot(bool)
-    def _sample_connection(self, connected):
-        if connected == self._sample_connected:
+    def _selection_changed(self):
+        self._table.blockSignals(True)
+        self._table.setRowCount(len(self._entries))
+        for row, (key, entry) in enumerate(self._entries.items()):
+            show = QTableWidgetItem()
+            show.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsUserCheckable)
+            show.setCheckState(Qt.Checked if entry['visible'] else Qt.Unchecked)
+            show.setData(Qt.UserRole, key)
+            label = QTableWidgetItem(channel_label(*key))
+            label.setForeground(QColor(entry['color']))
+            swatch = QPixmap(12, 12)
+            swatch.fill(QColor(entry['color']))
+            label.setIcon(QIcon(swatch))
+            self._table.setItem(row, 0, show)
+            self._table.setItem(row, 1, label)
+            self._table.setItem(row, 2, QTableWidgetItem('Waiting'))
+        self._table.blockSignals(False)
+        old = self._debug_column.currentData()
+        self._debug_column.blockSignals(True)
+        self._debug_column.clear()
+        for c in sorted({c for c, _ in self._entries}):
+            self._debug_column.addItem(f'Board {c // 8} / Column {c % 8} (global {c})', c)
+        index = self._debug_column.findData(old)
+        self._debug_column.setCurrentIndex(max(0, index))
+        self._debug_column.blockSignals(False)
+        self._refresh_debug()
+        self._rebuild_plots()
+        if self._entries:
+            self._table.selectRow(0)
+        else:
+            self._detail.clear()
+
+    def _visibility_changed(self, item):
+        if item.column() == 0:
+            self._entries[tuple(item.data(Qt.UserRole))]['visible'] = item.checkState() == Qt.Checked
+            self._rebuild_plots()
+
+    def _refresh_debug(self, *_):
+        column = self._debug_column.currentData()
+        self._debug_enable.setEnabled(column is not None and self._linked and not data_plugins.is_read_only())
+        self._debug_enable.setChecked(False)
+        if column is not None and self._linked:
+            try:
+                self._debug_enable.setChecked(self._source.debug_enabled(column))
+            except Exception as exc:
+                self._debug_enable.setEnabled(False)
+                self._show_error(f'Could not read debug enable: {exc}')
+
+    def _write_debug(self, enabled):
+        if data_plugins.is_read_only() or not self._linked:
+            self._refresh_debug()
             return
-        self._sample_connected = connected
-        self._clear()
+        column = self._debug_column.currentData()
+        if column is not None:
+            try:
+                self._source.set_debug(column, enabled)
+            except Exception as exc:
+                self._show_error(f'Could not change debug enable for column {column}: {exc}')
+            else:
+                self._show_error('')
+            self._refresh_debug()
 
-    @Slot(np.ndarray)
-    def _receive_sample(self, value):
-        if (self._pause.isChecked() or np.shape(value) != (SAMPLE_SIZE,)
-                or value[COLUMN] != self._column or value[ROW] != self._row):
-            return
-        if not self._history.append(value):
-            return
-        self._last_received = time.monotonic()
-        flags = int(value[FLAGS])
-        detail = f'Net wraps: {value[JUMPS]:g}    Firmware debug drops: {value[DROPS]:g}'
-        if flags & NOT_COMMITTED:
-            detail += '    PID or row disabled: feedback candidate is not applied.'
-        elif flags & FULL_UNAVAILABLE:
-            detail += '    Full feedback unavailable: incomplete feedback/count, count limit, or invalid wrap period.'
-        self._detail.setText(detail)
+    def _rebuild_plots(self, *_):
+        for plot in self._plots:
+            plot.redraw_timer.stop()
+        old = self._scroll.takeWidget()
+        if old is not None:
+            old.deleteLater()
+        self._plots = []
+        self._curves = {}
+        container = QWidget()
+        container.setAutoFillBackground(True)
+        container.setPalette(self.palette())
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(12)
+        visible = [k for k, entry in self._entries.items() if entry['visible']]
+        if not visible:
+            empty = QLabel('Add channels to compare PID feedback, or show a channel from the list.')
+            empty.setWordWrap(True)
+            empty.setAlignment(Qt.AlignCenter)
+            layout.addWidget(empty)
+        else:
+            groups = [visible] if self._layout_mode.currentIndex() == 0 else [[key] for key in visible]
+            for keys in groups:
+                if self._layout_mode.currentIndex() == 1:
+                    layout.addWidget(QLabel(channel_label(*keys[0])))
+                mode = self._mode.currentIndex()
+                fields = [DAC] if mode == 0 else [FULL] if mode == 1 else [DAC, FULL]
+                specs = [('SQ1 feedback', 'Signed DAC codes', fields, 3),
+                         ('Mean PID error', 'ADC counts / sample', [ERROR], 2)]
+                if mode != 1:
+                    specs.insert(1, ('Net flux wraps', 'Wrap count', [JUMPS], 1))
+                for title, units, fields, stretch in specs:
+                    plot = PyDMWaveformPlot()
+                    plot.addAxis(plot_data_item=None, name='left', orientation='left', label=units)
+                    plot.setAutoRangeX(False)
+                    plot.set_needs_redraw()
+                    plot.setMinimumHeight(125 if fields == [JUMPS] else 175)
+                    # Channel colors are keyed by the persistent sidebar; large
+                    # legends obscure the traces in overlay mode.
+                    plot.showLegend = title == 'SQ1 feedback' and len(keys) == 1
+                    for key in keys:
+                        color = self._entries[key]['color']
+                        for field in fields:
+                            suffix = (' / full' if field == FULL else ' / DAC') if mode == 2 else ''
+                            curve = WaveformCurveItem(name=channel_label(*key) + suffix,
+                                color=color, lineWidth=2, antialias=True,
+                                lineStyle=Qt.DashLine if field == FULL and mode == 2 else Qt.SolidLine)
+                            plot.addCurve(curve, curve_color=color)
+                            self._curves[key, field] = curve
+                    style_live_plot(plot, title, units)
+                    self._plots.append(plot)
+                    layout.addWidget(plot, stretch)
+        self._scroll.setWidget(container)
+        count = len(visible)
+        text = f'{count} visible / {len(self._entries)} selected (maximum {MAX_PLOT_CHANNELS}).'
+        if count > 8:
+            text += ' Crowded overlay: use separate panels or hide channels. Colors repeat after 8.'
+        self._selection_note.setText(text)
         self._draw()
-        self._update_age()
 
     def _draw(self):
-        values = self._history.arrays()
-        for field, curve in self._curves.items():
-            curve.setData(x=values[:, TIME], y=values[:, field], connect='finite')
-        for plot in (self._feedback, self._flux, self._error):
-            plot.setXRange(-self._history.seconds, 0, padding=0)
+        latest = [e['history'].last[TIME] for e in self._entries.values()
+                  if e['visible'] and e['history'].last is not None]
+        reference = max(latest) if latest else None
+        for key, entry in self._entries.items():
+            if not entry['visible']:
+                continue
+            data = entry['history'].arrays(reference=reference)
+            for field in (DAC, FULL, JUMPS, ERROR):
+                curve = self._curves.get((key, field))
+                if curve is not None:
+                    curve.setData(x=data[:, TIME], y=data[:, field], connect='finite')
+        for plot in self._plots:
+            plot.setXRange(-self._window.value(), 0, padding=0)
             plot.getAxis('left').linkedView().updateAutoRange()
 
-    def _clear(self):
-        self._history.clear()
-        self._last_received = None
-        self._detail.setText('')
-        self._draw()
-        self._update_age()
+    def _tick(self):
+        if not self._built:
+            return
+        linked, epoch, pending = self._source.drain()
+        if epoch != self._epoch:
+            self._linked, self._epoch = linked, epoch
+            self._clear()
+            self._refresh_debug()
+        changed = False
+        for key, samples in pending.items():
+            if key[0] == 'enable':
+                if key[1] == self._debug_column.currentData():
+                    self._debug_enable.setChecked(bool(samples[-1]))
+                continue
+            pair = key[1:]
+            if pair not in self._entries or self._pause.isChecked() or not linked:
+                continue
+            entry = self._entries[pair]
+            for sample in samples:
+                if (np.shape(sample) != (SAMPLE_SIZE,)
+                        or tuple(sample[[COLUMN, ROW]]) != pair):
+                    continue
+                previous = entry['history'].last
+                if previous is not None and sample[TIME] < previous[TIME]:
+                    # Run restart invalidates the common time origin for every trace.
+                    for other in self._entries.values():
+                        other['history'].clear()
+                        other['received'] = None
+                if entry['history'].append(sample):
+                    entry['received'] = time.monotonic()
+                    changed = True
+        if changed:
+            self._draw()
+        self._update_status()
 
-    def _set_mode(self, mode):
-        self._curves[DAC].setVisible(mode != 1)
-        self._curves[FULL].setVisible(mode != 0)
-        self._flux.setVisible(mode != 1)
+    def _update_status(self):
+        live = 0
+        now = time.monotonic()
+        for row, (key, entry) in enumerate(self._entries.items()):
+            age = None if entry['received'] is None else now - entry['received']
+            status = ('Disconnected' if not self._linked else 'Paused' if self._pause.isChecked()
+                      else 'Waiting' if age is None else f'Stale {age:.0f}s' if age > 2 else 'Live')
+            live += status == 'Live'
+            item = self._table.item(row, 2)
+            item.setText(status)
+            sample = entry['history'].last
+            detail = status
+            if sample is not None:
+                detail += f' · Net wraps: {sample[JUMPS]:g} · Debug drops: {sample[DROPS]:g}'
+                if int(sample[FLAGS]) & NOT_COMMITTED:
+                    detail += ' · PID/row disabled; feedback not applied'
+                elif int(sample[FLAGS]) & FULL_UNAVAILABLE:
+                    detail += ' · Full feedback unavailable'
+            item.setToolTip(detail)
+            if status == 'Live' and sample is not None:
+                if int(sample[FLAGS]) & NOT_COMMITTED:
+                    item.setText('PID/row off')
+                elif int(sample[FLAGS]) & FULL_UNAVAILABLE:
+                    item.setText('No full FB')
+        if self._pause.isChecked():
+            text, state = 'Paused', 'idle'
+        elif not self._linked:
+            text, state = 'Disconnected', 'stale'
+        else:
+            text = f'{live} / {len(self._entries)} channels live'
+            state = 'live' if live and live == len(self._entries) else 'idle' if not self._entries else 'stale'
+        self._show_detail()
+        self._age.setText(text)
+        if self._age.property('state') != state:
+            self._age.setProperty('state', state)
+            self._age.style().unpolish(self._age)
+            self._age.style().polish(self._age)
+
+    def _show_error(self, message):
+        self._notice.setText(message)
+        self._notice.setVisible(bool(message))
+
+    def _show_detail(self):
+        rows = self._table.selectionModel().selectedRows()
+        if rows:
+            row = rows[0].row()
+            label = self._table.item(row, 1)
+            status = self._table.item(row, 2)
+            if label is not None and status is not None:
+                self._detail.setText(label.text() + ' · ' + (status.toolTip() or status.text()))
+
+    def _clear(self):
+        if self._source is not None:
+            self._source.discard()
+        for entry in self._entries.values():
+            entry['history'].clear()
+            entry['received'] = None
         self._draw()
+        self._update_status()
 
     def _set_window(self, seconds):
-        self._history.seconds = seconds
-        self._history.trim()
+        for entry in self._entries.values():
+            entry['history'].seconds = seconds
+            entry['history'].trim()
         self._draw()
 
     def _set_paused(self, paused):
         self._pause.setText('Resume' if paused else 'Pause')
         if not paused:
             self._clear()
-        self._update_age()
+        self._update_status()
 
-    def _update_age(self):
-        if self._pause.isChecked():
-            text = 'Paused'
-        elif not self._sample_connected:
-            text = 'Disconnected'
-        elif self._last_received is None:
-            text = 'Waiting for selected row / column'
-        else:
-            age = time.monotonic() - self._last_received
-            text = f'No new samples for {age:.1f} s' if age > 2 else 'Live'
-        self._age.setText(text)
-        state = 'live' if text == 'Live' else 'stale' if text.startswith('No new') else 'idle'
-        if self._age.property('state') != state:
-            self._age.setProperty('state', state)
-            self._age.style().unpolish(self._age)
-            self._age.style().polish(self._age)
+    def closeEvent(self, event):
+        self._timer.stop()
+        if self._source is not None:
+            self._source.close()
+        super().closeEvent(event)

@@ -260,6 +260,18 @@ package WaferSimPkg is
       chipFas   => CHIP_FAS_SYNTHETIC_C,
       muxColumn => MUX_COLUMN_SYNTHETIC_C);
 
+   constant WAFER_8X10_PROFILE_C : WaferProfileType := (
+      topology  => (
+         physicalColumns => 8,
+         numBanks        => 8,
+         rowsPerBank     => 10,
+         twoLevel        => true),
+      ssa       => SSA_SYNTHETIC_C,
+      sq1       => SQ1_SYNTHETIC_C,
+      rowFas    => ROW_FAS_SYNTHETIC_C,
+      chipFas   => CHIP_FAS_SYNTHETIC_C,
+      muxColumn => MUX_COLUMN_SYNTHETIC_C);
+
    constant BICEP3_PROFILE_C : WaferProfileType := (
       topology  => BICEP3_TOPOLOGY_C,
       ssa       => SSA_SYNTHETIC_C,
@@ -497,6 +509,7 @@ package body WaferSimPkg is
       return loadName = "LOAD_BOARD" or
              loadName = "WAFER" or
              loadName = "WAFER_32" or
+             loadName = "WAFER_8X10" or
              loadName = "BICEP3" or
              loadName = "NIST_50R" or
              loadName = "BA4";
@@ -504,7 +517,9 @@ package body WaferSimPkg is
 
    function waferProfile (loadName : string) return WaferProfileType is
    begin
-      if loadName = "BICEP3" then
+      if loadName = "WAFER_8X10" then
+         return WAFER_8X10_PROFILE_C;
+      elsif loadName = "BICEP3" then
          return BICEP3_PROFILE_C;
       elsif loadName = "NIST_50R" then
          return NIST_50R_PROFILE_C;

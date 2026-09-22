@@ -52,14 +52,15 @@ that TES/MUX and SSA devices share a physical substrate or temperature.
 
 ## Profiles and harness mapping
 
-`GroupTb.LOAD_G` accepts `LOAD_BOARD`, `WAFER`/`WAFER_32`, `BICEP3`,
+`GroupTb.LOAD_G` accepts `LOAD_BOARD`, `WAFER`/`WAFER_32`, `WAFER_8X10`, `BICEP3`,
 `NIST_50R`, and `BA4`. `LOAD_BOARD` retains the simple resistive fixture.
 Detector dimensions describe the physical device; a simulation can instantiate
 a smaller column slice without changing its row topology.
 
 | Profile | Rows | Physical columns | Selection |
 |---|---:|---:|---|
-| WAFER | 32 | 8 | One level |
+| WAFER / WAFER_32 | 32 | 8 | One level (1×32) |
+| WAFER_8X10 | 80 | 8 | 8 banks × 10 rows; RS 0–9, CS 10–17 |
 | BICEP3 | 22 | 12 | One level |
 | NIST_50R | 50 | 12 | Provisional 5 banks × 10 rows |
 | BA4 | 60 | 12 | 6 banks × 10 rows |
