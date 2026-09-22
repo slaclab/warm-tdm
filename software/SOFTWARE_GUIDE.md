@@ -240,24 +240,42 @@ Read it before touching stream wiring or adding a data format.
   - `_control_tab.py` — Hardware control panel
   - `_tuning_tab.py` — Tuning process controls
   - `_waveform_tab.py` — Real-time waveform display
-  - `_pid_lock_tab.py` — Live selected-row PID feedback, flux count and error
+  - `_pid_lock_tab.py` — Live multi-channel PID feedback, flux count and error
 
 The Python display uses a local light palette with white plot surfaces, subdued
 axes/grids and dark labels. Shared styling lives in `widgets/_plot_style.py`;
 `LightPlotter` applies it to incoming tuning and waveform figures while preserving
-their data and trace colors. The PID monitor uses blue DAC, orange full-feedback,
-purple net-wrap and teal error traces. Styling does not change global Matplotlib
+their data and trace colors. The PID monitor assigns colors by channel and uses solid DAC / dashed
+full-feedback traces in Both mode. Styling does not change global Matplotlib
 or PyQtGraph defaults.
 
 ### PID Lock tab
 
-Select a **global column** (`board * 8 + channel`) and a **logical row**, then
-enable that column's PID-debug stream with the checkbox if it is not already
-enabled. The monitor displays visits produced by the existing run; it does not
-start timing or enable PID. Row selection uses logical firmware indices for
-either flat or two-level RowMap configurations. Selection is shared between
-GUI clients. Changing the selected column leaves other debug enables unchanged;
-turn off streams when finished to avoid unnecessary traffic.
+Use **Add channels…** to search board/column names or enter **global columns**
+(`board * 8 + channel`) and **logical rows** as comma-separated indices and
+inclusive ranges, e.g. columns `0, 3, 8` and rows `10-15`. The dialog previews the
+Cartesian product (18 channels in this example), skips duplicates, and validates
+against the server's available rows and columns. Selections are local to each GUI
+window and do not change `ConfigSelect` or the legacy monitor's selection.
+Logical rows work with flat or two-level physical RowMap configurations.
+
+The sidebar lists only selected channels. **Show** hides/reveals a channel while
+retaining its history; **Remove** deletes highlighted entries; **Clear list**
+removes all selections. **Overlay** compares channels on common metric plots;
+**Separate panels** gives each visible channel its own feedback/error/flux plots
+in a scrollable view. Colors identify channels across all plots. In Both mode,
+DAC is solid and full feedback is dashed. Detailed plots are limited to **32
+selected channels**, with a crowding notice above eight; colors repeat after
+eight. Use the sidebar to identify traces rather than a large overlay legend.
+Saved selections, a channel heatmap and acquisition-mask presets are not yet
+implemented.
+
+Under **Debug stream — per column**, choose one of the selected columns and
+explicitly enable/disable its stream. All selected rows on that column share the
+same hardware enable. Adding, hiding or removing channels never changes enables.
+These enables remain shared across clients; turn off unwanted streams before
+removing the last selected row on that column. The monitor does not start timing
+or enable PID; it displays visits from the existing run.
 
 The feedback selector offers **DAC + flux jumps**, **Full feedback**, and
 **Both**. Feedback is in signed controller DAC-code units, before the output
@@ -279,26 +297,37 @@ The existing `PidDebugger` and `PidDebuggerFp` receivers publish a `Sample` arra
 on each `HardwareGroup.PidDebug[column].RowPids.PID[row]`, at up to **10 Hz per
 row**. Each array holds the header timestamp, identity, feedback, net count,
 error and drops from one decoded frame. The existing scalar diagnostics still
-update on every received visit. `HardwareGroup.PidLockMonitor` only selects and
-forwards these samples and the selected column's debug-enable control; it adds
-no stream receiver. It keeps stable channels for PyDM without changing the
-Control tab's `ConfigSelect` targets.
+update on every received visit. The GUI attaches/detaches listeners directly on
+selected per-row Sample variables and their columns' debug-enable variables. It
+reuses the shared VirtualClient without stopping it when selections or windows
+are removed, bypassing the installed Rogue PyDM plugin's client-stopping channel
+teardown. Receive-thread callbacks copy samples into bounded queues; a 100 ms Qt
+timer updates histories and draws once per batch. No new stream receiver,
+background worker or register polling is added. The legacy
+`HardwareGroup.PidLockMonitor` adapter remains available to older clients.
 
 Integer reconstruction and applied-feedback gating use cached DSP settings,
 with no additional register transactions for the sample. These settings are
 not timestamped in the debug frame: refresh the cache after out-of-band writes,
 and interpret samples around configuration changes with care. The GUI keeps
-5–600 seconds of bounded history on the hardware timebase. Pausing freezes the
-display; resuming, changing selection, or reconnecting starts a fresh history.
-Timestamp reversals and drop-counter resets also clear history. Missing samples
-and increases in the firmware debug-drop count break the plotted line. A stale
-indicator reports when samples stop arriving. This sampled view can miss fast
+5–600 seconds of bounded history per channel on the hardware timebase. Visible
+traces use the latest visible hardware timestamp as a common origin, so a stalled
+channel falls behind its peers rather than shifting its final point to zero.
+This assumes board timing is synchronized. Pausing freezes all histories; resume,
+Clear history, and link transitions reset them. Adding/removing channels leaves
+other histories intact; re-added channels wait for fresh samples. A timestamp
+reversal resets the shared history, while drop-counter resets clear the affected
+channel. Missing samples and increases in debug-drop count break plotted lines.
+The list reports per-channel waiting/stale/disconnected status and missing
+feedback; selecting an entry shows its net wraps, debug drops and feedback status. This sampled view can miss fast
 transients; use recorded debug data for spectral analysis or event counting.
 
 Run `software/tests/rogue_pid_lock_smoke.py` explicitly in a Rogue/PyDM/Qt
 environment for a synthetic stream → localhost ZMQ → GUI smoke test. It uses no
 hardware. `QT_QPA_PLATFORM=offscreen` supports headless runs;
-`PID_MONITOR_SCREENSHOT=/path/to/example.png` saves a rendered example.
+`PID_MONITOR_SCREENSHOT=/path/to/example.png` saves overlay and separate-panel
+examples. The smoke covers integer/FP streams on two boards, independent windows,
+column enables, layout changes, pause/resume and removal/re-addition/teardown.
 
 ## Key Scripts
 

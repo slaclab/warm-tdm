@@ -56,9 +56,9 @@ class PidHistory:
             while self.samples and self.samples[0][TIME] < cutoff:
                 self.samples.popleft()
 
-    def arrays(self):
+    def arrays(self, reference=None):
         if not self.samples:
             return np.empty((0, SAMPLE_SIZE))
         data = np.array(self.samples)
-        data[:, TIME] -= data[-1, TIME]
+        data[:, TIME] -= data[-1, TIME] if reference is None else reference
         return data

@@ -26,17 +26,19 @@ from pid_monitor_imports import load_package_exports
 
 # Use the installed Rogue plugin with the installed Qt binding.
 os.environ['PYDM_DATA_PLUGINS_PATH'] = str(Path(pr.__file__).parent / 'pydm/data_plugins')
-from pydm import PyDMApplication
+from pydm import PyDMApplication, data_plugins
 from pydm.utilities import connection
 
 ROOT = Path(__file__).resolve().parents[2]
 load_package_exports('warm_tdm', ROOT / 'firmware/python/warm_tdm',
                      {'_PidLockMonitor', '_PidDebugger', '_PidDebuggerFp', '_PidDebugFilter', '_DataFormats'})
 load_package_exports('warm_tdm_api.widgets', ROOT / 'software/python/warm_tdm_api/widgets',
-                     {'_plot_style', '_pid_history', '_pid_lock_tab'})
+                     {'_plot_style', '_pid_history', '_pid_selection', '_pid_source', '_pid_channel_picker', '_pid_lock_tab'})
 import warm_tdm
 from warm_tdm import PidLockMonitor, PidDebugger, PidDebuggerFp, PidDebugFilter, DAC, FULL
-from warm_tdm_api.widgets import PidLockTab
+from warm_tdm_api.widgets import PidLockTab, PidChannelPicker
+from qtpy.QtCore import Qt
+from qtpy.QtWidgets import QDialogButtonBox
 
 
 class Source(rogue.interfaces.stream.Master):
@@ -55,7 +57,7 @@ def pump(app, seconds=0.15):
 
 
 def main():
-    faulthandler.dump_traceback_later(30)
+    faulthandler.dump_traceback_later(60)
     app = PyDMApplication(use_main_window=False, command_line_args=[])
     root = pr.Root(name='GroupRoot', pollEn=False)
     group = pr.Device(name='Group')
@@ -94,7 +96,7 @@ def main():
     assert not isinstance(monitor, pr.DataReceiver)
     server = pyrogue.interfaces.ZmqServer(root=root, addr='127.0.0.1', port=0)
     root.addInterface(server)
-    widget = None
+    widget = other = None
     try:
         print('Starting synthetic Rogue root', flush=True)
         root.start()
@@ -104,76 +106,156 @@ def main():
         widget.show()
         connection.establish_widget_connections(widget)
         pump(app, 1)
-        assert widget._built and hasattr(widget, '_curves')
+        assert widget._built and widget._source is not None
         assert all(not dsp.PidDebugEnable.value() for dsp in dsps.values())
-
-        # GUI-side channel writes must reach the selected column's enable only.
+        picker = PidChannelPicker(widget._source.topology, widget._entries, widget)
+        picker.columns.setText('0, 3, 8')
+        picker.rows.setText('10-15')
+        assert len(picker.pairs) == 18 and '3 columns × 6 rows = 18' in picker.preview.text()
+        picker.show()
+        pump(app)
+        if os.getenv('PID_MONITOR_SCREENSHOT'):
+            path = Path(os.environ['PID_MONITOR_SCREENSHOT'])
+            assert picker.grab().save(str(path.with_stem(path.stem + '-picker')))
+        picker.rows.setText('0-999999999999')
+        assert not picker.buttons.button(QDialogButtonBox.Ok).isEnabled()
+        picker.columns.setText('0')
+        picker.rows.setText('0')
+        assert not picker.pairs  # Already selected.
+        picker.close()
+        widget.remove_channels(list(widget._entries))
+        widget.add_channels([(0, 10), (0, 11), (8, 10)])
+        other = PidLockTab(init_channel=widget.channel)
+        other.resize(1150, 820)
+        other.show()
+        pump(app, 1)
+        other.remove_channels(list(other._entries))
+        other.add_channels([(0, 11)])
+        assert widget._source.client is other._source.client
+        assert set(other._entries) == {(0, 11)}
+        assert monitor.ColumnSelect.value() == 0 and monitor.RowSelect.value() == 0
         widget._debug_enable.click()
         pump(app)
-        assert dsps[0].PidDebugEnable.value()
-        assert not dsps[8].PidDebugEnable.value()
-        monitor.RowSelect.set(10)
-        pump(app)
-        assert widget._row == 10
-
-        for i in range(25):
-            full = 3800 + i * 140
-            count = max(0, (full - 2500) // 2000)
-            wrapped = full - count * 2000
-            header = struct.pack('<4BIQ', 1, 3, 0, 0, 0, int((1 + i * 0.15) * 1e9))
-            words = [10 << 8, int(200 * np.exp(-i / 5)), 8191, 0, 0, 0,
-                     wrapped << 23, count, 8191, 16]
-            sources[0].send(header + struct.pack('<10Q', *words))
-            pump(app)
-        assert len(widget._history.samples) > 10
-        assert widget._history.last[FULL] == full
-        assert widget._history.last[DAC] == wrapped
-        assert debuggers[0].RowPids.PID[10].Visits.value() == 25
-        assert debuggers[0].RowPids.PID[10].NumSamples.value() == 16
-        np.testing.assert_array_equal(monitor.Sample.value(), debuggers[0].RowPids.PID[10].Sample.value())
-        widget._mode.setCurrentIndex(2)
-        widget._window.setValue(5)
-        pump(app)
-        assert widget._curves[FULL].isVisible() and widget._curves[DAC].isVisible()
-        if os.getenv('PID_MONITOR_SCREENSHOT'):
-            assert widget.grab().save(os.environ['PID_MONITOR_SCREENSHOT'])
-
-        widget._pause.click()
-        assert widget._age.text() == 'Paused'
-        widget._pause.click()
-        assert not widget._history.samples
-        monitor.ColumnSelect.set(8)
-        pump(app)
-        assert widget._column == 8
-        assert not widget._history.samples
-        assert widget._debug_enable.channel.endswith('.PidLockMonitor.PidDebugEnable')
-        assert not monitor.PidDebugEnable.get(read=False)
-        assert dsps[0].PidDebugEnable.value()  # Selection does not change hardware.
+        assert dsps[0].PidDebugEnable.value() and not dsps[8].PidDebugEnable.value()
+        widget._debug_column.setCurrentIndex(widget._debug_column.findData(8))
         widget._debug_enable.click()
         pump(app)
         assert dsps[8].PidDebugEnable.value()
-        fp = (struct.pack('<4BIQ', 2, 1, 0, 1, 0, 20_000_000_000) +
-              struct.pack('<QfffffiHBBI', 10 << 8, 48, 987, 1, 2,
-                          1800.25, 1, (-200) & 0x3fff, 16, 0, 0))
-        sources[1].send(fp)
-        deadline = time.monotonic() + 3
-        while widget._history.last is None and time.monotonic() < deadline:
+        data_plugins.set_read_only(True)
+        widget._refresh_debug()
+        assert not widget._debug_enable.isEnabled()
+        widget._write_debug(False)
+        assert dsps[8].PidDebugEnable.value()
+        data_plugins.set_read_only(False)
+        widget._refresh_debug()
+
+        def send_fixed(i, row):
+            full = 3800 + i * 140 + (row - 10) * 200
+            count = max(0, (full - 2500) // 2000)
+            wrapped = full - count * 2000
+            header = struct.pack('<4BIQ', 1, 3, 0, 0, 0, int((1 + i * 0.15) * 1e9))
+            words = [row << 8, int(200 * np.exp(-i / 5)), 8191, 0, 0, 0,
+                     wrapped << 23, count, 8191, 16]
+            sources[0].send(header + struct.pack('<10Q', *words))
+            return full, wrapped
+
+        def send_fp(i):
+            fp = (struct.pack('<4BIQ', 2, 1, 0, 1, 0, int((1 + i * .15) * 1e9)) +
+                  struct.pack('<QfffffiHBBI', 10 << 8, 48, 987, 1, 2,
+                              1800.25 + i * 30, 1, (-200 + i * 30) & 0x3fff, 16, 0, 0))
+            sources[1].send(fp)
+
+        for i in range(25):
+            full, wrapped = send_fixed(i, 10)
+            send_fixed(i, 11)
+            send_fp(i)
             pump(app)
-        assert widget._history.last is not None, (monitor.Status.value(), monitor.Sample.value())
-        assert widget._history.last[FULL] == 1800.25
-        assert widget._history.last[DAC] == -200
-        assert debuggers[8].RowPids.PID[10].Sq1FbNewFp.value() == 1800.25
-        assert debuggers[8].RowPids.PID[10].Visits.value() == 1
+        for entry in widget._entries.values():
+            assert len(entry['history'].samples) > 10
+        history = widget._entries[0, 10]['history']
+        assert history.last[FULL] == full and history.last[DAC] == wrapped
+        assert debuggers[0].RowPids.PID[10].Visits.value() == 25
+        assert widget._entries[8, 10]['history'].last[FULL] == 1800.25 + 24 * 30
+        assert other._entries[0, 11]['history'].last is not None
+        widget._mode.setCurrentIndex(2)
+        widget._window.setValue(5)
+        pump(app)
+        assert len(widget._curves) == 12
+        if os.getenv('PID_MONITOR_SCREENSHOT'):
+            assert widget.grab().save(os.environ['PID_MONITOR_SCREENSHOT'])
+        # Hide/reveal affects only presentation, retaining subscriptions/history.
+        kept = len(widget._entries[0, 10]['history'].samples)
+        widget._table.item(0, 0).setCheckState(Qt.Unchecked)
+        assert ((0, 10), DAC) not in widget._curves
+        assert len(widget._entries[0, 10]['history'].samples) == kept
+        widget._table.item(0, 0).setCheckState(Qt.Checked)
+        assert ((0, 10), DAC) in widget._curves
+        widget._layout_mode.setCurrentIndex(1)
+        pump(app)
+        assert len(widget._plots) == 9
+        if os.getenv('PID_MONITOR_SCREENSHOT'):
+            path = Path(os.environ['PID_MONITOR_SCREENSHOT'])
+            assert widget.grab().save(str(path.with_stem(path.stem + '-panels')))
+        widget._layout_mode.setCurrentIndex(0)
         widget._mode.setCurrentIndex(1)
-        assert not widget._curves[DAC].isVisible()
-        assert not widget._flux.isVisible()
-        print('PASS: live Rogue stream -> ZMQ -> PyDM plots, enable, selection, pause and FP switch')
+        assert len(widget._plots) == 2 and len(widget._curves) == 6
+        assert ((0, 10), DAC) not in widget._curves
+
+        # Pause freezes history; resume starts clean without replaying queued data.
+        widget._pause.click()
+        assert widget._age.text() == 'Paused'
+        send_fixed(25, 10)
+        pump(app)
+        assert history.last[FULL] == full
+        widget._pause.click()
+        assert not history.samples
+        send_fixed(26, 10)
+        pump(app)
+        assert history.last is not None
+
+        # A removed/re-added selection has a fresh history, not cached telemetry.
+        widget._table.selectRow(list(widget._entries).index((0, 11)))
+        widget._remove_selected()
+        assert dsps[0].PidDebugEnable.value() and dsps[8].PidDebugEnable.value()
+        send_fixed(26, 11)
+        pump(app)
+        assert other._entries[0, 11]['history'].last is not None
+        widget.add_channels([(0, 11)])
+        assert widget._entries[0, 11]['history'].last is None
+        send_fixed(27, 11)
+        pump(app)
+        assert widget._entries[0, 11]['history'].last is not None
+
+        # Closing a window must not stop the shared client or the other window.
+        other.close()
+        assert not other._source._listeners
+        send_fixed(28, 10)
+        pump(app)
+        assert widget._entries[0, 10]['history'].last[FULL] == 3800 + 28 * 140
+        assert widget._source.client.linked
+        # Exercise the same callback used by actual link transitions.
+        widget._source._link_changed(False)
+        pump(app)
+        assert widget._age.text() == 'Disconnected'
+        assert not any(e['history'].samples for e in widget._entries.values())
+        assert not widget._debug_enable.isEnabled()
+        widget._source._link_changed(True)
+        pump(app)
+        send_fixed(29, 10)
+        pump(app)
+        assert widget._entries[0, 10]['history'].last is not None
+        assert widget._debug_enable.isEnabled()
+        print('PASS: multi-row/board streams, independent windows, layouts, enables, pause, remove/re-add and teardown')
     finally:
+        if other is not None:
+            other.close()
+            other.deleteLater()
         if widget is not None:
-            connection.close_widget_connections(widget)
             widget.close()
             widget.deleteLater()
             pump(app)
+            if widget._source is not None:
+                widget._source.client.stop()
         root.stop()
         faulthandler.cancel_dump_traceback_later()
 
