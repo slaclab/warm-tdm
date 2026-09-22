@@ -5,7 +5,7 @@
 ## streamreader.py / warm_tdm._DataFormats). This module turns that timeseries
 ## into scalar servo metrics -- steady-state residual, settling, overshoot,
 ## flux-jump and drop rates -- used both by the closed-loop cosim harness
-## (software/scripts/hwtest/verify_cosim_pid.py) and, eventually, by the offline
+## (software/cosim/verify_cosim_pid.py) and, eventually, by the offline
 ## analyzer/diagnosis layer planned in docs/plans/channelization/PID_ANALYZER_PLAN.md.
 ##
 ## The integer (AdcDsp) and float (AdcDspFp) controllers log different field

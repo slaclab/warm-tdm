@@ -14,7 +14,7 @@ from unittest.mock import Mock, patch
 
 import numpy as np
 
-SCRIPTS = Path(__file__).resolve().parents[1] / 'scripts/hwtest'
+SCRIPTS = Path(__file__).resolve().parents[1] / 'cosim'
 
 
 def load(name):

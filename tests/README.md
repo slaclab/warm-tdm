@@ -143,7 +143,7 @@ and actual simulator/tool versions; include both signs around half-integers,
 wrap boundaries, first-visit seeding and clipping paths.
 
 For the full system use [GroupTb build/server instructions](../firmware/simulations/GroupTb/README_cosim.md)
-and [client/harness instructions](../software/scripts/hwtest/README_cosim.md).
+and [client/harness instructions](../software/cosim/README_cosim.md).
 The documented tool split is Vivado 2025.1 + VCS X-2025.06 for GroupTb simulation
 and Vivado 2024.1 for bitfiles. The old `_meta` VCS/cocotb recipe is superseded.
 

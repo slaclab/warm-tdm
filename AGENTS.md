@@ -37,7 +37,10 @@ warm-tdm/
 │   │   ├── widgets/            #   PyDM UI components
 │   │   └── operations/         #   Client-side operational layer (acquisition,
 │   │                           #   setup, analysis); import explicitly
-│   ├── scripts/                # Executable entry points (server, GUI, client)
+│   ├── scripts/                # Executable entry points (server, GUI, client);
+│   │                           #   scripts/hwtest/ = physical-bench checks
+│   ├── cosim/                  # GroupTb/VCS cosim checks (VirtualClient) +
+│   │                           #   PID-lock driver; see README_cosim.md
 │   ├── cfg/                    # YAML hardware configuration files
 │   ├── lib/                    # C/C++ shared library
 │   └── jupyter/                # Analysis notebooks

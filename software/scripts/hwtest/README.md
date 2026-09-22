@@ -6,6 +6,11 @@ The owning issue holds the remaining checklist and test results. Reusable setup
 instructions live on the [Hardware Verification wiki](https://github.com/slaclab/warm-tdm/wiki/Hardware-Verification).
 Physical measurements and real-link tests remain manual acceptance steps.
 
+The GroupTb/VCS cosimulation checks (VirtualClient against `warmTdmServer --sim`)
+now live in [`software/cosim/`](../../cosim/README_cosim.md); this directory keeps
+the physical-bench scripts and the two dual-purpose scripts that run on cosim or
+hardware (`verify_frame_header.py`, `reproduce_readall_lockup.py`).
+
 ## Scripts
 
 | Script | Owning issue | What it checks automatically | Still manual |

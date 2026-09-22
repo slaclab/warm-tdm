@@ -14,7 +14,7 @@ not a claim that those changes have been released or accepted on hardware.
 | Client sessions, setup, acquisition and analysis | [Operations API](operations-api.md) |
 | Software TES waveforms | [TES bias waveform guide](tes-bias-waveform.md) |
 | Local software/RTL regressions and their limits | [Regression guide](../tests/README.md) |
-| Full GroupTb simulation | [Build/server setup](../firmware/simulations/GroupTb/README_cosim.md), [client checks](../software/scripts/hwtest/README_cosim.md) |
+| Full GroupTb simulation | [Build/server setup](../firmware/simulations/GroupTb/README_cosim.md), [client checks](../software/cosim/README_cosim.md) |
 | Physical bench checks | [Hardware-test scripts](../software/scripts/hwtest/README.md) |
 | Issues, acceptance and PR integration | [Development workflow](WORKFLOW.md) |
 | Candidate selection and releases | [Release guide](RELEASE.md) |

@@ -9,11 +9,16 @@
 This checks output registers. Observe the modeled DAC signals in VCS separately
 before completing #86's combined register/model requirement.
 """
-from _cosim_common import parser, passed, positive, restore, run
+import sys
+
+from _cosim_common import ROOT, parser, passed, positive, restore, run
 
 
 def check_stop_zero(sess, args, report, directory):
     # Lazy import so --help and pure validation do not require a Rogue environment.
+    # run_cycles lives in the hardware-bench script verify_stop_and_zero.py, which
+    # stays in software/scripts/hwtest/; put that dir on sys.path to reach it.
+    sys.path.insert(0, str(ROOT / 'software/scripts/hwtest'))
     from verify_stop_and_zero import run_cycles
     args.skip_cols = ''
     with restore([sess.group.ColEnableMask]):

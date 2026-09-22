@@ -22,8 +22,8 @@
 # clocked/servoed). **A is the anchor**; B is tuned against it; C runs over it.
 #
 # The gain sweep here is the same closed-loop **AXI-`AccumError`** method the
-# cosim harness uses (see `software/scripts/hwtest/cosim_pid_lock.py` and the
-# tuning notes in `software/scripts/hwtest/verify_cosim_pid.py`): for each
+# cosim harness uses (see `software/cosim/cosim_pid_lock.py` and the
+# tuning notes in `software/cosim/verify_cosim_pid.py`): for each
 # candidate gain, run the MUX and poll the per-row `mean|AccumError|` register
 # until it floors. The stream capture yields too few PID-debug visits to see the
 # loop floor, so the register poll is the right instrument for picking a gain.

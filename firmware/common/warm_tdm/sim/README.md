@@ -226,7 +226,7 @@ Use the focused [WaferModelTb suite](../../../simulations/WaferModelTb/README.md
 for pure curves, selection/isolation, bias load lines, cable voltage, profiles,
 and harness mappings. The full ADC/DSP/DAC and host path uses
 [`GroupTb`](../../../simulations/GroupTb/tb/GroupTb.vhd) and the
-[cosimulation procedure](../../../../software/scripts/hwtest/README_cosim.md).
+[cosimulation procedure](../../../../software/cosim/README_cosim.md).
 Keep scalar presets at the GroupTb boundary and resolved record arrays below
 it so vendor simulator overrides remain manageable. HDL and server board
 counts, row-address width, and row capacity must agree.

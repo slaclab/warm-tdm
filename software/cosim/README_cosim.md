@@ -7,7 +7,7 @@ an endpoint is VCS. Use a dedicated simulation server, with timing stopped,
 writer closed and tuning/waveform processes idle. One column board and one row
 board are required by these checks.
 
-Build/start GroupTb using [the VCS setup](../../../firmware/simulations/GroupTb/README_cosim.md).
+Build/start GroupTb using [the VCS setup](../../firmware/simulations/GroupTb/README_cosim.md).
 Simulation uses Vivado 2025.1 + VCS X-2025.06; physical bitfiles use Vivado 2024.1.
 Use a compatible Rogue Python/native pair and configure its client/transport
 timeouts for slow simulated register transactions. These scripts' timing waits
@@ -83,14 +83,14 @@ Activate the Rogue environment, use the server's printed ZMQ port, and run from
 the repository root. The examples assume that port is 9099:
 
 ```bash
-python software/scripts/hwtest/verify_cosim_controls.py \
+python software/cosim/verify_cosim_controls.py \
   --manifest /tmp/wtj-cosim-manifest.json --output /tmp/wtj-cosim-results
 
-python software/scripts/hwtest/verify_cosim_readout.py \
+python software/cosim/verify_cosim_readout.py \
   --manifest /tmp/wtj-cosim-manifest.json --output /tmp/wtj-cosim-results \
   --rows 2 --acq 30 --start-delay 5 --timing-timeout 120
 
-python software/scripts/hwtest/verify_cosim_stop_zero.py \
+python software/cosim/verify_cosim_stop_zero.py \
   --manifest /tmp/wtj-cosim-manifest.json --output /tmp/wtj-cosim-results \
   --cycles 5 --settle-sec 5 --timing-timeout 120
 ```
@@ -130,11 +130,11 @@ running. At most two columns/rows, 64 feedback points and four bias values are
 allowed to keep these checks small.
 
 ```bash
-python software/scripts/hwtest/verify_cosim_tuning.py \
+python software/cosim/verify_cosim_tuning.py \
   --manifest /tmp/wtj-cosim-manifest.json --output /tmp/wtj-cosim-results \
   --profile /tmp/my-fixture-tuning.json --process-timeout 600
 
-python software/scripts/hwtest/verify_cosim_tuning.py \
+python software/cosim/verify_cosim_tuning.py \
   --manifest /tmp/wtj-cosim-manifest.json --output /tmp/wtj-cosim-results \
   --profile /tmp/my-fixture-tuning.json --cancel-only
 ```
@@ -156,7 +156,7 @@ floating-point (`AdcDspFp`) datapaths. Behaviors: `steady` (lock + residual),
 the servo across flux quanta and records `numFluxJumps`). Gains/operating point
 come from a profile (see [cosim_pid.example.json](cosim_pid.example.json)); the
 built-in defaults and their provenance are in
-[`docs/plans/pid-cosim-verification/`](../../../docs/plans/pid-cosim-verification/).
+[`docs/plans/pid-cosim-verification/`](../../docs/plans/pid-cosim-verification/).
 
 `run_cosim_pid_suite.py` is the **turnkey driver**: for each requested path it
 rebuilds GroupTb with the right compile-time generic (`USE_FLOAT_PID`,
@@ -169,11 +169,11 @@ coexist). The flux ramp size is `--flux-steps × --flux-step-uA` on the harness.
 ```bash
 conda activate warm-tdm-r615
 # Both paths, full build, pass/fail gate:
-python software/scripts/hwtest/run_cosim_pid_suite.py \
+python software/cosim/run_cosim_pid_suite.py \
   --paths integer,float --behaviors steady,step --output /tmp/wtj-cosim-results
 
 # Reuse a compiled simv and report (no hard-fail) the flux-jump ramp:
-python software/scripts/hwtest/run_cosim_pid_suite.py \
+python software/cosim/run_cosim_pid_suite.py \
   --paths integer --no-build --mode measure \
   --behaviors steady,flux --output /tmp/wtj-cosim-results --keep-up
 ```

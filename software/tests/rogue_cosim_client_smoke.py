@@ -20,7 +20,7 @@ import unittest
 import warm_tdm
 import warm_tdm_api as api
 
-SCRIPTS = Path(__file__).resolve().parents[1] / 'scripts/hwtest'
+SCRIPTS = Path(__file__).resolve().parents[1] / 'cosim'
 sys.path.insert(0, str(SCRIPTS))
 import _cosim_common as common
 from verify_cosim_controls import check_controls

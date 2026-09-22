@@ -18,7 +18,7 @@ or gain signs as the current handoff.
 ## Reproduction and operating point
 
 Use [GroupTb setup](../../../firmware/simulations/GroupTb/README_cosim.md)
-and [the client harness](../../../software/scripts/hwtest/README_cosim.md).
+and [the client harness](../../../software/cosim/README_cosim.md).
 The recorded session used the integer path, 23 uA nominal quantum, coherent
 per-row Sq1Bias=50 uA / Sq1Fb=2 uA / SaFb=9 uA before the SA null, raw
 P=-0.0025 and I=0. Those values are fixture-specific; gain sign changes with

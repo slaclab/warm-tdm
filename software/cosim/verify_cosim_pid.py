@@ -27,7 +27,7 @@ Behaviors (``--behaviors``):
     bench (tests/warm_tdm/adc_dsp/test_AdcDsp_flux.py).
 
 Run against a live ``warmTdmServer --sim`` (integer or float build). See
-software/scripts/hwtest/README_cosim.md for the recipe;
+software/cosim/README_cosim.md for the recipe;
 ``run_cosim_pid_suite.py`` orchestrates both builds end to end.
 """
 import argparse

@@ -34,10 +34,10 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[2]
 GROUPTB = ROOT / 'firmware/simulations/GroupTb'
 BEHAV = ROOT / 'firmware/build/GroupTb/GroupTb_project.sim/sim_1/behav'
-HARNESS = ROOT / 'software/scripts/hwtest/verify_cosim_pid.py'
+HARNESS = ROOT / 'software/cosim/verify_cosim_pid.py'
 
 VIVADO_ENV = os.environ.get('WTJ_VIVADO_ENV',
                             '/sdf/group/faders/tools/xilinx/2025.1/Vivado/2025.1/settings64.sh')
@@ -274,7 +274,7 @@ def main(argv=None):
     p.add_argument('--settle', type=float, default=5.0)
     p.add_argument('--prime', type=float, default=5.0)
     p.add_argument('--profile', type=Path,
-                   default=ROOT / 'software/scripts/hwtest/cosim_pid.example.json')
+                   default=ROOT / 'software/cosim/cosim_pid.example.json')
     p.add_argument('--seed-tune-points', action='store_true', default=True,
                    help='seed the fixture on each fresh sim (default on)')
     p.add_argument('--no-seed-tune-points', dest='seed_tune_points', action='store_false')

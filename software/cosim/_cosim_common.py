@@ -26,7 +26,7 @@ from types import SimpleNamespace
 
 import numpy as np
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def positive(value):
@@ -144,7 +144,11 @@ def run(args, check):
         report['supplied_simulation_manifest'] = manifest
         source_dir = directory / 'scripts'
         source_dir.mkdir()
-        script_paths = list(Path(__file__).parent.glob('verify_cosim_*.py')) + [Path(__file__), Path(__file__).with_name('verify_stop_and_zero.py'), Path(__file__).with_name('_hwtest_common.py')]
+        # verify_stop_and_zero.py and _hwtest_common.py are hardware-bench helpers
+        # that stay in software/scripts/hwtest/ (verify_cosim_stop_zero reuses
+        # run_cycles from the former); reference them there for provenance.
+        hwtest = ROOT / 'software/scripts/hwtest'
+        script_paths = list(Path(__file__).parent.glob('verify_cosim_*.py')) + [Path(__file__), hwtest / 'verify_stop_and_zero.py', hwtest / '_hwtest_common.py']
         report['script_sha256'] = {}
         for path in script_paths:
             shutil.copyfile(path, source_dir / path.name)
