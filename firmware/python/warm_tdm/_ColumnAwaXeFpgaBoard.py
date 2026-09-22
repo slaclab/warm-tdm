@@ -181,6 +181,15 @@ class ColumnAwaXeFpgaBoard(pr.Device):
 
 
         @self.command()
+        def ZeroFastDacs():
+            # Drive every fast-DAC output (SAFb/SQ1Fb/SQ1Bias) to zero current.
+            # 0x2000 is offset-binary midscale, which the bipolar output amps
+            # translate to 0 uA into the SQUIDs.  Provides a software re-arm for
+            # the startup zeroing in case the one-shot firmware init landed
+            # before the analog rails settled (the board has no rail PGOOD).
+            self.AllFastDacs(0x2000)
+
+        @self.command()
         def InitDacAdc():
             self.Ad9681Config.enable.set(True)
             self.Ad9681Config.ReadDevice()

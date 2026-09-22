@@ -350,15 +350,22 @@ begin
 
 
 
+   -- The startup midscale (zero-current) DAC init is a one-shot write gated by
+   -- this timer.  The board has no analog-rail PGOOD, and anaPwrEn self-enables
+   -- on the same timing-clock lock that starts this countdown, so the wait must
+   -- comfortably outlast the DAC supply ramp.  2 s (250e6 @ 125 MHz) replaces the
+   -- old 0.5 s (62.5e6), which could expire before the rails settled and leave
+   -- the row-select DACs at their power-on default (dumping current into the
+   -- cryo).  Software ZeroFastDacs commands provide a re-arm path after bring-up.
    U_PwrUpRst_1 : entity surf.PwrUpRst
       generic map (
          TPD_G         => TPD_G,
          SIM_SPEEDUP_G => SIMULATION_G,
-         DURATION_G    => 62500000)
+         DURATION_G    => 250000000)
       port map (
          arst   => timingRxRst125,      -- [in]
          clk    => timingRxClk125,      -- [in]
-         rstOut => pwrUpWaitDone);      -- [out]   
+         rstOut => pwrUpWaitDone);      -- [out]
 
 
 
