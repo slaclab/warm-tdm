@@ -1,6 +1,7 @@
 from pydm.widgets.frame import PyDMFrame
 from pyrogue.pydm.data_plugins.rogue_plugin import nodeFromAddress
-from pyrogue.pydm.widgets import DebugTree, Plotter
+from pyrogue.pydm.widgets import DebugTree
+from warm_tdm_api.widgets import LightPlotter
 from qtpy.QtWidgets import QVBoxLayout, QHBoxLayout
 
 DEVICE_ROOT = 'rogue://0/root'
@@ -42,6 +43,6 @@ class WaveformTab(PyDMFrame):
         tree2.setMinimumHeight(469)
         hb.addWidget(tree2)
 
-        plotter = Plotter(
+        plotter = LightPlotter(
             init_channel=self.channel + '.HardwareGroup.WaveformCaptureReceiver.MultiPlot')
         vb.addWidget(plotter)

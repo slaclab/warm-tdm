@@ -33,7 +33,7 @@ ROOT = Path(__file__).resolve().parents[2]
 load_package_exports('warm_tdm', ROOT / 'firmware/python/warm_tdm',
                      {'_PidLockMonitor', '_PidDebugger', '_PidDebuggerFp', '_PidDebugFilter', '_DataFormats'})
 load_package_exports('warm_tdm_api.widgets', ROOT / 'software/python/warm_tdm_api/widgets',
-                     {'_pid_history', '_pid_lock_tab'})
+                     {'_plot_style', '_pid_history', '_pid_lock_tab'})
 import warm_tdm
 from warm_tdm import PidLockMonitor, PidDebugger, PidDebuggerFp, PidDebugFilter, DAC, FULL
 from warm_tdm_api.widgets import PidLockTab

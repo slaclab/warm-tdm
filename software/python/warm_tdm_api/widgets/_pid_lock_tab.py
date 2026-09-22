@@ -22,7 +22,7 @@ from warm_tdm import (
     TIME, COLUMN, ROW, DAC, FULL, JUMPS, ERROR, DROPS, FLAGS,
     FULL_UNAVAILABLE, NOT_COMMITTED, SAMPLE_SIZE,
 )
-from warm_tdm_api.widgets import PidHistory
+from warm_tdm_api.widgets import PidHistory, style_display, style_live_plot, TRACE_COLORS
 
 
 class PidLockTab(PyDMFrame):
@@ -36,6 +36,7 @@ class PidLockTab(PyDMFrame):
         self._last_received = None
         self._sample_connected = False
         super().__init__(parent, init_channel)
+        style_display(self)
 
     def channels(self):
         return (super().channels() or []) + self._monitor_channels
@@ -48,16 +49,30 @@ class PidLockTab(PyDMFrame):
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 14, 16, 12)
+        layout.setSpacing(12)
         monitor = self.channel + '.HardwareGroup.PidLockMonitor'
         if nodeFromAddress(monitor) is None:
             layout.addWidget(QLabel('PID Lock requires a server with PidLockMonitor support.'))
             return
 
+        heading = QHBoxLayout()
+        title = QLabel('PID lock monitor')
+        title.setObjectName('plotHeading')
+        heading.addWidget(title)
+        heading.addStretch()
+        self._age = QLabel('Waiting for samples')
+        self._age.setObjectName('plotStatus')
+        heading.addWidget(self._age)
+        layout.addLayout(heading)
+
         controls = QHBoxLayout()
+        controls.setSpacing(10)
         layout.addLayout(controls)
         for label, variable in [('Global column', 'ColumnSelect'), ('Logical row', 'RowSelect')]:
             controls.addWidget(QLabel(label))
             spin = PyDMSpinbox(init_channel=monitor + '.' + variable)
+            spin.setFixedWidth(80)
             spin.showStepExponent = False
             spin.writeOnPress = True
             controls.addWidget(spin)
@@ -83,8 +98,6 @@ class PidLockTab(PyDMFrame):
         clear = QPushButton('Clear')
         options.addWidget(clear)
         options.addStretch()
-        self._age = QLabel('Waiting for samples')
-        options.addWidget(self._age)
 
         self._feedback = self._plot('SQ1 feedback', 'Signed DAC codes')
         self._feedback.showLegend = True
@@ -94,17 +107,24 @@ class PidLockTab(PyDMFrame):
         layout.addWidget(self._flux, 1)
         layout.addWidget(self._error, 2)
         self._curves = {
-            DAC: self._curve(self._feedback, 'DAC', '#00a6d6'),
-            FULL: self._curve(self._feedback, 'Full feedback', '#ec9f31'),
-            JUMPS: self._curve(self._flux, 'Net wraps', '#ac80d0'),
-            ERROR: self._curve(self._error, 'Mean error', '#62af62'),
+            DAC: self._curve(self._feedback, 'DAC', TRACE_COLORS[0]),
+            FULL: self._curve(self._feedback, 'Full feedback', TRACE_COLORS[1]),
+            JUMPS: self._curve(self._flux, 'Net wraps', TRACE_COLORS[2]),
+            ERROR: self._curve(self._error, 'Mean error', TRACE_COLORS[3]),
         }
+        for plot, title, units in (
+                (self._feedback, 'SQ1 feedback', 'Signed DAC codes'),
+                (self._flux, 'Net flux wraps', 'Wrap count'),
+                (self._error, 'Mean PID error', 'ADC counts / sample')):
+            style_live_plot(plot, title, units)
         self._detail = QLabel()
+        self._detail.setWordWrap(True)
         layout.addWidget(self._detail)
         layout.addWidget(PyDMLabel(init_channel=monitor + '.Status'))
         note = QLabel('Display samples up to 10 Hz; fast transients may be missed. '
                       'Selection is shared across GUI clients. Debug enable is per column; '
                       'changing selection leaves other columns unchanged.')
+        note.setObjectName('plotNote')
         note.setWordWrap(True)
         layout.addWidget(note)
 
@@ -141,7 +161,7 @@ class PidLockTab(PyDMFrame):
 
     @staticmethod
     def _curve(plot, name, color):
-        curve = WaveformCurveItem(name=name, color=color, lineWidth=1)
+        curve = WaveformCurveItem(name=name, color=color, lineWidth=2, antialias=True)
         plot.addCurve(curve, curve_color=color)
         return curve
 
@@ -223,3 +243,8 @@ class PidLockTab(PyDMFrame):
             age = time.monotonic() - self._last_received
             text = f'No new samples for {age:.1f} s' if age > 2 else 'Live'
         self._age.setText(text)
+        state = 'live' if text == 'Live' else 'stale' if text.startswith('No new') else 'idle'
+        if self._age.property('state') != state:
+            self._age.setProperty('state', state)
+            self._age.style().unpolish(self._age)
+            self._age.style().polish(self._age)

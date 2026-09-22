@@ -242,6 +242,13 @@ Read it before touching stream wiring or adding a data format.
   - `_waveform_tab.py` — Real-time waveform display
   - `_pid_lock_tab.py` — Live selected-row PID feedback, flux count and error
 
+The Python display uses a local light palette with white plot surfaces, subdued
+axes/grids and dark labels. Shared styling lives in `widgets/_plot_style.py`;
+`LightPlotter` applies it to incoming tuning and waveform figures while preserving
+their data and trace colors. The PID monitor uses blue DAC, orange full-feedback,
+purple net-wrap and teal error traces. Styling does not change global Matplotlib
+or PyQtGraph defaults.
+
 ### PID Lock tab
 
 Select a **global column** (`board * 8 + channel`) and a **logical row**, then
