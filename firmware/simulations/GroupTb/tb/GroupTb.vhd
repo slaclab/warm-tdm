@@ -53,10 +53,11 @@ entity GroupTb is
       -- software side (warm_tdm_api, --simPgpRing) MUST be set to match.
       SIM_PGP_GT_G    : boolean             := true;
       -- Scales the TES-bias -> SQ1-input coupling in the wafer model. Default 1.0
-      -- is the model's nominal; the synthetic TES-bias amp is weakly coupled, so
-      -- a much larger value (set via the TES_CURRENT_SCALE env var in ruckus.tcl)
-      -- lets a modest TesBias ramp shift the SQ1 flux by several Phi0 to exercise
-      -- the servo's flux-jump handling. Purely a test aid, not physical fidelity.
+      -- is the model's nominal; after the wafer recalibration the coupling is
+      -- ~1 Phi0 per 10 uA of TES current, so the default TES flux ramp already
+      -- sweeps several Phi0 and exercises the servo's flux-jump handling without
+      -- any scale-up. This generic is a vestigial test aid (set via the
+      -- TES_CURRENT_SCALE env var in ruckus.tcl) and is left at 1.0 everywhere.
       TES_CURRENT_SCALE_G : real            := 1.0);
 end GroupTb;
 
