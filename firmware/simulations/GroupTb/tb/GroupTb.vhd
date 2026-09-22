@@ -45,6 +45,13 @@ entity GroupTb is
       -- Ethernet payload ceiling: false = 1 Gbit/s, true = 10 Gbit/s.
       -- ruckus.tcl selects this from ETH_10G for both board models.
       ETH_10G_G       : boolean             := true;
+      -- Comms mode for how the host reaches the boards in simulation:
+      -- true = fully simulate the board-to-board PGP GTX ring (coordinator-only
+      -- SRP bridge, row board reached over the ring, like real hardware);
+      -- false = historical bypass (every board exposes its own direct SRP socket,
+      -- MGT ring not driven). ruckus.tcl selects this from SIM_PGP_RING. The
+      -- software side (warm_tdm_api, --simPgpRing) MUST be set to match.
+      SIM_PGP_GT_G    : boolean             := true;
       -- Scales the TES-bias -> SQ1-input coupling in the wafer model. Default 1.0
       -- is the model's nominal; the synthetic TES-bias amp is weakly coupled, so
       -- a much larger value (set via the TES_CURRENT_SCALE env var in ruckus.tcl)
@@ -80,7 +87,9 @@ architecture sim of GroupTb is
    --           and the MGT ring is not driven (faster, but never exercises the
    --           ring-routing path).
    -- The software side (warm_tdm_api, --simPgpRing) MUST be set to match this.
-   constant SIM_PGP_GT_C : boolean := true;
+   -- Driven from the SIM_PGP_GT_G generic (ruckus.tcl overrides it from the
+   -- SIM_PGP_RING env var so `make vcs` can pick a mode without editing this file).
+   constant SIM_PGP_GT_C : boolean := SIM_PGP_GT_G;
 
    constant COLUMN_BOARDS_C : integer := COLUMN_BOARDS_G;
    constant ROW_BOARDS_C    : integer := 1;

@@ -29,7 +29,7 @@ set_property top {GroupTb} [get_filesets {sim_1}]
 # floating-point AdcDspFp (matching the entity default); set USE_FLOAT_PID=0
 # (or =false) in the environment to elaborate the integer AdcDsp path instead,
 # e.g. `USE_FLOAT_PID=0 make vcs`.
-set useFloatPid "true"
+set useFloatPid "false"
 if { [info exists ::env(USE_FLOAT_PID)] } {
    set req [string tolower $::env(USE_FLOAT_PID)]
    if { $req eq "0" || $req eq "false" || $req eq "no" } {
@@ -53,15 +53,31 @@ if { [info exists ::env(ETH_10G)] } {
 set_property generic "[get_property generic [get_filesets {sim_1}]] ETH_10G_G=$eth10g" [get_filesets {sim_1}]
 puts "GroupTb: ETH_10G_G=$eth10g (shared Ethernet payload pacing per direction)"
 
-# Per-device wafer variation seed. Defaults to the entity default (nonzero, so
-# channels differ). Set VARIATION_SEED in the environment to override -- notably
-# VARIATION_SEED=0 makes every device identical, which matches the single
-# no-variation cosim tune point (SetCosimTunePoints) so the servo can lock.
+# Comms mode: fully simulate the board-to-board PGP GTX ring vs. the historical
+# direct-SRP bypass. Keep ring mode as the checked-in default (matches real
+# hardware routing); reject typos instead of silently running the wrong mode.
+# The software side (warmTdmServer.py --simPgpRing) MUST be set to match.
+set simPgpRing "false"
+if { [info exists ::env(SIM_PGP_RING)] } {
+   switch -- [string tolower $::env(SIM_PGP_RING)] {
+      0 - false - no { set simPgpRing "false" }
+      1 - true - yes { set simPgpRing "true" }
+      default { error "SIM_PGP_RING must be 0/1, false/true, or no/yes" }
+   }
+}
+set_property generic "[get_property generic [get_filesets {sim_1}]] SIM_PGP_GT_G=$simPgpRing" [get_filesets {sim_1}]
+puts "GroupTb: SIM_PGP_GT_G=$simPgpRing (true=simulate PGP GTX ring, false=direct-SRP bypass)"
+
+# Per-device wafer variation seed. Defaults to 0 (no variation: every device
+# identical), which matches the single no-variation cosim tune point
+# (SetCosimTunePoints) so the servo can lock. Set VARIATION_SEED in the
+# environment to a nonzero value to spread tunings channel-to-channel.
+set variationSeed "0"
 if { [info exists ::env(VARIATION_SEED)] } {
    set variationSeed $::env(VARIATION_SEED)
-   set_property generic "[get_property generic [get_filesets {sim_1}]] VARIATION_SEED_G=$variationSeed" [get_filesets {sim_1}]
-   puts "GroupTb: VARIATION_SEED_G=$variationSeed"
 }
+set_property generic "[get_property generic [get_filesets {sim_1}]] VARIATION_SEED_G=$variationSeed" [get_filesets {sim_1}]
+puts "GroupTb: VARIATION_SEED_G=$variationSeed"
 
 # TES-bias -> SQ1-input coupling scale (wafer model). Defaults to 1.0 (nominal).
 # The synthetic TES-bias amp is weakly coupled, so set TES_CURRENT_SCALE to a
