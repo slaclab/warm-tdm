@@ -80,9 +80,11 @@ set_property generic "[get_property generic [get_filesets {sim_1}]] VARIATION_SE
 puts "GroupTb: VARIATION_SEED_G=$variationSeed"
 
 # TES-bias -> SQ1-input coupling scale (wafer model). Defaults to 1.0 (nominal).
-# The synthetic TES-bias amp is weakly coupled, so set TES_CURRENT_SCALE to a
-# large value (e.g. 1000) to let a modest TesBias ramp shift the SQ1 flux by
-# several Phi0 and exercise the servo flux-jump handling in cosim. Test aid only.
+# After the wafer recalibration the coupling is ~1 Phi0 per 10 uA of TES current,
+# so the default TES flux ramp already sweeps several Phi0 and exercises the servo
+# flux-jump handling without a scale-up -- this is a vestigial test aid, left at
+# 1.0 everywhere. Set TES_CURRENT_SCALE only if you deliberately want to amplify
+# the coupling beyond the recalibrated physical value.
 if { [info exists ::env(TES_CURRENT_SCALE)] } {
    set tesCurrentScale $::env(TES_CURRENT_SCALE)
    set_property generic "[get_property generic [get_filesets {sim_1}]] TES_CURRENT_SCALE_G=$tesCurrentScale" [get_filesets {sim_1}]
