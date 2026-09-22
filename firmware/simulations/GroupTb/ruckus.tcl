@@ -39,6 +39,20 @@ if { [info exists ::env(USE_FLOAT_PID)] } {
 set_property generic "[get_property generic [get_filesets {sim_1}]] USE_FLOAT_PID_G=$useFloatPid" [get_filesets {sim_1}]
 puts "GroupTb: USE_FLOAT_PID_G=$useFloatPid"
 
+# Select the Ethernet clock and simulated payload bandwidth together. Keep the
+# historical 10G column coordinator default; reject typos instead of silently
+# running a bandwidth test with the wrong configuration.
+set eth10g "true"
+if { [info exists ::env(ETH_10G)] } {
+   switch -- [string tolower $::env(ETH_10G)] {
+      0 - false - no { set eth10g "false" }
+      1 - true - yes { set eth10g "true" }
+      default { error "ETH_10G must be 0/1, false/true, or no/yes" }
+   }
+}
+set_property generic "[get_property generic [get_filesets {sim_1}]] ETH_10G_G=$eth10g" [get_filesets {sim_1}]
+puts "GroupTb: ETH_10G_G=$eth10g (shared Ethernet payload pacing per direction)"
+
 # Per-device wafer variation seed. Defaults to the entity default (nonzero, so
 # channels differ). Set VARIATION_SEED in the environment to override -- notably
 # VARIATION_SEED=0 makes every device identical, which matches the single

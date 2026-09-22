@@ -11,7 +11,7 @@ from pyrogue.pydm.widgets import DebugTree, SystemWindow
 from qtpy.QtWidgets import QVBoxLayout
 
 from warm_tdm_api.widgets import (
-    ControlTab, TuningTab, SaTuningTab, FasTuningTab, Sq1TuningTab, WaveformTab, PidLockTab,
+    style_display, ControlTab, TuningTab, SaTuningTab, FasTuningTab, Sq1TuningTab, WaveformTab, PidLockTab,
 )
 
 ROOT = 'rogue://0/GroupRoot'
@@ -22,6 +22,7 @@ class WarmTdmDisplay(Display):
 
     def __init__(self, parent=None, args=None, macros=None):
         super().__init__(parent=parent, args=args, macros=macros)
+        style_display(self)
         self._setup_ui()
 
     def ui_filename(self):

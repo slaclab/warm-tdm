@@ -1,6 +1,6 @@
 from pydm.widgets.frame import PyDMFrame
 from pyrogue.pydm.data_plugins.rogue_plugin import nodeFromAddress
-from pyrogue.pydm.widgets import Plotter, PyRogueLineEdit
+from pyrogue.pydm.widgets import PyRogueLineEdit
 from pydm.widgets import PyDMLabel, PyDMSpinbox
 from qtpy.QtWidgets import QVBoxLayout, QFormLayout, QWidget, QSizePolicy
 
@@ -41,7 +41,7 @@ class TuningTab(PyDMFrame):
         vb.addWidget(proc)
 
         for ch in self._plot_channels():
-            p = Plotter(init_channel=ch)
+            p = widgets.LightPlotter(init_channel=ch)
             p.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
             vb.addWidget(p)
 

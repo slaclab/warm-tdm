@@ -28,6 +28,7 @@ entity ColumnFpgaBoardSim is
    generic (
       TPD_G                   : time                  := 1 ns;
       RING_ADDR_0_G           : boolean               := false;
+      ETH_10G_G               : boolean               := true;
       USE_FLOAT_PID_G         : boolean               := false;
       SIM_PGP_PORT_NUM_G      : integer               := 7000;
       SIM_ETH_SRP_PORT_NUM_G  : integer               := 8000;
@@ -105,6 +106,7 @@ begin
       generic map (
          TPD_G                   => TPD_G,
          RING_ADDR_0_G           => RING_ADDR_0_G,
+         ETH_10G_G               => ETH_10G_G,
          USE_FLOAT_PID_G         => USE_FLOAT_PID_G,
          SIM_PGP_PORT_NUM_G      => SIM_PGP_PORT_NUM_G,
          SIM_ETH_SRP_PORT_NUM_G  => SIM_ETH_SRP_PORT_NUM_G,

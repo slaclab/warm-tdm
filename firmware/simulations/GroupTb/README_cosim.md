@@ -68,6 +68,56 @@ conda activate warm-tdm-r615
 python -c "import warm_tdm_api.operations as ops; sess = ops.connect(); ops.status()"
 ```
 
+## Ethernet bandwidth
+
+Select the Ethernet mode when generating the simulation, then compile and
+launch the resulting simulator as above:
+
+```bash
+ETH_10G=0 make vcs              # 1 Gbit/s payload ceiling
+ETH_10G=1 make vcs              # 10 Gbit/s payload ceiling (default)
+```
+
+`ETH_10G` accepts `0/1`, `false/true`, or `no/yes` (case insensitive). It sets
+`GroupTb.ETH_10G_G`, propagated through both board simulation models to
+`EthCore`. Changing it requires regenerating and rebuilding the simulation;
+there is no corresponding PyRogue client option. It can be combined with
+`USE_FLOAT_PID`, `VARIATION_SEED`, and `TES_CURRENT_SCALE`.
+
+| Mode | Ethernet clock | Stream width | Aggregate payload ceiling per direction |
+|------|----------------|--------------|-----------------------------------------|
+| 1G | 125 MHz | 8 bytes | 1 Gbit/s = 125 MB/s |
+| 10G | 156.25 MHz | 8 bytes | 10 Gbit/s = 1.25 GB/s |
+
+`EthSimBandwidth` uses SURF's simulation-only `RogueTcpStreamPacer` to count
+accepted payload bytes in **simulation time**. SRP and data sockets, including
+all their local/remote TDEST channels, share one budget per Ethernet port.
+Transmit and receive have independent budgets, modeling full duplex. Idle
+credit is capped at one eight-byte beat, partial final beats charge only valid
+bytes, and backpressure propagates upstream. The TCP port layout is unchanged.
+The SimLink wrappers' own per-wrapper pacing stays disabled because the shared
+pacer accounts for both wrappers together. This replaces the former one-byte
+1G stream and separate SRP/data ceilings.
+
+These are **payload ceilings**, not wire-accurate Ethernet throughput: cosim
+bypasses MAC, UDP/IP and RSSI framing, acknowledgments, retransmissions and
+interpacket gaps. Real application throughput is lower and depends on packet
+sizes and protocol behavior. Arbitration and other simulated paths may also
+reduce achieved throughput. Host TCP speed and simulator wall-clock speed do
+not define the modeled bandwidth. In ring mode all boards share the
+coordinator's Ethernet budget; bypass mode gives each board its own port budget.
+
+The isolated regression checks both rates, concurrent SRP/data, full duplex,
+partial beats, ordering/sidebands, backpressure, idle credit and reset:
+
+```bash
+# From the repository root; requires the local regression environment and GHDL.
+.venv/bin/python -m pytest tests/warm_tdm/ethernet/test_bandwidth.py -q
+```
+
+It runs the real bandwidth helper and SURF pacer without TCP or vendor IP;
+full `GroupTb` socket/PGP behavior still requires the VCS workflow above.
+
 ## Comms mode: direct-SRP bypass vs simulated PGP ring
 
 `GroupTb` has a master toggle, `SIM_PGP_GT_C` (top of `tb/GroupTb.vhd`), that
@@ -97,8 +147,9 @@ Real GTX mode uses an unthrottled receive FIFO in simulation, as on hardware.
 `ROGUE_SIM_EN_G` must be false when `SIM_PORT_NUM_G=0`: GTX cannot honor the
 FIFO's `tReady`, and enabling that handshake can discard data without reporting
 RAM overflow. The simulation-only ready handshake is for a Rogue stream model.
-Ring mode still bypasses the Ethernet/RSSI stack, so inject downstream stalls
-explicitly when testing the coordinator's receive capacity.
+Ring mode models the selected aggregate Ethernet payload ceiling while still
+bypassing the Ethernet/RSSI stack. Inject additional downstream stalls when
+testing the coordinator's receive capacity under RSSI/host delays.
 
 Use the [RX buffer characterization](../../../tests/warm_tdm/pgp_ring/test_rx_buffer.py)
 for an isolated GHDL test of queued replies and framing after overflow. Width 10

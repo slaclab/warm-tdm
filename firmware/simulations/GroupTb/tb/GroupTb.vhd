@@ -42,6 +42,9 @@ entity GroupTb is
       -- ruckus.tcl overrides it from the USE_FLOAT_PID env var so `make vcs` can
       -- elaborate either path without editing this file.
       USE_FLOAT_PID_G : boolean             := true;
+      -- Ethernet payload ceiling: false = 1 Gbit/s, true = 10 Gbit/s.
+      -- ruckus.tcl selects this from ETH_10G for both board models.
+      ETH_10G_G       : boolean             := true;
       -- Scales the TES-bias -> SQ1-input coupling in the wafer model. Default 1.0
       -- is the model's nominal; the synthetic TES-bias amp is weakly coupled, so
       -- a much larger value (set via the TES_CURRENT_SCALE env var in ruckus.tcl)
@@ -179,6 +182,7 @@ begin
          generic map (
             TPD_G                   => TPD_G,
             RING_ADDR_0_G           => (i = 0),
+            ETH_10G_G               => ETH_10G_G,
             USE_FLOAT_PID_G         => USE_FLOAT_PID_C,
             AWAXE_G                 => AWAXE_G,
             -- SIM_PGP_PORT_NUM_G = 0 selects the real Pgp2bGtx7VarLat GTX model
@@ -272,6 +276,7 @@ begin
          generic map (
             TPD_G                   => TPD_G,
             RING_ADDR_0_G           => (i = 0),
+            ETH_10G_G               => ETH_10G_G,
             -- SIM_PGP_PORT_NUM_G = 0 selects the real Pgp2bGtx7VarLat GTX model
             -- (PgpCore.REAL_PGP_GEN) so the ring is fully simulated; a nonzero
             -- value keeps the historical bypass (each board its own SRP socket).

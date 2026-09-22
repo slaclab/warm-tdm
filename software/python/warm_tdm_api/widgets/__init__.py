@@ -5,6 +5,9 @@
 ## No part may be copied, modified, propagated, or distributed except according
 ## to the terms contained in the LICENSE.txt file.
 ##############################################################################
+from warm_tdm_api.widgets._plot_style import (
+    LightPlotter, style_display, style_live_plot, TRACE_COLORS,
+)
 from warm_tdm_api.widgets._control_tab import ControlTab
 from warm_tdm_api.widgets._tuning_process import TuningProcess
 from warm_tdm_api.widgets._two_column_process import TwoColumnProcess
