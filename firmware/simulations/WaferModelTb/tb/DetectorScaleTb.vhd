@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- Title      : Eight-Column, 6x10 Detector Slice Testbench
+-- Title      : Eight-Column, Banked Detector Slice Testbench
 -------------------------------------------------------------------------------
 -- Company    : SLAC National Accelerator Laboratory
 -- Platform   : Simulation
@@ -20,11 +20,12 @@ library warm_tdm;
 use warm_tdm.WaferSimPkg.all;
 
 entity DetectorScaleTb is
+   generic (NUM_BANKS_G : positive := 6);
 end entity DetectorScaleTb;
 
 architecture sim of DetectorScaleTb is
    constant NUM_COLUMNS_C : positive := 8;
-   constant NUM_BANKS_C   : positive := 6;
+   constant NUM_BANKS_C   : positive := NUM_BANKS_G;
    constant ROWS_PER_BANK_C : positive := 10;
    constant NUM_ROWS_C    : positive := NUM_BANKS_C * ROWS_PER_BANK_C;
 
@@ -64,8 +65,8 @@ begin
 
    test : process is
       constant TEST_COLUMN_C : natural := 5;
-      constant TEST_BANK_C   : natural := 2;
-      constant TEST_ROW_C    : natural := 3;
+      constant TEST_BANK_C   : natural := NUM_BANKS_C-1;
+      constant TEST_ROW_C    : natural := ROWS_PER_BANK_C-1;
       constant PIXEL_C       : natural :=
          TEST_COLUMN_C*NUM_ROWS_C + TEST_BANK_C*ROWS_PER_BANK_C + TEST_ROW_C;
       variable rowOnlyCurrent : real;
@@ -83,7 +84,7 @@ begin
       wait for 1 ns;
       selectedCurrent := muxCurrent(TEST_COLUMN_C);
       assert abs(selectedCurrent - rowOnlyCurrent) > 0.005E-6
-         report "6x10 detector did not require both row and chip select: row-only=" &
+         report "banked detector did not require both row and chip select: row-only=" &
                 real'image(rowOnlyCurrent) & ", selected=" &
                 real'image(selectedCurrent)
          severity failure;
@@ -93,7 +94,7 @@ begin
          SQ1_SYNTHETIC_C.squid.currentPerPhi0Amp;
       wait for 1 ns;
       assert abs(muxCurrent(TEST_COLUMN_C) - selectedCurrent) > 0.005E-6
-         report "selected pixel did not modulate its 6x10 detector column: before=" &
+         report "selected pixel did not modulate its banked detector column: before=" &
                 real'image(selectedCurrent) & ", after=" &
                 real'image(muxCurrent(TEST_COLUMN_C))
          severity failure;

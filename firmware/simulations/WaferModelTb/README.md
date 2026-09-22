@@ -16,7 +16,7 @@ subdirectory.
 
 The suite checks the literature-derived ideal low-inductance SQUID equation,
 independent SSA/SQ1/row-FAS/chip-FAS parameter sets, the exact nested MUX
-network, the fast 8-column `6x10` model, the old eight-channel `WaferSim`
+network, the fast 8-column `6x10` and `8x10` models, the old eight-channel `WaferSim`
 interface, and elaboration of the physical BICEP3, NIST-50-row, and BA4
 detector dimensions. It also checks a 12-column detector's `8+4` warm-board
 mapping, unused-channel termination, and the dual-BA4 `8+8+(4+4)` mapping.
