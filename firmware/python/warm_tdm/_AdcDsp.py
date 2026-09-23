@@ -399,10 +399,15 @@ class AdcDsp(pr.Device):
 
         self.add(pr.RemoteVariable(
             name = 'Sq1FbFullValid',
-            description = 'When false, the next enabled visit seeds Sq1FbFull from the applied DAC.',
+            description = 'When 0, the next enabled visit seeds Sq1FbFull from the applied DAC.',
             offset = 0x7004,
             bitOffset = 6,
-            base = pr.Bool,
+            # Per-row array (one valid bit per row, strided 64 B inside each row's
+            # Sq1FbFull slot). Typed pr.UInt, not pr.Bool: a Bool array has an enum
+            # display, and PyDM's scalar-enum path cannot render an array value
+            # (it tries enum.index('[enum, enum, ...]') and raises). UInt renders
+            # the per-row 0/1 array cleanly, like the other per-row arrays here.
+            base = pr.UInt,
             mode = 'RW',
             groups = ['NoConfig'],
             numValues = rows,
