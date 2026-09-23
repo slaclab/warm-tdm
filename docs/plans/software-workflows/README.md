@@ -12,8 +12,9 @@ with its data outside Git and can be reopened without creating another run.
   client bootstrap and consolidate the three file readers.
 - Keep all bench/cosim checks and tests. Move bench tools to `software/hwtest/`;
   share verification routines with the interactive notebooks.
-- Maintain output-free templates under `software/notebooks/`, with percent-format
-  Python as the source and a deterministic notebook generation/check command.
+- Maintain output-free `.ipynb` templates under `software/notebooks/`, edited
+  directly in Jupyter. No paired Python sources or generation step; CI checks
+  basic notebook structure and cleared outputs without executing cells.
 - Store new measurement runs outside the checkout (or in ignored `runs/`). Each
   contains an executed notebook, provenance, configuration, data and figures.
   Creating a run is offline; reconnecting attaches to its exact directory.
@@ -32,9 +33,9 @@ no fallback. The lightweight `warm_tdm_run` package is included by the release
 selector without importing Rogue. Checkout notebook tools remain checkout tools.
 
 Seven maintained templates now share their batch verification implementations
-or operations helpers. Percent-format Python is authoritative; a deterministic
-standard-library converter generates the output-free notebooks and checks them
-in CI. Copies remain independent. The hardware template consistently uses its
+or operations helpers. The `.ipynb` templates are authoritative. A read-only
+standard-library checker validates structure and cleared outputs in CI, excluding
+Jupyter checkpoints and measurement copies. Copies remain independent. The hardware template consistently uses its
 earlier notebook's 8×10 example, with explicit fixture settings. Gain sweeps use
 actual logical-row indices, restore P, detect opposing per-row flux excursions,
 and apply a chosen candidate only to the measured column. Completed candidates
@@ -55,8 +56,13 @@ Affected areas: `software/scripts`, `software/hwtest`, `software/cosim`,
 
 Local validation on 2026-09-23:
 
-- `python -m pytest software/tests -q`: **256 passed, 83 subtests passed**.
-- Notebook consistency, active Python syntax, packaged script existence,
+- Initial implementation: `python -m pytest software/tests -q` — **256 passed,
+  83 subtests passed**.
+- Notebook-only templates: `python -m pytest software/tests/test_notebook_runs.py
+  -q` — **13 passed, 6 subtests passed**. The read-only checker accepts all seven
+  templates; their code cells are unchanged. An offline smoke created a cosim
+  run directly from its `.ipynb` without a Python companion.
+- Original notebook-pair consistency, active Python syntax, packaged script existence,
   relative documentation links, ignore rules and `git diff --check` passed.
 - An offline CLI smoke created a run outside the checkout, with source
   provenance and editable cosim profiles. Tests cover reconnection/relocation,
@@ -75,4 +81,4 @@ the moved bench scripts and batch-backed cosim notebooks on their respective
 fixtures, and smoke-test packaged launchers in a release environment. These
 runtime/bench checks were not performed locally (Rogue/VCS/hardware unavailable).
 Record acceptance on its owning issue when assigned; unit tests are not physical
-acceptance. Nothing has been staged or committed.
+acceptance.

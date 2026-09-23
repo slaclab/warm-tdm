@@ -45,8 +45,8 @@ jobs:
           #flake8 --count software/python/
           #flake8 --count firmware/python/
 
-      - name: Notebook template consistency
-        run: python software/scripts/sync_notebooks.py --check
+      - name: Notebook template validation
+        run: python software/scripts/check_notebooks.py
 
       - name: Software regression tests
         run: python -m unittest discover -s software/tests -v

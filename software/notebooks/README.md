@@ -14,15 +14,17 @@ connection, resuming, provenance, storage and template maintenance.
 | `cosim/pid_lock` | Lock trajectory exploration using the batch recipe |
 | `diagnostics/register_latency` | Read-only timing-register round-trip measurements |
 
-Each `.py` is the canonical percent-cell source; its `.ipynb` is generated,
-output-free, and committed for convenient copying. Use only `# %%` and
-`# %% [markdown]` cell markers; write notebook magics as `# %...` in code cells.
-The small repository converter supports this format without a Jupytext dependency.
+The `.ipynb` files are the maintained templates. Edit them directly in Jupyter;
+there are no paired Python sources or generation step. Reusable operations and
+verification logic belong in the operations package or `software/cosim/` scripts.
+
+Before committing a template, clear all cell outputs and execution counts and
+save the notebook. Validate its basic structure and cleared outputs with:
 
 ```bash
-python software/scripts/sync_notebooks.py
-python software/scripts/sync_notebooks.py --check
+python software/scripts/check_notebooks.py
 ```
 
-Synchronization only touches this directory. Measurement copies are standalone
-notebooks: retain their outputs and never regenerate them from these sources.
+The check never executes or rewrites notebooks. It supports notebook magics and
+ignores Jupyter checkpoints. Measurement copies and historical records are outside
+its scope: retain their outputs as evidence.

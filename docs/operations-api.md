@@ -12,9 +12,8 @@ this one only points at:
 - **[`docs/design/muxed-run-bringup.md`](design/muxed-run-bringup.md)** — the
   *why*: the three configuration layers (enabled set / tune point / run settings),
   their ordering, and the planned tune-point save/restore.
-- **[`software/notebooks/hardware/operations_template.py`](../software/notebooks/hardware/operations_template.py)**
-  — a worked, runnable end-to-end workflow on this API (percent-format `.py` source of
-  truth + generated `.ipynb`).
+- **[`software/notebooks/hardware/operations_template.ipynb`](../software/notebooks/hardware/operations_template.ipynb)**
+  — a maintained end-to-end notebook template for this API.
 
 For copied notebooks and durable measurement records, start with
 [Notebook measurement runs](notebook-runs.md).
@@ -85,7 +84,7 @@ connect ─► status ─► (A) enabled set ─► (B) tune ─► (C) setup_mu
 - **C — run settings:** how the muxed run is clocked and servoed
   (`setup_mux` — timing, sample window, PID enable).
 
-See [`operations_template.py`](../software/notebooks/hardware/operations_template.py) for the
+See [`operations_template.ipynb`](../software/notebooks/hardware/operations_template.ipynb) for the
 full sequence with real parameters.
 
 ## API reference

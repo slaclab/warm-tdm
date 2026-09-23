@@ -16,7 +16,9 @@ from warm_tdm_run import create_run
 
 def main(argv=None):
     templates = ROOT / 'software/notebooks'
-    choices = {str(p.relative_to(templates).with_suffix('')): p for p in templates.rglob('*.ipynb')}
+    choices = {str(p.relative_to(templates).with_suffix('')): p
+               for p in templates.rglob('*.ipynb')
+               if not any(part.startswith('.') for part in p.relative_to(templates).parts)}
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('template', choices=sorted(choices))
     parser.add_argument('--base', type=Path, required=True, help='Existing experiment storage directory')

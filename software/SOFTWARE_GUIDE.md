@@ -347,7 +347,7 @@ column enables, layout changes, pause/resume and removal/re-addition/teardown.
 | `warmTdmServer.py --emulate` | Register-memory emulation (no hardware) |
 | `inspect_stream.py` | Summary of recorded readout, integer/FP PID, waveform and config |
 | `new_run.py` | Offline creation of a measurement notebook/run directory |
-| `sync_notebooks.py` | Generate/check maintained notebook templates |
+| `check_notebooks.py` | Read-only structure and cleared-output checks for notebook templates |
 
 ## Dependencies
 

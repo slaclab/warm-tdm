@@ -129,17 +129,25 @@ pass. Inspect completed reports/captures and add plots to the working notebook.
 
 ## Template development and migration
 
-Edit the percent-format `.py` sources under `software/notebooks/`, then run:
+Edit the `.ipynb` templates directly under `software/notebooks/`. There are no
+paired `.py` sources or synchronization step. Keep reusable logic in the
+operations package or batch verification scripts that the notebooks call.
+Before committing a template, clear all outputs and execution counts in Jupyter,
+save it, and run:
 
 ```bash
-python software/scripts/sync_notebooks.py
-python software/scripts/sync_notebooks.py --check
+python software/scripts/check_notebooks.py
 ```
 
-The check detects output-bearing, missing or divergent generated notebooks and
-runs in the software regression suite. Measurement copies are never included.
-The generated `.ipynb` files are tracked only under the template directory;
-root `runs/` and notebook copies elsewhere in the checkout remain ignored.
+The read-only check validates basic notebook/cell structure and requires cleared
+outputs and execution counts. It does not execute cells, and allows notebook
+magics. It runs in CI and the software regression suite. Jupyter checkpoints,
+measurement copies and historical notebooks are excluded. The template picker
+also excludes checkpoints.
+
+Template `.ipynb` files are tracked under the template directory; root `runs/`
+and measurement copies elsewhere in the checkout remain ignored. Retain outputs
+in measurement copies; clearing outputs is a template maintenance step only.
 
 The [software entry-point index](../software/README.md) maps retired/moved paths
 to replacements. Existing historical notebook bytes and outputs are preserved in

@@ -5,6 +5,7 @@
 # those license terms.
 """Run persistence, offline creation, portable templates and failed-check evidence."""
 import ast
+from copy import deepcopy
 import importlib.util
 import json
 import os
@@ -29,7 +30,7 @@ def load(name, relative):
 runs = load('runs_test', 'software/python/warm_tdm_run/__init__.py')
 output = load('output_test', 'software/python/warm_tdm_api/operations/session/_output.py')
 config = load('config_test', 'software/python/warm_tdm_api/operations/session/_config.py')
-sync = load('sync_test', 'software/scripts/sync_notebooks.py')
+checker = load('check_test', 'software/scripts/check_notebooks.py')
 
 
 class RunTests(unittest.TestCase):
@@ -170,8 +171,8 @@ class RunTests(unittest.TestCase):
 
     def test_template_bootstrap_works_outside_checkout(self):
         root = self.create()
-        source = ROOT/'software/notebooks/hardware/operations_template.py'
-        nb = sync.notebook(source.read_text())
+        source = ROOT/'software/notebooks/hardware/operations_template.ipynb'
+        nb = json.loads(source.read_text())
         setup = next(''.join(c['source']) for c in nb['cells'] if c['cell_type']=='code'
                      and 'runs.find_run()' in ''.join(c['source']))
         previous = Path.cwd()
@@ -182,15 +183,42 @@ class RunTests(unittest.TestCase):
             exec(compile(setup,'bootstrap','exec'),env)
         self.assertEqual(env['RUN_DIR'],root)
 
-    def test_generated_templates_are_consistent_and_compile(self):
-        self.assertEqual(sync.main(['--check']),0)
-        for path in (ROOT/'software/notebooks').rglob('*.ipynb'):
-            nb = json.loads(path.read_text())
-            for cell in nb['cells']:
-                if cell['cell_type']=='code':
-                    self.assertEqual(cell['outputs'],[])
-                    self.assertIsNone(cell['execution_count'])
-                    compile(''.join(cell['source']),str(path),'exec')
+    def test_templates_are_structurally_valid_and_output_free(self):
+        self.assertEqual(checker.main([]), 0)
+
+    def test_template_checker_rejects_saved_results_and_malformed_cells(self):
+        clean = dict(nbformat=4, nbformat_minor=5, metadata={}, cells=[
+            dict(cell_type='code', id='setup', metadata={}, source='%matplotlib inline',
+                 outputs=[], execution_count=None)])
+        checker.validate(clean)  # Notebook magics are valid cell contents.
+        for field, value in [('outputs', [{'output_type': 'stream', 'text': 'result'}]),
+                             ('execution_count', 1), ('source', [17]),
+                             ('metadata', None), ('cell_type', 'invalid'), ('id', '')]:
+            with self.subTest(field=field):
+                notebook = deepcopy(clean)
+                notebook['cells'][0][field] = value
+                with self.assertRaises(ValueError):
+                    checker.validate(notebook)
+        for field in ['outputs', 'execution_count']:
+            notebook = deepcopy(clean)
+            del notebook['cells'][0][field]
+            with self.assertRaises(ValueError):
+                checker.validate(notebook)
+        duplicate = deepcopy(clean)
+        duplicate['cells'] *= 2
+        with self.assertRaises(ValueError):
+            checker.validate(duplicate)
+
+    def test_template_checker_ignores_checkpoints_and_does_not_rewrite_files(self):
+        template = ROOT/'software/notebooks/hardware/operations_template.ipynb'
+        content = template.read_bytes()
+        (self.base/'template.ipynb').write_bytes(content)
+        checkpoints = self.base/'.ipynb_checkpoints'
+        checkpoints.mkdir()
+        (checkpoints/'template-checkpoint.ipynb').write_text('not json')
+        with patch.object(checker, 'ROOT', self.base):
+            self.assertEqual(checker.main([]), 0)
+        self.assertEqual((self.base/'template.ipynb').read_bytes(), content)
 
     def test_failed_cosim_invocation_keeps_log_and_separate_directory(self):
         root = self.create()
