@@ -4,26 +4,60 @@
 # No part may be copied, modified, propagated or distributed except under
 # those license terms.
 
-from pydm.widgets import PyDMSpinbox
+from pydm.widgets import PyDMLabel, PyDMSpinbox
+from qtpy.QtCore import Qt
+from qtpy.QtWidgets import (
+    QFormLayout, QScrollArea, QSizePolicy, QSplitter, QTabWidget,
+    QVBoxLayout, QWidget,
+)
 
 import warm_tdm_api.widgets as widgets
 
 
 class FasTuningTab(widgets.TuningTab):
+    """Scrollable tuning controls alongside individually tabbed plots."""
 
     def _process_widget(self):
         return widgets.TwoColumnProcess(init_channel=self._process_channel())
 
-    def _plot_channels(self):
-        return [
-            self.channel + '.SweepPlot',
-            self.channel + '.TunePlot',
-            self.channel + '.DiscoveryPlot',
-        ]
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        splitter = QSplitter(Qt.Horizontal)
+        splitter.setChildrenCollapsible(False)
+        layout.addWidget(splitter)
 
-    def _info_fields(self):
-        path = self.channel
-        return [
-            (path + '.PlotRow/name', path + '.PlotRow', PyDMSpinbox),
-            (path + '.PlotDiscoveryRow/name', path + '.PlotDiscoveryRow', PyDMSpinbox),
-        ]
+        controls = QWidget()
+        controls_layout = QVBoxLayout(controls)
+        controls_layout.setContentsMargins(0, 0, 0, 0)
+        controls_layout.addWidget(self._process_widget())
+        controls_layout.addStretch()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setWidget(controls)
+        splitter.addWidget(scroll)
+
+        plots = QTabWidget()
+        for title, plot_name, selector in (
+                ('Sweep', 'SweepPlot', 'PlotRow'),
+                ('Tune Summary', 'TunePlot', None),
+                ('Discovery', 'DiscoveryPlot', 'PlotDiscoveryRow')):
+            page = QWidget()
+            page_layout = QVBoxLayout(page)
+            if selector is not None:
+                channel = self.channel + '.' + selector
+                fields = QFormLayout()
+                value = PyDMSpinbox(init_channel=channel)
+                value.showStepExponent = False
+                value.writeOnPress = True
+                fields.addRow(PyDMLabel(init_channel=channel + '/name'), value)
+                page_layout.addLayout(fields)
+            plot = widgets.LightPlotter(
+                init_channel=self.channel + '.' + plot_name)
+            plot.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+            page_layout.addWidget(plot, 1)
+            plots.addTab(page, title)
+        splitter.addWidget(plots)
+        splitter.setSizes([600, 900])
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 1)

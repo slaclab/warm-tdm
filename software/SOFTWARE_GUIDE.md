@@ -249,6 +249,11 @@ their data and trace colors. The PID monitor assigns colors by channel and uses 
 full-feedback traces in Both mode. Styling does not change global Matplotlib
 or PyQtGraph defaults.
 
+FAS Tuning places its two-column process controls in a scrollable left pane.
+The right pane has separate **Sweep**, **Tune Summary**, and **Discovery** plot
+tabs, with the row selectors on their respective Sweep and Discovery tabs.
+Drag the divider to adjust the space allocated to controls and plots.
+
 ### PID Lock tab
 
 Use **Add channels…** to search board/column names or enter **global columns**

@@ -5,6 +5,9 @@ import warm_tdm_api.widgets as widgets
 
 class SaTuningTab(widgets.TuningTab):
 
+    def _process_widget(self):
+        return widgets.TwoColumnProcess(init_channel=self._process_channel())
+
     def _plot_channels(self):
         return [self.channel + '.Plot']
 
