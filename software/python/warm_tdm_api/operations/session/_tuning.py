@@ -34,7 +34,7 @@ class TuningMixin:
         """Configure, start, and (optionally) block on a Group ``pr.Process``.
 
         Replaces the hand-rolled ``proc.Start(); while proc.Running.get(): ...``
-        idiom (see the old ``scripts/Jupyter.py``). Any of the Group tuning
+        idiom from the retired notebook bootstrap. Any of the Group tuning
         processes -- SaOffset, SaTune, Sq1Tune, FasTune, ... -- is driven by node
         name, since they all share the ``pr.Process`` interface.
 

@@ -192,7 +192,7 @@ def check_readout(sess, args, report, directory):
     report['final_state'] = 'timing stopped; row list, timing settings, PID controls and masks restored'
 
 
-def main():
+def main(argv=None):
     p = parser(__doc__)
     p.add_argument('--rows', type=int, default=2)
     p.add_argument('--num-pts', type=int, default=512)
@@ -204,7 +204,7 @@ def main():
     p.add_argument('--interrupt-after', type=positive, default=1.0)
     p.add_argument('--raw', action='store_true')
     p.add_argument('--raw-timeout', type=positive, default=600.0)
-    return run(p.parse_args(), check_readout)
+    return run(p.parse_args(argv), check_readout)
 
 
 if __name__ == '__main__':

@@ -84,11 +84,11 @@ def check_controls(sess, args, report, directory):
            limitation='Coefficient transactions only; no analog filter response measurement')
 
 
-def main():
+def main(argv=None):
     p = parser(__doc__)
     p.add_argument('--broadcasts-only', action='store_true', help='only test the Group broadcast controls')
     p.add_argument('--fir', action='store_true', help='also test the compiled-in ADC FIR register bank')
-    args = p.parse_args()
+    args = p.parse_args(argv)
     if args.fir and args.broadcasts_only:
         p.error('--fir and --broadcasts-only are mutually exclusive')
     return run(args, check_controls)

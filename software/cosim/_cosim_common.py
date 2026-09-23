@@ -145,9 +145,9 @@ def run(args, check):
         source_dir = directory / 'scripts'
         source_dir.mkdir()
         # verify_stop_and_zero.py and _hwtest_common.py are hardware-bench helpers
-        # that stay in software/scripts/hwtest/ (verify_cosim_stop_zero reuses
+        # that stay in software/hwtest/ (verify_cosim_stop_zero reuses
         # run_cycles from the former); reference them there for provenance.
-        hwtest = ROOT / 'software/scripts/hwtest'
+        hwtest = ROOT / 'software/hwtest'
         script_paths = list(Path(__file__).parent.glob('verify_cosim_*.py')) + [Path(__file__), hwtest / 'verify_stop_and_zero.py', hwtest / '_hwtest_common.py']
         report['script_sha256'] = {}
         for path in script_paths:

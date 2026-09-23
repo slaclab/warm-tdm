@@ -120,6 +120,9 @@ class TopologyCore:
                 "No output directory set for this Session. Call "
                 "session.new_session(path) (or ops.connect(..., path=...)) "
                 "before taking or saving data.")
+        if getattr(self.output, 'run_dir', None) is not None:
+            from warm_tdm_run import validate_run
+            validate_run(self.output.run_dir)
         return self.output.sessiondir
 
     # ---- board enumeration + read-only reporting -----------------------

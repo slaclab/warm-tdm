@@ -44,10 +44,10 @@ Example (fresh sim, lock 4 rows then ramp TES through many flux jumps):
       --tes-steps 20 --tes-step-uA 4
 """
 import argparse
+import json
 import sys
 import time
 from pathlib import Path
-from types import SimpleNamespace
 
 import numpy as np
 
@@ -91,6 +91,7 @@ def build_parser():
                    help='TesBias increment per step [uA] (keep < one Phi0 so the servo tracks continuously)')
     p.add_argument('--tes-settle', type=float, default=5.0,
                    help='seconds to settle after each TesBias step')
+    p.add_argument("--run-dir", type=Path, help="Existing measurement run")
     return p
 
 
@@ -100,23 +101,34 @@ def mae(dsp, rows):
 
 def main(argv=None):
     args = build_parser().parse_args(argv)
+    sys.path.insert(0, str(ROOT / 'software/python'))
+    import warm_tdm_run as runs
+    run_dir = runs.validate_run(args.run_dir) if args.run_dir else None
     sys.path.insert(0, str(ROOT / 'software/scripts'))
     import _setupLibPaths  # noqa: F401
     import pyrogue.interfaces
     import warm_tdm_api.operations as ops
 
     client = pyrogue.interfaces.VirtualClient(addr=args.host, port=args.port)
-    sess = ops.Session(client.root.Group,
-                       output=SimpleNamespace(sessiondir='/tmp/cosim_pid_lock'))
-    cb = sess.coordinator_cb
-    tx = cb.WarmTdmCore.Timing.TimingTx
-    dsp = cb.DataPath.AdcDsp[args.col]
+    tx = None
     try:
+        sess = ops.Session(client.root.Group,
+                           output=ops.OutputDir.existing_run(run_dir) if run_dir else None)
+        if not 0 < args.rows <= int(sess.group.MaxRows.get()):
+            raise ValueError('rows must fit the configured logical row count')
+        if not 0 <= args.col < int(sess.group.NumColumns.get()):
+            raise ValueError('col is outside this Group')
+        board, channel = sess.col_to_board_chan(args.col)
+        cb = sess.cbs[board]
+        tx = sess.coordinator_cb.WarmTdmCore.Timing.TimingTx
+        dsp = cb.DataPath.AdcDsp[channel]
         if bool(tx.Running.get()):
             tx.EndRun()
             time.sleep(0.4)
 
         # 0) fresh-sim fixture: RowMap + FAS-on + SA/SQ1 seed (runs saOffset).
+        if run_dir:
+            runs.record_connection(sess, run_dir, args.host, args.port)
         if args.seed_tune_points:
             sess.group.SetCosimTunePoints()
             print("Ran SetCosimTunePoints()")
@@ -169,6 +181,12 @@ def main(argv=None):
         print(f"final per-row AccumError:    {final}")
         print(f"FluxJumps: {[int(x) for x in np.asarray(dsp.FluxJumps.get())[:args.rows]]}")
 
+        if run_dir:
+            report_path = run_dir / 'data' / f'pid-lock-{time.time_ns()}.json'
+            report_path.write_text(json.dumps(dict(trajectory=traj, final=final, arguments=vars(args)),
+                                               indent=2, default=str) + '\n')
+            print(f'Lock trajectory: {report_path}')
+
         # TES flux-jump ramp: walk TesBias and read the FluxJumps register
         # (ground truth) at each step. A locked servo tracks the TES-induced
         # flux and wraps at +/-7862; FluxJumps should climb monotonically while
@@ -196,7 +214,7 @@ def main(argv=None):
                 sess.group.TesBias.set(index=args.col, value=base)
     finally:
         try:
-            if bool(tx.Running.get()):
+            if tx is not None and bool(tx.Running.get()):
                 tx.EndRun()
         finally:
             client.stop()

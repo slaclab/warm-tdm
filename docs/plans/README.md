@@ -22,6 +22,7 @@ remain distinct.
 
 | Workstream | Current handoff | Owner or boundary |
 |---|---|---|
+| Software entry points and measurement notebooks | [Software workflows](software-workflows/README.md) | Local implementation; issue owner not assigned |
 | Frame identity and file-channel integration | [Channelization](channelization/PLAN.md) | [#82](https://github.com/slaclab/warm-tdm/issues/82) |
 | Resource settings, legacy removal and build coverage | [Resource integration](resource-integration/README.md) | [#70](https://github.com/slaclab/warm-tdm/issues/70); capacity discovery is [#73](https://github.com/slaclab/warm-tdm/issues/73) |
 | Coordinator-only Ethernet and constraints | [Coordinator Ethernet](coordinator-ethernet/README.md) | Related #70 resource work; explicit acceptance ownership remains to be assigned |

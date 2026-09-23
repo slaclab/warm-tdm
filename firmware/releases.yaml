@@ -7,17 +7,19 @@ RoguePackages:
   - ../software/python
 
 RogueScripts:
-  - ../software/scripts/DataFileReader.py
-  - ../software/scripts/PidDebugFileReader.py
+  - ../software/scripts/_setupLibPaths.py
+  - ../software/scripts/inspect_stream.py
+  - ../software/scripts/PromLoader
   - ../software/scripts/warmTdmClientCmd.py
   - ../software/scripts/warmTdmClientGui.py
-  - ../software/scripts/warmTdmEmulate.py
   - ../software/scripts/warmTdmGui.py
   - ../software/scripts/warmTdmServer.py
 
 CondaDependencies:
+  - python>=3.8
   - rogue
   - numpy
+  - scipy
   - pyyaml
   - pyzmq
   - parse

@@ -131,12 +131,12 @@ def check_tuning(sess, args, report, directory):
                              'Timeout requests cooperative Stop; VCS/transport cleanup may exceed wall timeout']
 
 
-def main():
+def main(argv=None):
     p = parser(__doc__)
     p.add_argument('--profile', type=Path, required=True, help='fixture-specific reduced tuning parameters and thresholds')
     p.add_argument('--cancel-only', action='store_true', help='test timeout/Stop twice instead of convergence')
     p.add_argument('--process-timeout', type=positive, default=600.0)
-    return run(p.parse_args(), check_tuning)
+    return run(p.parse_args(argv), check_tuning)
 
 
 if __name__ == '__main__':
