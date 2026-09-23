@@ -6,6 +6,8 @@
 ## to the terms contained in the LICENSE.txt file.
 ##############################################################################
 import time
+import queue
+import threading
 import pyrogue as pr
 import pyrogue.interfaces.simulation
 import numpy as np
@@ -28,18 +30,34 @@ class PidRowDebuggerBase(pr.Device):
                         'full feedback, net wraps, mean error, drops, format, wrap period, flags.',
             groups=['NoConfig', 'NoStream', 'NoState']))
 
-    def updateSample(self, msg):
-        # Use the decoded frame, never a series of independently updated scalar
-        # variables. Cached DSP configuration avoids SRP I/O in the receive thread.
-        dsp = self.debugDev._dsp
+    @staticmethod
+    def _configFor(dsp, row, msg):
+        # Cached DSP configuration (no SRP I/O on the receive thread), shared by
+        # the throttle gate and the coherent sample so they never disagree.
         if dsp is None:
             quantum, committed = float('nan'), False
         else:
             quantumVar = (dsp.FluxQuantumFpRaw if msg.header.formatType == warm_tdm.FormatType.PID_FLOAT
                           else dsp.FluxQuantumRaw)
             quantum = quantumVar.value()
-            committed = bool(dsp.PidEnableRaw.value() and (dsp.RowEnableMask.value() >> self.row) & 1)
+            committed = bool(dsp.PidEnableRaw.value() and (dsp.RowEnableMask.value() >> row) & 1)
         config = (quantum if np.isfinite(quantum) else None, committed, msg.header.formatVersion)
+        return quantum, committed, config
+
+    def throttled(self, msg):
+        # True when the last publish for this row is still inside the ~10 Hz
+        # display interval with unchanged config. process() gates on this to skip
+        # the whole decode-to-notify path -- not just the final Sample.set -- so a
+        # high-rate muxed run cannot swamp the Rogue receive thread and stall
+        # unrelated variable updates (e.g. the waveform tab). A config change
+        # always breaks the gate, matching updateSample.
+        _, _, config = PidRowDebuggerBase._configFor(self.debugDev._dsp, self.row, msg)
+        return time.monotonic() < self._nextSampleAt and config == self._sampleConfig
+
+    def updateSample(self, msg):
+        # Use the decoded frame, never a series of independently updated scalar
+        # variables.
+        quantum, committed, config = PidRowDebuggerBase._configFor(self.debugDev._dsp, self.row, msg)
         now = time.monotonic()
         if now < self._nextSampleAt and config == self._sampleConfig:
             return
@@ -135,7 +153,24 @@ class PidDebugger(pr.DataReceiver):
         self.col = col
         self._dsp = dsp
 
+        # Frames are handed off to a worker thread so the Rogue receive thread
+        # never blocks on decode/SRP/variable-notify work. A muxed run can emit
+        # thousands of PID-debug frames/s; the bounded queue sheds surplus rather
+        # than stalling the stream (and, in turn, unrelated variable updates).
+        self._queue = queue.Queue(maxsize=256)
+        self._worker = None
+
         super().__init__(memBase=self.mem, **kwargs)
+
+        self.add(pr.LocalVariable(
+            name = 'SwDropCount',
+            description = 'PID-debug frames dropped in software because the worker '
+                          'queue was full (distinct from the FPGA DropCount carried '
+                          'in each frame).',
+            mode = 'RO',
+            disp = '{:d}',
+            value = 0,
+            groups = ['NoConfig', 'NoStream', 'NoState']))
 
         self.add(pr.LocalVariable(
             name = 'Sq1FbFull',
@@ -274,12 +309,45 @@ class PidDebugger(pr.DataReceiver):
                 'debugDev': self} for row in range(numRows)]))
 
 
+    def _start(self):
+        super()._start()
+        if self._worker is None:
+            self._worker = threading.Thread(target=self._drain, name=f'PidDebug[{self.col}]',
+                                            daemon=True)
+            self._worker.start()
+
+    def _stop(self):
+        # Base _stop clears RxEnable so no further frames enqueue; then drain the
+        # worker with a sentinel and join it.
+        super()._stop()
+        worker, self._worker = self._worker, None
+        if worker is not None:
+            self._queue.put(None)
+            worker.join(timeout=2.0)
+
     def process(self, frame):
+        # Runs on the Rogue receive thread with the frame lock held: copy the
+        # bytes and hand off. All decode/SRP/variable work happens in _drain.
         fl = frame.getPayload()
         raw = bytearray(fl)
         frame.read(raw, 0)
+        try:
+            self._queue.put_nowait(raw)
+        except queue.Full:
+            self.SwDropCount.set(self.SwDropCount.value() + 1)
 
-        #print(f'Got PID Debug frame for col {self.col}, row {raw[1]}, size {fl}')
+    def _drain(self):
+        while True:
+            raw = self._queue.get()
+            if raw is None:
+                return
+            try:
+                self._handleRaw(raw)
+            except Exception as exc:  # never let one bad frame kill the worker
+                self._log.error('PID debug worker error: %s', exc)
+
+    def _handleRaw(self, raw):
+        #print(f'Got PID Debug frame for col {self.col}, row {raw[1]}, size {len(raw)}')
         try:
             msg = warm_tdm.PidDebug.from_numpy(np.frombuffer(raw, dtype=np.uint8))
         except (ValueError, IndexError) as exc:
@@ -287,6 +355,13 @@ class PidDebugger(pr.DataReceiver):
             return
         if msg.col != self.col or msg.row not in self.RowPids.PID:
             self._log.warning('Ignoring PID frame for column %s, row %s', msg.col, msg.row)
+            return
+
+        # Drop frames still inside the row's ~10 Hz display interval before any
+        # further work: at muxed-run rates (thousands of visits/s/row) the block
+        # read, checkBlocks and per-visit variable updates below would otherwise
+        # flood Rogue's variable-notify pipeline and stall unrelated updates.
+        if self.RowPids.PID[msg.row].throttled(msg):
             return
 
         # Keep the existing diagnostic register offsets for both frame versions.

@@ -102,16 +102,15 @@ def test_live_receiver_normalizes_all_versions_and_clears_missing_full():
         'warm_tdm': formats,
     }):
         debugger = load('pid_debugger', 'firmware/python/warm_tdm/_PidDebugger.py')
-    row = SimpleNamespace(updateFromParser=Mock())
+    row = SimpleNamespace(updateFromParser=Mock(), throttled=Mock(return_value=False))
     receiver = SimpleNamespace(
         col=3, mem=SimpleNamespace(_data={}), Sq1FbFull=SimpleNamespace(set=Mock()),
         LogicalRow=SimpleNamespace(get=Mock(return_value=255)),
         RowPids=SimpleNamespace(PID={255: row}), readBlocks=Mock(), checkBlocks=Mock())
     for version in (3, 2, 1):
-        raw = frame(version)
-        f = SimpleNamespace(getChannel=lambda: 0x21, getPayload=lambda: len(raw),
-                            read=lambda dst, offset: dst.__setitem__(slice(None), raw))
-        debugger.PidDebugger.process(receiver, f)
+        # process() now only enqueues; the synchronous decode/normalize path is
+        # _handleRaw (run on the worker thread in production).
+        debugger.PidDebugger._handleRaw(receiver, bytearray(frame(version)))
         normalized = bytearray(frame(1)[16:])
         normalized[48:52] = (-1).to_bytes(4, 'little', signed=True)
         assert bytes(receiver.mem._data[i] for i in range(72)) == normalized
