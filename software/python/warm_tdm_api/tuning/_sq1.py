@@ -279,7 +279,10 @@ def sq1Tune(group, process, doSet=True, doBiasRamp=True):
         Program the fitted per-(column, row) lock point into the readout tables
         (``Sq1FbCurrent``/``Sq1BiasCurrent``/``SaFbCurrent``) after a complete
         sweep. Mirrors :func:`saTune`'s apply; a stopped run leaves the tables
-        unchanged.
+        unchanged. Also programs each tuned column's fitted flux period
+        (best-curve ``phinot``) into ``AdcDsp[col].FluxQuantum`` so the muxed
+        servo tracks flux jumps; a column with no usable period is skipped with
+        a warning and keeps its existing FluxQuantum.
     doBiasRamp : bool, default=True
         Sweep SQ1 bias for every row when true; otherwise acquire one curve at
         each row's loaded SQ1-bias values.
@@ -430,6 +433,39 @@ def sq1Tune(group, process, doSet=True, doBiasRamp=True):
         group.Sq1FbCurrent.set(sq1FbTable)
         group.Sq1BiasCurrent.set(sq1BiasTable)
         group.SaFbCurrent.set(saFbTable)
+
+        # Program each tuned column's flux-wrap period into its AdcDsp so the
+        # muxed servo can track flux jumps. FluxQuantum is per-column (not
+        # per-row), so use the column's best-curve phinot from the first tuned
+        # row -- the feedback period is a per-SQUID property, so row 0's fitted
+        # Phi0 is representative. Without this the muxed run leaves FluxQuantum
+        # at the RTL default (0 = wrap disabled) and never arms flux tracking.
+        col_boardchan = list(group.col_iter())
+        firstRow = outputs[0]
+        for col in enabledColumns:
+            result = firstRow[col]
+            # bestCurve/phinot are populated by CurveData.update() (run via the
+            # publish/asDict path); recompute defensively before reading.
+            result.update()
+            bestCurve = getattr(result, 'bestCurve', None)
+            phinot = getattr(bestCurve, 'phinot', None) if bestCurve is not None else None
+            # A missing/degenerate period must not discard the lock point that
+            # already applied cleanly -- skip that column with a warning instead.
+            if phinot is None or not np.isfinite(phinot) or phinot <= 0:
+                log.warning(
+                    'SQ1 tune: no usable flux period (phinot) for column %s; '
+                    'leaving its AdcDsp FluxQuantum unchanged', col)
+                continue
+            board, chan = col_boardchan[col]
+            dsp = group.HardwareGroup.ColumnBoard[board].DataPath.AdcDsp[chan]
+            # The FluxQuantum setter rejects a write while PID is enabled or
+            # ControlBusy is set and waits for completion itself; just ensure PID
+            # is off first. (The write also invalidates the stale per-row flux
+            # reference, which is correct for a freshly measured period.)
+            dsp.PidEnable.set(False)
+            dsp.FluxQuantum.set(float(phinot))
+            log.debug('SQ1 tune set column %s AdcDsp FluxQuantum = %.3f uA '
+                      '(best-curve phinot)', col, float(phinot))
     elif doSet and not completed:
         log.info('SQ1 tune stopped; leaving partial results unapplied')
 
