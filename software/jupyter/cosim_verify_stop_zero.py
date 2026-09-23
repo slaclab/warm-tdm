@@ -30,6 +30,7 @@
 # %%
 # %run ../scripts/_setupLibPaths.py
 
+import os
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -43,10 +44,15 @@ FORCE_uA = 50.0
 TOL_uA = 0.5
 SETTLE_SEC = 5.0
 NUM_PTS = 512
+# The output dir must exist at this exact absolute path -- run_cycles takes data
+# server-side (server + client share the host here). Create it explicitly and
+# pass it as the session dir, as _cosim_common.run does for the scripts.
+OUTPUT_DIR = "/tmp/cosim_stop_zero"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 client = pyrogue.interfaces.VirtualClient(addr=HOST, port=PORT)
 sess = ops.Session(client.root.Group,
-                   output=SimpleNamespace(sessiondir="/tmp/cosim_stop_zero"))
+                   output=SimpleNamespace(sessiondir=OUTPUT_DIR))
 group = sess.group
 sess.status()
 

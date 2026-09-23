@@ -48,6 +48,7 @@
 # %run ../scripts/_setupLibPaths.py
 # %matplotlib inline
 
+import os
 import time
 from types import SimpleNamespace
 
@@ -57,10 +58,15 @@ import pyrogue.interfaces
 import warm_tdm_api.operations as ops
 
 HOST, PORT = "localhost", 9099
+# The output dir must exist at this exact absolute path -- DataWriter files are
+# created server-side (server + client share the host here). Create it explicitly
+# and pass it as the session dir, as _cosim_common.run does for the scripts.
+OUTPUT_DIR = "/tmp/cosim_pid_lock"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 client = pyrogue.interfaces.VirtualClient(addr=HOST, port=PORT)
 sess = ops.Session(client.root.Group,
-                   output=SimpleNamespace(sessiondir="/tmp/cosim_pid_lock"))
+                   output=SimpleNamespace(sessiondir=OUTPUT_DIR))
 group = sess.group
 cb = sess.coordinator_cb
 tx = cb.WarmTdmCore.Timing.TimingTx

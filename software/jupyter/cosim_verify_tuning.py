@@ -37,6 +37,8 @@
 # %matplotlib inline
 
 import time
+
+import os
 from types import SimpleNamespace
 
 import numpy as np
@@ -45,25 +47,33 @@ import pyrogue.interfaces
 import warm_tdm_api.operations as ops
 
 HOST, PORT = "localhost", 9099
-PROCESS_TIMEOUT = 600.0
+PROCESS_TIMEOUT = 900.0   # per-process cap; the closed-loop SQ1 servo is slow in cosim
 TIMING_TIMEOUT = 120.0
 
-# Reduced tuning profile (mirror software/cosim/cosim_tuning.example.json).
+# Reduced tuning profile. Mirrors software/cosim/cosim_tuning.example.json, which
+# is the profile validated against this fixture. Keep it to ONE row for a demo
+# run: the closed-loop SQ1 servo is expensive over the cosim, and each extra row
+# roughly doubles the SQ1 sweep time (2 rows exceeded a 600 s cap here). Widen
+# rows/steps only with a correspondingly larger PROCESS_TIMEOUT.
 PROFILE = {
     "columns": [0],
-    "rows": [0, 1],
+    "rows": [0],
     "sa_offset": {},
-    "sa_tune": {"SaFbNumSteps": 32, "SaBiasNumSteps": 1,
-                "SaFbLowOffset": 0.0, "SaFbHighOffset": 100.0},
-    "sq1_tune": {"Sq1FbNumSteps": 32, "Sq1BiasNumSteps": 1,
-                 "Sq1FbLowOffset": -30.0, "Sq1FbHighOffset": 30.0,
-                 "ServoDisable": False},
-    "minimum_curve_span": {"sa": 0.05, "sq1": 0.05},
+    "sa_tune": {"SaBiasLowOffset": 0.0, "SaBiasHighOffset": 50.0, "SaBiasNumSteps": 2,
+                "SaFbLowOffset": 0.0, "SaFbHighOffset": 300.0, "SaFbNumSteps": 32,
+                "SaFbSampleDelay": 1.0},
+    "sq1_tune": {"Sq1BiasLowOffset": 0.0, "Sq1BiasHighOffset": 100.0, "Sq1BiasNumSteps": 2,
+                 "Sq1FbLowOffset": -77.0, "Sq1FbHighOffset": 77.0, "Sq1FbNumSteps": 32,
+                 "ServoPrecision": 0.01, "ServoMaxLoops": 40, "ServoDisable": False},
+    "minimum_curve_span": {"sa": 0.001, "sq1": 0.001},
 }
+
+OUTPUT_DIR = "/tmp/cosim_tuning"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 client = pyrogue.interfaces.VirtualClient(addr=HOST, port=PORT)
 sess = ops.Session(client.root.Group,
-                   output=SimpleNamespace(sessiondir="/tmp/cosim_tuning"))
+                   output=SimpleNamespace(sessiondir=OUTPUT_DIR))
 group = sess.group
 sess.status()
 

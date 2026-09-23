@@ -31,6 +31,7 @@
 # %matplotlib inline
 
 import _thread
+import os
 import threading
 from types import SimpleNamespace
 
@@ -52,10 +53,17 @@ INTERRUPT_AFTER = 1.0
 TEST_RAW = False       # add a raw ADC capture (can be slow in VCS)
 RAW_TIMEOUT = 600.0
 TIMING_TIMEOUT = 120.0
+# DataWriter files are created SERVER-side, so the output dir must exist at this
+# exact absolute path (server and client share the host/filesystem here). Create
+# it explicitly and pass it as the session dir -- the same thing _cosim_common.run
+# does for the scripts. (ops.OutputDir would nest date/ctime and silently fall
+# back to another base if this path is missing, so create-then-pass is clearer.)
+OUTPUT_DIR = "/tmp/cosim_readout"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 client = pyrogue.interfaces.VirtualClient(addr=HOST, port=PORT)
 sess = ops.Session(client.root.Group,
-                   output=SimpleNamespace(sessiondir="/tmp/cosim_readout"))
+                   output=SimpleNamespace(sessiondir=OUTPUT_DIR))
 group = sess.group
 cb = sess.coordinator_cb
 tx = cb.WarmTdmCore.Timing.TimingTx

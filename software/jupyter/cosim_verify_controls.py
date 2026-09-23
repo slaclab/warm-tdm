@@ -31,6 +31,8 @@
 # %run ../scripts/_setupLibPaths.py
 # %matplotlib inline
 
+
+import os
 from types import SimpleNamespace
 
 import numpy as np
@@ -42,9 +44,12 @@ BROADCASTS_ONLY = False   # only test the Group broadcast controls
 TEST_FIR = False          # also test the compiled-in ADC FIR bank (needs GEN_ADC_FILTER_G=true)
 TIMING_TIMEOUT = 120.0
 
+OUTPUT_DIR = "/tmp/cosim_controls"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
 client = pyrogue.interfaces.VirtualClient(addr=HOST, port=PORT)
 sess = ops.Session(client.root.Group,
-                   output=SimpleNamespace(sessiondir="/tmp/cosim_controls"))
+                   output=SimpleNamespace(sessiondir=OUTPUT_DIR))
 group = sess.group
 sess.status()
 
