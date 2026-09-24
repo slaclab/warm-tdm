@@ -9,6 +9,16 @@ missing first responses and batched versus sequential reads. Sync that directory
 and the server software changes with the checkout; keep collected logs and captures outside Git as instructed.
 The earlier investigation and implementation evidence remain below.
 
+The next firmware candidate is prepared on SURF branch
+`fix/rssi-rx-keepalive-integration`, based on `8d256ca84` and incorporating
+[SURF PR #1456](https://github.com/slaclab/surf/pull/1456) at `5641e673f`.
+Its [integration handoff](../../../firmware/submodules/surf/docs/plans/rssi-rx-keepalive/README.md)
+records the source boundary, passing focused simulations and original-RX
+comparison failures. The SURF submodule pins the combined candidate; update
+submodules after pulling this checkout. Build and hardware acceptance remain
+pending; compare against the tested `0b73019` image with the keepalive fix
+retained in both candidates.
+
 ## Goal and reported behavior
 
 Bench topology: one column coordinator and one row board, both AxiVersion
