@@ -1,53 +1,34 @@
 #!/usr/bin/env python3
+# This file is part of the WarmTDM software package. It is subject to
+# the license terms in LICENSE.txt in the top-level directory and at:
+# https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part may be copied, modified, propagated or distributed except under
+# those license terms.
+"""Interactive client: exposes client, group, sess and ops without changing hardware."""
 import argparse
-import logging
-
-import pyrogue
-import pyrogue.pydm
-import pyrogue.interfaces
-import rogue
-
-import _setupLibPaths  # noqa: F401  (registers in-repo library paths)
-
-import warm_tdm_api
-
-#rogue.Logging.setFilter('pyrogue.memory.block', rogue.Logging.Debug)
-#rogue.Logging.setFilter('pyrogue.stream.TcpCore', rogue.Logging.Debug)
-#rogue.Logging.setFilter('pyrogue.SrpV3', rogue.Logging.Debug)
-#logging.getLogger('pyrogue.Device').setLevel(logging.DEBUG)
-#logging.getLogger('pyrogue.Variable').setLevel(logging.DEBUG)
-
-parser = argparse.ArgumentParser()
-
-parser.add_argument(
-    "--host",
-    type     = str,
-    required = False,
-    default = 'localhost')
-
-parser.add_argument(
-    "--port",
-    type     = int,
-    required = False,
-    default = 9099)
+import code
 
 
-args = parser.parse_known_args()[0]
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--host', default='localhost')
+    parser.add_argument('--port', type=int, default=9099)
+    parser.add_argument('--run-dir', help='Existing measurement run for data/config output')
+    args = parser.parse_args(argv)
+    import _setupLibPaths  # noqa: F401
+    import pyrogue.interfaces
+    import warm_tdm_api.operations as ops
+    # Validate output before connecting, just as notebook ops.connect does.
+    output = ops.OutputDir.existing_run(args.run_dir) if args.run_dir else None
+    client = pyrogue.interfaces.VirtualClient(addr=args.host, port=args.port)
+    try:
+        group = client.root.Group
+        sess = ops.set_default_session(ops.Session(group, output=output))
+        code.interact(banner='Warm TDM: client, group, sess, ops. No hardware setup has been performed.',
+                      local=dict(client=client, group=group, sess=sess, ops=ops))
+    finally:
+        client.stop()
 
 
-client = pyrogue.interfaces.VirtualClient(args.host, args.port)
-#group = client.root.Group
-
-
-def setSaFb(channel, value):
-    group.SaFbForce.set(value=value, index=channel)
-
-def setSaBias(channel, value):
-    group.SaBias.set(value=value, index=channel)
-
-def getSaOut(channel=-1):
-    print(group.SaOut.get(index=channel))
-
-def getSaOutAdc(channel=-1):
-    print(group.SaOutAdc.get(index=channel))
-    
+if __name__ == '__main__':
+    main()

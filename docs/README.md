@@ -11,11 +11,12 @@ not a claim that those changes have been released or accepted on hardware.
 |---|---|
 | Firmware layout, conventions and builds | [Firmware guide](../firmware/FIRMWARE_GUIDE.md), [targets](../firmware/targets/README.md) |
 | Python device tree, tuning and GUI | [Software guide](../software/SOFTWARE_GUIDE.md) |
+| Copied notebooks, measurement records and reconnecting | [Notebook run workflow](notebook-runs.md) |
 | Client sessions, setup, acquisition and analysis | [Operations API](operations-api.md) |
 | Software TES waveforms | [TES bias waveform guide](tes-bias-waveform.md) |
 | Local software/RTL regressions and their limits | [Regression guide](../tests/README.md) |
 | Full GroupTb simulation | [Build/server setup](../firmware/simulations/GroupTb/README_cosim.md), [client checks](../software/cosim/README_cosim.md) |
-| Physical bench checks | [Hardware-test scripts](../software/scripts/hwtest/README.md) |
+| Physical bench checks | [Hardware-test scripts](../software/hwtest/README.md) |
 | Issues, acceptance and PR integration | [Development workflow](WORKFLOW.md) |
 | Candidate selection and releases | [Release guide](RELEASE.md) |
 
@@ -38,6 +39,7 @@ not a claim that those changes have been released or accepted on hardware.
 These analyses retain their stated source revisions and assumptions. They
 are useful evidence and rationale, not current tuning presets or acceptance.
 
+- [Historical measurement notebooks](reference/measurements/README.md)
 - [Integer/FP path comparison](reference/pid-path-comparison.md)
 - [MCE feedback-law comparison](reference/mce-controller-comparison.md)
 - [Physical PID coefficient derivation](reference/pid-coefficients.md)

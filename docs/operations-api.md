@@ -12,9 +12,11 @@ this one only points at:
 - **[`docs/design/muxed-run-bringup.md`](design/muxed-run-bringup.md)** — the
   *why*: the three configuration layers (enabled set / tune point / run settings),
   their ordering, and the planned tune-point save/restore.
-- **[`software/jupyter/operations_template.py`](../software/jupyter/operations_template.py)**
-  — a worked, runnable end-to-end workflow on this API (jupytext `.py` source of
-  truth + generated `.ipynb`).
+- **[`software/notebooks/hardware/operations_template.ipynb`](../software/notebooks/hardware/operations_template.ipynb)**
+  — a maintained end-to-end notebook template for this API.
+
+For copied notebooks and durable measurement records, start with
+[Notebook measurement runs](notebook-runs.md).
 
 ## Getting started
 
@@ -82,7 +84,7 @@ connect ─► status ─► (A) enabled set ─► (B) tune ─► (C) setup_mu
 - **C — run settings:** how the muxed run is clocked and servoed
   (`setup_mux` — timing, sample window, PID enable).
 
-See [`operations_template.py`](../software/jupyter/operations_template.py) for the
+See [`operations_template.ipynb`](../software/notebooks/hardware/operations_template.ipynb) for the
 full sequence with real parameters.
 
 ## API reference
@@ -94,14 +96,25 @@ Session exists (`ops.foo(...)` delegates to `sess.foo(...)`).
 
 | Call | What it does |
 |---|---|
-| `ops.connect(host, port, path=…, group='Group')` | Build a `VirtualClient`, wrap its Group, cache as default. Returns the `Session`. |
-| `ops.use(client, path=…, group='Group')` | Wrap an already-connected client's Group, cache as default. |
+| `ops.connect(host, port, path=…, group='Group', run_dir=…)` | Build a `VirtualClient`, wrap its Group, cache as default. Returns the `Session`. |
+| `ops.use(client, path=…, group='Group', run_dir=…)` | Wrap an already-connected client's Group, cache as default. |
 | `ops.Session(group_node, output=…)` | Construct an explicit Session (preferred in scripts/tests). |
 | `ops.get_default_session()` / `ops.set_default_session(s)` | Read / set the cached default. |
 | `sess.new_session(base=…)` | Start a fresh timestamped output directory. |
 
-`OutputDir` owns the `<base>/<YYYYMMDD>/<ctime>/` data directory and falls back to
-a local `data` dir then `$HOME` if the requested base is not writable.
+The legacy `path=` interface creates `<base>/<YYYYMMDD>/<ctime>/` and falls back
+when that base is unavailable. For measurement notebooks, use `run_dir=` instead:
+it validates an existing run created by `new_run.py`, reuses its `data/` and
+`config/`, and never creates another run or falls back. `OutputDir.existing_run()`
+provides the same attachment for explicitly constructed Sessions. Do not combine
+`run_dir` with a custom `path`. The server must see the same absolute directory.
+
+`ops.sweep_pid_p(sess, column, gains, seconds=12, tolerance=20, results=None)`
+explores P on an already-running, tuned column. It reads the actual logical row
+indices, keeps I/D unchanged, and restores P in `finally`. An optional results
+list retains completed candidates on interruption. Applying a chosen gain is a
+separate `sess.set_pid(p=..., cols=[column])` call; timing ownership remains with
+the caller. See the gain-sweep template for acquisition/cleanup and limits.
 
 ### Hardware info & setup
 

@@ -7,7 +7,9 @@
 *.bin
 *.ipynb
 # ...but track curated, output-free template/reference notebooks:
-!software/jupyter/operations_template.ipynb
+!software/notebooks/**/*.ipynb
+!docs/reference/measurements/*.ipynb
+/runs/
 *.yml
 .ipynb_checkpoints/
 images/
@@ -42,3 +44,7 @@ software/scripts/warmTdmClientMuxTest.py
 firmware/python/warm_tdm/_AwaXeSq1BiasDriver.py
 firmware/targets/RowFpgaBoard160/sim/RowFpgaBoardTb.vhd
 .planning/
+
+# Legacy acquisition fallback; keep only its explanation.
+/software/data/*
+!/software/data/README.md

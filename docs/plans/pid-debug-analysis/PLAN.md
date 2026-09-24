@@ -143,7 +143,7 @@ Add `compare_pid`, `pid_metrics`, `diagnose_pid`, `recommend_gains`, `report_pid
 
 ## Phase 5: Collapse standalone scripts to thin CLIs
 
-`scripts/PidDebugFileReader.py` + `PidDebugFileReaderFp.py` → argparse wrappers over the ops
+`software/scripts/inspect_stream.py` is the consolidated summary reader; extend it with argparse analysis options over the ops
 module that can emit `report_pid`/`compare_pid_report`. Preserve `col&0b111`/`row&0xFF`
 masks, the offline (no device-tree) parse path, and the FP reader's data return. Drop the
 fixed reader cruft (`FastDacAmplifierSE`, broken `PidDebugMessage`, duplicated dtypes).

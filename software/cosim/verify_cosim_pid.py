@@ -468,7 +468,7 @@ def check(sess, args, report, directory):
                              'Sq1FbCurrent/TesBias restored')
 
 
-def main():
+def main(argv=None):
     p = parser(__doc__)
     p.add_argument('--mode', choices=['verify', 'measure'], default='verify')
     p.add_argument('--behaviors', default='steady,step',
@@ -516,7 +516,7 @@ def main():
     p.add_argument('--flux-jump-max', type=int, default=None)
     p.add_argument('--deadband', type=float, default=None,
                    help='settle tolerance for settling_visits (error units)')
-    return run(p.parse_args(), check)
+    return run(p.parse_args(argv), check)
 
 
 if __name__ == '__main__':

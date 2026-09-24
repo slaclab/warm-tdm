@@ -17,8 +17,8 @@ from _cosim_common import ROOT, parser, passed, positive, restore, run
 def check_stop_zero(sess, args, report, directory):
     # Lazy import so --help and pure validation do not require a Rogue environment.
     # run_cycles lives in the hardware-bench script verify_stop_and_zero.py, which
-    # stays in software/scripts/hwtest/; put that dir on sys.path to reach it.
-    sys.path.insert(0, str(ROOT / 'software/scripts/hwtest'))
+    # stays in software/hwtest/; put that dir on sys.path to reach it.
+    sys.path.insert(0, str(ROOT / 'software/hwtest'))
     from verify_stop_and_zero import run_cycles
     args.skip_cols = ''
     with restore([sess.group.ColEnableMask]):
@@ -30,14 +30,14 @@ def check_stop_zero(sess, args, report, directory):
     report['final_state'] = 'timing stopped, PID disabled, column outputs zeroed; per-row currents and column selection restored'
 
 
-def main():
+def main(argv=None):
     p = parser(__doc__)
     p.add_argument('--cycles', type=int, default=5)
     p.add_argument('--force-uA', type=positive, default=50.0)
     p.add_argument('--tol-uA', type=positive, default=0.5)
     p.add_argument('--settle-sec', type=positive, default=5.0)
     p.add_argument('--num-pts', type=int, default=512)
-    return run(p.parse_args(), check_stop_zero)
+    return run(p.parse_args(argv), check_stop_zero)
 
 
 if __name__ == '__main__':

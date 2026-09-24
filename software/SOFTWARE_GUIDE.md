@@ -11,7 +11,9 @@ configurations. Validate release packaging and CLI choices against the selected
 candidate; existing bitfiles still require a matching register tree.
 
 Use `software/scripts/warmTdmServer.py` (`--gui` for the server GUI).
-The old `warmTdmGui.py` and `gui.py` entry points were consolidated into it.
+`warmTdmGui.py` launches the same implementation with the GUI enabled;
+`warmTdmClientGui.py` connects a remote display. See the [entry-point index](README.md)
+and [notebook run workflow](../docs/notebook-runs.md).
 `GroupConfig` carries column/row board counts, `maxRows` and host; logical-row
 mapping is separate from physical row/chip select topology. Group variable
 implementations live in `_GroupVariables.py` and tuning algorithms in `tuning/`.
@@ -125,7 +127,7 @@ The coordinator board (RING_ADDR_0) bridges Ethernet to the PGP ring. All boards
 Connection modes:
 - **Hardware**: `UdpRssiPack` to real hardware IP
 - **Simulation**: TCP socket connections (`SIM_SRP_PORT=10000`, `SIM_DATA_PORT=20000`)
-- **Emulation**: `TdmGroupEmulate` provides software-only simulation of hardware behavior
+- **Emulation**: `MemEmulate` provides register-memory plumbing without analog/RTL behavior
 
 ## GroupLinkVariable Pattern
 
@@ -226,8 +228,9 @@ Read it before touching stream wiring or adding a data format.
 ## Configuration Management
 
 - **Save/Load**: `GroupRoot.SaveConfig` / `GroupRoot.LoadConfig` (standard PyRogue YAML)
-- **GroupConfigs** (`_GroupConfigs.py`): Manages hardware configuration profiles (IP, board counts, board classes)
-- **Config files**: Stored in `software/cfg/` as YAML
+- **GroupConfigs** (`_GroupConfig.py`): Manages hardware configuration profiles (IP, board counts, board classes)
+- **Config files**: Measurement snapshots live in each run’s `config/` directory;
+  see [notebook runs](../docs/notebook-runs.md).
 - **ConfigSelect** (`_ConfigSelect.py`): UI for choosing between saved configurations
 
 ## GUI Architecture
@@ -340,10 +343,11 @@ column enables, layout changes, pause/resume and removal/re-addition/teardown.
 |--------|---------|
 | `warmTdmServer.py` | PyRogue hardware server (use `--gui` to launch GUI) |
 | `warmTdmClientGui.py` | Remote GUI client (connects via ZMQ) |
-| `warmTdmClientCmd.py` | Command-line client |
-| `warmTdmEmulate.py` | Software emulation (no hardware) |
-| `DataFileReader.py` | Post-processing of recorded data files |
-| `PidDebugFileReader.py` | PID debug trace analysis |
+| `warmTdmClientCmd.py` | Interactive Python client (`client`, `group`, `sess`, `ops`) |
+| `warmTdmServer.py --emulate` | Register-memory emulation (no hardware) |
+| `inspect_stream.py` | Summary of recorded readout, integer/FP PID, waveform and config |
+| `new_run.py` | Offline creation of a measurement notebook/run directory |
+| `check_notebooks.py` | Read-only structure and cleared-output checks for notebook templates |
 
 ## Dependencies
 

@@ -38,12 +38,12 @@ warm-tdm/
 │   │   └── operations/         #   Client-side operational layer (acquisition,
 │   │                           #   setup, analysis); import explicitly
 │   ├── scripts/                # Executable entry points (server, GUI, client);
-│   │                           #   scripts/hwtest/ = physical-bench checks
+│   ├── hwtest/                 # Physical-bench checks and reproducers
 │   ├── cosim/                  # GroupTb/VCS cosim checks (VirtualClient) +
 │   │                           #   PID-lock driver; see README_cosim.md
-│   ├── cfg/                    # YAML hardware configuration files
-│   ├── lib/                    # C/C++ shared library
-│   └── jupyter/                # Analysis notebooks
+│   ├── examples/cpp_extension/ # Unmaintained native-extension reference
+│   ├── notebooks/              # Output-free hardware/cosim/diagnostic templates
+│   └── tests/                  # Unit tests and explicit Rogue smoke checks
 ├── docs/
 │   ├── RELEASE.md              # Release process + git workflow
 │   └── src/                    # Sphinx documentation source
@@ -149,6 +149,12 @@ For detailed firmware conventions, see [`firmware/FIRMWARE_GUIDE.md`](firmware/F
 - **Tuning**: Long-running algorithms implemented as `pr.Process` devices (start/stop/status)
 - **GUI**: PyDM-based widgets in `software/python/warm_tdm_api/widgets/`
 - **Client-server**: ZMQ-based PyRogue server; clients connect remotely
+
+Copy notebooks with `software/scripts/new_run.py` into external measurement
+directories (or ignored root `runs/`). Use `ops.connect(run_dir=...)` to reconnect
+to the same data/config directories. Executed notebooks and captures stay outside
+Git; see [`docs/notebook-runs.md`](docs/notebook-runs.md). Historical notebook
+outputs are preserved under `docs/reference/measurements/`.
 
 For detailed software conventions, see [`software/SOFTWARE_GUIDE.md`](software/SOFTWARE_GUIDE.md).
 

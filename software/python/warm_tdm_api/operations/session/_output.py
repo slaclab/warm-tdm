@@ -23,6 +23,17 @@ class OutputDir:
 
     DEFAULT_BASE = '/data/warm_tdm/'
 
+    @classmethod
+    def existing_run(cls, directory):
+        """Attach to an existing measurement run without creating or redirecting it."""
+        from warm_tdm_run import validate_run
+        root = validate_run(directory)
+        output = cls.__new__(cls)
+        output.run_dir = str(root)
+        output.sessiondir = str(root / 'data')
+        output.configdir = str(root / 'config')
+        return output
+
     def __init__(self, base=DEFAULT_BASE):
         base = self._resolve_base(base)
         self.date = datetime.datetime.now().strftime('%Y%m%d')
