@@ -16,8 +16,14 @@ launches the PyDM GUI or waits headless. The two thin scripts in
 - `warmTdmServer.py` runs headless unless `--gui` is passed.
 - `warmTdmGui.py` launches the GUI (`forceGui=True`).
 """
+import json
+import os
+import sys
+import time
+
 import pyrogue
 import pyrogue.pydm
+import rogue
 
 import warm_tdm_api
 
@@ -33,10 +39,51 @@ def runServer(forceGui=False):
         launches only when ``--gui`` is given.
     """
     parser = warm_tdm_api.WarmTdmArgparse()
+    diagnostics = parser.add_argument_group('Transport diagnostics')
+    diagnostics.add_argument('--transport-diagnostics', action='store_true',
+                             help='Log startup metadata without enabling DEBUG logging')
+    diagnostics.add_argument('--srp-debug', action='store_true',
+                             help='Enable SRP transaction/frame DEBUG logging')
+    diagnostics.add_argument('--rssi-debug', action='store_true',
+                             help='Enable RSSI controller DEBUG logging')
+    diagnostics.add_argument('--transaction-debug', action='store_true',
+                             help='Enable memory transaction DEBUG logging (verbose)')
+    diagnostics.add_argument('--column-mode', choices=('stock', 'batched', 'sequential'),
+                             default='stock',
+                             help='Diagnostic forceWaitEach override for ColumnBoard[0]')
     args = parser.parse_known_args()[0]
+    if args.column_mode != 'stock' and args.columnBoards < 1:
+        parser.error('--column-mode requires at least one column board')
+
+    debug_filters = (
+        ('SrpV3', args.srp_debug),
+        ('rssi.controller', args.rssi_debug),
+        ('memory.Transaction', args.transaction_debug),
+    )
+    for name, enabled in debug_filters:
+        if enabled:
+            rogue.Logging.setFilter(name, rogue.Logging.Debug)
+    if any(enabled for _, enabled in debug_filters):
+        rogue.Logging.setEmitStdout(True)
+    log_startup = (args.transport_diagnostics or args.column_mode != 'stock'
+                   or any(enabled for _, enabled in debug_filters))
     arg_dict = warm_tdm_api.arg_dict(args)
 
-    with warm_tdm_api.GroupRoot(**arg_dict) as root:
+    root = warm_tdm_api.GroupRoot(**arg_dict)
+    if args.column_mode != 'stock':
+        # Apply before startup/initial reads; child overrides retain their scope.
+        root.Group.HardwareGroup.ColumnBoard[0].forceWaitEach = args.column_mode == 'sequential'
+
+    with root:
+        if log_startup:
+            print(json.dumps(dict(
+                event='server_ready', epoch=time.time(), pid=os.getpid(),
+                argv=sys.argv, cwd=os.getcwd(), module=__file__,
+                zmq=root.zmqServer.address, column_mode=args.column_mode,
+                forced_devices=[d.path for d in root.find(typ=pyrogue.Device) if d.forceWaitEach],
+                root_timeout=getattr(root, '_timeout', None),
+                init_write=getattr(root, '_initWrite', None),
+                arguments=vars(args)), default=str), flush=True)
 
         if args.docs != '':
             root.genDocuments(path=args.docs, incGroups=['DocApi'], excGroups=['NoDoc', 'Enable', 'Hardware'])

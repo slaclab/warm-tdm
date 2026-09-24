@@ -1,5 +1,14 @@
 # Hardware ReadAll / register timeout investigation
 
+## Hardware agent handoff
+
+The [September 24 RSSI/SRP handoff](hardware-handoff/README.md) contains the
+normal-server startup instructions, virtual-client probes, packet decoder and report template for
+the current bench investigation. It covers the keepalive-patched image,
+missing first responses and batched versus sequential reads. Sync that directory
+and the server software changes with the checkout; keep collected logs and captures outside Git as instructed.
+The earlier investigation and implementation evidence remain below.
+
 ## Goal and reported behavior
 
 Bench topology: one column coordinator and one row board, both AxiVersion

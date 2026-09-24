@@ -18,6 +18,15 @@ and [notebook run workflow](../docs/notebook-runs.md).
 mapping is separate from physical row/chip select topology. Group variable
 implementations live in `_GroupVariables.py` and tuning algorithms in `tuning/`.
 
+On `channelization`, the server accepts opt-in `--srp-debug`, `--rssi-debug` and
+`--transaction-debug` transport logging flags. These also print a `server_ready`
+JSON record with startup settings and serialization flags; `--transport-diagnostics`
+prints that record without enabling DEBUG logging. `--column-mode stock|batched|sequential`
+optionally overrides `ColumnBoard[0].forceWaitEach` before startup (`stock` keeps
+the driver setting). Use `--no-initRead` and leave polling off for first-request
+experiments. See the [hardware handoff](../docs/plans/register-timeout/hardware-handoff/README.md)
+for commands and capture procedures. Ordinary startup defaults are unchanged.
+
 The maintained `_WarmTdmCore.py` and `_WarmTdmCommon.py` names now refer to the
 active implementations after their `2` suffix was removed. Old cleanup lists
 naming those files describe deleted legacy versions and must not be used as
