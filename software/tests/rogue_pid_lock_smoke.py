@@ -107,6 +107,8 @@ def main():
         connection.establish_widget_connections(widget)
         pump(app, 1)
         assert widget._built and widget._source is not None
+        # The tab opens empty and writes no hardware enable until a channel is added.
+        assert not widget._entries and widget._enabled_columns == set()
         assert all(not dsp.PidDebugEnable.value() for dsp in dsps.values())
         picker = PidChannelPicker(widget._source.topology, widget._entries, widget)
         picker.columns.setText('0, 3, 8')
@@ -119,6 +121,10 @@ def main():
             assert picker.grab().save(str(path.with_stem(path.stem + '-picker')))
         picker.rows.setText('0-999999999999')
         assert not picker.buttons.button(QDialogButtonBox.Ok).isEnabled()
+        picker.close()
+        # The picker excludes channels already selected in the window.
+        widget.add_channels([(0, 0)])
+        picker = PidChannelPicker(widget._source.topology, widget._entries, widget)
         picker.columns.setText('0')
         picker.rows.setText('0')
         assert not picker.pairs  # Already selected.
@@ -134,20 +140,13 @@ def main():
         assert widget._source.client is other._source.client
         assert set(other._entries) == {(0, 11)}
         assert monitor.ColumnSelect.value() == 0 and monitor.RowSelect.value() == 0
-        widget._debug_enable.click()
-        pump(app)
-        assert dsps[0].PidDebugEnable.value() and not dsps[8].PidDebugEnable.value()
-        widget._debug_column.setCurrentIndex(widget._debug_column.findData(8))
-        widget._debug_enable.click()
-        pump(app)
-        assert dsps[8].PidDebugEnable.value()
-        data_plugins.set_read_only(True)
-        widget._refresh_debug()
-        assert not widget._debug_enable.isEnabled()
-        widget._write_debug(False)
-        assert dsps[8].PidDebugEnable.value()
-        data_plugins.set_read_only(False)
-        widget._refresh_debug()
+        # Selecting channels auto-enables each selected column's stream (widget
+        # has columns 0 and 8 selected); the enabling window tracks what it turned on.
+        assert dsps[0].PidDebugEnable.value() and dsps[8].PidDebugEnable.value()
+        assert widget._enabled_columns == {0, 8}
+        # 'other' selected column 0 after 'widget' already enabled it, so 'other'
+        # does not claim it and will not disable it out from under 'widget'.
+        assert other._enabled_columns == set()
 
         def send_fixed(i, row):
             full = 3800 + i * 140 + (row - 10) * 200
@@ -238,13 +237,17 @@ def main():
         pump(app)
         assert widget._age.text() == 'Disconnected'
         assert not any(e['history'].samples for e in widget._entries.values())
-        assert not widget._debug_enable.isEnabled()
+        # A link drop forgets our enable ownership (we cannot safely toggle while
+        # unlinked); the re-sync on reconnect re-evaluates against live hardware.
+        assert widget._enabled_columns == set()
         widget._source._link_changed(True)
         pump(app)
         send_fixed(29, 10)
         pump(app)
         assert widget._entries[0, 10]['history'].last is not None
-        assert widget._debug_enable.isEnabled()
+        # Columns 0 and 8 were still enabled in hardware across the blip, so the
+        # re-sync leaves them on without re-claiming them.
+        assert dsps[0].PidDebugEnable.value() and dsps[8].PidDebugEnable.value()
         print('PASS: multi-row/board streams, independent windows, layouts, enables, pause, remove/re-add and teardown')
     finally:
         if other is not None:

@@ -15,7 +15,7 @@ from qtpy.QtCore import Qt, QTimer
 from qtpy.QtGui import QColor, QIcon, QPixmap
 from qtpy.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QSpinBox, QPushButton,
-    QCheckBox, QSplitter, QTableWidget, QTableWidgetItem, QHeaderView,
+    QSplitter, QTableWidget, QTableWidgetItem, QHeaderView,
     QAbstractItemView, QScrollArea, QMessageBox,
 )
 from warm_tdm import (
@@ -48,6 +48,10 @@ class PidLockTab(QWidget):
         self._epoch = None
         self._built = False
         self._next_color = 0
+        # Columns whose PID-debug stream this widget turned on (it was off when we
+        # selected it). We disable exactly these on deselect/close, never a column
+        # another client enabled. Enable is per column in hardware, not per row.
+        self._enabled_columns = set()
         style_display(self)
         self._setup_ui()
         self._timer = QTimer(self)
@@ -117,14 +121,9 @@ class PidLockTab(QWidget):
         self._selection_note = QLabel('Add channels to begin.')
         self._selection_note.setWordWrap(True)
         side.addWidget(self._selection_note)
-        side.addWidget(QLabel('Debug stream — per column'))
-        self._debug_column = QComboBox()
-        side.addWidget(self._debug_column)
-        self._debug_enable = QCheckBox('Enable debug stream')
-        self._debug_enable.setEnabled(False)
-        side.addWidget(self._debug_enable)
-        note = QLabel('Selection and visibility are local to this window. Debug enables '
-                      'are shared hardware settings. Removing a trace leaves its stream enabled.')
+        note = QLabel('Selecting a channel turns on its column’s PID-debug stream '
+                      '(one shared hardware enable per column, all rows). This window '
+                      'turns off the streams it enabled when you deselect them or close it.')
         note.setWordWrap(True)
         note.setObjectName('plotNote')
         side.addWidget(note)
@@ -152,8 +151,6 @@ class PidLockTab(QWidget):
         clear_selection.clicked.connect(lambda: self.remove_channels(list(self._entries)))
         self._table.itemChanged.connect(self._visibility_changed)
         self._table.itemSelectionChanged.connect(self._show_detail)
-        self._debug_column.currentIndexChanged.connect(self._refresh_debug)
-        self._debug_enable.clicked.connect(self._write_debug)
         self._mode.currentIndexChanged.connect(self._rebuild_plots)
         self._layout_mode.currentIndexChanged.connect(self._rebuild_plots)
         self._window.valueChanged.connect(self._set_window)
@@ -170,8 +167,8 @@ class PidLockTab(QWidget):
             self._linked, self._epoch, _ = self._source.drain()
             self._built = True
             self._add_button.setEnabled(True)
-            column = min(self._source.topology)
-            self.add_channels([(column, min(self._source.topology[column]))])
+            # Start empty: selecting a channel enables its column's stream, so
+            # auto-adding one would write a hardware enable just by opening the tab.
         except Exception as exc:
             self._show_error(f'Cannot connect to PID samples: {exc}')
             self._age.setText('Unavailable')
@@ -200,6 +197,7 @@ class PidLockTab(QWidget):
                                       color=CHANNEL_COLORS[self._next_color % len(CHANNEL_COLORS)],
                                       visible=True, received=None)
             self._next_color += 1
+        self._sync_debug_enables()
         self._selection_changed()
 
     def remove_channels(self, pairs):
@@ -207,9 +205,33 @@ class PidLockTab(QWidget):
             self._entries.pop(key, None)
         if self._source is not None:
             self._source.select(self._entries)
+        self._sync_debug_enables()
         if not self._entries:
             self._next_color = 0
         self._selection_changed()
+
+    def _sync_debug_enables(self):
+        # Enable the PID-debug stream for every selected column and disable those
+        # we enabled that are no longer selected. Enable is per column (all rows)
+        # and shared across clients, so we only ever turn off columns we turned on
+        # and never touch one another client enabled. No-op when read-only/unlinked.
+        if self._source is None or not self._linked or data_plugins.is_read_only():
+            return
+        selected = {c for c, _ in self._entries}
+        for column in sorted(selected - self._enabled_columns):
+            try:
+                if not self._source.debug_enabled(column):
+                    self._source.set_debug(column, True)
+                    self._enabled_columns.add(column)
+            except Exception as exc:
+                self._show_error(f'Could not enable debug stream for column {column}: {exc}')
+        for column in sorted(self._enabled_columns - selected):
+            try:
+                self._source.set_debug(column, False)
+            except Exception as exc:
+                self._show_error(f'Could not disable debug stream for column {column}: {exc}')
+            else:
+                self._enabled_columns.discard(column)
 
     def _remove_selected(self):
         keys = [tuple(self._table.item(index.row(), 0).data(Qt.UserRole))
@@ -233,15 +255,6 @@ class PidLockTab(QWidget):
             self._table.setItem(row, 1, label)
             self._table.setItem(row, 2, QTableWidgetItem('Waiting'))
         self._table.blockSignals(False)
-        old = self._debug_column.currentData()
-        self._debug_column.blockSignals(True)
-        self._debug_column.clear()
-        for c in sorted({c for c, _ in self._entries}):
-            self._debug_column.addItem(f'Board {c // 8} / Column {c % 8} (global {c})', c)
-        index = self._debug_column.findData(old)
-        self._debug_column.setCurrentIndex(max(0, index))
-        self._debug_column.blockSignals(False)
-        self._refresh_debug()
         self._rebuild_plots()
         if self._entries:
             self._table.selectRow(0)
@@ -252,31 +265,6 @@ class PidLockTab(QWidget):
         if item.column() == 0:
             self._entries[tuple(item.data(Qt.UserRole))]['visible'] = item.checkState() == Qt.Checked
             self._rebuild_plots()
-
-    def _refresh_debug(self, *_):
-        column = self._debug_column.currentData()
-        self._debug_enable.setEnabled(column is not None and self._linked and not data_plugins.is_read_only())
-        self._debug_enable.setChecked(False)
-        if column is not None and self._linked:
-            try:
-                self._debug_enable.setChecked(self._source.debug_enabled(column))
-            except Exception as exc:
-                self._debug_enable.setEnabled(False)
-                self._show_error(f'Could not read debug enable: {exc}')
-
-    def _write_debug(self, enabled):
-        if data_plugins.is_read_only() or not self._linked:
-            self._refresh_debug()
-            return
-        column = self._debug_column.currentData()
-        if column is not None:
-            try:
-                self._source.set_debug(column, enabled)
-            except Exception as exc:
-                self._show_error(f'Could not change debug enable for column {column}: {exc}')
-            else:
-                self._show_error('')
-            self._refresh_debug()
 
     def _rebuild_plots(self, *_):
         for plot in self._plots:
@@ -361,12 +349,15 @@ class PidLockTab(QWidget):
         if epoch != self._epoch:
             self._linked, self._epoch = linked, epoch
             self._clear()
-            self._refresh_debug()
+            # A link transition can flip hardware enables underneath us (e.g. a
+            # server restart). Forget what we thought we enabled so the re-sync
+            # re-evaluates each selected column against actual hardware and only
+            # re-claims columns it truly turns on.
+            self._enabled_columns.clear()
+            self._sync_debug_enables()
         changed = False
         for key, samples in pending.items():
             if key[0] == 'enable':
-                if key[1] == self._debug_column.currentData():
-                    self._debug_enable.setChecked(bool(samples[-1]))
                 continue
             pair = key[1:]
             if pair not in self._entries or self._pause.isChecked() or not linked:
@@ -464,5 +455,17 @@ class PidLockTab(QWidget):
     def closeEvent(self, event):
         self._timer.stop()
         if self._source is not None:
+            # Turn off only the streams this window enabled, then detach listeners.
+            self._disable_our_streams()
             self._source.close()
         super().closeEvent(event)
+
+    def _disable_our_streams(self):
+        if self._source is None or not self._linked or data_plugins.is_read_only():
+            return
+        for column in sorted(self._enabled_columns):
+            try:
+                self._source.set_debug(column, False)
+            except Exception:
+                pass
+        self._enabled_columns.clear()
