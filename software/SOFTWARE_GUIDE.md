@@ -165,6 +165,14 @@ Process lifecycle:
 - Progress tracked via status variables
 - Can be stopped mid-execution
 
+SA and SQ1 `Plot`/`MultiPlot` reads build independent Matplotlib figures. Once
+returned, a figure must not be modified by a later getter: PyRogue dependency
+updates and explicit client reads can overlap, and ZMQ serializes results after
+the getter returns. `EnablePlots=False` retains the last completed figure and
+skips plot construction; it does not disable tuning or result publication.
+For notebook-only plotting, disable server plots and use
+`ops.plot_sq1curves(sq1_out, cols=..., rows=...)` on the returned tuning data.
+
 ### FAS commissioning
 
 `FasTuneProcess` supports stopped one-level and two-level row maps. It uses
