@@ -1,9 +1,10 @@
 # Warm-TDM hardware RSSI/SRP investigation — agent handoff
 
 Use [the current investigation](../README.md) for findings and next steps,
-and [the dated bench reports](../../../reference/rssi-srp-2026-09/README.md)
-for evidence. This bundle remains at its original path so existing probe and
-capture commands continue to work. Record burst resets and first-read recovery
+and its [evidence index](../README.md#evidence-and-ownership) for acceptance
+results, raw-data locations and commit-pinned historical reports. This bundle
+remains at its original path so existing probe and capture commands continue
+to work. Record burst resets and first-read recovery
 separately; the packetizer fix passed the latter on the tested image.
 
 ## Task and scope

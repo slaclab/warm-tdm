@@ -39,7 +39,6 @@ not a claim that those changes have been released or accepted on hardware.
 These analyses retain their stated source revisions and assumptions. They
 are useful evidence and rationale, not current tuning presets or acceptance.
 
-- [RSSI/SRP bench evidence, September 2026](reference/rssi-srp-2026-09/README.md)
 - [Historical measurement notebooks](reference/measurements/README.md)
 - [Integer/FP path comparison](reference/pid-path-comparison.md)
 - [MCE feedback-law comparison](reference/mce-controller-comparison.md)

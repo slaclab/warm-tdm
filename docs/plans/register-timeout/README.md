@@ -149,9 +149,40 @@ Outstanding checks are preserved here until their acceptance record is updated:
 
 ## Evidence and ownership
 
-The [September bench reports](../../reference/rssi-srp-2026-09/README.md) retain
-exact images, outcomes and remote evidence paths. Raw captures/logs stay outside
-Git. The packetizer result is linked from SURF PR #1492. This note owns the
-remaining investigation handoff, not issue closure: burst/reset and PGP acceptance
-still need explicit ownership/checklists in the tracker. This cleanup does not
-mark those checks passed or create external tracking records.
+The September 24–25 bench used rdsrv433, Rogue v6.15.0 (`warm-tdm-r615`),
+FPGA `192.168.3.11`, host `192.168.3.31` and NIC `enp1s0f0`. The tested column
+changed from `96a974f` / SURF `7504a23b3` to `743614f7` / SURF `49c1168c6`
+(including `2b58e8251`); the row stayed `b73019c`. Loaded hashes were read from
+hardware and fix ancestry verified. Builds used Vivado 2024.1. Post-reset first
+reads changed from **5/5 failures to 3/3 passes**, with fresh `--no-initRead`
+servers and no warmup reads. L463 resets persisted; L439 controls passed 3/3.
+This validates focused recovery on that bench, not every destination or target.
+
+Supporting controls found the failed request byte-identical to a successful
+one and transport-ACKed. Alternating clean/reset priming gave first-read
+pass/fail 4/4 per arm. Three column reads after reset gave fail/pass/pass;
+a row-first read succeeded without consuming the column failure. DEBUG-off
+SAFb batches remained slow. These controls and the local Rogue reproducer
+address different parts of the failure; they do not establish the complete
+hardware reset mechanism.
+
+Raw pcaps, server logs, client JSONL, findings and checksums remain on rdsrv433
+under `~/warmtdm-rssi-runs/`:
+
+| Run directory | Evidence |
+| --- | --- |
+| `20260924T182950Z/` | Idle baseline, initial matrix, both failures and ScratchPad restoration |
+| `20260924T191408Z-firstreq/` | Logging-off control, request validity and alternating reset-priming trials |
+| `20260924T213308Z-newfw/` | Pre-fix retest, row/column localization, fixed register lists, L439/L463 repeats and `THRESHOLD_REPEATS_FINDINGS.txt` |
+| `20260925T050252Z-pktfix/` | Corrected-image acceptance and `PKTFIX_RETEST_FINDINGS.txt` |
+
+The [original combined report](https://github.com/slaclab/warm-tdm/blob/baf4229/docs/plans/register-timeout/hardware-handoff/REPORT-20260925-full-arc.md)
+preserves the detailed chronology in Git history and is linked from
+[SURF PR #1492](https://github.com/slaclab/surf/pull/1492). It refers to L439/L463
+as outstanding-read counts; use the workload/transaction distinction above.
+Its bench Rogue-version comparison is not the immediate parent/child atomic
+comparison used in the local tests. Raw captures have not been reviewed locally.
+
+This note owns the remaining investigation handoff, not issue closure:
+burst/reset and PGP acceptance still need explicit ownership/checklists in the
+tracker. Removing historical report files does not mark those checks passed.
