@@ -1,9 +1,10 @@
 # Warm-TDM hardware RSSI/SRP investigation — agent handoff
 
 See [the investigation summary](../README.md) for current findings and next
-acceptance checks. Latest L439/L463 repeats used image `96a974f` / SURF
-`7504a23b3`, before packetizer recovery fix `2b58e8251`. Count burst-induced
-resets and first-request loss after reconnect as separate outcomes.
+acceptance checks. The [September 25 result](REPORT-20260925-full-arc.md) confirms
+packetizer recovery on image `743614f7` / SURF `49c1168c6`: post-reset first reads
+pass 3/3, versus 5/5 failures before fix `2b58e8251`. L463 still resets. Count
+burst-induced resets and first-request loss after reconnect as separate outcomes.
 
 ## Task and scope
 

@@ -1,23 +1,25 @@
 # Register timeout and RSSI/SRP investigation
 
-## Current state — September 24, 2026
+## Current state — September 25, 2026
 
-We have a committed **depacketizer reconnect-recovery fix**, demonstrated in
-simulation, and a **Rogue backpressure cycle reproduced locally without injected
-sleeps**. These address different stages of the failure: congestion/reset during
+We have a committed **depacketizer reconnect-recovery fix confirmed on hardware**
+(image `743614f7`, SURF `49c1168c6`, including `2b58e8251`), and a **Rogue
+backpressure cycle reproduced locally without injected sleeps**. These address different stages of the failure: congestion/reset during
 a batched read, and loss of the first new SRP request after reconnect. Fixing
 recovery does not necessarily prevent the preceding reset.
 
 | Workstream | Established | Remaining |
 | --- | --- | --- |
-| Packetizer recovery | SURF `2b58e8251` corrects termination after link loss; original/corrected simulations reproduce and eliminate first-request loss | Load the correction and repeat hardware reset-priming probes |
+| Packetizer recovery | SURF `2b58e8251` passes directed simulations and hardware post-reset first-read probes, 3/3; pre-fix probes failed 5/5 | Isolated fix in SURF PR #1492; broader coverage beyond this bench remains untested |
 | Rogue backpressure | Finite peer buffering can cause a sustained transmit/transaction-lock/receive-queue wait cycle with real PyRogue reads on both revisions | Match the bench register mix and peer behavior; select and validate a correction |
 | FPGA RSSI BUSY signaling | RX delivery/ACK progress can stop before local BUSY asserts at deployed buffer geometry | Establish its contribution to the bench reset and evaluate a separate correction |
 | Earlier RX/keepalive integration | Tested image `96a974f`, SURF `7504a23b3`, still exhibits burst/reset/first-read failure | Keep its acceptance separate from the additional packetizer fix |
 
-The latest repeated hardware threshold runs explicitly used **pre-packetizer-fix
-firmware**. Their failed post-reset probes are consistent with the old defect;
-they are not a failed hardware test of `2b58e8251`.
+The [September 25 hardware report](hardware-handoff/REPORT-20260925-full-arc.md)
+confirms that **resets continue, but the first read after reconnect now succeeds**.
+The L463 trigger reset in all three corrected-image trials; first reads passed
+3/3. L439 controls passed 3/3 without reset. This satisfies the focused recovery
+reproducer on this bench, independently of the unresolved burst/reset issue.
 
 ## Evidence and reproduction
 
@@ -28,6 +30,10 @@ they are not a failed hardware test of `2b58e8251`.
 - [Initial hardware report](hardware-handoff/REPORT-20260924-rdsrv433.md) and
   [follow-up report](hardware-handoff/REPORT-20260924-followups.md): committed
   evidence, including clean/reset-priming comparisons.
+- [Full hardware result and fix confirmation](hardware-handoff/REPORT-20260925-full-arc.md),
+  pulled in Warm-TDM commit `baf4229`: threshold repeats, column/row routing
+  controls, image identities, and corrected-image acceptance. Raw captures
+  remain on rdsrv433; this review inspected the committed report.
 - [SURF integration and simulation handoff](../../../firmware/submodules/surf/docs/plans/rssi-rx-keepalive/README.md):
   exact changes, regression coverage, reproduction commands and trace locations.
 - Rogue reports: `~/rogue/docs/plans/srp-rssi-burst/REPORT.md` and
@@ -36,12 +42,13 @@ they are not a failed hardware test of `2b58e8251`.
   pending, unstaged work on Rogue branch `investigate/srp-rssi-burst`, created
   from `pre-release`. They must be synced separately from Warm-TDM. Production
   Rogue sources are unchanged.
-- Latest operator-reported hardware evidence:
+- Pre-fix threshold evidence:
   `~/warmtdm-rssi-runs/20260924T213308Z-newfw/THRESHOLD_REPEATS_FINDINGS.txt`,
   `txn_analyze.py`, and 20 session directories containing pcaps/logs/JSONL.
-  The summary below incorporates the operator's results; those raw files have
-  not been inspected here or incorporated into the committed follow-up report.
-  Keep captures, logs and generated build output outside Git.
+  Findings are now summarized in the committed September 25 report; raw files
+  have not been inspected here. Corrected-image evidence is under
+  `~/warmtdm-rssi-runs/20260925T050252Z-pktfix/`, including
+  `PKTFIX_RETEST_FINDINGS.txt`. Keep captures, logs and build output outside Git.
 
 ## Hardware findings and repeated workload boundary
 
@@ -87,6 +94,37 @@ correlating reset and API-return timing; the pasted timing figures do not all
 have an established common origin. A late client error is not the instant the
 outstanding reads were lost.
 
+### Hardware recovery acceptance
+
+The September 25 report records column image `743614f7`, SURF `49c1168c6`,
+with `2b58e8251` ancestry verified; the row remained `b73019c`. Images were built
+with Vivado 2024.1 and loaded hashes read from hardware. The corrected test used
+a fresh `--no-initRead` server and no warmup reads after each priming session.
+
+| Arm | Corrected-image result | Pre-fix comparison |
+| --- | --- | --- |
+| L463 trigger, three trials | Reset in all three, about 33 orphaned reads; next-session first read succeeds 3/3 | First read failed 5/5 on `96a974f` |
+| L439 control, three trials | All 439 reads complete, no reset, following probes pass | Clean 5/5 on `96a974f` |
+
+This is hardware confirmation of the recovery correction for the tested path;
+it does not claim the batched operation itself succeeds. The report also adds
+pre-fix localization controls: three column reads on one post-reset server gave
+fail/pass/pass, while reading the row first succeeded without consuming the
+column's first-read failure. These support per-destination recovery state.
+Those routing controls were not reported as repeated on the corrected image.
+
+The earlier idle test recorded no down/drop/retransmit growth over 60 seconds
+and no reset in about 105 seconds of capture. The historical data-channel idle
+reset is therefore absent in that measured interval. Keep that result separate
+from burst recovery and from long-duration stability.
+
+The report labels the reset a host/Rogue issue. Host initiation and receive
+backpressure are observed; attributing the entire escalation solely to Rogue
+still requires correlating its local wait cycle with the FPGA's ACK/BUSY behavior.
+Similarly, its address-count threshold is a workload boundary, not a measured
+simultaneous-outstanding count. The reported bench version comparison is not
+the controlled immediate-parent atomic comparison used in the local Rogue tests.
+
 ## Committed packetizer recovery correction
 
 SURF branch `fix/rssi-rx-keepalive-integration` contains these logical groups;
@@ -129,12 +167,16 @@ fails three of four all-active cases; the combined fix passes all six parameter
 cases and existing normal/error regressions. The older link-drop test could
 pass with termination sent to the wrong destination because it did not check
 that destination. The detailed SURF handoff preserves traces and history.
-Inferred-memory simulations and lint/style checks pass; XPM, implementation
-timing and physical bench acceptance remain open.
+Inferred-memory simulations and lint/style checks pass. Physical recovery
+acceptance now passes on the reported column image. Vendor-specific simulation
+coverage and implementation timing reports are not supplied by this result.
 
-After hardware testing, cherry-pick **only `2b58e8251`** onto a clean SURF branch
-from `pre-release` for a focused PR. Creating that branch/PR is deferred at the
-user's request until testing; the other two commits remain separate work.
+The isolated fix is now [SURF PR #1492](https://github.com/slaclab/surf/pull/1492),
+branch `fix/depacketizer2-link-recovery`, targeting `pre-release` at base
+`ce66ccf99`. Commit `cdde579cb` cherry-picks only `2b58e8251`; the two changed
+files are the RTL and standalone recovery test. All 28 packetizer pytest cases
+pass on that clean branch, as do VSG, Flake8 and compliance checks. The PR links
+the hardware result. RSSI fixes and the integration harness are excluded.
 
 ## Rogue: backpressure cycle reproduced without injected delays
 
@@ -230,15 +272,12 @@ recovery fix.
 
 ## Next steps and acceptance
 
-1. **Bench recovery acceptance:** build with Vivado 2024.1 and load a column
-   image containing `2b58e8251`; record loaded image and SURF identities. Repeat
-   fixed-order L439/L463 and clean/reset-priming pairs. Count resets and first-read
-   loss separately. After reset priming, test three individually logged reads
-   in the same fresh server, continuing after a first timeout; separately prime
-   again and make a row read the first request. No warmup reads. Invoke existing
-   `version-only` probes separately against that server because the repeat loop
-   stops on error. A remaining reset with successful first reads would support
-   recovery acceptance while leaving congestion unresolved.
+1. **Packetizer review:** review [SURF PR #1492](https://github.com/slaclab/surf/pull/1492)
+   against `pre-release`, with the 3/3 corrected versus 5/5 pre-fix hardware
+   result and 28 passing packetizer cases. Preserve the measured scope; additional repetitions
+   and corrected-image row-first routing checks can extend coverage. Keep
+   column reads serialized in normal operation while burst resets remain open;
+   parent serialization may not cover direct child-device reads.
 2. **Rogue correction and bench matching:** use the natural-cycle reproducer
    to evaluate ways to break the transaction-lock/timer-refresh dependency,
    preserving transaction lifetime, timeout and concurrency semantics. Validate
@@ -247,9 +286,10 @@ recovery fix.
    profile and peer queue behavior to explain L439/L463 and small SAFb batches.
    Correlate submission, timer/map waits, queue occupancy, both ACK directions
    and reset initiator. A fix to the local cycle is not yet a bench root-cause proof.
-3. **Evidence handoff:** incorporate the operator's threshold results into the
-   existing follow-up report when the raw files are available on that machine.
-   Sync the separate Rogue report/harness; keep captures outside Git.
+3. **Evidence handoff:** use the committed September 25 report for threshold
+   and recovery acceptance evidence; record that result with the owning issue/PR
+   when preparing the fix for review. Sync the separate Rogue report/harness
+   for continued investigation. Keep raw captures outside Git.
 
 ## Earlier PGP/ring investigation (historical context)
 

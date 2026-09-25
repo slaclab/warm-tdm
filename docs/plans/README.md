@@ -26,7 +26,7 @@ remain distinct.
 | Frame identity and file-channel integration | [Channelization](channelization/PLAN.md) | [#82](https://github.com/slaclab/warm-tdm/issues/82) |
 | Resource settings, legacy removal and build coverage | [Resource integration](resource-integration/README.md) | [#70](https://github.com/slaclab/warm-tdm/issues/70); capacity discovery is [#73](https://github.com/slaclab/warm-tdm/issues/73) |
 | Coordinator-only Ethernet and constraints | [Coordinator Ethernet](coordinator-ethernet/README.md) | Related #70 resource work; explicit acceptance ownership remains to be assigned |
-| Register timeouts and RSSI/SRP hardware investigation | [Register timeout](register-timeout/README.md); [hardware agent instructions and scripts](register-timeout/hardware-handoff/README.md) | Packetizer recovery fix awaiting hardware acceptance; Rogue backpressure cycle reproduced locally, bench attribution open |
+| Register timeouts and RSSI/SRP hardware investigation | [Register timeout](register-timeout/README.md); [hardware agent instructions and scripts](register-timeout/hardware-handoff/README.md) | Packetizer recovery confirmed on hardware; burst resets and Rogue/FPGA backpressure attribution remain open |
 | Static/muxed SQ1 operating point and tuning | [SQ1 retune](pid-cosim-verification/SQ1_RETUNE.md) | [#70](https://github.com/slaclab/warm-tdm/issues/70); historical fixture settings are [here](pid-cosim-verification/cosim-tuning-settings.md) |
 | TES stimulus and multi-flux-jump capture | [TES scaling](tes-scaling/PROGRESS.md) | #70; distinguish later measured results from superseded attempts |
 | Two-level FAS discovery and shared-line verification | [FAS follow-up](fas-two-level/README.md) | [#99](https://github.com/slaclab/warm-tdm/issues/99) |
