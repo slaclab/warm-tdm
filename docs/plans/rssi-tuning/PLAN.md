@@ -3,6 +3,10 @@
 > Owner: [#109](https://github.com/slaclab/warm-tdm/issues/109). This is an unimplemented proposal at `fae7151`: both RSSI instances still use 1024-byte segments. Reassess the window-depth assumptions below against the current configurable `RSSI_WINDOW_ADDR_SIZE_G`.
 
 
+This is separate from the [RSSI/SRP correctness investigation](../register-timeout/README.md).
+Larger buffers/segments are a throughput proposal, not an accepted correction
+for the reproduced Rogue wait cycle or FPGA BUSY signaling gap.
+
 ## Scope
 
 Increase `MAX_SEG_SIZE_G` on both RssiCoreWrapper instances in EthCore.vhd when

@@ -202,7 +202,9 @@ for an isolated GHDL test of queued replies and framing after overflow. Width 10
 does not by itself bound outstanding response bytes. Waiting between PyRogue
 blocks also does not serialize the 4 KiB transactions within a larger block.
 See the [ReadAll investigation](../../../docs/plans/register-timeout/README.md#width-10-bound-investigation)
-for the capacity calculation and remaining full-ring checks.
+for remaining full-ring checks and the pinned capacity characterization. The
+maintained [ring budget](../../common/warm_tdm/doc/PGP_RING.md#fifo-and-latency-budget)
+describes the implemented admission policy.
 
 A watchdog expiring around a VirtualClient ReadAll does not cancel that RPC.
 A second request through the same serialized client/server path can wait behind

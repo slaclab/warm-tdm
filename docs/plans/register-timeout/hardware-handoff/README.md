@@ -1,34 +1,47 @@
 # Warm-TDM hardware RSSI/SRP investigation — agent handoff
 
-See [the investigation summary](../README.md) for current findings and next
-acceptance checks. The [September 25 result](REPORT-20260925-full-arc.md) confirms
-packetizer recovery on image `743614f7` / SURF `49c1168c6`: post-reset first reads
-pass 3/3, versus 5/5 failures before fix `2b58e8251`. L463 still resets. Count
-burst-induced resets and first-request loss after reconnect as separate outcomes.
+Use [the current investigation](../README.md) for findings and next steps,
+and [the dated bench reports](../../../reference/rssi-srp-2026-09/README.md)
+for evidence. This bundle remains at its original path so existing probe and
+capture commands continue to work. Record burst resets and first-read recovery
+separately; the packetizer fix passed the latter on the tested image.
 
 ## Task and scope
 
-Run the controlled tests below on the machine connected to the hardware, preserve the raw evidence, and return a concise report using `REPORT.md`. The goal is to distinguish:
+Choose the controlled cases needed for the current question, preserve raw evidence, and return a report using `REPORT.md`. Do not automatically repeat the entire historical matrix. Measure separately:
 
 1. A missing first SRP response after connecting or after an idle interval.
 2. Delayed acknowledgments/backpressure and retransmissions during batched reads.
-3. RSSI connection resets, including whether the keepalive patch fixed the idle data connection.
+3. RSSI resets during load versus idle and deliberate shutdown.
 
 You are authorized to launch and stop your diagnostic server, make the listed register reads, and write/verify/restore the column AxiVersion ScratchPad test register. Run only when the bench is available. There must be **one process owning the hardware RSSI connections**. A GUI that creates its own GroupRoot is another owner; close that server before launching this one. If an existing process belongs to an active acquisition or another user, coordinate availability rather than killing it. A VirtualClient connects to the existing server over ZMQ and does not open another hardware connection.
 
 Do not tune, start acquisition, load configuration, WriteAll, change DAC/bias/PID settings, reset/reflash boards, change RSSI/network settings, or edit the checked-out source. Do not stage, commit, publish, or send results elsewhere. Put captures and reports outside Git. Do not change transaction timeouts to hide the failure. If the bench configuration differs from the example, use its known configuration and record the difference.
 
-## Starting evidence and hypotheses
+## Bench and current test selection
 
-The bench previously used rdsrv433, conda `warm-tdm-env3`, Rogue **v6.15.0**, one FPGA column coordinator and one FPGA row board, host `192.168.3.31`, FPGA `192.168.3.11`, Ethernet interface `enp1s0f0`. SRP uses UDP 8192; data uses UDP 8193. The ZMQ server normally starts at localhost:9099; use the address actually printed by the new server.
+The recorded bench is rdsrv433, Rogue v6.15.0 (`warm-tdm-r615`), one FPGA column
+coordinator and one row board, host `192.168.3.31`, FPGA `192.168.3.11`, NIC
+`enp1s0f0`. SRP uses UDP 8192; data uses 8193. ZMQ normally uses localhost:9099;
+use the address printed by the server and the installed environment/configuration.
 
-- Original firmware `f0772cf` repeatedly reset DataRssi about 52 times/minute. Cleaning the Ethernet fiber did not change that result. PGP link-ready indicators were stable.
-- A SURF fix restored valid ACK/BUSY traffic as activity for the server keepalive timer. The user subsequently loaded firmware reported as `0b73019`; that repository revision pins SURF `6b6771a9f271dbd5c444e79de527965527d30768`. Verify the **loaded** image after the first-request tests. A source checkout hash alone does not identify the loaded image. Post-patch idle acceptance remains to be measured.
-- Batched column reads still produced SRP failures. Earlier traces showed repeated retransmissions and a connection reset around 320 ms, with queued responses appearing after the reset. Received SRP status words were zero in the traces inspected; this does not establish the fate of missing replies.
-- Sequential column ReadAll subsequently worked repeatedly. The row board already forces sequential reads. In the tested Rogue version, setting `forceWaitEach` on the column parent only affects operations entered through that parent. Direct `AxiVersion` or `SAFb` reads can still batch. Preserve this distinction during testing; record actual flags and SRP timing rather than relying on the case name.
-- A small useful reproduction is a direct column SAFb read: previously 24 requests, 2,624 requested bytes, issued in about 1.2 ms, responses arriving over about 83 ms in roughly 20 ms groups, and an old-sequence duplicate warning. Request counts depend on the software/configuration; measure yours.
-- The first column AxiVersion request sometimes had no reply even with a single outstanding operation. In one short capture, FPGA RSSI acknowledged the request, and the first FPGA data response carried the **second** SRP transaction with no preceding RSSI receive sequence gap. That capture ended too early to establish the later outcome. Reading ScratchPad first appeared to help in one trial; that is a hypothesis, not a remedy.
-- ACK delay is not established by an “out of window” message alone. In Rogue v6.15.0, receive sequencing and acknowledgment progress occur at different stages of the receive/application queues. Application backpressure can delay ACK progress. Other possibilities include lost ACKs or FPGA acknowledgment processing. Measure the packets to distinguish them.
+For burst/backpressure work, start with a batched/sequential SAFb comparison or
+`column-batched`, recording both transport and SRP results. To match the exact
+L439/L463 boundary, use the fixed register lists and sweep tools preserved in
+`~/warmtdm-rssi-runs/20260924T213308Z-newfw/` on the bench; `probe.py` does not
+implement those named levels.
+
+For a recovery check, first record a trigger session that actually resets.
+Start a fresh server with `--no-initRead`, then invoke `version-only` with no
+warmup read. If it fails, invoke `version-only` separately again against that
+same server to distinguish one consumed request from a blocked path. Compare
+with a clean priming session. Never count an ordinary server shutdown as the
+trigger reset.
+
+In the tested Rogue version, a parent's `forceWaitEach` does not serialize every
+direct child-device call. Preserve the actual flags and transaction timing.
+ACK delay also cannot be established by an out-of-window warning alone; use
+the captured packets and both ACK directions.
 
 ## Files in this bundle
 
@@ -46,7 +59,7 @@ These helpers were prepared against Rogue v6.15.0 and exercised in the September
 Sync this directory **and the server software changes** with the repository to the hardware machine. Run the maintained `software/scripts/warmTdmServer.py` entry point. Example shell setup (retain these variables in each terminal/tool session):
 
 ```bash
-conda activate warm-tdm-env3
+conda activate warm-tdm-r615
 export RSSI_REPO=/u1/warm-tdm/warm-tdm
 export WARM_TDM_PATH="$RSSI_REPO"
 export RSSI_BUNDLE="$RSSI_REPO/docs/plans/register-timeout/hardware-handoff"
@@ -111,7 +124,7 @@ In another persistent terminal/tool session, using the same session path:
 
 ```bash
 python -u "$RSSI_REPO/software/scripts/warmTdmServer.py" \
-  --srp-debug --column-mode stock \
+  --transport-diagnostics --column-mode stock \
   --ip 192.168.3.11 --rowBoards 1 --maxRows 80 --columnBoards 1 \
   --columnBoardType FPGA --rowBoardType FPGA \
   --columnFrontEnd FpgaColFebLnTes --rowFrontEnd FpgaRowFeb \
@@ -152,7 +165,7 @@ Record identities **after** the first-request-sensitive cases, using `--case ide
 
 ## Test order and bounds
 
-Run the following initial matrix. Stop a session after a real timeout/reset failure, save it, and restart the diagnostic server for the next independent experiment. A deliberately labeled same-session retry is allowed in the cold-read investigation. Never retry silently.
+The following is the available diagnostic matrix; select cases for the current hypothesis. Stop a session after a real timeout/reset failure, save it, and restart the diagnostic server for the next independent experiment. A deliberately labeled same-session retry is allowed in the cold-read investigation. Never retry silently.
 
 | Phase | Server mode | Client case(s) | Purpose / bound |
 |---|---|---|---|
@@ -175,7 +188,7 @@ No more than five fresh cold trials or ten repetitions of any small comparison a
 
 ## Additional logging only after a baseline reproduction
 
-The command above enables `SrpV3` DEBUG with `--srp-debug`; other loggers keep their normal levels. Repeat the smallest failing or suspicious test on a fresh server with **`--rssi-debug` added to the same server command**. There is no wrapper or `--` separator. This records more transport detail but can alter timing. Retain the original lower-verbosity run as the comparison.
+The baseline command above retains startup metadata with normal logging levels. For SRP transaction detail, add `--srp-debug`; for host RSSI detail, add `--rssi-debug` to the same server command and repeat the smallest failing test on a fresh server. There is no wrapper or `--` separator. This records more transport detail but can alter timing. Retain the original lower-verbosity run as the comparison.
 
 If ACK/BUSY timing suggests host backpressure, capture a short RSSI-debug reproduction and record CPU usage/thread state with already available tools. A stack sample of a demonstrably stalled server is useful if existing local tooling permits it; document the tool and any pause it introduces. Do not install new tracing dependencies or change scheduling during the baseline.
 
@@ -201,7 +214,7 @@ Check decoder exit codes. It supports classic pcap, IPv4 UDP, Ethernet/VLAN, raw
 Analyze these questions, citing session, case, timestamps, transaction IDs and packet numbers:
 
 1. **Idle connections:** Were SrpRssi and DataRssi both open? What were their separate before/after counter values and deltas? Did a reset occur during idle, a read, or deliberate shutdown? Missing counters are unknown, not zero. If counters reset or wrap, show raw values and segment the timeline rather than summing a negative delta.
-2. **Application transactions:** Match SRP IDs **within each server session**. Count sent requests, received replies, errors/timeouts and outstanding IDs. “Send frame” in a server log is not proof that a UDP frame reached the wire. “Got frame” alone is not proof that the transaction completed successfully. Include elapsed times and response status words.
+2. **Application transactions:** Match SRP IDs within each RSSI connection epoch and server session; a reset can reconnect within one process. Count sent requests, received replies, errors/timeouts and outstanding IDs. “Send frame” in a server log is not proof that a UDP frame reached the wire. “Got frame” alone is not proof that the transaction completed successfully. Include elapsed times and response status words.
 3. **First missing response:** Did the first request actually appear on the wire? Did FPGA acknowledgment progress cover it? Was a matching SRP response captured? Were later replies delivered without an RSSI sequence gap? Was the capture long enough to cover timeout/recovery? Do not call a short trace proof of permanent loss.
 4. **ACK timing:** For each FPGA-to-host data packet, find the first host ACK that cumulatively covers its sequence. Include ACKs piggybacked on data packets, not just ACK-only packets. Report representative/maximum data-to-ACK delays, 20 ms clustering, and BUSY transitions. Show what happens immediately before and after each retransmission/reset. A promptly emitted host ACK with subsequent retransmission points toward the return path or FPGA handling; a late host ACK with sustained BUSY points toward host delivery/backpressure. These are discriminators, not conclusive localization from a host-only capture.
 5. **Duplicates:** Compare sequence and packetizer payload fingerprint within the same connection. A repeated sequence with the same payload is evidence of a retransmission/duplicate. Check whether the original was already cumulatively acknowledged when the duplicate arrived. The RSSI header checksum may change when the ACK field changes; that does not make the payload different.
@@ -217,3 +230,15 @@ Fill in `REPORT.md`. Preserve metadata, exact launch/probe commands, source chan
 For each case report: software and loaded firmware identity, server mode/actual flags, fresh or warmed session, repeat count, first requested register, result, duration, missing SRP IDs, per-core RSSI deltas, and evidence filenames. Distinguish **observed**, **inferred**, and **not tested**. If no failure reproduced, explicitly report the number of clean trials and coverage limits.
 
 Archive the run directory only after processes have exited and files are stable. Keep the archive on the hardware machine; uploading the pcap is not required. Return the report text, archive path/size/checksum, and compact packet/log excerpts with timestamps sufficient for review here. Do not paste megabytes of raw logs or discard the originals. A useful initial response states whether the idle resets persist, whether the first request fails, and whether explicit serialization changes the result.
+
+## Helper validation and provenance
+
+The scripts were exercised in the linked hardware reports. Before that, local
+checks covered mocked VirtualClient dispatch, ScratchPad restoration on injected
+exceptions, server diagnostic argument handling, and decoding 80 reconstructed
+packets across raw-IP/Ethernet/SLL/SLL2 capture formats. These were limited helper
+checks, not hardware acceptance; the
+[dated validation record](https://github.com/slaclab/warm-tdm/blob/baf4229/docs/plans/register-timeout/hardware-handoff/VALIDATION.md)
+retains their exact scope. Record the checkout commit and relevant modifications
+with every new run. Generate checksums for that run's actual evidence; an old
+bundle checksum manifest does not identify a subsequently edited checkout.

@@ -3,7 +3,8 @@
 ## Result
 
 - Idle SrpRssi / DataRssi behavior:
-- Missing first response reproduced? Trials:
+- Burst resets during the operation (excluding deliberate shutdown)? Trials:
+- First read after reset/reconnect: trials, successes, and any same-session retry:
 - Batched versus sequential behavior:
 - ScratchPad original restored and verified?
 - Best-supported explanation; remaining uncertainty:
@@ -26,7 +27,7 @@
 |---|---|---|---|---|---|---|---|
 | | | | | | | | |
 
-For counter resets, include raw values and split the interval. Do not treat absent counters as zero. State any same-session retries explicitly.
+For counter resets, include raw values and split the interval. Do not treat absent counters as zero. State same-session retries explicitly. Distinguish requested workload size, unique issued SRP IDs, completed replies and peak outstanding count; address coverage alone does not measure concurrency. Match IDs within each RSSI connection epoch.
 
 ## Representative failure and successful control
 
