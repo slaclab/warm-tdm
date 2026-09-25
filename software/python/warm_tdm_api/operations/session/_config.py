@@ -10,17 +10,21 @@ class ConfigMixin:
     """Save/load hardware config + state YAMLs under the session output dir."""
 
     def save_config(self):
-        """Save writable config to ``<sessiondir>/config_<ctime>.yml``."""
-        ctime = int(time.time())
-        filename = os.path.join(self._require_output(), f'config_{ctime}.yml')
+        """Save writable config under the run config directory (legacy: session dir)."""
+        ctime = time.time_ns()
+        directory = self._require_output()
+        directory = getattr(getattr(self, 'output', None), 'configdir', directory)
+        filename = os.path.join(directory, f'config_{ctime}.yml')
         self.root.SaveConfig(filename)
         print(f'Saved config to {filename}')
         return filename
 
     def save_state(self):
-        """Save full system state (incl. RO) to ``<sessiondir>/state_<ctime>.yml``."""
-        ctime = int(time.time())
-        filename = os.path.join(self._require_output(), f'state_{ctime}.yml')
+        """Save full system state (incl. RO) under the run config or legacy session dir."""
+        ctime = time.time_ns()
+        directory = self._require_output()
+        directory = getattr(getattr(self, 'output', None), 'configdir', directory)
+        filename = os.path.join(directory, f'state_{ctime}.yml')
         self.root.SaveState(filename)
         print(f'Saved state to {filename}')
         return filename

@@ -23,7 +23,7 @@ import pyrogue.interfaces as interfaces
 import pyrogue.utilities.fileio
 import rogue
 import warm_tdm_api.operations as ops
-from warm_tdm._FastDacDriver import FastDacDriver
+import warm_tdm
 
 
 class Source(rogue.interfaces.stream.Master):
@@ -116,7 +116,7 @@ class FastDacReadbackTests(unittest.TestCase):
         root = pr.Root(name='ReadbackRoot', pollEn=False, initRead=False)
         self.addCleanup(root.stop)
         root.addInterface(memory)
-        driver = FastDacDriver(name='SQ1Fb', frontEnd=front_end, rows=2, memBase=memory)
+        driver = warm_tdm.FastDacDriver(name='SQ1Fb', frontEnd=front_end, rows=2, memBase=memory)
         root.add(driver)
         writer = pr.Device(name='MemoryWriter', memBase=memory)
         for ch in range(8):

@@ -13,6 +13,8 @@ import logging
 import math
 import os
 import time
+import tempfile
+import uuid
 
 
 log = logging.getLogger(__name__)
@@ -44,6 +46,8 @@ class AcquisitionMixin:
 
         if outputdir is None:
             outputdir = self._require_output()
+            if getattr(getattr(self, 'output', None), 'run_dir', None) is not None:
+                outputdir = tempfile.mkdtemp(prefix='raw-', dir=outputdir)
 
         wcr.SavedFilePath.set(outputdir)
         wcr.SaveData.set(True)
@@ -84,7 +88,7 @@ class AcquisitionMixin:
 
         Returns the path to a text index file listing the saved waveform paths.
         """
-        ctime = int(time.time())
+        ctime = time.time_ns()
         save_dir = os.path.join(self._require_output(), f'raw_{ctime}')
         os.makedirs(save_dir, exist_ok=True)
 
@@ -139,9 +143,14 @@ class AcquisitionMixin:
                 tx.StartRun()
                 time.sleep(start_delay_sec)
 
-            writer.AutoName()
-            writer.DataFile.set(os.path.join(
-                os.path.abspath(self._require_output()), writer.DataFile.get()))
+            directory = os.path.abspath(self._require_output())
+            if getattr(getattr(self, 'output', None), 'run_dir', None) is not None:
+                # Repeated/short acquisitions in one run must retain every file.
+                filename = f'readout-{time.time_ns()}-{uuid.uuid4().hex[:12]}.dat'
+            else:
+                writer.AutoName()
+                filename = writer.DataFile.get()
+            writer.DataFile.set(os.path.join(directory, filename))
             data_filename = writer.DataFile.get()
             print(f'Open file {data_filename}')
             open_attempted = True

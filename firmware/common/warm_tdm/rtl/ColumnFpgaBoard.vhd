@@ -50,11 +50,15 @@ entity ColumnFpgaBoard is
       BUILD_INFO_G            : BuildInfoType;
       RING_ADDR_0_G           : boolean              := false;
       ETH_10G_G               : boolean              := false;
+      RSSI_WINDOW_ADDR_SIZE_G : positive             := 3;
       DHCP_G                  : boolean              := false;
       IP_ADDR_G               : slv(31 downto 0)     := x"0B03A8C0";  -- 192.168.3.11
       MAC_ADDR_G              : slv(47 downto 0)     := x"0B_00_16_56_00_08";
       GEN_ADC_FILTER_G        : boolean              := false;
-      ROW_ADDR_BITS_G         : integer range 3 to 8 := 8);
+      USE_FLOAT_PID_G         : boolean              := true;
+      GEN_PID_DEBUG_G         : boolean              := true;
+      FAST_DAC_BRAM_G         : boolean              := false;
+      ROW_ADDR_BITS_G         : integer range 3 to 8 := 7);  -- 128 rows
    port (
       -- Clocks
       gtRefClk0P : in sl;
@@ -284,7 +288,7 @@ architecture rtl of ColumnFpgaBoard is
    signal axilClk : sl;
    signal axilRst : sl;
 
-   signal adcFilterEn : slv(7 downto 0);
+   signal config : WarmTdmConfigType;  -- config/identity bus: WarmTdmCore -> DataPath
 
    signal srpAxilWriteMaster : AxiLiteWriteMasterType;
    signal srpAxilWriteSlave  : AxiLiteWriteSlaveType;
@@ -338,7 +342,7 @@ begin
    -- Shared logic
    -- PGP, Ethernet, Timing, AxiVersion, Etc
    -------------------------------------------------------------------------------------------------
-   U_WarmTdmCore_1 : entity warm_tdm.WarmTdmCore2
+   U_WarmTdmCore_1 : entity warm_tdm.WarmTdmCore
       generic map (
          TPD_G                   => TPD_G,
          SIMULATION_G            => SIMULATION_G,
@@ -349,6 +353,7 @@ begin
          BUILD_INFO_G            => BUILD_INFO_G,
          RING_ADDR_0_G           => RING_ADDR_0_G,
          ETH_10G_G               => ETH_10G_G,
+         RSSI_WINDOW_ADDR_SIZE_G => RSSI_WINDOW_ADDR_SIZE_G,
          DHCP_G                  => DHCP_G,
          IP_ADDR_G               => IP_ADDR_G,
          MAC_ADDR_G              => MAC_ADDR_G)
@@ -397,7 +402,7 @@ begin
          feThermistorN    => feThermistorN,       -- [in]
          asicResetB       => resetB,              -- [out]
          ampPdB           => ampPdB,              -- [out]
-         adcFilterEn      => adcFilterEn,         -- [out]
+         config           => config,             -- [out]
          leds             => leds,                -- [out]
          conRxGreenLed    => conRxGreenLed,       -- [out]
          conRxYellowLed   => conRxYellowLed,      -- [out]
@@ -583,6 +588,8 @@ begin
          TPD_G            => TPD_G,
          SIMULATION_G     => SIMULATION_G,
          GEN_ADC_FILTER_G => GEN_ADC_FILTER_G,
+         USE_FLOAT_PID_G  => USE_FLOAT_PID_G,
+         GEN_PID_DEBUG_G  => GEN_PID_DEBUG_G,
          ROW_ADDR_BITS_G  => ROW_ADDR_BITS_G,
          NEGATE_ADC_G     => false,
          INVERT_SQ1FB_G   => false,
@@ -594,6 +601,7 @@ begin
          timingRxClk125   => timingRxClk125,                         -- [in]
          timingRxRst125   => timingRxRst125,                         -- [in]
          timingRxData     => timingRxData,                           -- [in]
+         config           => config,                                 -- [in]
          idelayCtrlRdy    => idelayCtrlRdy,                          -- [in]
          sq1FbDacs        => sq1FbDacs,                              --[in]
          axisClk          => axisClk,                                -- [in]
@@ -602,7 +610,6 @@ begin
          axisSlave        => dataTxAxisSlave,                        -- [in]
          axilClk          => axilClk,                                -- [in]
          axilRst          => axilRst,                                -- [in]
-         adcFilterEn      => adcFilterEn,                            -- [in]
          sAxilReadMaster  => locAxilReadMasters(AXIL_DATA_PATH_C),   -- [in]
          sAxilReadSlave   => locAxilReadSlaves(AXIL_DATA_PATH_C),    -- [out]
          sAxilWriteMaster => locAxilWriteMasters(AXIL_DATA_PATH_C),  -- [in]
@@ -621,6 +628,8 @@ begin
       generic map (
          TPD_G            => TPD_G,
          SIMULATION_G     => SIMULATION_G,
+         USE_BRAM_G       => FAST_DAC_BRAM_G,
+         ROW_ADDR_BITS_G  => ROW_ADDR_BITS_G,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_SQ1_BIAS_DAC_C).baseAddr)
       port map (
          timingRxClk125  => timingRxClk125,                            -- [in]
@@ -642,6 +651,8 @@ begin
       generic map (
          TPD_G            => TPD_G,
          SIMULATION_G     => SIMULATION_G,
+         USE_BRAM_G       => FAST_DAC_BRAM_G,
+         ROW_ADDR_BITS_G  => ROW_ADDR_BITS_G,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_SQ1_FB_DAC_C).baseAddr)
       port map (
          timingRxClk125  => timingRxClk125,                          -- [in]
@@ -664,6 +675,8 @@ begin
       generic map (
          TPD_G            => TPD_G,
          SIMULATION_G     => SIMULATION_G,
+         USE_BRAM_G       => FAST_DAC_BRAM_G,
+         ROW_ADDR_BITS_G  => ROW_ADDR_BITS_G,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_SA_FB_DAC_C).baseAddr)
       port map (
          timingRxClk125  => timingRxClk125,                         -- [in]
@@ -684,6 +697,8 @@ begin
    U_FastDacDriver_AUX : entity warm_tdm.FastDacDriver
       generic map (
          TPD_G            => TPD_G,
+         USE_BRAM_G       => FAST_DAC_BRAM_G,
+         ROW_ADDR_BITS_G  => ROW_ADDR_BITS_G,
          AXIL_BASE_ADDR_G => AXIL_XBAR_CFG_C(AXIL_AUX_DAC_C).baseAddr)
       port map (
          timingRxClk125  => timingRxClk125,                       -- [in]

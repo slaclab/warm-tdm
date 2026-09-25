@@ -28,9 +28,43 @@ def closure(path, name, env):
     return env[name]
 
 
+class IntegerFluxQuantumTests(unittest.TestCase):
+    def functions(self, slope):
+        dev = SimpleNamespace(
+            amp=SimpleNamespace(currentPerLsb=Mock(return_value=slope)),
+            FluxQuantumRaw=SimpleNamespace(set=Mock(), get=Mock()))
+        path = 'firmware/python/warm_tdm/_AdcDsp.py'
+        setter = closure(path, '_setFluxQuantum', {'self': dev,
+                         '_setFluxQuantumRegisters': dev.FluxQuantumRaw.set})
+        getter = closure(path, '_getFluxQuantum', {'self': dev})
+        return dev, setter, getter
+
+    def test_quantum_is_a_difference_for_either_amplifier_polarity(self):
+        for slope in (0.125, -0.125):
+            dev, setter, getter = self.functions(slope)
+            for value, expected in ((0.0, 0), (0.125, 1), (250.0, 2000),
+                                    (1023.875, 8191), (1.26, 10)):
+                with self.subTest(slope=slope, value=value):
+                    setter(value, write=False)
+                    dev.FluxQuantumRaw.set.assert_called_with(expected, False)
+                    dev.FluxQuantumRaw.get.return_value = expected
+                    self.assertEqual(getter(read=True), expected * abs(slope))
+                    dev.FluxQuantumRaw.get.assert_called_with(read=True)
+
+    def test_invalid_periods_do_not_write_hardware(self):
+        dev, setter, getter = self.functions(-0.125)
+        for value in (-1.0, 0.01, 1024.0):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                setter(value, write=True)
+        dev.FluxQuantumRaw.set.assert_not_called()
+        dev.FluxQuantumRaw.get.return_value = 0x3fff  # raw signed -1
+        with self.assertRaises(ValueError):
+            getter(read=True)
+
+
 class BatchHelpersTests(unittest.TestCase):
     def test_all_fast_dacs_stages_all_channels_before_flushing_each_driver(self):
-        for variant in ['ColumnModule', 'ColumnFpgaBoard', 'ColumnAwaXeFpgaBoard']:
+        for variant in ['ColumnFpgaBoard', 'ColumnAwaXeFpgaBoard']:
             with self.subTest(variant=variant):
                 events = []
                 dev = SimpleNamespace(root=SimpleNamespace(updateGroup=lambda: nullcontext()))
@@ -80,7 +114,7 @@ class PromLoaderTests(unittest.TestCase):
         self.root = MagicMock()
         self.root.__enter__.return_value = self.root
         self.root.Group.HardwareGroup.ColumnBoard = {0: SimpleNamespace(WarmTdmCore=
-            SimpleNamespace(WarmTdmCommon2=SimpleNamespace(AxiVersion=self.avs[0])))}
+            SimpleNamespace(WarmTdmCommon=SimpleNamespace(AxiVersion=self.avs[0])))}
         self.root.find.side_effect = lambda name: self.avs if name=='AxiVersion' else self.proms
         self.factory = Mock(return_value=self.root)
         self.api = SimpleNamespace(WarmTdmArgparse=argparse.ArgumentParser, arg_dict=lambda a: {}, GroupRoot=self.factory)

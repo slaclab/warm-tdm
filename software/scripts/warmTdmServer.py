@@ -12,6 +12,9 @@
 
 Builds the GroupRoot and waits. Pass --gui to also launch the PyDM display, or
 run warmTdmGui.py for a GUI-by-default launcher.
+
+For transport debugging, add --srp-debug and optionally --rssi-debug; redirect
+stdout and stderr to retain the logs. See --help for diagnostic options.
 """
 import _setupLibPaths  # noqa: F401  (registers in-repo library paths)
 

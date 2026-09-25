@@ -89,6 +89,13 @@ package WaferSimPkg is
       phaseOffsetCycles       : real;
    end record SquidParamsType;
 
+   -- V-Phi shape blend applied in idealSquidVoltage (single global knob, no
+   -- per-squid record field): 0.0 = ideal RSJ curve (steepest at its minima);
+   -- 1.0 = pure fundamental sinusoid with the same min/max envelope (steepest
+   -- at mid-slope, like real thermally/inductively smeared SQUIDs). Intermediate
+   -- values blend the two. See docs/design/squid-vphi-shaping/README.md.
+   constant SQUID_SINUSOID_BLEND_C : real := 1.0;
+
    type SsaParamsType is record
       squid                   : SquidParamsType;
       elementCount            : positive;
@@ -140,6 +147,16 @@ package WaferSimPkg is
       muxColumn   : MuxColumnParamsType;
    end record WaferProfileType;
 
+   -- Resolved per-instance parameter arrays.  Leaf entities receive one element
+   -- per physical device (per column, per pixel, or per bank) so a wafer can
+   -- carry realistic device-to-device spread.  See the seeded builder functions
+   -- below and docs/plans/sensor-wafer-model/README.md.
+   type SsaParamsArray       is array (natural range <>) of SsaParamsType;
+   type Sq1ParamsArray       is array (natural range <>) of Sq1ParamsType;
+   type RowFasParamsArray    is array (natural range <>) of RowFasParamsType;
+   type ChipFasParamsArray   is array (natural range <>) of ChipFasParamsType;
+   type MuxColumnParamsArray is array (natural range <>) of MuxColumnParamsType;
+
    constant SSA_SQUID_SYNTHETIC_C : SquidParamsType := (
       criticalCurrentAmp  => 55.0E-6,
       -- Lumped whole-array value chosen to reproduce the measured 5--8 mV
@@ -152,11 +169,20 @@ package WaferSimPkg is
    constant SQ1_SQUID_SYNTHETIC_C : SquidParamsType := (
       criticalCurrentAmp  => 20.0E-6,
       normalResistanceOhm => 14.0,
-      currentPerPhi0Amp   => 10.0E-6,
+      -- Nominal SQ1 feedback period: Phi0 / 90 pH is approximately 23 uA.
+      currentPerPhi0Amp   => 23.0E-6,
       phaseOffsetCycles   => 0.0);
 
+   -- Row-FAS Ic RAISED (was 20 uA) so it exceeds the muxed readout current: an
+   -- OFF row (FAS at ic-max, select = integer Phi0) then goes superconducting and
+   -- strongly shunts its SQ1 branch (cell R -> series ~0.1 ohm), while the ON row
+   -- (FAS ic=0 at the 150 uA half-Phi0 select) keeps R=Rn and its SQ1 modulation.
+   -- At the old 20 uA Ic the FAS never superconducted (Ic <= readout current), so
+   -- on/off SQ1 visibility differed only ~1.15x -> the mux blended all rows and
+   -- the per-row PID could not lock. See docs/plans/pid-cosim-verification/
+   -- cosim-tuning-settings.md.
    constant ROW_FAS_SQUID_SYNTHETIC_C : SquidParamsType := (
-      criticalCurrentAmp  => 20.0E-6,
+      criticalCurrentAmp  => 100.0E-6,
       normalResistanceOhm => 14.0,
       currentPerPhi0Amp   => 300.0E-6,
       phaseOffsetCycles   => 0.0);
@@ -206,12 +232,40 @@ package WaferSimPkg is
       useExactNetworkSolver => false,
       solverIterations      => 24);
 
+   -- Per-device variation controls.  A nonzero seed makes the seeded builder
+   -- functions perturb each device's nominal curve deterministically; seed 0
+   -- returns the nominal unchanged (bit-for-bit the old identical-device model).
+   -- The default seed is nonzero so a wafer model always carries realistic
+   -- device-to-device spread.
+   constant WAFER_VARIATION_SEED_C : natural := 1234567;
+   -- Fractional +/- spread applied to critical current, normal resistance, and
+   -- current-per-Phi0 (period).  Keep < 1.0 so perturbed values stay positive.
+   constant DEVICE_SPREAD_C        : real    := 0.05;
+   -- +/- spread (in flux quanta) applied to phaseOffsetCycles.  This is the knob
+   -- that gives each pixel a different muxed baseline level and each channel a
+   -- different tuning lock point.
+   constant PHASE_SPREAD_CYCLES_C  : real    := 0.15;
+   -- +/- per-pixel DC TES baseline current, summed into the pixel TES current.
+   constant TES_BASELINE_AMP_C     : real    := 1.0E-6;
+
    constant WAFER_32_PROFILE_C : WaferProfileType := (
       topology  => (
          physicalColumns => 8,
          numBanks        => 1,
          rowsPerBank     => 32,
          twoLevel        => false),
+      ssa       => SSA_SYNTHETIC_C,
+      sq1       => SQ1_SYNTHETIC_C,
+      rowFas    => ROW_FAS_SYNTHETIC_C,
+      chipFas   => CHIP_FAS_SYNTHETIC_C,
+      muxColumn => MUX_COLUMN_SYNTHETIC_C);
+
+   constant WAFER_8X10_PROFILE_C : WaferProfileType := (
+      topology  => (
+         physicalColumns => 8,
+         numBanks        => 8,
+         rowsPerBank     => 10,
+         twoLevel        => true),
       ssa       => SSA_SYNTHETIC_C,
       sq1       => SQ1_SYNTHETIC_C,
       rowFas    => ROW_FAS_SYNTHETIC_C,
@@ -380,6 +434,56 @@ package WaferSimPkg is
       selectCurrent : real)
       return real;
 
+   -- Uniform (no-variation) arrays: every element is the nominal record.  Used
+   -- by focused device tests and legacy wrappers so their analytic curves are
+   -- unchanged, and as the leaf-entity generic defaults.
+   function uniformSsaArray (
+      nominal : SsaParamsType; count : positive) return SsaParamsArray;
+   function uniformSq1Array (
+      nominal : Sq1ParamsType; count : positive) return Sq1ParamsArray;
+   function uniformRowFasArray (
+      nominal : RowFasParamsType; count : positive) return RowFasParamsArray;
+   function uniformChipFasArray (
+      nominal : ChipFasParamsType; count : positive) return ChipFasParamsArray;
+
+   -- Seeded per-instance variation builders.  seed = 0 returns the nominal
+   -- unchanged; a nonzero seed applies deterministic fractional spread to the
+   -- device curve and an additive phase-offset spread.  Each device type uses a
+   -- distinct random sub-stream so the results are independent and repeatable.
+   function resolveSsaParams (
+      nominal     : SsaParamsType;
+      count       : positive;
+      seed        : natural;
+      spread      : real := DEVICE_SPREAD_C;
+      phaseSpread : real := PHASE_SPREAD_CYCLES_C)
+      return SsaParamsArray;
+   function resolveSq1Params (
+      nominal     : Sq1ParamsType;
+      count       : positive;
+      seed        : natural;
+      spread      : real := DEVICE_SPREAD_C;
+      phaseSpread : real := PHASE_SPREAD_CYCLES_C)
+      return Sq1ParamsArray;
+   function resolveRowFasParams (
+      nominal     : RowFasParamsType;
+      count       : positive;
+      seed        : natural;
+      spread      : real := DEVICE_SPREAD_C;
+      phaseSpread : real := PHASE_SPREAD_CYCLES_C)
+      return RowFasParamsArray;
+   function resolveChipFasParams (
+      nominal     : ChipFasParamsType;
+      count       : positive;
+      seed        : natural;
+      spread      : real := DEVICE_SPREAD_C;
+      phaseSpread : real := PHASE_SPREAD_CYCLES_C)
+      return ChipFasParamsArray;
+   function resolveTesBaseline (
+      count     : positive;
+      seed      : natural;
+      amplitude : real := TES_BASELINE_AMP_C)
+      return RealVector;
+
 end package WaferSimPkg;
 
 package body WaferSimPkg is
@@ -405,6 +509,7 @@ package body WaferSimPkg is
       return loadName = "LOAD_BOARD" or
              loadName = "WAFER" or
              loadName = "WAFER_32" or
+             loadName = "WAFER_8X10" or
              loadName = "BICEP3" or
              loadName = "NIST_50R" or
              loadName = "BA4";
@@ -412,7 +517,9 @@ package body WaferSimPkg is
 
    function waferProfile (loadName : string) return WaferProfileType is
    begin
-      if loadName = "BICEP3" then
+      if loadName = "WAFER_8X10" then
+         return WAFER_8X10_PROFILE_C;
+      elsif loadName = "BICEP3" then
          return BICEP3_PROFILE_C;
       elsif loadName = "NIST_50R" then
          return NIST_50R_PROFILE_C;
@@ -615,19 +722,50 @@ package body WaferSimPkg is
       variable criticalCurrent : real;
       variable radicand        : real;
       variable magnitude       : real;
+      variable idealMag        : real;
+      variable vMax            : real;
+      variable vMin            : real;
+      variable sinMag          : real;
+      variable mag             : real;
    begin
       criticalCurrent := idealSquidCriticalCurrent(params, phaseCycles);
       magnitude       := abs(biasCurrent);
 
+      -- Ideal RSJ branch magnitude (unsigned); 0 while superconducting.
       if magnitude <= criticalCurrent then
-         return 0.0;
+         idealMag := 0.0;
+      else
+         radicand := magnitude*magnitude - criticalCurrent*criticalCurrent;
+         idealMag := params.normalResistanceOhm * sqrt(radicand);
       end if;
 
-      radicand := magnitude*magnitude - criticalCurrent*criticalCurrent;
-      if biasCurrent < 0.0 then
-         return -params.normalResistanceOhm * sqrt(radicand);
+      if SQUID_SINUSOID_BLEND_C = 0.0 then
+         mag := idealMag;
       else
-         return params.normalResistanceOhm * sqrt(radicand);
+         -- Fundamental-harmonic V-Phi with the SAME envelope as the ideal curve:
+         -- max at ic->0 (phaseCycles half-integer), min at ic=criticalCurrentAmp
+         -- (phaseCycles integer). Since ic = criticalCurrentAmp*|cos(pi*phase)|,
+         -- -cos(2*pi*phase) tracks that envelope exactly. Blending toward it
+         -- rounds the ideal cusp and moves the steep region to mid-slope, closer
+         -- to a real (smeared) SQUID. See docs/design/squid-vphi-shaping/.
+         vMax := params.normalResistanceOhm * magnitude;                     -- ic -> 0
+         if magnitude <= params.criticalCurrentAmp then
+            vMin := 0.0;
+         else
+            vMin := params.normalResistanceOhm *
+                    sqrt(magnitude*magnitude
+                         - params.criticalCurrentAmp*params.criticalCurrentAmp);
+         end if;
+         sinMag := (vMax + vMin)/2.0
+                   - (vMax - vMin)/2.0 * cos(2.0*MATH_PI*phaseCycles);
+         mag := (1.0 - SQUID_SINUSOID_BLEND_C)*idealMag
+                + SQUID_SINUSOID_BLEND_C*sinMag;
+      end if;
+
+      if biasCurrent < 0.0 then
+         return -mag;
+      else
+         return mag;
       end if;
    end function idealSquidVoltage;
 
@@ -770,5 +908,202 @@ package body WaferSimPkg is
                 chipFasPhaseCycles(params, selectCurrent)) +
              biasCurrent * params.seriesResistanceOhm;
    end function chipFasBranchVoltage;
+
+   -- Distinct random sub-stream salts so device types decorrelate.
+   constant SSA_SALT_C      : natural := 1;
+   constant SQ1_SALT_C      : natural := 2;
+   constant ROW_FAS_SALT_C  : natural := 3;
+   constant CHIP_FAS_SALT_C : natural := 4;
+   constant TES_SALT_C      : natural := 5;
+
+   -- ieee.math_real.uniform requires seed1 in 1..2147483562 and seed2 in
+   -- 1..2147483398.  Derive a repeatable pair from the base seed and a salt.
+   procedure initSeeds (
+      seed : natural;
+      salt : natural;
+      variable seed1 : out positive;
+      variable seed2 : out positive) is
+      variable v1 : natural;
+      variable v2 : natural;
+   begin
+      v1 := ((seed mod 2147483000) + salt*7919 + 1) mod 2147483562;
+      v2 := ((seed mod 2147483000) + salt*104729 + 12345) mod 2147483398;
+      if v1 < 1 then
+         v1 := 1;
+      end if;
+      if v2 < 1 then
+         v2 := 1;
+      end if;
+      seed1 := v1;
+      seed2 := v2;
+   end procedure initSeeds;
+
+   -- Perturb the whole-SQUID curve fields in place from the running stream.
+   procedure perturbSquid (
+      variable params : inout SquidParamsType;
+      variable seed1  : inout positive;
+      variable seed2  : inout positive;
+      spread          : real;
+      phaseSpread     : real) is
+      variable u : real;
+   begin
+      uniform(seed1, seed2, u);
+      params.criticalCurrentAmp :=
+         params.criticalCurrentAmp * (1.0 + spread*(2.0*u - 1.0));
+      uniform(seed1, seed2, u);
+      params.normalResistanceOhm :=
+         params.normalResistanceOhm * (1.0 + spread*(2.0*u - 1.0));
+      uniform(seed1, seed2, u);
+      params.currentPerPhi0Amp :=
+         params.currentPerPhi0Amp * (1.0 + spread*(2.0*u - 1.0));
+      uniform(seed1, seed2, u);
+      params.phaseOffsetCycles :=
+         params.phaseOffsetCycles + phaseSpread*(2.0*u - 1.0);
+   end procedure perturbSquid;
+
+   function uniformSsaArray (
+      nominal : SsaParamsType; count : positive) return SsaParamsArray is
+      variable result : SsaParamsArray(0 to count-1) := (others => nominal);
+   begin
+      return result;
+   end function uniformSsaArray;
+
+   function uniformSq1Array (
+      nominal : Sq1ParamsType; count : positive) return Sq1ParamsArray is
+      variable result : Sq1ParamsArray(0 to count-1) := (others => nominal);
+   begin
+      return result;
+   end function uniformSq1Array;
+
+   function uniformRowFasArray (
+      nominal : RowFasParamsType; count : positive) return RowFasParamsArray is
+      variable result : RowFasParamsArray(0 to count-1) := (others => nominal);
+   begin
+      return result;
+   end function uniformRowFasArray;
+
+   function uniformChipFasArray (
+      nominal : ChipFasParamsType; count : positive) return ChipFasParamsArray is
+      variable result : ChipFasParamsArray(0 to count-1) := (others => nominal);
+   begin
+      return result;
+   end function uniformChipFasArray;
+
+   function resolveSsaParams (
+      nominal     : SsaParamsType;
+      count       : positive;
+      seed        : natural;
+      spread      : real := DEVICE_SPREAD_C;
+      phaseSpread : real := PHASE_SPREAD_CYCLES_C)
+      return SsaParamsArray is
+      variable result : SsaParamsArray(0 to count-1) := (others => nominal);
+      variable seed1  : positive;
+      variable seed2  : positive;
+      variable squid  : SquidParamsType;
+   begin
+      if seed = 0 then
+         return result;
+      end if;
+      initSeeds(seed, SSA_SALT_C, seed1, seed2);
+      for i in result'range loop
+         squid := nominal.squid;
+         perturbSquid(squid, seed1, seed2, spread, phaseSpread);
+         result(i).squid := squid;
+      end loop;
+      return result;
+   end function resolveSsaParams;
+
+   function resolveSq1Params (
+      nominal     : Sq1ParamsType;
+      count       : positive;
+      seed        : natural;
+      spread      : real := DEVICE_SPREAD_C;
+      phaseSpread : real := PHASE_SPREAD_CYCLES_C)
+      return Sq1ParamsArray is
+      variable result : Sq1ParamsArray(0 to count-1) := (others => nominal);
+      variable seed1  : positive;
+      variable seed2  : positive;
+      variable squid  : SquidParamsType;
+   begin
+      if seed = 0 then
+         return result;
+      end if;
+      initSeeds(seed, SQ1_SALT_C, seed1, seed2);
+      for i in result'range loop
+         squid := nominal.squid;
+         perturbSquid(squid, seed1, seed2, spread, phaseSpread);
+         result(i).squid := squid;
+      end loop;
+      return result;
+   end function resolveSq1Params;
+
+   function resolveRowFasParams (
+      nominal     : RowFasParamsType;
+      count       : positive;
+      seed        : natural;
+      spread      : real := DEVICE_SPREAD_C;
+      phaseSpread : real := PHASE_SPREAD_CYCLES_C)
+      return RowFasParamsArray is
+      variable result : RowFasParamsArray(0 to count-1) := (others => nominal);
+      variable seed1  : positive;
+      variable seed2  : positive;
+      variable squid  : SquidParamsType;
+   begin
+      if seed = 0 then
+         return result;
+      end if;
+      initSeeds(seed, ROW_FAS_SALT_C, seed1, seed2);
+      for i in result'range loop
+         squid := nominal.squid;
+         perturbSquid(squid, seed1, seed2, spread, phaseSpread);
+         result(i).squid := squid;
+      end loop;
+      return result;
+   end function resolveRowFasParams;
+
+   function resolveChipFasParams (
+      nominal     : ChipFasParamsType;
+      count       : positive;
+      seed        : natural;
+      spread      : real := DEVICE_SPREAD_C;
+      phaseSpread : real := PHASE_SPREAD_CYCLES_C)
+      return ChipFasParamsArray is
+      variable result : ChipFasParamsArray(0 to count-1) := (others => nominal);
+      variable seed1  : positive;
+      variable seed2  : positive;
+      variable squid  : SquidParamsType;
+   begin
+      if seed = 0 then
+         return result;
+      end if;
+      initSeeds(seed, CHIP_FAS_SALT_C, seed1, seed2);
+      for i in result'range loop
+         squid := nominal.squid;
+         perturbSquid(squid, seed1, seed2, spread, phaseSpread);
+         result(i).squid := squid;
+      end loop;
+      return result;
+   end function resolveChipFasParams;
+
+   function resolveTesBaseline (
+      count     : positive;
+      seed      : natural;
+      amplitude : real := TES_BASELINE_AMP_C)
+      return RealVector is
+      variable result : RealVector(0 to count-1) := (others => 0.0);
+      variable seed1  : positive;
+      variable seed2  : positive;
+      variable u      : real;
+   begin
+      if seed = 0 then
+         return result;
+      end if;
+      initSeeds(seed, TES_SALT_C, seed1, seed2);
+      for i in result'range loop
+         uniform(seed1, seed2, u);
+         result(i) := amplitude*(2.0*u - 1.0);
+      end loop;
+      return result;
+   end function resolveTesBaseline;
 
 end package body WaferSimPkg;

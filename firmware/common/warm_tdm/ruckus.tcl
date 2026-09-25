@@ -18,6 +18,8 @@ loadSource -lib warm_tdm  -dir "$::DIR_PATH/rtl" -fileType "VHDL 2008"
 #loadIpCore -path "$::DIR_PATH/ip/FirFilter/FirFilter.xci"
 loadIpCore -doUpgrade -path $::DIR_PATH/ip/Int2Fp/Int2Fp.xci
 loadIpCore -doUpgrade -path $::DIR_PATH/ip/FpMac/FpMac.xci
+loadIpCore -doUpgrade -path $::DIR_PATH/ip/Fp2Int/Fp2Int.xci
+#loadIpCore -doUpgrade -path $::DIR_PATH/ip/FpAdd/FpAdd.xci
 
 
 # Load Simulation

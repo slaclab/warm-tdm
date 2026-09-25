@@ -1,9 +1,0 @@
-channels:
-  - conda-forge
-  - tidair-tag
-dependencies:
-  - rogue
-  - matplotlib
-  - mpld3
-  - jupyterlab
-  - simple-pid

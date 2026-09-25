@@ -26,11 +26,16 @@ def load(name, path):
 acquisition = load('acquisition', 'software/python/warm_tdm_api/operations/session/_acquisition.py')
 tuning = load('tuning', 'software/python/warm_tdm_api/operations/session/_tuning.py')
 forcedac = load('forcedac', 'software/python/warm_tdm_api/operations/session/_forcedac.py')
-with patch.dict(sys.modules, {'setup_test._core': SimpleNamespace(COORDINATOR_COL_BOARD=0)}):
+session_package = SimpleNamespace(COORDINATOR_COL_BOARD=0)
+operations_package = SimpleNamespace(session=session_package)
+with patch.dict(sys.modules, {
+        'warm_tdm_api': SimpleNamespace(operations=operations_package),
+        'warm_tdm_api.operations': operations_package,
+        'warm_tdm_api.operations.session': session_package}):
     setup = load('setup_test._setup', 'software/python/warm_tdm_api/operations/session/_setup.py')
 with patch.dict(sys.modules, {'_hwtest_common': SimpleNamespace(
         add_conn_args=Mock(), connect=Mock(), Checklist=Mock(), finish=Mock())}):
-    hwtest = load('stop_zero_hwtest', 'software/scripts/hwtest/verify_stop_and_zero.py')
+    hwtest = load('stop_zero_hwtest', 'software/hwtest/verify_stop_and_zero.py')
 
 
 def var(value):
@@ -136,6 +141,16 @@ class AcquisitionTests(unittest.TestCase):
                 self.session.take_data(value)
         self.tx.StartRun.assert_not_called()
         self.writer.Close.assert_not_called()
+
+    def test_run_directory_captures_have_distinct_names_without_autoname(self):
+        self.session.output = SimpleNamespace(run_dir='/tmp/run')
+        self.session._require_output.return_value = '/tmp/run/data'
+        self.session.take_data(0)
+        self.session.take_data(0)
+        names = [call.args[0] for call in self.writer.DataFile.set.call_args_list]
+        self.assertEqual(len(set(names)), 2)
+        self.assertTrue(all(Path(name).parent == Path('/tmp/run/data') for name in names))
+        self.writer.AutoName.assert_not_called()
 
 
 class TuningTests(unittest.TestCase):

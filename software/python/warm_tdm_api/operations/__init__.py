@@ -53,6 +53,8 @@ from .session import (
     new_session,
 )
 
+from .pid_sweep import sweep_pid_p
+
 # Pure channel helpers: addressing, identifiers, dead masks (no hardware)
 from .channels import (
     get_row_col,
@@ -94,6 +96,7 @@ from .analysis import (
 
 __all__ = [
     # session
+    'sweep_pid_p',
     'Session',
     'OutputDir',
     'connect',

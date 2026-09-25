@@ -10,7 +10,7 @@ import time
 
 import warm_tdm_api
 
-from ._common import _pause_point, saOffset
+import warm_tdm_api.tuning as tuning
 
 
 def saFbSweep(*, group, bias, saFbRange, process, curves=None,
@@ -66,7 +66,7 @@ def saFbSweep(*, group, bias, saFbRange, process, curves=None,
     # column vector at every step even when the configured ranges are equal.
     for idx in range(numSteps):
 
-        if not _pause_point(process, publish):
+        if not tuning._pause_point(process, publish):
             break
 
         # Drive only the enabled columns through the force-current override.
@@ -88,7 +88,7 @@ def saFbSweep(*, group, bias, saFbRange, process, curves=None,
         adcs = group.SaOutAdc.get(read=False)
         if np.any(np.abs(adcs[enabled_mask]) > 0.8):
             group._log.warning(f'High ADC value seen: SaBias={bias}, SaFb={saFbRange[:, idx]}, ADCs={adcs}')
-            offset = saOffset(
+            offset = tuning.saOffset(
                 group=group, process=process, publish=publish)
             # saOffset exits on a freshly sampled ADC value.
             adc_after = group.SaOutAdc.get(read=False)
@@ -98,7 +98,7 @@ def saFbSweep(*, group, bias, saFbRange, process, curves=None,
                 'After re-offset: SaOffset=%s, ADC=%s, SaOut=%s',
                 offset, adc_after, group.SaOut.get(read=False))
 
-        if not _pause_point(process, publish):
+        if not tuning._pause_point(process, publish):
             break
 
     # Leave the force path in a deterministic neutral state between bias curves.
@@ -179,7 +179,7 @@ def saBiasSweep(*, group, process, doBiasRamp=True):
         publish = (
             None if process is None
             else lambda: process._publishResults(datalist))
-        if not _pause_point(process, publish):
+        if not tuning._pause_point(process, publish):
             group._log.info('Process stopped, exiting saBiasSweep')
             break
 
@@ -197,7 +197,7 @@ def saBiasSweep(*, group, process, doBiasRamp=True):
                 datalist[col].addCurve(curves[col])
 
         group.SaBiasCurrent.set(saBiasRange[:, idx])
-        saOffset(group=group, process=process, publish=publish)
+        tuning.saOffset(group=group, process=process, publish=publish)
 
         saFbSweep(
             group=group,
@@ -208,7 +208,7 @@ def saBiasSweep(*, group, process, doBiasRamp=True):
             publish=publish)
 
         # Do not begin another bias point after an interrupted inner sweep.
-        if not _pause_point(process, publish):
+        if not tuning._pause_point(process, publish):
             group._log.info('Process stopped, exiting saBiasSweep')
             break
 
@@ -263,7 +263,7 @@ def saTune(*, group, process=None, doSet=True, doBiasRamp=True):
     publish = (
         None if process is None
         else lambda: process._publishResults(saBiasResults))
-    stopped = not _pause_point(process, publish)
+    stopped = not tuning._pause_point(process, publish)
     if doSet and not stopped:
         # Build complete arrays in memory first. Group-level setters mask
         # disabled columns, so their cached placeholder values are never sent.
@@ -301,7 +301,7 @@ def saTune(*, group, process=None, doSet=True, doBiasRamp=True):
         group.SaFbForceCurrent.set(tunedSaFb)
 
         # Recenter the output at the operating point that readout will use.
-        saOffset(group=group, process=process, publish=publish)
+        tuning.saOffset(group=group, process=process, publish=publish)
     elif doSet:
         group._log.info('Process stopped; leaving partial SA tune results unapplied')
 

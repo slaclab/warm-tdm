@@ -53,7 +53,7 @@ entity WaferSim is
 
       SQ1_RN_G     : real := 14.0;
       SQ1_IC0_G    : real := 20.0e-6;
-      SQ1_PHINOT_G : real := 10.0e-6;
+      SQ1_PHINOT_G : real := SQ1_SQUID_SYNTHETIC_C.currentPerPhi0Amp;
 
       RS_RN_G     : real := 14.0;
       RS_IC0_G    : real := 20.0e-6;
@@ -205,10 +205,14 @@ begin
          NUM_BANKS_G       => NUM_BANKS_G,
          ROWS_PER_BANK_G   => ROWS_PER_BANK_G,
          TWO_LEVEL_G       => TWO_LEVEL_G,
-         SSA_PARAMS_G      => SSA_MODEL_PARAMS_G,
-         SQ1_PARAMS_G      => SQ1_MODEL_PARAMS_G,
-         ROW_FAS_PARAMS_G  => ROW_FAS_MODEL_PARAMS_G,
-         CHIP_FAS_PARAMS_G => CHIP_FAS_MODEL_PARAMS_G,
+         -- Legacy 8-channel compatibility wrapper: uniform (identical) devices.
+         SSA_PARAMS_G      => uniformSsaArray(SSA_MODEL_PARAMS_G, 8),
+         SQ1_PARAMS_G      => uniformSq1Array(
+            SQ1_MODEL_PARAMS_G, 8*NUM_BANKS_G*ROWS_PER_BANK_G),
+         ROW_FAS_PARAMS_G  => uniformRowFasArray(
+            ROW_FAS_MODEL_PARAMS_G, 8*NUM_BANKS_G*ROWS_PER_BANK_G),
+         CHIP_FAS_PARAMS_G => uniformChipFasArray(
+            CHIP_FAS_MODEL_PARAMS_G, 8*NUM_BANKS_G),
          COLUMN_PARAMS_G   => MUX_COLUMN_MODEL_PARAMS_G)
       port map (
          ssaBiasCurrentAmp     => saBiasCurrent,

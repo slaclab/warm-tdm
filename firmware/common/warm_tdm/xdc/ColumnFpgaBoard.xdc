@@ -64,15 +64,9 @@ set_property -dict { PACKAGE_PIN V4  IOSTANDARD LVDS } [get_ports { timingTxData
 set_property -dict { PACKAGE_PIN W4  IOSTANDARD LVDS } [get_ports { timingTxDataN }];
 
 
-# SFP
-set_property PACKAGE_PIN K2 [get_ports {sfp0TxP}]
-set_property PACKAGE_PIN K1 [get_ports {sfp0TxN}]
-set_property PACKAGE_PIN L4 [get_ports {sfp0RxP}]
-set_property PACKAGE_PIN L3 [get_ports {sfp0RxN}]
-# set_property PACKAGE_PIN H2 [get_ports {sfp1TxP}]
-# set_property PACKAGE_PIN H1 [get_ports {sfp1TxN}]
-# set_property PACKAGE_PIN J4 [get_ports {sfp1RxP}]
-# set_property PACKAGE_PIN J3 [get_ports {sfp1RxN}]
+# SFP transceiver serial pins (sfp0Tx*/sfp0Rx*) are GT sites, valid only when
+# the Ethernet GT drives them. They live in xdc/WarmTdmCoreSfp.xdc, loaded only
+# from Ethernet (RING_ADDR_0_G) targets, so fabric-driven builds don't LOC them.
 
 
 # ADC

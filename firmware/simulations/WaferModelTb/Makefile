@@ -29,10 +29,15 @@ test: analyze
 	$(BUILD_DIR)/wafercompatibilitytb --assert-level=error
 	$(GHDL) -e $(GHDL_FLAGS) --workdir=$(BUILD_DIR) -P$(BUILD_DIR) -o $(BUILD_DIR)/detectorscaletb DetectorScaleTb
 	$(BUILD_DIR)/detectorscaletb --assert-level=error
+	$(BUILD_DIR)/detectorscaletb -gNUM_BANKS_G=8 --assert-level=error
 	$(GHDL) -e $(GHDL_FLAGS) --workdir=$(BUILD_DIR) -P$(BUILD_DIR) -o $(BUILD_DIR)/detectorprofiletb DetectorProfileTb
 	$(BUILD_DIR)/detectorprofiletb --assert-level=error
 	$(GHDL) -e $(GHDL_FLAGS) --workdir=$(BUILD_DIR) -P$(BUILD_DIR) -o $(BUILD_DIR)/groupdetectorharnesstb GroupDetectorHarnessTb
 	$(BUILD_DIR)/groupdetectorharnesstb --assert-level=error
+	$(GHDL) -e $(GHDL_FLAGS) --workdir=$(BUILD_DIR) -P$(BUILD_DIR) -o $(BUILD_DIR)/detectorvariationtb DetectorVariationTb
+	$(BUILD_DIR)/detectorvariationtb --assert-level=error
+	$(GHDL) -e $(GHDL_FLAGS) --workdir=$(BUILD_DIR) -P$(BUILD_DIR) -o $(BUILD_DIR)/sq1feedbacktb Sq1FeedbackTb
+	$(BUILD_DIR)/sq1feedbacktb --assert-level=error
 
 analyze:
 	mkdir -p $(BUILD_DIR)
@@ -43,6 +48,8 @@ analyze:
 	$(GHDL) -a $(GHDL_FLAGS) --workdir=$(BUILD_DIR) -P$(BUILD_DIR) tb/DetectorScaleTb.vhd
 	$(GHDL) -a $(GHDL_FLAGS) --workdir=$(BUILD_DIR) -P$(BUILD_DIR) tb/DetectorProfileTb.vhd
 	$(GHDL) -a $(GHDL_FLAGS) --workdir=$(BUILD_DIR) -P$(BUILD_DIR) tb/GroupDetectorHarnessTb.vhd
+	$(GHDL) -a $(GHDL_FLAGS) --workdir=$(BUILD_DIR) -P$(BUILD_DIR) tb/DetectorVariationTb.vhd
+	$(GHDL) -a $(GHDL_FLAGS) --workdir=$(BUILD_DIR) -P$(BUILD_DIR) tb/Sq1FeedbackTb.vhd
 
 clean:
 	rm -rf $(BUILD_DIR)

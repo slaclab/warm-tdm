@@ -32,7 +32,33 @@ entity GroupTb is
    generic (
       LOAD_G          : string               := "WAFER";
       COLUMN_BOARDS_G : integer range 1 to 3 := 1;
-      NUM_DETECTORS_G : integer range 1 to 2 := 1);
+      NUM_DETECTORS_G : integer range 1 to 2 := 1;
+      -- Seed for per-device wafer variation (SSA/SQ1/FAS/TES-baseline spread).
+      -- Nonzero (the default) makes tunings differ channel-to-channel and muxed
+      -- row levels differ pixel-to-pixel; 0 restores identical devices.
+      VARIATION_SEED_G : natural             := WAFER_VARIATION_SEED_C;
+      -- Selects the column-board PID datapath: true = floating-point AdcDspFp,
+      -- false = integer AdcDsp. Default true preserves the historical behavior;
+      -- ruckus.tcl overrides it from the USE_FLOAT_PID env var so `make vcs` can
+      -- elaborate either path without editing this file.
+      USE_FLOAT_PID_G : boolean             := true;
+      -- Ethernet payload ceiling: false = 1 Gbit/s, true = 10 Gbit/s.
+      -- ruckus.tcl selects this from ETH_10G for both board models.
+      ETH_10G_G       : boolean             := true;
+      -- Comms mode for how the host reaches the boards in simulation:
+      -- true = fully simulate the board-to-board PGP GTX ring (coordinator-only
+      -- SRP bridge, row board reached over the ring, like real hardware);
+      -- false = historical bypass (every board exposes its own direct SRP socket,
+      -- MGT ring not driven). ruckus.tcl selects this from SIM_PGP_RING. The
+      -- software side (warm_tdm_api, --simPgpRing) MUST be set to match.
+      SIM_PGP_GT_G    : boolean             := true;
+      -- Scales the TES-bias -> SQ1-input coupling in the wafer model. Default 1.0
+      -- is the model's nominal; after the wafer recalibration the coupling is
+      -- ~1 Phi0 per 10 uA of TES current, so the default TES flux ramp already
+      -- sweeps several Phi0 and exercises the servo's flux-jump handling without
+      -- any scale-up. This generic is a vestigial test aid (set via the
+      -- TES_CURRENT_SCALE env var in ruckus.tcl) and is left at 1.0 everywhere.
+      TES_CURRENT_SCALE_G : real            := 1.0);
 end GroupTb;
 
 architecture sim of GroupTb is
@@ -54,12 +80,23 @@ architecture sim of GroupTb is
       end if;
    end function simulatedColumnsPerDetector;
 
-   constant SIM_PGP_GT_C : boolean := true;
+   -- Master toggle for how the host reaches the boards in simulation:
+   --   true  = fully simulate the board-to-board PGP GTX ring. Only the
+   --           coordinator exposes an SRP/data bridge; the row board is reached
+   --           over the ring through it, exactly like real hardware.
+   --   false = historical bypass: every board exposes its own direct SRP socket
+   --           and the MGT ring is not driven (faster, but never exercises the
+   --           ring-routing path).
+   -- The software side (warm_tdm_api, --simPgpRing) MUST be set to match this.
+   -- Driven from the SIM_PGP_GT_G generic (ruckus.tcl overrides it from the
+   -- SIM_PGP_RING env var so `make vcs` can pick a mode without editing this file).
+   constant SIM_PGP_GT_C : boolean := SIM_PGP_GT_G;
 
    constant COLUMN_BOARDS_C : integer := COLUMN_BOARDS_G;
    constant ROW_BOARDS_C    : integer := 1;
 
-   constant AWAXE_G : boolean := false;
+   constant AWAXE_G         : boolean := false;
+   constant USE_FLOAT_PID_C : boolean := USE_FLOAT_PID_G;
 
    constant WAFER_PROFILE_C : WaferProfileType := waferProfile(LOAD_G);
 
@@ -127,7 +164,7 @@ begin
 
    assert validLoadName(LOAD_G)
       report "GroupTb: LOAD_G must be LOAD_BOARD, WAFER, WAFER_32, " &
-             "BICEP3, NIST_50R, or BA4"
+             "WAFER_8X10, BICEP3, NIST_50R, or BA4"
       severity failure;
    assert NUM_WARM_COLUMNS_C >= NUM_DETECTORS_G
       report "GroupTb: each detector needs at least one warm column"
@@ -155,8 +192,13 @@ begin
          generic map (
             TPD_G                   => TPD_G,
             RING_ADDR_0_G           => (i = 0),
+            ETH_10G_G               => ETH_10G_G,
+            USE_FLOAT_PID_G         => USE_FLOAT_PID_C,
             AWAXE_G                 => AWAXE_G,
-            SIM_PGP_PORT_NUM_G      => 7000 + (40 *i),  --ite(SIM_PGP_GT_C, 0, 7000),
+            -- SIM_PGP_PORT_NUM_G = 0 selects the real Pgp2bGtx7VarLat GTX model
+            -- (PgpCore.REAL_PGP_GEN) so the ring is fully simulated; a nonzero
+            -- value keeps the historical bypass (each board its own SRP socket).
+            SIM_PGP_PORT_NUM_G      => ite(SIM_PGP_GT_C, 0, 7000 + (40 * i)),
             SIM_ETH_SRP_PORT_NUM_G  => 10000 + (i * 1000),
             SIM_ETH_DATA_PORT_NUM_G => 20000 + (i * 1000))
          port map (
@@ -178,19 +220,22 @@ begin
             rj45TimingRxClkN  => rj45TimingClkN(ite(i = 0, GROUP_SIZE_C-1, i-1)),   -- [in]
             rj45TimingRxDataP => rj45TimingDataP(ite(i = 0, GROUP_SIZE_C-1, i-1)),  -- [in]
             rj45TimingRxDataN => rj45TimingDataN(ite(i = 0, GROUP_SIZE_C-1, i-1)),  -- [in]
---            rj45TimingRxMgtP  => rj45TimingMgtP((i+GROUP_SIZE_C-1) mod GROUP_SIZE_C),   -- [in]
---            rj45TimingRxMgtN  => rj45TimingMgtN((i+GROUP_SIZE_C-1) mod GROUP_SIZE_C),   -- [in]
---            rj45PgpRxMgtP     => rj45PgpMgtP((i+GROUP_SIZE_C-1) mod GROUP_SIZE_C),      -- [in]
---            rj45PgpRxMgtN     => rj45PgpMgtN((i+GROUP_SIZE_C-1) mod GROUP_SIZE_C),      -- [in]
+            -- PGP ring: RX from the previous node, TX to this node's slot. The
+            -- lanes stay wired in both modes; in bypass mode the GTX endpoint is
+            -- not generated, so the TX outputs hold their port defaults.
+            rj45TimingRxMgtP  => rj45TimingMgtP((i+GROUP_SIZE_C-1) mod GROUP_SIZE_C),   -- [in]
+            rj45TimingRxMgtN  => rj45TimingMgtN((i+GROUP_SIZE_C-1) mod GROUP_SIZE_C),   -- [in]
+            rj45PgpRxMgtP     => rj45PgpMgtP((i+GROUP_SIZE_C-1) mod GROUP_SIZE_C),      -- [in]
+            rj45PgpRxMgtN     => rj45PgpMgtN((i+GROUP_SIZE_C-1) mod GROUP_SIZE_C),      -- [in]
             -- Outgoing connections
             rj45TimingTxClkP  => rj45TimingClkP(i),                                 -- [out]
             rj45TimingTxClkN  => rj45TimingClkN(i),                                 -- [out]
             rj45TimingTxDataP => rj45TimingDataP(i),                                -- [out]
-            rj45TimingTxDataN => rj45TimingDataN(i));                               -- [out]
---             rj45TimingTxMgtP  => rj45TimingMgtP(i),     -- [out]
---             rj45TimingTxMgtN  => rj45TimingMgtN(i),     -- [out]
---             rj45PgpTxMgtP     => rj45PgpMgtP(i),        -- [out]
---             rj45PgpTxMgtN     => rj45PgpMgtN(i));       -- [out]
+            rj45TimingTxDataN => rj45TimingDataN(i),                                -- [out]
+            rj45TimingTxMgtP  => rj45TimingMgtP(i),                                 -- [out]
+            rj45TimingTxMgtN  => rj45TimingMgtN(i),                                 -- [out]
+            rj45PgpTxMgtP     => rj45PgpMgtP(i),                                    -- [out]
+            rj45PgpTxMgtN     => rj45PgpMgtN(i));                                   -- [out]
 
       WAFER_CONNECTION : if LOAD_G /= "LOAD_BOARD" generate
          GEN_CHANNELS : for channel in 0 to 7 generate
@@ -241,7 +286,11 @@ begin
          generic map (
             TPD_G                   => TPD_G,
             RING_ADDR_0_G           => (i = 0),
-            SIM_PGP_PORT_NUM_G      => 70000 + (40*i),  --7000 + 40,
+            ETH_10G_G               => ETH_10G_G,
+            -- SIM_PGP_PORT_NUM_G = 0 selects the real Pgp2bGtx7VarLat GTX model
+            -- (PgpCore.REAL_PGP_GEN) so the ring is fully simulated; a nonzero
+            -- value keeps the historical bypass (each board its own SRP socket).
+            SIM_PGP_PORT_NUM_G      => ite(SIM_PGP_GT_C, 0, 70000 + (40 * i)),
             SIM_ETH_SRP_PORT_NUM_G  => 10000 + (i * 1000),
             SIM_ETH_DATA_PORT_NUM_G => 20000 + (i * 1000),
             NUM_WAFERS_G            => NUM_DETECTORS_G,
@@ -255,18 +304,21 @@ begin
             rj45TimingRxClkN  => rj45TimingClkN(ite(i = 0, GROUP_SIZE_C-1, i-1)),   -- [in]
             rj45TimingRxDataP => rj45TimingDataP(ite(i = 0, GROUP_SIZE_C-1, i-1)),  -- [in]
             rj45TimingRxDataN => rj45TimingDataN(ite(i = 0, GROUP_SIZE_C-1, i-1)),  -- [in]
---             rj45TimingRxMgtP  => rj45TimingMgtP((i+GROUP_SIZE_C-1) mod GROUP_SIZE_C),   -- [in]
---             rj45TimingRxMgtN  => rj45TimingMgtN((i+GROUP_SIZE_C-1) mod GROUP_SIZE_C),   -- [in]
---             rj45PgpRxMgtP     => rj45PgpMgtP((i+GROUP_SIZE_C-1) mod GROUP_SIZE_C),      -- [in]
---             rj45PgpRxMgtN     => rj45PgpMgtN((i+GROUP_SIZE_C-1) mod GROUP_SIZE_C),      -- [in]
+            -- PGP ring: RX from the previous node, TX to this node's slot. The
+            -- lanes stay wired in both modes; in bypass mode the GTX endpoint is
+            -- not generated, so the TX outputs hold their port defaults.
+            rj45TimingRxMgtP  => rj45TimingMgtP((i+GROUP_SIZE_C-1) mod GROUP_SIZE_C),   -- [in]
+            rj45TimingRxMgtN  => rj45TimingMgtN((i+GROUP_SIZE_C-1) mod GROUP_SIZE_C),   -- [in]
+            rj45PgpRxMgtP     => rj45PgpMgtP((i+GROUP_SIZE_C-1) mod GROUP_SIZE_C),      -- [in]
+            rj45PgpRxMgtN     => rj45PgpMgtN((i+GROUP_SIZE_C-1) mod GROUP_SIZE_C),      -- [in]
             rj45TimingTxClkP  => rj45TimingClkP(i),                                 -- [out]
             rj45TimingTxClkN  => rj45TimingClkN(i),                                 -- [out]
             rj45TimingTxDataP => rj45TimingDataP(i),                                -- [out]
-            rj45TimingTxDataN => rj45TimingDataN(i));                               -- [out]
---             rj45TimingTxMgtP  => rj45TimingMgtP(i),                                     -- [out]
---             rj45TimingTxMgtN  => rj45TimingMgtN(i),                                     -- [out]
---             rj45PgpTxMgtP     => rj45PgpMgtP(i),                                        -- [out]
---             rj45PgpTxMgtN     => rj45PgpMgtN(i));                                       -- [out]
+            rj45TimingTxDataN => rj45TimingDataN(i),                                -- [out]
+            rj45TimingTxMgtP  => rj45TimingMgtP(i),                                 -- [out]
+            rj45TimingTxMgtN  => rj45TimingMgtN(i),                                 -- [out]
+            rj45PgpTxMgtP     => rj45PgpMgtP(i),                                    -- [out]
+            rj45PgpTxMgtN     => rj45PgpMgtN(i));                                   -- [out]
 
       WAFER_CONNECTION : if LOAD_G /= "LOAD_BOARD" generate
          GEN_LINES : for line in 0 to 31 generate
@@ -304,7 +356,9 @@ begin
             SQ1_PARAMS_G           => WAFER_PROFILE_C.sq1,
             ROW_FAS_PARAMS_G       => WAFER_PROFILE_C.rowFas,
             CHIP_FAS_PARAMS_G      => WAFER_PROFILE_C.chipFas,
-            COLUMN_PARAMS_G        => WAFER_PROFILE_C.muxColumn)
+            COLUMN_PARAMS_G        => WAFER_PROFILE_C.muxColumn,
+            TES_CURRENT_SCALE_G    => TES_CURRENT_SCALE_G,
+            VARIATION_SEED_G       => VARIATION_SEED_G)
          port map (
             columnDrive    => columnDrive,
             columnSense    => columnSense,

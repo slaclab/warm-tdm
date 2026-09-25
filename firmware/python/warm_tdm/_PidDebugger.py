@@ -1,15 +1,75 @@
+##############################################################################
+## This file is part of 'warm-tdm'. It is subject to the license terms in the
+## LICENSE.txt file found in the top-level directory of this distribution and
+## at https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+## No part may be copied, modified, propagated, or distributed except according
+## to the terms contained in the LICENSE.txt file.
+##############################################################################
+import time
+import queue
+import threading
 import pyrogue as pr
 import pyrogue.interfaces.simulation
 import numpy as np
 import warm_tdm
 
-class PidRowDebugger(pr.Device):
+
+class PidRowDebuggerBase(pr.Device):
+    """Common coherent sample on the existing integer/FP per-row diagnostics."""
+
     def __init__(self, debugDev, row, **kwargs):
         super().__init__(**kwargs)
-
         self.debugDev = debugDev
         self.row = row
-        self.parsedVars = ['AccumError', 'SumAccum', 'Diff', 'PidResult', 'Sq1FbPre', 'Sq1FbPost', 'FluxJumps']
+        self._nextSampleAt = 0.0
+        self._sampleConfig = None
+        self.add(pr.LocalVariable(
+            name='Sample', mode='RO', typeStr='Float64[np]',
+            value=np.full(warm_tdm.SAMPLE_SIZE, np.nan),
+            description='One PID visit: FPGA time (s), global column, row, signed DAC, '
+                        'full feedback, net wraps, mean error, drops, format, wrap period, flags.',
+            groups=['NoConfig', 'NoStream', 'NoState']))
+
+    @staticmethod
+    def _configFor(dsp, row, msg):
+        # Cached DSP configuration (no SRP I/O on the receive thread), shared by
+        # the throttle gate and the coherent sample so they never disagree.
+        if dsp is None:
+            quantum, committed = float('nan'), False
+        else:
+            quantumVar = (dsp.FluxQuantumFpRaw if msg.header.formatType == warm_tdm.FormatType.PID_FLOAT
+                          else dsp.FluxQuantumRaw)
+            quantum = quantumVar.value()
+            committed = bool(dsp.PidEnableRaw.value() and (dsp.RowEnableMask.value() >> row) & 1)
+        config = (quantum if np.isfinite(quantum) else None, committed, msg.header.formatVersion)
+        return quantum, committed, config
+
+    def throttled(self, msg):
+        # True when the last publish for this row is still inside the ~10 Hz
+        # display interval with unchanged config. process() gates on this to skip
+        # the whole decode-to-notify path -- not just the final Sample.set -- so a
+        # high-rate muxed run cannot swamp the Rogue receive thread and stall
+        # unrelated variable updates (e.g. the waveform tab). A config change
+        # always breaks the gate, matching updateSample.
+        _, _, config = PidRowDebuggerBase._configFor(self.debugDev._dsp, self.row, msg)
+        return time.monotonic() < self._nextSampleAt and config == self._sampleConfig
+
+    def updateSample(self, msg):
+        # Use the decoded frame, never a series of independently updated scalar
+        # variables.
+        quantum, committed, config = PidRowDebuggerBase._configFor(self.debugDev._dsp, self.row, msg)
+        now = time.monotonic()
+        if now < self._nextSampleAt and config == self._sampleConfig:
+            return
+        self.Sample.set(warm_tdm.pid_debug_sample(msg, quantum=quantum, committed=committed))
+        self._nextSampleAt, self._sampleConfig = now + 0.1, config
+
+
+class PidRowDebugger(PidRowDebuggerBase):
+    def __init__(self, debugDev, row, **kwargs):
+        super().__init__(debugDev=debugDev, row=row, **kwargs)
+        self.parsedVars = ['AccumError', 'SumAccum', 'Diff', 'PidResult', 'Sq1FbPre', 'Sq1FbPost',
+                           'Sq1FbFull', 'FluxJumps', 'NumSamples', 'ReadoutCount']
 
         self.add(pr.LocalVariable(
             name = 'Visits',
@@ -52,6 +112,13 @@ class PidRowDebugger(pr.Device):
             value = 0.0))
 
         self.add(pr.LocalVariable(
+            name = 'Sq1FbFull',
+            description = 'Post-wrap/clamp fractional feedback in signed DAC-code units (NaN for v1 frames).',
+            mode = 'RO',
+            disp = '{:0.09f}',
+            value = float('nan')))
+
+        self.add(pr.LocalVariable(
             name = 'FluxJumps',
             mode = 'RO',
             value = 0))
@@ -69,22 +136,48 @@ class PidRowDebugger(pr.Device):
             value = 0))
         
 
-    def updateFromParser(self):
+    def updateFromParser(self, msg):
         with self.root.updateGroup():
             for varName in self.parsedVars:
                 self.variables[varName].set(self.debugDev.variables[varName].get(read=False))
             self.Visits.set(self.Visits.get() + 1)
+            self.updateSample(msg)
         
 
 
 class PidDebugger(pr.DataReceiver):
 
-    def __init__(self, numRows, col, frontEnd, **kwargs):
+    def __init__(self, numRows, col, frontEnd, dsp=None, **kwargs):
         self.mem = pyrogue.interfaces.simulation.MemEmulate()
 
         self.col = col
+        self._dsp = dsp
+
+        # Frames are handed off to a worker thread so the Rogue receive thread
+        # never blocks on decode/SRP/variable-notify work. A muxed run can emit
+        # thousands of PID-debug frames/s; the bounded queue sheds surplus rather
+        # than stalling the stream (and, in turn, unrelated variable updates).
+        self._queue = queue.Queue(maxsize=256)
+        self._worker = None
 
         super().__init__(memBase=self.mem, **kwargs)
+
+        self.add(pr.LocalVariable(
+            name = 'SwDropCount',
+            description = 'PID-debug frames dropped in software because the worker '
+                          'queue was full (distinct from the FPGA DropCount carried '
+                          'in each frame).',
+            mode = 'RO',
+            disp = '{:d}',
+            value = 0,
+            groups = ['NoConfig', 'NoStream', 'NoState']))
+
+        self.add(pr.LocalVariable(
+            name = 'Sq1FbFull',
+            description = 'Post-wrap/clamp fractional feedback in signed DAC-code units (NaN for v1 frames).',
+            mode = 'RO',
+            disp = '{:0.09f}',
+            value = float('nan')))
 
         self.add(pr.RemoteVariable(
             name = 'Column',
@@ -115,14 +208,15 @@ class PidDebugger(pr.DataReceiver):
         self.add(pr.RemoteVariable(
             name = 'AccumError',
             mode = 'RO',
-            offset = 2 * 8,
+            # Body word 1 (was word 2 pre-split; the baseline word 1 is gone).
+            offset = 1 * 8,
             base = warm_tdm.AdcDsp.ACCUM_BASE,
             bitSize = warm_tdm.AdcDsp.ACCUM_BASE.bitSize))
 
         self.add(pr.RemoteVariable(
             name = 'SumAccum',
             mode = 'RO',
-            offset = 4 * 8,
+            offset = 3 * 8,
             base = warm_tdm.AdcDsp.ACCUM_BASE,
             bitSize = warm_tdm.AdcDsp.ACCUM_BASE.bitSize))
 
@@ -130,14 +224,14 @@ class PidDebugger(pr.DataReceiver):
         self.add(pr.RemoteVariable(
             name = 'Diff',
             mode = 'RO',
-            offset = 5 * 8,
+            offset = 4 * 8,
             base = warm_tdm.AdcDsp.ACCUM_BASE,
             bitSize = warm_tdm.AdcDsp.ACCUM_BASE.bitSize))
 
         self.add(pr.RemoteVariable(
             name = 'PidResult',
             mode = 'RO',
-            offset = 6 * 8,
+            offset = 5 * 8,
             disp = '{:0.03f}',
             base = warm_tdm.AdcDsp.RESULT_BASE,
             bitSize = warm_tdm.AdcDsp.RESULT_BASE.bitSize))
@@ -145,7 +239,7 @@ class PidDebugger(pr.DataReceiver):
         self.add(pr.RemoteVariable(
             name = 'Sq1FbPreRaw',
             mode = 'RO',
-            offset = 3 * 8,
+            offset = 2 * 8,
             base = pr.UInt,
             bitSize = 14))
 
@@ -160,7 +254,7 @@ class PidDebugger(pr.DataReceiver):
         self.add(pr.RemoteVariable(
             name = 'Sq1FbPostRaw',
             mode = 'RO',
-            offset = 8 * 8,
+            offset = 7 * 8,
             base = pr.UInt,
             bitSize = 14))
 
@@ -175,9 +269,9 @@ class PidDebugger(pr.DataReceiver):
         self.add(pr.RemoteVariable(
             name = 'FluxJumps',
             mode = 'RO',
-            offset = 7 * 8,
+            offset = 6 * 8,
             base = pr.Int,
-            bitSize = 8,
+            bitSize = 32,
             bitOffset = 0))
 
         self.add(pr.RemoteVariable(
@@ -185,7 +279,7 @@ class PidDebugger(pr.DataReceiver):
             mode = 'RO',
             disp = '{:d}',
             base = pr.UInt,
-            offset = 8*8,
+            offset = 7*8,
             bitOffset = 32))
 
         self.add(pr.RemoteVariable(
@@ -193,7 +287,7 @@ class PidDebugger(pr.DataReceiver):
             mode = 'RO',
             disp = '{:d}',
             base = pr.UInt,
-            offset = 9 * 8))
+            offset = 8 * 8))
 
         self.add(pr.RemoteVariable(
             name = 'ReadoutCount',
@@ -201,7 +295,7 @@ class PidDebugger(pr.DataReceiver):
             disp = '{:d}',
             base = pr.UInt,
             bitOffset = 32,
-            offset = 9 * 8))
+            offset = 8 * 8))
         
 
         self.add(pr.ArrayDevice(
@@ -215,24 +309,75 @@ class PidDebugger(pr.DataReceiver):
                 'debugDev': self} for row in range(numRows)]))
 
 
+    def _start(self):
+        super()._start()
+        if self._worker is None:
+            self._worker = threading.Thread(target=self._drain, name=f'PidDebug[{self.col}]',
+                                            daemon=True)
+            self._worker.start()
+
+    def _stop(self):
+        # Base _stop clears RxEnable so no further frames enqueue; then drain the
+        # worker with a sentinel and join it.
+        super()._stop()
+        worker, self._worker = self._worker, None
+        if worker is not None:
+            self._queue.put(None)
+            worker.join(timeout=2.0)
+
     def process(self, frame):
-        channel = frame.getChannel()
+        # Runs on the Rogue receive thread with the frame lock held: copy the
+        # bytes and hand off. All decode/SRP/variable work happens in _drain.
         fl = frame.getPayload()
         raw = bytearray(fl)
         frame.read(raw, 0)
+        try:
+            self._queue.put_nowait(raw)
+        except queue.Full:
+            self.SwDropCount.set(self.SwDropCount.value() + 1)
 
-        #print(f'Got PID Debug frame for col {self.col}, row {raw[1]}, size {fl}')
-        if fl != 80:
-            print(f'Got PID debug frame with wrong size {fl}')
+    def _drain(self):
+        while True:
+            raw = self._queue.get()
+            if raw is None:
+                return
+            try:
+                self._handleRaw(raw)
+            except Exception as exc:  # never let one bad frame kill the worker
+                self._log.error('PID debug worker error: %s', exc)
+
+    def _handleRaw(self, raw):
+        #print(f'Got PID Debug frame for col {self.col}, row {raw[1]}, size {len(raw)}')
+        try:
+            msg = warm_tdm.PidDebug.from_numpy(np.frombuffer(raw, dtype=np.uint8))
+        except (ValueError, IndexError) as exc:
+            print(f'Invalid PID debug frame: {exc}')
+            return
+        if msg.col != self.col or msg.row not in self.RowPids.PID:
+            self._log.warning('Ignoring PID frame for column %s, row %s', msg.col, msg.row)
             return
 
-        # Overwrite the MemEmulate data with new frame
-        for i, byte in enumerate(raw):
+        # Drop frames still inside the row's ~10 Hz display interval before any
+        # further work: at muxed-run rates (thousands of visits/s/row) the block
+        # read, checkBlocks and per-visit variable updates below would otherwise
+        # flood Rogue's variable-notify pipeline and stall unrelated updates.
+        if self.RowPids.PID[msg.row].throttled(msg):
+            return
+
+        # Keep the existing diagnostic register offsets for both frame versions.
+        # Decode the v2/v3 fractional word separately and remove it for this legacy
+        # 72-byte MemEmulate map; never interpret an absent v1 value as zero.
+        body = raw[warm_tdm.FRAME_HEADER_BYTES:]
+        if 'sq1FbFull' in msg.fields:
+            body = body[:48] + body[56:]
+        # V1/v2 stored only eight count bits. Normalize the sign before the live
+        # register view reads it (v3 carries a sign-extended int32).
+        body[48:52] = msg.fields['numFluxJumps'].to_bytes(4, 'little', signed=True)
+        for i, byte in enumerate(body):
             self.mem._data[i] = byte
 
+        self.Sq1FbFull.set(msg.fields.get('sq1FbFull', float('nan')))
         self.readBlocks()
         self.checkBlocks()
 
-        row = self.LogicalRow.get(read=False)
-        #print(f'{self.name} Got Frame with row index {row}')
-        self.RowPids.PID[row].updateFromParser()
+        self.RowPids.PID[msg.row].updateFromParser(msg)

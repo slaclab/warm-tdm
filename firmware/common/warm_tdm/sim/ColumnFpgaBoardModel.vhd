@@ -32,6 +32,8 @@ entity ColumnFpgaBoardModel is
    generic (
       TPD_G                   : time                  := 1 ns;
       RING_ADDR_0_G           : boolean               := false;
+      ETH_10G_G               : boolean               := true;
+      USE_FLOAT_PID_G         : boolean               := false;
       SIM_PGP_PORT_NUM_G      : integer               := 7000;
       SIM_ETH_SRP_PORT_NUM_G  : integer               := 8000;
       SIM_ETH_DATA_PORT_NUM_G : integer               := 9000;
@@ -93,7 +95,6 @@ architecture sim of ColumnFpgaBoardModel is
    constant SIMULATION_G : boolean       := true;
    constant BUILD_INFO_G : BuildInfoType := BUILD_INFO_C;
 
-   constant ETH_10G_G  : boolean          := true;
    constant DHCP_G     : boolean          := true;
    constant IP_ADDR_G  : slv(31 downto 0) := x"0A01A8C0";
    constant MAC_ADDR_G : slv(47 downto 0) := x"0B_00_16_56_00_08";
@@ -128,7 +129,7 @@ architecture sim of ColumnFpgaBoardModel is
    signal bootMiso         : sl;                                                 -- [in]
    signal locScl           : sl;                                                 -- [inout]
    signal locSda           : sl;                                                 -- [inout]
-   signal tempAlertL       : sl;                                                 -- [in]
+   signal tempAlertL       : sl := '1';  -- [in] active-low; drive inactive (no alert) so it isn't 'U'
    signal pwrScl           : sl;                                                 -- [inout]
    signal pwrSda           : sl;                                                 -- [inout]
    signal sfpScl           : slv(1 downto 0);                                    -- [inout]
@@ -237,6 +238,8 @@ begin
          SIM_ETH_DATA_PORT_NUM_G => SIM_ETH_DATA_PORT_NUM_G,
          BUILD_INFO_G            => BUILD_INFO_G,
          RING_ADDR_0_G           => RING_ADDR_0_G,
+         GEN_ADC_FILTER_G        => false,
+         USE_FLOAT_PID_G         => USE_FLOAT_PID_G,
          ETH_10G_G               => ETH_10G_G,
          DHCP_G                  => DHCP_G,
          IP_ADDR_G               => IP_ADDR_G,

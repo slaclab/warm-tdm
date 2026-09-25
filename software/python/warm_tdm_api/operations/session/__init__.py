@@ -107,7 +107,7 @@ def get_default_session():
     return _default_session
 
 
-def use(client, path=OutputDir.DEFAULT_BASE, group='Group'):
+def use(client, path=OutputDir.DEFAULT_BASE, group='Group', *, run_dir=None):
     """Wrap a connected client's Group in a Session, cache it as the default.
 
     The client is a pyrogue client (e.g. ``VirtualClient`` over ZMQ to the
@@ -117,21 +117,39 @@ def use(client, path=OutputDir.DEFAULT_BASE, group='Group'):
     Args:
         client: a connected pyrogue client (e.g. VirtualClient) with ``.root``.
         path: base directory for the session output dir (None to skip creating).
+        run_dir: existing measurement directory made by new_run.py. Reuses its
+            data/config directories; no timestamp nesting or fallback. Mutually
+            exclusive with a non-default path.
         group: which Group to bind -- a node name under ``client.root`` (default
             ``'Group'``) or an already-resolved Group node. (Multi-Group roots
             will expose several; today there is one.)
     """
     group_node = getattr(client.root, group) if isinstance(group, str) else group
-    output = OutputDir(base=path) if path is not None else None
+    output = _output_for(path, run_dir)
     return set_default_session(Session(group_node, output=output))
 
 
+def _output_for(path, run_dir):
+    if run_dir is not None:
+        if path not in (None, OutputDir.DEFAULT_BASE):
+            raise ValueError('Choose run_dir or path, not both')
+        return OutputDir.existing_run(run_dir)
+    return OutputDir(base=path) if path is not None else None
+
+
 def connect(host='localhost', port=9099, path=OutputDir.DEFAULT_BASE,
-            group='Group'):
+            group='Group', *, run_dir=None):
     """Build a VirtualClient to (host, port), wrap its Group, cache as default."""
+    # Validate storage before opening a connection. Reconnect never creates a run.
+    output = _output_for(path, run_dir)
     import pyrogue.interfaces
     client = pyrogue.interfaces.VirtualClient(addr=host, port=port)
-    return use(client, path=path, group=group)
+    try:
+        group_node = getattr(client.root, group) if isinstance(group, str) else group
+        return set_default_session(Session(group_node, output=output))
+    except BaseException:
+        client.stop()
+        raise
 
 
 # Free-function shims: delegate to the default Session so notebooks can call

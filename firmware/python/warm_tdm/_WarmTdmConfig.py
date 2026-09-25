@@ -57,3 +57,22 @@ class WarmTdmConfig(pr.Device):
             bitSize = 8,
             base = pr.UInt,
             disp = '{:08b}'))
+
+        # Software-assigned Group id stamped into the self-describing data-frame
+        # header (header byte 2). 0 until the multi-Group model is defined
+        # (issue #80); the register exists now so the meaning can be assigned
+        # later without a firmware change.
+        self.add(pr.RemoteVariable(
+            name = 'GroupId',
+            offset = 0x28,
+            bitSize = 8,
+            base = pr.UInt))
+
+        # Read-only: the PGP ring address this board discovered at link-up (the
+        # frame-header boardId). Software has no other view of it.
+        self.add(pr.RemoteVariable(
+            name = 'BoardId',
+            mode = 'RO',
+            offset = 0x2C,
+            bitSize = 3,
+            base = pr.UInt))

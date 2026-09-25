@@ -76,13 +76,19 @@ class EthCore(pr.Device):
 
 
 class ComCore(pr.Device):
-    def __init__(self, **kwargs):
+    def __init__(self, ethPresent=True, **kwargs):
         super().__init__(**kwargs)
 
         self.add(warm_tdm.PgpCore(
             enabled = False,
             offset = 0x0000))
 
-        self.add(warm_tdm.EthCore(
-            offset = 0x00100000))
+        # The RTL generates the Ethernet register block only for ring address
+        # zero (the coordinator); on other boards the AXI-Lite window is absent
+        # and returns DECERR. Mirror that here by not instantiating the EthCore
+        # subtree at all on non-coordinators, so the host tree never issues
+        # transactions to registers that do not exist.
+        if ethPresent:
+            self.add(warm_tdm.EthCore(
+                offset = 0x00100000))
                  

@@ -227,10 +227,10 @@ begin
          NUM_BANKS_G       => 2,
          ROWS_PER_BANK_G   => 2,
          TWO_LEVEL_G       => true,
-         SSA_PARAMS_G      => SSA_PARAMS_C,
-         SQ1_PARAMS_G      => SQ1_PARAMS_C,
-         ROW_FAS_PARAMS_G  => ROW_FAS_PARAMS_C,
-         CHIP_FAS_PARAMS_G => CHIP_FAS_PARAMS_C,
+         SSA_PARAMS_G      => uniformSsaArray(SSA_PARAMS_C, 2),
+         SQ1_PARAMS_G      => uniformSq1Array(SQ1_PARAMS_C, 8),
+         ROW_FAS_PARAMS_G  => uniformRowFasArray(ROW_FAS_PARAMS_C, 8),
+         CHIP_FAS_PARAMS_G => uniformChipFasArray(CHIP_FAS_PARAMS_C, 4),
          COLUMN_PARAMS_G   => COLUMN_PARAMS_C)
       port map (
          ssaBiasCurrentAmp     => detectorSsaBias,
@@ -254,10 +254,10 @@ begin
          NUM_BANKS_G       => 2,
          ROWS_PER_BANK_G   => 2,
          TWO_LEVEL_G       => true,
-         SSA_PARAMS_G      => SSA_PARAMS_C,
-         SQ1_PARAMS_G      => SQ1_PARAMS_C,
-         ROW_FAS_PARAMS_G  => ROW_FAS_PARAMS_C,
-         CHIP_FAS_PARAMS_G => CHIP_FAS_PARAMS_C,
+         SSA_PARAMS_G      => uniformSsaArray(SSA_PARAMS_C, 2),
+         SQ1_PARAMS_G      => uniformSq1Array(SQ1_PARAMS_C, 8),
+         ROW_FAS_PARAMS_G  => uniformRowFasArray(ROW_FAS_PARAMS_C, 8),
+         CHIP_FAS_PARAMS_G => uniformChipFasArray(CHIP_FAS_PARAMS_C, 4),
          COLUMN_PARAMS_G   => FAST_COLUMN_PARAMS_C)
       port map (
          ssaBiasCurrentAmp     => detectorSsaBias,

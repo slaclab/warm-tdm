@@ -76,7 +76,16 @@ entity GroupDetectorHarnessSim is
       SQ1_PARAMS_G           : Sq1ParamsType := SQ1_SYNTHETIC_C;
       ROW_FAS_PARAMS_G       : RowFasParamsType := ROW_FAS_SYNTHETIC_C;
       CHIP_FAS_PARAMS_G      : ChipFasParamsType := CHIP_FAS_SYNTHETIC_C;
-      COLUMN_PARAMS_G        : MuxColumnParamsType := MUX_COLUMN_SYNTHETIC_C);
+      COLUMN_PARAMS_G        : MuxColumnParamsType := MUX_COLUMN_SYNTHETIC_C;
+      -- The *_PARAMS_G records above are the nominal device.  A nonzero seed
+      -- makes every SSA (per column), SQ1/row-FAS (per pixel), chip-FAS (per
+      -- bank), and TES baseline (per pixel) deviate deterministically from
+      -- nominal, so tunings differ channel-to-channel and muxed row levels
+      -- differ pixel-to-pixel.  Seed 0 restores identical devices.
+      VARIATION_SEED_G       : natural := WAFER_VARIATION_SEED_C;
+      DEVICE_SPREAD_G        : real := DEVICE_SPREAD_C;
+      PHASE_SPREAD_CYCLES_G  : real := PHASE_SPREAD_CYCLES_C;
+      TES_BASELINE_AMP_G     : real := TES_BASELINE_AMP_C);
    port (
       columnDrive : in  ColumnCryoDriveArray(0 to NUM_WARM_COLUMNS_G-1);
       columnSense : out ColumnCryoSenseArray(0 to NUM_WARM_COLUMNS_G-1);
@@ -92,6 +101,26 @@ architecture sim of GroupDetectorHarnessSim is
       NUM_DETECTORS_G*COLUMNS_PER_DETECTOR_G;
    constant NUM_ROWS_C : positive := NUM_BANKS_G*ROWS_PER_BANK_G;
    constant NUM_PIXELS_C : positive := NUM_DETECTOR_COLUMNS_C*NUM_ROWS_C;
+   constant NUM_CHIPS_C : positive := NUM_DETECTOR_COLUMNS_C*NUM_BANKS_G;
+
+   -- Resolved per-instance device parameters over all detector columns/pixels.
+   -- Indexing matches detectorTesCurrent: column-major, pixel = column*NUM_ROWS
+   -- + row, chip = column*NUM_BANKS + bank.  Each device type draws a distinct
+   -- random sub-stream, so results are independent and repeatable.
+   constant SSA_ARR_C : SsaParamsArray(0 to NUM_DETECTOR_COLUMNS_C-1) :=
+      resolveSsaParams(SSA_PARAMS_G, NUM_DETECTOR_COLUMNS_C,
+                       VARIATION_SEED_G, DEVICE_SPREAD_G, PHASE_SPREAD_CYCLES_G);
+   constant SQ1_ARR_C : Sq1ParamsArray(0 to NUM_PIXELS_C-1) :=
+      resolveSq1Params(SQ1_PARAMS_G, NUM_PIXELS_C,
+                       VARIATION_SEED_G, DEVICE_SPREAD_G, PHASE_SPREAD_CYCLES_G);
+   constant ROW_FAS_ARR_C : RowFasParamsArray(0 to NUM_PIXELS_C-1) :=
+      resolveRowFasParams(ROW_FAS_PARAMS_G, NUM_PIXELS_C,
+                          VARIATION_SEED_G, DEVICE_SPREAD_G, PHASE_SPREAD_CYCLES_G);
+   constant CHIP_FAS_ARR_C : ChipFasParamsArray(0 to NUM_CHIPS_C-1) :=
+      resolveChipFasParams(CHIP_FAS_PARAMS_G, NUM_CHIPS_C,
+                           VARIATION_SEED_G, DEVICE_SPREAD_G, PHASE_SPREAD_CYCLES_G);
+   constant TES_BASELINE_C : RealVector(0 to NUM_PIXELS_C-1) :=
+      resolveTesBaseline(NUM_PIXELS_C, VARIATION_SEED_G, TES_BASELINE_AMP_G);
 
    signal ssaBiasCurrent : RealVector(0 to NUM_DETECTOR_COLUMNS_C-1) :=
       (others => 0.0);
@@ -278,6 +307,7 @@ begin
             for row in 0 to NUM_ROWS_C-1 loop
                pixel := detectorColumn*NUM_ROWS_C + row;
                detectorTesCurrent(pixel) <= tesStimulusAmp(pixel) +
+                  TES_BASELINE_C(pixel) +
                   0.5*(columnDrive(warmColumn).tesBias.p -
                        columnDrive(warmColumn).tesBias.n)*
                   TES_CURRENT_SCALE_G;
@@ -298,6 +328,10 @@ begin
          detector*COLUMNS_PER_DETECTOR_G*NUM_ROWS_C;
       constant PIXEL_HIGH_C : natural :=
          (detector+1)*COLUMNS_PER_DETECTOR_G*NUM_ROWS_C-1;
+      constant CHIP_LOW_C : natural :=
+         detector*COLUMNS_PER_DETECTOR_G*NUM_BANKS_G;
+      constant CHIP_HIGH_C : natural :=
+         (detector+1)*COLUMNS_PER_DETECTOR_G*NUM_BANKS_G-1;
    begin
       U_Detector : entity warm_tdm.DetectorModuleSim
          generic map (
@@ -305,10 +339,10 @@ begin
             NUM_BANKS_G       => NUM_BANKS_G,
             ROWS_PER_BANK_G   => ROWS_PER_BANK_G,
             TWO_LEVEL_G       => TWO_LEVEL_G,
-            SSA_PARAMS_G      => SSA_PARAMS_G,
-            SQ1_PARAMS_G      => SQ1_PARAMS_G,
-            ROW_FAS_PARAMS_G  => ROW_FAS_PARAMS_G,
-            CHIP_FAS_PARAMS_G => CHIP_FAS_PARAMS_G,
+            SSA_PARAMS_G      => SSA_ARR_C(COLUMN_LOW_C to COLUMN_HIGH_C),
+            SQ1_PARAMS_G      => SQ1_ARR_C(PIXEL_LOW_C to PIXEL_HIGH_C),
+            ROW_FAS_PARAMS_G  => ROW_FAS_ARR_C(PIXEL_LOW_C to PIXEL_HIGH_C),
+            CHIP_FAS_PARAMS_G => CHIP_FAS_ARR_C(CHIP_LOW_C to CHIP_HIGH_C),
             COLUMN_PARAMS_G   => COLUMN_PARAMS_G)
          port map (
             ssaBiasCurrentAmp     => ssaBiasCurrent(COLUMN_LOW_C to COLUMN_HIGH_C),

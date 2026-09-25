@@ -13,9 +13,12 @@ def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title)
         ax.set_xlabel(xlabel)
         ax.grid(True)
 
+        # Keep placeholders in axes coordinates: shared data limits can put
+        # (0.5, 0.5) far outside the panel and inflate tight image bounds.
         # Special case for no data
         if curveDataDict is None:
-            ax.text(.5, .5, 'Not Tuned', ha='center', va='center', fontsize=28)
+            ax.text(.5, .5, 'Not Tuned', ha='center', va='center', fontsize=28,
+                    transform=ax.transAxes)
             return
 
         valid_indices = [i for i, curve in enumerate(curveDataDict['curves'])
@@ -24,7 +27,8 @@ def plotCurveDataDict(ax, curveDataDict, ax_title, xlabel, ylabel, legend_title)
         # Special case for CurveData with no collected points. A stopped
         # process can leave allocated Curve objects with empty point arrays.
         if not valid_indices:
-            ax.text(.5, .5, 'Not Tuned', ha='center', va='center', fontsize=28)
+            ax.text(.5, .5, 'Not Tuned', ha='center', va='center', fontsize=28,
+                    transform=ax.transAxes)
             return
 
         xValues = curveDataDict['xValues']

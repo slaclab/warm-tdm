@@ -86,7 +86,8 @@ begin
          NUM_BANKS_G            => 1,
          ROWS_PER_BANK_G        => 1,
          TWO_LEVEL_G            => false,
-         SA_BIAS_LOADS_G        => (others => 200.0))
+         SA_BIAS_LOADS_G        => (others => 200.0),
+         VARIATION_SEED_G       => 0)
       port map (
          columnDrive    => cableColumnDrive,
          columnSense    => cableColumnSense,
@@ -106,7 +107,8 @@ begin
          SA_FB_LOADS_G          => (others => 0.0),
          SQ1_BIAS_LOADS_G       => (others => 0.0),
          SQ1_FB_LOADS_G         => (others => 0.0),
-         RS_LOADS_G             => (others => 0.0))
+         RS_LOADS_G             => (others => 0.0),
+         VARIATION_SEED_G       => 0)
       port map (
          columnDrive    => oneColumnDrive,
          columnSense    => oneColumnSense,
@@ -130,7 +132,8 @@ begin
          SA_FB_LOADS_G          => (others => 0.0),
          SQ1_BIAS_LOADS_G       => (others => 0.0),
          SQ1_FB_LOADS_G         => (others => 0.0),
-         RS_LOADS_G             => (others => 0.0))
+         RS_LOADS_G             => (others => 0.0),
+         VARIATION_SEED_G       => 0)
       port map (
          columnDrive    => dualColumnDrive,
          columnSense    => dualColumnSense,

@@ -11,7 +11,7 @@ import logging
 import re
 
 from ..channels import col_to_board_chan
-from ._output import OutputDir
+import warm_tdm_api.operations.session as session
 
 log = logging.getLogger(__name__)
 
@@ -108,9 +108,9 @@ class TopologyCore:
 
     # ---- session output -------------------------------------------------
 
-    def new_session(self, base=OutputDir.DEFAULT_BASE):
+    def new_session(self, base=session.OutputDir.DEFAULT_BASE):
         """Start a fresh timestamped output directory for this session."""
-        self.output = OutputDir(base=base)
+        self.output = session.OutputDir(base=base)
         return self.output
 
     def _require_output(self):
@@ -120,6 +120,9 @@ class TopologyCore:
                 "No output directory set for this Session. Call "
                 "session.new_session(path) (or ops.connect(..., path=...)) "
                 "before taking or saving data.")
+        if getattr(self.output, 'run_dir', None) is not None:
+            from warm_tdm_run import validate_run
+            validate_run(self.output.run_dir)
         return self.output.sessiondir
 
     # ---- board enumeration + read-only reporting -----------------------
@@ -193,7 +196,7 @@ class TopologyCore:
         for board_name, board in sorted(boards.items()):
             try:
                 board_type, board_index = board_name.split(" ")
-                av = board.WarmTdmCore.WarmTdmCommon2.AxiVersion
+                av = board.WarmTdmCore.WarmTdmCommon.AxiVersion
                 print(f"{board_type} Board {board_index}:")
                 print(f"  BuildStamp       : {av.BuildStamp.get()}")
                 print(f"  DeviceDna        : {hex(av.DeviceDna.get())}")

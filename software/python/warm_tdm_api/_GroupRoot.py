@@ -1,11 +1,12 @@
 import pyrogue
 import pyrogue.utilities.fileio
 import pyrogue.interfaces.stream
+import warm_tdm
 import warm_tdm_api
 
 
 class GroupRoot(pyrogue.Root):
-    def __init__(self, colBoardClass, colFeClass, rowBoardClass, rowFeClass, numRowSelects, numChipSelects, groupConfig, simulation=False, emulate=False, useFloatPid=False, **kwargs):
+    def __init__(self, colBoardClass, colFeClass, rowBoardClass, rowFeClass, numRowSelects, numChipSelects, groupConfig, simulation=False, emulate=False, useFloatPid=False, simPgpRing=False, **kwargs):
         """
         Root class container for Warm-TDM Groups.
         Parameters
@@ -40,12 +41,15 @@ class GroupRoot(pyrogue.Root):
         self.CountReset.addToGroup('DocApi')
         self.Initialize.addToGroup('DocApi')
 
-        configStream = pyrogue.interfaces.stream.Variable(root=self)        
+        configStream = pyrogue.interfaces.stream.Variable(root=self)
 
-        # Add the data writer
-        self.add(pyrogue.utilities.fileio.StreamWriter(
+        # Add the data writer. warm_tdm.DataWriter is a StreamWriter that knows
+        # the warm-tdm file-channel layout (readoutChannel/pidDebugChannel/
+        # waveformChannel); the tree config/status YAML goes on the reserved
+        # config channel.
+        self.add(warm_tdm.DataWriter(
             name='DataWriter',
-            configStream = {255: configStream},
+            configStream = {warm_tdm.DataWriter.CONFIG_CHANNEL: configStream},
             groups=['DocApi', 'NoConfig']))
         
         #self >> self.DataWriter.getChannel(100)
@@ -68,7 +72,8 @@ class GroupRoot(pyrogue.Root):
             expand=True,
             dataWriter=self.DataWriter,
             simulation=simulation,
-            emulate=emulate))
+            emulate=emulate,
+            simPgpRing=simPgpRing))
 
     def start(self, *args, **kwargs):
         """Start the tree, then (in simulation) enable SaTune debug logging.

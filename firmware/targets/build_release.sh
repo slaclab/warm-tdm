@@ -10,9 +10,13 @@
 # that every release image carries a clean git hash rather than "-dirty".
 #
 # Usage:
-#   ./build_release.sh [-r RELEASE] [-j N] [-t SUBTARGET] [--clean] [--force] [--list]
+#   ./build_release.sh [-r RELEASE | --targets "T1 T2 ..."] [-j N] [-t SUBTARGET] \
+#                      [--clean] [--force] [--list]
 #
 #   -r RELEASE    Release name in releases.yaml (default: warmTdm)
+#   --targets ..  Build this explicit space/comma list instead of a release list
+#                 (used by 'make report' to build the aggregate Makefile targets).
+#                 Not validated against the release catalog.
 #   -j N          Max concurrent builds (default: all at once)
 #   -t SUBTARGET  Make subtarget to invoke (default: prom)
 #   --clean       Run 'make clean' before each target (wipes its build/ dir
@@ -31,17 +35,19 @@ REPO_DIR="$(cd "$FIRMWARE_DIR/.." && pwd)"
 RELEASES_YAML="$FIRMWARE_DIR/releases.yaml"
 
 RELEASE="warmTdm"
+TARGETS_OVERRIDE=""   # non-empty => build this explicit list, not a release
 SUBTARGET="prom"
 JOBS=0            # 0 = unlimited (all at once)
 FORCE=0
 LIST_ONLY=0
 CLEAN=0
 
-usage() { sed -n '2,25p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,27p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -r) RELEASE="$2"; shift 2 ;;
+        --targets) TARGETS_OVERRIDE="$2"; shift 2 ;;
         -j) JOBS="$2"; shift 2 ;;
         -t) SUBTARGET="$2"; shift 2 ;;
         --clean) CLEAN=1; shift ;;
@@ -60,7 +66,13 @@ if [[ ! -f "$RELEASES_YAML" ]]; then
     exit 1
 fi
 
-mapfile -t TARGETS < <(python3 - "$RELEASES_YAML" "$RELEASE" <<'PY'
+if [[ -n "$TARGETS_OVERRIDE" ]]; then
+    # Explicit target list (e.g. from 'make report'): build exactly these, in the
+    # given order, without consulting the release catalog.
+    read -r -a TARGETS <<< "${TARGETS_OVERRIDE//,/ }"
+    RELEASE="(explicit target list)"
+else
+    mapfile -t TARGETS < <(python3 - "$RELEASES_YAML" "$RELEASE" <<'PY'
 import sys, yaml
 cfg = yaml.safe_load(open(sys.argv[1]))
 rel_name = sys.argv[2]
@@ -76,9 +88,10 @@ for t in targets:
     print(t)
 PY
 )
+fi
 
 if [[ ${#TARGETS[@]} -eq 0 ]]; then
-    echo "ERROR: no targets resolved for release '$RELEASE'" >&2
+    echo "ERROR: no targets resolved for '$RELEASE'" >&2
     exit 1
 fi
 
@@ -187,10 +200,23 @@ echo "=============================================================="
 echo " Build summary ($GIT_HASH)"
 echo "--------------------------------------------------------------"
 fail=0
+# On failure, show the tail of the target's log inline so the error is visible
+# without opening the file. Override the line count with FAIL_TAIL (env).
+FAIL_TAIL="${FAIL_TAIL:-20}"
 for target in "${TARGETS[@]}"; do
     status="$(cat "$LOG_DIR/${target}.status" 2>/dev/null || echo "MISSING $target")"
     printf '   %s\n' "$status"
-    [[ "$status" == OK* ]] || fail=1
+    if [[ "$status" != OK* ]]; then
+        fail=1
+        log="$LOG_DIR/${target}.log"
+        if [[ -s "$log" ]]; then
+            echo "     ---- last $FAIL_TAIL log lines ----"
+            tail -n "$FAIL_TAIL" "$log" | sed 's/^/     | /'
+            echo "     ---- full log: $log ----"
+        else
+            echo "     (no log at $log)"
+        fi
+    fi
 done
 echo "=============================================================="
 

@@ -14,16 +14,18 @@ class ColumnAwaXeFpgaBoard(pr.Device):
                  frontEndClass,
 #                 loading={},
                  rows=256,
+                 ethPresent=True,
                  **kwargs):
         super().__init__(**kwargs)
 
         self.add(frontEndClass(
             name='AnalogFrontEnd'))
- 
-        self.add(warm_tdm.WarmTdmCore2(
+
+        self.add(warm_tdm.WarmTdmCore(
             name = 'WarmTdmCore',
             offset = 0x00000000,
             expand = True,
+            ethPresent = ethPresent,
             local_therm_channels = [9, 10, 1, 11, 0, 3],
             fe_therm_channels = [2, 8]))
 
@@ -177,6 +179,15 @@ class ColumnAwaXeFpgaBoard(pr.Device):
                 for drv in (self.SAFb, self.SQ1Fb, self.SQ1Bias):
                     drv.writeAndVerifyBlocks()
 
+
+        @self.command()
+        def ZeroFastDacs():
+            # Drive every fast-DAC output (SAFb/SQ1Fb/SQ1Bias) to zero current.
+            # 0x2000 is offset-binary midscale, which the bipolar output amps
+            # translate to 0 uA into the SQUIDs.  Provides a software re-arm for
+            # the startup zeroing in case the one-shot firmware init landed
+            # before the analog rails settled (the board has no rail PGOOD).
+            self.AllFastDacs(0x2000)
 
         @self.command()
         def InitDacAdc():

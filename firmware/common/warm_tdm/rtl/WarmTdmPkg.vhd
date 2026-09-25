@@ -17,8 +17,7 @@
 -------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.std_logic_arith.all;
-use ieee.std_logic_unsigned.all;
+use ieee.numeric_std.all;
 
 
 library surf;
@@ -37,17 +36,64 @@ package WarmTdmPkg is
 
    constant DATA_AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 8, tDestBits => 4, tUserBits => 2);
 
+   -- Board-level configuration + identity bus produced by WarmTdmConfig and
+   -- distributed through the core to the board top (where the pin-facing fields
+   -- drive physical pins) and to DataPath / the frame builders (which use the
+   -- identity fields for the self-describing header, see FrameHeaderPkg).
+   --
+   -- Field notes:
+   --   boardId     PGP ring address (hardware-discovered; a status input fed into
+   --               WarmTdmConfig). Frame-header boardId.
+   --   groupId     software-assigned Group id (0 until the multi-Group model, #80).
+   --               Frame-header groupId.
+   --   adcFilterEn per-channel ADC FIR filter enable (consumed by DataPath).
+   --   ledEn/anaPwrEn/ampPdB  board-pin config (broken out at the board top).
+   --   asicReset   ASIC reset *logic level* (the physical pin is open-drain: the
+   --               board top drives '0'/'Z' from this, keeping tristate at the pad).
+   -- All fields are in the config (axilClk) domain; cross-domain consumers (e.g.
+   -- DataPath's builders on timingRxClk125) synchronize as needed.
+   type WarmTdmConfigType is record
+      boardId     : slv(2 downto 0);
+      groupId     : slv(7 downto 0);
+      adcFilterEn : slv(7 downto 0);
+      ledEn       : sl;
+      anaPwrEn    : sl;
+      ampPdB      : slv(7 downto 0);
+      asicReset   : sl;
+   end record WarmTdmConfigType;
+
+   constant WARM_TDM_CONFIG_INIT_C : WarmTdmConfigType := (
+      boardId     => (others => '0'),
+      groupId     => (others => '0'),
+      adcFilterEn => (others => '0'),
+      ledEn       => '1',
+      anaPwrEn    => '1',
+      ampPdB      => (others => '1'),
+      asicReset   => '1');
+
    --constant SQ1FB_DATA_AXIS_CONFIG_C : AxiStreamConfigType := ssiAxiStreamConfig(dataBytes => 2, tDestBits => 8);
 
-   -- Data from AdcDsp to filter and downsampler
+   -- Data from AdcDsp to filter and downsampler (signed integer, 32-bit).
+   -- Keep the sign-extension byte through both FIFOs: BiquadFilter feeds
+   -- tData(31:0) directly to the Int32-to-float core.
    constant PID_DATA_AXIS_CFG_C : AxiStreamConfigType := (
-      TSTRB_EN_C => true,
-      TDATA_BYTES_C => 3,
-      TDEST_BITS_C => 8,
-      TID_BITS_C => 8,
-      TKEEP_MODE_C => TKEEP_NORMAL_C,
-      TUSER_BITS_C => 8,
-      TUSER_MODE_C => TUSER_NORMAL_C);
+      TSTRB_EN_C    => true,
+      TDATA_BYTES_C => 4,
+      TDEST_BITS_C  => 8,
+      TID_BITS_C    => 8,
+      TKEEP_MODE_C  => TKEEP_NORMAL_C,
+      TUSER_BITS_C  => 8,
+      TUSER_MODE_C  => TUSER_NORMAL_C);
+
+   -- Data from AdcDspFp to filter (IEEE 754 float32, 32-bit)
+   constant PID_DATA_FP_AXIS_CFG_C : AxiStreamConfigType := (
+      TSTRB_EN_C    => true,
+      TDATA_BYTES_C => 4,
+      TDEST_BITS_C  => 8,
+      TID_BITS_C    => 8,
+      TKEEP_MODE_C  => TKEEP_NORMAL_C,
+      TUSER_BITS_C  => 8,
+      TUSER_MODE_C  => TUSER_NORMAL_C);
 
    constant DOWNSAMPLE_DATA_AXIS_CFG_C : AxiStreamConfigType := (
       TSTRB_EN_C => true,
@@ -58,5 +104,21 @@ package WarmTdmPkg is
       TUSER_BITS_C => 8,
       TUSER_MODE_C => TUSER_NORMAL_C);
 
-end package;
+   type AdcAccumResultType is record
+      accumError      : signed(31 downto 0);
+      numSamples      : unsigned(7 downto 0);
+      logicalRow        : slv(7 downto 0);
+      sq1FbDac        : slv(13 downto 0);
+      seqStart        : sl;
+      daqReadoutStart : sl;
+   end record AdcAccumResultType;
 
+   constant ADC_ACCUM_RESULT_INIT_C : AdcAccumResultType := (
+      accumError      => (others => '0'),
+      numSamples      => (others => '0'),
+      logicalRow        => (others => '0'),
+      sq1FbDac        => (others => '0'),
+      seqStart        => '0',
+      daqReadoutStart => '0');
+
+end package;

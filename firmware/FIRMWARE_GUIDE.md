@@ -4,7 +4,7 @@ Supplementary reference for AI agents working on warm-tdm firmware. For the proj
 
 ## Timing Protocol
 
-The timing system distributes synchronization across all boards via a dedicated SelectIO LVDS link (not MGT). The protocol is defined in `common/warm_tdm/rtl/TimingPkg.vhd`.
+The timing system distributes synchronization across all boards via a dedicated SelectIO LVDS link (not MGT). The protocol is defined in `common/warm_tdm/rtl/TimingPkg.vhd`. For the full protocol specification — control character semantics, row-boundary sequencing, `pwrSync` hold/release behavior, and the `LocalTimingType` record contract — see [`common/TimingProtocol.md`](common/TimingProtocol.md).
 
 ### Frame Structure
 
@@ -58,7 +58,7 @@ Serialization uses SURF's `assignSlv`/`assignRecord` helpers for bit-packing.
 
 ## AXI-Lite Address Map
 
-`WarmTdmCore2` uses a 4-port crossbar defined via `AxiLiteCrossbarMasterConfigArray`:
+`WarmTdmCore` uses a 4-port crossbar defined via `AxiLiteCrossbarMasterConfigArray`:
 
 | Index | Constant | Base Address | Size | Content |
 |-------|----------|-------------|------|---------|
@@ -105,36 +105,46 @@ Platform-split entities:
 
 ## Constraint Organization
 
+Active targets select shared board sources and explicit pinouts. See the
+[targets README](targets/README.md) for naming, source ownership, and release
+build guidance.
+
 | File | Location | Content |
 |------|----------|---------|
-| `WarmTdmCore2.xdc` | `common/warm_tdm/xdc/` | Cross-domain false paths, async clock groups |
-| `WarmTdmCore2_7s.xdc` | `common/warm_tdm/xdc/` | 7-Series MMCM-derived clock definitions |
-| `WarmTdmCore2_usp.xdc` | `common/warm_tdm/xdc/` | UltraScale+ clock definitions |
-| `WarmTdmCore2_1g.xdc` | `common/warm_tdm/xdc/` | 1G Ethernet clock groups |
-| `WarmTdmCore2_10g.xdc` | `common/warm_tdm/xdc/` | 10G Ethernet clock groups |
-| `<Target>.xdc` | `targets/<Target>/xdc/` | Pin assignments, I/O standards, board-specific |
+| `WarmTdmCore.xdc` | `common/warm_tdm/xdc/` | Cross-domain false paths, async clock groups |
+| `WarmTdmCore_1g.xdc` | `common/warm_tdm/xdc/` | 1G Ethernet clock groups |
+| `WarmTdmCore_10g.xdc` | `common/warm_tdm/xdc/` | 10G Ethernet clock groups |
+| `ColumnFpgaBoard.xdc`, `ColumnFpgaBoardAwaXe.xdc`, `RowFpgaBoard.xdc` | `common/warm_tdm/xdc/` | Board pin assignments and I/O standards |
 
-Each target's `ruckus.tcl` selects which common XDC files to load based on its platform and Ethernet configuration.
+Each active target's `ruckus.tcl` explicitly loads its board pinout and
+`WarmTdmCore.xdc`. Coordinator targets additionally load `WarmTdmCore_1g.xdc`
+or `WarmTdmCore_10g.xdc`, matching `ETH_10G_G`; non-coordinators load neither.
+Keep common XDC directory auto-loading disabled so a build does not combine
+incompatible pinouts or Ethernet constraints.
 
 ## Simulation
 
-Three testbenches in `firmware/simulations/`:
+Current simulation targets in `firmware/simulations/`:
 
 | Testbench | Scope | Description |
 |-----------|-------|-------------|
-| `StackTb` | Full system | Multiple Row + Column boards, timing, PGP ring |
 | `GroupTb` | Group level | Board group with device models |
-| `RowTb` | Row module | Isolated row board testing |
+| `AdcDspFpTb` | Controller | Floating-point controller acceptance bench |
+| `WaferModelTb` | Detector models | Focused wafer, profile, scaling and compatibility benches |
 
 ### Running Simulation
 
 ```bash
-cd firmware/simulations/StackTb && make vcs
+cd firmware/simulations/GroupTb && make vcs
 ```
 
-Device models in `common/warm_tdm/sim/` provide behavioral representations of external ICs (AD5263, AD5679R, AD9106, AD9767) and board assemblies (ColumnFpgaBoardModel, RowFpgaBoardModel, Squid models).
+Device models in `common/warm_tdm/sim/` provide behavioral representations of external ICs (AD5679R, AD9767) and board assemblies (ColumnFpgaBoardModel, RowFpgaBoardModel, SQUID models).
 
 The simulation environment supports PyRogue co-simulation via TCP socket bridges (`SIMULATION_G => true`, `SIM_PGP_PORT_NUM_G`).
+
+The [sensor-wafer model README](common/warm_tdm/sim/README.md) documents detector
+topology, warm/cold interfaces, device equations, synthetic-profile limits, and
+focused GHDL test entry points.
 
 ## IP Cores
 

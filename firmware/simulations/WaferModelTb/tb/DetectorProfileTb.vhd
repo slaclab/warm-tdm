@@ -152,6 +152,31 @@ begin
          report "physical detector select-line metadata is incorrect"
          severity failure;
 
+      selectedProfile := waferProfile("WAFER_32");
+      assert topologyRows(selectedProfile.topology) = 32 and
+             not selectedProfile.topology.twoLevel and
+             selectedProfile = waferProfile("WAFER")
+         report "1x32 wafer profile selection is incorrect"
+         severity failure;
+      selectedProfile := waferProfile("WAFER_8X10");
+      assert topologyRows(selectedProfile.topology) = 80 and
+             selectedProfile.topology.physicalColumns = 8 and
+             selectedProfile.topology.numBanks = 8 and
+             selectedProfile.topology.rowsPerBank = 10 and
+             selectedProfile.topology.twoLevel and
+             topologySelectLines(selectedProfile.topology) = 18
+         report "8x10 wafer profile selection is incorrect"
+         severity failure;
+      for row in 0 to 9 loop
+         assert presetRsLineMap("WAFER_8X10", 1, 10, 8, true)(row) = row
+            report "8x10 row wiring does not match RowMap8x10"
+            severity failure;
+      end loop;
+      for bank in 0 to 7 loop
+         assert presetCsLineMap("WAFER_8X10", 1, 10, 8, true)(bank) = 10+bank
+            report "8x10 chip wiring does not match RowMap8x10"
+            severity failure;
+      end loop;
       selectedProfile := waferProfile("BICEP3");
       assert topologyRows(selectedProfile.topology) = 22
          report "BICEP3 LOAD_G profile selection is incorrect"
@@ -167,6 +192,7 @@ begin
          report "BA4 LOAD_G profile selection is incorrect"
          severity failure;
       assert validLoadName("LOAD_BOARD") and validLoadName("WAFER") and
+             validLoadName("WAFER_32") and validLoadName("WAFER_8X10") and
              not validLoadName("UNKNOWN")
          report "GroupTb load-name validation is incorrect"
          severity failure;

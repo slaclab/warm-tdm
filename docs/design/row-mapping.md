@@ -38,19 +38,19 @@ The convenience commands `RowMap1x32`, `RowMap6x10`, `RowMap8x10`, etc. on
 
 ## How the hardware uses it (RTL)
 
-In `firmware/common/warm_tdm/rtl/RowDacDriver2.vhd`:
+In `firmware/common/warm_tdm/rtl/RowDacDriver.vhd`:
 
 - A `MAP_RAM` (AxiDualPortRam, `ADDR_WIDTH_G => 8` ⇒ 256 deep) holds the
   logical→physical table written above.
 - The timing system emits a `rowStrobe` each time slot. On each strobe the state
   machine advances `mapRamAddr` (the **logical** index), reads `mapRamOut`, and
   drives `rowAddr` = the **physical** row-select from that entry
-  (RowDacDriver2.vhd ~lines 492–503).
+  (RowDacDriver.vhd ~lines 492–503).
 
 So the MAP_RAM is *indexed by logical row* and *outputs physical address* — the
 hardware embodiment of the same table `_setRowMap` builds.
 
-> Note: a separate fixed `REMAP_C` array (RowDacDriver2.vhd:170) maps logical→
+> Note: a separate fixed `REMAP_C` array (RowDacDriver.vhd:170) maps logical→
 > physical *channel within a board* — a static board-routing detail, distinct
 > from RowMap. Don't confuse the two.
 
@@ -106,7 +106,7 @@ all mean "max logical rows" but only some track `config.maxRows`:
 
 | Thing | sizes to | notes |
 |---|---|---|
-| `AdcDsp` per-row arrays / `RowDacDriver2.RowMap` (tree cost) | `rows` = `maxRows` | threaded via `HardwareGroup(maxRows=...)` ✅ |
+| `AdcDsp` per-row arrays / `RowDacDriver.RowMap` (tree cost) | `rows` = `maxRows` | threaded via `HardwareGroup(maxRows=...)` ✅ |
 | software RowMap `ram` list (`_Group.py`) | `config.maxRows` | ✅ |
 | `MaxRows` variable | `config.maxRows` | ✅ |
 | RTL `ROW_ADDR_BITS_G` (hardware depth) | `2**rowAddrBits` | 8→256 (5→32 for 160Coord); set via `--rowAddrBits` |

@@ -1,8 +1,14 @@
+# This file is part of the WarmTDM software package. It is subject to
+# the license terms in LICENSE.txt in the top-level directory and at:
+# https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part may be copied, modified, propagated or distributed except under
+# those license terms.
+
 import pyrogue as pr
 import warm_tdm_api
 
 import numpy as np
-import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 import time
 
 class SinglePlot(pr.LinkVariable):
@@ -12,9 +18,15 @@ class SinglePlot(pr.LinkVariable):
             linkedGet=self.linkedGet,
             **kwargs)
 
-        self._fig = plt.Figure(tight_layout=True, figsize=(20,10))
-        self._ax = self._fig.add_subplot()
-        self._fig.suptitle(u'SA FB (\u03bcA) vs. SQ1 FB (\u03bcA)')
+        self._fig, _ = self._new_figure()
+
+    def _new_figure(self):
+        # PyRogue can serialize a returned figure after linkedGet finishes.
+        # Each read owns its artists; never mutate a previously returned plot.
+        fig = Figure(tight_layout=True, figsize=(20, 10))
+        ax = fig.add_subplot()
+        fig.suptitle(u'SA FB (\u03bcA) vs. SQ1 FB (\u03bcA)')
+        return fig, ax
 
     def _plot_ax(self, ax, col, row, tune):
         if row >= len(tune):
@@ -52,21 +64,18 @@ class SinglePlot(pr.LinkVariable):
 
  #       shunts = [self.parent.Loading.Column[x].SQ1_FB_SHUNT_R.value() for x in range(8)]
 
-        self._plot_ax(self._ax, col, row, tune)
-
-        return self._fig
+        fig, ax = self._new_figure()
+        self._plot_ax(ax, col, row, tune)
+        self._fig = fig
+        return fig
 
 class MultiPlot(SinglePlot):
 
-    def __init__(self, **kwargs):
-        pr.LinkVariable.__init__(
-            self,
-            linkedGet = self.linkedGet,
-            **kwargs)
-
-        self._fig = plt.Figure(tight_layout=True, figsize=(20, 20))
-        self._ax = self._fig.subplots(4, 2, sharey=True)
-        self._fig.suptitle(u'SA FB (\u03bcA) vs. SQ1 FB (\u03bcA)')
+    def _new_figure(self):
+        fig = Figure(tight_layout=True, figsize=(20, 20))
+        axes = fig.subplots(4, 2, sharey=True)
+        fig.suptitle(u'SA FB (\u03bcA) vs. SQ1 FB (\u03bcA)')
+        return fig, axes
 
     def linkedGet(self, index=-1):
         if self.parent.EnablePlots.value() == False:
@@ -83,11 +92,12 @@ class MultiPlot(SinglePlot):
         else:
             row = index
 
-        axes = self._ax.reshape(8)
-        for col, ax in enumerate(axes):
+        fig, axes = self._new_figure()
+        for col, ax in enumerate(axes.reshape(8)):
             self._plot_ax(ax, col, row, tune)
 
-        return self._fig
+        self._fig = fig
+        return fig
 
 class Sq1TuneProcess(warm_tdm_api.PausableProcess):
 
@@ -97,12 +107,12 @@ class Sq1TuneProcess(warm_tdm_api.PausableProcess):
         warm_tdm_api.PausableProcess.__init__(
             self, function=self._sq1TuneWrap, **kwargs)
 
-        # The synthetic SQ1 has a 10 uA feedback period. This default range
-        # covers three full periods with 1 uA spacing, which is enough for the
+        # The nominal SQ1 model has a 23 uA feedback period. This default range
+        # covers three full periods with 2.3 uA spacing, which is enough for the
         # FFT/slope analysis without making co-simulation unnecessarily slow.
         self.add(pr.LocalVariable(
             name='Sq1FbLowOffset',
-            value=-15.0,
+            value=-34.5,
             mode='RW',
             units=u'\u03bcA',
             description="Starting point offset for SQ1 FB Tuning"))
@@ -110,7 +120,7 @@ class Sq1TuneProcess(warm_tdm_api.PausableProcess):
         # High offset for SQ1 FB Tuning
         self.add(pr.LocalVariable(
             name='Sq1FbHighOffset',
-            value=15.0,
+            value=34.5,
             mode='RW',
             units=u'\u03bcA',
             description="Ending point offset for SQ1 FB Tuning"))

@@ -1,0 +1,23 @@
+{
+  "_comment": "Gain / operating-point / threshold profile for verify_cosim_pid.py. RAW gains include the sign (BOTH integer and float P are POSITIVE on the current 23 uA sinusoid-blend plant). MODEL+BUILD specific (GroupTb WAFER, VARIATION_SEED=0). Revalidated closed-loop 2026-09-17 on the merged multi-flux-wrap RTL: integer locks with normalized P=+0.05, I=+0.0004 at SampleCount=20 (raw P=+0.0025, I=+2e-5); the old negative-P values from the 10 uA fixture did NOT lock (feedback railed). These are NOT physical SQUID acceptance. Copy and adjust per fixture. Any block/key is optional; omitted values fall back to the built-in DEFAULTS in verify_cosim_pid.py, and --cli flags override this file.",
+  "integer": {
+    "sq1fb_uA": 2.0,
+    "flux_quantum_uA": 23.0,
+    "gains": {"p_raw": -0.0025, "i_raw": 0.0, "d_raw": 0.0, "use_group_gain": true},
+    "step_uA": 500.0,
+    "thresholds": {
+      "residual_max": 800.0,
+      "flux_jump_max": 0
+    }
+  },
+  "float": {
+    "sq1fb_uA": 2.0,
+    "flux_quantum_uA": 23.0,
+    "gains": {"p_raw": 1e-4, "i_raw": 0.0, "d_raw": 0.0, "use_group_gain": true},
+    "step_uA": 500.0,
+    "thresholds": {
+      "residual_max": 700.0,
+      "flux_jump_max": 1
+    }
+  }
+}

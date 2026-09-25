@@ -98,13 +98,13 @@ Make an override write robust regardless of FSM state. Options, cheapest first:
 
 Recommendation: **option 1** (pending-request latch) if/when this is done in
 firmware — it directly closes the race with minimal surface area. The same
-pattern applies to `RowDacDriver2`'s manual row activate/deactivate override
+pattern applies to `RowDacDriver`'s manual row activate/deactivate override
 (`MANUAL_RS_*`), which has the analogous "serviced only from a specific state"
 shape and is why row-DAC zeroing in `stop_and_zero` stays commented for now.
 
-### RowDacDriver2 FAS tuning exception
+### RowDacDriver FAS tuning exception
 
-`RowDacDriver2` now has a narrow `ManualSet` path for FAS characterization. One
+`RowDacDriver` now has a narrow `ManualSet` path for FAS characterization. One
 write to local offset `0x18` packs a board-local physical address in bits `4:0`
 and a DAC code in bits `21:8`. Firmware captures that request in a one-entry
 pending latch and services it through the existing `MANUAL_RS_*` states when
@@ -120,12 +120,12 @@ settling than the short firmware transaction requires.
 ## Status / next steps
 
 - [x] Software reorder in `stop_and_zero` (committed, Issue #83 G2).
-- [x] Add the pending-latched, board-local `RowDacDriver2.ManualSet` path needed
+- [x] Add the pending-latched, board-local `RowDacDriver.ManualSet` path needed
       by FAS tuning.
 - [ ] Bench: confirm the reorder reliably zeros column force/bias DACs after a
       real muxed run (swh76's Issue #32 repro is the test).
 - [ ] Decide whether to harden the general `FastDacDriver` override path and the
-      legacy `RowDacDriver2` command/table-write paths with pending latches,
+      legacy `RowDacDriver` command/table-write paths with pending latches,
       then un-comment row-DAC zeroing in `stop_and_zero` when appropriate.
 
 Row-DAC zeroing would require its own implementation and acceptance scope; the

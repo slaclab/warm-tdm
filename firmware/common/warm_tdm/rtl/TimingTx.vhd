@@ -309,7 +309,7 @@ begin
       axiSlaveRegisterR(axilEp, X"34", 16, r.timingData.logicalRow);
       axiSlaveRegisterR(axilEp, X"34", 24, r.timingData.nextLogicalRow);
       axiSlaveRegisterR(axilEp, X"38", 0, r.timingData.rowTime);
-      axiSlaveRegisterR(axilEp, X"40", 0, r.timingData.runTime);
+      axiSlaveRegisterR(axilEp, X"40", 0, r.timingData.runTimeNs);
       axiSlaveRegisterR(axilEp, X"70", 0, r.timingData.rowSeqCount);
       axiSlaveRegisterR(axilEp, X"78", 0, r.timingData.daqReadoutCount);
 
@@ -430,7 +430,7 @@ begin
       -- Start run
       if (r.timingData.startRun = '1' and r.timingData.running = '0') then
          v.timingData.running                 := '1';
-         v.timingData.runTime                 := (others => '0');
+         v.timingData.runTimeNs               := (others => '0');
          -- START_RUN primes the first pending row; the first real row entry happens on rowStrobe.
          v.timingData.rowSeq                  := (others => '0');
          v.timingData.rowTime                 := (others => '0');
@@ -456,7 +456,7 @@ begin
          -- Normal free-running timebase. This is suppressed when waiting on pwrSync or when a row
          -- boundary is being consumed on the current cycle.
          if (r.pwrSyncWait = '0' and rowAdvanceReq = false) then
-            v.timingData.runTime := r.timingData.runTime + 1;
+            v.timingData.runTimeNs := r.timingData.runTimeNs + 8;  -- 125 MHz -> 8 ns/tick
             v.timingData.rowTime := r.timingData.rowTime + 1;
          end if;
 
@@ -466,7 +466,7 @@ begin
 
          elsif (rowAdvanceFire) then
             -- Commit the row transition on the same cycle that the boundary control word is emitted.
-            v.timingData.runTime      := r.timingData.runTime + 1;
+            v.timingData.runTimeNs    := r.timingData.runTimeNs + 8;  -- 125 MHz -> 8 ns/tick
             v.timingData.rowTime      := (others => '0');
             v.timingData.rowSeq       := nextRowSeq;
             v.timingData.logicalRow     := r.timingData.nextLogicalRow;
@@ -646,25 +646,6 @@ begin
          clkIn       => wordClk,        -- [in]
          locClk      => wordClk,        -- [in]
          refClk      => axilClk);       -- [in]
-
-
-   -- 
---    U_TimingMmcm_1 : entity warm_tdm.TimingMmcm
---       generic map (
---          TPD_G     => TPD_G,
---          USE_HPC_G => false,
---          CLKIN1_PERIOD_G    => 8.0,
---          DIVCLK_DIVIDE_G    => 1,
---          CLKFBOUT_MULT_F_G  => 5.0,
---          CLKOUT0_DIVIDE_F_G => 1.0,
---          CLKOUT1_DIVIDE_G   => 5)
---       port map (
---          timingRxClk => timingClk125,   -- [in]
---          timingRxRst => timingRst125,   -- [in]
---          bitClk      => bitClk,         -- [out]
---          bitRst      => bitRst,         -- [out]
---          wordClk     => wordClk,        -- [out]
---          wordRst     => wordRst);       -- [out]
 
    -------------------------------------------------------------------------------------------------
    -- 8B10B encode

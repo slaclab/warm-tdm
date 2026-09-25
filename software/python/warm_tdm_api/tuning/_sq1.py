@@ -10,7 +10,7 @@ import numpy as np
 
 import warm_tdm_api
 
-from ._common import _pause_point, saOffset, saFbServo
+import warm_tdm_api.tuning as tuning
 
 
 def sq1FbSweep(*, group, bias, fbRange, process, curves=None,
@@ -61,7 +61,7 @@ def sq1FbSweep(*, group, bias, fbRange, process, curves=None,
         np.asarray(fbRange[:, -1]).tolist())
 
     for fbStep in range(numSteps):
-        if not _pause_point(process, publish):
+        if not tuning._pause_point(process, publish):
             log.debug(
                 'SQ1 FB sweep stopped before step %d/%d',
                 fbStep + 1, numSteps)
@@ -80,13 +80,13 @@ def sq1FbSweep(*, group, bias, fbRange, process, curves=None,
             log.debug(
                 'SQ1 FB sweep step %d/%d starting SA FB servo',
                 fbStep + 1, numSteps)
-            points = saFbServo(
+            points = tuning.saFbServo(
                 group=group, process=process, publish=publish)
         else:
             # Open loop is retained as a diagnostic view of raw SA response.
             points = group.SaOut.get()
 
-        if not _pause_point(process, publish):
+        if not tuning._pause_point(process, publish):
             log.debug(
                 'SQ1 FB sweep stopped during step %d/%d; '
                 'discarding incomplete point',
@@ -105,7 +105,7 @@ def sq1FbSweep(*, group, bias, fbRange, process, curves=None,
         log.debug(
             'SQ1 FB sweep step %d/%d recorded', fbStep + 1, numSteps)
 
-        if not _pause_point(process, publish):
+        if not tuning._pause_point(process, publish):
             break
 
     log.debug(
@@ -197,7 +197,7 @@ def sq1BiasSweep(*, group, process, rowIndex, doBiasRamp=True,
     # Attach each bias curve before acquisition so Pause can display an
     # incomplete feedback sweep without fabricating missing samples.
     for biasStep in range(numBiasSteps):
-        if not _pause_point(process, publish):
+        if not tuning._pause_point(process, publish):
             log.debug(
                 'SQ1 bias sweep row=%s stopped before bias step %d/%d',
                 rowIndex, biasStep + 1, numBiasSteps)
@@ -234,7 +234,7 @@ def sq1BiasSweep(*, group, process, rowIndex, doBiasRamp=True,
             [len(curve.points) for curve in curves])
 
         # Do not begin another bias curve after an interrupted inner sweep.
-        if not _pause_point(process, publish):
+        if not tuning._pause_point(process, publish):
             log.debug(
                 'SQ1 bias sweep row=%s stopped after bias step %d/%d',
                 rowIndex, biasStep + 1, numBiasSteps)
@@ -279,7 +279,10 @@ def sq1Tune(group, process, doSet=True, doBiasRamp=True):
         Program the fitted per-(column, row) lock point into the readout tables
         (``Sq1FbCurrent``/``Sq1BiasCurrent``/``SaFbCurrent``) after a complete
         sweep. Mirrors :func:`saTune`'s apply; a stopped run leaves the tables
-        unchanged.
+        unchanged. Also programs each tuned column's fitted flux period
+        (best-curve ``phinot``) into ``AdcDsp[col].FluxQuantum`` so the muxed
+        servo tracks flux jumps; a column with no usable period is skipped with
+        a warning and keeps its existing FluxQuantum.
     doBiasRamp : bool, default=True
         Sweep SQ1 bias for every row when true; otherwise acquire one curve at
         each row's loaded SQ1-bias values.
@@ -351,7 +354,7 @@ def sq1Tune(group, process, doSet=True, doBiasRamp=True):
     # any SQ1 stimulus is applied.
     loadSaFbSetpoints(rowTuneList[0])
     log.debug('SQ1 tune starting initial SA offset adjustment')
-    saOffset(
+    tuning.saOffset(
         group=group,
         process=process,
         publish=lambda: process._publishResults(outputs))
@@ -359,7 +362,7 @@ def sq1Tune(group, process, doSet=True, doBiasRamp=True):
 
     completed = True
     for rowNumber, rowIndex in enumerate(rowTuneList):
-        if not _pause_point(
+        if not tuning._pause_point(
                 process, lambda: process._publishResults(outputs)):
             log.info('SQ1 tune stopped before row %s', rowIndex)
             completed = False
@@ -398,7 +401,7 @@ def sq1Tune(group, process, doSet=True, doBiasRamp=True):
 
         # A Stop inside the final row's sweep never reaches another loop-entry
         # check. Keep even fitted partial results from being applied in that case.
-        if not _pause_point(process, lambda: process._publishResults(outputs)):
+        if not tuning._pause_point(process, lambda: process._publishResults(outputs)):
             completed = False
             break
 
@@ -430,6 +433,39 @@ def sq1Tune(group, process, doSet=True, doBiasRamp=True):
         group.Sq1FbCurrent.set(sq1FbTable)
         group.Sq1BiasCurrent.set(sq1BiasTable)
         group.SaFbCurrent.set(saFbTable)
+
+        # Program each tuned column's flux-wrap period into its AdcDsp so the
+        # muxed servo can track flux jumps. FluxQuantum is per-column (not
+        # per-row), so use the column's best-curve phinot from the first tuned
+        # row -- the feedback period is a per-SQUID property, so row 0's fitted
+        # Phi0 is representative. Without this the muxed run leaves FluxQuantum
+        # at the RTL default (0 = wrap disabled) and never arms flux tracking.
+        col_boardchan = list(group.col_iter())
+        firstRow = outputs[0]
+        for col in enabledColumns:
+            result = firstRow[col]
+            # bestCurve/phinot are populated by CurveData.update() (run via the
+            # publish/asDict path); recompute defensively before reading.
+            result.update()
+            bestCurve = getattr(result, 'bestCurve', None)
+            phinot = getattr(bestCurve, 'phinot', None) if bestCurve is not None else None
+            # A missing/degenerate period must not discard the lock point that
+            # already applied cleanly -- skip that column with a warning instead.
+            if phinot is None or not np.isfinite(phinot) or phinot <= 0:
+                log.warning(
+                    'SQ1 tune: no usable flux period (phinot) for column %s; '
+                    'leaving its AdcDsp FluxQuantum unchanged', col)
+                continue
+            board, chan = col_boardchan[col]
+            dsp = group.HardwareGroup.ColumnBoard[board].DataPath.AdcDsp[chan]
+            # The FluxQuantum setter rejects a write while PID is enabled or
+            # ControlBusy is set and waits for completion itself; just ensure PID
+            # is off first. (The write also invalidates the stale per-row flux
+            # reference, which is correct for a freshly measured period.)
+            dsp.PidEnable.set(False)
+            dsp.FluxQuantum.set(float(phinot))
+            log.debug('SQ1 tune set column %s AdcDsp FluxQuantum = %.3f uA '
+                      '(best-curve phinot)', col, float(phinot))
     elif doSet and not completed:
         log.info('SQ1 tune stopped; leaving partial results unapplied')
 
