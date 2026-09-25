@@ -1,200 +1,265 @@
-# Hardware ReadAll / register timeout investigation
+# Register timeout and RSSI/SRP investigation
 
-## Hardware agent handoff
+## Current state — September 24, 2026
 
-The [September 24 RSSI/SRP handoff](hardware-handoff/README.md) contains the
-normal-server startup instructions, virtual-client probes, packet decoder and report template for
-the current bench investigation. It covers the keepalive-patched image,
-missing first responses and batched versus sequential reads. Sync that directory
-and the server software changes with the checkout; keep collected logs and captures outside Git as instructed.
-The earlier investigation and implementation evidence remain below.
+We have a committed **depacketizer reconnect-recovery fix**, demonstrated in
+simulation, and a **Rogue backpressure cycle reproduced locally without injected
+sleeps**. These address different stages of the failure: congestion/reset during
+a batched read, and loss of the first new SRP request after reconnect. Fixing
+recovery does not necessarily prevent the preceding reset.
 
-The tested firmware candidate is on SURF branch
-`fix/rssi-rx-keepalive-integration`, based on `8d256ca84` and incorporating
-[SURF PR #1456](https://github.com/slaclab/surf/pull/1456) at `5641e673f`.
-Its [integration handoff](../../../firmware/submodules/surf/docs/plans/rssi-rx-keepalive/README.md)
-records the source boundary, passing focused simulations and original-RX
-comparison failures. The SURF submodule pins the combined candidate; update
-submodules after pulling this checkout.
-
-The [follow-up hardware report](hardware-handoff/REPORT-20260924-followups.md)
-records column image `96a974f` (SURF `7504a23b3`) on the bench: clean-session
-controls passed 4/4, while all four first-read probes after batched-read RSSI
-resets failed, matching the older image. The combined RX/keepalive fix does not
-resolve this reproducer. The report confirms a new build was loaded; synthesis
-resource and timing reports are not included here. Subsequent simulations
-below identify and correct a depacketizer recovery defect; hardware attribution
-and acceptance of that additional correction remain open.
-
-The original `14-columnB` report already records retry id=2 succeeding in
-0.1 ms in the same connection after id=1 timed out. Confirm that one-request
-loss on the new image: after reset
-priming, issue three individually logged version reads in the same hardware
-server process, continuing after the expected first timeout without reconnecting
-or inserting warmup reads. The existing probe stops its repeat loop on failure;
-separate `version-only` client invocations against that same server can perform
-this test. In a separate freshly primed trial, make a single row version read
-the first transaction, then read the column version. Capture both directions,
-including any stale SRP IDs and packetizer framing on replies.
-
-Diagnostic boundaries: `--rssi-debug` enables the host Rogue logger, not FPGA
-internal-state visibility. Host BUSY identifies receive backpressure but does
-not by itself establish its ultimate cause. The V2 depacketizer receives RSSI
-connection status through `linkGood` and enters `TERMINATE_S` on link loss;
-global-reset wiring alone is not evidence that it lacks reconnect recovery.
-The focused core-RX tests do not exercise the complete packetizer/SRP/AXI path.
-
-### BUSY/reset FSM findings
-
-The captured `13-columnA` reset begins with a **host** RST (`0x11`); the FPGA
-replies with RST (`0x10`). Rogue v6.15.0 can enter its error/reset state when an
-outbound segment reaches its retry limit. Its own receive BUSY does not disable
-outbound retries; peer BUSY does. The firmware connection FSM honors received
-RST. Its monitor suppresses retransmission requests on peer BUSY and the patched
-keepalive timer refreshes on valid ACK/BUSY traffic. Thus this trace does not
-establish a firmware-initiated BUSY timeout.
-
-There is a separate firmware threshold mismatch: with segment address width 7,
-RX application FIFO pause asserts at 112 eight-byte words, but advertised local
-BUSY uses count bit 7 (128 words). RX delivery can stop before BUSY asserts, and
-the segment ACK advances only after delivery completes. The directed SURF
-`tests/protocols/rssi/test_RssiBusyThreshold.py` characterization passed on
-`7504a23b3`: four 32-word segments, stalled application sink, ACK stops at the
-third segment with no wire/status BUSY; releasing the sink returns all payloads
-and framing intact and advances the final ACK. This uses the deployed storage
-geometry with inferred RAM/FIFOs and accelerated timers, not XPM, Ethernet,
-Rogue, packetizer or SRP. A pass records the observed problematic behavior,
-not successful backpressure handling. Python lint and the test compliance audit
-passed. Raw pytest log: `/private/tmp/rssi-busy-threshold.log` (local only).
-
-Consequently, `remBusy=0` is **not** sufficient to rule out FPGA application
-backpressure. The host-only integration simulation below now demonstrates
-that response backpressure propagates through SRP reply/request queues into
-RSSI RX delivery, stopping ACK progress without advertising BUSY. Host retry
-exhaustion is a plausible consequence based on the Rogue FSM and hardware
-capture; the Python peer explicitly sends RST rather than implementing that
-retry policy.
-
-### Integrated reconnect simulation
-
-`firmware/submodules/surf/tests/protocols/rssi/test_RssiSrpRecovery.py` now
-connects the production RSSI wrapper (V2/FULL CRC), SRPv3 bridge and async
-FIFOs to an independent Python wire peer and AXI read responder. Ethernet and
-AXI clocks are 156.25 and 125 MHz. It uses inferred memories, one local route,
-eight segments, 1024-byte segment size and accelerated RSSI timer units.
-There is no global reset or output drain between connections.
-
-Directed results on SURF `7504a23b3`:
-
-- **Complete requests, replies outstanding:** send 16 reads while advertising
-  host BUSY and withholding response ACKs; eight replies occupy the TX window.
-  Disconnect with host RST, reconnect and probe. The first and second new reads
-  both reach AXI and return exact, CRC-checked responses.
-- **Partial request:** deliver a valid first packetizer fragment containing
-  16 bytes of an SRP header, with packetizer EOF clear. Wait for its RSSI ACK
-  and both application beats before disconnecting. The link-loss sweep emits
-  no EOFE at the SRP input. After reconnect, the first complete read (tid 3)
-  reaches the SRP input but never AXI and gets no response; tid 4 succeeds.
-  The regression correctly fails its recovery assertions.
-- **Complete requests, blocked AXI response:** hold the AXI response and send
-  complete four-byte reads while respecting the RSSI window. After 293 requests,
-  the request path is full and SRP input is backpressured. Send RST, reconnect,
-  release AXI and issue a fresh read without draining old traffic. The first
-  new read (tid 20) has no AXI access or reply within 64 us; tid 21 succeeds
-  about 0.7 us later. The regression fails as expected (94.9194 us simulated,
-  521 s wall time). This reaches the first-request-loss symptom using complete
-  incoming requests, without deliberately constructing a partial frame.
-
-The local SURF checkout now contains an **uncommitted depacketizer recovery
-correction**, beyond pinned `7504a23b3`. The termination sweep previously
-advanced `rin.activeTDest` while asserting RAM write enable, clearing the next
-entry before checking its active-frame flag. It now clears `r.activeTDest`,
-the entry just examined. The output pipeline also clears a pending beat's
-valid flag when moving it forward, preventing duplicate termination beats
-under backpressure. No RSSI buffer sizes or BUSY thresholds were changed.
-
-The address-only correction passes both the partial-frame and 293-read
-blocked-AXI reproducers. The broader multi-destination test exposed duplicate
-termination beats in three of four RAM configurations with that correction.
-The combined address/valid correction passes all four: block and distributed
-RAM, each with/without output registers. It also passes mixed active/inactive
-destinations, global reset during termination across the same six parameter
-cases, and the existing eight depacketizer scenarios. Original RTL fails
-three of the four all-active destination cases by omitting termination beats.
-
-The combined correction passes the full blocked-AXI case (60.5194 us simulated).
-Simulation-only internal reports establish the sequence:
-
-- At 29.3376 us, RSSI drops with the depacketizer in `MOVE_S`, an active frame
-  recorded, and two pending non-final output beats.
-- The SRP limiter accepts the start of old request tid 1261 after the disconnect,
-  as already-buffered data continues through the downstream path.
-- At 35.1552 us, the sweep reads destination 0 as active and clears that entry.
-  EOFE reaches the limiter at 35.2000 us while it is in `MOVE_S`.
-- At 35.2320 us, fresh tid 20 reaches the limiter in `IDLE_S`. Its exact reply
-  appears at 59.7898 us after old work is processed; tid 21 also succeeds.
-
-Without termination, `SsiFrameLimiter` consumes the first new SOF as the old
-frame's error ending and drops that new request. The timeout-disabled limiter
-is not reset by an RSSI reconnect. The RAM-address-only A/B comparison fixes
-the complete-request reproducer, not just the deliberately partial input.
-
-**Host-only before/after comparison also reproduces and fixes first-request
-loss.** AXI responses remain enabled. Host BUSY plus withheld response ACKs
-fills the reply path, then the request path. After 560 complete reads sent,
-AXI has accepted 268 reads including the initial control. At 49.5434 us,
-cumulative ACK is stuck at 0x49, the SRP input is backpressured, and both the
-last wire BUSY and current local BUSY remain clear. Both variants have the
-same pre-reset state.
-
-The peer explicitly sends RST+BUSY (0x11), reconnects, and sends fresh tids 30
-and 31 in order. Original RTL never issues tid 30 to AXI or replies to it;
-tid 31 succeeds. The correction issues both to AXI and returns both exact,
-CRC-checked replies. The test waits for the second reply before asserting the
-first, so old backlog cannot explain the missing first response.
-
-| Internal observation | Original | Corrected |
+| Workstream | Established | Remaining |
 | --- | --- | --- |
-| Link drops at 49.6256 us | `MOVE_S`, active frame, two non-final pending beats | Same |
-| Destination-0 sweep at 55.5456 us | Active flag already cleared; write address FF | Active flag set; write address 00 |
-| Limiter at 55.5904 us | No EOFE delivered | Consumes EOFE in `MOVE_S` |
-| First fresh SOF, tid 30, at 55.6224 us | Limiter still `MOVE_S`; read lost | Limiter `IDLE_S`; read accepted |
-| Second fresh SOF, tid 31, at 55.6736 us | `IDLE_S`; succeeds | `IDLE_S`; succeeds |
+| Packetizer recovery | SURF `2b58e8251` corrects termination after link loss; original/corrected simulations reproduce and eliminate first-request loss | Load the correction and repeat hardware reset-priming probes |
+| Rogue backpressure | Finite peer buffering can cause a sustained transmit/transaction-lock/receive-queue wait cycle with real PyRogue reads on both revisions | Match the bench register mix and peer behavior; select and validate a correction |
+| FPGA RSSI BUSY signaling | RX delivery/ACK progress can stop before local BUSY asserts at deployed buffer geometry | Establish its contribution to the bench reset and evaluate a separate correction |
+| Earlier RX/keepalive integration | Tested image `96a974f`, SURF `7504a23b3`, still exhibits burst/reset/first-read failure | Keep its acceptance separate from the additional packetizer fix |
 
-Original fails at 97.2170 us simulated; corrected passes at 97.3066 us
-(about 10.5 minutes wall time per variant). This comparison changes only the
-depacketizer functional RTL; both scratch variants have identical read-only
-internal observers. The host reset is explicit, and the Python peer does not
-model Rogue scheduling, Ethernet, or automatic retry exhaustion.
+The latest repeated hardware threshold runs explicitly used **pre-packetizer-fix
+firmware**. Their failed post-reset probes are consistent with the old defect;
+they are not a failed hardware test of `2b58e8251`.
 
-The corrected checkout also passes the clean unacknowledged-reply control
-and isolated partial-frame test. Its functional RTL matches the broader
-simulation candidate after stripping comments/whitespace. VHDL style,
-Python lint and compliance checks pass.
+## Evidence and reproduction
 
-Logs/builds stay outside Git. Initial baseline logs are
-`/private/tmp/rssi-srp-{recovery,partial,blocked}.log`. Isolated comparisons and
-internal traces are under `/private/tmp/rssi-srp-address-experiment/`; the
-combined blocked-AXI trace is `trace/blocked.log`; host-only comparison logs
-are `stocktrace/host-busy.log` and `trace/host-busy.log`. Corrected checkout
-controls are
-`/private/tmp/rssi-srp-patched-{control,partial}.log`. Reproducers, correction,
-and results are in the checkout; scratch traces are not required to rerun them.
+- [Hardware handoff](hardware-handoff/README.md): normal
+  `software/scripts/warmTdmServer.py` startup, VirtualClient probes, transport
+  logging and tcpdump. Use one hardware connection owner. Direct child-device
+  reads may bypass the parent's `forceWaitEach`; measure the actual pattern.
+- [Initial hardware report](hardware-handoff/REPORT-20260924-rdsrv433.md) and
+  [follow-up report](hardware-handoff/REPORT-20260924-followups.md): committed
+  evidence, including clean/reset-priming comparisons.
+- [SURF integration and simulation handoff](../../../firmware/submodules/surf/docs/plans/rssi-rx-keepalive/README.md):
+  exact changes, regression coverage, reproduction commands and trace locations.
+- Rogue reports: `~/rogue/docs/plans/srp-rssi-burst/REPORT.md` and
+  `WARM_TDM_FOLLOWUP.md` in that directory; harness instructions:
+  `~/rogue/tests/perf/srp_rssi/README.md`. These were inspected locally and are
+  pending, unstaged work on Rogue branch `investigate/srp-rssi-burst`, created
+  from `pre-release`. They must be synced separately from Warm-TDM. Production
+  Rogue sources are unchanged.
+- Latest operator-reported hardware evidence:
+  `~/warmtdm-rssi-runs/20260924T213308Z-newfw/THRESHOLD_REPEATS_FINDINGS.txt`,
+  `txn_analyze.py`, and 20 session directories containing pcaps/logs/JSONL.
+  The summary below incorporates the operator's results; those raw files have
+  not been inspected here or incorporated into the committed follow-up report.
+  Keep captures, logs and generated build output outside Git.
 
-Next acceptance: build the recovery correction with Vivado 2024.1 and repeat
-the hardware clean/reset-priming pairs, direct child-device batched reads, and first column/row reads after reconnect. Record image and submodule
-identities. Count resets and first-request losses separately: recovery is fixed
-in these simulations, while the BUSY signaling gap remains. XPM, physical
-Ethernet, real Rogue retry exhaustion and implementation timing have not been validated by these inferred-memory simulations.
+## Hardware findings and repeated workload boundary
 
-Sizing check: both Warm-TDM RSSI instances still specify `MAX_SEG_SIZE_G=1024`,
-`SEGMENT_ADDR_SIZE_G=7`, `WINDOW_ADDR_SIZE_G=3`. These match current defaults.
-The wrapper has ignored its legacy segment-address generic since SURF
-`ec481f717` (2019-05-31), deriving the core width from `MAX_SEG_SIZE_G` instead.
-Warm-TDM's committed EthCore history has those values since at least
-`adf9643` (2021-10-10); no recent committed reduction was found.
+On rdsrv433 with Rogue v6.15.0, sequential reads pass while batched column
+reads produce host receive BUSY, retransmissions and sometimes a host-initiated
+RSSI reset. Disabling DEBUG logging did not remove the problem. Even the small
+SAFb batch (24 requests, 2,624 requested bytes in an earlier capture) showed
+substantial delays. Link speed alone does not determine application queue progress.
 
-## Goal and reported behavior
+Alternating fresh-server trials established persistent recovery state:
+clean priming produced 4/4 successful first-read probes; batched-reset priming
+produced 4/4 failed first probes. The failed request was valid and transport-ACKed
+by the FPGA, but had no SRP response. The original `14-columnB` trial's second
+request succeeded in the same connection. Restarting the host process and
+establishing a new RSSI connection did not clear the condition. Repeating with
+image `96a974f` / SURF `7504a23b3` gave the same result.
+
+The latest fixed-register, fixed-order repeats on that pre-fix firmware sharpen
+the workload boundary:
+
+| Requested workload | Repeats | Read outcome | Reset / next-session probe |
+| --- | --- | --- | --- |
+| L439: 439 unique reads | 5 | All 439 completed, none missing; 119–144 reported retransmissions/repeated transaction IDs per run | No reset; probes pass |
+| L463: 463 requested reads | 5 | 384 issued, exactly 351 completed; the same 33 IDs (352–384) unanswered | Host reset in every run; all five subsequent first-read probes fail |
+
+This is a reproducible boundary **between tested workloads**, not a measured
+439-versus-463 simultaneous-outstanding limit. In the failing runs, 33 issued
+requests remained unanswered at reset. Distinguish requested operations,
+unique issued IDs, completed responses, address coverage and instantaneous
+outstanding count. Distinguish repeated SRP IDs from RSSI segment retransmissions
+using connection epoch and sequence. The repetitions supersede the initial
+suggestion that the observed boundary was merely run-to-run timing variability;
+they do not identify the exact cutoff within 440–462 or establish independence
+from all configuration/timing changes.
+
+The failing trace reportedly shows host BUSY (`0x41`) and its cumulative ACK
+held at 148 while issuing new requests (sequence 240–246). The FPGA continues
+acknowledging requests, last ACK 237. At about 6.4–7.3 seconds into the reported
+run, the host sends RST (`0x11`); the FPGA echoes RST (`0x10`). These are two ACK
+directions: host ACK stagnation describes stalled reply consumption; FPGA ACK
+progress describes request acceptance. Preserve common timestamp origins when
+correlating reset and API-return timing; the pasted timing figures do not all
+have an established common origin. A late client error is not the instant the
+outstanding reads were lost.
+
+## Committed packetizer recovery correction
+
+SURF branch `fix/rssi-rx-keepalive-integration` contains these logical groups;
+Warm-TDM currently pins `49c1168c6`, including all three:
+
+| Commit | Scope |
+| --- | --- |
+| `2b58e8251` | `AxiStreamDepacketizer2.vhd` recovery correction and standalone regression |
+| `307dbe784` | RSSI missing-BUSY characterization; no threshold RTL change |
+| `49c1168c6` | Integrated RSSI → depacketizer → SRP recovery simulation and documentation |
+
+On disconnect, the termination sweep cleared the next destination's RAM entry
+instead of the entry just examined. An active frame could receive no error
+termination. The downstream `SsiFrameLimiter` remained inside the old frame,
+consumed the next request's SOF as that old frame's error ending, and dropped the
+first new request. The correction writes `r.activeTDest` during termination.
+It also clears the pending output stage's valid flag when moving a beat forward,
+preventing duplicate termination beats under backpressure. No RSSI buffer sizes
+or BUSY thresholds changed.
+
+The integrated simulation uses production RSSI V2/FULL CRC, depacketizer, SRPv3
+and async FIFOs at 156.25/125 MHz, with eight 1024-byte segments. It reconnects
+without global reset or draining old traffic.
+
+| Scenario | Original `7504a23b3` | Corrected |
+| --- | --- | --- |
+| 16 complete reads, host BUSY, replies outstanding, reconnect | Both new reads pass | Both pass |
+| Partial incoming request, reconnect | First new read lost; second succeeds | Both pass |
+| 293 complete reads, AXI response held, reconnect/release | First new read never reaches AXI; second succeeds | Both pass |
+| 560 complete reads, host BUSY/withheld reply ACKs, AXI continuously enabled, reconnect | First new read never reaches AXI; second succeeds | Both pass |
+
+In the last comparison both variants reach the same pre-reset congestion and
+ACK stall with FPGA BUSY clear. Only the corrected variant delivers EOFE before
+the first fresh SOF. This isolates recovery from congestion. The Python peer
+explicitly sends RST; it does not implement Rogue's automatic retry exhaustion.
+
+Standalone tests cover block/distributed RAM with/without output registers,
+mixed active destinations and global reset during termination. Original RTL
+fails three of four all-active cases; the combined fix passes all six parameter
+cases and existing normal/error regressions. The older link-drop test could
+pass with termination sent to the wrong destination because it did not check
+that destination. The detailed SURF handoff preserves traces and history.
+Inferred-memory simulations and lint/style checks pass; XPM, implementation
+timing and physical bench acceptance remain open.
+
+After hardware testing, cherry-pick **only `2b58e8251`** onto a clean SURF branch
+from `pre-release` for a focused PR. Creating that branch/PR is deferred at the
+user's request until testing; the other two commits remain separate work.
+
+## Rogue: backpressure cycle reproduced without injected delays
+
+The receive path has an asynchronous boundary inside Packetizer:
+
+```text
+Datagram receive → RSSI application queue (BUSY threshold 2, unbounded capacity)
+  → RssiApp → PacketizerV2 reassembly
+  → Packetizer application queue (capacity 8 completed frames)
+  → PackApp → SRP response processing → transaction completion
+```
+
+A blocked SRP callback stops `PackApp` draining its queue. Once it fills,
+`RssiApp` blocks pushing into it and stops draining RSSI. The RSSI setting of two
+is a BUSY threshold, not a capacity. The earlier model of `RssiApp` directly
+calling SRP missed this boundary.
+
+`SrpV3::doTransaction()` holds the request transaction mutex across `sendFrame()`.
+Response lookup in `Slave::getTransaction()` holds the pending-map mutex while
+refreshing other transactions' timers; each `refreshTimer()` acquires that
+other transaction's mutex. Thus response 601 can wait for request 602's submitter,
+and other submitters can then wait on the map mutex. The first controlled test
+held request 602 deliberately: Packetizer's queue push blocked for 202.411 ms
+with zero host RSSI dequeues, then all reads completed when the hold ended.
+
+The follow-up now reproduces the initial hold **without sleeps, altered ACKs,
+withheld BUSY or slow callbacks**. It uses 1024-byte segments/eight-segment
+windows, real PyRogue Root/Device/RemoteVariable and Block/Hub transactions,
+and finite peer request buffering. The peer's response worker waits on transmit
+capacity and stops taking new requests. The resulting dependency cycle is:
+
+```text
+Host transmit capacity exhausted while submitter holds transaction mutex
+  → response timer refresh waits for that mutex
+  → Packetizer receive queue fills; RssiApp stops draining
+  → host BUSY / reply ACK progress stops
+  → finite peer reply and request paths cannot drain
+  → host transmit capacity remains exhausted
+```
+
+This is a sustained cycle across workers, queues and a transaction mutex, not
+a demonstrated two-mutex ABBA deadlock. Normal transaction timeouts do not
+release the blocked submission/refresh path. The watchdog terminates stalled
+cases; that is not recovery. In one PyRogue trace, submission of transaction
+831 blocks on transmit capacity, response 740 waits refreshing its timer, and
+RSSI stops dequeuing about 17 ms into the read. The waits remain unfinished
+at the 12-second watchdog.
+
+| Evidence | Result |
+| --- | --- |
+| Earlier native baseline, 1400-byte segments/32-segment window | All 126 cases pass before/after April change; 32 atomic-isolation cases also pass |
+| Follow-up with 1024/8 and finite peer variants | 402 cases: 360 complete, 42 reach watchdog (including six reduced-probe controls) |
+| Follow-up full sweeps through 64 outstanding requests | All pass |
+| Follow-up full sweeps with 4-byte or 256-byte responses | All pass |
+| Persistent stalls | 4096-byte responses, configured burst limits 256 or 600, finite peer request buffering; both revisions |
+
+The cycle exists before and after April 22 commit `b1a669c965` (parent
+`acd6389dfe`). **The atomic change did not introduce the demonstrated cycle.**
+Scheduling can affect whether a particular case stalls, but the comparison
+shows no consistent before/after direction. No production Rogue fix is selected.
+
+Limits: this is macOS with an asynchronous software peer and a synthetic
+register map, not Warm-TDM's full tree/custom getters or measured FPGA FIFO
+layout. Peer bounds 1/1 and 8/8 are experimental constraints. The local stalls
+advertise BUSY correctly on both ends, with **no retransmissions or resets** in
+the captured examples. They do not reproduce the FPGA ACK-stops/BUSY-clear
+condition or explain the modest-batch bench slowdown. The earlier scripted
+ACK-freeze test models retry/reset escalation separately; its effective outage
+also depends on when the peer sends the next ACK after the programmed freeze.
+
+## Separate FPGA BUSY finding and buffer settings
+
+With segment address width 7, RSSI RX application FIFO pause asserts at 112
+eight-byte words, but advertised BUSY uses count bit 7 (128 words). Delivery and
+ACK progress can stop before BUSY asserts. The characterization sends four
+32-word segments to a stalled sink: the fourth ACK stays pending with BUSY clear;
+releasing the sink returns all payloads and advances ACK. A passing test here
+records problematic behavior, not a correction.
+
+Thus `remBusy=0` cannot exclude FPGA application backpressure. The integrated
+host-stall simulation demonstrates propagation through SRP reply/request queues
+into this ACK stall. Its contribution to hardware retry exhaustion still needs
+correlation. Host receive BUSY does not suppress its own outbound retries; peer
+BUSY does. A host RST followed by FPGA echo is not evidence of a firmware-initiated
+BUSY timeout. The patched firmware keepalive monitor refreshes on valid ACK/BUSY.
+
+Warm-TDM retains `MAX_SEG_SIZE_G=1024`, legacy `SEGMENT_ADDR_SIZE_G=7` and
+`WINDOW_ADDR_SIZE_G=3`. The wrapper derives core width from `MAX_SEG_SIZE_G` and
+has ignored the legacy generic since `ec481f717` (2019). Warm-TDM history has
+these values since at least `adf9643` (2021); no recent committed reduction was
+found. The separate [RSSI sizing proposal](../rssi-tuning/PLAN.md) is not a
+recovery fix.
+
+## Next steps and acceptance
+
+1. **Bench recovery acceptance:** build with Vivado 2024.1 and load a column
+   image containing `2b58e8251`; record loaded image and SURF identities. Repeat
+   fixed-order L439/L463 and clean/reset-priming pairs. Count resets and first-read
+   loss separately. After reset priming, test three individually logged reads
+   in the same fresh server, continuing after a first timeout; separately prime
+   again and make a row read the first request. No warmup reads. Invoke existing
+   `version-only` probes separately against that server because the repeat loop
+   stops on error. A remaining reset with successful first reads would support
+   recovery acceptance while leaving congestion unresolved.
+2. **Rogue correction and bench matching:** use the natural-cycle reproducer
+   to evaluate ways to break the transaction-lock/timer-refresh dependency,
+   preserving transaction lifetime, timeout and concurrency semantics. Validate
+   successful completion/data in formerly stalled cases, not merely watchdog
+   avoidance. Match the actual fixed register order, response sizes, outstanding
+   profile and peer queue behavior to explain L439/L463 and small SAFb batches.
+   Correlate submission, timer/map waits, queue occupancy, both ACK directions
+   and reset initiator. A fix to the local cycle is not yet a bench root-cause proof.
+3. **Evidence handoff:** incorporate the operator's threshold results into the
+   existing follow-up report when the raw files are available on that machine.
+   Sync the separate Rogue report/harness; keep captures outside Git.
+
+## Earlier PGP/ring investigation (historical context)
+
+The following preserves the earlier ring-capacity, overflow-recovery and clock
+investigation. Its status statements and missing metadata describe that earlier
+stage; use the account above for the current RSSI reproducer and candidate
+identities. Outstanding vendor/hardware acceptance below is not completed by
+these newer results.
+
+### Goal and reported behavior
 
 Bench topology: one column coordinator and one row board, both AxiVersion
 blocks accessible. ReadAll fails on the row, followed by loss of column SRP
@@ -209,7 +274,7 @@ The earlier comparison used working firmware/software `1045236eecac9719092883b78
 Determine whether the bench failure is transport loss, an endpoint timeout, or
 shared transport blockage, and find the smallest discriminating hardware test.
 
-## Status
+### Status
 
 The pause/recovery implementation is described [below](#ring-pause-and-overflow-recovery-implementation); the historical characterization that follows records the pre-fix behavior. Vendor and hardware acceptance remain outstanding.
 
@@ -235,7 +300,7 @@ repeat the failing ReadAll plus before/after overflow-counter checks. The user
 reports the width-10 hardware run succeeds. Worst-case buffering and recovery
 acceptance remain outstanding.
 
-## Width-10 bound investigation
+### Width-10 bound investigation
 
 **Width 10 does not establish a lossless bound for queued responses.** Pause
 is asserted at 192 eight-byte entries (1536 bytes), leaving nominal RX RAM
@@ -305,7 +370,7 @@ not a permanent full-ring deadlock. The SRP/host consequences still need the
 full-system test. Raw run logs are saved in pytest's temporary build directories;
 the source bench and assertions retain the reproducible evidence.
 
-### Cosim fidelity and reproduction limits
+#### Cosim fidelity and reproduction limits
 
 The committed cosim-fidelity correction enables the FIFO ready handshake only for a Rogue
 stream model (`SIMULATION_G and SIM_PORT_NUM_G /= 0`). Real GTX mode now ignores
@@ -329,7 +394,7 @@ The script's 120-second watchdog covers the entire subtree sweep, whereas the
 simulation root's extended timeout covers individual transactions. Record
 per-block progress before treating a long whole-tree sweep as stalled.
 
-### Required bound and next discriminating test
+#### Required bound and next discriminating test
 
 With remote response transmission unthrottled, a lossless admission policy must
 reserve receive capacity for **all outstanding response bytes**, including ring
@@ -356,7 +421,7 @@ and releasing the sink, verify fresh row and column transactions complete
 without reset. Capacity prevention and defined termination/recovery of damaged
 frames are separate requirements.
 
-### Ring pause and overflow recovery implementation
+#### Ring pause and overflow recovery implementation
 
 The collection/broadcast and packet admission design is now implemented in
 `PgpRingFlowControl`, `RingRouter` and `PgpRingRxFifo`, with integration and shared
@@ -412,7 +477,7 @@ Remaining acceptance after the user's current run finishes:
 The active rdsrv419 simulation/build is untouched. No source was staged or
 committed by the implementation task.
 
-## GTX cosim startup: verified at `fc8f751`
+### GTX cosim startup: verified at `fc8f751`
 
 The reported 1.272 us freeze was not reproduced. On `rdsrv419`, the existing
 GroupTb binary advanced through 2, 10, 20, 100 and 300 us without rebuilding or
@@ -459,7 +524,7 @@ Next: reproduce the hardware's actual failing read sequence and capture overflow
 counters. Use the [GroupTb progress checks](../../../firmware/simulations/GroupTb/README_cosim.md#checking-simulation-progress-and-gtx-startup)
 to distinguish a quiet simulation from a stall.
 
-## Current transport findings
+### Current transport findings
 
 The remote response path is row SRP TX -> PGP TX FIFO/packetizer -> coordinator
 PGP RX FIFO -> RingRouter depacketizer/demux -> EthCore remote TX FIFO -> shared
@@ -515,7 +580,7 @@ buffering one packet alone does not bound a burst of multiple packets/replies.
   above disables the FIFO ready handshake in real GTX mode; earlier builds
   passed `ROGUE_SIM_EN_G=SIMULATION_G` and can mask overflow indications.
 
-## Focused buffer experiment
+### Focused buffer experiment
 
 A scratch GHDL 6.0.0 bench at `/private/tmp/warm-tdm-srp-buffer-probe/` connects
 the actual SURF Packetizer2 (512-byte packets, CRC NONE), 8-to-2-byte gearbox,
@@ -546,7 +611,7 @@ stall rather than demonstrating how one arises. The queued-response case also
 does not model the current row driver's per-block waiting. Vendor simulation,
 the actual failing read size and bench counter evidence remain necessary.
 
-## Discriminating checks for this bench
+### Discriminating checks for this bench
 
 1. Capture the *first* failing path/address/length and exact exception. Distinguish
    a host timeout/errored or truncated frame from an SRP timeout footer (`0x2100`
@@ -582,7 +647,7 @@ The existing XPM/`"bram"` spelling still needs a Vivado build-log check, but
 successful reads of both boards weaken the original global-payload-failure
 hypothesis. The current change leaves those Ethernet/RSSI settings in place.
 
-## Earlier image-comparison findings
+### Earlier image-comparison findings
 
 - Both target configurations enable `RING_ADDR_0_G=true` and `ETH_10G_G=true`.
   The new target explicitly selects the integer PID path. Its default RSSI
@@ -611,7 +676,7 @@ hypothesis. The current change leaves those Ethernet/RSSI settings in place.
   bridge. Passing ordinary group co-simulation does not exercise the RSSI
   backend change.
 
-## Endpoint timeout and persistent failure
+### Endpoint timeout and persistent failure
 
 SURF `protocols/srp/rtl/SrpV3AxiLite.vhd` deliberately retains `r.timeout`
 across requests (line 343). With its request timeout enabled, an AXI transaction
@@ -634,7 +699,7 @@ Do not equate any timing-reset condition with a bus hang: a stopped clock with
 reset not properly reported, or a nonresponding endpoint, is a different case.
 No particular new endpoint has been proven to cause such a hang.
 
-## Effective clock-constraint comparison
+### Effective clock-constraint comparison
 
 The proposed 312.5-to-250 MHz source regression was ruled out: the old target
 loaded `WarmTdmCore2.xdc`, renamed to `WarmTdmCore.xdc` in the new target. Both
@@ -645,7 +710,7 @@ divider 1, multiplier 8, and output divider 8. Successful AxiVersion reads now
 also argue against a persistent absence of the AXI clock/reset release. Actual
 implementation reports remain necessary for timing/constraint acceptance.
 
-## Validation and handoff
+### Validation and handoff
 
 - Compared exact committed sources at `1045236` and `d0bedaa`; followed the
   `WarmTdmCore2`/`WarmTdmCommon2` rename in RTL and Python to avoid comparing

@@ -1,5 +1,10 @@
 # Warm-TDM hardware RSSI/SRP investigation — agent handoff
 
+See [the investigation summary](../README.md) for current findings and next
+acceptance checks. Latest L439/L463 repeats used image `96a974f` / SURF
+`7504a23b3`, before packetizer recovery fix `2b58e8251`. Count burst-induced
+resets and first-request loss after reconnect as separate outcomes.
+
 ## Task and scope
 
 Run the controlled tests below on the machine connected to the hardware, preserve the raw evidence, and return a concise report using `REPORT.md`. The goal is to distinguish:
@@ -33,7 +38,7 @@ The bench previously used rdsrv433, conda `warm-tdm-env3`, Rogue **v6.15.0**, on
 | `pcap_summary.py` | Converts classic tcpdump pcap to CSV with RSSI sequence/ACK/BUSY, checksums, payload fingerprints and supported SRP fields. Standard-library Python only. |
 | `REPORT.md` | Report template to copy into the result directory. |
 
-These helpers were prepared against the local Warm-TDM source and Rogue v6.15.0 interfaces. They have not been run against this physical bench. Check launch errors rather than assuming a test ran. `probe.py` uses the verified but private VirtualClient `_remoteAttr` API to invoke server device methods; if the installed API differs, report the mismatch and inspect that version before adapting it. Assigning attributes on a virtual client is not a substitute for changing the server's `forceWaitEach`.
+These helpers were prepared against Rogue v6.15.0 and exercised in the September 24 hardware reports linked from the investigation summary. Check launch errors and record the installed version rather than assuming compatibility with another checkout. `probe.py` uses the verified but private VirtualClient `_remoteAttr` API to invoke server device methods; if the installed API differs, report the mismatch and inspect that version before adapting it. Assigning attributes on a virtual client is not a substitute for changing the server's `forceWaitEach`.
 
 ## Preparation and metadata
 
