@@ -4,7 +4,7 @@ Applying tuning results on the AwaXe maintenance branch
 Compatibility
 -------------
 
-``maintenance/awaxe-software-fll`` starts at ``08de0a6`` (November 12,
+``awaxe-software-fll`` starts at ``08de0a6`` (November 12,
 2025), two TES-DAC corrections after the deployed software ``a4f7905``.
 It retains that software's register interfaces, dependencies, data formats,
 and legacy PID clearing. It is intended for column firmware ``ac5a0c4``
