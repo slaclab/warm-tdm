@@ -1,3 +1,9 @@
+# This file is part of the WarmTDM software package. It is subject to
+# the license terms in LICENSE.txt in the top-level directory and at:
+# https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part may be copied, modified, propagated or distributed except under
+# those license terms.
+
 import pyrogue as pr
 import warm_tdm_api
 
@@ -173,6 +179,13 @@ class Sq1TuneProcess(pr.Process):
             mode='RW',
             description="Disable the servo and grab SaOutAdc directly"))
 
+        self.add(pr.LocalVariable(
+            name='SetAfterFinish',
+            value=False,
+            mode='RW',
+            description="Apply fitted SQ1 bias, SQ1 feedback, and SA feedback to the "
+                        "readout tables after a complete tune. Requires ServoDisable=False. "
+                        "If false, the readout tables are left unchanged."))
 
         # SQ1 Tuning Results
         self.add(pr.LocalVariable(
@@ -264,7 +277,8 @@ class Sq1TuneProcess(pr.Process):
 
     def _sq1TuneWrap(self):
         with self.root.updateGroup(0.25):
-            ret = warm_tdm_api.sq1Tune(group=self.parent, process=self)
+            ret = warm_tdm_api.sq1Tune(
+                group=self.parent, process=self, doSet=self.SetAfterFinish.value())
         self.Sq1TuneOutput.set(value = [[col.asDict() for col in row] for row in ret])
         print('SQ1Tune Output')
         print(self.Sq1TuneOutput.value())

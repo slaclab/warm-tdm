@@ -1,3 +1,9 @@
+# This file is part of the WarmTDM software package. It is subject to
+# the license terms in LICENSE.txt in the top-level directory and at:
+# https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part may be copied, modified, propagated or distributed except under
+# those license terms.
+
 import numpy as np
 import time
 
@@ -216,36 +222,41 @@ def saBiasSweep(*, group, process):
 
 def saTune(*, group, process=None, doSet=True):
     """
-    Initializes group, runs saFluxBias and collects and sets SaFb, SaOffset, and SaBias
-    Returns a list of CurveData objects
-    Args
-    ----
-    group  : group
-    pctVar : pr.Variable
-        Variable to set current percentage complete
+    Measure SA curves and optionally apply the fitted operating point.
 
-    Returns
-    ----
-    CurveData object where result of saOffset subroutine
-     is plotted against SaFb values, which each curve
-     representing a different bias.
+    With doSet, load SA feedback into both the configured row tables and
+    the force path, set SA bias, then adjust the offset at that operating
+    point. Disabled columns and stopped fits are not applied. Return one
+    CurveData per column; doSet=False does not restore the pre-sweep state.
     """
-#    group.Init()
-
-    #group.RowTuneIndex.set(0)
-    #group.RowTuneMode.set(True)
+    enabledColumns = [col for col, enabled in enumerate(group.ColTuneEnable.value())
+                      if enabled]
     saBiasResults = saBiasSweep(group=group,process=process)
 
-    if doSet:
-        for col in range(len(group.ColumnMap.get())):
+    stopped = process is not None and not process._runEn
+    if doSet and not stopped and enabledColumns:
+        # Validate every enabled column before writing any fitted values.
+        for col in enabledColumns:
+            result = saBiasResults[col]
+            if any(value is None or not np.isfinite(value)
+                   for value in (result.xOut, result.biasOut)):
+                raise RuntimeError(
+                    f'SA tune produced no finite fitted operating point for column {col}')
+
+        tunedSaFb = np.array(group.SaFbForceCurrent.get(read=True), copy=True)
+        for col in enabledColumns:
+            result = saBiasResults[col]
             # xOut represents the tuned saFB. Set it for every row.
             for row in range(len(group.RowMap.get())):
-                group.SaFbCurrent.set(index=(col,row), value=saBiasResults[col].xOut)
+                group.SaFbCurrent.set(index=(col, row), value=result.xOut)
             # biasOut represents the tuned SA Bias point
-            group.SaBias.set(index=col, value=saBiasResults[col].biasOut)
+            group.SaBiasCurrent.set(index=col, value=result.biasOut)
+            tunedSaFb[col] = result.xOut
 
-        # Run saOffset to zero out the ADC value at the tuned SaBias,SaFb point
-        saOffset(group=group)
+        # With timing stopped, the force path drives the DAC, not the row RAM.
+        # Null the ADC at the same feedback point that readout will use.
+        group.SaFbForceCurrent.set(tunedSaFb)
+        saOffset(group=group, process=process)
             
     return saBiasResults
 
@@ -481,25 +492,25 @@ def sq1BiasSweep(group, process):
 
     return datalist
 
-def sq1Tune(group, process):
+def sq1Tune(group, process, doSet=False):
     """
-    Runs Sq1BiasSweep for each row, collecting CurveData objects.
-    During this loop, sets the resulting Sq1Bias and Sq1Fb values
+    Measure SQ1 curves in RowIndexOrderList order and optionally apply fits.
 
-    Args
-    ----
-    group : group
-    Returns
-    ----
-    list
-        list of list of CurveData objects 
+    Return a list of per-column CurveData lists, one for each visited row.
+    With doSet=True, a complete valid tune programs SQ1 bias, SQ1 feedback,
+    and SA feedback for enabled columns at their actual row indices. The
+    default preserves the legacy behavior of leaving readout tables alone.
     """
     outputs = []
-    numRows = group.NumRows.get()
-    rowTuneList = group.RowIndexOrderList.value()
-    colTuneEnable = group.ColTuneEnable.value()    
+    rowTuneList = list(group.RowIndexOrderList.value())
+    enabledColumns = [col for col, enabled in enumerate(group.ColTuneEnable.value())
+                      if enabled]
     numEnabledRows = len(rowTuneList)
-    numColumns = group.NumColumns.get()
+
+    if doSet and process.ServoDisable.get():
+        raise RuntimeError(
+            'Cannot apply SQ1 operating points with ServoDisable enabled: '
+            'the measured output is SA voltage, not SA feedback current')
 
     totalSteps = numEnabledRows * process.Sq1BiasNumSteps.get() * process.Sq1FbNumSteps.get()
     process.TotalSteps.set(totalSteps)
@@ -508,26 +519,42 @@ def sq1Tune(group, process):
     saOffset(group=group)
     
     for rowIndex in rowTuneList:
+        if not process._runEn:
+            break
+
         #Activate the row
         group.ActivateRowIndex(rowIndex)
+        try:
+            # Run the sq1 bias sweep
+            print(f'sq1BiasSweep({rowIndex=})')
+            results = sq1BiasSweep(group, process)
+            for i, r in enumerate(results):
+                print(f'Results col {i}')
+                print(f'bias - {r.biasOut}, xOut - {r.xOut}, yOut - {r.yOut}')
+            outputs.append(results)
+        finally:
+            group.DeactivateRowIndex(rowIndex)
 
-        # Run the sq1 bias sweep
-        print(f'saBiasSweep({rowIndex=})')        
-        results = sq1BiasSweep(group, process)
-        for i, r in enumerate(results):
-            print(f'Results col {i}')
-            print(f'bias - {r.biasOut}, xOut - {r.xOut}, yOut - {r.yOut}')
-            
-        outputs.append(results)
-        
-#         for col in range(numColumns):
-#             if colTuneEnable[col]:
-#                 print(f'Seeting results for column {col}')
-#                 group.Sq1BiasCurrent.set(index=(col, rowIndex), value=results[col].biasOut)
-#                 group.Sq1FbCurrent.set(index=(col, rowIndex), value=results[col].xOut)
-#                 group.SaFbCurrent.set(index=(col, rowIndex), value=results[col].yOut)
+    if doSet and process._runEn and len(outputs) == numEnabledRows:
+        # Validate all rows before applying any of them, so a missing fit
+        # cannot leave a mixture of old and newly fitted operating points.
+        for rowIndex, results in zip(rowTuneList, outputs):
+            for col in enabledColumns:
+                result = results[col]
+                if any(value is None or not np.isfinite(value)
+                       for value in (result.xOut, result.biasOut, result.yOut)):
+                    raise RuntimeError(
+                        'SQ1 tune produced no finite fitted operating point '
+                        f'for column {col}, row {rowIndex}')
 
-        group.DeactivateRowIndex(rowIndex)
+        # The legacy FastDacVariable whole-table getter assumes 32 rows.
+        # Indexed writes preserve untuned rows without using that getter.
+        for rowIndex, results in zip(rowTuneList, outputs):
+            for col in enabledColumns:
+                result = results[col]
+                group.Sq1BiasCurrent.set(index=(col, rowIndex), value=result.biasOut)
+                group.Sq1FbCurrent.set(index=(col, rowIndex), value=result.xOut)
+                group.SaFbCurrent.set(index=(col, rowIndex), value=result.yOut)
 
     return outputs
 

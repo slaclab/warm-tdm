@@ -1,3 +1,9 @@
+# This file is part of the WarmTDM software package. It is subject to
+# the license terms in LICENSE.txt in the top-level directory and at:
+# https://confluence.slac.stanford.edu/display/ppareg/LICENSE.html.
+# No part may be copied, modified, propagated or distributed except under
+# those license terms.
+
 import pyrogue as pr
 import warm_tdm_api
 import numpy as np
@@ -140,8 +146,9 @@ class SaTuneProcess(pr.Process):
         self.add(pr.LocalVariable(name='SetAfterFinish',
                                   value=False,
                                   mode='RW',
-                                  description="This variale controls if the tuning point found at the end of the process is set back. "
-                                              "Otherwise the previous values of SaFb and SaBias will be restored."))
+                                  description="Apply the fitted SA bias and feedback after a complete tune, "
+                                              "then adjust the offset at that operating point. If false, "
+                                              "the fitted point is not applied; sweep settings are not restored."))
 
         # SA Tuning Results
         self.add(pr.LocalVariable(name='SaTuneOutput',

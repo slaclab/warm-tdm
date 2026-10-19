@@ -11,6 +11,7 @@ Client API
    virtual_client
    variables
    commands
+   tuning
 
 
 
